@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ShotRequest,
   composeShot,
   frameCount,
   frameSize,
   loadCatalog,
   mergePost,
   parseCatalog,
+  ShotRequest,
   takeSeeds,
 } from '../src/index.ts';
 
@@ -60,9 +60,14 @@ describe('composeShot', () => {
   it('writes action, camera, rig and look in order', () => {
     const shot = composeShot(
       catalog,
-      req({ motion: [{ id: 'dolly-in' }], look: { lighting: 'golden-hour', palette: 'honey-moss', genre: 'pastoral' } }),
+      req({
+        motion: [{ id: 'dolly-in' }],
+        look: { lighting: 'golden-hour', palette: 'honey-moss', genre: 'pastoral' },
+      }),
     );
-    expect(shot.prompt).toMatch(/^A beekeeper lifts the lid of a hive at dawn\. The camera slowly dollies in/);
+    expect(shot.prompt).toMatch(
+      /^A beekeeper lifts the lid of a hive at dawn\. The camera slowly dollies in/,
+    );
     expect(shot.prompt).toContain('vintage anamorphic lens');
     expect(shot.prompt).toContain('f/2.0, very shallow depth of field');
     expect(shot.prompt).toContain('Golden hour light');
@@ -90,9 +95,9 @@ describe('composeShot', () => {
   });
 
   it('names the field when a preset is unknown', () => {
-    expect(() => composeShot(catalog, req({ rig: { body: 'nope', lens: 'clean', focal: 35, aperture: 2 } }))).toThrow(
-      expect.objectContaining({ field: 'rig.body' }),
-    );
+    expect(() =>
+      composeShot(catalog, req({ rig: { body: 'nope', lens: 'clean', focal: 35, aperture: 2 } })),
+    ).toThrow(expect.objectContaining({ field: 'rig.body' }));
   });
 
   it('refuses more than two motions', () => {

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'smol-toml';
-import { Catalog, ModelLock, lockKey } from './schema.ts';
+import { Catalog, lockKey, ModelLock } from './schema.ts';
 
 /** The repo's `presets/` folder. Overridable so packaged builds can ship it elsewhere. */
 export const defaultPresetsDir = (): string =>
@@ -19,7 +19,8 @@ export function parseCatalog(cinemaToml: string, modelsToml: string, lockJson: s
   const catalog = Catalog.parse(raw);
   const lock = ModelLock.parse(JSON.parse(lockJson));
   const problems = checkCatalog(catalog, lock);
-  if (problems.length) throw new Error(`Preset catalog has ${problems.length} problem(s):\n- ${problems.join('\n- ')}`);
+  if (problems.length)
+    throw new Error(`Preset catalog has ${problems.length} problem(s):\n- ${problems.join('\n- ')}`);
   return { catalog, lock };
 }
 
@@ -37,16 +38,46 @@ export function checkCatalog(c: Catalog, lock: ModelLock): string[] {
       seen.add(id);
     }
   };
-  unique('body', c.bodies.map((x) => x.id));
-  unique('lens', c.lenses.map((x) => x.id));
-  unique('focal length', c.focals.map((x) => x.mm));
-  unique('motion', c.motions.map((x) => x.id));
-  unique('lighting', c.lightings.map((x) => x.id));
-  unique('palette', c.palettes.map((x) => x.id));
-  unique('genre', c.genres.map((x) => x.id));
-  unique('era', c.eras.map((x) => x.id));
-  unique('aspect', c.aspects.map((x) => x.id));
-  unique('model', c.models.map((x) => x.id));
+  unique(
+    'body',
+    c.bodies.map((x) => x.id),
+  );
+  unique(
+    'lens',
+    c.lenses.map((x) => x.id),
+  );
+  unique(
+    'focal length',
+    c.focals.map((x) => x.mm),
+  );
+  unique(
+    'motion',
+    c.motions.map((x) => x.id),
+  );
+  unique(
+    'lighting',
+    c.lightings.map((x) => x.id),
+  );
+  unique(
+    'palette',
+    c.palettes.map((x) => x.id),
+  );
+  unique(
+    'genre',
+    c.genres.map((x) => x.id),
+  );
+  unique(
+    'era',
+    c.eras.map((x) => x.id),
+  );
+  unique(
+    'aspect',
+    c.aspects.map((x) => x.id),
+  );
+  unique(
+    'model',
+    c.models.map((x) => x.id),
+  );
 
   const aspects = new Set(c.aspects.map((a) => a.id));
   for (const l of c.lenses) {

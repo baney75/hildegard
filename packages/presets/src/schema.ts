@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 /** Lower-case ids with dashes: stable keys used by the UI, the MCP tools and saved projects. */
-export const Id = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/, 'ids are lower-case letters, digits and dashes');
+export const Id = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{0,47}$/, 'ids are lower-case letters, digits and dashes');
 
 const Text = z.string().min(1).max(400);
 
@@ -48,7 +50,13 @@ export const MotionCategory = z.enum(['push', 'orbit', 'vertical', 'handheld', '
  */
 export const MotionImpl = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('lora'), lora: Id, strength: z.number().min(0).max(2).default(1) }).strict(),
-  z.object({ kind: z.literal('guide'), clip: z.string().min(1), strength: z.number().min(0).max(2).default(1) }).strict(),
+  z
+    .object({
+      kind: z.literal('guide'),
+      clip: z.string().min(1),
+      strength: z.number().min(0).max(2).default(1),
+    })
+    .strict(),
   z.object({ kind: z.literal('prompt') }).strict(),
 ]);
 
@@ -64,7 +72,9 @@ export const Motion = z
   })
   .strict();
 
-export const Lighting = z.object({ id: Id, name: Text, blurb: Text, prompt: Text, post: PartialPost.default({}) }).strict();
+export const Lighting = z
+  .object({ id: Id, name: Text, blurb: Text, prompt: Text, post: PartialPost.default({}) })
+  .strict();
 export const Palette = z
   .object({
     id: Id,
@@ -78,7 +88,12 @@ export const Palette = z
 export const Named = z.object({ id: Id, name: Text, prompt: Text }).strict();
 
 export const Aspect = z
-  .object({ id: z.string().regex(/^\d+(\.\d+)?:\d+$/), name: Text, width: z.number().int(), height: z.number().int() })
+  .object({
+    id: z.string().regex(/^\d+(\.\d+)?:\d+$/),
+    name: Text,
+    width: z.number().int(),
+    height: z.number().int(),
+  })
   .strict();
 
 export const ModelDir = z.enum([
@@ -95,7 +110,10 @@ export const ModelDir = z.enum([
 export const ModelFile = z
   .object({
     repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
-    path: z.string().min(1).refine((p) => !p.includes('..') && !p.startsWith('/'), 'relative path inside the repo'),
+    path: z
+      .string()
+      .min(1)
+      .refine((p) => !p.includes('..') && !p.startsWith('/'), 'relative path inside the repo'),
     /** Where it goes under ComfyUI's models folder. */
     dir: ModelDir,
     /** Approximate size in bytes, shown before the lock is fetched. */
@@ -112,13 +130,19 @@ export const LockedFile = z
     size: z.number().int().positive(),
   })
   .strict();
-export const ModelLock = z.object({ version: z.literal(1), files: z.record(z.string(), LockedFile) }).strict();
+export const ModelLock = z
+  .object({ version: z.literal(1), files: z.record(z.string(), LockedFile) })
+  .strict();
 export type LockedFile = z.infer<typeof LockedFile>;
 export type ModelLock = z.infer<typeof ModelLock>;
 export const lockKey = (f: { repo: string; path: string }) => `${f.repo}/${f.path}`;
 
 export const Quality = z
-  .object({ height: z.number().int(), steps: z.number().int().min(1).max(80), cfg: z.number().min(0).max(20) })
+  .object({
+    height: z.number().int(),
+    steps: z.number().int().min(1).max(80),
+    cfg: z.number().min(0).max(20),
+  })
   .strict();
 
 export const Model = z
@@ -204,10 +228,18 @@ export const ShotRequest = z
       .strict()
       .default({ aspect: '16:9', seconds: 5, quality: 'final' }),
     model: Id.optional(),
-    seed: z.number().int().min(0).max(2 ** 32 - 1).optional(),
+    seed: z
+      .number()
+      .int()
+      .min(0)
+      .max(2 ** 32 - 1)
+      .optional(),
     takes: z.number().int().min(1).max(4).default(1),
     /** An uploaded still to start from (image to video). */
-    startFrame: z.string().regex(/^[a-f0-9]{64}\.(png|jpg|webp)$/).optional(),
+    startFrame: z
+      .string()
+      .regex(/^[a-f0-9]{64}\.(png|jpg|webp)$/)
+      .optional(),
   })
   .strict();
 export type ShotRequest = z.infer<typeof ShotRequest>;

@@ -7,7 +7,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -139,14 +139,23 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
       j.step++;
       if (j.failAt && j.step >= j.failAt.step) {
         clearInterval(timer);
-        j.error = { code: j.failAt.code, message: j.failAt.message, node_id: j.failAt.node ?? null, class_type: 'SamplerCustomAdvanced' } as FakeJob['error'];
+        j.error = {
+          code: j.failAt.code,
+          message: j.failAt.message,
+          node_id: j.failAt.node ?? null,
+          class_type: 'SamplerCustomAdvanced',
+        } as FakeJob['error'];
         setStatus(j, 'failed');
         running = undefined;
         pump();
         return;
       }
       emit(j, 'progress', progress(j));
-      emit(j, 'preview', { node_id: '', content_type: 'image/jpeg', data_base64: preview.toString('base64') });
+      emit(j, 'preview', {
+        node_id: '',
+        content_type: 'image/jpeg',
+        data_base64: preview.toString('base64'),
+      });
       if (j.step >= j.steps) {
         clearInterval(timer);
         const saveNode = Object.entries(j.workflow).find(([, n]) => n.class_type === 'SaveVideo')?.[0] ?? '';
@@ -182,7 +191,11 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
       if (req.method === 'POST' && path === '/api/v2/jobs') {
         const body = JSON.parse((await readBody(req)).toString('utf8'));
         const wf = body?.workflow;
-        if (!wf || typeof wf !== 'object' || Object.values(wf).some((n) => typeof (n as { class_type?: unknown })?.class_type !== 'string'))
+        if (
+          !wf ||
+          typeof wf !== 'object' ||
+          Object.values(wf).some((n) => typeof (n as { class_type?: unknown })?.class_type !== 'string')
+        )
           return error(res, 422, 'invalid_workflow', 'workflow must be an API-format graph');
         const text = JSON.stringify(wf);
         const twoStage = text.includes('LTXVLatentUpsampler');
@@ -201,7 +214,11 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
           listeners: new Set(),
         };
         if (text.includes('[fail:oom]'))
-          j.failAt = { step: 2, code: 'out_of_memory', message: 'Allocation on device failed: CUDA out of memory.' };
+          j.failAt = {
+            step: 2,
+            code: 'out_of_memory',
+            message: 'Allocation on device failed: CUDA out of memory.',
+          };
         if (text.includes('[fail:node]'))
           j.failAt = { step: 1, code: 'execution_error', message: 'Error while running node', node: '5' };
         jobs.set(j.id, j);
@@ -221,12 +238,16 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
         }
         if (m[2] === '/events') {
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-          const write = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          const write = (event: string, data: unknown) =>
+            res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
           write('status', { status: j.status, queue_position: queuePosition(j) });
           if (['succeeded', 'failed', 'canceled', 'expired'].includes(j.status)) return res.end();
           const listener = (event: string, data: unknown) => {
             write(event, data);
-            if (event === 'status' && ['succeeded', 'failed', 'canceled'].includes((data as { status: string }).status)) {
+            if (
+              event === 'status' &&
+              ['succeeded', 'failed', 'canceled'].includes((data as { status: string }).status)
+            ) {
               j.listeners.delete(listener);
               res.end();
             }

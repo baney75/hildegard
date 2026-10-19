@@ -63,12 +63,31 @@ interface Loaded {
 }
 
 function loadLtx25(g: GraphBuilder, m: Model): Loaded {
-  const unet = g.add('UNETLoader', { unet_name: fileIn(m, 'diffusion_models', /transformer/), weight_dtype: 'default' }, 'Model');
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /transformer/), weight_dtype: 'default' },
+    'Model',
+  );
   const vvae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /video-vae/) }, 'Video VAE');
   const avae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /audio-vae/) }, 'Audio VAE');
-  const clip = g.add('CLIPLoader', { clip_name: fileIn(m, 'text_encoders', /./), type: 'ltxv', device: 'default' }, 'Text encoder');
-  const up = g.add('LatentUpscaleModelLoader', { model_name: fileIn(m, 'latent_upscale_models', /spatial/) }, 'Upscaler');
-  return { model: out(unet), video_vae: out(vvae), audio_vae: out(avae), clip: out(clip), upscaler: out(up), sampler: 'euler_ancestral' };
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /./), type: 'ltxv', device: 'default' },
+    'Text encoder',
+  );
+  const up = g.add(
+    'LatentUpscaleModelLoader',
+    { model_name: fileIn(m, 'latent_upscale_models', /spatial/) },
+    'Upscaler',
+  );
+  return {
+    model: out(unet),
+    video_vae: out(vvae),
+    audio_vae: out(avae),
+    clip: out(clip),
+    upscaler: out(up),
+    sampler: 'euler_ancestral',
+  };
 }
 
 function loadLtx2(g: GraphBuilder, m: Model, shot: ComposedShot): Loaded {
@@ -80,7 +99,11 @@ function loadLtx2(g: GraphBuilder, m: Model, shot: ComposedShot): Loaded {
     { text_encoder: fileIn(m, 'text_encoders', /./), ckpt_name: ckptName, device: 'default' },
     'Text encoder',
   );
-  const up = g.add('LatentUpscaleModelLoader', { model_name: fileIn(m, 'latent_upscale_models', /spatial/) }, 'Upscaler');
+  const up = g.add(
+    'LatentUpscaleModelLoader',
+    { model_name: fileIn(m, 'latent_upscale_models', /spatial/) },
+    'Upscaler',
+  );
   // Camera-control LoRAs stack on the model; their strength scales with how strongly the move was asked for.
   let model: Link = out(ckpt);
   for (const motion of shot.motions) {
@@ -89,12 +112,23 @@ function loadLtx2(g: GraphBuilder, m: Model, shot: ComposedShot): Loaded {
     if (!lora) throw new Error(`Model ${m.id} lacks LoRA ${motion.impl.lora}`);
     const id = g.add(
       'LoraLoaderModelOnly',
-      { model, lora_name: fileName(lora.path), strength_model: round2(motion.impl.strength * motion.strength) },
+      {
+        model,
+        lora_name: fileName(lora.path),
+        strength_model: round2(motion.impl.strength * motion.strength),
+      },
       `Camera: ${motion.name}`,
     );
     model = out(id);
   }
-  return { model, video_vae: out(ckpt, 2), audio_vae: out(avae), clip: out(clip), upscaler: out(up), sampler: 'euler' };
+  return {
+    model,
+    video_vae: out(ckpt, 2),
+    audio_vae: out(avae),
+    clip: out(clip),
+    upscaler: out(up),
+    sampler: 'euler',
+  };
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -114,7 +148,9 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
 
   const w1 = shot.twoStage ? shot.width / 2 : shot.width;
   const h1 = shot.twoStage ? shot.height / 2 : shot.height;
-  let video: Link = out(g.add('EmptyLTXVLatentVideo', { width: w1, height: h1, length: shot.frames, batch_size: 1 }));
+  let video: Link = out(
+    g.add('EmptyLTXVLatentVideo', { width: w1, height: h1, length: shot.frames, batch_size: 1 }),
+  );
 
   let image: Link | undefined;
   let startFrameNode: string | undefined;
@@ -128,7 +164,15 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
       crop: 'center',
     });
     image = out(g.add('LTXVPreprocess', { image: out(scaled), img_compression: 18 }));
-    video = out(g.add('LTXVImgToVideoInplace', { vae: L.video_vae, image, latent: video, strength: 0.7, bypass: false }));
+    video = out(
+      g.add('LTXVImgToVideoInplace', {
+        vae: L.video_vae,
+        image,
+        latent: video,
+        strength: 0.7,
+        bypass: false,
+      }),
+    );
   }
 
   const audio = g.add('LTXVEmptyLatentAudio', {
@@ -138,7 +182,12 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
     audio_vae: L.audio_vae,
   });
   const sampler = g.add('KSamplerSelect', { sampler_name: L.sampler });
-  const guider = g.add('CFGGuider', { model: L.model, positive: out(cond, 0), negative: out(cond, 1), cfg: m[shot.quality].cfg });
+  const guider = g.add('CFGGuider', {
+    model: L.model,
+    positive: out(cond, 0),
+    negative: out(cond, 1),
+    cfg: m[shot.quality].cfg,
+  });
 
   const stage = (latent: Link, sigmas: string, noiseSeed: number, title: string): string => {
     const av = g.add('LTXVConcatAVLatent', { video_latent: latent, audio_latent: [audio, 0] });
@@ -157,8 +206,17 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
 
   let separated = stage(video, STAGE1_SIGMAS, seed, 'Stage 1');
   if (shot.twoStage) {
-    let up: Link = out(g.add('LTXVLatentUpsampler', { samples: out(separated, 0), upscale_model: L.upscaler, vae: L.video_vae }));
-    if (image) up = out(g.add('LTXVImgToVideoInplace', { vae: L.video_vae, image, latent: up, strength: 1, bypass: false }));
+    let up: Link = out(
+      g.add('LTXVLatentUpsampler', {
+        samples: out(separated, 0),
+        upscale_model: L.upscaler,
+        vae: L.video_vae,
+      }),
+    );
+    if (image)
+      up = out(
+        g.add('LTXVImgToVideoInplace', { vae: L.video_vae, image, latent: up, strength: 1, bypass: false }),
+      );
     const av = g.add('LTXVConcatAVLatent', { video_latent: up, audio_latent: out(separated, 1) });
     separated = stageFrom(out(av), STAGE2_SIGMAS, (seed + 1) % 2 ** 32, 'Stage 2');
   }
@@ -183,7 +241,8 @@ export function checkLinks(graph: ApiGraph): string[] {
   const problems: string[] = [];
   for (const [id, node] of Object.entries(graph)) {
     for (const [k, v] of Object.entries(node.inputs)) {
-      if (Array.isArray(v) && !graph[v[0]]) problems.push(`node ${id} (${node.class_type}).${k} links to missing node ${v[0]}`);
+      if (Array.isArray(v) && !graph[v[0]])
+        problems.push(`node ${id} (${node.class_type}).${k} links to missing node ${v[0]}`);
     }
   }
   return problems;

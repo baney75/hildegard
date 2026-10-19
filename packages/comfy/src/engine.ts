@@ -57,13 +57,23 @@ export interface Engine {
 /** Map a ComfyUI failure into a code and a plain sentence. */
 export function classifyFailure(code: string | undefined, message: string | undefined): EngineError {
   const text = `${code ?? ''} ${message ?? ''}`;
-  if (/out[ _]of[ _]memory|OutOfMemory|CUDA out of memory|Allocation on device|MPS backend out of memory/i.test(text))
+  if (
+    /out[ _]of[ _]memory|OutOfMemory|CUDA out of memory|Allocation on device|MPS backend out of memory/i.test(
+      text,
+    )
+  )
     return new EngineError('out_of_memory', 'Your GPU ran out of memory.', message);
   if (/deserializing header|header too small|incomplete metadata|invalid load key|unexpected EOF/i.test(text))
     return new EngineError('model_corrupt', 'A model file is damaged or only partly downloaded.', message);
-  if (/value_not_in_list|not in list|No such file|FileNotFoundError|ckpt_name|unet_name|clip_name|vae_name|lora_name/i.test(text))
+  if (
+    /value_not_in_list|not in list|No such file|FileNotFoundError|ckpt_name|unet_name|clip_name|vae_name|lora_name/i.test(
+      text,
+    )
+  )
     return new EngineError('model_missing', 'A model file this shot needs is not installed.', message);
-  if (/invalid_workflow|missing_node_type|not found.*node|Cannot execute because a node is missing/i.test(text))
+  if (
+    /invalid_workflow|missing_node_type|not found.*node|Cannot execute because a node is missing/i.test(text)
+  )
     return new EngineError('invalid_graph', 'ComfyUI is missing a node this shot needs.', message);
   return new EngineError('node_failed', 'ComfyUI stopped with an error.', message ?? code ?? '');
 }
@@ -99,7 +109,9 @@ export class ComfySdkEngine implements Engine {
 
   async ping(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.url}/api/v2/jobs/hildegard-ping`, { signal: AbortSignal.timeout(2000) });
+      const res = await fetch(`${this.url}/api/v2/jobs/hildegard-ping`, {
+        signal: AbortSignal.timeout(2000),
+      });
       return res.status === 404 || res.ok;
     } catch {
       return false;
@@ -138,7 +150,12 @@ export class ComfySdkEngine implements Engine {
               started = true;
               handlers.onRunning?.();
             }
-            handlers.onProgress?.({ value: ev.value, step: ev.step, steps: ev.steps, node: ev.currentNodeClass });
+            handlers.onProgress?.({
+              value: ev.value,
+              step: ev.step,
+              steps: ev.steps,
+              node: ev.currentNodeClass,
+            });
           } else if (ev.kind === 'preview' && ev.data.length) {
             handlers.onPreview?.(ev.data, ev.contentType);
           }
@@ -151,10 +168,12 @@ export class ComfySdkEngine implements Engine {
       if (signal?.aborted) throw new EngineError('canceled', 'Canceled.');
       await job.wait({ signal } as never).catch(() => {});
       await job.refresh(signal);
-      if (job.status === 'canceled' || job.status === 'canceling') throw new EngineError('canceled', 'Canceled.');
+      if (job.status === 'canceled' || job.status === 'canceling')
+        throw new EngineError('canceled', 'Canceled.');
       if (job.status !== 'succeeded') throw classifyFailure(job.error?.code, job.error?.message);
       // comfy-api-proxy 0.1.6 labels SaveVideo files type "image", so trust the content type.
-      const isVideo = (o: { type: string; contentType: string }) => o.type === 'video' || o.contentType.startsWith('video/');
+      const isVideo = (o: { type: string; contentType: string }) =>
+        o.type === 'video' || o.contentType.startsWith('video/');
       const output = job.getOutputs(built.outputNode).find(isVideo) ?? job.outputs.find(isVideo);
       if (!output) throw new EngineError('node_failed', 'ComfyUI finished but saved no video.');
       await output.toFile(opts.dest, { signal });
@@ -167,7 +186,11 @@ export class ComfySdkEngine implements Engine {
     if (e instanceof EngineError) return e;
     const err = e as { code?: string; message?: string; name?: string; cause?: { code?: string } };
     const msg = err?.message ?? String(e);
-    if (/ECONNREFUSED|fetch failed|ENOTFOUND|EHOSTUNREACH|ConnectionError/i.test(`${msg} ${err?.cause?.code ?? ''} ${err?.name}`))
+    if (
+      /ECONNREFUSED|fetch failed|ENOTFOUND|EHOSTUNREACH|ConnectionError/i.test(
+        `${msg} ${err?.cause?.code ?? ''} ${err?.name}`,
+      )
+    )
       return new EngineError('engine_offline', 'ComfyUI is not running.', msg);
     if (err?.name === 'AbortError') return new EngineError('canceled', 'Canceled.');
     return classifyFailure(err?.code, msg);
