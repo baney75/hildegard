@@ -15,6 +15,7 @@ For people and coding agents changing this repository. (Installing Hildegard for
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
 | `comfy-nodes/hildegard_look` | The film-look ComfyUI node (Python): grain, halation, gate weave |
+| `omarchy/` | The Omarchy bar widget (QML, a bash backend, `Model.js` for what it shows). Its own README, tests and rules: `node scripts/check-omarchy.mjs` |
 | `install/` | `install.sh` and `install.ps1`; `scripts/build-release.mjs` fills in versions and hashes |
 | `presets/` | Apache-2.0 preset data. `models.lock.json` pins every model file by revision and SHA-256 |
 
@@ -33,6 +34,7 @@ UI works without a GPU. Put `[fail:oom]` or `[fail:node]` in a prompt to see fai
 
 ```sh
 pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
+node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you touched omarchy/
 ```
 
 CI runs those on Linux, macOS and Windows; renders a real (tiny) video through ComfyUI and comfy-api-proxy; builds the

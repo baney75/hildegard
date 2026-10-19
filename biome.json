@@ -10,7 +10,8 @@
       "!workflows/**/*.json",
       "!**/playwright-report",
       "!**/test-results",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!omarchy/Model.js"
     ]
   },
   "formatter": {

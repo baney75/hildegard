@@ -38,6 +38,9 @@ Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Supp
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,
 added to your PATH). To remove Hildegard, run `hildegard stop` and delete that folder.
 
+On [Omarchy](https://omarchy.org), the [Hildegard bar widget](omarchy/README.md) shows renders in your bar and can do
+the install for you.
+
 ## Hugging Face
 
 Wan downloads without an account. LTX asks you to accept its license on Hugging Face first, so Hildegard needs your

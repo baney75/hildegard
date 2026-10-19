@@ -26,6 +26,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: node scripts/notices.mjs --check
+      - run: node scripts/check-omarchy.mjs
 
   # Typecheck, unit tests, the UI build and the browser tests, on each desktop OS Hildegard runs on.
   test:
@@ -49,6 +50,9 @@ jobs:
       - run: python -m pip install av==19.0.1 numpy==2.5.3
       - run: pnpm typecheck
       - run: pnpm test
+      # The Omarchy bar widget: Omarchy is Linux only.
+      - if: runner.os == 'Linux'
+        run: node --test omarchy/test/*.test.mjs
       - run: pnpm --filter @hildegard/studio build
       - name: Install Chromium for the browser tests
         run: pnpm --filter @hildegard/studio exec playwright install --with-deps chromium
