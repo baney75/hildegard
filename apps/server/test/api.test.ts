@@ -98,15 +98,31 @@ describe('shots and takes', () => {
     const ac = new AbortController();
     const res = await api('/api/events', { signal: ac.signal });
     const reader = res.body!.getReader();
-    await post('/api/shots', { request: request() });
+    const { takes } = (await (await post('/api/shots', { request: request() })).json()) as { takes: Take[] };
     let text = '';
     await until(async () => {
       text += new TextDecoder().decode((await reader.read()).value);
-      return text.includes('"status":"done"');
+      const batches = text.split('event: batch').slice(1).join('');
+      return batches.includes(`"id":"${takes.at(-1)!.id}"`) && /"status":"done"/.test(batches);
     });
     ac.abort();
-    expect(text).toContain('event: hello');
-    expect(text).toContain('event: batch');
+    // The first event carries a full snapshot, so a client never has to fetch one and race the stream.
+    const hello = JSON.parse(
+      text
+        .split('\n')
+        .find((l) => l.startsWith('data: '))!
+        .slice(6),
+    ) as { snapshot: Snapshot };
+    expect(hello.snapshot.engine.fake).toBe(true);
+  });
+
+  it('serves the poster for a preview asked for just after the take finished', async () => {
+    const { takes } = (await (await post('/api/shots', { request: request() })).json()) as { takes: Take[] };
+    await until(() => take(takes[0]!.id).status === 'done');
+    const res = await api(`/api/takes/${takes[0]!.id}/preview?v=3`, { redirect: 'manual' });
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe(`/media/${takes[0]!.id}.jpg`);
+    expect((await api('/api/takes/nope/preview')).status).toBe(404);
   });
 
   it('explains a bad preset and points at the field', async () => {

@@ -34,7 +34,9 @@ export async function startServer(
   let fake: FakeProxy | null = null;
   let comfyUrl = config.comfyUrl;
   if (config.fake) {
-    fake = await startFakeProxy({ tickMs: opts.fakeTickMs ?? 120 });
+    fake = await startFakeProxy({
+      tickMs: opts.fakeTickMs ?? (Number(process.env.HILDEGARD_FAKE_TICK_MS) || 120),
+    });
     comfyUrl = fake.url;
   }
 

@@ -250,6 +250,12 @@ export class Scheduler {
         take.queuePosition = null;
         take.finishedAt = new Date().toISOString();
         take.renderMs = Date.now() - started;
+        // A stopped take keeps its last frame as a poster, so the card shows where it got to.
+        const last = this.previews.get(take.id);
+        if (last && !take.poster) {
+          await writeFile(join(this.mediaDir, `${take.id}.jpg`), last.bytes).catch(() => {});
+          take.poster = `/media/${take.id}.jpg`;
+        }
         this.previews.delete(take.id);
       }
       this.store.putTake(take);

@@ -1,0 +1,448 @@
+:root,[data-theme="dark"]{--on-brand-secondary:#e6ece0;--text-faint:#8a8a84}
+[data-theme="light"]{--on-brand-secondary:#e6ece0;--text-faint:#6b675a}
+/* Cinema Studio: new components built in the Hildegard system's language. Every value is a system token. */
+
+/* ── Frame ─────────────────────────────────────────────────────────── */
+.cs { font-family: var(--font-sans); font-size: 15px; line-height: 22px; color: var(--text-primary); background: var(--canvas); -webkit-font-smoothing: antialiased; }
+.cs * { box-sizing: border-box; }
+:where(.cs button) { font-family: inherit; font-size: inherit; color: inherit; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.muted { color: var(--text-muted); }
+.sec-text { color: var(--text-secondary); }
+.ovl { font: 600 11px/16px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Studio layout: rail · Director · board · inspector ────────────── */
+.hg-app.cs-studio {
+  height: 100%; min-height: 0;
+  grid-template-columns: var(--rail-width) 272px minmax(0, 1fr) 340px;
+  grid-template-rows: var(--topbar-height) minmax(0, 1fr) auto;
+  grid-template-areas: "nav top top top" "nav dir board insp" "nav dir dock insp";
+}
+.hg-app.cs-studio.no-insp { grid-template-columns: var(--rail-width) 272px minmax(0, 1fr); grid-template-areas: "nav top top" "nav dir board" "nav dir dock"; }
+.cs-studio .hg-app__nav { grid-area: nav; }
+.cs-studio .hg-app__top { grid-area: top; padding: 0 var(--space-5); gap: var(--space-4); }
+.cs-crumb { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.cs-crumb .t { font: 600 24px/30px var(--font-display); white-space: nowrap; }
+.cs-crumb .s { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.cs-topsep { width: 1px; height: 24px; background: var(--hairline); }
+
+/* ── Director rail ─────────────────────────────────────────────────── */
+.cs-dir { grid-area: dir; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 18px; padding: 16px 16px 20px; background: var(--panel); border-right: 1px solid var(--hairline); }
+.cs-dir__head { display: flex; align-items: center; justify-content: space-between; }
+.cs-dir__head h2 { margin: 0; font: 600 20px/26px var(--font-display); }
+.cs-sec { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.cs-sec__h { display: flex; align-items: center; justify-content: space-between; }
+.cs-look {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; cursor: pointer;
+  background: color-mix(in oklab, var(--sapphire-deep), transparent 10%); border: 1px solid color-mix(in oklab, var(--sapphire-text), transparent 65%); border-radius: var(--radius-md);
+}
+.cs-look .sw { display: flex; gap: 3px; flex: none; }
+.cs-look .sw i { width: 10px; height: 22px; border-radius: 3px; display: block; }
+.cs-look b { display: block; font-size: 13px; line-height: 16px; font-weight: 600; }
+.cs-look small { display: block; font-size: 12px; line-height: 16px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-pick {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; text-align: left; cursor: pointer;
+  background: var(--raised); border: 1px solid var(--border-control); border-radius: var(--radius-md);
+}
+.cs-pick .v { flex: 1; min-width: 0; }
+.cs-pick .v b { display: block; font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-pick .v small { display: block; font: 400 11px/15px var(--font-mono); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-pick > .i:last-child { color: var(--text-muted); }
+.cs-pick img { width: 44px; height: 30px; object-fit: cover; border-radius: var(--radius-xs); flex: none; }
+.cs-pick .glyph { width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center; background: var(--sapphire-deep); color: var(--text-primary); flex: none; }
+.cs-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; gap: 2px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); }
+.cs-seg button { height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); font: 600 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap; padding: 0 6px; }
+.cs-seg button[aria-checked="true"] { background: var(--raised); color: var(--text-primary); box-shadow: var(--shadow-1); }
+.cs-seg button .mem { display: block; margin-top: 2px; font: 400 10px/12px var(--font-mono); color: var(--text-muted); }
+.cs-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cs-seed { display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 6px 0 12px; border-radius: var(--radius-md); background: var(--raised); border: 1px solid var(--border-control); }
+.cs-seed .num { flex: 1; font-size: 14px; }
+.cs-lock { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; border: 0; background: color-mix(in oklab, var(--brand), transparent 75%); color: var(--brand-text); cursor: pointer; }
+.cs-lock[aria-pressed="false"] { background: transparent; color: var(--text-muted); }
+.cs-step { display: flex; align-items: center; height: 40px; border-radius: var(--radius-md); background: var(--raised); border: 1px solid var(--border-control); overflow: hidden; }
+.cs-step button { width: 36px; height: 100%; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; display: grid; place-items: center; }
+.cs-step .num { flex: 1; text-align: center; font-size: 15px; }
+.cs-draft { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); }
+.cs-draft .t { flex: 1; min-width: 0; }
+.cs-draft b { display: block; font-size: 13px; line-height: 16px; }
+.cs-draft small { display: block; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.cs-dir__foot { margin-top: auto; display: grid; gap: 8px; }
+.cs-dir > *, .cs-insp__body > *, .cs-insp > * { flex-shrink: 0; }
+.cs-row2 > * { min-width: 0; }
+
+/* ── Board ─────────────────────────────────────────────────────────── */
+.cs-board { grid-area: board; min-height: 0; overflow: hidden; padding: 18px 24px 8px; display: flex; flex-direction: column; gap: 22px; }
+.cs-shot { display: grid; gap: 12px; }
+.cs-shot__h { display: flex; align-items: center; gap: 12px; }
+.cs-shot__no { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font: 500 13px/1 var(--font-mono); background: var(--raised); border: 1px solid var(--hairline); color: var(--text-secondary); flex: none; }
+.cs-shot__t { font: 600 20px/26px var(--font-display); white-space: nowrap; }
+.cs-shot__m { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-shot__a { margin-left: auto; display: flex; gap: 4px; }
+.cs-takes { display: flex; gap: 14px; align-items: flex-start; }
+.cs-stack { display: grid; gap: 0; justify-items: start; }
+.cs-from { display: flex; align-items: center; gap: 6px; height: 22px; margin: 4px 0 4px 18px; padding-left: 12px; border-left: 1.5px solid var(--border-control); font: 400 11px/14px var(--font-mono); color: var(--text-muted); }
+
+/* ── Result card ───────────────────────────────────────────────────── */
+.cs-card { width: 236px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; flex: none; }
+.cs-card.w-lg { width: 300px; }
+.cs-card.w-sm { width: 196px; }
+.cs-card__media { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-lg); overflow: hidden; background: var(--sapphire-deep); border: 1px solid var(--hairline); }
+.cs-card__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-card.is-selected .cs-card__media { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.cs-card.is-running .cs-card__media { box-shadow: var(--glow-live); border-color: transparent; }
+.cs-card.is-queued .cs-card__media { border: 1.5px dashed color-mix(in oklab, var(--sapphire-text), transparent 40%); background: color-mix(in oklab, var(--sapphire-deep), var(--canvas) 30%); }
+.cs-card.is-failed .cs-card__media { border: 1.5px solid color-mix(in oklab, var(--burgundy-text), transparent 40%); }
+.cs-badge { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--canvas), transparent 22%); backdrop-filter: blur(8px); font: 600 11px/1 var(--font-sans); letter-spacing: .02em; color: var(--text-primary); }
+.cs-badge.r { left: auto; right: 8px; font-family: var(--font-mono); font-weight: 500; }
+.cs-badge.draft { left: auto; right: 8px; color: var(--text-secondary); }
+.cs-play { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in oklab, var(--canvas), transparent 30%); backdrop-filter: blur(8px); color: var(--text-primary); border: 1px solid color-mix(in oklab, var(--text-primary), transparent 75%); }
+.cs-acts { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: color-mix(in oklab, var(--canvas), transparent 14%); backdrop-filter: blur(10px); border: 1px solid var(--hairline); }
+.cs-acts button { flex: 1 1 0; min-width: 0; padding: 0; height: 30px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.cs-acts button:hover, .cs-acts button.on { background: color-mix(in oklab, transparent, var(--text-primary) 10%); color: var(--text-primary); }
+.cs-tip { position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 4px 8px; border-radius: 6px; background: var(--raised); border: 1px solid var(--hairline); box-shadow: var(--shadow-2); font: 600 12px/16px var(--font-sans); color: var(--text-primary); }
+.cs-card__meta { display: flex; flex-direction: column; gap: 1px; padding: 0 2px; }
+.cs-card__meta b { font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-card__meta .num { font-size: 11px; line-height: 15px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-card__meta .st { font-size: 12px; line-height: 16px; }
+/* running preview: frames arrive into a strip */
+.cs-live { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(transparent 40%, color-mix(in oklab, var(--canvas), transparent 25%)); }
+.cs-live__ring { width: 48px; height: 48px; padding: 4px; border-radius: 50%; background: color-mix(in oklab, var(--canvas), transparent 25%); backdrop-filter: blur(8px); box-shadow: var(--glow-live); }
+.cs-live__ring circle { fill: none; stroke-width: 3; }
+.cs-live__ring .tr { stroke: color-mix(in oklab, var(--text-primary), transparent 80%); }
+.cs-live__ring .br { stroke: var(--gold); stroke-linecap: round; }
+.cs-live__ring .in { stroke: var(--brand-text); stroke-linecap: round; }
+.cs-frames { position: absolute; left: 8px; right: 8px; bottom: 8px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cs-frames i { height: 18px; border-radius: 3px; background: color-mix(in oklab, var(--text-primary), transparent 86%); display: block; overflow: hidden; }
+.cs-frames i.d { background-size: cover; background-position: center; }
+.cs-frames i.now { outline: 1.5px solid var(--gold); }
+.cs-qmeta { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 4px; text-align: center; padding: 10px; }
+.cs-qmeta b { font-size: 13px; line-height: 18px; }
+.cs-qmeta .num { font-size: 11px; color: var(--text-secondary); }
+
+/* ── Dock: prompt + frames ─────────────────────────────────────────── */
+.cs-dock { grid-area: dock; padding: 10px 24px 18px; display: grid; gap: 10px; background: linear-gradient(transparent, var(--canvas) 30%); }
+.cs-prompt { display: grid; gap: 10px; padding: 12px 14px 12px; background: var(--raised); border: 1px solid var(--hairline); border-radius: var(--radius-xl); box-shadow: var(--shadow-2), 0 0 0 6px color-mix(in oklab, var(--sapphire-deep), transparent 55%); position: relative; }
+.cs-prompt__line { display: block; font: 400 16px/28px var(--font-sans); color: var(--text-primary); min-height: 28px; }
+.cs-prompt__line .cs-ref { margin-right: 4px; }
+.cs-prompt__line .ph { color: var(--text-muted); position: static; inset: auto; display: inline; flex-direction: initial; }
+.cs-caret { display: inline-block; width: 1.5px; height: 20px; background: var(--text-primary); vertical-align: middle; margin-left: 1px; }
+.cs-ref { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 3px; border-radius: var(--radius-pill); background: var(--panel); border: 1px solid var(--border-control); font: 600 13px/1 var(--font-sans); color: var(--text-primary); vertical-align: middle; white-space: nowrap; }
+.cs-ref img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.cs-ref .frame { width: 34px; height: 22px; border-radius: 4px; }
+.cs-ref .k { color: var(--text-muted); font-weight: 400; }
+.cs-ref.el { border-color: color-mix(in oklab, var(--brand-text), transparent 45%); }
+.cs-ref.el .at { color: var(--brand-text); }
+.cs-ref .i { color: var(--text-muted); }
+.cs-prompt__row { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.cs-prompt__foot { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.cs-prompt__foot .cs-cost { margin-left: 0; flex: 1; min-width: 0; white-space: normal; }
+.cs-chipbtn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--hairline); background: var(--panel); color: var(--text-secondary); font: 600 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.cs-chipbtn.on { color: var(--text-primary); border-color: var(--border-control); }
+.cs-cost { margin-left: auto; font-size: 13px; line-height: 18px; color: var(--text-secondary); white-space: nowrap; }
+.cs-cost .num { color: var(--state-saved); }
+.cs-cost .spent { color: var(--state-spent); }
+.cs-create { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 14px; border: 0; border-radius: var(--radius-md); background: var(--brand); color: var(--on-brand); cursor: pointer; text-align: left; flex: none; }
+.cs-create b { display: block; font: 600 15px/18px var(--font-sans); }
+.cs-create small { display: block; font: 400 11px/14px var(--font-mono); opacity: .86; }
+.cs-create.ext { background: var(--brand); }
+.cs-slots { display: flex; align-items: center; gap: 10px; }
+.cs-slot { position: relative; width: 168px; height: 76px; border-radius: var(--radius-md); border: 1.5px dashed var(--border-control); background: var(--panel); display: grid; place-items: center; color: var(--text-muted); font-size: 12px; overflow: hidden; }
+.cs-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cs-slot .lbl { position: absolute; left: 6px; top: 6px; height: 20px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--canvas), transparent 20%); font: 600 11px/1 var(--font-sans); color: var(--text-primary); }
+.cs-slot.filled { border-style: solid; border-color: var(--hairline); }
+.cs-slot.drop { border-color: var(--brand-text); background: color-mix(in oklab, var(--brand), transparent 80%); color: var(--brand-text); box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand), transparent 75%); }
+.cs-loop { display: flex; align-items: center; gap: 8px; padding: 0 4px; font-size: 13px; color: var(--text-secondary); }
+
+/* ── Inspector ─────────────────────────────────────────────────────── */
+.cs-insp { grid-area: insp; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--hairline); }
+.cs-insp__media { position: relative; aspect-ratio: 16 / 9; background: var(--sapphire-deep); }
+.cs-insp__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-scrub { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+.cs-scrub .bar { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in oklab, var(--text-primary), transparent 70%); position: relative; }
+.cs-scrub .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; border-radius: 2px; background: var(--text-primary); }
+.cs-scrub .num { font-size: 11px; }
+.cs-insp__body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.cs-insp__title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cs-insp__title h3 { margin: 0; font: 600 20px/26px var(--font-display); }
+.cs-kv { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 6px 10px; font-size: 13px; line-height: 18px; }
+.cs-kv dt { color: var(--text-muted); }
+.cs-kv dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-kv dd.num { font-size: 12px; }
+.cs-promptbox { padding: 10px 12px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); font-size: 13px; line-height: 19px; color: var(--text-secondary); }
+.cs-actgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cs-act { display: grid; justify-items: center; align-content: start; gap: 4px; min-height: 58px; padding: 9px 2px 8px; border-radius: var(--radius-md); background: var(--raised); border: 1px solid var(--hairline); color: var(--text-secondary); font: 600 11px/13px var(--font-sans); text-align: center; cursor: pointer; }
+.cs-act .i { color: var(--text-primary); }
+.cs-dl { display: grid; gap: 6px; }
+.cs-dlrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--raised); border: 1px solid var(--hairline); font-size: 13px; }
+.cs-dlrow .num { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.cs-note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.cs-note .i { color: var(--brand-text); margin-top: 0; }
+
+/* ── Sheets and overlays ───────────────────────────────────────────── */
+.cs-scrim { position: absolute; inset: 0; background: var(--scrim); }
+.cs-sheet { position: absolute; background: var(--raised); border: 1px solid var(--hairline); border-radius: var(--radius-xl); box-shadow: var(--shadow-2); display: flex; flex-direction: column; overflow: hidden; }
+.cs-sheet__h { display: flex; align-items: center; gap: 14px; padding: 18px 22px 14px; border-bottom: 1px solid var(--hairline); }
+.cs-sheet__h h2 { margin: 0; font: 600 28px/32px var(--font-display); }
+.cs-sheet__h p { margin: 2px 0 0; font-size: 13px; color: var(--text-secondary); }
+.cs-sheet__f { display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--hairline); background: var(--panel); }
+.cs-steps { display: flex; gap: 6px; align-items: center; }
+.cs-stepi { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 6px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); font: 600 13px/1 var(--font-sans); color: var(--text-secondary); background: var(--panel); }
+.cs-stepi .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 500 11px/1 var(--font-mono); background: var(--canvas); color: var(--text-muted); }
+.cs-stepi.done .n { background: var(--brand); color: var(--on-brand); }
+.cs-stepi.cur { color: var(--text-primary); border-color: var(--brand-text); }
+.cs-stepi.cur .n { background: var(--brand-text); color: var(--canvas); }
+.cs-stepi .v { color: var(--text-muted); font-weight: 400; }
+
+/* option cards with sample frames (rig, look, model) */
+.cs-opts { display: grid; gap: 14px; }
+.cs-opt { position: relative; display: grid; gap: 8px; padding: 8px 8px 10px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); cursor: pointer; text-align: left; }
+.cs-opt img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-md); display: block; }
+.cs-opt b { display: block; font-size: 14px; line-height: 18px; font-weight: 600; padding: 0 4px; }
+.cs-opt small { display: block; font-size: 12px; line-height: 16px; color: var(--text-muted); padding: 0 4px; }
+.cs-opt[aria-checked="true"] { border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); }
+.cs-opt .chk { position: absolute; top: 14px; right: 14px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: var(--on-brand); }
+.cs-focal { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.cs-focal button { height: 64px; border-radius: var(--radius-md); border: 1px solid var(--hairline); background: var(--panel); cursor: pointer; display: grid; place-content: center; gap: 2px; }
+.cs-focal button b { font: 500 18px/20px var(--font-mono); }
+.cs-focal button small { font-size: 11px; color: var(--text-muted); }
+.cs-focal button[aria-checked="true"] { border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); }
+
+/* motion presets */
+.cs-mgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.cs-motion { position: relative; display: grid; gap: 6px; padding: 6px 6px 9px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); text-align: left; cursor: pointer; }
+.cs-motion .th { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius-md); overflow: hidden; background: var(--sapphire-deep); }
+.cs-motion .th img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .55; }
+.cs-motion .th svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cs-motion .th .path { fill: none; stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cs-motion .th .cam { fill: var(--brand-text); stroke: var(--canvas); stroke-width: 1.5; }
+.cs-motion b { font-size: 13px; line-height: 16px; padding: 0 3px; }
+.cs-motion small { font-size: 11px; line-height: 14px; color: var(--text-muted); padding: 0 3px; }
+.cs-motion[aria-checked="true"] { border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); }
+.cs-motion .ord { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: var(--on-brand); font: 500 11px/1 var(--font-mono); }
+.cs-motion .hov { position: absolute; left: 12px; top: 12px; height: 20px; padding: 0 7px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 4px; background: color-mix(in oklab, var(--canvas), transparent 20%); font: 600 10px/1 var(--font-sans); color: var(--text-primary); }
+
+/* switches, sliders */
+.cs-sw { position: relative; width: 40px; height: 24px; flex: none; border-radius: var(--radius-pill); border: 1px solid var(--border-control); background: var(--panel); cursor: pointer; }
+.cs-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-secondary); }
+.cs-sw[aria-checked="true"] { background: var(--brand); border-color: var(--brand); }
+.cs-sw[aria-checked="true"]::after { transform: translateX(16px); background: var(--on-brand); }
+.cs-slider { display: grid; gap: 6px; }
+.cs-slider .track { position: relative; height: 4px; border-radius: 2px; background: var(--hairline); }
+.cs-slider .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--brand-text); }
+.cs-slider .track b { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--text-primary); box-shadow: var(--shadow-1); }
+.cs-slider .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+
+/* elements */
+.cs-el { display: grid; gap: 10px; padding: 10px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); }
+.cs-el .cover { position: relative; aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden; }
+.cs-el .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-el .refs { display: flex; gap: 4px; }
+.cs-el .refs img, .cs-el .refs i { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; display: block; background: var(--raised); border: 1px solid var(--hairline); }
+.cs-el h4 { margin: 0; font: 600 18px/22px var(--font-display); }
+.cs-el .meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.cs-kind { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--canvas); border: 1px solid var(--hairline); font: 600 11px/1 var(--font-sans); color: var(--text-secondary); }
+.cs-voice { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--brand-text); }
+.cs-orb { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--brand-text), var(--brand)); display: inline-block; }
+
+/* menus and popovers */
+.cs-pop { position: absolute; background: var(--raised); border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); overflow: hidden; }
+.cs-menuh { padding: 10px 12px 6px; }
+.cs-mi { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 14px; }
+.cs-mi.on { background: color-mix(in oklab, var(--brand), transparent 82%); }
+.cs-mi img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; }
+.cs-mi small { display: block; font-size: 12px; color: var(--text-muted); line-height: 16px; }
+.cs-mi .kbd { margin-left: auto; font: 400 11px/1 var(--font-mono); color: var(--text-muted); padding: 4px 6px; border: 1px solid var(--hairline); border-radius: 5px; }
+
+/* fit pills (shared with Models in round 3) */
+.cs-fit { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); font: 600 11px/1 var(--font-sans); white-space: nowrap; }
+.cs-fit::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.cs-fit.ok { color: var(--brand-text); background: color-mix(in oklab, var(--brand), transparent 82%); }
+.cs-fit.slow { color: var(--text-secondary); background: color-mix(in oklab, var(--text-primary), transparent 90%); }
+.cs-fit.slow::before { background: transparent; border: 1.5px solid currentColor; width: 6px; height: 6px; }
+.cs-fit.no { color: var(--burgundy-text); background: color-mix(in oklab, var(--burgundy), transparent 78%); }
+.cs-fit.no::before { border-radius: 1px; transform: rotate(45deg); width: 6px; height: 6px; }
+.cs-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: var(--radius-pill); font: 600 10px/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); border: 1px solid color-mix(in oklab, var(--brand-text), transparent 55%); }
+
+/* timeline */
+.cs-tl { display: grid; gap: 8px; padding: 12px 16px 14px; background: var(--panel); border-top: 1px solid var(--hairline); }
+.cs-tl__ruler { position: relative; height: 18px; font: 400 10px/18px var(--font-mono); color: var(--text-muted); }
+.cs-tl__track { position: relative; height: 66px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); }
+.cs-clip { position: absolute; top: 5px; bottom: 5px; border-radius: 8px; overflow: hidden; border: 1px solid color-mix(in oklab, var(--text-primary), transparent 80%); background: var(--sapphire-deep); }
+.cs-clip img { height: 100%; width: 100%; object-fit: cover; display: block; opacity: .9; }
+.cs-clip .nm { position: absolute; left: 6px; bottom: 5px; height: 18px; padding: 0 6px; border-radius: 5px; display: inline-flex; align-items: center; background: color-mix(in oklab, var(--canvas), transparent 18%); font: 600 11px/1 var(--font-sans); }
+.cs-clip .hd { position: absolute; top: 0; bottom: 0; width: 8px; background: var(--text-primary); display: grid; place-items: center; }
+.cs-clip .hd::after { content: ""; width: 2px; height: 16px; border-radius: 1px; background: var(--canvas); }
+.cs-clip.sel { border: 2px solid var(--brand-text); }
+.cs-xd { position: absolute; top: 5px; bottom: 5px; border-radius: 6px; background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--silver), transparent 50%) 0 4px, transparent 4px 8px); border: 1px solid var(--silver); }
+.cs-head { position: absolute; top: -26px; bottom: -6px; width: 2px; background: var(--text-primary); }
+.cs-head::before { content: ""; position: absolute; top: 0; left: -5px; width: 12px; height: 10px; background: var(--text-primary); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.cs-audio { position: relative; height: 34px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); overflow: hidden; }
+
+/* node view */
+.cs-graph { position: relative; background-color: var(--canvas); background-image: radial-gradient(color-mix(in oklab, var(--text-primary), transparent 88%) 1px, transparent 1px); background-size: 20px 20px; }
+.cs-node { position: absolute; width: 230px; border-radius: var(--radius-lg); background: var(--raised); border: 1px solid var(--hairline); box-shadow: var(--shadow-2); }
+.cs-node.sel { border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text), var(--shadow-2); }
+.cs-node.locked { border-color: var(--silver); }
+.cs-node.live { box-shadow: var(--glow-live), var(--shadow-2); }
+.cs-node__h { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--hairline); }
+.cs-node__h b { font-size: 13px; line-height: 16px; flex: 1; }
+.cs-node__h .i { color: var(--text-muted); }
+.cs-node__b { padding: 8px 12px 10px; display: grid; gap: 6px; font-size: 12px; line-height: 16px; color: var(--text-secondary); }
+.cs-node__b img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; display: block; }
+.cs-port { position: relative; display: flex; align-items: center; gap: 6px; height: 20px; font: 600 11px/14px var(--font-sans); color: var(--text-secondary); }
+.cs-port.out { justify-content: flex-end; }
+.cs-port .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--raised); top: 4px; box-sizing: content-box; margin: -2px; }
+.cs-port.in .dot { left: -19px; } .cs-port.out .dot { right: -19px; }
+.cs-port .ty { font: 400 10px/14px var(--font-mono); color: var(--text-muted); }
+.t-text { background: var(--silver); } .t-image { background: var(--sapphire-text); } .t-video { background: var(--brand-text); } .t-audio { background: var(--raised); box-shadow: inset 0 0 0 2.5px var(--text-primary); }
+.cs-wire { fill: none; stroke-width: 2; }
+
+/* states */
+.cs-state { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; align-content: start; gap: 10px; padding: 14px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); }
+.cs-free { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: var(--radius-pill); font: 600 10px/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); border: 1px solid color-mix(in oklab, var(--brand-text), transparent 55%); }
+.cs-reason { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--canvas); font-size: 13px; line-height: 18px; }
+.cs-reason b { color: var(--text-primary); }
+
+/* annotate */
+.cs-anno text { font: 600 15px var(--font-sans); }
+.cs-tools { display: grid; gap: 4px; padding: 6px; border-radius: var(--radius-lg); background: var(--raised); border: 1px solid var(--hairline); box-shadow: var(--shadow-2); }
+.cs-tools button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.cs-tools button[aria-pressed="true"] { background: color-mix(in oklab, var(--text-primary), transparent 86%); color: var(--text-primary); }
+.cs-mrow { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--hairline); background: var(--panel); }
+.cs-mrow[aria-checked="true"] { border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); }
+.cs-mrow .rd { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border-control); flex: none; margin-top: 2px; }
+.cs-mrow[aria-checked="true"] .rd { border: 5px solid var(--brand-text); }
+.cs-mrow b { display: block; font-size: 14px; line-height: 18px; }
+.cs-mrow small { display: block; font-size: 12px; line-height: 16px; color: var(--text-secondary); }
+.cs-mrow .num { font-size: 11px; color: var(--text-muted); }
+
+.cs-create.quiet { background: var(--raised); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border-control); }
+.cs-create.quiet small { color: var(--text-secondary); opacity: 1; }
+
+/* ══ Studio v2: canvas + one composer. No side rail of settings. ═══════ */
+.hg-app.cs-v2 { height: 100%; min-height: 0; grid-template-columns: var(--rail-width) minmax(0, 1fr) 360px; grid-template-rows: var(--topbar-height) minmax(0, 1fr); grid-template-areas: "nav top top" "nav stage insp"; }
+.hg-app.cs-v2.no-insp { grid-template-columns: var(--rail-width) minmax(0, 1fr); grid-template-areas: "nav top" "nav stage"; }
+.cs-v2 .hg-app__nav { grid-area: nav; }
+.cs-v2 .hg-app__top { grid-area: top; padding: 0 28px; gap: 16px; }
+.cs-v2 .cs-insp { grid-area: insp; }
+.cs-stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.cs-v2 .cs-board { padding: 22px 32px 220px; gap: 30px; height: 100%; }
+.cs-v2 .cs-shot { gap: 14px; }
+.cs-v2 .cs-shot__h { gap: 12px; }
+.cs-v2 .cs-shot__t { font-size: 22px; line-height: 28px; }
+.cs-grid { display: flex; gap: 16px; align-items: flex-start; }
+.cs-grid .cs-card { width: 200px; }
+.cs-card__meta b { font-weight: 500; font-size: 13px; color: var(--text-secondary); }
+.cs-card.is-selected .cs-card__meta b { color: var(--text-primary); }
+
+/* composer */
+.cs-comp { position: absolute; left: 32px; right: 32px; bottom: 18px; display: grid; gap: 8px; z-index: 3; }
+.cs-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 340px; background: linear-gradient(color-mix(in oklab, var(--canvas), transparent 100%) 34%, var(--canvas) 66%); pointer-events: none; z-index: 2; }
+.cs-comp__box { display: grid; gap: 12px; padding: 14px 14px 12px 16px; background: var(--raised); border: 1px solid var(--border-control); border-radius: 20px; box-shadow: var(--shadow-2); }
+.cs-comp__in { display: flex; gap: 12px; align-items: flex-start; min-height: 52px; }
+.cs-comp__in .cs-prompt__line { flex: 1; min-width: 0; font-size: 17px; line-height: 26px; padding-top: 2px; }
+.cs-attach { position: relative; flex: none; width: 76px; height: 48px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-control); background: var(--panel); padding: 0; cursor: pointer; display: grid; place-items: center; color: var(--text-muted); }
+.cs-attach img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-attach .lbl { position: absolute; left: 4px; bottom: 4px; height: 16px; padding: 0 5px; border-radius: 5px; font: 600 10px/16px var(--font-sans); background: color-mix(in oklab, var(--canvas), transparent 20%); color: var(--text-primary); }
+.cs-attach.empty { border-style: dashed; }
+.cs-comp__bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cs-pill { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 10px; border: 0; background: color-mix(in oklab, var(--panel), var(--text-primary) 4%); color: var(--text-primary); font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer; flex: none; }
+.cs-pill:hover { background: color-mix(in oklab, var(--panel), var(--text-primary) 9%); }
+.cs-pill .i { color: var(--text-secondary); }
+.cs-pill img { width: 26px; height: 18px; border-radius: 4px; object-fit: cover; }
+.cs-pill .sw { display: flex; gap: 2px; }
+.cs-pill .sw i { width: 5px; height: 16px; border-radius: 2px; display: block; }
+.cs-pill .num { font-size: 12px; color: var(--text-secondary); }
+.cs-pill.lock .i { color: var(--brand-text); }
+.cs-comp__bar .cs-create { margin-left: auto; height: 44px; border-radius: 12px; }
+.cs-comp__cost { margin: 0; text-align: center; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.cs-comp__cost .num { color: var(--state-saved); }
+.cs-comp__cost .spent { color: var(--state-spent); }
+.cs-mode { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--canvas); flex: none; }
+.cs-mode button { height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-sans); cursor: pointer; }
+.cs-mode button[aria-checked="true"] { background: var(--raised); color: var(--text-primary); box-shadow: var(--shadow-1); }
+
+/* inspector v2 */
+.cs-insp.v2 .cs-insp__body { padding: 18px 20px 20px; gap: 16px; }
+.cs-insp.v2 h3 { font-size: 24px; line-height: 30px; }
+.cs-meta1 { font: 400 12px/18px var(--font-mono); color: var(--text-muted); }
+.cs-meta1 .ok { color: var(--state-saved); }
+.cs-insp.v2 .cs-actgrid { gap: 8px; }
+.cs-insp.v2 .cs-act { background: transparent; border-color: var(--hairline); min-height: 64px; }
+.cs-row { display: flex; gap: 8px; }
+.cs-row > * { flex: 1 1 0; min-width: 0; justify-content: center; }
+.cs-disc { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--hairline); font-size: 13px; color: var(--text-secondary); }
+.cs-sub { font-size: 12px; line-height: 16px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-cardacts { display: flex; gap: 6px; margin-top: 8px; }
+.cs-cardacts .hg-btn { min-height: 32px; }
+.cs-v2 .cs-state-grid .cs-card { width: 200px; }
+.cs-hero { position: absolute; inset: 0 0 200px; display: grid; place-content: center; justify-items: center; gap: 28px; text-align: center; padding: 0 40px; }
+.cs-starters { display: flex; gap: 12px; }
+.cs-starter { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--hairline); color: var(--text-primary); font: 500 14px/1 var(--font-sans); cursor: pointer; }
+.cs-starter .i { color: var(--brand-text); }
+.cs-player { position: relative; border-radius: 16px; overflow: hidden; background: var(--sapphire-deep); }
+.cs-player img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-player .cs-mode { position: absolute; top: 12px; left: 12px; background: color-mix(in oklab, var(--canvas), transparent 20%); backdrop-filter: blur(8px); }
+.cs-player .cs-play { width: 56px; height: 56px; margin: -28px 0 0 -28px; }
+.cs-tray { display: flex; align-items: center; gap: 8px; }
+.cs-tk { position: relative; width: 88px; height: 50px; border-radius: 10px; overflow: hidden; border: 1px solid var(--hairline); padding: 0; background: var(--panel); cursor: pointer; flex: none; display: grid; place-items: center; color: var(--text-muted); }
+.cs-tk img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-tk .lbl { position: absolute; left: 4px; bottom: 4px; padding: 0 5px; border-radius: 5px; font: 600 10px/16px var(--font-sans); background: color-mix(in oklab, var(--canvas), transparent 20%); color: var(--text-primary); }
+.cs-tk.on { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.cs-tk.add { border-style: dashed; }
+.cs-attach.target { border: 1.5px dashed var(--brand-text); background: color-mix(in oklab, var(--brand), transparent 85%); color: var(--brand-text); }
+.cs-arrow { align-self: center; color: var(--text-muted); flex: none; }
+.no-insp .cs-comp { max-width: 980px; margin: 0 auto; }
+.cs-attach .i { color: inherit; }
+.cs-col { position: absolute; left: 0; right: 0; top: 24px; margin: 0 auto; width: 712px; display: grid; gap: 16px; }
+.cs-strip { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; height: 52px; border-radius: 10px; overflow: hidden; }
+.cs-strip img { width: 100%; height: 52px; object-fit: cover; display: block; }
+.cs-takesheet { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 24px 28px; border-radius: 22px 22px 0 0; background: var(--panel); border-top: 1px solid var(--border-control); box-shadow: var(--shadow-sheet); display: grid; gap: 16px; z-index: 4; }
+.cs-grab { width: 40px; height: 5px; border-radius: 3px; background: var(--border-control); justify-self: center; }
+
+/* ══ Folio: Hildegard's own board language ═══════════════════════════ */
+.cs-ambient { position: absolute; inset: -80px; background-size: cover; background-position: center; filter: blur(90px) saturate(1.2); opacity: .16; pointer-events: none; z-index: 0; }
+.cs-v2 .cs-board { position: relative; z-index: 1; }
+.cs-folio { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 8px; row-gap: 14px; }
+.cs-folio__no { grid-row: span 2; font: 500 34px/34px var(--font-display); color: var(--text-muted); text-align: right; padding-right: 10px; border-right: 1px solid var(--hairline); letter-spacing: .02em; }
+.cs-folio.on .cs-folio__no { color: var(--brand-text); border-right-color: color-mix(in oklab, var(--brand-text), transparent 50%); }
+.cs-folio__h { display: flex; align-items: baseline; gap: 14px; padding-left: 8px; }
+.cs-folio__t { font: 500 26px/32px var(--font-display); white-space: nowrap; }
+.cs-folio__rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--hairline), transparent); align-self: center; }
+.cs-folio__m { font-size: 12px; color: var(--text-muted); white-space: nowrap; letter-spacing: .02em; }
+.cs-folio .cs-grid { padding-left: 8px; }
+.cs-v2 .cs-card__media { border: 0; border-radius: 12px; box-shadow: 0 1px 0 color-mix(in oklab, var(--text-primary), transparent 92%) inset, var(--shadow-1); }
+.cs-v2 .cs-card.is-selected .cs-card__media { outline: 1.5px solid var(--vellum, var(--text-primary)); outline-offset: 3px; }
+.cs-v2 .cs-card.is-queued .cs-card__media { border: 1.5px dashed color-mix(in oklab, var(--sapphire-text), transparent 40%); }
+
+/* poster inspector */
+.cs-poster { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.cs-poster > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 66% 50%; }
+.cs-poster::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 38%, color-mix(in oklab, var(--panel), transparent 15%) 72%, var(--panel)); }
+.cs-poster__cap { position: absolute; left: 22px; right: 22px; bottom: 18px; z-index: 1; display: grid; gap: 8px; }
+.cs-poster__cap h3 { margin: 0; font: 500 34px/38px var(--font-display); }
+.cs-poster .cs-scrub { top: 18px; bottom: auto; left: 18px; right: 18px; z-index: 1; }
+.cs-poster .cs-play { z-index: 1; top: 34%; width: 60px; height: 60px; margin: -30px 0 0 -30px; }
+.cs-insp.v2.poster { overflow: hidden; }
+.cs-insp.v2.poster .cs-insp__body { flex: none; padding: 4px 22px 22px; }
+.cs-comp__box { border-radius: 22px; background: color-mix(in oklab, var(--raised), var(--canvas) 10%); box-shadow: var(--shadow-sheet), 0 0 0 1px color-mix(in oklab, var(--text-primary), transparent 94%) inset; }
+
+/* Create button, final form: no ornament icon, plain sub-label, concentric with the composer */
+.cs-create .i-studio { display: none; }
+.cs-create { gap: 10px; padding: 0 20px; border-radius: 14px; }
+.cs-create b { font: 600 15px/18px var(--font-sans); letter-spacing: -0.005em; }
+.cs-create small { font: 500 12px/15px var(--font-sans); opacity: 1; color: var(--on-brand-secondary); letter-spacing: 0; }
+.cs-comp__box { padding: 12px; border-radius: 26px; }
+.cs-comp__in { padding: 4px 4px 0 4px; }
+.cs-comp__bar { padding: 0; }
+.cs-comp__bar .cs-create { height: 52px; border-radius: 14px; min-width: 176px; justify-content: center; }
+
+/* Illuminated initial: the empty-state opening */
+.cs-illum-wrap { display: flex; align-items: flex-start; gap: 22px; }
+.cs-illum { width: 146px; height: 146px; flex: none; filter: drop-shadow(0 18px 40px color-mix(in oklab, var(--sapphire-deep), transparent 30%)); }
+.cs-hero__h { margin: 0; font: 500 68px/70px var(--font-display); letter-spacing: -0.01em; text-align: left; padding-top: 2px; }
+.cs-hero__sub { margin: 0; font-size: 16px; line-height: 24px; color: var(--text-secondary); }
+.cs-halo { position: absolute; left: 50%; top: 44%; width: 980px; height: 980px; margin: -490px 0 0 -490px; pointer-events: none; opacity: .5; }
+
+button.cs-play { border: 0; padding: 0; color: inherit; cursor: pointer; font: inherit; }

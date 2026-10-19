@@ -138,7 +138,9 @@ export function createApp(deps: AppDeps) {
         off();
         wake?.();
       });
-      await stream.writeSSE({ event: 'hello', data: JSON.stringify({ version: VERSION }) });
+      // The snapshot is taken in the same tick as the subscription, so no change can fall between the two.
+      const hello = JSON.stringify({ version: VERSION, snapshot: snapshot() });
+      await stream.writeSSE({ event: 'hello', data: hello });
       while (!stream.aborted) {
         if (!queue.length) {
           await Promise.race([new Promise<void>((r) => (wake = r)), stream.sleep(15_000)]);
@@ -356,8 +358,14 @@ export function createApp(deps: AppDeps) {
   );
 
   app.get('/api/takes/:id/preview', (c) => {
-    const p = scheduler.previews.get(c.req.param('id'));
-    if (!p) return c.body(null, 404);
+    const id = c.req.param('id');
+    const p = scheduler.previews.get(id);
+    if (!p) {
+      // The take finished between the event and this request: its last preview is now the poster.
+      if (/^\w+$/.test(id) && existsSync(join(mediaDir, `${id}.jpg`)))
+        return c.redirect(`/media/${id}.jpg`, 307);
+      return c.body(null, 404);
+    }
     c.header('cache-control', 'no-store');
     return c.body(Buffer.from(p.bytes), 200, { 'content-type': p.type });
   });
