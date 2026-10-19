@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Formatting, lint and the notices file: the same on every OS, so once.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: node scripts/notices.mjs --check
+
+  # Typecheck, unit tests, the UI build and the browser tests, on each desktop OS Hildegard runs on.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @hildegard/studio build
+      - name: Install Chromium for the browser tests
+        run: pnpm --filter @hildegard/studio exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          CI: '1'
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.os }}
+          path: |
+            apps/studio/test-results
+            apps/studio/playwright-report
+          retention-days: 7
+
+  # The film-look node, on CPU.
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install pytest
+      - run: python -m pytest -q
+        working-directory: comfy-nodes/hildegard_look
+
+  # Every graph Hildegard builds, validated by the ComfyUI version the installer pins. No GPU or weights needed.
+  comfyui:
+    runs-on: ubuntu-latest
+    env:
+      COMFYUI_REF: v0.42.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: comfyanonymous/ComfyUI
+          ref: ${{ env.COMFYUI_REF }}
+          path: .comfyui
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio && pip install -r .comfyui/requirements.txt
+      - run: cp -r comfy-nodes/hildegard_look .comfyui/custom_nodes/
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node packages/comfy/scripts/validate-on-comfy.ts --prepare .comfyui
+      - name: Start ComfyUI on CPU
+        run: |
+          cd .comfyui
+          nohup python main.py --cpu --listen 127.0.0.1 --port 8188 > ../comfyui.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8188/system_stats >/dev/null && exit 0; sleep 2; done
+          cat ../comfyui.log; exit 1
+      - run: node packages/comfy/scripts/validate-on-comfy.ts .comfyui
+      - name: Check the film-look node loaded
+        run: grep -q "hildegard_look" comfyui.log && ! grep -q "IMPORT FAILED.*hildegard_look" comfyui.log
+      - if: failure()
+        run: cat comfyui.log
