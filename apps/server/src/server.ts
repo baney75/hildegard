@@ -116,6 +116,13 @@ export async function startServer(
   const addr = server.address();
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
   const host = config.host.includes(':') ? `[${config.host}]` : config.host;
+  // Bound to one address (a Tailscale IP, say), it still answers on loopback: the CLI and linked AI apps use that.
+  const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)
+    ? null
+    : await new Promise<ReturnType<typeof serve>>((resolve, reject) => {
+        const s = serve({ fetch: app.fetch, hostname: '127.0.0.1', port }, () => resolve(s));
+        s.once('error', reject);
+      });
   scheduler.start();
 
   return {
@@ -131,6 +138,7 @@ export async function startServer(
       await runtime?.stop();
       store.flush();
       await new Promise<void>((r) => server.close(() => r()));
+      if (loopback) await new Promise<void>((r) => loopback.close(() => r()));
       await fake?.close();
     },
   };

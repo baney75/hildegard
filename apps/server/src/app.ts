@@ -114,7 +114,11 @@ export function createApp(deps: AppDeps) {
   const { config, store, scheduler, catalog, mediaDir } = deps;
   mkdirSync(join(mediaDir, 'uploads'), { recursive: true });
   const app = new Hono();
-  const allowedHosts = new Set([...LOOPBACK, ...config.allowedHosts.map((h) => h.toLowerCase())]);
+  // The address it is bound to is allowed too (a Tailscale IP, say); names must be listed with --allow-host.
+  const bound = ['0.0.0.0', '::'].includes(config.host)
+    ? []
+    : [config.host.includes(':') ? `[${config.host}]` : config.host];
+  const allowedHosts = new Set([...LOOPBACK, ...bound, ...config.allowedHosts].map((h) => h.toLowerCase()));
 
   // ── Security: DNS-rebinding and cross-site request protection ─────────────────────────────────────────────
   app.use('*', async (c, next) => {
@@ -470,6 +474,14 @@ export function createApp(deps: AppDeps) {
           license: model.license,
           licenseUrl: model.licenseUrl,
           terms: model.terms,
+        },
+        409,
+      );
+    if (model.gated && !deps.hf.state().linked)
+      return c.json(
+        {
+          error: `${model.name} downloads from Hugging Face, which wants your account. Link it in Settings › Hugging Face, or run \`hildegard hf login\`.`,
+          code: 'hf',
         },
         409,
       );

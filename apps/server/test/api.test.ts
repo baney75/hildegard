@@ -236,6 +236,13 @@ describe('model installs', () => {
     expect(srv.models.licenseAccepted('wan-2-2-ti2v-5b')).toBe(false);
     expect((await post('/api/models/nope/install', { acceptLicense: true })).status).toBe(404);
   });
+
+  it('asks for a Hugging Face account before a gated download starts', async () => {
+    const res = await post('/api/models/ltx-2-5-distilled/install', { acceptLicense: true });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'hf' });
+    expect(srv.models.states().find((m) => m.id === 'ltx-2-5-distilled')?.downloading).toBeNull();
+  });
 });
 
 describe('Hugging Face routes', () => {

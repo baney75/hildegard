@@ -42,7 +42,7 @@ Agents: see INSTALL-FOR-AGENTS.md. Everything stays on this computer.`;
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--') && !a.includes('=')).map((a) => a.slice(2)));
-const valued = new Set(['port', 'data', 'model', 'host', 'comfy', 'comfy-dir', 'ui']);
+const valued = new Set(['port', 'data', 'model', 'host', 'allow-host', 'comfy', 'comfy-dir', 'ui']);
 const opts = new Map<string, string>();
 const positional: string[] = [];
 for (let i = 0; i < argv.length; i++) {

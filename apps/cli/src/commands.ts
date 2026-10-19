@@ -104,6 +104,10 @@ export async function start(ctx: Ctx): Promise<Result> {
   const fd = openSync(log, 'a');
   const args = [entry(), 'start', '--foreground', '--port', String(c.port), '--data', c.dataDir];
   if (c.fake) args.push('--fake-gpu');
+  // The background server gets the same choices as this command.
+  if (c.host !== '127.0.0.1') args.push('--host', c.host);
+  if (c.allowedHosts.length) args.push('--allow-host', c.allowedHosts.join(','));
+  if (c.comfyExternal) args.push('--comfy', c.comfyUrl);
   const child = spawn(process.execPath, args, {
     detached: true,
     stdio: ['ignore', fd, fd],
@@ -216,8 +220,16 @@ export async function installModel(ctx: Ctx, id: string, accept: boolean): Promi
       detail: `No model “${id}”. Models: ${catalog.models.map((x) => x.id).join(', ')}.`,
     };
   const snap = await api<Snapshot>(ctx.config, '/api/snapshot');
-  if (snap.models.find((x) => x.id === id)?.installed)
-    return { id: 'model', title, status: 'skipped', detail: `${m.name} is installed.` };
+  const state = snap.models.find((x) => x.id === id);
+  if (state?.installed) return { id: 'model', title, status: 'skipped', detail: `${m.name} is installed.` };
+  if (state?.gated && !snap.hf.linked)
+    return {
+      id: 'model',
+      title,
+      status: 'needs-owner',
+      detail: `${m.name} downloads from Hugging Face, which wants the owner's account: link it, and accept the model's license on its Hugging Face page when asked.`,
+      command: 'hildegard hf login',
+    };
   try {
     await api(ctx.config, `/api/models/${id}/install`, { method: 'POST', body: { acceptLicense: accept } });
     return {
@@ -332,7 +344,13 @@ export async function setup(ctx: Ctx): Promise<Result> {
       console.log(`  ${pick.licenseUrl}`);
       accept = await ask(`Accept it and download ${pick.name}?`);
     }
-    add(await installModel(ctx, pick.id, accept));
+    let step = await installModel(ctx, pick.id, accept);
+    // At a terminal, link Hugging Face right here rather than sending the owner off to do it.
+    if (step.command === 'hildegard hf login' && process.stdin.isTTY && !ctx.json) {
+      const linked = await hf(ctx, ['login']);
+      if (linked.ok && !linked.needsOwner) step = await installModel(ctx, pick.id, accept);
+    }
+    add(step);
   }
 
   // Link the AI apps on this computer.

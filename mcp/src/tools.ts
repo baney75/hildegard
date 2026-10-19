@@ -419,6 +419,10 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
             `${a.model} comes under the ${String(e.body.license)} (${String(e.body.licenseUrl)}). Your user becomes its licensee. In short:\n${terms}\n\nShow this to your user and ask whether they accept. If they do, call install_model again with accept_license: true.`,
           );
         }
+        if (e instanceof HildegardError && e.body.code === 'hf')
+          return text(
+            `${a.model} downloads from Hugging Face, which needs your user's own account; you can't link it for them. Ask them to run \`hildegard hf login\` in a terminal on the computer Hildegard runs on (or use Settings › Hugging Face in the Studio), then call install_model again.`,
+          );
         throw e;
       }
     }),
