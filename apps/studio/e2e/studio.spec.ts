@@ -177,6 +177,19 @@ test('settings: models and Hugging Face linking', async ({ page }) => {
   await expect(page.locator('.hg-model__name', { hasText: 'LTX-2.5 distilled' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Link Hugging Face' })).toBeVisible();
   await expectAccessible(page, 'models');
+  // A model's license comes before its first download, in plain words, with the full text a click away.
+  const wan = page.locator('.hg-model', { hasText: 'Wan 2.2 5B' });
+  await wan.getByRole('button', { name: /^Get/ }).click();
+  const license = page.getByRole('dialog', { name: 'Wan 2.2 5B comes under the Apache-2.0' });
+  await expect(license.getByText('commercial work included')).toBeVisible();
+  await expect(license.getByRole('link', { name: 'Read the full Apache-2.0' })).toHaveAttribute(
+    'href',
+    /Wan2\.2/,
+  );
+  await expectAccessible(page, 'license');
+  await license.getByRole('button', { name: 'Not now' }).click();
+  await expect(license).toBeHidden();
+  await expect(wan.getByRole('button', { name: /^Get/ })).toBeVisible();
   await page.getByRole('button', { name: 'Link Hugging Face' }).click();
   await expect(page.getByRole('heading', { name: 'Link Hugging Face' })).toBeVisible();
   await page.getByLabel('Hugging Face token').fill('not-a-token');

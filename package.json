@@ -16,8 +16,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "pnpm -r test",
-    "e2e": "pnpm --filter @hildegard/studio e2e",
-    "validate": "node scripts/validate-presets.mjs"
+    "e2e": "pnpm --filter @hildegard/studio e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

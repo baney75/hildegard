@@ -199,7 +199,8 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
           return error(res, 422, 'invalid_workflow', 'workflow must be an API-format graph');
         const text = JSON.stringify(wf);
         const twoStage = text.includes('LTXVLatentUpsampler');
-        const steps = twoStage ? 11 : 8;
+        const ksampler = Object.values(wf as FakeJob['workflow']).find((n) => n.class_type === 'KSampler');
+        const steps = Number(ksampler?.inputs.steps) || (twoStage ? 11 : 8);
         const j: FakeJob = {
           id: randomUUID(),
           status: 'queued',

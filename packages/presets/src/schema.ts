@@ -154,11 +154,15 @@ export const Model = z
     license: Text,
     gated: z.boolean().default(false),
     licenseUrl: z.string().url(),
+    /** The license's main conditions in plain words, shown before the first download. */
+    terms: z.array(Text).min(1),
     /** Which graph builder in @hildegard/comfy renders this model. */
-    graph: z.enum(['ltx-2.5-distilled', 'ltx-2-distilled']),
+    graph: z.enum(['ltx-2.5-distilled', 'ltx-2-distilled', 'wan-2.2-ti2v']),
+    /** Final quality renders at half size and upsamples the latent (LTX's two-stage recipe). */
+    twoStageFinal: z.boolean().default(true),
     minVramGb: z.number().positive(),
     fps: z.number().int().positive(),
-    /** Frames must be 8n+1 for LTX. */
+    /** Frames come in multiples of this, plus one: 8n+1 for LTX, 4n+1 for Wan. */
     frameMultiple: z.number().int().positive(),
     maxSeconds: z.number().positive(),
     audio: z.boolean(),

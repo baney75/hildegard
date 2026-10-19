@@ -43,6 +43,7 @@ family = "x"
 blurb = "x"
 license = "x"
 licenseUrl = "https://example.com"
+terms = ["x"]
 graph = "ltx-2-distilled"
 minVramGb = 1
 fps = 24

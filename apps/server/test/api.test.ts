@@ -203,8 +203,20 @@ describe('shots and takes', () => {
   it('returns everything in one snapshot', async () => {
     const s = (await (await api('/api/snapshot')).json()) as Snapshot;
     expect(s.engine).toMatchObject({ online: true, fake: true });
-    expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled']);
+    expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled', 'wan-2-2-ti2v-5b']);
     expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false });
+  });
+});
+
+describe('model installs', () => {
+  it('shows the license terms and installs nothing until they are accepted', async () => {
+    const res = await post('/api/models/wan-2-2-ti2v-5b/install');
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { code: string; license: string; terms: string[] };
+    expect(body).toMatchObject({ code: 'license', license: 'Apache-2.0' });
+    expect(body.terms.length).toBeGreaterThan(0);
+    expect(srv.models.licenseAccepted('wan-2-2-ti2v-5b')).toBe(false);
+    expect((await post('/api/models/nope/install', { acceptLicense: true })).status).toBe(404);
   });
 });
 

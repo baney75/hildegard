@@ -1,4 +1,4 @@
-import type { Catalog, ModelState } from '@hildegard/presets';
+import type { Catalog, Model, ModelState } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { type Draft, setDraft } from '../lib/draft.ts';
@@ -661,8 +661,7 @@ export function ModelSheet({
           return (
             <ModelRow
               key={m.id}
-              name={m.name}
-              blurb={m.blurb}
+              model={m}
               detail={`${m.license} · ${m.minVramGb} GB GPU or more`}
               state={st}
               chosen={chosen}
@@ -684,8 +683,7 @@ export function ModelSheet({
 }
 
 export function ModelRow({
-  name,
-  blurb,
+  model,
   detail,
   state,
   chosen,
@@ -693,8 +691,7 @@ export function ModelRow({
   onChoose,
   onLink,
 }: {
-  name: string;
-  blurb: string;
+  model: Model;
   detail: string;
   state: ModelState | undefined;
   chosen?: boolean;
@@ -703,12 +700,20 @@ export function ModelRow({
   onLink: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
   const dl = state?.downloading;
-  const install = async () => {
+  const { name, blurb } = model;
+  const install = async (acceptLicense = false) => {
     if (!state) return;
+    // The license comes first, once per model and license version.
+    if (!state.licenseAccepted && !acceptLicense) {
+      setAsking(true);
+      return;
+    }
     setBusy(true);
     try {
-      await api.installModel(state.id);
+      await api.installModel(state.id, acceptLicense);
+      setAsking(false);
     } catch (e) {
       toastError(e);
     } finally {
@@ -758,11 +763,70 @@ export function ModelRow({
             Link Hugging Face
           </Button>
         ) : (
-          <Button size="sm" kind="primary" icon="download" onClick={install} busy={busy}>
+          <Button size="sm" kind="primary" icon="download" onClick={() => install()} busy={busy}>
             {state?.error ? 'Try again' : `Get · ${bytes(state?.missingBytes ?? 0)}`}
           </Button>
         )}
       </div>
+      {asking ? (
+        <LicenseDialog
+          model={model}
+          size={state?.missingBytes ?? 0}
+          busy={busy}
+          onAccept={() => install(true)}
+          onClose={() => setAsking(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/** Shown before a model's first download: its license, in plain words, with a link to the full text. */
+export function LicenseDialog({
+  model,
+  size,
+  busy,
+  onAccept,
+  onClose,
+}: {
+  model: Model;
+  size: number;
+  busy: boolean;
+  onAccept: () => void;
+  onClose: () => void;
+}) {
+  const id = `lic-${model.id}`;
+  return (
+    <Modal open onClose={onClose} labelledBy={id} variant="dialog" className="st-dialog hg-license">
+      <div className="st-dialog__h">
+        <div style={{ flex: 1 }}>
+          <h2 id={id}>
+            {model.name} comes under the {model.license}
+          </h2>
+          <p>You become its licensee when you download it. In short:</p>
+        </div>
+      </div>
+      <div className="st-dialog__b">
+        <ul className="hg-terms">
+          {model.terms.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+        <p className="body-sm">
+          <a href={model.licenseUrl} target="_blank" rel="noreferrer noopener">
+            Read the full {model.license}
+          </a>
+          . This summary is not legal advice; the license text is what counts.
+        </p>
+      </div>
+      <div className="st-dialog__f">
+        <Button kind="ghost" onClick={onClose} style={{ marginRight: 'auto' }} data-autofocus="">
+          Not now
+        </Button>
+        <Button kind="primary" icon="download" onClick={onAccept} busy={busy}>
+          Accept and download · {bytes(size)}
+        </Button>
+      </div>
+    </Modal>
   );
 }

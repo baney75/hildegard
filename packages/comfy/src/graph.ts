@@ -236,6 +236,78 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   return { graph: g.graph, outputNode: save, startFrameNode };
 }
 
+/**
+ * Wan 2.2 TI2V-5B: one dense model for text-to-video and image-to-video, 24 fps, no sound. A plain KSampler run over
+ * Wan's own latent, with the start frame (if any) encoded into the first latent frame.
+ */
+export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): BuiltGraph {
+  const g = new GraphBuilder();
+  const m = shot.model;
+  const q = m[shot.quality];
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /ti2v/), weight_dtype: 'default' },
+    'Model',
+  );
+  const model = g.add('ModelSamplingSD3', { model: out(unet), shift: 8 });
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /umt5/), type: 'wan', device: 'default' },
+    'Text encoder',
+  );
+  const vae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /wan2\.2_vae/) }, 'VAE');
+  const pos = g.add('CLIPTextEncode', { text: shot.prompt, clip: out(clip) }, 'Prompt');
+  const neg = g.add('CLIPTextEncode', { text: shot.negative, clip: out(clip) }, 'Negative prompt');
+
+  let startFrameNode: string | undefined;
+  const latentInputs: Record<string, InputValue> = {
+    vae: out(vae),
+    width: shot.width,
+    height: shot.height,
+    length: shot.frames,
+    batch_size: 1,
+  };
+  if (startFrame) {
+    startFrameNode = g.add('LoadImage', { image: startFrame }, 'Start frame');
+    latentInputs.start_image = out(
+      g.add('ImageScale', {
+        image: out(startFrameNode),
+        upscale_method: 'lanczos',
+        width: shot.width,
+        height: shot.height,
+        crop: 'center',
+      }),
+    );
+  }
+  const latent = g.add('Wan22ImageToVideoLatent', latentInputs);
+  const sampled = g.add(
+    'KSampler',
+    {
+      model: out(model),
+      seed,
+      steps: q.steps,
+      cfg: q.cfg,
+      sampler_name: 'uni_pc',
+      scheduler: 'simple',
+      positive: out(pos),
+      negative: out(neg),
+      latent_image: out(latent),
+      denoise: 1,
+    },
+    'Sampler',
+  );
+  const frames = g.add('VAEDecode', { samples: out(sampled), vae: out(vae) });
+  const look = g.add('HildegardLook', { images: out(frames), seed, ...shot.post }, 'Film look');
+  const vid = g.add('CreateVideo', { images: out(look), fps: shot.fps });
+  const save = g.add('SaveVideo', { video: out(vid), filename_prefix: prefix, format: 'mp4' }, 'Save');
+  return { graph: g.graph, outputNode: save, startFrameNode };
+}
+
+/** The graph for whichever model the shot uses. */
+export function buildGraph(input: GraphInput): BuiltGraph {
+  return input.shot.model.graph === 'wan-2.2-ti2v' ? buildWanGraph(input) : buildLtxGraph(input);
+}
+
 /** Every link must point at an existing node; a graph that fails this never reaches ComfyUI. */
 export function checkLinks(graph: ApiGraph): string[] {
   const problems: string[] = [];

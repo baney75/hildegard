@@ -81,7 +81,7 @@ export function frameSize(aspect: { width: number; height: number }, shortSide: 
   return { width: round(aspect.width * scale, step), height: round(aspect.height * scale, step) };
 }
 
-/** LTX wants 8n + 1 frames. */
+/** LTX wants 8n + 1 frames, Wan 4n + 1. */
 export function frameCount(fps: number, seconds: number, multiple: number): number {
   return 1 + Math.max(1, Math.round((fps * seconds) / multiple)) * multiple;
 }
@@ -166,7 +166,7 @@ export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
     .join(', while ');
 
   const seconds = Math.min(req.format.seconds, model.maxSeconds);
-  const twoStage = req.format.quality === 'final';
+  const twoStage = req.format.quality === 'final' && model.twoStageFinal;
   const quality = model[req.format.quality];
   const { width, height } = frameSize(aspect, quality.height, twoStage);
 

@@ -79,8 +79,7 @@ export function Welcome({
               {catalog.models.map((m) => (
                 <ModelRow
                   key={m.id}
-                  name={m.name}
-                  blurb={m.blurb}
+                  model={m}
                   detail={`${m.license} · needs a ${m.minVramGb} GB GPU or more`}
                   state={models.find((x) => x.id === m.id)}
                   needsLink={m.gated && !hf?.linked}

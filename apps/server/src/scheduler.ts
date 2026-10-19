@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { type BuiltGraph, buildLtxGraph, type Engine, EngineError } from '@hildegard/comfy';
+import { type BuiltGraph, buildGraph, type Engine, EngineError } from '@hildegard/comfy';
 import { type Catalog, composeShot, type EngineState, type Take, type TakeError } from '@hildegard/presets';
 import type { Store } from './store.ts';
 
@@ -192,7 +192,7 @@ export class Scheduler {
     const dest = join(this.mediaDir, `${take.id}.mp4`);
     try {
       const shot = composeShot(this.catalog, take.request);
-      const built: BuiltGraph = buildLtxGraph({
+      const built: BuiltGraph = buildGraph({
         shot,
         seed: take.seed,
         prefix: `hildegard/${take.id}`,

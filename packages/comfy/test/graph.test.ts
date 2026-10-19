@@ -4,7 +4,14 @@ import { join } from 'node:path';
 import { composeShot, loadCatalog, ShotRequest } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type FakeProxy, startFakeProxy } from '../src/fake-proxy.ts';
-import { buildLtxGraph, ComfySdkEngine, checkLinks, classifyFailure, EngineError } from '../src/index.ts';
+import {
+  buildGraph,
+  buildLtxGraph,
+  ComfySdkEngine,
+  checkLinks,
+  classifyFailure,
+  EngineError,
+} from '../src/index.ts';
 
 const { catalog } = loadCatalog();
 const shot = (over: Record<string, unknown> = {}) =>
@@ -17,6 +24,46 @@ const shot = (over: Record<string, unknown> = {}) =>
     }),
   );
 const classes = (g: Record<string, { class_type: string }>) => Object.values(g).map((n) => n.class_type);
+
+describe('buildWanGraph', () => {
+  const wan = (over: Record<string, unknown> = {}) => shot({ model: 'wan-2-2-ti2v-5b', ...over });
+
+  it('renders final quality in one pass at 704p, silent, with 4n+1 frames', () => {
+    const { graph, outputNode } = buildGraph({ shot: wan(), seed: 9, prefix: 'p' });
+    expect(checkLinks(graph)).toEqual([]);
+    expect(classes(graph)).toEqual(
+      expect.arrayContaining([
+        'UNETLoader',
+        'ModelSamplingSD3',
+        'Wan22ImageToVideoLatent',
+        'KSampler',
+        'HildegardLook',
+      ]),
+    );
+    expect(classes(graph).some((c) => c.startsWith('LTX'))).toBe(false);
+    const latent = Object.values(graph).find((n) => n.class_type === 'Wan22ImageToVideoLatent')!;
+    expect(latent.inputs).toMatchObject({ height: 704, width: 1248 });
+    expect((Number(latent.inputs.length) - 1) % 4).toBe(0);
+    expect(Object.values(graph).find((n) => n.class_type === 'KSampler')!.inputs).toMatchObject({
+      steps: 30,
+      cfg: 5,
+      seed: 9,
+    });
+    expect(Object.values(graph).find((n) => n.class_type === 'CreateVideo')!.inputs.audio).toBeUndefined();
+    expect(graph[outputNode]!.class_type).toBe('SaveVideo');
+  });
+
+  it('caps a take at the model’s 5 seconds and feeds a start frame into the latent', () => {
+    const s = wan({ format: { aspect: '16:9', seconds: 10, quality: 'draft' } });
+    expect(s.seconds).toBe(5);
+    expect(s.frames).toBe(121);
+    const { graph, startFrameNode } = buildGraph({ shot: s, seed: 1, prefix: 'p', startFrame: 'f.png' });
+    expect(graph[startFrameNode!]!.class_type).toBe('LoadImage');
+    const latent = Object.values(graph).find((n) => n.class_type === 'Wan22ImageToVideoLatent')!;
+    expect(Array.isArray(latent.inputs.start_image)).toBe(true);
+    expect(latent.inputs.height).toBe(480);
+  });
+});
 
 describe('buildLtxGraph', () => {
   it('builds a two-stage LTX-2.5 text-to-video graph with sound and the film look', () => {

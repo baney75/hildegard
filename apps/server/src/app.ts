@@ -381,10 +381,24 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── Models ──────────────────────────────────────────────────────────────────────────────────────────────────
-  app.post('/api/models/:id/install', (c) => {
+  app.post('/api/models/:id/install', async (c) => {
     const id = c.req.param('id');
-    if (!catalog.models.some((m) => m.id === id)) return c.json({ error: 'No such model' }, 404);
-    void deps.models.install(id);
+    const model = catalog.models.find((m) => m.id === id);
+    if (!model) return c.json({ error: 'No such model' }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as { acceptLicense?: unknown };
+    if (body.acceptLicense === true) deps.models.acceptLicense(id);
+    if (!deps.models.licenseAccepted(id))
+      return c.json(
+        {
+          error: `Accept the ${model.license} first.`,
+          code: 'license',
+          license: model.license,
+          licenseUrl: model.licenseUrl,
+          terms: model.terms,
+        },
+        409,
+      );
+    void deps.models.install(id).catch(() => {});
     return c.json(deps.models.states(), 202);
   });
   app.post('/api/models/:id/cancel', (c) =>

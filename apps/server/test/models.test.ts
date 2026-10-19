@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Catalog, loadCatalog, type ModelLock } from '@hildegard/presets';
@@ -82,10 +82,35 @@ function setup(
     fetch,
   });
   const dest = join(root, 'comfy', 'models', 'vae', 'tiny.safetensors');
-  return { mm, fetch, root, dest, events, file: catalog.models[0]!.files[0]! };
+  mm.acceptLicense('tiny');
+  return { mm, fetch, root, dest, events, catalog, file: catalog.models[0]!.files[0]! };
 }
 
 describe('ModelManager', () => {
+  it('will not download until the license is accepted, and asks again if the license changes', async () => {
+    const { root, fetch, catalog } = setup();
+    rmSync(join(root, 'licenses.json'));
+    const make = (c: Catalog) =>
+      new ModelManager({
+        comfyDir: join(root, 'comfy'),
+        dataDir: root,
+        catalog: c,
+        lock: { version: 1, files: {} },
+        tokens: { accessToken: async () => null },
+        onChange: () => {},
+        fetch,
+      });
+    const mm = make(catalog);
+    expect(mm.states()[0]!.licenseAccepted).toBe(false);
+    await expect(mm.install('tiny')).rejects.toThrow(/Accept the/);
+    expect(fetch.calls).toHaveLength(0);
+    mm.acceptLicense('tiny');
+    expect(mm.states()[0]!.licenseAccepted).toBe(true);
+    expect(make(catalog).licenseAccepted('tiny')).toBe(true);
+    const changed = { ...catalog, models: [{ ...catalog.models[0]!, license: 'Some New License' }] };
+    expect(make(changed).licenseAccepted('tiny')).toBe(false);
+  });
+
   it('downloads, verifies against the published hash, and pins what it checked', async () => {
     const { mm, dest, root, events } = setup();
     expect(mm.states()[0]).toMatchObject({ installed: false, missingBytes: BYTES.length });

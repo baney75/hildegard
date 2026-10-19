@@ -50,6 +50,13 @@ export interface TokenSource {
   accessToken(): Promise<string | null>;
 }
 
+/** What the user agreed to, and when: kept so a changed license is asked about again. */
+interface Acceptance {
+  license: string;
+  licenseUrl: string;
+  acceptedAt: string;
+}
+
 interface Job {
   abort: AbortController;
   done: number;
@@ -69,6 +76,8 @@ export class ModelManager {
   private readonly jobs = new Map<string, Job>();
   private readonly errors = new Map<string, string>();
   private verified: Record<string, Verified>;
+  private accepted: Record<string, Acceptance>;
+  private readonly acceptFile: string;
   private lastEmit = 0;
   private readonly recordFile: string;
   private readonly modelsDir: string;
@@ -91,6 +100,7 @@ export class ModelManager {
   }) {
     this.modelsDir = join(opts.comfyDir, 'models');
     this.recordFile = join(opts.dataDir, 'models.json');
+    this.acceptFile = join(opts.dataDir, 'licenses.json');
     this.catalog = opts.catalog;
     this.lock = opts.lock;
     this.tokens = opts.tokens;
@@ -102,6 +112,32 @@ export class ModelManager {
     } catch {
       this.verified = {};
     }
+    try {
+      this.accepted = JSON.parse(readFileSync(this.acceptFile, 'utf8')) as Record<string, Acceptance>;
+    } catch {
+      this.accepted = {};
+    }
+  }
+
+  licenseAccepted(id: string): boolean {
+    const m = this.model(id);
+    const a = this.accepted[id];
+    return !!a && a.license === m.license && a.licenseUrl === m.licenseUrl;
+  }
+
+  /** Record that the user accepted this model's license, as shown to them. */
+  acceptLicense(id: string) {
+    const m = this.model(id);
+    this.accepted[id] = {
+      license: m.license,
+      licenseUrl: m.licenseUrl,
+      acceptedAt: new Date().toISOString(),
+    };
+    mkdirSync(dirname(this.acceptFile), { recursive: true });
+    const tmp = `${this.acceptFile}.tmp`;
+    writeFileSync(tmp, JSON.stringify(this.accepted, null, 2));
+    renameSync(tmp, this.acceptFile);
+    this.emit(true);
   }
 
   private model(id: string): Model {
@@ -148,6 +184,7 @@ export class ModelManager {
           ? { done: job.done, total: job.total, file: job.file, bytesPerSec: Math.round(job.bytesPerSec) }
           : null,
         gated: m.gated,
+        licenseAccepted: this.licenseAccepted(m.id),
         error: this.errors.get(m.id) ?? null,
       };
     });
@@ -178,6 +215,11 @@ export class ModelManager {
   /** Start installing; progress arrives through onChange. Resolves when the model is ready or the install stops. */
   async install(id: string): Promise<void> {
     const m = this.model(id);
+    if (!this.licenseAccepted(id))
+      throw new ModelError(
+        'needs-license',
+        `Accept the ${m.license} in Hildegard before ${m.name} downloads.`,
+      );
     if (this.jobs.has(id)) return;
     const todo = this.filesOf(m).filter((f) => !this.isInstalled(f));
     if (!todo.length) return;

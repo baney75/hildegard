@@ -59,7 +59,8 @@ export const api = {
   pause: () => call('POST', '/api/engine/pause'),
   resume: () => call('POST', '/api/engine/resume'),
   upload: (file: Blob) => call<UploadResult>('POST', '/api/uploads', undefined, file),
-  installModel: (id: string) => call<ModelState[]>('POST', `/api/models/${id}/install`),
+  installModel: (id: string, acceptLicense = false) =>
+    call<ModelState[]>('POST', `/api/models/${id}/install`, { acceptLicense }),
   cancelModel: (id: string) => call<ModelState[]>('POST', `/api/models/${id}/cancel`),
   hfToken: (token: string) => call<HfState>('POST', '/api/hf/token', { token }),
   hfUnlink: () => call<HfState>('POST', '/api/hf/unlink'),

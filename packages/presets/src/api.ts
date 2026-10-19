@@ -87,6 +87,8 @@ export interface ModelState {
   downloading: { done: number; total: number; file: string; bytesPerSec: number } | null;
   /** Needs a Hugging Face sign-in and the license accepted on its page. */
   gated: boolean;
+  /** The user has accepted this model's current license in Hildegard. */
+  licenseAccepted: boolean;
   error: string | null;
 }
 
