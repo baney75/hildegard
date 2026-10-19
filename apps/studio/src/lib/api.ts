@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, HfState, ModelState, Project, Shot, Snapshot, Take } from '@hildegard/presets';
+import type {
+  AgentInfo,
+  AgentsResponse,
+  Catalog,
+  HfState,
+  ModelState,
+  Project,
+  SetupStep,
+  Shot,
+  Snapshot,
+  Take,
+} from '@hildegard/presets';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -67,4 +78,10 @@ export const api = {
   hfUnlink: () => call<HfState>('POST', '/api/hf/unlink'),
   hfOAuth: () => call<{ url: string }>('POST', '/api/hf/oauth/start'),
   hfDevice: () => call<DeviceStart>('POST', '/api/hf/device'),
+  agents: () => call<AgentsResponse>('GET', '/api/agents'),
+  linkAgent: (id: string, link: boolean) =>
+    call<{ step: SetupStep; agents: AgentInfo[] }>(
+      'POST',
+      `/api/agents/${id}/${link ? 'connect' : 'disconnect'}`,
+    ),
 };

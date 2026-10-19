@@ -293,9 +293,9 @@ export function Button({
     <button
       type="button"
       className={cls}
+      {...rest}
       aria-busy={busy || undefined}
       disabled={rest.disabled || busy}
-      {...rest}
     >
       {icon ? <Icon name={icon} size={size === 'sm' ? 16 : 18} /> : null}
       {children}

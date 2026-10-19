@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import type { Catalog } from '@hildegard/presets';
 import { expect, test } from '@playwright/test';
 import { createShot, expectAccessible, freshFilm, watchErrors } from './helpers.ts';
 
@@ -236,4 +237,50 @@ test('keyboard: Ctrl-K focuses the prompt, F forces, Escape closes', async ({ pa
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: /^Force/ })).toBeHidden();
   await request.post('/api/engine/resume', { headers: { 'x-hildegard': '1' } });
+});
+
+test('agents: link an app, see what agents made, unlink', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  // An agent directs a shot, as the MCP server does.
+  const catalog = (await (await request.get('/api/catalog')).json()) as Catalog;
+  const project = await request.post('/api/projects', { headers: { 'x-hildegard': '1' }, data: {} });
+  const { id: projectId } = (await project.json()) as { id: string };
+  await request.post('/api/shots', {
+    headers: { 'x-hildegard': '1' },
+    data: {
+      projectId,
+      agent: 'Claude Code',
+      request: {
+        prompt: 'A lighthouse beam sweeps the fog',
+        rig: { body: catalog.bodies[0]!.id, lens: catalog.lenses[0]!.id, focal: 35, aperture: 2.8 },
+      },
+    },
+  });
+
+  await page.goto('/#/agents');
+  await expect(page.locator('.cs-crumb .s')).toHaveText('None linked');
+  const made = page.getByRole('link', { name: /A lighthouse beam sweeps the fog/ });
+  await expect(made).toBeVisible();
+  await expect(made).toContainText('Claude Code');
+
+  await page.getByRole('button', { name: 'Link an app' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Link an app' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('"hildegard"')).toBeVisible();
+  await expectAccessible(page, 'link dialog');
+  await dialog.getByRole('button', { name: 'Link Cursor' }).click();
+  await expect(page.getByText(/Added Hildegard to Cursor/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Unlink Cursor' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+
+  await expect(page.locator('.cs-crumb .s')).toHaveText('1 linked');
+  const tile = page.locator('.hg-linked', { hasText: 'Cursor' });
+  await expect(tile).toContainText('mcp.json');
+  await expectAccessible(page, 'agents');
+  await tile.getByRole('button', { name: 'Unlink' }).click();
+  await expect(page.locator('.cs-crumb .s')).toHaveText('None linked');
+
+  await made.click();
+  await expect(page).toHaveURL(new RegExp(`#/film/${projectId}/take/`));
+  expect(errors).toEqual([]);
 });

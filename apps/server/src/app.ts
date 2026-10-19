@@ -7,6 +7,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import {
+  type AgentsResponse,
   type Catalog,
   type CreateShotBody,
   composeShot,
@@ -19,7 +20,14 @@ import {
   type Take,
   takeSeeds,
 } from '@hildegard/presets';
-import { connectAgent, disconnectAgent, findAgent, listAgents, mcpCommand } from '@hildegard/runtime';
+import {
+  connectAgent,
+  disconnectAgent,
+  findAgent,
+  listAgents,
+  mcpCommand,
+  snippet,
+} from '@hildegard/runtime';
 import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -156,7 +164,13 @@ export function createApp(deps: AppDeps) {
     setTimeout(deps.onStop, 50);
     return c.json({ ok: true });
   });
-  app.get('/api/agents', (c) => c.json(listAgents()));
+  app.get('/api/agents', (c) =>
+    c.json({
+      agents: listAgents(),
+      snippet: snippet('mcpServers', mcpCommand({ url: deps.url })),
+      local: local(c),
+    } satisfies AgentsResponse),
+  );
   app.post('/api/agents/:id/:action{connect|disconnect}', (c) => {
     if (!local(c)) return c.json({ error: 'Link apps from the computer Hildegard runs on.' }, 403);
     const { id: agentId, action } = c.req.param();

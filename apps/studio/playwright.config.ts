@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.E2E_PORT ?? 7351);
 const data = mkdtempSync(join(tmpdir(), 'hildegard-e2e-'));
+// The server gets its own home folder, so linking AI apps in tests never touches this computer's real config. Cursor
+// is "installed" there, so there's something to link.
+const home = mkdtempSync(join(tmpdir(), 'hildegard-e2e-home-'));
+mkdirSync(join(home, '.cursor'));
 const chromium = process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {};
 
 export default defineConfig({
@@ -32,6 +36,14 @@ export default defineConfig({
     command: `node ../server/src/main.ts --fake-gpu --port ${port} --data ${JSON.stringify(data)} --ui dist`,
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
-    env: { HILDEGARD_FAKE_TICK_MS: '40', HILDEGARD_SECRETS: 'file' },
+    env: {
+      HILDEGARD_FAKE_TICK_MS: '40',
+      HILDEGARD_SECRETS: 'file',
+      HILDEGARD_E2E_HOME: home,
+      HOME: home,
+      USERPROFILE: home,
+      APPDATA: join(home, 'AppData'),
+      XDG_CONFIG_HOME: join(home, '.config'),
+    },
   },
 });

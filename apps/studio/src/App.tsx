@@ -5,6 +5,7 @@ import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
 import { useStore } from './lib/store.ts';
+import { Agents } from './pages/Agents.tsx';
 import { Cinema } from './pages/Cinema.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
@@ -12,6 +13,7 @@ import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
+  { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
 ];
@@ -60,6 +62,7 @@ export function App() {
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
+  else if (parts[0] === 'agents') page = <Agents wc={wc} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;
   else
@@ -98,8 +101,8 @@ export function App() {
           <div className="hg-app__brand">
             <img src={mark} alt="Hildegard" height={30} />
           </div>
-          {NAV.slice(0, 2).map((n) => item(n, 'hg-nav-item'))}
-          <div className="hg-app__navfoot">{item(NAV[2]!, 'hg-nav-item')}</div>
+          {NAV.slice(0, 3).map((n) => item(n, 'hg-nav-item'))}
+          <div className="hg-app__navfoot">{item(NAV[3]!, 'hg-nav-item')}</div>
         </nav>
         {page}
         <nav className="hg-tabbar" aria-label="Main">

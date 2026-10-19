@@ -137,3 +137,32 @@ export interface CreateShotBody {
   request: unknown;
   priority?: Priority;
 }
+
+/** An AI app Hildegard can link its MCP server into. */
+export interface AgentInfo {
+  id: string;
+  name: string;
+  /** The app looks installed on the computer Hildegard runs on. */
+  installed: boolean;
+  connected: boolean;
+  /** Its MCP config file. */
+  file: string;
+}
+
+/** GET /api/agents */
+export interface AgentsResponse {
+  agents: AgentInfo[];
+  /** The entry to paste into any other MCP app. */
+  snippet: string;
+  /** This browser is on the computer Hildegard runs on, so it may link apps there. */
+  local: boolean;
+}
+
+/** One step a setup action took, as the CLI reports them. */
+export interface SetupStep {
+  id: string;
+  title: string;
+  status: 'done' | 'skipped' | 'needs-owner' | 'failed';
+  detail: string;
+  command?: string;
+}

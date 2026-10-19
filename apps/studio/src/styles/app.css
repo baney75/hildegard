@@ -164,6 +164,8 @@ dialog.hg-modal--bottom[open] { animation-name: hg-up; }
 .hg-modal.st-dialog[open] { display: flex; }
 .hg-modal.st-dialog > form { display: contents; }
 .hg-modal .cs-sheet__h, .hg-modal .cs-sheet__f, .hg-modal .st-dialog__h, .hg-modal .st-dialog__f { flex: none; }
+/* A tall dialog scrolls its body, so its title and its buttons stay in view. */
+.hg-modal .st-dialog__b { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hg-sheet__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 22px; }
 .hg-sheet__chips { flex: none; padding: 14px 22px 0; }
 .hg-insp-sheet .cs-insp { border: 0; min-height: 100%; }
@@ -333,3 +335,26 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-license .st-dialog__b a { color: var(--sapphire-text); }
 .hg-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .hg-links a { color: var(--sapphire-text); }
+
+/* ── Agents ──────────────────────────────────────────────────────────────────────────────────── */
+.hg-measure { max-width: 64ch; margin: 0; }
+.hg-stack { display: grid; gap: 10px; }
+.hg-path { display: block; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.hg-empty-tile { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hg-activity { list-style: none; margin: 0; padding: 4px 16px; display: grid; }
+.hg-activity li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--hairline); }
+.hg-activity li:first-child { border-top: 0; }
+.hg-activity a { display: grid; gap: 2px; min-width: 0; color: inherit; text-decoration: none; }
+.hg-activity a b { font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hg-activity a:hover b, .hg-activity a:focus-visible b { text-decoration: underline; }
+.hg-app[data-wc="compact"] .hg-activity li { grid-template-columns: minmax(0, 1fr) auto; }
+.hg-app[data-wc="compact"] .hg-activity time { grid-column: 1 / -1; }
+.hg-agentsdlg { width: min(560px, calc(100vw - 32px)); }
+.hg-agents { list-style: none; margin: 0; padding: 0; display: grid; }
+.hg-agents li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--hairline); }
+.hg-agents li:first-child { border-top: 0; }
+.hg-agents li b { display: block; font-weight: 500; font-size: 14px; }
+.hg-agents li[data-missing] > .i, .hg-agents li[data-missing] b { opacity: .6; }
+.hg-code { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; margin-top: 8px; padding: 10px 10px 10px 14px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--border-control); }
+.hg-code pre { margin: 0; font: 400 12px/18px var(--font-mono); overflow-x: auto; white-space: pre; color: var(--text-secondary); }
+.hg-agentsdlg p code { white-space: nowrap; }
