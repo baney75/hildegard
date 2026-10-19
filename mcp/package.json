@@ -1,0 +1,26 @@
+{
+  "name": "@hildegard/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Hildegard's MCP server: lets an AI agent direct film shots on your own GPU.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "hildegard-mcp": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hildegard/presets": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@hildegard/server": "workspace:*"
+  }
+}

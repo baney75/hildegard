@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Snapshot, Take } from '@hildegard/presets';
@@ -206,6 +206,23 @@ describe('shots and takes', () => {
     expect(s.engine).toMatchObject({ online: true, fake: true });
     expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled', 'wan-2-2-ti2v-5b']);
     expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false });
+  });
+});
+
+describe('shot lookup', () => {
+  it('returns a shot with its takes and, once done, where each video is on disk', async () => {
+    const { shot, takes } = (await (await post('/api/shots', { request: request() })).json()) as {
+      shot: { id: string };
+      takes: Take[];
+    };
+    await until(() => takes.every((t) => take(t.id).status === 'done'));
+    const body = (await (await api(`/api/shots/${shot.id}`)).json()) as {
+      takes: Take[];
+      files: Record<string, string>;
+    };
+    expect(body.takes.map((t) => t.id)).toEqual(takes.map((t) => t.id));
+    expect(existsSync(body.files[takes[0]!.id]!)).toBe(true);
+    expect((await api('/api/shots/nope')).status).toBe(404);
   });
 });
 
