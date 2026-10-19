@@ -1,0 +1,22 @@
+{
+  "name": "@hildegard/cli",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "The hildegard command: install, set up, start and link Hildegard.",
+  "bin": {
+    "hildegard": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hildegard/mcp": "workspace:*",
+    "@hildegard/presets": "workspace:*",
+    "@hildegard/runtime": "workspace:*",
+    "@hildegard/server": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1"
+  }
+}

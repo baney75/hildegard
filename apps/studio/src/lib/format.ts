@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, Take } from '@hildegard/presets';
+import type { Catalog, EngineState, Take } from '@hildegard/presets';
 
 const ROMAN: Array<[number, string]> = [
   [1000, 'M'],
@@ -107,4 +107,25 @@ export function leftMs(t: Take, history: number | null, now = Date.now()): numbe
   const v = t.progress?.value ?? 0;
   if (v >= 0.15 && v < 1) return (elapsed * (1 - v)) / v;
   return history === null ? null : Math.max(0, history - elapsed);
+}
+
+/** What to say while ComfyUI isn't answering: a short label and a sentence with what to do. */
+export function comfyDown(engine: EngineState | null): { short: string; long: string } {
+  const where = engine?.url ? ` at ${engine.url}` : '';
+  switch (engine?.comfy) {
+    case 'not-installed':
+      return {
+        short: 'ComfyUI isn’t installed',
+        long: 'ComfyUI isn’t installed yet. Run `hildegard install` in a terminal; takes wait here until it’s ready.',
+      };
+    case 'managed':
+      return engine.problem === 'ComfyUI is starting.' || !engine.problem
+        ? { short: 'ComfyUI is starting', long: 'ComfyUI is starting. Takes begin as soon as it’s ready.' }
+        : { short: 'ComfyUI stopped', long: `${engine.problem} Hildegard is restarting it.` };
+    default:
+      return {
+        short: 'ComfyUI is not running',
+        long: `Hildegard can’t reach ComfyUI${where}. Takes wait here and start on their own once it answers.`,
+      };
+  }
 }

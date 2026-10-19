@@ -111,3 +111,40 @@ jobs:
         run: grep -q "hildegard_look" comfyui.log && ! grep -q "IMPORT FAILED.*hildegard_look" comfyui.log
       - if: failure()
         run: cat comfyui.log
+
+  # The real installer, on every OS: uv, ComfyUI, Python, PyTorch (CPU build) and comfy-api-proxy, then a real render
+  # through the ComfyUI Hildegard runs itself.
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      HG_DATA: ${{ github.workspace }}/../hg-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: hildegard install
+        run: node apps/cli/src/main.ts install --yes --json --cpu --data "$HG_DATA"
+      - name: Wait for the ComfyUI Hildegard runs
+        run: echo "COMFY_URL=$(node scripts/wait-for-comfy.mjs 7341 300)" >> "$GITHUB_ENV"
+      - name: Render a real video through it
+        run: node packages/comfy/scripts/smoke-on-comfy.ts "$COMFY_URL"
+      - run: node apps/cli/src/main.ts status --json --data "$HG_DATA"
+      - name: Install again changes nothing
+        run: |
+          node apps/cli/src/main.ts install --yes --json --cpu --data "$HG_DATA" > again.json
+          node -e "const r=require('./again.json'); const s=r.steps.filter(x=>['uv','comfyui','python','packages'].includes(x.id)); console.log(s.map(x=>x.id+'='+x.status).join(' ')); process.exit(r.ok && s.every(x=>x.status==='skipped')?0:1)"
+      - run: node apps/cli/src/main.ts stop --json --data "$HG_DATA"
+      - if: failure()
+        run: for f in "$HG_DATA"/logs/*.log; do echo "=== $f"; tail -n 80 "$f"; done
+

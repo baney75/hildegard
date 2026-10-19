@@ -40,7 +40,9 @@ export class Scheduler {
   private readonly onEngine: (s: EngineState) => void;
   private pingTimer: NodeJS.Timeout | null = null;
   private readonly store: Store;
-  private readonly engine: Engine;
+  private engine: Engine;
+  private comfy: EngineState['comfy'];
+  private problem: string | null = null;
   private readonly catalog: Catalog;
   private readonly mediaDir: string;
   private readonly fake: boolean;
@@ -51,8 +53,10 @@ export class Scheduler {
     catalog: Catalog;
     mediaDir: string;
     fake: boolean;
+    comfy?: EngineState['comfy'];
     onEngine: (s: EngineState) => void;
   }) {
+    this.comfy = opts.comfy ?? (opts.fake ? 'fake' : 'external');
     this.store = opts.store;
     this.engine = opts.engine;
     this.catalog = opts.catalog;
@@ -68,7 +72,23 @@ export class Scheduler {
       fake: this.fake,
       paused: this.paused,
       device: 'This computer',
+      comfy: this.comfy,
+      problem: this.online ? null : this.problem,
     };
+  }
+
+  /** Point at another ComfyUI (the managed one moved ports), or record why it is down. */
+  setEngine(engine: Engine) {
+    if (engine.url === this.engine.url) return;
+    this.engine = engine;
+    this.online = false;
+    this.onEngine(this.engineState());
+  }
+
+  setProblem(problem: string | null) {
+    if (problem === this.problem) return;
+    this.problem = problem;
+    this.onEngine(this.engineState());
   }
 
   /** Watch ComfyUI: quickly while it is down, rarely while it is up. */

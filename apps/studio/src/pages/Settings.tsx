@@ -2,8 +2,9 @@
 import type { Catalog } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
-import { Button, Icon, toast } from '../components/ui.tsx';
+import { Button, Icon, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
+import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, useStore } from '../lib/store.ts';
 
@@ -353,8 +354,16 @@ function Computer() {
             ? engine.paused
               ? 'Running · rendering paused'
               : 'Running'
-            : 'Not running · start it with hildegard start'}
+            : comfyDown(engine).short}
         </dd>
+        {!engine?.online && engine?.comfy !== 'external' ? (
+          <>
+            <dt>Status</dt>
+            <dd>
+              <WithCode text={comfyDown(engine).long} />
+            </dd>
+          </>
+        ) : null}
         <dt>Address</dt>
         <dd className="num">{engine?.url}</dd>
         <dt>Hildegard</dt>

@@ -7,13 +7,27 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { Step } from './install.ts';
+import { resource, type Step } from './install.ts';
 
 export interface McpCommand {
   command: string;
   args: string[];
   /** Only when Hildegard isn't on its default address. */
   env?: Record<string, string>;
+}
+
+/**
+ * How an app starts Hildegard's MCP server: this Node and the `hildegard` entry script, by absolute path, so it works
+ * from apps that don't see the shell's PATH (Claude Desktop on macOS, anything on Windows).
+ */
+export function mcpCommand(opts: { entry?: string; url?: string } = {}): McpCommand {
+  const entry = opts.entry ?? process.env.HILDEGARD_ENTRY ?? resource(join('apps', 'cli', 'src', 'main.ts'));
+  const url = opts.url?.replace(/\/$/, '');
+  return {
+    command: process.execPath,
+    args: [entry, 'mcp'],
+    ...(url && url !== 'http://127.0.0.1:7341' ? { env: { HILDEGARD_URL: url } } : {}),
+  };
 }
 
 export interface AgentEnv {

@@ -21,6 +21,24 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5))
 
+  apps/cli:
+    dependencies:
+      '@hildegard/mcp':
+        specifier: workspace:*
+        version: link:../../mcp
+      '@hildegard/presets':
+        specifier: workspace:*
+        version: link:../../packages/presets
+      '@hildegard/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@hildegard/server':
+        specifier: workspace:*
+        version: link:../server
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.1
+        version: 1.32.1(zod@4.6.7)
+
   apps/server:
     dependencies:
       '@hildegard/comfy':
@@ -29,6 +47,9 @@ importers:
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../../packages/presets
+      '@hildegard/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.13)

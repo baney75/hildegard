@@ -3,7 +3,8 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ComfySdkEngine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
-import { type LoadedCatalog, loadCatalog } from '@hildegard/presets';
+import { type EngineState, type LoadedCatalog, loadCatalog } from '@hildegard/presets';
+import { ComfyRuntime } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, VERSION } from './app.ts';
 import type { Config } from './config.ts';
@@ -19,13 +20,15 @@ export interface Running {
   scheduler: Scheduler;
   models: ModelManager;
   hf: HfLink;
+  /** The ComfyUI Hildegard runs itself, when it does. */
+  runtime: ComfyRuntime | null;
   close(): Promise<void>;
 }
 
 /** Start everything: the store, the render queue, model installs, the Hugging Face link and the HTTP server. */
 export async function startServer(
   config: Config,
-  opts: { loaded?: LoadedCatalog; fakeTickMs?: number; secrets?: SecretStore } = {},
+  opts: { loaded?: LoadedCatalog; fakeTickMs?: number; secrets?: SecretStore; onStop?: () => void } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
   mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -42,6 +45,30 @@ export async function startServer(
   }
 
   const store = new Store(config.dataDir);
+  const comfy: EngineState['comfy'] = config.fake
+    ? 'fake'
+    : config.comfyExternal
+      ? 'external'
+      : ComfyRuntime.installed(config.dataDir)
+        ? 'managed'
+        : 'not-installed';
+  // The managed ComfyUI starts in the background; the engine follows it to whatever ports it gets.
+  let runtime: ComfyRuntime | null = null;
+  if (comfy === 'managed') {
+    runtime = new ComfyRuntime({
+      dataDir: config.dataDir,
+      onChange: (s) => {
+        if (s.url) scheduler.setEngine(new ComfySdkEngine(s.url));
+        scheduler.setProblem(
+          s.status === 'failed' || s.status === 'restarting'
+            ? s.error
+            : s.status === 'starting'
+              ? 'ComfyUI is starting.'
+              : null,
+        );
+      },
+    });
+  }
   const engine = new ComfySdkEngine(comfyUrl);
   const scheduler = new Scheduler({
     store,
@@ -49,8 +76,12 @@ export async function startServer(
     catalog,
     mediaDir,
     fake: config.fake,
+    comfy,
     onEngine: (engineState) => store.emit({ type: 'engine', engine: engineState }),
   });
+  if (comfy === 'not-installed')
+    scheduler.setProblem('ComfyUI isn’t installed yet. Run `hildegard install`.');
+  await runtime?.start();
   const secrets =
     opts.secrets ?? (await keychainStore()) ?? fileStore(join(config.dataDir, 'secrets', 'huggingface.json'));
   const hf = new HfLink({
@@ -67,7 +98,17 @@ export async function startServer(
     onChange: (m) => store.emit({ type: 'models', models: m }),
   });
 
-  const app = createApp({ config, store, scheduler, catalog, models, hf, mediaDir });
+  const app = createApp({
+    config,
+    store,
+    scheduler,
+    catalog,
+    models,
+    hf,
+    mediaDir,
+    onStop: opts.onStop,
+    url: `http://127.0.0.1:${config.port}`,
+  });
   const server = await new Promise<ReturnType<typeof serve>>((resolve, reject) => {
     const s = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, () => resolve(s));
     s.once('error', reject);
@@ -84,8 +125,10 @@ export async function startServer(
     scheduler,
     models,
     hf,
+    runtime,
     async close() {
       scheduler.stop();
+      await runtime?.stop();
       store.flush();
       await new Promise<void>((r) => server.close(() => r()));
       await fake?.close();

@@ -78,6 +78,10 @@ export interface EngineState {
   fake: boolean;
   paused: boolean;
   device: string;
+  /** Who runs ComfyUI: Hildegard itself, the owner, nobody yet, or the stand-in engine. */
+  comfy: 'managed' | 'external' | 'not-installed' | 'fake';
+  /** Why ComfyUI isn't answering, when Hildegard knows. */
+  problem: string | null;
 }
 
 export interface ModelState {

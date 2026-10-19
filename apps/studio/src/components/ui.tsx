@@ -470,3 +470,15 @@ export function LiveRing({ value, size = 48 }: { value: number | null; size?: nu
     </svg>
   );
 }
+
+/** Text with `code` spans, as the server and helpers write commands. */
+export function WithCode({ text }: { text: string }) {
+  return (
+    <>
+      {text.split('`').map((part, i) =>
+        // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one fixed string never reorder.
+        i % 2 ? <code key={i}>{part}</code> : <span key={i}>{part}</span>,
+      )}
+    </>
+  );
+}

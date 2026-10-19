@@ -19,6 +19,7 @@ import {
   type Take,
   takeSeeds,
 } from '@hildegard/presets';
+import { connectAgent, disconnectAgent, findAgent, listAgents, mcpCommand } from '@hildegard/runtime';
 import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -61,6 +62,10 @@ export interface AppDeps {
   models: ModelManager;
   hf: HfLink;
   mediaDir: string;
+  /** Stops the whole server: `hildegard stop` asks for this. */
+  onStop?: () => void;
+  /** The base URL people and agents reach this server at. */
+  url?: string;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -142,6 +147,24 @@ export function createApp(deps: AppDeps) {
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
+
+  // ── This computer: stopping, and linking AI apps. Only from this computer itself, never over the network. ─────
+  const local = (c: Context) => LOOPBACK.has((c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, ''));
+  app.post('/api/system/stop', (c) => {
+    if (!local(c)) return c.json({ error: 'Only this computer can stop Hildegard.' }, 403);
+    if (!deps.onStop) return c.json({ error: 'This server can’t stop itself.' }, 501);
+    setTimeout(deps.onStop, 50);
+    return c.json({ ok: true });
+  });
+  app.get('/api/agents', (c) => c.json(listAgents()));
+  app.post('/api/agents/:id/:action{connect|disconnect}', (c) => {
+    if (!local(c)) return c.json({ error: 'Link apps from the computer Hildegard runs on.' }, 403);
+    const { id: agentId, action } = c.req.param();
+    if (!findAgent(agentId)) return c.json({ error: `No app called ${agentId}` }, 404);
+    const step =
+      action === 'connect' ? connectAgent(agentId, mcpCommand({ url: deps.url })) : disconnectAgent(agentId);
+    return c.json({ step, agents: listAgents() }, step.status === 'failed' ? 500 : 200);
+  });
   app.get('/api/snapshot', (c) => c.json(snapshot()));
   app.get('/api/catalog', (c) => {
     c.header('cache-control', 'no-cache');

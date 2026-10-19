@@ -9,6 +9,8 @@ export interface Config {
   port: number;
   /** comfy-api-proxy in front of your ComfyUI. */
   comfyUrl: string;
+  /** The owner named a ComfyUI to use; otherwise Hildegard runs the one `hildegard install` set up. */
+  comfyExternal: boolean;
   /** ComfyUI's own folder, when Hildegard manages it (models are installed under it). */
   comfyDir: string | null;
   /** Render with the stand-in engine: for tests and UI work only, no real video. */
@@ -48,6 +50,7 @@ export function parseArgs(argv: string[], env = process.env): Config {
     host: opt('host') ?? env.HILDEGARD_HOST ?? '127.0.0.1',
     port: Number(opt('port') ?? env.HILDEGARD_PORT ?? 7341),
     comfyUrl: opt('comfy') ?? env.HILDEGARD_COMFY_URL ?? 'http://127.0.0.1:8189',
+    comfyExternal: Boolean(opt('comfy') ?? env.HILDEGARD_COMFY_URL),
     comfyDir: opt('comfy-dir') ?? env.HILDEGARD_COMFY_DIR ?? join(dataDir, 'comfyui'),
     fake: flag('fake-gpu') || env.HILDEGARD_FAKE_GPU === '1',
     uiDir: opt('ui') ?? env.HILDEGARD_UI_DIR ?? null,

@@ -3,9 +3,18 @@ import type { Catalog, Take } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { ForceDialog } from '../components/ForceDialog.tsx';
 import { previewUrl, takeLabel, waitingFor } from '../components/TakeCard.tsx';
-import { Button, Icon, Segmented, Status, toastError } from '../components/ui.tsx';
+import { Button, Icon, Segmented, Status, toastError, WithCode } from '../components/ui.tsx';
 import { api } from '../lib/api.ts';
-import { about, duration, estimateMs, leftMs, modelName, ordinal, resolution } from '../lib/format.ts';
+import {
+  about,
+  comfyDown,
+  duration,
+  estimateMs,
+  leftMs,
+  modelName,
+  ordinal,
+  resolution,
+} from '../lib/format.ts';
 import { useNow, type WindowClass } from '../lib/hooks.ts';
 import { upsert, useStore } from '../lib/store.ts';
 
@@ -200,7 +209,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <span className="s">
             {engine?.online
               ? `${where}${engine.paused ? ' · paused' : running.length ? ' · busy' : ' · ready'}`
-              : 'ComfyUI is not running'}
+              : comfyDown(engine).short}
           </span>
         </div>
         <div className="hg-app__topactions">
@@ -215,8 +224,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
             <div className="st-tile hg-banner" role="status">
               <Icon name="alert" size={18} />
               <span>
-                <b>ComfyUI is not running.</b> Takes wait here and start on their own once it is. Start it
-                with <code>hildegard start</code>.
+                <WithCode text={comfyDown(engine).long} />
               </span>
             </div>
           ) : null}

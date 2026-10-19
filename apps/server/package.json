@@ -19,6 +19,7 @@
   "dependencies": {
     "@hildegard/comfy": "workspace:*",
     "@hildegard/presets": "workspace:*",
+    "@hildegard/runtime": "workspace:*",
     "@hono/node-server": "2.1.5",
     "@napi-rs/keyring": "2.1.2",
     "hono": "4.13.13",
