@@ -284,3 +284,26 @@ test('agents: link an app, see what agents made, unlink', async ({ page, request
   await expect(page).toHaveURL(new RegExp(`#/film/${projectId}/take/`));
   expect(errors).toEqual([]);
 });
+
+test('export film: joins the kept takes into one MP4 to download', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await freshFilm(page, request);
+  await expect(page.getByRole('button', { name: 'Export film' })).toHaveCount(0);
+  await createShot(page, 'Fog rolls over the harbor at dawn');
+  const shot = page.getByRole('region', { name: /Fog rolls over the harbor/ });
+  await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'Export film' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Export film' });
+  await expect(dlg.getByText('Fog rolls over the harbor')).toBeVisible();
+  await expectAccessible(page, 'export dialog');
+  await dlg.getByRole('button', { name: 'Export' }).click();
+  await expect(dlg.locator('video')).toBeVisible({ timeout: 30_000 });
+  const link = dlg.getByRole('link', { name: 'Download' });
+  await expect(link).toHaveAttribute('href', /\/media\/exports\/[\w-]+\.mp4\?download$/);
+  const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
+  expect(download.suggestedFilename()).toMatch(/\.mp4$/);
+  await dlg.getByRole('button', { name: 'Done' }).click();
+  await expect(dlg).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

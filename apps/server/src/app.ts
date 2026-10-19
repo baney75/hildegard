@@ -32,6 +32,7 @@ import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { Config } from './config.ts';
+import { ExportError, type Exporter } from './export.ts';
 import type { HfLink } from './hf.ts';
 import type { ModelManager } from './models.ts';
 import type { Scheduler } from './scheduler.ts';
@@ -43,7 +44,7 @@ export const VERSION = '0.1.0';
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
  * its own repository. The commit comes from the build (HILDEGARD_COMMIT) or, in a checkout, from git.
  */
-const SOURCE = {
+export const SOURCE = {
   url: process.env.HILDEGARD_SOURCE_URL ?? 'https://github.com/baney75/hildegard',
   commit: process.env.HILDEGARD_COMMIT ?? gitCommit(),
 };
@@ -70,6 +71,7 @@ export interface AppDeps {
   models: ModelManager;
   hf: HfLink;
   mediaDir: string;
+  exporter: Exporter;
   /** Stops the whole server: `hildegard stop` asks for this. */
   onStop?: () => void;
   /** The base URL people and agents reach this server at. */
@@ -156,6 +158,7 @@ export function createApp(deps: AppDeps) {
     engine: scheduler.engineState(),
     models: deps.models.states(),
     hf: deps.hf.state(),
+    exports: deps.exporter.list(),
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
@@ -250,6 +253,22 @@ export function createApp(deps: AppDeps) {
     p.title = body.data.title;
     store.putProject(p);
     return c.json(p);
+  });
+
+  // ── Export film ─────────────────────────────────────────────────────────────────────────────────────────────
+  app.post('/api/projects/:id/export', (c) => {
+    try {
+      return c.json(deps.exporter.start(c.req.param('id')), 202);
+    } catch (e) {
+      if (e instanceof ExportError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  });
+  app.get('/api/exports/:id', (c) => {
+    const e = deps.exporter.get(c.req.param('id'));
+    if (!e) return c.json({ error: 'No such export' }, 404);
+    // Where the file is on this computer, for agents running here.
+    return c.json({ ...e, file: e.status === 'done' ? deps.exporter.file(e) : null });
   });
 
   // ── Shots and takes ─────────────────────────────────────────────────────────────────────────────────────────
@@ -577,15 +596,29 @@ export function createApp(deps: AppDeps) {
   };
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
-    if (!/^(uploads\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..')) return c.body(null, 404);
+    if (!/^((uploads|exports)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..')) return c.body(null, 404);
     const file = resolve(mediaDir, rel);
     if (!file.startsWith(resolve(mediaDir) + sep)) return c.body(null, 404);
-    return sendFile(
+    const res = sendFile(
       c,
       file,
       TYPES[extname(file)] ?? 'application/octet-stream',
       'private, max-age=31536000, immutable',
     );
+    // ?download saves an exported film under its title instead of playing it.
+    const exported = rel.startsWith('exports/') ? deps.exporter.get(rel.slice(8, -4)) : undefined;
+    if (exported && c.req.query('download') !== undefined && res.ok) {
+      const name =
+        exported.title
+          .replace(/[^\p{L}\p{N} ._-]+/gu, '')
+          .replace(/\s+/g, ' ')
+          .trim() || 'Hildegard film';
+      res.headers.set(
+        'content-disposition',
+        `attachment; filename="${name.replace(/[^ -~]/g, '_')}.mp4"; filename*=UTF-8''${encodeURIComponent(name)}.mp4`,
+      );
+    }
+    return res;
   });
 
   // ── The Studio UI ───────────────────────────────────────────────────────────────────────────────────────────

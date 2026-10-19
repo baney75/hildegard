@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { readFile } from 'node:fs/promises';
-import type { Catalog, Project, Shot, ShotRequestInput, Snapshot, Take } from '@hildegard/presets';
+import type {
+  Catalog,
+  ExportState,
+  Project,
+  Shot,
+  ShotRequestInput,
+  Snapshot,
+  Take,
+} from '@hildegard/presets';
 
 export class HildegardError extends Error {
   readonly status: number;
@@ -64,6 +72,10 @@ export class HildegardClient {
   createProject = (title: string) => this.call<Project>('POST', '/api/projects', { title });
   createShot = (body: { request: ShotRequestInput; projectId?: string; title?: string; agent: string }) =>
     this.call<{ shot: Shot; takes: Take[] }>('POST', '/api/shots', body);
+  exportFilm = (id: string) =>
+    this.call<ExportState>('POST', `/api/projects/${encodeURIComponent(id)}/export`);
+  exportState = (id: string) =>
+    this.call<ExportState & { file: string | null }>('GET', `/api/exports/${encodeURIComponent(id)}`);
   installModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/models/${encodeURIComponent(id)}/install`, { acceptLicense });
 

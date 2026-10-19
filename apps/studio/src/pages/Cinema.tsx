@@ -3,6 +3,7 @@ import type { Catalog, Take } from '@hildegard/presets';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board, EmptyHero } from '../components/Board.tsx';
 import { Composer } from '../components/Composer.tsx';
+import { ExportDialog, useChosenTakes } from '../components/ExportDialog.tsx';
 import { ForceDialog } from '../components/ForceDialog.tsx';
 import { Inspector } from '../components/Inspector.tsx';
 import { takeLabel } from '../components/TakeCard.tsx';
@@ -33,6 +34,7 @@ export function Cinema({
   const [forcing, setForcing] = useState<string | null>(null);
   const [scrollTo, setScrollTo] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const project = useMemo(() => {
     const byId = projectParam ?? lastProject;
@@ -78,6 +80,7 @@ export function Cinema({
   }, [take, selected, wc]);
 
   const shotCount = project?.shotIds.length ?? 0;
+  const chosen = useChosenTakes(project ?? null);
   const shotIndex = take ? (project?.shotIds.indexOf(take.shotId) ?? -1) + 1 : 0;
   const ambient = useMemo(() => {
     const t = take?.poster
@@ -116,6 +119,17 @@ export function Cinema({
           </span>
         </div>
         <div className="hg-app__topactions">
+          {project && shotCount ? (
+            <Button
+              icon="film"
+              onClick={() => setExporting(true)}
+              disabled={!chosen.length}
+              title={chosen.length ? undefined : 'Export film: no shot has a finished take yet'}
+              aria-label={wc === 'compact' ? 'Export film' : undefined}
+            >
+              {wc === 'compact' ? null : 'Export film'}
+            </Button>
+          ) : null}
           <Menu
             label="Films: rename, start a new film, switch films"
             items={[
@@ -191,6 +205,9 @@ export function Cinema({
           </span>
           {inspector}
         </Modal>
+      ) : null}
+      {exporting && project ? (
+        <ExportDialog project={project} compact={wc === 'compact'} onClose={() => setExporting(false)} />
       ) : null}
       {forceTake ? (
         <ForceDialog

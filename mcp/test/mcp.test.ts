@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileStore, parseArgs, type Running, startServer } from '@hildegard/server';
@@ -43,6 +43,7 @@ describe('Hildegard MCP server', () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'direct_shot',
+      'export_film',
       'get_shot',
       'hildegard_status',
       'install_model',
@@ -126,6 +127,11 @@ describe('Hildegard MCP server', () => {
       'A rowing boat drifts into frame',
     ]);
     expect(textOf(r).match(/done\. Video/g)).toHaveLength(2);
+    // And joined into one file.
+    const exported = await call('export_film', { film_id: filmId, wait_seconds: 60 });
+    expect(exported.isError).toBeFalsy();
+    const path = /at (\S+\.mp4)\./.exec(textOf(exported))![1]!;
+    expect(readFileSync(path).subarray(4, 8).toString()).toBe('ftyp');
   });
 
   it('shows the license and never installs without the user accepting it', async () => {

@@ -106,6 +106,24 @@ export interface HfState {
   oauth: boolean;
 }
 
+/** Export film: one MP4 of each shot's chosen take, in order. */
+export interface ExportState {
+  id: string;
+  projectId: string;
+  title: string;
+  status: 'running' | 'done' | 'failed';
+  /** Takes joined so far, of total. */
+  done: number;
+  total: number;
+  takeIds: string[];
+  /** Set when done: plays in the browser; add ?download to save it. */
+  url: string | null;
+  bytes: number | null;
+  seconds: number | null;
+  error: string | null;
+  createdAt: string;
+}
+
 export interface Snapshot {
   version: string;
   /** Where this build's source code is (AGPL §13): the repository and, when known, the exact commit. */
@@ -116,6 +134,7 @@ export interface Snapshot {
   engine: EngineState;
   models: ModelState[];
   hf: HfState;
+  exports: ExportState[];
 }
 
 /** Server-sent events on /api/events. */
@@ -126,7 +145,8 @@ export type ServerEvent =
   | { type: 'removed'; kind: 'take' | 'shot' | 'project'; id: string }
   | { type: 'engine'; engine: EngineState }
   | { type: 'models'; models: ModelState[] }
-  | { type: 'hf'; hf: HfState };
+  | { type: 'hf'; hf: HfState }
+  | { type: 'export'; export: ExportState };
 
 /** POST /api/shots */
 export interface CreateShotBody {

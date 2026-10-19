@@ -74,6 +74,7 @@ copy(
   (s) => !/__pycache__|\.pyc$|test_look\.py$/.test(s),
 );
 copy('packages/comfy/fixtures', 'fixtures');
+copy('tools/export_film.py', 'tools/export_film.py');
 copy('licenses', 'licenses');
 for (const f of ['LICENSE', 'LICENSE-APACHE', 'LICENSING.md', 'THIRD_PARTY_NOTICES.md']) copy(f, f);
 writeFileSync(

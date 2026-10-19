@@ -6,8 +6,9 @@ import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import { type EngineState, type LoadedCatalog, loadCatalog } from '@hildegard/presets';
 import { ComfyRuntime } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
-import { createApp, VERSION } from './app.ts';
+import { createApp, SOURCE, VERSION } from './app.ts';
 import type { Config } from './config.ts';
+import { Exporter } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore } from './hf.ts';
 import { ModelManager } from './models.ts';
 import { Scheduler } from './scheduler.ts';
@@ -98,7 +99,16 @@ export async function startServer(
     onChange: (m) => store.emit({ type: 'models', models: m }),
   });
 
+  const exporter = new Exporter({
+    store,
+    catalog,
+    mediaDir,
+    dataDir: config.dataDir,
+    credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
+    onChange: (e) => store.emit({ type: 'export', export: e }),
+  });
   const app = createApp({
+    exporter,
     config,
     store,
     scheduler,

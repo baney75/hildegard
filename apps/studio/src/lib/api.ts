@@ -3,6 +3,7 @@ import type {
   AgentInfo,
   AgentsResponse,
   Catalog,
+  ExportState,
   HfState,
   ModelState,
   Project,
@@ -59,6 +60,7 @@ export const api = {
   catalog: () => call<Catalog>('GET', '/api/catalog'),
   createProject: (title?: string) => call<Project>('POST', '/api/projects', { title }),
   renameProject: (id: string, title: string) => call<Project>('PATCH', `/api/projects/${id}`, { title }),
+  exportFilm: (id: string) => call<ExportState>('POST', `/api/projects/${id}/export`),
   createShot: (body: { projectId?: string; shotId?: string; request: unknown }) =>
     call<{ project: Project; shot: Shot; takes: Take[] }>('POST', '/api/shots', body),
   renameShot: (id: string, title: string) => call<Shot>('PATCH', `/api/shots/${id}`, { title }),

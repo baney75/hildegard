@@ -67,7 +67,7 @@ hildegard connect --print   # the config, for any other app that takes an MCP se
 Each app's config is backed up once before Hildegard adds itself. The Studio's Agents page does the same, and shows
 what each app made.
 
-Tools: `hildegard_status`, `list_presets`, `direct_shot`, `shot_status`, `get_shot`, `make_sequence`,
+Tools: `hildegard_status`, `list_presets`, `direct_shot`, `shot_status`, `get_shot`, `make_sequence`, `export_film`,
 `install_model`.
 
 ## From another device

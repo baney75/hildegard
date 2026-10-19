@@ -392,6 +392,50 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
   );
 
   server.registerTool(
+    'export_film',
+    {
+      title: 'Export a film',
+      description:
+        "Join a film's shots, in order, into one MP4 on the computer Hildegard runs on. Each shot uses its kept take, or its newest finished one. Returns the file's path when it's done.",
+      inputSchema: {
+        film_id: z.string().describe('The film id, from direct_shot or make_sequence.'),
+        wait_seconds: z
+          .number()
+          .int()
+          .min(0)
+          .max(900)
+          .optional()
+          .describe('Wait up to this long for the file. Default 300.'),
+      },
+    },
+    guard(async (a) => {
+      // A second call while it runs follows the export already going.
+      let e = await client.exportFilm(a.film_id).catch(async (err) => {
+        const going = (await client.snapshot()).exports.find(
+          (x) => x.projectId === a.film_id && x.status === 'running',
+        );
+        if (going) return going;
+        throw err;
+      });
+      const end = Date.now() + (a.wait_seconds ?? 300) * 1000;
+      let full = await client.exportState(e.id);
+      while (full.status === 'running' && Date.now() < end) {
+        await new Promise((r) => setTimeout(r, 1000));
+        full = await client.exportState(e.id);
+      }
+      e = full;
+      if (full.status === 'done')
+        return text(
+          `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s, at ${full.file}. In the browser: ${client.url}${e.url}`,
+        );
+      if (full.status === 'failed') return { ...text(`The export failed: ${e.error}`), isError: true };
+      return text(
+        `Still exporting (${e.done} of ${e.total} takes joined). Export ${e.id}; call export_film again later.`,
+      );
+    }),
+  );
+
+  server.registerTool(
     'install_model',
     {
       title: 'Install a video model',

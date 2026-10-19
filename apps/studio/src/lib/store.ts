@@ -2,6 +2,7 @@
 import type {
   Catalog,
   EngineState,
+  ExportState,
   HfState,
   ModelState,
   Project,
@@ -28,6 +29,8 @@ export interface State {
   engine: EngineState | null;
   models: ModelState[];
   hf: HfState | null;
+  /** The newest export of each film, by film id. */
+  exports: Map<string, ExportState>;
 }
 
 let state: State = {
@@ -43,6 +46,7 @@ let state: State = {
   engine: null,
   models: [],
   hf: null,
+  exports: new Map(),
 };
 const listeners = new Set<() => void>();
 
@@ -73,6 +77,7 @@ function fromSnapshot(s: Snapshot): Partial<State> {
     engine: s.engine,
     models: s.models,
     hf: s.hf,
+    exports: new Map((s.exports ?? []).map((x) => [x.projectId, x])),
   };
 }
 
@@ -115,6 +120,9 @@ export function apply(events: ServerEvent[]) {
         break;
       case 'hf':
         next.hf = e.hf;
+        break;
+      case 'export':
+        next.exports = new Map(next.exports ?? state.exports).set(e.export.projectId, e.export);
         break;
     }
   }

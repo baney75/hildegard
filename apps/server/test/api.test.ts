@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Snapshot, Take } from '@hildegard/presets';
+import type { ExportState, Project, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseArgs } from '../src/config.ts';
 import { type Running, startServer } from '../src/server.ts';
@@ -257,5 +257,46 @@ describe('Hugging Face routes', () => {
     const html = await res.text();
     expect(html).toContain('Sign-in was canceled');
     expect(html).not.toContain('<script>');
+  });
+});
+
+describe('export film', () => {
+  it('joins each shot’s kept take, in order, into one MP4 labeled as AI-generated', async () => {
+    const film = (await (await post('/api/projects', { title: 'Lighthouse / “Dusk”' })).json()) as Project;
+    expect((await post(`/api/projects/${film.id}/export`)).status).toBe(409);
+    const made: Take[][] = [];
+    for (const prompt of ['The beam sweeps the fog', 'The keeper climbs the stairs']) {
+      const r = await post('/api/shots', { projectId: film.id, request: request({ prompt, takes: 2 }) });
+      made.push(((await r.json()) as { takes: Take[] }).takes);
+    }
+    await until(() => made.flat().every((t) => take(t.id).status === 'done'), 30_000);
+    await post(`/api/takes/${made[0]![0]!.id}/keep`, { kept: true });
+
+    const res = await post(`/api/projects/${film.id}/export`);
+    expect(res.status).toBe(202);
+    const started = (await res.json()) as ExportState;
+    // Shot I's kept take 1, and shot II's newest, take 2.
+    expect(started.takeIds).toEqual([made[0]![0]!.id, made[1]![1]!.id]);
+    expect((await post(`/api/projects/${film.id}/export`)).status).toBe(409);
+
+    let e = started;
+    await until(async () => {
+      e = (await (await api(`/api/exports/${started.id}`)).json()) as ExportState;
+      return e.status !== 'running';
+    }, 60_000);
+    expect(e).toMatchObject({ status: 'done', done: 2, total: 2, error: null });
+    expect(e.seconds).toBeCloseTo(6, 0);
+
+    const file = await api(`${e.url}?download`);
+    expect(file.headers.get('content-type')).toBe('video/mp4');
+    expect(file.headers.get('content-disposition')).toContain("filename*=UTF-8''Lighthouse%20Dusk.mp4");
+    const bytes = Buffer.from(await file.arrayBuffer());
+    expect(bytes.subarray(4, 8).toString()).toBe('ftyp');
+    expect(bytes.includes('AI-generated video')).toBe(true);
+    const snap = (await (await api('/api/snapshot')).json()) as Snapshot;
+    expect(snap.exports.find((x) => x.id === e.id)?.status).toBe('done');
+    expect(readFileSync(join(srv.config.dataDir, 'media', 'exports', `${e.id}.mp4`)).length).toBe(
+      bytes.length,
+    );
   });
 });
