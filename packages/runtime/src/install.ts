@@ -47,6 +47,8 @@ export interface Layout {
 }
 
 const win = process.platform === 'win32';
+/** Windows' own bsdtar, by path: Git for Windows can put GNU tar first on PATH, which reads `C:` as a remote host. */
+const tar = win ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 
 export function layout(dataDir: string): Layout {
   const venv = join(dataDir, 'python');
@@ -81,7 +83,8 @@ export function readRuntime(dataDir: string): RuntimeInfo | null {
 
 /** A file shipped with Hildegard (the repo in development, the release folder when installed). */
 export function resource(rel: string): string {
-  if (process.env.HILDEGARD_RESOURCES) return join(process.env.HILDEGARD_RESOURCES, rel);
+  const shipped = process.env.HILDEGARD_RESOURCES;
+  if (shipped && existsSync(join(shipped, rel))) return join(shipped, rel);
   let dir = dirname(fileURLToPath(import.meta.url));
   for (;;) {
     if (existsSync(join(dir, rel))) return join(dir, rel);
@@ -301,7 +304,7 @@ async function downloadUv(L: Layout, fetchFn: typeof fetch, log: (l: string) => 
   const archive = join(L.downloads, file);
   await download(UV.url(file), archive, sha, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'uv-'));
-  await run('tar', ['-xf', archive, '-C', tmp], { log });
+  await run(tar, ['-xf', archive, '-C', tmp], { log });
   const name = win ? 'uv.exe' : 'uv';
   // The Unix archives hold a folder named after the target; the Windows zip holds the binaries at the top.
   const inner = win ? join(tmp, name) : join(tmp, file.replace(/\.tar\.gz$/, ''), name);
@@ -317,7 +320,7 @@ async function installComfy(L: Layout, fetchFn: typeof fetch, log: (l: string) =
   const archive = join(L.downloads, `ComfyUI-${COMFYUI.version}.tar.gz`);
   await download(COMFYUI.url, archive, COMFYUI.sha256, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'comfyui-'));
-  await run('tar', ['-xzf', archive, '-C', tmp], { log });
+  await run(tar, ['-xzf', archive, '-C', tmp], { log });
   // Over the top of any earlier version: models, custom nodes, inputs and outputs stay.
   cpSync(join(tmp, COMFYUI.root), L.comfyDir, { recursive: true, force: true });
   rmSync(tmp, { recursive: true, force: true });

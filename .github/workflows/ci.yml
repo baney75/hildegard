@@ -112,19 +112,8 @@ jobs:
       - if: failure()
         run: cat comfyui.log
 
-  # The real installer, on every OS: uv, ComfyUI, Python, PyTorch (CPU build) and comfy-api-proxy, then a real render
-  # through the ComfyUI Hildegard runs itself.
-  install:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    env:
-      HG_DATA: ${{ github.workspace }}/../hg-data
+  release:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -133,18 +122,77 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: hildegard install
-        run: node apps/cli/src/main.ts install --yes --json --cpu --data "$HG_DATA"
+      - run: pnpm --filter @hildegard/studio build
+      - run: node scripts/build-release.mjs dist/release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: dist/release
+          retention-days: 7
+
+  # What a user does, on every OS: the one-line installer (Node and the release, hash-checked), then hildegard
+  # install (uv, ComfyUI, Python, PyTorch's CPU build, comfy-api-proxy), then a real render through the ComfyUI
+  # Hildegard runs itself, then the CLI tests against the installed app.
+  install:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: rel
+      - name: Serve the release on loopback
+        run: |
+          nohup node scripts/serve-dir.mjs rel 8765 > serve.log 2>&1 &
+          sleep 1
+      - name: install.sh
+        if: runner.os != 'Windows'
+        env:
+          HILDEGARD_RELEASE_URL: http://127.0.0.1:8765
+        run: sh rel/install.sh --cpu --json
+      - name: install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          HILDEGARD_RELEASE_URL: http://127.0.0.1:8765
+          HILDEGARD_INSTALL_ARGS: --cpu --json
+        run: ./rel/install.ps1
+      - name: Where it went
+        run: |
+          case "$RUNNER_OS" in
+            Linux) home="$HOME/.local/share/hildegard"; hg="$HOME/.local/bin/hildegard" ;;
+            macOS) home="$HOME/Library/Application Support/Hildegard"; hg="$HOME/.local/bin/hildegard" ;;
+            Windows) home="$LOCALAPPDATA/Hildegard"; hg="$home/bin/hildegard.cmd" ;;
+          esac
+          echo "HG_HOME=$home" >> "$GITHUB_ENV"
+          echo "HG=$hg" >> "$GITHUB_ENV"
       - name: Wait for the ComfyUI Hildegard runs
         run: echo "COMFY_URL=$(node scripts/wait-for-comfy.mjs 7341 300)" >> "$GITHUB_ENV"
       - name: Render a real video through it
         run: node packages/comfy/scripts/smoke-on-comfy.ts "$COMFY_URL"
-      - run: node apps/cli/src/main.ts status --json --data "$HG_DATA"
+      - run: '"$HG" status --json'
       - name: Install again changes nothing
         run: |
-          node apps/cli/src/main.ts install --yes --json --cpu --data "$HG_DATA" > again.json
+          "$HG" install --yes --json --cpu > again.json
           node -e "const r=require('./again.json'); const s=r.steps.filter(x=>['uv','comfyui','python','packages'].includes(x.id)); console.log(s.map(x=>x.id+'='+x.status).join(' ')); process.exit(r.ok && s.every(x=>x.status==='skipped')?0:1)"
-      - run: node apps/cli/src/main.ts stop --json --data "$HG_DATA"
+      - name: CLI tests against the installed app
+        run: |
+          cd apps/cli
+          HILDEGARD_CLI="$HG_HOME/app/hildegard.mjs" npx vitest run
+      - run: '"$HG" stop --json'
       - if: failure()
-        run: for f in "$HG_DATA"/logs/*.log; do echo "=== $f"; tail -n 80 "$f"; done
-
+        run: for f in "$HG_HOME"/logs/*.log; do echo "=== $f"; tail -n 80 "$f"; done

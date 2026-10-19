@@ -108,12 +108,20 @@ export class ComfySdkEngine implements Engine {
     }
   }
 
+  /**
+   * Whether a job sent now would run: comfy-api-proxy answers *and* the ComfyUI behind it does. The proxy's own
+   * health check doesn't look upstream, so ask it which ComfyUI it fronts and check that one.
+   */
   async ping(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.url}/api/v2/jobs/hildegard-ping`, {
+      const res = await fetch(`${this.url}/api/v2/health`, { signal: AbortSignal.timeout(2000) });
+      if (!res.ok) return false;
+      const { upstream } = (await res.json()) as { upstream?: string };
+      if (!upstream) return true;
+      const comfy = await fetch(`${upstream.replace(/\/$/, '')}/system_stats`, {
         signal: AbortSignal.timeout(2000),
       });
-      return res.status === 404 || res.ok;
+      return comfy.ok;
     } catch {
       return false;
     }

@@ -13,7 +13,10 @@ import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../fixtures');
+// In a release the fixtures sit beside the bundled script; in a checkout, beside this package.
+const fixtures = process.env.HILDEGARD_RESOURCES
+  ? join(process.env.HILDEGARD_RESOURCES, 'fixtures')
+  : join(dirname(fileURLToPath(import.meta.url)), '../fixtures');
 
 type Status = 'queued' | 'running' | 'succeeded' | 'canceling' | 'canceled' | 'failed' | 'expired';
 
@@ -189,6 +192,11 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
     const url = new URL(req.url ?? '/', origin);
     const path = url.pathname;
     try {
+      // As comfy-api-proxy: its health names the ComfyUI behind it, which here is this same server.
+      if (req.method === 'GET' && path === '/api/v2/health')
+        return send(res, 200, { status: 'healthy', upstream: origin });
+      if (req.method === 'GET' && path === '/system_stats')
+        return send(res, 200, { system: {}, devices: [] });
       if (req.method === 'POST' && path === '/api/v2/jobs') {
         const body = JSON.parse((await readBody(req)).toString('utf8'));
         const wf = body?.workflow;

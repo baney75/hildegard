@@ -13,7 +13,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 import { starterModel } from '../src/commands.ts';
 
-const main = fileURLToPath(new URL('../src/main.ts', import.meta.url));
+// HILDEGARD_CLI tests an installed release's hildegard.mjs instead of the source.
+const main = process.env.HILDEGARD_CLI ?? fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const run = promisify(execFile);
 
 /** Runs `hildegard …` in its own home folder, so no real app config is ever touched. */
@@ -26,6 +27,8 @@ async function hildegard(home: string, ...args: string[]) {
       APPDATA: join(home, 'AppData'),
       XDG_CONFIG_HOME: join(home, '.config'),
       PATH: '',
+      // As the installed launcher does.
+      ...(process.env.HILDEGARD_CLI ? { HILDEGARD_ENTRY: main } : {}),
     },
     timeout: 60_000,
   }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
