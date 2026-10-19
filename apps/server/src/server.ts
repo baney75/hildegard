@@ -6,7 +6,7 @@ import { type LoadedCatalog, loadCatalog } from '@hildegard/presets';
 import { serve } from '@hono/node-server';
 import { createApp, VERSION } from './app.ts';
 import type { Config } from './config.ts';
-import { fileStore, HfLink, keychainStore } from './hf.ts';
+import { fileStore, HfLink, keychainStore, type SecretStore } from './hf.ts';
 import { ModelManager } from './models.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
