@@ -43,7 +43,6 @@ async function hildegard(home: string, ...args: string[]) {
 }
 
 describe('hildegard', () => {
-  // Ten runs of the CLI and a server start: on Windows each Node start is slow, so 5 s isn't enough.
   it('starts in the background, reports status, links an app, and stops', async () => {
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
@@ -80,7 +79,7 @@ describe('hildegard', () => {
 
     expect((await hildegard(home, 'stop', ...common)).steps[0]!.status).toBe('done');
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);
-  }, 30_000);
+  });
 
   it('serves MCP on stdio, as AI apps run it', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-mcp-'));
