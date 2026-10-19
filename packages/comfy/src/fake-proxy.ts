@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A stand-in for comfy-api-proxy + ComfyUI that speaks the Comfy API v2 the SDK uses, with no GPU and no models.
  * It walks each job through queued → running (progress and preview frames) → succeeded, and serves a small sample

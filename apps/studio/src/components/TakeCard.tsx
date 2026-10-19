@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Take } from '@hildegard/presets';
 import { memo, useRef, useState } from 'react';
 import { clock, ordinal } from '../lib/format.ts';

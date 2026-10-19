@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Take } from '@hildegard/presets';
 import { useState } from 'react';
 import { api } from '../lib/api.ts';

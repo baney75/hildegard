@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Catalog, Model, MotionImpl, Post, ShotRequest } from './schema.ts';
 import { Post as PostSchema } from './schema.ts';
 

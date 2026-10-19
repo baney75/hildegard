@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from '@playwright/test';
 import { createShot, expectAccessible, freshFilm, watchErrors } from './helpers.ts';
 

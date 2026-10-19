@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
@@ -11,6 +12,7 @@ const SECTIONS = [
   { id: 'huggingface', label: 'Hugging Face', icon: 'link' },
   { id: 'computer', label: 'This computer', icon: 'desktop' },
   { id: 'privacy', label: 'Privacy', icon: 'privacy' },
+  { id: 'about', label: 'About', icon: 'book' },
 ] as const;
 type Section = (typeof SECTIONS)[number]['id'];
 
@@ -68,6 +70,7 @@ export function Settings({
               {current === 'huggingface' ? <HuggingFace catalog={catalog} /> : null}
               {current === 'computer' ? <Computer /> : null}
               {current === 'privacy' ? <Privacy /> : null}
+              {current === 'about' ? <About /> : null}
             </div>
           ) : null}
         </div>
@@ -363,6 +366,52 @@ function Computer() {
           not real video.
         </p>
       ) : null}
+    </section>
+  );
+}
+
+function About() {
+  const version = useStore((s) => s.version);
+  const source = useStore((s) => s.source);
+  const code = source ? (source.commit ? `${source.url}/tree/${source.commit}` : source.url) : null;
+  return (
+    <section className="hg-section" aria-labelledby="ab-h">
+      <h2 id="ab-h" className="st-h2">
+        About Hildegard
+      </h2>
+      <div className="st-tile hg-prose">
+        <p>
+          Version <span className="num">{version}</span>
+          {source?.commit ? (
+            <>
+              {' '}
+              · build <span className="num">{source.commit.slice(0, 7)}</span>
+            </>
+          ) : null}
+        </p>
+        <p>
+          Hildegard is free software under the GNU Affero General Public License 3.0. Presets, workflows and
+          the film-look node are under Apache-2.0. You can read, change and share all of it.
+        </p>
+        <ul className="hg-links">
+          {code ? (
+            <li>
+              <a href={code} target="_blank" rel="noreferrer noopener">
+                Source code for this version
+              </a>
+            </li>
+          ) : null}
+          <li>
+            <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">
+              Third-party notices and font licenses
+            </a>
+          </li>
+        </ul>
+        <p className="body-sm muted">
+          Models are not part of Hildegard. Each comes from its publisher under its own license, which you
+          accept before it downloads.
+        </p>
+      </div>
     </section>
   );
 }

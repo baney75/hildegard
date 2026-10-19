@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { SecretStore } from '../src/hf.ts';
 
 export const memoryStore = (initial: string | null = null): SecretStore & { value: string | null } => {

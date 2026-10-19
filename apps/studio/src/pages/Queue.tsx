@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog, Take } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { ForceDialog } from '../components/ForceDialog.tsx';

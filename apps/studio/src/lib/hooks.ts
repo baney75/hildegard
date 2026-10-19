@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 export type WindowClass = 'compact' | 'medium' | 'expanded' | 'wide';

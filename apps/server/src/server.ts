@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ComfySdkEngine } from '@hildegard/comfy';

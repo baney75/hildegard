@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type BuiltGraph, buildGraph, type Engine, EngineError } from '@hildegard/comfy';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type {
   Catalog,
   EngineState,
@@ -19,6 +20,7 @@ export interface State {
   conn: 'connecting' | 'live' | 'down';
   loadError: string | null;
   version: string;
+  source: Snapshot['source'] | null;
   catalog: Catalog | null;
   projects: Map<string, Project>;
   shots: Map<string, Shot>;
@@ -33,6 +35,7 @@ let state: State = {
   conn: 'connecting',
   loadError: null,
   version: '',
+  source: null,
   catalog: null,
   projects: new Map(),
   shots: new Map(),
@@ -63,6 +66,7 @@ export function useStore<T>(select: (s: State) => T): T {
 function fromSnapshot(s: Snapshot): Partial<State> {
   return {
     version: s.version,
+    source: s.source,
     projects: new Map(s.projects.map((p) => [p.id, p])),
     shots: new Map(s.shots.map((x) => [x.id, x])),
     takes: new Map(s.takes.map((t) => [t.id, t])),

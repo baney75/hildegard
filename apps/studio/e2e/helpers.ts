@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import AxeBuilder from '@axe-core/playwright';
 import { type APIRequestContext, expect, type Page } from '@playwright/test';
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
 /** Lower-case ids with dashes: stable keys used by the UI, the MCP tools and saved projects. */

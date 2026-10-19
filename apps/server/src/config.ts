@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 

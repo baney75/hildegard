@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog, Model, ModelState } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';

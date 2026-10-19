@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog } from '@hildegard/presets';
 import { type ClipboardEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api.ts';

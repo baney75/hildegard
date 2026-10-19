@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /** Shapes the Studio UI, the MCP server and the local server share. Plain data, safe to send as JSON. */
 import type { ShotRequest } from './schema.ts';
 
@@ -103,6 +104,8 @@ export interface HfState {
 
 export interface Snapshot {
   version: string;
+  /** Where this build's source code is (AGPL §13): the repository and, when known, the exact commit. */
+  source: { url: string; commit: string | null };
   projects: Project[];
   shots: Shot[];
   takes: Take[];

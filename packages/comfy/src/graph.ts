@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { basename } from 'node:path';
 import type { ComposedShot, Model } from '@hildegard/presets';
 

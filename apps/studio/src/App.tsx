@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef } from 'react';
 import mark from './assets/mark-vellum.svg';
 import { Icon, Toasts } from './components/ui.tsx';

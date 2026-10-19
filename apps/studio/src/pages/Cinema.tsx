@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog, Take } from '@hildegard/presets';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board, EmptyHero } from '../components/Board.tsx';

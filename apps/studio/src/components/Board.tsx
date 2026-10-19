@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Project, Shot, Take } from '@hildegard/presets';
 import { useEffect, useRef } from 'react';
 import { about, roman } from '../lib/format.ts';

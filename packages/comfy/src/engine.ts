@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Comfy, type Job } from '@comfyorg/sdk';
 import type { BuiltGraph } from './graph.ts';
 

@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
-import { extname, join, resolve, sep } from 'node:path';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import {
   type Catalog,
   type CreateShotBody,
@@ -26,6 +29,29 @@ import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
 export const VERSION = '0.1.0';
+
+/**
+ * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
+ * its own repository. The commit comes from the build (HILDEGARD_COMMIT) or, in a checkout, from git.
+ */
+const SOURCE = {
+  url: process.env.HILDEGARD_SOURCE_URL ?? 'https://github.com/baney75/hildegard',
+  commit: process.env.HILDEGARD_COMMIT ?? gitCommit(),
+};
+
+function gitCommit(): string | null {
+  try {
+    const out = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dirname(fileURLToPath(import.meta.url)),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2000,
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(out) ? out : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface AppDeps {
   config: Config;
@@ -106,6 +132,7 @@ export function createApp(deps: AppDeps) {
 
   const snapshot = (): Snapshot => ({
     version: VERSION,
+    source: SOURCE,
     projects: [...store.projects.values()],
     shots: [...store.shots.values()],
     takes: [...store.takes.values()],
@@ -455,7 +482,7 @@ export function createApp(deps: AppDeps) {
     c.header('cache-control', 'no-store');
     const esc = message.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
     return c.html(
-      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Hildegard</title><style>body{font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;background:#14110f;color:#f3ede4}main{max-width:28rem;padding:2rem;text-align:center}a{color:#e8b86a}</style><main><p>${esc}</p><p><a href="/#settings">Back to Hildegard</a></p></main>`,
+      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Hildegard</title><style>body{font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;background:#14110f;color:#f3ede4}main{max-width:28rem;padding:2rem;text-align:center}a{color:#e8b86a}</style><main><p>${esc}</p><p><a href="/#/settings/huggingface">Back to Hildegard</a></p></main>`,
       ok ? 200 : 400,
     );
   });
@@ -514,6 +541,7 @@ export function createApp(deps: AppDeps) {
       '.json': 'application/json',
       '.webmanifest': 'application/manifest+json',
       '.ico': 'image/x-icon',
+      '.txt': 'text/plain; charset=utf-8',
     };
     app.get('*', (c) => {
       const p = decodeURIComponent(c.req.path);

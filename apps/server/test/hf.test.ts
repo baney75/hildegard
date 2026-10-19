@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it, vi } from 'vitest';
 import { HfLink } from '../src/hf.ts';
 import { fakeFetch, memoryStore } from './helpers.ts';

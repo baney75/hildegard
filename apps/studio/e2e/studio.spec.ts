@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from '@playwright/test';
 import { createShot, expectAccessible, freshFilm, watchErrors } from './helpers.ts';
 
@@ -198,6 +199,23 @@ test('settings: models and Hugging Face linking', async ({ page }) => {
   await expectAccessible(page, 'hugging face');
   // Typing a token never echoes it.
   await expect(page.getByLabel('Hugging Face token')).toHaveAttribute('type', 'password');
+  expect(errors).toEqual([]);
+});
+
+test('about: version, the source for this build, and the notices', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await page.goto('/#/settings/about');
+  await expect(page.getByRole('heading', { name: 'About Hildegard' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Source code for this version' })).toHaveAttribute(
+    'href',
+    /^https:\/\/github\.com\/baney75\/hildegard(\/tree\/[0-9a-f]{40})?$/,
+  );
+  const notices = await request.get('/THIRD_PARTY_NOTICES.txt');
+  expect(notices.headers()['content-type']).toContain('text/plain');
+  const text = await notices.text();
+  expect(text).toContain('SIL Open Font License');
+  expect(text).toContain('## react ');
+  await expectAccessible(page, 'about');
   expect(errors).toEqual([]);
 });
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog } from '@hildegard/presets';
 import { useState } from 'react';
 import mark from '../assets/mark-vellum.svg';

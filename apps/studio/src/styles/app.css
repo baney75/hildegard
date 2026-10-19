@@ -331,3 +331,5 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-terms { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; color: var(--text-secondary); }
 .hg-terms li::marker { color: var(--text-muted); }
 .hg-license .st-dialog__b a { color: var(--sapphire-text); }
+.hg-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.hg-links a { color: var(--sapphire-text); }

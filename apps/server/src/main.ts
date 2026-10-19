@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import { VERSION } from './app.ts';
 import { parseArgs } from './config.ts';
 import { startServer } from './server.ts';
