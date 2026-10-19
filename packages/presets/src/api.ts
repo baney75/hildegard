@@ -1,0 +1,130 @@
+/** Shapes the Studio UI, the MCP server and the local server share. Plain data, safe to send as JSON. */
+import type { ShotRequest } from './schema.ts';
+
+export type TakeStatus = 'queued' | 'running' | 'done' | 'failed' | 'canceled';
+/** Force now jumps the queue; studio work comes before agent work. */
+export type Priority = 'forced' | 'interactive' | 'agent';
+
+export interface TakeError {
+  code: string;
+  /** One plain sentence, shown on the card. */
+  message: string;
+  /** What to do about it. */
+  hint: string;
+  detail?: string;
+}
+
+export interface Take {
+  id: string;
+  shotId: string;
+  projectId: string;
+  /** 1-based number within the shot. */
+  number: number;
+  status: TakeStatus;
+  priority: Priority;
+  /** Who asked: the Studio, or an agent by name. */
+  source: { kind: 'studio' } | { kind: 'agent'; name: string };
+  request: ShotRequest;
+  seed: number;
+  model: string;
+  summary: string;
+  prompt: string;
+  width: number;
+  height: number;
+  seconds: number;
+  fps: number;
+  quality: 'draft' | 'final';
+  queuePosition: number | null;
+  progress: { value: number; step: number | null; steps: number | null } | null;
+  /** Bumped whenever a new preview frame arrives. */
+  previewVersion: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** Wall time of the render itself. */
+  renderMs: number | null;
+  error: TakeError | null;
+  kept: boolean;
+  /** Set when the take is done. */
+  video: string | null;
+  poster: string | null;
+  /** Bytes of the finished video. */
+  bytes: number | null;
+}
+
+export interface Shot {
+  id: string;
+  projectId: string;
+  title: string;
+  prompt: string;
+  createdAt: string;
+  takeIds: string[];
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  shotIds: string[];
+}
+
+export interface EngineState {
+  /** Whether ComfyUI answers. */
+  online: boolean;
+  url: string;
+  /** Rendering with the stand-in engine (tests and UI development): no real video is made. */
+  fake: boolean;
+  paused: boolean;
+  device: string;
+}
+
+export interface ModelState {
+  id: string;
+  installed: boolean;
+  /** Files still to fetch, with total bytes. */
+  missingBytes: number;
+  downloading: { done: number; total: number; file: string; bytesPerSec: number } | null;
+  /** Needs a Hugging Face sign-in and the license accepted on its page. */
+  gated: boolean;
+  error: string | null;
+}
+
+export interface HfState {
+  linked: boolean;
+  user: string | null;
+  /** How the token is kept: the OS keychain, a 0600 file, or the environment. */
+  storage: 'keychain' | 'file' | 'env' | null;
+  /** Whether "Sign in with Hugging Face" is available (an OAuth app id is configured). */
+  oauth: boolean;
+}
+
+export interface Snapshot {
+  version: string;
+  projects: Project[];
+  shots: Shot[];
+  takes: Take[];
+  engine: EngineState;
+  models: ModelState[];
+  hf: HfState;
+}
+
+/** Server-sent events on /api/events. */
+export type ServerEvent =
+  | { type: 'take'; take: Take }
+  | { type: 'shot'; shot: Shot }
+  | { type: 'project'; project: Project }
+  | { type: 'removed'; kind: 'take' | 'shot' | 'project'; id: string }
+  | { type: 'engine'; engine: EngineState }
+  | { type: 'models'; models: ModelState[] }
+  | { type: 'hf'; hf: HfState };
+
+/** POST /api/shots */
+export interface CreateShotBody {
+  projectId?: string;
+  /** Add takes to an existing shot instead of starting a new one. */
+  shotId?: string;
+  title?: string;
+  request: unknown;
+  priority?: Priority;
+}

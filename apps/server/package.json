@@ -1,0 +1,27 @@
+{
+  "name": "@hildegard/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "hildegard-server": "./src/main.ts"
+  },
+  "scripts": {
+    "dev": "node --watch src/main.ts --fake-gpu",
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hildegard/comfy": "workspace:*",
+    "@hildegard/presets": "workspace:*",
+    "@hono/node-server": "2.1.5",
+    "@napi-rs/keyring": "2.1.2",
+    "hono": "4.13.13",
+    "zod": "4.6.7"
+  }
+}
