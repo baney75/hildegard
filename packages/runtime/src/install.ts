@@ -206,7 +206,11 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
     record({
       id: 'packages',
       title: 'Install PyTorch and ComfyUI’s packages',
-      status: /^Audited \d+ packages?/m.test(out) ? 'skipped' : 'done',
+      // uv says "Audited" or "Checked" N packages when nothing changed, depending on its version.
+      status:
+        /^(Audited|Checked) \d+ packages?/m.test(out) && !/^(Installed|Uninstalled) \d+/m.test(out)
+          ? 'skipped'
+          : 'done',
       detail: `PyTorch for ${gpu.backend === 'cpu' ? 'the CPU' : gpu.backend.toUpperCase()}${gpu.torchBackend && gpu.torchBackend !== 'cpu' ? ` (${gpu.torchBackend})` : ''}, ComfyUI’s packages and ${PROXY.replace('==', ' ')}.`,
     });
 

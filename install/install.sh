@@ -4,7 +4,7 @@
 # Installs Hildegard @VERSION@ for you alone: no sudo, nothing outside your home folder.
 #
 #   curl -fsSL https://github.com/baney75/hildegard/releases/download/v@VERSION@/install.sh | sh
-#   curl -fsSL …/install.sh | sh -s -- --json         for agents: the last step prints JSON
+#   curl -fsSL .../install.sh | sh -s -- --json         for agents: the last step prints JSON
 #
 # What it does, in order:
 #   1. Downloads Node.js @NODE@ from nodejs.org and Hildegard @VERSION@ from GitHub, and checks each against the
@@ -15,6 +15,7 @@
 #
 # Set HILDEGARD_HOME to install somewhere else, or HILDEGARD_SKIP_SETUP=1 to stop after step 2.
 set -eu
+# ASCII only below: macOS's /bin/sh (bash 3.2) reads a UTF-8 byte after $NAME as part of the name.
 
 VERSION=@VERSION@
 NODE=@NODE@
@@ -87,12 +88,14 @@ checked() { # url file sha
 }
 
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT INT TERM
+# Keep the exit status: an EXIT trap's own status would otherwise hide a failure.
+trap 'rc=$?; rm -rf "$tmp"; exit $rc' EXIT
+trap 'exit 130' INT TERM
 mkdir -p "$home" "$bin"
 
 # Node.js, Hildegard's own copy, so it never depends on (or changes) one you have.
 if [ "$("$home/node/bin/node" --version 2>/dev/null || true)" != "v$NODE" ]; then
-  say "Getting Node.js $NODE…"
+  say "Getting Node.js ${NODE}..."
   f=node-v$NODE-$target.tar.gz
   checked "https://nodejs.org/dist/v$NODE/$f" "$tmp/$f" "$(node_sha "$target")"
   rm -rf "$home/node.new"
@@ -102,7 +105,7 @@ if [ "$("$home/node/bin/node" --version 2>/dev/null || true)" != "v$NODE" ]; the
   mv "$home/node.new" "$home/node"
 fi
 
-say "Getting Hildegard $VERSION…"
+say "Getting Hildegard ${VERSION}..."
 f=hildegard-$VERSION-$target.tar.gz
 checked "$RELEASE/$f" "$tmp/$f" "$(app_sha "$target")"
 rm -rf "$home/app-$VERSION.new"

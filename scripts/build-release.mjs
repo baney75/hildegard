@@ -133,6 +133,8 @@ for (const script of ['install.sh', 'install.ps1']) {
     const k = t.replace('-', '_');
     text = text.replaceAll(`@APP_SHA_${k}@`, sums[t]).replaceAll(`@NODE_SHA_${k}@`, nodeSums[t]);
   }
+  // macOS's /bin/sh is bash 3.2, which can read a UTF-8 byte after $NAME as part of the name.
+  if (script === 'install.sh' && /[^\x00-\x7f]/.test(text)) throw new Error('install.sh must be ASCII only');
   if (/@[A-Z_0-9a-z]+@/.test(text))
     throw new Error(`${script} has a placeholder left: ${text.match(/@[A-Z_0-9a-z]+@/)[0]}`);
   writeFileSync(join(out, script), text);
