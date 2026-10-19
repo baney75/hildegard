@@ -1,0 +1,15 @@
+{
+  "name": "@hildegard/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Installs and runs ComfyUI for Hildegard, detects the GPU, and links Hildegard to AI agents.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
