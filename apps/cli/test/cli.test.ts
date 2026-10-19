@@ -27,6 +27,7 @@ async function hildegard(home: string, ...args: string[]) {
       APPDATA: join(home, 'AppData'),
       XDG_CONFIG_HOME: join(home, '.config'),
       PATH: '',
+      HF_TOKEN: '',
       // As the installed launcher does.
       ...(process.env.HILDEGARD_CLI ? { HILDEGARD_ENTRY: main } : {}),
     },
@@ -67,6 +68,14 @@ describe('hildegard', () => {
     const lic = await hildegard(home, 'models', 'install', 'wan-2-2-ti2v-5b', ...common);
     expect(lic.needsOwner).toBe(true);
     expect(lic.steps[0]!.detail).toContain('Apache-2.0');
+
+    // Linking Hugging Face is the owner's to do: an agent gets the command to hand them, never a token prompt.
+    expect((await hildegard(home, 'hf', 'status', ...common)).steps[0]).toMatchObject({
+      status: 'needs-owner',
+    });
+    const login = await hildegard(home, 'hf', 'login', ...common);
+    expect(login.needsOwner).toBe(true);
+    expect(login.steps[0]).toMatchObject({ id: 'huggingface', command: 'hildegard hf login' });
 
     expect((await hildegard(home, 'stop', ...common)).steps[0]!.status).toBe('done');
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);

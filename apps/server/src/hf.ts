@@ -130,7 +130,11 @@ export class HfLink {
   }
 
   async whoami(token: string): Promise<string> {
-    const res = await this.fetchFn(`${HF}/api/whoami-v2`, { headers: { authorization: `Bearer ${token}` } });
+    const res = await this.fetchFn(`${HF}/api/whoami-v2`, {
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => {
+      throw new Error('Couldn’t reach Hugging Face. Check this computer’s connection, then try again.');
+    });
     if (res.status === 401) throw new Error('Hugging Face did not accept that token.');
     if (!res.ok) throw new Error(`Hugging Face answered ${res.status}. Try again in a moment.`);
     const body = (await res.json()) as { name?: string };

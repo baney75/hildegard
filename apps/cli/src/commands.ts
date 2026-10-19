@@ -4,7 +4,7 @@ import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import type { Catalog, Snapshot } from '@hildegard/presets';
+import type { Catalog, HfState, Snapshot } from '@hildegard/presets';
 import {
   AGENTS,
   connectAgent,
@@ -480,6 +480,170 @@ export function open(ctx: Ctx): Result {
         : ['xdg-open', [url]];
   spawn(cmd as string, args as string[], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
   return result([], `Opening ${url}`, { url });
+}
+
+// ── Hugging Face ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+const TOKEN_PAGE = 'https://huggingface.co/settings/tokens/new?tokenType=read';
+
+/** Reads a line without echoing it, so a token never shows on screen or in scrollback. */
+function askSecret(question: string): Promise<string> {
+  const stdin = process.stdin;
+  process.stdout.write(question);
+  return new Promise((resolve) => {
+    let value = '';
+    const finish = (v: string) => {
+      stdin.off('data', onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+      process.stdout.write('\n');
+      resolve(v.trim());
+    };
+    const onData = (buf: Buffer) => {
+      for (const ch of buf.toString('utf8')) {
+        if (ch === '\r' || ch === '\n') return finish(value);
+        if (ch === '\u0003') {
+          finish('');
+          process.exit(130);
+        }
+        if (ch === '\u007f' || ch === '\b') value = value.slice(0, -1);
+        else if (ch >= ' ') value += ch;
+      }
+    };
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on('data', onData);
+  });
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const c of process.stdin) chunks.push(c as Buffer);
+  return Buffer.concat(chunks).toString('utf8').trim();
+}
+
+const linkedStep = (s: HfState): Step => ({
+  id: 'huggingface',
+  title: 'Link Hugging Face',
+  status: 'skipped',
+  detail: `Linked${s.user ? ` as ${s.user}` : ''}; the token is kept in ${{ keychain: 'your system keychain', file: 'a file only you can read', env: 'the HF_TOKEN environment variable' }[s.storage ?? 'file']}.`,
+});
+
+/**
+ * `hildegard hf [status|login|logout]`. The token never goes on the command line (it would land in shell history
+ * and process lists): it comes from Hugging Face's own sign-in, a hidden prompt, or stdin with --token-stdin.
+ * An agent can't link an account for the owner, so without a terminal this asks the owner to.
+ */
+export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
+  const pre = await ensureRunning(ctx);
+  if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
+  const c = ctx.config;
+  const action = args[0] ?? 'status';
+  const state = await api<HfState>(c, '/api/hf');
+
+  if (action === 'status')
+    return result(
+      [
+        state.linked
+          ? linkedStep(state)
+          : {
+              id: 'huggingface',
+              title: 'Link Hugging Face',
+              status: 'needs-owner',
+              detail:
+                'Not linked. Open models download without it; LTX needs it, after you accept its license on huggingface.co.',
+              command: 'hildegard hf login',
+            },
+      ],
+      '',
+      { hf: state },
+    );
+
+  if (action === 'logout') {
+    const s = await api<HfState>(c, '/api/hf/unlink', { method: 'POST' });
+    return result(
+      [
+        {
+          id: 'huggingface',
+          title: 'Unlink Hugging Face',
+          status: 'done',
+          detail: 'Removed the token from this computer.',
+        },
+      ],
+      s.linked ? 'HF_TOKEN is still set in the environment, so downloads keep using it.' : 'Unlinked.',
+      { hf: s },
+    );
+  }
+
+  if (action !== 'login')
+    return result([], 'Use `hildegard hf status`, `hf login` or `hf logout`.', { ok: false });
+  if (state.linked && !ctx.flags.has('force')) return result([linkedStep(state)], '', { hf: state });
+
+  const fail = (detail: string): Result =>
+    result([{ id: 'huggingface', title: 'Link Hugging Face', status: 'failed', detail }], detail);
+  const done = (s: HfState) =>
+    result(
+      [{ ...linkedStep(s), status: 'done' }],
+      `Hugging Face is linked${s.user ? ` as ${s.user}` : ''}.`,
+      { hf: s },
+    );
+
+  if (ctx.flags.has('token-stdin')) {
+    try {
+      return done(
+        await api<HfState>(c, '/api/hf/token', { method: 'POST', body: { token: await readStdin() } }),
+      );
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  }
+
+  if (!process.stdin.isTTY || ctx.json)
+    return result(
+      [
+        {
+          id: 'huggingface',
+          title: 'Link Hugging Face',
+          status: 'needs-owner',
+          detail: `The owner signs in to their own Hugging Face account; an agent never handles the token. In a terminal on this computer, run the command below${state.oauth ? ' and approve Hildegard on huggingface.co' : `, and paste a read token from ${TOKEN_PAGE}`}. Or use Settings › Hugging Face in the Studio.`,
+          command: 'hildegard hf login',
+        },
+      ],
+      'Waiting on the owner to link Hugging Face.',
+      { hf: state },
+    );
+
+  if (state.oauth) {
+    try {
+      const d = await api<{ userCode: string; verificationUri: string; expiresIn: number }>(
+        c,
+        '/api/hf/device',
+        {
+          method: 'POST',
+        },
+      );
+      console.log(`Open ${d.verificationUri}\nand enter the code ${d.userCode}. Waiting for Hugging Face…`);
+      const until = Date.now() + d.expiresIn * 1000;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const s = await api<HfState>(c, '/api/hf');
+        if (s.linked) return done(s);
+      }
+      return fail('The code expired before it was approved. Run `hildegard hf login` again.');
+    } catch {
+      // Hugging Face's sign-in isn't reachable: a token works just as well.
+    }
+  }
+  console.log(
+    `Make a read token at ${TOKEN_PAGE}\n(Hildegard only reads models with it.) Then paste it here; it won't show.`,
+  );
+  const token = await askSecret('Token: ');
+  if (!token) return fail('No token given. Nothing changed.');
+  try {
+    return done(await api<HfState>(c, '/api/hf/token', { method: 'POST', body: { token } }));
+  } catch (e) {
+    return fail((e as Error).message);
+  }
 }
 
 export const dataExists = (c: Config) => existsSync(c.dataDir);

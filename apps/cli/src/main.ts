@@ -4,6 +4,7 @@ import { parseArgs, VERSION } from '@hildegard/server';
 import {
   type Ctx,
   connect,
+  hf,
   install,
   models,
   open,
@@ -28,6 +29,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, cursor,')}
                              ${dim('opencode, vscode, windsurf, lm-studio')}. --all links every app found
   hildegard disconnect <app>
+  hildegard hf login         Link your Hugging Face account (hf status, hf logout). The token goes to
+                             your system keychain; pipe one in with --token-stdin
   hildegard mcp              The MCP server, on stdio (AI apps run this)
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
@@ -79,6 +82,8 @@ async function main(): Promise<Result | null> {
       return open(ctx);
     case 'models':
       return models(ctx, rest);
+    case 'hf':
+      return hf(ctx, rest);
     case 'connect':
       return connect(ctx, rest);
     case 'disconnect':
