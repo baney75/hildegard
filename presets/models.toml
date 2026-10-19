@@ -1,0 +1,98 @@
+# Video models Cinema Studio can render with. Only open weights. Hildegard never rehosts weights:
+# each file is fetched from its Hugging Face repo, at the commit and SHA-256 pinned in models.lock.json.
+# Sizes here are approximate and shown before a download starts; the lock holds the exact ones.
+
+[[models]]
+id = "ltx-2-5-distilled"
+name = "LTX-2.5 distilled"
+family = "ltx-2.5"
+blurb = "Lightricks' newest open model. Video and sound together, fast 8-step sampling."
+license = "LTX-2 Community License"
+licenseUrl = "https://huggingface.co/Lightricks/LTX-2.5"
+gated = true
+graph = "ltx-2.5-distilled"
+minVramGb = 24
+fps = 24
+frameMultiple = 8
+maxSeconds = 10
+audio = true
+draft = { height = 544, steps = 8, cfg = 1.0 }
+final = { height = 1088, steps = 11, cfg = 1.0 }
+
+[[models.files]]
+repo = "Lightricks/LTX-2.5"
+path = "diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors"
+dir = "diffusion_models"
+size = 21500000000
+gated = true
+
+[[models.files]]
+repo = "Lightricks/LTX-2.5"
+path = "text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors"
+dir = "text_encoders"
+size = 13000000000
+gated = true
+
+[[models.files]]
+repo = "Lightricks/LTX-2.5"
+path = "vae/ltx-2.5-video-vae-bf16.safetensors"
+dir = "vae"
+size = 1500000000
+gated = true
+
+[[models.files]]
+repo = "Lightricks/LTX-2.5"
+path = "vae/ltx-2.5-audio-vae-bf16.safetensors"
+dir = "vae"
+size = 200000000
+gated = true
+
+[[models.files]]
+repo = "Lightricks/LTX-2.5"
+path = "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+dir = "latent_upscale_models"
+size = 1000000000
+gated = true
+
+[[models]]
+id = "ltx-2-distilled"
+name = "LTX-2 distilled"
+family = "ltx-2"
+blurb = "The model with Lightricks' camera-control LoRAs: exact dollies, jibs and locked-off shots."
+license = "LTX-2 Community License"
+licenseUrl = "https://huggingface.co/Lightricks/LTX-2"
+graph = "ltx-2-distilled"
+minVramGb = 24
+fps = 24
+frameMultiple = 8
+maxSeconds = 10
+audio = true
+draft = { height = 544, steps = 8, cfg = 1.0 }
+final = { height = 1088, steps = 11, cfg = 1.0 }
+
+[[models.files]]
+repo = "Lightricks/LTX-2"
+path = "ltx-2-19b-distilled-fp8.safetensors"
+dir = "checkpoints"
+size = 27078716346
+
+[[models.files]]
+repo = "Comfy-Org/ltx-2"
+path = "split_files/text_encoders/gemma_3_12B_it_fp8_scaled.safetensors"
+dir = "text_encoders"
+size = 13000000000
+
+[[models.files]]
+repo = "Lightricks/LTX-2"
+path = "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+dir = "latent_upscale_models"
+size = 995765578
+
+[models.loras]
+camera-static = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Static", path = "ltx-2-19b-lora-camera-control-static.safetensors", dir = "loras", size = 330000000 }
+camera-dolly-in = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-In", path = "ltx-2-19b-lora-camera-control-dolly-in.safetensors", dir = "loras", size = 330000000 }
+camera-dolly-out = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Out", path = "ltx-2-19b-lora-camera-control-dolly-out.safetensors", dir = "loras", size = 330000000 }
+camera-dolly-left = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Left", path = "ltx-2-19b-lora-camera-control-dolly-left.safetensors", dir = "loras", size = 330000000 }
+camera-dolly-right = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Right", path = "ltx-2-19b-lora-camera-control-dolly-right.safetensors", dir = "loras", size = 330000000 }
+camera-jib-up = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Up", path = "ltx-2-19b-lora-camera-control-jib-up.safetensors", dir = "loras", size = 330000000 }
+camera-jib-down = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Down", path = "ltx-2-19b-lora-camera-control-jib-down.safetensors", dir = "loras", size = 330000000 }

@@ -1,0 +1,28 @@
+{
+  "name": "hildegard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Your own studio, on every machine you own. Open-source, self-hosted generative studio. Cinema Studio is the first room.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @hildegard/server --filter @hildegard/studio dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @hildegard/studio e2e",
+    "validate": "node scripts/validate-presets.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^22.20.5",
+    "typescript": "~7.0.2",
+    "vitest": "5.0.5"
+  }
+}

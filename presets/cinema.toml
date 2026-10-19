@@ -1,0 +1,467 @@
+# Cinema Studio presets. Licensed Apache-2.0 so anyone can reuse them.
+# Every preset is plain words that end up in the prompt, plus optional film-look post settings
+# (grain, halation, vignette...) applied by the HildegardLook node. Presets never name a model, so a
+# rig keeps working when the model changes; per-model motion tricks live under [motions.impl.<model>].
+
+version = 1
+durations = [3, 5, 8, 10]
+
+# ───────────────────────── Camera bodies ─────────────────────────
+
+[[bodies]]
+id = "full-frame"
+name = "Full-frame cinema"
+blurb = "Clean, wide latitude"
+prompt = "shot on a full-frame digital cinema camera, clean image, wide dynamic range, natural highlight roll-off"
+post = { grain = 0.04 }
+
+[[bodies]]
+id = "large-format"
+name = "Large format 70mm"
+blurb = "Vast, very fine grain"
+prompt = "shot on 65mm large-format film, immense detail, very fine grain, epic depth"
+post = { grain = 0.08, halation = 0.1 }
+
+[[bodies]]
+id = "vintage-16mm"
+name = "Vintage 16mm"
+blurb = "Grain, halation, gate weave"
+prompt = "shot on vintage 16mm film, visible grain, soft halation around highlights, slight gate weave"
+post = { grain = 0.45, halation = 0.35, gateWeave = 0.35, softness = 0.15, lift = 0.04 }
+
+[[bodies]]
+id = "super-35"
+name = "Super 35"
+blurb = "The classic feature look"
+prompt = "shot on Super 35 motion picture film, classic feature film look, organic grain"
+post = { grain = 0.2, halation = 0.15 }
+
+[[bodies]]
+id = "documentary"
+name = "Documentary"
+blurb = "Handheld, natural light"
+prompt = "documentary camera, available natural light, observational, unpolished realism"
+post = { grain = 0.1 }
+
+[[bodies]]
+id = "super-8"
+name = "Super 8"
+blurb = "Home movie warmth"
+prompt = "shot on Super 8 home movie film, heavy grain, warm faded color, soft focus, light leaks"
+post = { grain = 0.7, halation = 0.4, gateWeave = 0.6, softness = 0.35, warmth = 0.25, lift = 0.08, saturation = 0.85 }
+
+[[bodies]]
+id = "dv-camcorder"
+name = "DV camcorder"
+blurb = "2000s tape, sharp and harsh"
+prompt = "shot on a 2000s miniDV camcorder, interlaced video look, oversharpened edges, clipped highlights"
+post = { softness = 0.1, contrast = 1.1, saturation = 1.1 }
+
+# ───────────────────────── Lenses ─────────────────────────
+
+[[lenses]]
+id = "clean"
+name = "Clean modern"
+blurb = "Sharp, neutral, no flare"
+prompt = "modern prime lens, sharp, neutral rendering, no flare"
+
+[[lenses]]
+id = "anamorphic"
+name = "Vintage anamorphic"
+blurb = "Streak flares, oval bokeh"
+prompt = "vintage anamorphic lens, horizontal blue streak flares, oval bokeh, widescreen framing"
+aspect = "2.39:1"
+post = { vignette = 0.25 }
+
+[[lenses]]
+id = "macro"
+name = "Macro"
+blurb = "Life size, razor-thin focus"
+prompt = "macro lens, extreme close-up at life size, razor-thin focus plane"
+
+[[lenses]]
+id = "swirl"
+name = "Swirl bokeh"
+blurb = "Spinning background blur"
+prompt = "vintage Petzval lens, swirling bokeh in the background, sharp center"
+post = { vignette = 0.35 }
+
+[[lenses]]
+id = "diffusion"
+name = "Soft diffusion"
+blurb = "Gentle glow on highlights"
+prompt = "lens with a soft diffusion filter, gentle glow blooming around highlights"
+post = { halation = 0.3, softness = 0.2 }
+
+# ───────────────────────── Focal lengths (full-frame equivalent) ─────────────────────────
+
+[[focals]]
+mm = 8
+label = "Fisheye"
+prompt = "8mm fisheye lens, strong barrel distortion"
+
+[[focals]]
+mm = 14
+label = "Ultra wide"
+prompt = "14mm ultra wide angle lens, exaggerated perspective"
+
+[[focals]]
+mm = 24
+label = "Wide"
+prompt = "24mm wide angle lens"
+
+[[focals]]
+mm = 35
+label = "Natural"
+prompt = "35mm lens, natural perspective"
+
+[[focals]]
+mm = 50
+label = "Close"
+prompt = "50mm lens, intimate framing"
+
+[[focals]]
+mm = 85
+label = "Portrait"
+prompt = "85mm portrait lens, compressed background"
+
+[[focals]]
+mm = 135
+label = "Telephoto"
+prompt = "135mm telephoto lens, strongly compressed perspective"
+
+# ───────────────────────── Camera motion ─────────────────────────
+# `path` is drawn on the motion card (160×100 box; the camera dot sits at the first point).
+
+[[motions]]
+id = "static"
+name = "Static"
+category = "static"
+prompt = "locked-off static camera on a tripod, no camera movement"
+path = "M66 36 L94 36 L94 64 L66 64 Z"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-static", strength = 1.0 }
+
+[[motions]]
+id = "dolly-in"
+name = "Dolly in"
+category = "push"
+prompt = "the camera slowly dollies in toward the subject"
+path = "M40 72 L112 38"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-dolly-in", strength = 1.0 }
+
+[[motions]]
+id = "dolly-out"
+name = "Dolly out"
+category = "push"
+prompt = "the camera slowly dollies back away from the subject"
+path = "M112 38 L40 72"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-dolly-out", strength = 1.0 }
+
+[[motions]]
+id = "truck-left"
+name = "Truck left"
+category = "push"
+prompt = "the camera tracks sideways to the left, parallel to the subject"
+path = "M120 50 L40 50"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-dolly-left", strength = 1.0 }
+
+[[motions]]
+id = "truck-right"
+name = "Truck right"
+category = "push"
+prompt = "the camera tracks sideways to the right, parallel to the subject"
+path = "M40 50 L120 50"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-dolly-right", strength = 1.0 }
+
+[[motions]]
+id = "dolly-zoom"
+name = "Dolly zoom"
+category = "push"
+prompt = "vertigo dolly zoom, the camera pulls back while zooming in so the background stretches"
+path = "M44 50 L104 50 M112 30 L134 18 M112 70 L134 82"
+
+[[motions]]
+id = "crash-zoom"
+name = "Crash zoom"
+category = "push"
+prompt = "sudden fast crash zoom into the subject"
+path = "M36 50 L126 50 M116 42 L126 50 L116 58"
+
+[[motions]]
+id = "pull-back-reveal"
+name = "Pull back reveal"
+category = "push"
+prompt = "the camera pulls back to reveal the wider scene around the subject"
+path = "M96 50 L30 50 M30 50 L46 40 M30 50 L46 60"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-dolly-out", strength = 0.8 }
+
+[[motions]]
+id = "orbit"
+name = "Orbit 360"
+category = "orbit"
+prompt = "the camera orbits smoothly around the subject"
+path = "M80 24 A52 26 0 1 1 79.9 24"
+
+[[motions]]
+id = "arc-left"
+name = "Arc left"
+category = "orbit"
+prompt = "the camera arcs to the left around the subject"
+path = "M124 66 A56 36 0 0 0 36 66"
+
+[[motions]]
+id = "arc-right"
+name = "Arc right"
+category = "orbit"
+prompt = "the camera arcs to the right around the subject"
+path = "M36 66 A56 36 0 0 1 124 66"
+
+[[motions]]
+id = "crane-up"
+name = "Crane up"
+category = "vertical"
+prompt = "the camera cranes up and rises above the scene"
+path = "M56 86 Q56 40 112 20"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-jib-up", strength = 1.0 }
+
+[[motions]]
+id = "crane-down"
+name = "Crane down"
+category = "vertical"
+prompt = "the camera cranes down from above toward the subject"
+path = "M112 18 Q56 40 56 84"
+impl.ltx-2-distilled = { kind = "lora", lora = "camera-jib-down", strength = 1.0 }
+
+[[motions]]
+id = "tilt-reveal"
+name = "Tilt reveal"
+category = "vertical"
+prompt = "the camera tilts up slowly to reveal what is above"
+path = "M70 84 A42 42 0 0 1 112 42"
+
+[[motions]]
+id = "handheld"
+name = "Handheld"
+category = "handheld"
+prompt = "handheld camera with subtle natural shake, breathing movement"
+path = "M26 56 q9 -9 18 0 t18 0 t18 0 t18 0 t18 0 t18 0"
+
+[[motions]]
+id = "fpv-drone"
+name = "FPV drone"
+category = "handheld"
+prompt = "fast FPV drone shot swooping and banking through the scene"
+path = "M18 82 C58 82 48 22 88 30 S136 72 144 20"
+
+[[motions]]
+id = "follow"
+name = "Shoulder follow"
+category = "handheld"
+prompt = "over-the-shoulder follow shot, the camera walks behind the subject"
+path = "M28 72 C60 62 92 62 132 40"
+
+[[motions]]
+id = "whip-pan"
+name = "Whip pan"
+category = "handheld"
+prompt = "fast whip pan with motion blur"
+path = "M44 72 Q80 16 116 72 M108 64 L116 72 L120 62"
+
+[[motions]]
+id = "hyperlapse"
+name = "Hyperlapse"
+category = "time"
+prompt = "hyperlapse, the camera glides forward while time moves quickly"
+path = "M22 66 L138 34"
+
+[[motions]]
+id = "slow-motion"
+name = "Slow motion"
+category = "time"
+prompt = "high frame rate slow motion, every movement stretched and graceful"
+path = "M24 50 L136 50"
+
+[[motions]]
+id = "rack-focus"
+name = "Rack focus"
+category = "reveal"
+prompt = "rack focus, the focus shifts from the foreground to the background"
+path = "M48 66 L112 34"
+
+[[motions]]
+id = "pan-reveal"
+name = "Pan reveal"
+category = "reveal"
+prompt = "the camera pans slowly to reveal the scene"
+path = "M46 42 A40 40 0 0 0 114 42"
+
+# ───────────────────────── Look ─────────────────────────
+
+[[lightings]]
+id = "golden-hour"
+name = "Golden hour"
+blurb = "Low, warm, backlit"
+prompt = "golden hour light, low warm sun, backlit with glowing rim light"
+post = { warmth = 0.15 }
+
+[[lightings]]
+id = "soft-mist"
+name = "Soft mist"
+blurb = "Diffused, low contrast"
+prompt = "soft diffused light through mist, low contrast, gentle atmosphere"
+post = { contrast = 0.9, lift = 0.03 }
+
+[[lightings]]
+id = "hard-practical"
+name = "Hard practical"
+blurb = "Pools of light, deep shadow"
+prompt = "hard practical lighting, pools of light and deep shadows, chiaroscuro"
+post = { contrast = 1.15 }
+
+[[lightings]]
+id = "even-daylight"
+name = "Even daylight"
+blurb = "Flat, honest"
+prompt = "even overcast daylight, soft and honest"
+
+[[lightings]]
+id = "night-neon"
+name = "Night neon"
+blurb = "Wet streets, colored light"
+prompt = "night, neon signs reflecting on wet streets, saturated colored light"
+post = { saturation = 1.1 }
+
+[[lightings]]
+id = "candlelight"
+name = "Candlelight"
+blurb = "Flicker and amber"
+prompt = "lit only by candlelight, flickering warm amber glow, deep darkness around"
+post = { warmth = 0.3, halation = 0.2 }
+
+[[palettes]]
+id = "honey-moss"
+name = "Honey and moss"
+blurb = "Warm golds, deep greens"
+prompt = "color palette of honey gold, moss green and deep blue shadows"
+colors = ["#c9a24a", "#8a6a2f", "#2f5a3a", "#1b2a4a", "#e9dcc0"]
+post = { warmth = 0.1 }
+
+[[palettes]]
+id = "faded-print"
+name = "Faded print"
+blurb = "Lifted blacks, warm mids"
+prompt = "faded film print colors, lifted blacks, warm midtones"
+colors = ["#b98a6a", "#7d8a74", "#4d5b66", "#2e2a28", "#e4d6c4"]
+post = { lift = 0.08, saturation = 0.8, warmth = 0.1 }
+
+[[palettes]]
+id = "steel-rust"
+name = "Steel and rust"
+blurb = "Cool shadows, orange skin"
+prompt = "teal and orange grade, cool steel shadows, warm skin tones"
+colors = ["#3c5a6e", "#1d2c38", "#b4643a", "#d9a27a", "#cfd5d8"]
+post = { contrast = 1.08 }
+
+[[palettes]]
+id = "silver"
+name = "Silver"
+blurb = "Black and white"
+prompt = "black and white, silver gelatin tones, rich blacks"
+colors = ["#111111", "#444444", "#888888", "#bbbbbb", "#eeeeee"]
+post = { saturation = 0, contrast = 1.1 }
+
+[[genres]]
+id = "pastoral"
+name = "Pastoral drama"
+prompt = "quiet pastoral drama"
+
+[[genres]]
+id = "fable"
+name = "Fable"
+prompt = "storybook fable, gentle wonder"
+
+[[genres]]
+id = "documentary"
+name = "Documentary"
+prompt = "documentary"
+
+[[genres]]
+id = "thriller"
+name = "Thriller"
+prompt = "tense thriller"
+
+[[genres]]
+id = "western"
+name = "Western"
+prompt = "classic western"
+
+[[genres]]
+id = "noir"
+name = "Noir"
+prompt = "film noir, moody and mysterious"
+
+[[genres]]
+id = "music-video"
+name = "Music video"
+prompt = "stylish music video"
+
+[[eras]]
+id = "1920s"
+name = "1920s"
+prompt = "set in the 1920s"
+
+[[eras]]
+id = "1950s"
+name = "1950s"
+prompt = "set in the 1950s"
+
+[[eras]]
+id = "1970s"
+name = "1970s"
+prompt = "set in the 1970s"
+
+[[eras]]
+id = "1990s"
+name = "1990s"
+prompt = "set in the 1990s"
+
+[[eras]]
+id = "today"
+name = "Today"
+prompt = "contemporary, present day"
+
+[[eras]]
+id = "timeless"
+name = "Timeless"
+prompt = "timeless setting"
+
+# Width and height give the ratio; each quality scales them to its short side, rounded to multiples of 32.
+[[aspects]]
+id = "16:9"
+name = "Widescreen"
+width = 1280
+height = 720
+
+[[aspects]]
+id = "2.39:1"
+name = "Scope"
+width = 1536
+height = 640
+
+[[aspects]]
+id = "9:16"
+name = "Vertical"
+width = 720
+height = 1280
+
+[[aspects]]
+id = "1:1"
+name = "Square"
+width = 960
+height = 960
+
+[[aspects]]
+id = "4:3"
+name = "Academy"
+width = 1024
+height = 768
