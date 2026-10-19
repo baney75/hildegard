@@ -6,8 +6,9 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const list = JSON.parse(
   execFileSync('pnpm', ['licenses', 'list', '--prod', '--json'], {
     cwd: root,

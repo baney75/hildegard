@@ -2,6 +2,7 @@
 import { mkdtempSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { composeShot, loadCatalog, ShotRequest } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type FakeProxy, startFakeProxy } from '../src/fake-proxy.ts';
@@ -197,7 +198,7 @@ describe('ComfySdkEngine against the fake proxy', () => {
     });
     await engine.render(built, {
       dest: join(dir, 'i2v.mp4'),
-      startFrame: new URL('../fixtures/preview.jpg', import.meta.url).pathname,
+      startFrame: fileURLToPath(new URL('../fixtures/preview.jpg', import.meta.url)),
     });
     const last = [...proxy.jobs.values()].at(-1)!;
     expect(JSON.stringify(last.workflow[built.startFrameNode!]!.inputs.image)).toContain('core/ASSET');
