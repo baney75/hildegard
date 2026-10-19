@@ -30,7 +30,7 @@ export interface GraphInput {
   startFrame?: string;
 }
 
-class GraphBuilder {
+export class GraphBuilder {
   readonly graph: ApiGraph = {};
   private next = 1;
   add(class_type: string, inputs: Record<string, InputValue>, title?: string): string {
@@ -40,7 +40,7 @@ class GraphBuilder {
   }
 }
 
-const out = (id: string, slot = 0): Link => [id, slot];
+export const out = (id: string, slot = 0): Link => [id, slot];
 
 const STAGE1_SIGMAS = '1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0';
 const STAGE2_SIGMAS = '0.909375, 0.725, 0.421875, 0.0';

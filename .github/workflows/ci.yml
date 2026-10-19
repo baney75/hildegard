@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio && pip install -r .comfyui/requirements.txt
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio && pip install -r .comfyui/requirements.txt comfy-api-proxy==0.1.6
       - run: cp -r comfy-nodes/hildegard_look .comfyui/custom_nodes/
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -102,6 +102,11 @@ jobs:
           for i in $(seq 1 90); do curl -sf http://127.0.0.1:8188/system_stats >/dev/null && exit 0; sleep 2; done
           cat ../comfyui.log; exit 1
       - run: node packages/comfy/scripts/validate-on-comfy.ts .comfyui
+      - name: Render a real video through comfy-api-proxy
+        run: |
+          nohup comfy-api-proxy run --comfyui http://127.0.0.1:8188 --port 8189 --comfyui-base-dir .comfyui > proxy.log 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8189/api/v2/jobs/x && break; sleep 1; done
+          node packages/comfy/scripts/smoke-on-comfy.ts http://127.0.0.1:8189 || { cat proxy.log; exit 1; }
       - name: Check the film-look node loaded
         run: grep -q "hildegard_look" comfyui.log && ! grep -q "IMPORT FAILED.*hildegard_look" comfyui.log
       - if: failure()
