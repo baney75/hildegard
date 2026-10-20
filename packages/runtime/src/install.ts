@@ -375,17 +375,33 @@ export function run(
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
-    const take = (b: Buffer) => {
-      const s = b.toString();
-      out += s;
-      for (const line of s.split(/\r?\n/)) if (line.trim()) opts.log?.(line);
+    // Output arrives in chunks that can end mid-line; log whole lines only, each stream on its own.
+    const reader = () => {
+      let partial = '';
+      return {
+        take: (b: Buffer) => {
+          const s = b.toString();
+          out += s;
+          const lines = (partial + s).split(/\r?\n/);
+          partial = lines.pop()!;
+          for (const line of lines) if (line.trim()) opts.log?.(line);
+        },
+        flush: () => {
+          if (partial.trim()) opts.log?.(partial);
+          partial = '';
+        },
+      };
     };
-    child.stdout.on('data', take);
-    child.stderr.on('data', take);
+    const stdout = reader();
+    const stderr = reader();
+    child.stdout.on('data', stdout.take);
+    child.stderr.on('data', stderr.take);
     child.on('error', (e) =>
       reject(new Error(`${cmd} couldn't start: ${(e as NodeJS.ErrnoException).code ?? e.message}.`)),
     );
     child.on('close', (code) => {
+      stdout.flush();
+      stderr.flush();
       if (code === 0) resolve(out);
       else {
         const tail = out.trim().split(/\r?\n/).slice(-6).join('\n');

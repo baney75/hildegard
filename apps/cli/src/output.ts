@@ -45,7 +45,9 @@ export function printStep(s: Step) {
 
 export function printResult(r: Result, json: boolean, printed = 0) {
   if (json) {
-    console.log(JSON.stringify(r, null, 2));
+    // `printed` is how many steps already went to the terminal: bookkeeping for people, not part of the result.
+    const { printed: _, ...rest } = r as Result & { printed?: number };
+    console.log(JSON.stringify(rest, null, 2));
     return;
   }
   for (const s of r.steps.slice(printed)) printStep(s);

@@ -10,8 +10,9 @@ import { fileStore, parseArgs, startServer } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
+import { printResult, result } from '../src/output.ts';
 
 // HILDEGARD_CLI tests an installed release's hildegard.mjs instead of the source.
 const main = process.env.HILDEGARD_CLI ?? fileURLToPath(new URL('../src/main.ts', import.meta.url));
@@ -118,5 +119,23 @@ describe('hildegard', () => {
     expect(starterModel(catalog, gpu(16))?.id).toBe('wan-2-2-ti2v-5b');
     expect(starterModel(catalog, gpu(10))?.id).toBe('wan-2-2-ti2v-5b');
     expect(starterModel(catalog, gpu(6))).toBeNull();
+  });
+});
+
+describe('printResult', () => {
+  it('leaves its terminal bookkeeping out of --json output', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const r = {
+        ...result([{ id: 'start', title: 'Start', status: 'done', detail: 'Running.' }], 'Done.'),
+        printed: 1,
+      };
+      printResult(r, true, 1);
+      const out = JSON.parse(log.mock.calls[0]![0] as string);
+      expect(out).not.toHaveProperty('printed');
+      expect(out.steps).toHaveLength(1);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

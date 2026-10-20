@@ -12,6 +12,7 @@ import {
   fit,
   listAgents,
   type Probe,
+  run,
 } from '../src/index.ts';
 
 const probe = (over: Partial<Probe> & { files?: Record<string, string> }): Probe => ({
@@ -231,5 +232,18 @@ describe('linking agents', () => {
   it('names the apps it knows when asked for one it does not', () => {
     const { env } = setup();
     expect(connectAgent('notepad', m, env).detail).toMatch(/claude-code, claude-desktop, codex/);
+  });
+});
+
+describe('run', () => {
+  it('logs whole lines even when output arrives mid-line', async () => {
+    const lines: string[] = [];
+    // Writes " + torch" then "==2.14.1\n" a beat apart, as uv's package list can arrive, and ends without a newline.
+    const script = `process.stdout.write(' + torch');
+setTimeout(() => { process.stdout.write('==2.14.1\\n + torchaudio'); process.stderr.write('warn'); }, 50);
+setTimeout(() => process.stdout.write('==2.11.0'), 100);`;
+    const out = await run(process.execPath, ['-e', script], { log: (l) => lines.push(l) });
+    expect(out.replace('warn', '')).toBe(' + torch==2.14.1\n + torchaudio==2.11.0');
+    expect(lines.sort()).toEqual([' + torch==2.14.1', ' + torchaudio==2.11.0', 'warn']);
   });
 });

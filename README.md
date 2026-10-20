@@ -111,7 +111,8 @@ Apache-2.0. See [LICENSING.md](LICENSING.md) and [THIRD_PARTY_NOTICES.md](THIRD_
 
 ## Develop
 
-Node 22.18 or later and pnpm 10.
+Node 22.18 or later and pnpm 10. If you don't have pnpm, `npm install -g pnpm@10.28.0` (Node 25 and later no longer
+include corepack).
 
 ```sh
 pnpm install
