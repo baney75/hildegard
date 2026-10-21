@@ -25,6 +25,13 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   await page.getByRole('button', { name: /^Camera motion/ }).click();
   await expect(page.locator('dialog.hg-modal--bottom')).toBeVisible();
   await page.keyboard.press('Escape');
+  // Every shot setting is on screen: none hidden past the edge of the row.
+  const pills = page.getByRole('group', { name: 'Shot settings' }).getByRole('button');
+  for (const pill of await pills.all()) {
+    const b = (await pill.boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(vp.width);
+  }
   // Nothing scrolls sideways.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);

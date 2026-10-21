@@ -102,6 +102,8 @@ textarea.hg-promptfield::placeholder { color: var(--text-muted); }
 .hg-app[data-wc="compact"] .cs-comp__bar .cs-create { width: 100%; margin: 0; height: 48px; }
 .hg-app[data-wc="compact"] .cs-comp__cost { display: none; }
 .hg-app[data-wc="compact"] .cs-pill { height: 40px; padding: 0 10px; }
+/* On a phone the shot settings wrap onto a second line rather than hiding past the edge. */
+.hg-app[data-wc="compact"] .hg-pills { flex-wrap: wrap; overflow: visible; }
 .hg-app[data-wc="compact"] .cs-board { padding: 12px 16px 300px; gap: 22px; }
 .hg-app[data-wc="compact"] .cs-folio { grid-template-columns: 34px minmax(0, 1fr); }
 .hg-app[data-wc="compact"] .cs-folio__no { font-size: 24px; line-height: 28px; padding-right: 8px; }
