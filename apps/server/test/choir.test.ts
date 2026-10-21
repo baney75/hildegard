@@ -173,7 +173,9 @@ describe('rendering on another device', () => {
     const file = readFileSync(join(gpu.config.dataDir, 'choir', 'sharing.json'), 'utf8');
     expect(file).not.toContain(token);
     expect(file).toContain(hashToken(token));
-    expect(statSync(join(gpu.config.dataDir, 'choir', 'sharing.json')).mode & 0o077).toBe(0);
+    // Windows has no POSIX modes; the file sits in the owner's own profile there.
+    if (process.platform !== 'win32')
+      expect(statSync(join(gpu.config.dataDir, 'choir', 'sharing.json')).mode & 0o077).toBe(0);
     expect(readFileSync(join(mac.config.dataDir, 'choir', 'devices.json'), 'utf8')).not.toContain(token);
   });
 

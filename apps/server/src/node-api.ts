@@ -114,7 +114,12 @@ export function nodeRoutes(deps: NodeDeps): Hono {
     '/render',
     bodyLimit({
       maxSize: MAX_RENDER_BODY,
-      onError: (c) => c.json({ error: 'That take is too big to send.', code: 'invalid_graph' }, 413),
+      // The rest of the body is never read, so the connection can't carry another request: say so, or the
+      // client reuses it and its next request is reset (Windows does).
+      onError: (c) =>
+        c.json({ error: 'That take is too big to send.', code: 'invalid_graph' }, 413, {
+          connection: 'close',
+        }),
     }),
     async (c) => {
       if (choir.state().use !== 'local')
