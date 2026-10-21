@@ -149,11 +149,17 @@ export async function startServer(
       scheduler.stop();
       await runtime?.stop();
       store.flush();
-      await new Promise<void>((r) => server.close(() => r()));
-      if (loopback) await new Promise<void>((r) => loopback.close(() => r()));
+      await Promise.all([server, loopback].map((s) => (s ? shut(s) : null)));
       await fake?.close();
     },
   };
+}
+
+/** Stops listening and ends every live connection, so an open Studio tab's event stream can't keep the process up. */
+function shut(s: ReturnType<typeof serve>): Promise<void> {
+  const done = new Promise<void>((r) => s.close(() => r()));
+  if ('closeAllConnections' in s) s.closeAllConnections();
+  return done;
 }
 
 export { VERSION };
