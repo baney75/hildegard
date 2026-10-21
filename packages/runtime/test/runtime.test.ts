@@ -9,10 +9,13 @@ import {
   detectGpu,
   disconnectAgent,
   download,
+  findUv,
   fit,
+  layout,
   listAgents,
   type Probe,
   run,
+  UV,
 } from '../src/index.ts';
 
 const probe = (over: Partial<Probe> & { files?: Record<string, string> }): Probe => ({
@@ -123,6 +126,21 @@ describe('download', () => {
     );
     expect(existsSync(bad)).toBe(false);
     expect(existsSync(`${bad}.part`)).toBe(false);
+  });
+});
+
+describe('findUv', () => {
+  const L = layout(join(tmpdir(), 'hg-uv'));
+  const ours = join(L.tools, process.platform === 'win32' ? 'uv.exe' : 'uv');
+  const versions = (v: Record<string, string>) => ({ run: (cmd: string) => v[cmd] ?? null });
+
+  it('uses only the pinned uv, and installs its own when the one on PATH differs', () => {
+    expect(findUv(L, versions({ uv: 'uv 0.4.0 (abcdef 2024-08-01)\n' }))).toBeNull();
+    expect(findUv(L, versions({ uv: `uv ${UV.version}0\n` }))).toBeNull();
+    expect(findUv(L, versions({ uv: `uv ${UV.version} (abcdef 2026-09-01)\n` }))).toBe('uv');
+    expect(findUv(L, versions({ uv: 'uv 0.4.0\n', [ours]: `uv ${UV.version} (abcdef 2026-09-01)\n` }))).toBe(
+      ours,
+    );
   });
 });
 
