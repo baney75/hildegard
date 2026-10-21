@@ -29,6 +29,8 @@ async function hildegard(home: string, ...args: string[]) {
       XDG_CONFIG_HOME: join(home, '.config'),
       PATH: '',
       HF_TOKEN: '',
+      // Never a real keychain from tests.
+      HILDEGARD_SECRETS: 'file',
       // As the installed launcher does.
       ...(process.env.HILDEGARD_CLI ? { HILDEGARD_ENTRY: main } : {}),
     },
@@ -103,6 +105,64 @@ describe('hildegard', () => {
     await client.close();
     await srv.close();
   });
+
+  // Fifteen runs of the CLI: give Windows' slow Node starts room.
+  it('pairs devices: invite on the GPU, join, list, use and leave on the other, revoke', async () => {
+    const node = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-cli-node-'))]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-node-${process.pid}.json`)) },
+    );
+    const nodePort = new URL(node.url).port;
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-mac-'));
+    const mac = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data];
+    try {
+      // Without Tailscale, the owner has to say where this computer is reachable.
+      const bare = await hildegard(home, 'choir', 'invite', '--port', nodePort);
+      if (!bare.ok || bare.needsOwner) expect(bare.steps[0]).toMatchObject({ status: 'needs-owner' });
+      const outside = await hildegard(
+        home,
+        'choir',
+        'invite',
+        '--port',
+        nodePort,
+        '--url',
+        'http://192.168.0.9:1',
+      );
+      expect(outside.ok).toBe(false);
+
+      const invite = await hildegard(home, 'choir', 'invite', '--port', nodePort, '--url', node.url);
+      expect(invite.ok).toBe(true);
+      expect(invite.code).toMatch(/^hgc1_/);
+
+      expect((await hildegard(home, 'choir', 'join', 'nonsense', ...mac)).ok).toBe(false);
+      const waiting = await hildegard(home, 'choir', 'join', ...mac);
+      expect(waiting.needsOwner).toBe(true);
+      const joined = await hildegard(home, 'choir', 'join', invite.code as string, ...mac);
+      expect(joined.ok).toBe(true);
+      const name = (joined.device as { name: string }).name;
+      // This computer has no ComfyUI, so takes go to the device it joined.
+      expect(joined.message).toBe(`Takes now render on ${name}.`);
+
+      const list = await hildegard(home, 'choir', 'list', ...mac);
+      expect(list.choir).toMatchObject({ use: name, devices: [{ name, online: true }] });
+      const st = await hildegard(home, 'status', ...mac);
+      expect(st.steps.find((x) => x.id === 'comfyui')!.detail).toContain(`Takes render on ${name}`);
+
+      expect((await hildegard(home, 'choir', 'use', 'local', ...mac)).message).toBe(
+        'Takes render on this computer.',
+      );
+      expect((await hildegard(home, 'choir', 'use', 'nowhere', ...mac)).ok).toBe(false);
+      expect((await hildegard(home, 'choir', 'leave', name, ...mac)).ok).toBe(true);
+      expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
+
+      expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort)).ok).toBe(true);
+      expect(node.choir.state().sharing.on).toBe(false);
+    } finally {
+      await hildegard(home, 'stop', ...mac);
+      await node.close();
+    }
+  }, 90_000);
 
   it('says what an agent must ask the owner when ComfyUI is not installed', async () => {
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));

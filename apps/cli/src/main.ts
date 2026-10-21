@@ -3,6 +3,7 @@
 import { parseArgs, VERSION } from '@hildegard/server';
 import {
   type Ctx,
+  choir,
   connect,
   hf,
   install,
@@ -31,6 +32,10 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard disconnect <app>
   hildegard hf login         Link your Hugging Face account (hf status, hf logout). The token goes to
                              your system keychain; pipe one in with --token-stdin
+  hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a join code
+                             (--url to give the address yourself; choir revoke stops sharing)
+  hildegard choir join       On a computer without a big GPU: paste that code, and takes render there
+  hildegard choir list       Devices, and which one renders (choir use <device|local>, choir leave <device>)
   hildegard mcp              The MCP server, on stdio (AI apps run this)
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
@@ -42,7 +47,18 @@ Agents: see INSTALL-FOR-AGENTS.md. Everything stays on this computer.`;
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--') && !a.includes('=')).map((a) => a.slice(2)));
-const valued = new Set(['port', 'data', 'model', 'host', 'allow-host', 'comfy', 'comfy-dir', 'ui']);
+const valued = new Set([
+  'port',
+  'data',
+  'model',
+  'host',
+  'allow-host',
+  'comfy',
+  'comfy-dir',
+  'ui',
+  'url',
+  'name',
+]);
 const opts = new Map<string, string>();
 const positional: string[] = [];
 for (let i = 0; i < argv.length; i++) {
@@ -84,6 +100,8 @@ async function main(): Promise<Result | null> {
       return models(ctx, rest);
     case 'hf':
       return hf(ctx, rest);
+    case 'choir':
+      return choir(ctx, rest);
     case 'connect':
       return connect(ctx, rest);
     case 'disconnect':

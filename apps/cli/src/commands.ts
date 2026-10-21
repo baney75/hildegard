@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import type { Catalog, HfState, Snapshot } from '@hildegard/presets';
+import type { Catalog, ChoirDevice, ChoirState, HfState, Snapshot } from '@hildegard/presets';
 import {
   AGENTS,
   connectAgent,
@@ -305,7 +305,7 @@ export async function setup(ctx: Ctx): Promise<Result> {
     steps.push(s);
     if (!ctx.json) printStep(s);
   };
-  if (!readRuntime(c.dataDir) && !c.comfyExternal && !c.fake)
+  if (!readRuntime(c.dataDir) && !c.comfyExternal && !c.fake && !rendersElsewhere(c))
     return result(
       [
         {
@@ -322,12 +322,35 @@ export async function setup(ctx: Ctx): Promise<Result> {
   if (pre) add(pre);
   if (pre?.status === 'failed') return { ...result(steps, 'Hildegard didn’t start.'), printed: steps.length };
 
-  // A first model that fits.
+  // A first model that fits: here, or already on the device takes render on.
   const gpu = detectGpu();
   const catalog = await api<Catalog>(c, '/api/catalog');
   const want = ctx.opts.get('model');
-  const pick = want ? catalog.models.find((m) => m.id === want) : starterModel(catalog, gpu);
-  if (!pick)
+  const snap = await api<Snapshot>(c, '/api/snapshot');
+  const remote = snap.choir?.devices.find((d) => d.name === snap.choir.use);
+  const pick = want
+    ? catalog.models.find((m) => m.id === want)
+    : remote
+      ? catalog.models.find((m) => remote.models.includes(m.id))
+      : starterModel(catalog, gpu);
+  if (remote && !want)
+    add(
+      pick
+        ? {
+            id: 'model',
+            title: `Use ${pick.name}`,
+            status: 'skipped',
+            detail: `Takes render on ${remote.name}, which has ${pick.name}.`,
+          }
+        : {
+            id: 'model',
+            title: 'Pick a model',
+            status: 'needs-owner',
+            detail: `Takes render on ${remote.name}, which has no video model yet. Install one there.`,
+            command: 'hildegard setup',
+          },
+    );
+  else if (!pick)
     add({
       id: 'model',
       title: 'Pick a model',
@@ -439,21 +462,28 @@ export async function status(ctx: Ctx): Promise<Result> {
           ? (gpu.note ?? 'No supported GPU.')
           : `${gpu.name}${gpu.vramGb ? `, ${gpu.vramGb} GB` : ''}${gpu.note ? `. ${gpu.note}` : ''}`,
     },
-    {
-      id: 'comfyui',
-      title: 'ComfyUI',
-      status: snap?.engine.online ? 'done' : runtime || c.comfyExternal ? 'skipped' : 'needs-owner',
-      detail: c.fake
-        ? 'The stand-in GPU, for testing: it makes placeholder clips, not real video.'
-        : snap?.engine.online
-          ? `Running${runtime ? ` (ComfyUI ${runtime.comfyui}, PyTorch ${runtime.torch})` : ` at ${snap.engine.url}`}.`
-          : runtime
-            ? (snap?.engine.problem ?? `Installed (ComfyUI ${runtime.comfyui}); starts with Hildegard.`)
-            : c.comfyExternal
-              ? `Not answering at ${c.comfyUrl}.`
-              : 'Not installed.',
-      ...(runtime || c.comfyExternal || c.fake ? {} : { command: 'hildegard install --yes --json' }),
-    },
+    snap?.engine.comfy === 'remote'
+      ? {
+          id: 'comfyui',
+          title: 'ComfyUI',
+          status: snap.engine.online ? 'done' : 'skipped',
+          detail: `Takes render on ${snap.engine.device}${snap.engine.online ? '' : `, which isn’t answering: ${snap.engine.problem ?? 'is Hildegard running there?'}`}.`,
+        }
+      : {
+          id: 'comfyui',
+          title: 'ComfyUI',
+          status: snap?.engine.online ? 'done' : runtime || c.comfyExternal ? 'skipped' : 'needs-owner',
+          detail: c.fake
+            ? 'The stand-in GPU, for testing: it makes placeholder clips, not real video.'
+            : snap?.engine.online
+              ? `Running${runtime ? ` (ComfyUI ${runtime.comfyui}, PyTorch ${runtime.torch})` : ` at ${snap.engine.url}`}.`
+              : runtime
+                ? (snap?.engine.problem ?? `Installed (ComfyUI ${runtime.comfyui}); starts with Hildegard.`)
+                : c.comfyExternal
+                  ? `Not answering at ${c.comfyUrl}.`
+                  : 'Not installed.',
+          ...(runtime || c.comfyExternal || c.fake ? {} : { command: 'hildegard install --yes --json' }),
+        },
     {
       id: 'server',
       title: 'Hildegard',
@@ -484,8 +514,19 @@ export async function status(ctx: Ctx): Promise<Result> {
     engine: snap?.engine ?? null,
     models: snap?.models ?? [],
     agents,
+    choir: snap?.choir ?? null,
     dataDir: c.dataDir,
   });
+}
+
+/** This computer sends its takes to a joined device, so it needs no ComfyUI of its own. */
+function rendersElsewhere(c: Config): boolean {
+  try {
+    const f = JSON.parse(readFileSync(join(c.dataDir, 'choir', 'devices.json'), 'utf8')) as { use?: string };
+    return !!f.use && f.use !== 'local';
+  } catch {
+    return false;
+  }
 }
 
 export function open(ctx: Ctx): Result {
@@ -665,3 +706,176 @@ export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
 }
 
 export const dataExists = (c: Config) => existsSync(c.dataDir);
+
+// ── Choir: render on another of your devices ─────────────────────────────────────────────────────────────────────
+
+const deviceStep = (d: ChoirDevice, use: string): Step => ({
+  id: `device-${d.name}`,
+  title: d.name,
+  status: d.online ? 'done' : 'skipped',
+  detail: `${d.name === use ? 'Takes render here. ' : ''}${d.online ? `Online${d.gpu ? ` · ${d.gpu}` : ''}${d.models.length ? ` · ${d.models.join(', ')}` : ''}.` : (d.problem ?? 'Not answering.')} ${d.url}`,
+});
+
+/**
+ * `hildegard choir invite|join|list|use|leave|revoke`. The device with the GPU invites; the one without joins with
+ * the code it prints. A join code holds a key, so `join` reads it from a hidden prompt or stdin by preference.
+ */
+export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
+  const pre = await ensureRunning(ctx);
+  if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
+  const c = ctx.config;
+  const action = args[0] ?? 'list';
+  const fail = (title: string, e: unknown) =>
+    result([{ id: 'choir', title, status: 'failed', detail: (e as Error).message }], (e as Error).message);
+  switch (action) {
+    case 'invite': {
+      try {
+        const r = await api<{ code: string; url: string }>(c, '/api/choir/invite', {
+          method: 'POST',
+          body: { url: ctx.opts.get('url') },
+        });
+        if (!ctx.json)
+          console.log(
+            `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n`,
+          );
+        return result(
+          [
+            {
+              id: 'invite',
+              title: 'Share this GPU',
+              status: 'done',
+              detail: `Paired devices reach it at ${r.url}.`,
+            },
+          ],
+          'Stop sharing any time with `hildegard choir revoke`.',
+          { code: r.code, url: r.url },
+        );
+      } catch (e) {
+        if ((e as { status?: number }).status === 409)
+          return result(
+            [
+              {
+                id: 'invite',
+                title: 'Share this GPU',
+                status: 'needs-owner',
+                detail: (e as Error).message,
+                command: 'tailscale up',
+              },
+            ],
+            'Waiting on Tailscale.',
+          );
+        return fail('Share this GPU', e);
+      }
+    }
+    case 'revoke': {
+      await api<ChoirState>(c, '/api/choir/revoke', { method: 'POST' });
+      return result(
+        [
+          {
+            id: 'revoke',
+            title: 'Stop sharing',
+            status: 'done',
+            detail: 'Every paired device’s key is gone.',
+          },
+        ],
+        'This computer no longer shares its GPU.',
+      );
+    }
+    case 'join': {
+      let code = args[1] ?? '';
+      if (!code && ctx.flags.has('code-stdin')) code = await readStdin();
+      if (!code && process.stdin.isTTY && !ctx.json) code = await askSecret('Join code (it won’t show): ');
+      if (!code)
+        return result(
+          [
+            {
+              id: 'join',
+              title: 'Join a device',
+              status: 'needs-owner',
+              detail: 'Run `hildegard choir invite` on the device with the GPU, then paste its code here.',
+              command: 'hildegard choir join',
+            },
+          ],
+          'Waiting on a join code.',
+        );
+      try {
+        const r = await api<{ device: ChoirDevice; choir: ChoirState }>(c, '/api/choir/join', {
+          method: 'POST',
+          body: { code, name: ctx.opts.get('name') },
+        });
+        const using = r.choir.use === r.device.name;
+        return result(
+          [
+            {
+              ...deviceStep(r.device, r.choir.use),
+              id: 'join',
+              status: 'done',
+              title: `Join ${r.device.name}`,
+            },
+          ],
+          using
+            ? `Takes now render on ${r.device.name}.`
+            : `Joined ${r.device.name}. Render there with \`hildegard choir use ${r.device.name}\`.`,
+          { device: r.device, choir: r.choir },
+        );
+      } catch (e) {
+        return fail('Join a device', e);
+      }
+    }
+    case 'use': {
+      const name = args[1];
+      if (!name)
+        return result([], 'Say where: `hildegard choir use <device>` or `use local`.', { ok: false });
+      try {
+        const s = await api<ChoirState>(c, '/api/choir/use', { method: 'POST', body: { name } });
+        return result([], name === 'local' ? 'Takes render on this computer.' : `Takes render on ${name}.`, {
+          choir: s,
+        });
+      } catch (e) {
+        return fail('Choose where takes render', e);
+      }
+    }
+    case 'leave': {
+      const name = args[1];
+      if (!name) return result([], 'Say which device: `hildegard choir leave <device>`.', { ok: false });
+      try {
+        const s = await api<ChoirState>(c, '/api/choir/leave', { method: 'POST', body: { name } });
+        return result(
+          [
+            {
+              id: 'leave',
+              title: `Leave ${name}`,
+              status: 'done',
+              detail: 'Its key is gone from this computer.',
+            },
+          ],
+          s.use === 'local' ? 'Takes render on this computer.' : '',
+          { choir: s },
+        );
+      } catch (e) {
+        return fail(`Leave ${name}`, e);
+      }
+    }
+    case 'list': {
+      const s = await api<ChoirState>(c, '/api/choir');
+      const steps: Step[] = [
+        {
+          id: 'local',
+          title: 'This computer',
+          status: s.use === 'local' ? 'done' : 'skipped',
+          detail: `${s.use === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}.` : 'Not sharing its GPU.'}`,
+        },
+        ...s.devices.map((d) => deviceStep(d, s.use)),
+      ];
+      return result(
+        steps,
+        s.devices.length ? '' : 'No other devices yet. On one with a GPU, run `hildegard choir invite`.',
+        { choir: s },
+      );
+    }
+    default:
+      return result([], 'Use `hildegard choir invite`, `join`, `list`, `use`, `leave` or `revoke`.', {
+        ok: false,
+      });
+  }
+}
