@@ -7,6 +7,17 @@ import { useStore } from '../lib/store.ts';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, Status, toastError } from './ui.tsx';
 
+/**
+ * A line for when a film mixes final takes with drafts: drafts are sized up to match and look soft beside them.
+ * Empty when the qualities match.
+ */
+export function draftNote(chosen: { no: number; take: Pick<Take, 'quality'> }[]): string {
+  const drafts = chosen.filter((c) => c.take.quality === 'draft').map((c) => roman(c.no));
+  if (!drafts.length || drafts.length === chosen.length) return '';
+  const list = drafts.length === 1 ? `Shot ${drafts[0]} is a draft` : `Shots ${drafts.join(', ')} are drafts`;
+  return `${list}, so ${drafts.length === 1 ? 'it' : 'they'}’ll look softer than the rest. Render ${drafts.length === 1 ? 'it' : 'them'} at Final to match. `;
+}
+
 /** What Export film joins: each shot's newest kept take that finished, or else its newest that finished. */
 export function useChosenTakes(project: Project | null) {
   const shots = useStore((s) => s.shots);
@@ -119,6 +130,7 @@ export function ExportDialog({
           {skipped > 0
             ? `${skipped} ${skipped === 1 ? 'shot has' : 'shots have'} no finished take yet and ${skipped === 1 ? 'is' : 'are'} left out. `
             : ''}
+          {draftNote(chosen)}
           Each shot uses its kept take, or its newest. The file says it is AI-generated, as the model licenses
           ask.
         </p>

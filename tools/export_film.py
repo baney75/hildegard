@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Joins a film's takes, in order, into one MP4: H.264 video and, when any take has sound, AAC audio.
+"""Joins a film's takes, in order, into one MP4: H.264 video and AAC audio.
 
     python export_film.py SPEC.json
 
-SPEC is {"out": path, "inputs": [path, ...], "title": str, "comment": str}. Every take is scaled to the first take's
-size and frame rate; a take without sound gets silence. Prints one JSON line per take as it goes
+SPEC is {"out": path, "inputs": [path, ...], "title": str, "comment": str}. Every take is fitted to the largest take's
+size, at the first take's frame rate; a take without sound gets silence, and a film with no sound at all still gets a
+silent track, since some players and sites mishandle video with no audio. Prints one JSON line per take as it goes
 ({"done": i, "total": n}) and a last line {"ok": true, "seconds": s, "bytes": b}, or {"ok": false, "error": msg}.
 Uses PyAV, which ComfyUI already installs, so there is nothing else to download.
 """
@@ -37,10 +38,12 @@ def main(spec_path):
     inputs, out = spec["inputs"], spec["out"]
     if not inputs:
         raise ValueError("There are no finished takes to export.")
-    width, height, fps, _ = probe(inputs[0])
+    probes = [probe(p) for p in inputs]
+    fps = probes[0][2]
+    # The sharpest take sets the size, so a final take isn't scaled down to match a draft.
+    width, height = max(((w, h) for w, h, _, _ in probes), key=lambda wh: wh[0] * wh[1])
     # H.264 in yuv420p wants even sizes.
     width, height = width - width % 2, height - height % 2
-    sound = any(probe(p)[3] for p in inputs)
 
     tmp = out + ".part"
     total_frames = 0
@@ -53,10 +56,9 @@ def main(spec_path):
         # Frames are numbered in 1/fps; the muxer gives the stream its own time base once it starts writing.
         tb = Fraction(1, 1) / fps
         vs.time_base = tb
-        if sound:
-            aus = dst.add_stream("aac", rate=RATE, layout="stereo")
-            aus.time_base = Fraction(1, RATE)
-            audio = Audio(dst, aus)
+        aus = dst.add_stream("aac", rate=RATE, layout="stereo")
+        aus.time_base = Fraction(1, RATE)
+        audio = Audio(dst, aus)
 
         for i, path in enumerate(inputs):
             take_frames = 0
@@ -73,32 +75,30 @@ def main(spec_path):
                         take_frames += 1
                         for p in vs.encode(img):
                             dst.mux(p)
-            if sound:
-                # This take's sound, cut or padded with silence to its picture's length, so sound stays in sync.
-                want = round(take_frames / fps * RATE)
-                got = 0
-                with av.open(path) as src:
-                    if src.streams.audio:
-                        rs = av.AudioResampler(format=audio.fmt, layout="stereo", rate=RATE)
-                        frames = []
-                        for frame in src.decode(src.streams.audio[0]):
-                            frames.extend(rs.resample(frame))
-                        frames.extend(rs.resample(None))
-                        for fr in frames:
-                            if got >= want:
-                                break
-                            n = min(fr.samples, want - got)
-                            arr = fr.to_ndarray()[..., :n] if n < fr.samples else fr.to_ndarray()
-                            audio.push(arr)
-                            got += n
-                if got < want:
-                    audio.silence(want - got)
+            # This take's sound, cut or padded with silence to its picture's length, so sound stays in sync.
+            want = round(take_frames / fps * RATE)
+            got = 0
+            with av.open(path) as src:
+                if src.streams.audio:
+                    rs = av.AudioResampler(format=audio.fmt, layout="stereo", rate=RATE)
+                    frames = []
+                    for frame in src.decode(src.streams.audio[0]):
+                        frames.extend(rs.resample(frame))
+                    frames.extend(rs.resample(None))
+                    for fr in frames:
+                        if got >= want:
+                            break
+                        n = min(fr.samples, want - got)
+                        arr = fr.to_ndarray()[..., :n] if n < fr.samples else fr.to_ndarray()
+                        audio.push(arr)
+                        got += n
+            if got < want:
+                audio.silence(want - got)
             say(done=i + 1, total=len(inputs))
 
         for p in vs.encode():
             dst.mux(p)
-        if sound:
-            audio.close()
+        audio.close()
     os.replace(tmp, out)
     say(ok=True, seconds=round(float(total_frames / fps), 3), bytes=os.path.getsize(out))
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Take } from '@hildegard/presets';
 import { describe, expect, it } from 'vitest';
+import { draftNote } from '../src/components/ExportDialog.tsx';
 import { fromRequest, toRequest } from '../src/lib/draft.ts';
 import { about, bytes, clock, duration, estimateMs, leftMs, ordinal, roman } from '../src/lib/format.ts';
 
@@ -95,5 +96,33 @@ describe('draft', () => {
     expect(r.prompt).toBe('Mara walks the rows');
     expect(fromRequest(r)).toMatchObject({ ...d, prompt: 'Mara walks the rows' });
     expect(fromRequest(r, 9).seed).toBe(9);
+  });
+});
+
+describe('draftNote', () => {
+  const take = (quality: 'draft' | 'final') => ({ quality });
+  it('says which shots are drafts when a film mixes them with final takes', () => {
+    expect(
+      draftNote([
+        { no: 1, take: take('final') },
+        { no: 2, take: take('draft') },
+      ]),
+    ).toBe('Shot II is a draft, so it’ll look softer than the rest. Render it at Final to match. ');
+    expect(
+      draftNote([
+        { no: 1, take: take('draft') },
+        { no: 2, take: take('final') },
+        { no: 3, take: take('draft') },
+      ]),
+    ).toMatch(/^Shots I, III are drafts, so they’ll look softer/);
+  });
+  it('says nothing when every take is the same quality', () => {
+    expect(
+      draftNote([
+        { no: 1, take: take('draft') },
+        { no: 2, take: take('draft') },
+      ]),
+    ).toBe('');
+    expect(draftNote([{ no: 1, take: take('final') }])).toBe('');
   });
 });
