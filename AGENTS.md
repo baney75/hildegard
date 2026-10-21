@@ -56,3 +56,34 @@ release; and runs the real installer from it on all three, then renders through 
   `install.sh` is the exception: ASCII only, since macOS's `/bin/sh` misreads UTF-8 after a `$VARIABLE`.
 - **Licenses in files.** Each code file starts with its `SPDX-License-Identifier: AGPL-3.0-only` line; `presets/` is
   Apache-2.0. After changing dependencies, run `node scripts/notices.mjs` to regenerate the notices (CI checks them).
+
+## Choir: rendering on another device
+
+A Hildegard without a usable GPU renders on another of the owner's devices. Two halves, both in `apps/server`:
+
+- **Sharing a GPU** (`choir.ts`, `node-api.ts`). `hildegard choir invite` (or `POST /api/choir/invite`, loopback only)
+  makes a join code `hgc1_<base64url {n,u,t}>`: the device's name, its Tailscale URL, and a fresh 256-bit key that is
+  stored only as a SHA-256 hash in `<data>/choir/sharing.json` (0600). The server then also listens on that address
+  with `nodeOnlyApp`: `/api/node/*` behind the bearer key (`pairedOnly`, constant-time compare) and a 404 for
+  everything else. Graphs from peers must pass `vetGraph` (node classes in `GRAPH_NODE_CLASSES`, model files from the
+  catalog, one SaveVideo, LoadImage only as the start frame) and run through `Scheduler.guest`, so they queue with
+  local takes. `revoke` drops every key and closes that listener.
+- **Rendering elsewhere** (`remote-engine.ts`). `hildegard choir join` checks the code against the device's
+  `/api/node/info`, keeps the key in the keychain (`secretStores`, account `choir-<name>`; `HILDEGARD_SECRETS=file`
+  forces 0600 files, which tests always use), and records the device in `<data>/choir/devices.json`. When `use` names
+  a device, `server.ts` routes the scheduler to a `RemoteEngine`, the engine state reads `comfy: 'remote'` with the
+  device's name and GPU, and model states come from the device, so nothing asks to download models here.
+
+Setting it up for an owner, end to end:
+
+1. Both devices: Hildegard installed and Tailscale signed in (the owner signs in; that is a `needs-owner` step).
+2. GPU device: `hildegard install --yes --json`, a model installed (`hildegard models install <id>` after the owner
+   accepts its license), then `hildegard choir invite --json`. Its `code` is a secret: hand it straight to the
+   next step, never print it to logs or files. Without Tailscale it returns `needs-owner`; pass `--url` only with an
+   address on the tailnet (or https).
+3. Other device: `hildegard start`, then pipe the code in: `printf %s "$CODE" | hildegard choir join --code-stdin
+   --json` (a code on the command line lands in shell history). `hildegard choir list --json` should show the device
+   online with its models, and `hildegard status --json` names it in the `comfyui` step.
+
+Rules for changes here: a peer's key opens `/api/node/*` and nothing else; any new graph node class needs a builder
+that makes it, and the `vetGraph` test keeps the allowlist exact; pairing routes stay loopback only.

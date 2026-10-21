@@ -85,6 +85,39 @@ Then open `http://my-pc.tail1234.ts.net:7341` on your phone or laptop. Hildegard
 computer's own apps, and nothing else on your network can reach it. Hildegard Link, an end-to-end encrypted relay of
 our own, is coming.
 
+## Render on another device
+
+A Mac or laptop without a big GPU can render on one of your other computers. Put both on your
+[Tailscale](https://tailscale.com) tailnet and install Hildegard on both. On the computer with the GPU (here
+`parish1`), with its models installed:
+
+```sh
+hildegard choir invite
+```
+
+It prints a one-line join code. On the other computer:
+
+```sh
+hildegard choir join        # paste the code when asked; it doesn't show
+hildegard choir list        # parish1 · RTX 4080 Laptop, online, with its models
+```
+
+Takes now render on parish1, and the Studio says so ("Rendering on parish1 · RTX 4080 Laptop"). Models count as
+installed when they are installed there, so nothing downloads twice. Settings › Devices does the same with buttons:
+"Share this GPU" shows the code to copy, and "Add a device" takes it.
+
+- `hildegard choir use local` renders here again; `hildegard choir use parish1` goes back. A computer without
+  ComfyUI switches to the device it joins on its own.
+- `hildegard choir leave parish1` forgets the device; `hildegard choir revoke` on parish1 stops sharing and turns
+  every paired device away.
+- The code holds a fresh 256-bit key. parish1 keeps only its hash; the other computer keeps it in the system
+  keychain. Treat the code like a password, and make a new one for each device.
+- Sharing opens one more door on parish1, on its Tailscale address only: renders from paired devices, and nothing
+  else. The Studio and its API stay on 127.0.0.1 as before. Paired devices can only run graphs Hildegard itself
+  builds, and their takes wait in parish1's own queue, so they never run at the same time as its own.
+- Hildegard pairs only over Tailscale (or https), so prompts and videos are encrypted on the way. Without Tailscale
+  on the GPU computer, give its address yourself: `hildegard choir invite --url http://100.x.y.z:7341`.
+
 ## Commands
 
 ```
@@ -97,6 +130,7 @@ hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
+hildegard choir invite | join | list | use <device|local> | leave <device> | revoke
 hildegard mcp              The MCP server, on stdio (AI apps run this)
 ```
 
