@@ -58,9 +58,12 @@ test('adds a device by its code, renders there, and removes it', async ({ page, 
 test('shares this GPU with a code to copy, and stops sharing', async ({ page, context }) => {
   const errors = watchErrors(page);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  // Whether this computer is on a tailnet decides what the section asks for, so wait until it knows.
+  const tailnet = page.waitForResponse((r) => r.url().endsWith('/api/choir/tailnet'));
   await page.goto('/#/settings/devices');
+  await tailnet;
   const share = page.getByRole('button', { name: 'Share this GPU' });
-  await expect(share.or(page.getByLabel(/Tailscale isn’t running here/))).toBeVisible();
+  await expect(share).toBeVisible();
   // Without Tailscale here, it asks where other devices reach this computer.
   const address = page.getByLabel(/Tailscale isn’t running here/);
   if (await address.isVisible()) {
