@@ -37,6 +37,9 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you touched omarchy/
 ```
 
+The server's film-export tests run `python3` with PyAV and numpy; install them as CI does:
+`python3 -m pip install av==19.0.1 numpy==2.5.3`.
+
 CI runs those on Linux, macOS and Windows; renders a real (tiny) video through ComfyUI and comfy-api-proxy; builds the
 release; and runs the real installer from it on all three, then renders through what it installed.
 
