@@ -10,9 +10,12 @@ import {
   buildGraph,
   buildLtxGraph,
   ComfySdkEngine,
+  catalogFiles,
   checkLinks,
   classifyFailure,
   EngineError,
+  GRAPH_NODE_CLASSES,
+  vetGraph,
 } from '../src/index.ts';
 
 const { catalog } = loadCatalog();
@@ -232,5 +235,55 @@ describe('ComfySdkEngine against the fake proxy', () => {
     await expect(engine.render(built, { dest: join(dir, 'n.mp4') })).rejects.toMatchObject({
       code: 'engine_offline',
     });
+  });
+});
+
+describe('vetGraph', () => {
+  const files = catalogFiles(catalog.models);
+  const variants = catalog.models.flatMap((m) =>
+    (['draft', 'final'] as const).flatMap((quality) =>
+      [undefined, 'start.png'].map((startFrame) =>
+        buildGraph({
+          shot: shot({
+            model: m.id,
+            format: { aspect: '16:9', seconds: 3, quality },
+            motion: [{ id: 'dolly-in', strength: 0.5 }],
+          }),
+          seed: 3,
+          prefix: 'p',
+          startFrame,
+        }),
+      ),
+    ),
+  );
+
+  it('accepts every graph the builders make, and the allowlist names only classes they use', () => {
+    const used = new Set<string>();
+    for (const b of variants) {
+      expect(vetGraph(b, files)).toEqual([]);
+      for (const c of classes(b.graph)) used.add(c);
+    }
+    expect([...used].sort()).toEqual([...GRAPH_NODE_CLASSES].sort());
+  });
+
+  it('refuses nodes Hildegard never builds, files outside the catalog, and stray image loads', () => {
+    const base = variants[0]!;
+    const withNode = (node: object) => ({ ...base, graph: { ...base.graph, 999: node } }) as never;
+    expect(vetGraph(withNode({ class_type: 'ExecutePython', inputs: { code: 'x' } }), files).join()).toMatch(
+      /ExecutePython, which Hildegard never uses/,
+    );
+    expect(
+      vetGraph(withNode({ class_type: 'VAELoader', inputs: { vae_name: '../../etc/passwd' } }), files).join(),
+    ).toMatch(/not in the catalog/);
+    expect(
+      vetGraph(withNode({ class_type: 'LoadImage', inputs: { image: 'secret.png' } }), files).join(),
+    ).toMatch(/not the start frame/);
+    expect(
+      vetGraph(withNode({ class_type: 'SaveVideo', inputs: { video: ['1', 0] } }), files).join(),
+    ).toMatch(/one video/);
+    expect(vetGraph(withNode({ class_type: 'KSampler', inputs: { x: { y: 1 } } }), files).join()).toMatch(
+      /plain value/,
+    );
+    expect(vetGraph({ ...base, graph: {} }, files)).not.toEqual([]);
   });
 });

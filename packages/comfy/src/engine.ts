@@ -40,17 +40,24 @@ export type EngineErrorCode =
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
   readonly detail: string;
-  constructor(code: EngineErrorCode, message: string, detail = '') {
+  /** What to do about it, when the usual advice for the code would be wrong (another device's, say). */
+  readonly hint: string | undefined;
+  constructor(code: EngineErrorCode, message: string, detail = '', hint?: string) {
     super(message);
     this.name = 'EngineError';
     this.code = code;
     this.detail = detail;
+    this.hint = hint;
   }
 }
 
 export interface Engine {
   /** Where renders go, for the UI and `hildegard status`. */
   readonly url: string;
+  /** Which device renders, for people ("parish1 · RTX 4080 Laptop"); this computer when unset. */
+  readonly device?: string;
+  /** The device renders with the stand-in engine, so any model works and no real video is made. */
+  readonly fake?: boolean;
   render(built: BuiltGraph, opts: RenderOptions): Promise<void>;
   ping(): Promise<boolean>;
 }

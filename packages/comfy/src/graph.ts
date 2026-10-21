@@ -320,3 +320,113 @@ export function checkLinks(graph: ApiGraph): string[] {
   }
   return problems;
 }
+
+/**
+ * Every ComfyUI node class the builders above use, and no others. A device sharing its GPU in a Choir runs a paired
+ * device's graph only when every node is one of these, so a peer can never run arbitrary ComfyUI nodes on it. A test
+ * keeps this list in step with the builders.
+ */
+export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
+  'CFGGuider',
+  'CLIPLoader',
+  'CLIPTextEncode',
+  'CheckpointLoaderSimple',
+  'CreateVideo',
+  'EmptyLTXVLatentVideo',
+  'HildegardLook',
+  'ImageScale',
+  'KSampler',
+  'KSamplerSelect',
+  'LTXAVTextEncoderLoader',
+  'LTXVAudioVAEDecode',
+  'LTXVAudioVAELoader',
+  'LTXVConcatAVLatent',
+  'LTXVConditioning',
+  'LTXVEmptyLatentAudio',
+  'LTXVImgToVideoInplace',
+  'LTXVLatentUpsampler',
+  'LTXVPreprocess',
+  'LTXVSeparateAVLatent',
+  'LatentUpscaleModelLoader',
+  'LoadImage',
+  'LoraLoaderModelOnly',
+  'ManualSigmas',
+  'ModelSamplingSD3',
+  'RandomNoise',
+  'SamplerCustomAdvanced',
+  'SaveVideo',
+  'UNETLoader',
+  'VAEDecode',
+  'VAEDecodeTiled',
+  'VAELoader',
+  'Wan22ImageToVideoLatent',
+]);
+
+/** Inputs that name a model file; on a shared GPU they may only name files from the catalog. */
+const FILE_INPUTS = new Set([
+  'unet_name',
+  'vae_name',
+  'clip_name',
+  'ckpt_name',
+  'lora_name',
+  'model_name',
+  'text_encoder',
+]);
+const MAX_NODES = 200;
+const MAX_TEXT = 20_000;
+
+/**
+ * Check a graph that came from another device before it goes anywhere near ComfyUI: it must look like one these
+ * builders make. Only known node classes, plain values or links between its own nodes, model files from the catalog,
+ * one SaveVideo as the output, and a LoadImage only where the start frame is bound. Returns what is wrong; empty
+ * means it may run.
+ */
+export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>): string[] {
+  const problems: string[] = [];
+  const graph = built.graph;
+  if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return ['the graph is not an object'];
+  const ids = Object.keys(graph);
+  if (!ids.length || ids.length > MAX_NODES) return [`the graph has ${ids.length} nodes`];
+  for (const [id, node] of Object.entries(graph)) {
+    if (!/^\d{1,4}$/.test(id)) problems.push(`node id ${JSON.stringify(id).slice(0, 40)} is not a number`);
+    if (!node || typeof node !== 'object' || typeof node.class_type !== 'string') {
+      problems.push(`node ${id} has no class`);
+      continue;
+    }
+    if (!GRAPH_NODE_CLASSES.has(node.class_type))
+      problems.push(`node ${id} is a ${node.class_type.slice(0, 60)}, which Hildegard never uses`);
+    if (!node.inputs || typeof node.inputs !== 'object' || Array.isArray(node.inputs)) {
+      problems.push(`node ${id} has no inputs`);
+      continue;
+    }
+    for (const [k, v] of Object.entries(node.inputs)) {
+      const ok =
+        (typeof v === 'string' && v.length <= MAX_TEXT) ||
+        (typeof v === 'number' && Number.isFinite(v)) ||
+        typeof v === 'boolean' ||
+        (Array.isArray(v) &&
+          v.length === 2 &&
+          typeof v[0] === 'string' &&
+          Number.isInteger(v[1]) &&
+          v[1] >= 0 &&
+          v[1] < 16);
+      if (!ok) problems.push(`node ${id} input ${k.slice(0, 40)} is not a plain value or link`);
+      if (FILE_INPUTS.has(k) && (typeof v !== 'string' || !modelFiles.has(v)))
+        problems.push(`node ${id} names a model file that is not in the catalog`);
+    }
+    if (node.class_type === 'LoadImage' && id !== built.startFrameNode)
+      problems.push(`node ${id} loads an image that is not the start frame`);
+  }
+  const saves = Object.entries(graph).filter(([, n]) => n?.class_type === 'SaveVideo');
+  if (saves.length !== 1 || saves[0]![0] !== built.outputNode)
+    problems.push('the graph must save one video, from its output node');
+  if (built.startFrameNode !== undefined && graph[built.startFrameNode]?.class_type !== 'LoadImage')
+    problems.push('the start frame node is not a LoadImage');
+  if (!problems.length) problems.push(...checkLinks(graph));
+  return problems;
+}
+
+/** The file names a graph may load: every model file and camera LoRA in the catalog. */
+export function catalogFiles(models: readonly Model[]): Set<string> {
+  return new Set(models.flatMap((m) => [...m.files, ...Object.values(m.loras)].map((f) => fileName(f.path))));
+}
