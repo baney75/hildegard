@@ -728,6 +728,11 @@ export function ModelRow({
           <b className="hg-model__name">{name}</b>
           {state?.installed ? <span className="cs-fit ok">Installed</span> : null}
           {chosen ? <span className="cs-fit ok">In use</span> : null}
+          {state?.fit === 'fits' ? <span className="cs-fit ok">Fits this computer</span> : null}
+          {state?.fit === 'tight' ? (
+            <span className="cs-fit muted">Tight on this computer, slower</span>
+          ) : null}
+          {state?.fit === 'no' ? <span className="cs-fit no">Too big for this computer</span> : null}
         </div>
         <span className="body-sm sec-text">{blurb}</span>
         <span className="body-sm muted">{detail}</span>

@@ -162,6 +162,8 @@ export const Model = z
     /** Final quality renders at half size and upsamples the latent (LTX's two-stage recipe). */
     twoStageFinal: z.boolean().default(true),
     minVramGb: z.number().positive(),
+    /** False when its weights need int8 or fp8 kernels that Apple's GPU (MPS) lacks. */
+    mps: z.boolean().default(true),
     fps: z.number().int().positive(),
     /** Frames come in multiples of this, plus one: 8n+1 for LTX, 4n+1 for Wan. */
     frameMultiple: z.number().int().positive(),

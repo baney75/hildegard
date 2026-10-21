@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ComfySdkEngine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import { type EngineState, type LoadedCatalog, loadCatalog } from '@hildegard/presets';
-import { ComfyRuntime } from '@hildegard/runtime';
+import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import type { Config } from './config.ts';
@@ -96,6 +96,7 @@ export async function startServer(
     catalog,
     lock,
     tokens: hf,
+    gpu: config.fake ? null : detectGpu(),
     onChange: (m) => store.emit({ type: 'models', models: m }),
   });
 

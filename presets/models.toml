@@ -19,6 +19,8 @@ terms = [
 gated = true
 graph = "ltx-2.5-distilled"
 minVramGb = 24
+# Its int8 weights run on int8 kernels, which Apple's GPU doesn't have.
+mps = false
 fps = 24
 frameMultiple = 8
 maxSeconds = 10

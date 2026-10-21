@@ -149,10 +149,26 @@ function appleChip(p: Probe): string {
   return p.run('sysctl', ['-n', 'machdep.cpu.brand_string'])?.trim() || 'Apple silicon';
 }
 
+/** What a model asks of the GPU, as the catalog declares it. */
+export interface Need {
+  minVramGb: number;
+  /** Its weight files, for their size on disk. */
+  files?: { size: number }[];
+  /** False when its weights need int8 or fp8 kernels that Apple's GPU lacks. */
+  mps?: boolean;
+}
+
 /** How a model fits this GPU: the Studio and the CLI show the same words. */
-export function fit(gpu: Gpu, minVramGb: number): 'fits' | 'tight' | 'no' {
+export function fit(gpu: Gpu, need: Need): 'fits' | 'tight' | 'no' {
   if (gpu.backend === 'cpu' || gpu.vramGb === null) return 'no';
-  if (gpu.vramGb >= minVramGb) return 'fits';
+  if (gpu.backend === 'mps') {
+    if (need.mps === false) return 'no';
+    // Unified memory has nothing to offload to, and macOS and open apps share it: the weights and the activations
+    // must fit with a quarter to spare.
+    const weightsGb = (need.files ?? []).reduce((n, f) => n + f.size, 0) / 1024 ** 3;
+    return gpu.vramGb >= Math.max(need.minVramGb, weightsGb) * 1.25 ? 'fits' : 'no';
+  }
+  if (gpu.vramGb >= need.minVramGb) return 'fits';
   // ComfyUI offloads weights to system memory, so a little under the minimum still runs, slowly.
-  return gpu.vramGb >= minVramGb * 0.75 ? 'tight' : 'no';
+  return gpu.vramGb >= need.minVramGb * 0.75 ? 'tight' : 'no';
 }
