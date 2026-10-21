@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -307,12 +308,25 @@ describe('the sharing device’s door', () => {
     expect(evil.status).toBe(422);
     expect(JSON.stringify(await evil.json())).toContain('PythonExec, which Hildegard never uses');
     expect((await send({ graph: 'nope' })).status).toBe(400);
-    const big = await node('/api/node/render', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: 'x'.repeat(31 * 1024 * 1024),
+    // Refused on its declared length, before a byte of it is read. Sending the whole body would race the refusal
+    // (the server hangs up mid-upload), so this declares one and sends nothing.
+    const big = await new Promise<{ status?: number; connection?: string }>((resolve, reject) => {
+      const req = httpRequest(`${shareUrl}/api/node/render`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+          'content-length': String(31 * 1024 * 1024),
+        },
+      });
+      req.on('response', (res) => {
+        res.resume();
+        resolve({ status: res.statusCode, connection: res.headers.connection });
+      });
+      req.on('error', reject);
+      req.flushHeaders();
     });
-    expect(big.status).toBe(413);
+    expect(big).toEqual({ status: 413, connection: 'close' });
   });
 
   it('serves a finished video only once, to a paired device', async () => {
