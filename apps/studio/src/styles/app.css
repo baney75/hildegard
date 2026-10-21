@@ -296,6 +296,24 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-prose p { margin: 0; line-height: 22px; }
 .st-tile.hg-kv { margin: 0; grid-template-columns: 110px minmax(0, 1fr); font-size: 14px; }
 
+/* Devices (Choir) */
+.hg-devices { gap: 0; padding-block: 4px; }
+.hg-devices__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--hairline); }
+.hg-devices__row:first-child { border-top: 0; }
+.hg-devices__name { min-width: 0; display: grid; gap: 2px; }
+.hg-devices__name b { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-weight: 500; font-size: 15px; }
+.hg-devices__name small { overflow-wrap: anywhere; }
+.hg-devices__act, .hg-devices__btns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hg-use { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--space-3); font: 600 13px/1 var(--font-sans); color: var(--text-secondary); background: transparent; border: 1px solid var(--border-control); border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+.hg-use:hover { color: var(--text-primary); }
+.hg-use .i { display: none; }
+.hg-use[aria-checked="true"] { color: var(--text-primary); border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); cursor: default; }
+.hg-use[aria-checked="true"] .i { display: inline-block; color: var(--brand-text); }
+.hg-joincode { justify-self: stretch; margin-top: 0; }
+.hg-joincode pre { white-space: pre-wrap; word-break: break-all; color: var(--text-primary); user-select: all; }
+.hg-app[data-wc="compact"] .hg-devices__row { grid-template-columns: auto minmax(0, 1fr); }
+.hg-app[data-wc="compact"] .hg-devices__act { grid-column: 2; }
+
 /* ── Welcome ─────────────────────────────────────────────────────────────────────────────────── */
 .hg-welcome { position: fixed; inset: 0; overflow: auto; background: var(--canvas); color: var(--text-primary); font-family: var(--font-sans); }
 .hg-welcome__brand { display: flex; align-items: center; gap: 12px; }

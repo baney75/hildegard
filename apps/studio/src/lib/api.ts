@@ -3,6 +3,8 @@ import type {
   AgentInfo,
   AgentsResponse,
   Catalog,
+  ChoirDevice,
+  ChoirState,
   ExportState,
   HfState,
   ModelState,
@@ -81,6 +83,14 @@ export const api = {
   hfOAuth: () => call<{ url: string }>('POST', '/api/hf/oauth/start'),
   hfDevice: () => call<DeviceStart>('POST', '/api/hf/device'),
   agents: () => call<AgentsResponse>('GET', '/api/agents'),
+  choir: () => call<ChoirState>('GET', '/api/choir'),
+  choirTailnet: () => call<{ url: string | null }>('GET', '/api/choir/tailnet'),
+  choirInvite: (url?: string) => call<{ code: string; url: string }>('POST', '/api/choir/invite', { url }),
+  choirRevoke: () => call<ChoirState>('POST', '/api/choir/revoke'),
+  choirJoin: (code: string) =>
+    call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code }),
+  choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
+  choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
   linkAgent: (id: string, link: boolean) =>
     call<{ step: SetupStep; agents: AgentInfo[] }>(
       'POST',

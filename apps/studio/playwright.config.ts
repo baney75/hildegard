@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.E2E_PORT ?? 7351);
+// A second Hildegard, with its own stand-in GPU, for the Studio to pair with in Settings › Devices.
+const nodePort = Number(process.env.E2E_NODE_PORT ?? port + 1);
+process.env.E2E_NODE_PORT = String(nodePort);
 const data = mkdtempSync(join(tmpdir(), 'hildegard-e2e-'));
+const nodeData = mkdtempSync(join(tmpdir(), 'hildegard-e2e-node-'));
 // The server gets its own home folder, so linking AI apps in tests never touches this computer's real config. Cursor
 // is "installed" there, so there's something to link.
 const home = mkdtempSync(join(tmpdir(), 'hildegard-e2e-home-'));
@@ -32,18 +36,26 @@ export default defineConfig({
     },
     { name: 'phone', use: { ...devices['Pixel 7'], launchOptions: chromium }, testMatch: /phone\.spec/ },
   ],
-  webServer: {
-    command: `node ../server/src/main.ts --fake-gpu --port ${port} --data ${JSON.stringify(data)} --ui dist`,
-    url: `http://127.0.0.1:${port}/api/health`,
-    reuseExistingServer: false,
-    env: {
-      HILDEGARD_FAKE_TICK_MS: '40',
-      HILDEGARD_SECRETS: 'file',
-      HILDEGARD_E2E_HOME: home,
-      HOME: home,
-      USERPROFILE: home,
-      APPDATA: join(home, 'AppData'),
-      XDG_CONFIG_HOME: join(home, '.config'),
+  webServer: [
+    {
+      command: `node ../server/src/main.ts --fake-gpu --port ${port} --data ${JSON.stringify(data)} --ui dist`,
+      url: `http://127.0.0.1:${port}/api/health`,
+      reuseExistingServer: false,
+      env: {
+        HILDEGARD_FAKE_TICK_MS: '40',
+        HILDEGARD_SECRETS: 'file',
+        HILDEGARD_E2E_HOME: home,
+        HOME: home,
+        USERPROFILE: home,
+        APPDATA: join(home, 'AppData'),
+        XDG_CONFIG_HOME: join(home, '.config'),
+      },
     },
-  },
+    {
+      command: `node ../server/src/main.ts --fake-gpu --port ${nodePort} --data ${JSON.stringify(nodeData)}`,
+      url: `http://127.0.0.1:${nodePort}/api/health`,
+      reuseExistingServer: false,
+      env: { HILDEGARD_FAKE_TICK_MS: '40', HILDEGARD_SECRETS: 'file', HOME: home, USERPROFILE: home },
+    },
+  ],
 });

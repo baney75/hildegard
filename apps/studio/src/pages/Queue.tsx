@@ -8,6 +8,7 @@ import { api } from '../lib/api.ts';
 import {
   about,
   comfyDown,
+  deviceLabel,
   duration,
   estimateMs,
   leftMs,
@@ -49,7 +50,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
   const stopped = all.filter(
     (t) => (t.status === 'failed' || t.status === 'canceled') && (t.finishedAt ?? '') >= dayStart,
   );
-  const where = engine?.fake ? 'Stand-in GPU' : (engine?.device ?? 'This computer');
+  const where = deviceLabel(engine);
 
   // Time until each waiting take starts: what is left of the current render plus everything ahead of it.
   const startsIn = (() => {
@@ -222,7 +223,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <span className="t">Queue</span>
           <span className="s">
             {engine?.online
-              ? `${where}${engine.paused ? ' · paused' : running.length ? ' · busy' : ' · ready'}`
+              ? `${engine.comfy === 'remote' ? `Rendering on ${where}` : where}${engine.paused ? ' · paused' : running.length ? ' · busy' : ' · ready'}`
               : comfyDown(engine).short}
           </span>
         </div>

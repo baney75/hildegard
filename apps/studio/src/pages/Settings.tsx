@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog } from '@hildegard/presets';
+import type { Catalog, ChoirDevice } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
-import { Button, Icon, Segmented, toast, WithCode } from '../components/ui.tsx';
+import { Button, Icon, RadioGroup, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: 'models', label: 'Models', icon: 'models' },
   { id: 'huggingface', label: 'Hugging Face', icon: 'link' },
   { id: 'computer', label: 'This computer', icon: 'desktop' },
+  { id: 'devices', label: 'Devices', icon: 'server' },
   { id: 'privacy', label: 'Privacy', icon: 'privacy' },
   { id: 'about', label: 'About', icon: 'book' },
 ] as const;
@@ -71,6 +72,7 @@ export function Settings({
               {current === 'models' ? <Models catalog={catalog} go={go} /> : null}
               {current === 'huggingface' ? <HuggingFace catalog={catalog} /> : null}
               {current === 'computer' ? <Computer /> : null}
+              {current === 'devices' ? <Devices catalog={catalog} /> : null}
               {current === 'privacy' ? <Privacy /> : null}
               {current === 'about' ? <About /> : null}
             </div>
@@ -349,15 +351,25 @@ function Computer() {
         This computer
       </h2>
       <dl className="hg-kv st-tile">
+        {engine?.comfy === 'remote' ? (
+          <>
+            <dt>Takes</dt>
+            <dd>
+              Render on {engine.device}. <a href="#/settings/devices">Devices</a>
+            </dd>
+          </>
+        ) : null}
         <dt>ComfyUI</dt>
         <dd>
-          {engine?.online
-            ? engine.paused
-              ? 'Running · rendering paused'
-              : 'Running'
-            : comfyDown(engine).short}
+          {engine?.comfy === 'remote'
+            ? 'Not used while takes render on another device'
+            : engine?.online
+              ? engine.paused
+                ? 'Running · rendering paused'
+                : 'Running'
+              : comfyDown(engine).short}
         </dd>
-        {!engine?.online && engine?.comfy !== 'external' ? (
+        {!engine?.online && engine?.comfy !== 'external' && engine?.comfy !== 'remote' ? (
           <>
             <dt>Status</dt>
             <dd>
@@ -458,8 +470,8 @@ function Privacy() {
       </h2>
       <div className="st-tile hg-prose">
         <p>
-          Everything you make stays on your devices. Prompts, frames and finished takes never leave this
-          computer.
+          Everything you make stays on your devices. Prompts, frames and finished takes go only to the devices
+          you pair in Settings › Devices, over your own tailnet.
         </p>
         <p>
           Hildegard answers only on this computer unless you add another address, such as your Tailscale name,
@@ -469,6 +481,258 @@ function Privacy() {
           The only connections it makes are to Hugging Face, to download the models you choose, and only with
           the account you link.
         </p>
+      </div>
+    </section>
+  );
+}
+
+/** "RTX 4080 Laptop, 12 GB · Wan 2.2 5B", or why it isn’t answering. */
+function deviceDetail(d: ChoirDevice, catalog: Catalog): string {
+  if (!d.online) return d.problem ?? 'Not answering yet.';
+  const models = d.models.map((id) => catalog.models.find((m) => m.id === id)?.name ?? id);
+  return [d.gpu ?? 'GPU unknown', models.length ? models.join(', ') : 'No models yet'].join(' · ');
+}
+
+function Devices({ catalog }: { catalog: Catalog }) {
+  const choir = useStore((s) => s.choir);
+  const engine = useStore((s) => s.engine);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [invite, setInvite] = useState<{ code: string; url: string } | null>(null);
+  const [url, setUrl] = useState('');
+  // Undefined until known: null means Tailscale isn’t up here, so the owner gives the address.
+  const [tailnet, setTailnet] = useState<string | null | undefined>(undefined);
+
+  // Ask every device how it is when the page opens; the one in use is watched all the time anyway.
+  useEffect(() => {
+    void api.choir().catch(() => {});
+    api
+      .choirTailnet()
+      .then((t) => setTailnet(t.url))
+      .catch(() => setTailnet(null));
+  }, []);
+  const askUrl = tailnet === null && !choir?.sharing.on;
+
+  const run = async (name: string, fn: () => Promise<unknown>) => {
+    setBusy(name);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const share = () =>
+    run('share', async () => {
+      setInvite(await api.choirInvite(askUrl ? url.trim() : undefined));
+    });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(invite?.code ?? '');
+      toast('Copied');
+    } catch {
+      toast('Couldn’t copy. Select the code and copy it yourself.', { tone: 'error' });
+    }
+  };
+  const use = choir?.use ?? 'local';
+  const here = use === 'local';
+  const sharing = choir?.sharing;
+
+  return (
+    <section className="hg-section" aria-labelledby="dv-h">
+      <h2 id="dv-h" className="st-h2">
+        Devices
+      </h2>
+      <p className="body-sm sec-text">
+        Render on another computer you own, such as a desktop with a big GPU. Devices pair over Tailscale, and
+        prompts and takes travel only between them.
+      </p>
+      {error ? (
+        <p className="hg-err body-sm" role="alert">
+          <Icon name="alert" size={16} /> {error}
+        </p>
+      ) : null}
+
+      <RadioGroup label="Use for renders" className="st-tile hg-devices">
+        <div className="hg-devices__row">
+          <span className="st-dev__g">
+            <Icon name="desktop" size={22} />
+          </span>
+          <span className="hg-devices__name">
+            <b>This computer</b>
+            <small className="body-sm muted">
+              {here ? (engine?.online ? 'Renders here' : comfyDown(engine).short) : 'Standing by'}
+              {sharing?.on ? ' · Shares its GPU' : ''}
+            </small>
+          </span>
+          <span className="hg-devices__act">
+            <button
+              type="button"
+              role="radio"
+              className="hg-use"
+              aria-checked={here}
+              tabIndex={here ? 0 : -1}
+              aria-label="Use this computer for renders"
+              onClick={() => !here && void run('use', () => api.choirUse('local'))}
+            >
+              <Icon name="check" size={16} /> Use for renders
+            </button>
+          </span>
+        </div>
+        {(choir?.devices ?? []).map((d) => {
+          const on = use === d.name;
+          return (
+            <div className="hg-devices__row" key={d.name}>
+              <span className="st-dev__g">
+                <Icon name="server" size={22} />
+              </span>
+              <span className="hg-devices__name">
+                <b>
+                  {d.name}{' '}
+                  <Status kind={d.online ? 'done' : 'error'}>{d.online ? 'Online' : 'Not answering'}</Status>
+                </b>
+                <small className="body-sm muted">{deviceDetail(d, catalog)}</small>
+              </span>
+              <span className="hg-devices__act">
+                <button
+                  type="button"
+                  role="radio"
+                  className="hg-use"
+                  aria-checked={on}
+                  tabIndex={on ? 0 : -1}
+                  aria-label={`Use ${d.name} for renders`}
+                  onClick={() => !on && void run('use', () => api.choirUse(d.name))}
+                >
+                  <Icon name="check" size={16} /> Use for renders
+                </button>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  icon="trash"
+                  aria-label={`Remove ${d.name}`}
+                  busy={busy === `leave-${d.name}`}
+                  onClick={() =>
+                    run(`leave-${d.name}`, async () => {
+                      await api.choirLeave(d.name);
+                      toast(`Removed ${d.name}`);
+                    })
+                  }
+                />
+              </span>
+            </div>
+          );
+        })}
+      </RadioGroup>
+
+      <form
+        className="st-tile hg-hfway"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void run('join', async () => {
+            const r = await api.choirJoin(code);
+            setCode('');
+            toast(
+              r.choir.use === r.device.name
+                ? `Takes now render on ${r.device.name}`
+                : `Added ${r.device.name}`,
+            );
+          });
+        }}
+      >
+        <b>Add a device</b>
+        <span className="body-sm muted">
+          On the device with the GPU, open Settings › Devices and choose Share this GPU, or run{' '}
+          <code>hildegard choir invite</code>. Then paste its code here.
+        </span>
+        <label className="hg-field hg-field--block">
+          <span className="sr">Join code</span>
+          <input
+            type="password"
+            value={code}
+            placeholder="hgc1_…"
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="off"
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </label>
+        <Button type="submit" busy={busy === 'join'} disabled={!code.trim()}>
+          Add device
+        </Button>
+      </form>
+
+      <div className="st-tile hg-hfway">
+        <b>{sharing?.on ? 'Sharing this GPU' : 'Share this GPU'}</b>
+        {invite ? (
+          <>
+            <span className="body-sm sec-text">
+              Paste this code on your other device. It pairs one device; keep it private.
+            </span>
+            <div className="hg-code hg-joincode">
+              {/* biome-ignore lint/a11y/noNoninteractiveTabindex: it scrolls sideways, so keyboards must be able to reach it. */}
+              <pre role="region" tabIndex={0} aria-label="Join code">
+                {invite.code}
+              </pre>
+              <Button kind="ghost" size="sm" icon="copy" onClick={copy}>
+                Copy
+              </Button>
+            </div>
+          </>
+        ) : (
+          <span className="body-sm muted">
+            {sharing?.on
+              ? `Paired devices reach this computer at ${sharing.url}.`
+              : 'Let your other devices render on this computer’s GPU. They reach it over Tailscale, with a code only they have.'}
+          </span>
+        )}
+        {sharing?.problem ? (
+          <p className="hg-err body-sm" role="note">
+            <Icon name="alert" size={16} /> {sharing.problem}
+          </p>
+        ) : null}
+        {askUrl && !invite ? (
+          <label className="hg-field hg-field--block">
+            Tailscale isn’t running here. Start it, or give the address your other devices reach this computer
+            at
+            <input
+              type="url"
+              value={url}
+              placeholder="http://100.101.102.103:7341"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </label>
+        ) : null}
+        <div className="hg-devices__btns">
+          <Button
+            kind={sharing?.on ? undefined : 'primary'}
+            icon="link"
+            onClick={share}
+            busy={busy === 'share'}
+            disabled={tailnet === undefined || (askUrl && !url.trim())}
+          >
+            {sharing?.on ? 'New code' : 'Share this GPU'}
+          </Button>
+          {sharing?.on ? (
+            <Button
+              kind="ghost"
+              onClick={() =>
+                run('revoke', async () => {
+                  await api.choirRevoke();
+                  setInvite(null);
+                  toast('This computer no longer shares its GPU');
+                })
+              }
+              busy={busy === 'revoke'}
+            >
+              Stop sharing
+            </Button>
+          ) : null}
+        </div>
       </div>
     </section>
   );

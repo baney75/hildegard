@@ -1,9 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Take } from '@hildegard/presets';
+import type { EngineState, Take } from '@hildegard/presets';
 import { describe, expect, it } from 'vitest';
 import { draftNote } from '../src/components/ExportDialog.tsx';
 import { fromRequest, toRequest } from '../src/lib/draft.ts';
-import { about, bytes, clock, duration, estimateMs, leftMs, ordinal, roman } from '../src/lib/format.ts';
+import {
+  about,
+  bytes,
+  clock,
+  comfyDown,
+  deviceLabel,
+  duration,
+  estimateMs,
+  leftMs,
+  ordinal,
+  roman,
+} from '../src/lib/format.ts';
 
 describe('format', () => {
   it('numbers shots like folios', () => {
@@ -124,5 +135,27 @@ describe('draftNote', () => {
       ]),
     ).toBe('');
     expect(draftNote([{ no: 1, take: take('final') }])).toBe('');
+  });
+});
+
+describe('render device', () => {
+  const engine = (over: Partial<EngineState>): EngineState => ({
+    online: true,
+    url: 'http://127.0.0.1:8189',
+    fake: false,
+    paused: false,
+    device: 'This computer',
+    comfy: 'managed',
+    problem: null,
+    ...over,
+  });
+  it('names the device takes render on, another one included', () => {
+    expect(deviceLabel(engine({}))).toBe('This computer');
+    expect(deviceLabel(engine({ fake: true }))).toBe('Stand-in GPU');
+    const remote = engine({ comfy: 'remote', device: 'parish1 · RTX 4080 Laptop', fake: true });
+    expect(deviceLabel(remote)).toBe('parish1 · RTX 4080 Laptop');
+    const down = comfyDown({ ...remote, online: false, problem: 'parish1 isn’t answering.' });
+    expect(down.short).toBe('parish1 isn’t answering');
+    expect(down.long).toMatch(/^parish1 isn’t answering\. Takes wait/);
   });
 });

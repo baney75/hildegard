@@ -3,7 +3,7 @@ import type { Catalog } from '@hildegard/presets';
 import { type ClipboardEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api.ts';
 import { getDraft, setDraft, toRequest, useDraft } from '../lib/draft.ts';
-import { about, estimateMs } from '../lib/format.ts';
+import { about, deviceLabel, estimateMs } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, upsert, useStore } from '../lib/store.ts';
 import { FormatSheet, LookSheet, lookSummary, ModelSheet, MotionSheet, RigSheet } from './sheets.tsx';
@@ -166,7 +166,7 @@ export function Composer({
   const compact = wc === 'compact';
   const variant = compact ? 'bottom' : 'center';
   const takesWord = `${draft.takes} ${draft.format.quality === 'draft' ? (draft.takes === 1 ? 'draft' : 'drafts') : draft.takes === 1 ? 'take' : 'takes'}`;
-  const where = engine?.fake ? 'stand-in GPU' : (engine?.device ?? 'This computer').replace(/^This/, 'this');
+  const where = deviceLabel(engine).replace(/^(This|Stand-in)/, (m) => m.toLowerCase());
   const createLabel = !modelId ? 'Choose a model' : `Create ${takesWord}`;
   const createSub = !modelId
     ? 'Install one to start'

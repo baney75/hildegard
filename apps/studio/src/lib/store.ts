@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {
   Catalog,
+  ChoirState,
   EngineState,
   ExportState,
   HfState,
@@ -31,6 +32,7 @@ export interface State {
   hf: HfState | null;
   /** The newest export of each film, by film id. */
   exports: Map<string, ExportState>;
+  choir: ChoirState | null;
 }
 
 let state: State = {
@@ -47,6 +49,7 @@ let state: State = {
   models: [],
   hf: null,
   exports: new Map(),
+  choir: null,
 };
 const listeners = new Set<() => void>();
 
@@ -78,6 +81,7 @@ function fromSnapshot(s: Snapshot): Partial<State> {
     models: s.models,
     hf: s.hf,
     exports: new Map((s.exports ?? []).map((x) => [x.projectId, x])),
+    choir: s.choir ?? null,
   };
 }
 
@@ -120,6 +124,9 @@ export function apply(events: ServerEvent[]) {
         break;
       case 'hf':
         next.hf = e.hf;
+        break;
+      case 'choir':
+        next.choir = e.choir;
         break;
       case 'export':
         next.exports = new Map(next.exports ?? state.exports).set(e.export.projectId, e.export);

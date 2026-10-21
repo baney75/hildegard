@@ -3,7 +3,7 @@ import type { Catalog, Shot, Take } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { fromRequest, setDraft } from '../lib/draft.ts';
-import { about, bytes, clock, duration, modelName, resolution, roman } from '../lib/format.ts';
+import { about, bytes, clock, deviceLabel, duration, modelName, resolution, roman } from '../lib/format.ts';
 import { upsert, useStore } from '../lib/store.ts';
 import { previewUrl, takeLabel, waitingFor } from './TakeCard.tsx';
 import { Button, Icon, LiveRing, Menu, Status, toast, toastError } from './ui.tsx';
@@ -62,7 +62,7 @@ export function Inspector({
       if (r.takes[0]) onSelect(r.takes[0].id);
     });
 
-  const where = engine?.fake ? 'Stand-in GPU' : (engine?.device ?? 'This computer');
+  const where = deviceLabel(engine);
   const title = `Shot ${roman(shotNo)} · ${takeLabel(t)}`;
   const media = t.status === 'running' ? previewUrl(t) : t.poster;
 

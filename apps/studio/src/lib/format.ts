@@ -109,10 +109,23 @@ export function leftMs(t: Take, history: number | null, now = Date.now()): numbe
   return history === null ? null : Math.max(0, history - elapsed);
 }
 
+/** Which device takes render on, for people: "parish1 · RTX 4080 Laptop", "Stand-in GPU", "This computer". */
+export function deviceLabel(engine: EngineState | null): string {
+  if (engine?.comfy === 'remote') return engine.device;
+  return engine?.fake ? 'Stand-in GPU' : (engine?.device ?? 'This computer');
+}
+
 /** What to say while ComfyUI isn't answering: a short label and a sentence with what to do. */
 export function comfyDown(engine: EngineState | null): { short: string; long: string } {
   const where = engine?.url ? ` at ${engine.url}` : '';
   switch (engine?.comfy) {
+    case 'remote': {
+      const name = engine.device.split(' · ')[0];
+      return {
+        short: `${name} isn’t answering`,
+        long: `${engine.problem ?? `Hildegard can’t reach ${name}.`} Takes wait here and start on their own once it answers.`,
+      };
+    }
     case 'not-installed':
       return {
         short: 'ComfyUI isn’t installed',
