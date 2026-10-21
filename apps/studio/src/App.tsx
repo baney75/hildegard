@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef } from 'react';
-import mark from './assets/mark-vellum.svg';
+import markGreen from './assets/mark-green.svg';
+import markVellum from './assets/mark-vellum.svg';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
 import { useStore } from './lib/store.ts';
+import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
 import { Cinema } from './pages/Cinema.tsx';
 import { Queue } from './pages/Queue.tsx';
@@ -36,6 +38,8 @@ export function App() {
   const [welcomed, setWelcomed] = useLocal('hildegard.welcomed', false);
   const app = useRef<HTMLDivElement>(null);
   const { wc, forced } = useWindowClass(app, layout);
+  // The mark is drawn in vellum on dark grounds and in green on vellum.
+  const mark = useTheme().theme === 'light' ? markGreen : markVellum;
 
   useEffect(() => {
     if (catalog) reconcile(catalog);

@@ -117,6 +117,8 @@ export function EmptyHero({ onStart, onFrame }: { onStart: () => void; onFrame: 
           width="146"
           height="146"
           aria-hidden="true"
+          // An illuminated initial: sapphire and gold leaf on any page, light or dark.
+          data-theme="dark"
           className="cs-illum"
           style={{ flex: 'none' }}
         >

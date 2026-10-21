@@ -57,6 +57,8 @@ function TakeCardImpl({ take: t, selected, online, paused, left, onSelect, onFor
         type="button"
         className="cs-card__media"
         style={{ aspectRatio: aspect }}
+        // A stopped take shows its last frame dimmed almost to black, so its words keep the dark theme's colours.
+        data-theme={(t.status === 'failed' || t.status === 'canceled') && t.poster ? 'dark' : undefined}
         aria-pressed={selected}
         onClick={() => onSelect(t.id)}
         onMouseEnter={() => t.video && setHover(true)}

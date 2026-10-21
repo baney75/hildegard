@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog } from '@hildegard/presets';
 import { useState } from 'react';
-import mark from '../assets/mark-vellum.svg';
-import wordmark from '../assets/wordmark-vellum.svg';
+import markGreen from '../assets/mark-green.svg';
+import markVellum from '../assets/mark-vellum.svg';
+import wordmarkGreen from '../assets/wordmark-green.svg';
+import wordmarkVellum from '../assets/wordmark-vellum.svg';
 import { ModelRow } from '../components/sheets.tsx';
 import { Button } from '../components/ui.tsx';
 import { useStore } from '../lib/store.ts';
+import { useTheme } from '../lib/theme.ts';
 
 /** First run: what Hildegard is, then one model to start with. */
 export function Welcome({
@@ -21,6 +24,9 @@ export function Welcome({
   const models = useStore((s) => s.models);
   const hf = useStore((s) => s.hf);
   const started = models.some((m) => m.installed || m.downloading);
+  const light = useTheme().theme === 'light';
+  const mark = light ? markGreen : markVellum;
+  const wordmark = light ? wordmarkGreen : wordmarkVellum;
   return (
     <div className="st-ob hg-welcome">
       <div className="st-ob__side">

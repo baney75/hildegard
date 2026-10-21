@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import {
   asFirstRun,
   createShot,
@@ -12,6 +12,22 @@ import {
 test.afterEach(async ({ request }) => {
   await request.post('/api/engine/resume', { headers: { 'x-hildegard': '1' } });
 });
+
+/** Relative luminance of an element's text colour, 0 (black) to 1 (white). */
+const textLuminance = (page: Page, selector: string) =>
+  page
+    .locator(selector)
+    .first()
+    .evaluate((el) => {
+      const c = document.createElement('canvas').getContext('2d')!;
+      c.fillStyle = getComputedStyle(el).color;
+      c.fillRect(0, 0, 1, 1);
+      const [r, g, b] = [...c.getImageData(0, 0, 1, 1).data].slice(0, 3).map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    });
 
 test('first run: the welcome fits the window, with nothing hidden below it', async ({ page, request }) => {
   const errors = watchErrors(page);
@@ -30,6 +46,60 @@ test('first run: the welcome fits the window, with nothing hidden below it', asy
   await expectAccessible(page, 'welcome models');
   await expectCurlyQuotes(page, 'welcome models');
   expect(errors).toEqual([]);
+});
+
+test('light theme: chosen in Settings, kept on reload, and readable everywhere', async ({
+  page,
+  request,
+}) => {
+  const errors = watchErrors(page);
+  await page.goto('/#/settings/computer');
+  const appearance = page.getByRole('radiogroup', { name: 'Appearance' });
+  await expect(appearance.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+  await appearance.getByRole('radio', { name: 'Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  // The mark is green on vellum; the vellum one would vanish.
+  await expect(page.locator('.hg-app__brand img')).toHaveAttribute('src', /mark-green/);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'light');
+  await expectAccessible(page, 'light settings');
+
+  await freshFilm(page, request);
+  await expectAccessible(page, 'light empty film');
+  await createShot(page, 'A candle gutters in a draughty chapel [fail:oom]');
+  const shot = page.getByRole('region', { name: /A candle gutters/ });
+  await expect(shot.locator('.cs-card.is-failed').first()).toBeVisible({ timeout: 15_000 });
+  await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
+  // A stopped take's words sit on its last frame dimmed almost to black, so they stay light.
+  expect(await textLuminance(page, '.cs-card.is-failed .cs-qmeta b')).toBeGreaterThan(0.5);
+  expect(await textLuminance(page, '.cs-card.is-failed .hg-status')).toBeGreaterThan(0.3);
+  await expectAccessible(page, 'light board');
+  await page.goto('/#/queue');
+  await expectAccessible(page, 'light queue');
+  await page.goto('/#/agents');
+  await page
+    .getByRole('button', { name: /Link an app/ })
+    .first()
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Link an app' })).toBeVisible();
+  await expectAccessible(page, 'light link an app');
+  await page.keyboard.press('Escape');
+
+  await page.goto('/#/settings/computer');
+  await page.getByRole('radiogroup', { name: 'Appearance' }).getByRole('radio', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('.hg-app__brand img')).toHaveAttribute('src', /mark-vellum/);
+  expect(errors).toEqual([]);
+});
+
+test('light theme: the first-run welcome stays readable', async ({ page, request }) => {
+  await page.addInitScript(() => localStorage.setItem('hildegard.theme', 'light'));
+  await asFirstRun(page, request);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Welcome to Hildegard.' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Hildegard' })).toHaveAttribute('src', /wordmark-green/);
+  await expectAccessible(page, 'light welcome');
 });
 
 test('hovered buttons keep their contrast', async ({ page, request }) => {
@@ -143,4 +213,18 @@ test('a finished take’s button reads its name and length, without the badge te
   const shot = page.getByRole('region', { name: /Swallows dive/ });
   await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
   await expect(shot.getByRole('button', { name: 'Open Draft 1, 0:05', exact: true })).toBeVisible();
+});
+
+test('appearance can follow this device', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/#/settings/computer');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page
+    .getByRole('radiogroup', { name: 'Appearance' })
+    .getByRole('radio', { name: 'Match this device' })
+    .click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('.hg-app__brand img')).toHaveAttribute('src', /mark-vellum/);
 });

@@ -2,11 +2,12 @@
 import type { Catalog } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
-import { Button, Icon, toast, WithCode } from '../components/ui.tsx';
+import { Button, Icon, Segmented, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, useStore } from '../lib/store.ts';
+import { setThemeMode, type ThemeMode, useTheme } from '../lib/theme.ts';
 
 const SECTIONS = [
   { id: 'models', label: 'Models', icon: 'models' },
@@ -369,6 +370,7 @@ function Computer() {
         <dt>Hildegard</dt>
         <dd className="num">{version}</dd>
       </dl>
+      <Appearance />
       {engine?.fake ? (
         <p className="body-sm hg-err" role="note">
           <Icon name="alert" size={16} /> This is the stand-in GPU for testing. It makes placeholder clips,
@@ -376,6 +378,29 @@ function Computer() {
         </p>
       ) : null}
     </section>
+  );
+}
+
+function Appearance() {
+  const { mode } = useTheme();
+  return (
+    <div className="st-tile hg-hfway">
+      <b id="ap-h">Appearance</b>
+      <span className="body-sm muted">
+        Hildegard opens dark, which is kindest to your films. Choose light, or follow this device’s own
+        setting. The choice is kept in this browser.
+      </span>
+      <Segmented<ThemeMode>
+        label="Appearance"
+        value={mode}
+        onChange={setThemeMode}
+        options={[
+          { value: 'dark', label: 'Dark' },
+          { value: 'light', label: 'Light' },
+          { value: 'system', label: 'Match this device' },
+        ]}
+      />
+    </div>
   );
 }
 
