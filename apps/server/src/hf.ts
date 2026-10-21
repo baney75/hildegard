@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { HfState } from '@hildegard/presets';
 
 const HF = 'https://huggingface.co';
@@ -24,10 +24,15 @@ export interface SecretStore {
   delete(): void;
 }
 
-export async function keychainStore(): Promise<SecretStore | null> {
+/**
+ * The OS keychain entry for one secret ("huggingface", or "choir-parish1" for a joined device's key). Null where no
+ * keychain runs, or when HILDEGARD_SECRETS=file asks for files (tests, and machines where a prompt would hang).
+ */
+export async function keychainStore(account = 'huggingface', env = process.env): Promise<SecretStore | null> {
+  if (env.HILDEGARD_SECRETS === 'file') return null;
   try {
     const { Entry } = await import('@napi-rs/keyring');
-    const entry = new Entry('Hildegard', 'huggingface');
+    const entry = new Entry('Hildegard', account);
     // Probe: a Linux box without a Secret Service throws here, not later.
     entry.getPassword();
     return {
@@ -43,6 +48,36 @@ export async function keychainStore(): Promise<SecretStore | null> {
   } catch {
     return null;
   }
+}
+
+/** Where each named secret goes: the keychain when there is one, otherwise a 0600 file under `dir`. */
+export async function secretStores(
+  dir: string,
+  env = process.env,
+): Promise<(account: string) => SecretStore> {
+  const keychain = (await keychainStore('huggingface', env)) !== null;
+  const { Entry } = keychain ? await import('@napi-rs/keyring') : { Entry: null };
+  return (account) => {
+    if (!/^[a-z0-9][a-z0-9-]{0,80}$/.test(account)) throw new Error(`Bad secret name ${account}`);
+    if (!Entry) return fileStore(join(dir, `${account}.secret`));
+    const entry = new Entry('Hildegard', account);
+    return {
+      kind: 'keychain',
+      get: () => {
+        try {
+          return entry.getPassword() ?? null;
+        } catch {
+          return null;
+        }
+      },
+      set: (v) => entry.setPassword(v),
+      delete: () => {
+        try {
+          entry.deletePassword();
+        } catch {}
+      },
+    };
+  };
 }
 
 export function fileStore(path: string): SecretStore {

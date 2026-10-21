@@ -78,8 +78,8 @@ export interface EngineState {
   fake: boolean;
   paused: boolean;
   device: string;
-  /** Who runs ComfyUI: Hildegard itself, the owner, nobody yet, or the stand-in engine. */
-  comfy: 'managed' | 'external' | 'not-installed' | 'fake';
+  /** Who runs ComfyUI: Hildegard itself, the owner, nobody yet, the stand-in engine, or another device (Choir). */
+  comfy: 'managed' | 'external' | 'not-installed' | 'fake' | 'remote';
   /** Why ComfyUI isn't answering, when Hildegard knows. */
   problem: string | null;
 }
@@ -124,6 +124,38 @@ export interface ExportState {
   createdAt: string;
 }
 
+/** A device this computer joined, to render on its GPU. */
+export interface ChoirDevice {
+  name: string;
+  url: string;
+  /** It answered the last time Hildegard asked. */
+  online: boolean;
+  /** "RTX 4080 Laptop, 12 GB", when it said. */
+  gpu: string | null;
+  version: string | null;
+  /** Models installed and verified there. */
+  models: string[];
+  /** Why it is not answering, in a sentence. */
+  problem: string | null;
+}
+
+/** Choir: rendering on another of your devices, and sharing this one's GPU with them. */
+export interface ChoirState {
+  /** Where takes render: "local", or the name of a joined device. */
+  use: string;
+  devices: ChoirDevice[];
+  /** This computer shares its GPU: paired devices may render here. */
+  sharing: {
+    on: boolean;
+    /** Where paired devices reach this one. */
+    url: string | null;
+    /** Join codes made since sharing was last turned off. */
+    paired: number;
+    /** Why paired devices can't reach it right now, such as Tailscale being down. */
+    problem: string | null;
+  };
+}
+
 export interface Snapshot {
   version: string;
   /** Where this build's source code is (AGPL §13): the repository and, when known, the exact commit. */
@@ -135,6 +167,7 @@ export interface Snapshot {
   models: ModelState[];
   hf: HfState;
   exports: ExportState[];
+  choir: ChoirState;
 }
 
 /** Server-sent events on /api/events. */
@@ -146,7 +179,8 @@ export type ServerEvent =
   | { type: 'engine'; engine: EngineState }
   | { type: 'models'; models: ModelState[] }
   | { type: 'hf'; hf: HfState }
-  | { type: 'export'; export: ExportState };
+  | { type: 'export'; export: ExportState }
+  | { type: 'choir'; choir: ChoirState };
 
 /** POST /api/shots */
 export interface CreateShotBody {

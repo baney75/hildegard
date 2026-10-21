@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { type BuiltGraph, buildGraph, type Engine, EngineError } from '@hildegard/comfy';
-import { type Catalog, composeShot, type EngineState, type Take, type TakeError } from '@hildegard/presets';
+import { type BuiltGraph, buildGraph, type Engine, EngineError, type RenderHandlers } from '@hildegard/comfy';
+import {
+  type Catalog,
+  composeShot,
+  type EngineState,
+  type Priority,
+  type Take,
+  type TakeError,
+} from '@hildegard/presets';
 import type { Store } from './store.ts';
 
 const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
@@ -23,17 +31,39 @@ export function explain(e: unknown): TakeError {
   return {
     code: err.code,
     message: err.message,
-    hint: hint[err.code] ?? hint.unknown!,
+    hint: err.hint ?? hint[err.code] ?? hint.unknown!,
     detail: err.detail || undefined,
   };
 }
 
+/** A render a paired device sent (Choir): it waits in this computer's queue like a studio take. */
+export interface GuestRender {
+  built: BuiltGraph;
+  /** Local path of its start frame. */
+  startFrame?: string;
+  dest: string;
+  /** Aborted when the other device cancels or hangs up. */
+  signal: AbortSignal;
+  handlers: RenderHandlers;
+}
+
+interface Guest {
+  id: string;
+  createdAt: string;
+  position: number | null;
+  job: GuestRender;
+  resolve: () => void;
+  reject: (e: unknown) => void;
+}
+
 /**
  * One GPU, one render at a time. Forced takes go first, then studio work, then agent work; within a class, oldest
- * first. Force now stops a lower-priority render, which goes back to the front of its class.
+ * first. Force now stops a lower-priority render, which goes back to the front of its class. Renders from paired
+ * devices queue here too, as studio work, so they never run alongside a local take.
  */
 export class Scheduler {
-  private running: { take: Take; abort: AbortController; requeue: boolean } | null = null;
+  private running: { id: string; priority: Priority; abort: AbortController; requeue: boolean } | null = null;
+  private guests: Guest[] = [];
   private paused = false;
   private online = false;
   readonly previews = new Map<string, { bytes: Uint8Array; type: string }>();
@@ -69,20 +99,26 @@ export class Scheduler {
     return {
       online: this.online,
       url: this.engine.url,
-      fake: this.fake,
+      fake: this.engine.fake ?? this.fake,
       paused: this.paused,
-      device: 'This computer',
+      device: this.engine.device ?? 'This computer',
       comfy: this.comfy,
       problem: this.online ? null : this.problem,
     };
   }
 
-  /** Point at another ComfyUI (the managed one moved ports), or record why it is down. */
-  setEngine(engine: Engine) {
-    if (engine.url === this.engine.url) return;
+  /** Point at another ComfyUI (the managed one moved ports) or another device, or record why it is down. */
+  setEngine(engine: Engine, comfy?: EngineState['comfy']) {
+    if (engine.url === this.engine.url && engine.device === this.engine.device) return;
     this.engine = engine;
+    if (comfy) this.comfy = comfy;
     this.online = false;
     this.onEngine(this.engineState());
+    // Ask the new one straight away rather than at the next tick.
+    if (this.started && !this.stopped) {
+      if (this.pingTimer) clearTimeout(this.pingTimer);
+      void this.tick();
+    }
   }
 
   setProblem(problem: string | null) {
@@ -91,24 +127,35 @@ export class Scheduler {
     this.onEngine(this.engineState());
   }
 
+  private started = false;
+  private stopped = false;
+  private async tick() {
+    const engine = this.engine;
+    const was = this.online;
+    const online = await engine.ping();
+    // The engine changed while asking: its answer is about the old one.
+    if (engine !== this.engine || this.stopped) return;
+    this.online = online;
+    if (was !== this.online) {
+      this.onEngine(this.engineState());
+      if (this.online) this.pump();
+    }
+    if (this.pingTimer) clearTimeout(this.pingTimer);
+    this.pingTimer = setTimeout(() => void this.tick(), this.online ? 10_000 : 2_000);
+    this.pingTimer.unref?.();
+  }
+
   /** Watch ComfyUI: quickly while it is down, rarely while it is up. */
   start() {
-    const tick = async () => {
-      const was = this.online;
-      this.online = await this.engine.ping();
-      if (was !== this.online) {
-        this.onEngine(this.engineState());
-        if (this.online) this.pump();
-      }
-      this.pingTimer = setTimeout(tick, this.online ? 10_000 : 2_000);
-      this.pingTimer.unref?.();
-    };
-    void tick();
+    this.started = true;
+    void this.tick();
   }
 
   stop() {
+    this.stopped = true;
     if (this.pingTimer) clearTimeout(this.pingTimer);
     this.running?.abort.abort();
+    for (const g of this.guests.splice(0)) g.reject(new EngineError('canceled', 'Canceled.'));
   }
 
   setPaused(paused: boolean) {
@@ -123,14 +170,69 @@ export class Scheduler {
       .sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.createdAt.localeCompare(b.createdAt));
   }
 
-  /** Recompute queue positions and tell the UI about any that moved. */
+  /** Everything waiting, takes and paired devices' renders alike, in the order it will run. */
+  private order(): Array<{ take: Take } | { guest: Guest }> {
+    const key = (x: { take: Take } | { guest: Guest }) =>
+      'take' in x
+        ? ([RANK[x.take.priority], x.take.createdAt] as const)
+        : ([RANK.interactive, x.guest.createdAt] as const);
+    return [...this.queued().map((take) => ({ take })), ...this.guests.map((guest) => ({ guest }))].sort(
+      (a, b) => {
+        const [ra, ca] = key(a);
+        const [rb, cb] = key(b);
+        return ra - rb || ca.localeCompare(cb);
+      },
+    );
+  }
+
+  /** How many renders are waiting or running, paired devices' included. */
+  load(): number {
+    return this.order().length + (this.running ? 1 : 0);
+  }
+
+  /** Recompute queue positions and tell the UI (or the paired device) about any that moved. */
   private renumber() {
-    this.queued().forEach((t, i) => {
+    this.order().forEach((x, i) => {
       const pos = i + (this.running ? 1 : 0);
-      if (t.queuePosition !== pos) {
-        t.queuePosition = pos;
-        this.store.putTake(t, true);
+      if ('take' in x) {
+        if (x.take.queuePosition !== pos) {
+          x.take.queuePosition = pos;
+          this.store.putTake(x.take, true);
+        }
+      } else if (x.guest.position !== pos) {
+        x.guest.position = pos;
+        x.guest.job.handlers.onQueued?.(pos);
       }
+    });
+  }
+
+  /** Queue a paired device's render. Resolves when the video is at job.dest. */
+  guest(job: GuestRender): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (job.signal.aborted) return reject(new EngineError('canceled', 'Canceled.'));
+      const g: Guest = {
+        id: randomUUID(),
+        createdAt: new Date().toISOString(),
+        position: null,
+        job,
+        resolve,
+        reject,
+      };
+      this.guests.push(g);
+      job.signal.addEventListener(
+        'abort',
+        () => {
+          // Still waiting: just leave the queue. Running: runGuest stops it.
+          const i = this.guests.indexOf(g);
+          if (i < 0) return;
+          this.guests.splice(i, 1);
+          reject(new EngineError('canceled', 'Canceled.'));
+          this.renumber();
+        },
+        { once: true },
+      );
+      this.renumber();
+      this.pump();
     });
   }
 
@@ -143,7 +245,7 @@ export class Scheduler {
   cancel(id: string): boolean {
     const t = this.store.takes.get(id);
     if (!t) return false;
-    if (this.running?.take.id === id) {
+    if (this.running?.id === id) {
       this.running.requeue = false;
       this.running.abort.abort();
       return true;
@@ -165,7 +267,7 @@ export class Scheduler {
     t.priority = 'forced';
     t.createdAt = new Date().toISOString();
     this.store.putTake(t);
-    if (interrupt && this.running && this.running.take.priority !== 'forced') {
+    if (interrupt && this.running && this.running.priority !== 'forced') {
       this.running.requeue = true;
       this.running.abort.abort();
     }
@@ -192,15 +294,46 @@ export class Scheduler {
 
   /** Start the next take if the GPU is free. */
   pump() {
-    if (this.running || this.paused || !this.online) return;
-    const next = this.queued()[0];
+    if (this.running || this.paused || !this.online || this.stopped) return;
+    const next = this.order()[0];
     if (!next) return;
-    void this.run(next);
+    if ('take' in next) void this.run(next.take);
+    else void this.runGuest(next.guest);
+  }
+
+  private async runGuest(g: Guest) {
+    const abort = new AbortController();
+    const onAbort = () => abort.abort();
+    g.job.signal.addEventListener('abort', onAbort, { once: true });
+    this.guests.splice(this.guests.indexOf(g), 1);
+    this.running = { id: g.id, priority: 'interactive', abort, requeue: false };
+    g.position = 0;
+    this.renumber();
+    try {
+      await this.engine.render(g.job.built, {
+        dest: g.job.dest,
+        startFrame: g.job.startFrame,
+        signal: abort.signal,
+        handlers: g.job.handlers,
+      });
+      g.resolve();
+    } catch (e) {
+      if (this.running?.requeue && !g.job.signal.aborted) {
+        // Interrupted by Force now here: back in line, oldest first, and the other device hears it's waiting.
+        g.position = null;
+        this.guests.push(g);
+      } else g.reject(e);
+    } finally {
+      g.job.signal.removeEventListener('abort', onAbort);
+      this.running = null;
+      this.renumber();
+      this.pump();
+    }
   }
 
   private async run(take: Take) {
     const abort = new AbortController();
-    this.running = { take, abort, requeue: false };
+    this.running = { id: take.id, priority: take.priority, abort, requeue: false };
     take.status = 'running';
     take.queuePosition = 0;
     take.startedAt = new Date().toISOString();

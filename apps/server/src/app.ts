@@ -11,6 +11,7 @@ import {
   type Catalog,
   type CreateShotBody,
   composeShot,
+  type ModelState,
   PresetError,
   type Priority,
   type Project,
@@ -31,6 +32,7 @@ import {
 import { type Context, Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
+import { type Choir, ChoirError } from './choir.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import type { HfLink } from './hf.ts';
@@ -76,6 +78,13 @@ export interface AppDeps {
   onStop?: () => void;
   /** The base URL people and agents reach this server at. */
   url?: string;
+  choir: Choir;
+  /** Models as the Studio should see them: this computer's, or those on the device renders go to. */
+  modelStates: () => ModelState[];
+  /** /api/node/*, for devices paired with this one. */
+  node?: Hono;
+  /** Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address. */
+  invite: (url?: string) => Promise<{ code: string; url: string }>;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -127,7 +136,9 @@ export function createApp(deps: AppDeps) {
     const host = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
     if (!allowedHosts.has(host)) return c.text('Unknown host', 421);
     const method = c.req.method;
-    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    // Paired devices authenticate with a bearer key, which a browser never sends on its own.
+    const paired = c.req.path.startsWith('/api/node/');
+    if (!paired && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
       // Browsers cannot add this header cross-site without a CORS preflight, which this server never grants.
       if (c.req.header('x-hildegard') !== '1') return c.json({ error: 'Missing x-hildegard header' }, 403);
       const origin = c.req.header('origin');
@@ -156,12 +167,14 @@ export function createApp(deps: AppDeps) {
     shots: [...store.shots.values()],
     takes: [...store.takes.values()],
     engine: scheduler.engineState(),
-    models: deps.models.states(),
+    models: deps.modelStates(),
     hf: deps.hf.state(),
     exports: deps.exporter.list(),
+    choir: deps.choir.state(),
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
+  if (deps.node) app.route('/api/node', deps.node);
 
   // ── This computer: stopping, and linking AI apps. Only from this computer itself, never over the network. ─────
   const local = (c: Context) => LOOPBACK.has((c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, ''));
@@ -478,11 +491,89 @@ export function createApp(deps: AppDeps) {
     return c.json(scheduler.engineState());
   });
 
+  // ── Choir: rendering on your other devices ──────────────────────────────────────────────────────────────────
+  const choirFail = (c: Context, e: unknown) => {
+    if (e instanceof ChoirError) return c.json({ error: e.message }, e.status);
+    throw e;
+  };
+  const pairLocal = (c: Context) =>
+    local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
+  app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
+  app.post('/api/choir/invite', async (c) => {
+    const refused = pairLocal(c);
+    if (refused) return refused;
+    const body = z
+      .object({ url: z.string().max(200).optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Give an address like http://100.101.102.103:7341.' }, 400);
+    try {
+      c.header('cache-control', 'no-store');
+      return c.json(await deps.invite(body.data.url));
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
+  app.post('/api/choir/revoke', (c) => {
+    const refused = pairLocal(c);
+    if (refused) return refused;
+    deps.choir.revoke();
+    return c.json(deps.choir.state());
+  });
+  app.post('/api/choir/join', async (c) => {
+    const refused = pairLocal(c);
+    if (refused) return refused;
+    const body = z
+      .object({ code: z.string().max(2048), name: z.string().max(63).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Paste the join code from the other device.' }, 400);
+    try {
+      // With no ComfyUI of its own, this computer renders on the device it joins straight away.
+      const device = await deps.choir.join(body.data.code, {
+        name: body.data.name,
+        autoUse: scheduler.engineState().comfy === 'not-installed',
+      });
+      return c.json({ device, choir: deps.choir.state() }, 201);
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
+  app.post('/api/choir/leave', async (c) => {
+    const refused = pairLocal(c);
+    if (refused) return refused;
+    const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which device.' }, 400);
+    try {
+      deps.choir.leave(body.data.name);
+      return c.json(deps.choir.state());
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
+  app.post('/api/choir/use', async (c) => {
+    const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which device, or “local”.' }, 400);
+    try {
+      deps.choir.use(body.data.name);
+      return c.json(deps.choir.state());
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
+
   // ── Models ──────────────────────────────────────────────────────────────────────────────────────────────────
   app.post('/api/models/:id/install', async (c) => {
     const id = c.req.param('id');
     const model = catalog.models.find((m) => m.id === id);
     if (!model) return c.json({ error: 'No such model' }, 404);
+    const remote = deps.choir.active();
+    if (remote)
+      return c.json(
+        {
+          error: `Takes render on ${remote.name}, so models go there. On ${remote.name}, run \`hildegard models install ${id}\`.`,
+          code: 'remote',
+        },
+        409,
+      );
     const body = (await c.req.json().catch(() => ({}))) as { acceptLicense?: unknown };
     if (body.acceptLicense === true) deps.models.acceptLicense(id);
     if (!deps.models.licenseAccepted(id))
