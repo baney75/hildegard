@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
@@ -36,6 +37,18 @@ export function defaultDataDir(env = process.env): string {
   }
 }
 
+/** Where the server notes the port it last started on, so `hildegard status` and `stop` find it without --port. */
+export const portFile = (dataDir: string) => join(dataDir, 'server.json');
+
+export function rememberedPort(dataDir: string): number | undefined {
+  try {
+    const { port } = JSON.parse(readFileSync(portFile(dataDir), 'utf8')) as { port?: unknown };
+    return Number.isInteger(port) && (port as number) > 0 ? (port as number) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function parseArgs(argv: string[], env = process.env): Config {
   const flag = (name: string) => argv.includes(`--${name}`);
   const opt = (name: string): string | undefined => {
@@ -48,7 +61,7 @@ export function parseArgs(argv: string[], env = process.env): Config {
   return {
     dataDir,
     host: opt('host') ?? env.HILDEGARD_HOST ?? '127.0.0.1',
-    port: Number(opt('port') ?? env.HILDEGARD_PORT ?? 7341),
+    port: Number(opt('port') ?? env.HILDEGARD_PORT ?? rememberedPort(dataDir) ?? 7341),
     comfyUrl: opt('comfy') ?? env.HILDEGARD_COMFY_URL ?? 'http://127.0.0.1:8189',
     comfyExternal: Boolean(opt('comfy') ?? env.HILDEGARD_COMFY_URL),
     comfyDir: opt('comfy-dir') ?? env.HILDEGARD_COMFY_DIR ?? join(dataDir, 'comfyui'),

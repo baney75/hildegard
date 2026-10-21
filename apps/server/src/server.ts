@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ComfySdkEngine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
@@ -7,7 +7,7 @@ import { type EngineState, type LoadedCatalog, loadCatalog } from '@hildegard/pr
 import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
-import type { Config } from './config.ts';
+import { type Config, portFile } from './config.ts';
 import { Exporter } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore } from './hf.ts';
 import { ModelManager } from './models.ts';
@@ -126,6 +126,7 @@ export async function startServer(
   });
   const addr = server.address();
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
+  writeFileSync(portFile(config.dataDir), `${JSON.stringify({ port })}\n`);
   const host = config.host.includes(':') ? `[${config.host}]` : config.host;
   // Bound to one address (a Tailscale IP, say), it still answers on loopback: the CLI and linked AI apps use that.
   const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)

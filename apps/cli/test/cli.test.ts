@@ -83,6 +83,17 @@ describe('hildegard', () => {
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);
   });
 
+  it('remembers the port it was started on for status and stop', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const port = String(7400 + Math.floor(Math.random() * 400));
+    expect((await hildegard(home, 'start', '--port', port, '--data', data, '--fake-gpu')).ok).toBe(true);
+    const st = await hildegard(home, 'status', '--data', data, '--fake-gpu');
+    expect(st).toMatchObject({ running: true, url: `http://127.0.0.1:${port}` });
+    expect((await hildegard(home, 'stop', '--data', data)).steps[0]!.status).toBe('done');
+    expect((await hildegard(home, 'status', '--data', data, '--port', port)).running).toBe(false);
+  });
+
   it('serves MCP on stdio, as AI apps run it', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-mcp-'));
     const srv = await startServer(
