@@ -22,6 +22,7 @@ import {
   type ModelLock,
   type ModelState,
 } from '@hildegard/presets';
+import { fit, type Gpu } from '@hildegard/runtime';
 
 /** A file's identity once checked: what we verified it against, so a restart does not hash 20 GB again. */
 interface Verified {
@@ -88,6 +89,7 @@ export class ModelManager {
   private readonly onChange: (s: ModelState[]) => void;
   private readonly fetchFn: typeof fetch;
   private readonly endpoint: string;
+  private readonly gpu: Gpu | null;
 
   constructor(opts: {
     comfyDir: string;
@@ -98,7 +100,10 @@ export class ModelManager {
     onChange: (s: ModelState[]) => void;
     fetch?: typeof fetch;
     endpoint?: string;
+    /** This computer's GPU, to say which models fit it. */
+    gpu?: Gpu | null;
   }) {
+    this.gpu = opts.gpu ?? null;
     this.modelsDir = join(opts.comfyDir, 'models');
     this.recordFile = join(opts.dataDir, 'models.json');
     this.acceptFile = join(opts.dataDir, 'licenses.json');
@@ -186,6 +191,7 @@ export class ModelManager {
           : null,
         gated: m.gated,
         licenseAccepted: this.licenseAccepted(m.id),
+        fit: this.gpu ? fit(this.gpu, m) : null,
         error: this.errors.get(m.id) ?? null,
       };
     });

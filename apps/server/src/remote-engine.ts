@@ -24,6 +24,8 @@ export interface NodeInfo {
   fake: boolean;
   /** Models installed and verified there. */
   models: string[];
+  /** How each model fits its GPU (null for the stand-in); missing from versions before it was added. */
+  fit?: Record<string, 'fits' | 'tight' | 'no' | null>;
   /** Takes and paired renders waiting there, the running one included. */
   queue: number;
   /** False while it renders on yet another device itself, so it takes no work. */

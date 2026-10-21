@@ -83,8 +83,8 @@ img.dim { filter: grayscale(1) brightness(.35); }
 .cs-comp__box.is-drop { box-shadow: var(--shadow-sheet), 0 0 0 2px var(--brand-text); }
 textarea.hg-promptfield { border: 0; outline: 0; resize: none; background: transparent; padding: 2px 0 0; margin: 0; width: 100%; min-height: 48px; max-height: 160px; overflow-y: auto; font: 400 17px/26px var(--font-sans); }
 textarea.hg-promptfield::placeholder { color: var(--text-muted); }
-.hg-pills { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: -2px; }
-.hg-pills::-webkit-scrollbar { display: none; }
+/* At any width the shot settings wrap onto another line rather than hiding past the edge or under the create button. */
+.hg-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1; min-width: 0; padding: 2px; margin: -2px; }
 .cs-pill { flex: none; white-space: nowrap; }
 .cs-create:disabled { opacity: .6; cursor: progress; }
 .cs-create:hover:not(:disabled) { filter: brightness(1.08); }
@@ -102,8 +102,6 @@ textarea.hg-promptfield::placeholder { color: var(--text-muted); }
 .hg-app[data-wc="compact"] .cs-comp__bar .cs-create { width: 100%; margin: 0; height: 48px; }
 .hg-app[data-wc="compact"] .cs-comp__cost { display: none; }
 .hg-app[data-wc="compact"] .cs-pill { height: 40px; padding: 0 10px; }
-/* On a phone the shot settings wrap onto a second line rather than hiding past the edge. */
-.hg-app[data-wc="compact"] .hg-pills { flex-wrap: wrap; overflow: visible; }
 .hg-app[data-wc="compact"] .cs-board { padding: 12px 16px 300px; gap: 22px; }
 .hg-app[data-wc="compact"] .cs-folio { grid-template-columns: 34px minmax(0, 1fr); }
 .hg-app[data-wc="compact"] .cs-folio__no { font-size: 24px; line-height: 28px; padding-right: 8px; }

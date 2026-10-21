@@ -270,6 +270,7 @@ export class Choir {
       gpu: i?.gpu ? `${shortGpu(i.gpu.name)}${i.gpu.vramGb ? `, ${i.gpu.vramGb} GB` : ''}` : null,
       version: i?.version ?? null,
       models: i?.models ?? [],
+      fit: i?.fit ?? {},
       problem,
     };
   }

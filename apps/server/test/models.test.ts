@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Catalog, loadCatalog, type ModelLock } from '@hildegard/presets';
+import type { Gpu } from '@hildegard/runtime';
 import { describe, expect, it } from 'vitest';
 import { ModelManager } from '../src/models.ts';
 import { fakeFetch } from './helpers.ts';
@@ -110,6 +111,32 @@ describe('ModelManager', () => {
     expect(make(catalog).licenseAccepted('tiny')).toBe(true);
     const changed = { ...catalog, models: [{ ...catalog.models[0]!, license: 'Some New License' }] };
     expect(make(changed).licenseAccepted('tiny')).toBe(false);
+  });
+
+  it('says which models fit this computer, so the Studio can show it', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-models-fit-'));
+    const make = (gpu: Gpu | null) =>
+      new ModelManager({
+        comfyDir: join(root, 'comfy'),
+        dataDir: root,
+        catalog: real,
+        lock: { version: 1, files: {} },
+        tokens: { accessToken: async () => null },
+        onChange: () => {},
+        gpu,
+      });
+    const fits = (gpu: Gpu | null) =>
+      Object.fromEntries(
+        make(gpu)
+          .states()
+          .map((s) => [s.id, s.fit]),
+      );
+    // A 32 GB Apple silicon Mac: macOS lets the GPU use 24 GB of it.
+    expect(fits({ backend: 'mps', name: 'Apple M5', vramGb: 24, torchBackend: null })).toMatchObject({
+      'ltx-2-5-distilled': 'no',
+      'wan-2-2-ti2v-5b': 'fits',
+    });
+    expect(fits(null)['wan-2-2-ti2v-5b']).toBeNull();
   });
 
   it('downloads, verifies against the published hash, and pins what it checked', async () => {

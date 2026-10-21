@@ -202,8 +202,8 @@ async function ensureRunning(ctx: Ctx): Promise<Step | null> {
 /** The first model in the catalog that fits this GPU, or one that fits tightly. */
 export function starterModel(catalog: Catalog, gpu: Gpu) {
   return (
-    catalog.models.find((m) => fit(gpu, m.minVramGb) === 'fits') ??
-    catalog.models.find((m) => fit(gpu, m.minVramGb) === 'tight') ??
+    catalog.models.find((m) => fit(gpu, m) === 'fits') ??
+    catalog.models.find((m) => fit(gpu, m) === 'tight') ??
     null
   );
 }
@@ -273,7 +273,7 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
       license: m.license,
       licenseUrl: m.licenseUrl,
       minVramGb: m.minVramGb,
-      fit: fit(gpu, m.minVramGb),
+      fit: fit(gpu, m),
       installed: s?.installed ?? false,
       licenseAccepted: s?.licenseAccepted ?? false,
       downloading: s?.downloading ?? null,

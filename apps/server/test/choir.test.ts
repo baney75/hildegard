@@ -185,6 +185,9 @@ describe('rendering on another device', () => {
     expect(snap.engine.device).toBe(`${snap.choir.use} · Stand-in`);
     // The stand-in renders any model, so every one counts as there: nothing asks to download it here.
     expect(snap.models.every((m) => m.installed)).toBe(true);
+    // Fit is the GPU's that renders: the stand-in has none to judge by.
+    expect(snap.models.map((m) => m.fit)).toEqual(snap.models.map(() => null));
+    expect(snap.choir.devices[0]!.fit).toEqual(Object.fromEntries(snap.models.map((m) => [m.id, null])));
     const install = await post(mac, '/api/models/wan-2-2-ti2v-5b/install', { acceptLicense: true });
     expect(install.status).toBe(409);
     expect(((await install.json()) as { error: string }).error).toContain(snap.choir.use);

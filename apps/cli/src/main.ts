@@ -40,7 +40,7 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
-  --port N    Hildegard's port (default 7341)    --data DIR   Where Hildegard keeps everything
+  --port N    Hildegard's port (last used, or 7341)    --data DIR   Where Hildegard keeps everything
   --cpu       Install the CPU build of PyTorch    --verbose    Show the installer's output
 
 Agents: see INSTALL-FOR-AGENTS.md. Everything stays on this computer.`;

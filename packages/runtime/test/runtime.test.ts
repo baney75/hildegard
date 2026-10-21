@@ -9,10 +9,13 @@ import {
   detectGpu,
   disconnectAgent,
   download,
+  findUv,
   fit,
+  layout,
   listAgents,
   type Probe,
   run,
+  UV,
 } from '../src/index.ts';
 
 const probe = (over: Partial<Probe> & { files?: Record<string, string> }): Probe => ({
@@ -85,14 +88,26 @@ describe('detectGpu', () => {
     const g = detectGpu(probe({ platform: 'win32' }));
     expect(g.backend).toBe('cpu');
     expect(g.note).toMatch(/NVIDIA/);
-    expect(fit(g, 12)).toBe('no');
+    expect(fit(g, { minVramGb: 12 })).toBe('no');
   });
 
   it('judges fit with room for offloading', () => {
     const g = { backend: 'cuda' as const, name: 'x', vramGb: 10, torchBackend: 'cu130' };
-    expect(fit(g, 8)).toBe('fits');
-    expect(fit(g, 12)).toBe('tight');
-    expect(fit(g, 24)).toBe('no');
+    expect(fit(g, { minVramGb: 8 })).toBe('fits');
+    expect(fit(g, { minVramGb: 12 })).toBe('tight');
+    expect(fit(g, { minVramGb: 24 })).toBe('no');
+  });
+
+  it('keeps room on Apple’s unified memory and skips models it can’t run', () => {
+    const mac = detectGpu(
+      probe({ platform: 'darwin', arch: 'arm64', totalmem: 32 * 1024 ** 3, run: () => 'Apple M5\n' }),
+    );
+    const files = (gb: number) => [{ size: gb * 1024 ** 3 }];
+    // 24 GB for the GPU used to read as room for a 24 GB model; there is nowhere to offload the rest.
+    expect(fit(mac, { minVramGb: 24 })).toBe('no');
+    expect(fit(mac, { minVramGb: 12, files: files(17) })).toBe('fits');
+    expect(fit(mac, { minVramGb: 12, files: files(22) })).toBe('no');
+    expect(fit({ ...mac, vramGb: 96 }, { minVramGb: 24, files: files(37), mps: false })).toBe('no');
   });
 });
 
@@ -111,6 +126,21 @@ describe('download', () => {
     );
     expect(existsSync(bad)).toBe(false);
     expect(existsSync(`${bad}.part`)).toBe(false);
+  });
+});
+
+describe('findUv', () => {
+  const L = layout(join(tmpdir(), 'hg-uv'));
+  const ours = join(L.tools, process.platform === 'win32' ? 'uv.exe' : 'uv');
+  const versions = (v: Record<string, string>) => ({ run: (cmd: string) => v[cmd] ?? null });
+
+  it('uses only the pinned uv, and installs its own when the one on PATH differs', () => {
+    expect(findUv(L, versions({ uv: 'uv 0.4.0 (abcdef 2024-08-01)\n' }))).toBeNull();
+    expect(findUv(L, versions({ uv: `uv ${UV.version}0\n` }))).toBeNull();
+    expect(findUv(L, versions({ uv: `uv ${UV.version} (abcdef 2026-09-01)\n` }))).toBe('uv');
+    expect(findUv(L, versions({ uv: 'uv 0.4.0\n', [ours]: `uv ${UV.version} (abcdef 2026-09-01)\n` }))).toBe(
+      ours,
+    );
   });
 });
 

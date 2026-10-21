@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { loadCatalog } from '@hildegard/presets';
+import { fit } from '@hildegard/runtime';
 import { fileStore, parseArgs, startServer } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -82,6 +83,17 @@ describe('hildegard', () => {
 
     expect((await hildegard(home, 'stop', ...common)).steps[0]!.status).toBe('done');
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);
+  });
+
+  it('remembers the port it was started on for status and stop', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const port = String(7400 + Math.floor(Math.random() * 400));
+    expect((await hildegard(home, 'start', '--port', port, '--data', data, '--fake-gpu')).ok).toBe(true);
+    const st = await hildegard(home, 'status', '--data', data, '--fake-gpu');
+    expect(st).toMatchObject({ running: true, url: `http://127.0.0.1:${port}` });
+    expect((await hildegard(home, 'stop', '--data', data)).steps[0]!.status).toBe('done');
+    expect((await hildegard(home, 'status', '--data', data, '--port', port)).running).toBe(false);
   });
 
   it('serves MCP on stdio, as AI apps run it', async () => {
@@ -179,6 +191,14 @@ describe('hildegard', () => {
     expect(starterModel(catalog, gpu(16))?.id).toBe('wan-2-2-ti2v-5b');
     expect(starterModel(catalog, gpu(10))?.id).toBe('wan-2-2-ti2v-5b');
     expect(starterModel(catalog, gpu(6))).toBeNull();
+  });
+
+  it('starts a 32 GB Apple silicon Mac on Wan 2.2 5B, not LTX-2.5', () => {
+    const { catalog } = loadCatalog();
+    // macOS gives the GPU three quarters of unified memory, as detectGpu reports it.
+    const mac = { backend: 'mps' as const, name: 'Apple M5', vramGb: 24, torchBackend: null };
+    expect(starterModel(catalog, mac)?.id).toBe('wan-2-2-ti2v-5b');
+    expect(fit(mac, catalog.models.find((m) => m.id === 'ltx-2-5-distilled')!)).toBe('no');
   });
 });
 

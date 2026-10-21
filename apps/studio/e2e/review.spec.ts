@@ -228,3 +228,17 @@ test('appearance can follow this device', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.hg-app__brand img')).toHaveAttribute('src', /mark-vellum/);
 });
+
+test('at 800 px the prompt bar’s chips stay clear of the create button', async ({ page, request }) => {
+  await page.setViewportSize({ width: 800, height: 800 });
+  await freshFilm(page, request);
+  const create = (await page.locator('.cs-comp__bar .cs-create').boundingBox())!;
+  const seed = (await page.getByRole('button', { name: /^Seed/ }).boundingBox())!;
+  // Neither overlaps the other: the Random chip ends before the button starts, or sits on another row.
+  const apart =
+    seed.x + seed.width <= create.x || seed.y + seed.height <= create.y || create.y + create.height <= seed.y;
+  expect(apart).toBe(true);
+  // And no chip hides past the edge of the bar.
+  const hidden = await page.locator('.hg-pills').evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(hidden).toBeLessThanOrEqual(0);
+});

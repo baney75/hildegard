@@ -102,6 +102,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       models: catalog.models
         .filter((m) => deps.fake || states.find((s) => s.id === m.id)?.installed)
         .map((m) => m.id),
+      fit: Object.fromEntries(states.map((s) => [s.id, s.fit])),
       queue: scheduler.load(),
       accepting: choir.state().use === 'local',
     };

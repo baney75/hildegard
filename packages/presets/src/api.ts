@@ -94,6 +94,8 @@ export interface ModelState {
   gated: boolean;
   /** The user has accepted this model's current license in Hildegard. */
   licenseAccepted: boolean;
+  /** How it fits this computer's GPU, as `hildegard models` says it; null when unknown (the stand-in GPU). */
+  fit: 'fits' | 'tight' | 'no' | null;
   error: string | null;
 }
 
@@ -135,6 +137,8 @@ export interface ChoirDevice {
   version: string | null;
   /** Models installed and verified there. */
   models: string[];
+  /** How each model fits its GPU, by model id, as ModelState.fit says it. */
+  fit: Record<string, 'fits' | 'tight' | 'no' | null>;
   /** Why it is not answering, in a sentence. */
   problem: string | null;
 }

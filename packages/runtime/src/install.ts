@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import { type Backend, detectGpu, type Gpu, systemProbe } from './gpu.ts';
+import { type Backend, detectGpu, type Gpu, type Probe, systemProbe } from './gpu.ts';
 import { COMFYUI, PROXY, PYTHON, UV } from './pins.ts';
 
 export type StepStatus = 'done' | 'skipped' | 'needs-owner' | 'failed';
@@ -292,10 +292,11 @@ function readText(path: string): string | null {
   }
 }
 
-function findUv(L: Layout): string | null {
+/** A uv of the pinned version: another version resolves packages differently, so it's passed over for our own. */
+export function findUv(L: Layout, probe: Pick<Probe, 'run'> = systemProbe): string | null {
   const ours = join(L.tools, win ? 'uv.exe' : 'uv');
   for (const c of [process.env.HILDEGARD_UV, ours, 'uv'])
-    if (c && systemProbe.run(c, ['--version'])?.startsWith('uv ')) return c;
+    if (c && probe.run(c, ['--version'])?.trim().split(/\s+/, 2).join(' ') === `uv ${UV.version}`) return c;
   return null;
 }
 

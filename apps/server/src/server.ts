@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
@@ -9,7 +9,7 @@ import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
-import type { Config } from './config.ts';
+import { type Config, portFile } from './config.ts';
 import { Exporter } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { ModelManager } from './models.ts';
@@ -23,13 +23,6 @@ const listen = (fetch: (r: Request) => Response | Promise<Response>, hostname: s
   new Promise<HttpServer>((resolve, reject) => {
     const s = serve({ fetch, hostname, port }, () => resolve(s));
     s.once('error', reject);
-  });
-
-/** Stop listening and drop open connections, so a render stream or event stream can't hold shutdown up. */
-const shut = (s: HttpServer) =>
-  new Promise<void>((r) => {
-    s.close(() => r());
-    (s as { closeAllConnections?: () => void }).closeAllConnections?.();
   });
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
@@ -144,12 +137,14 @@ export async function startServer(
     clientId: config.hfClientId,
     onChange: (s) => store.emit({ type: 'hf', hf: s }),
   });
+  const localGpu = config.fake ? null : detectGpu();
   const models = new ModelManager({
     comfyDir: config.comfyDir ?? join(config.dataDir, 'comfyui'),
     dataDir: config.dataDir,
     catalog,
     lock,
     tokens: hf,
+    gpu: localGpu,
     onChange: () => store.emit({ type: 'models', models: modelStates() }),
   });
   /** Rendering on a joined device, its models are the ones that count, so nothing asks to download them here. */
@@ -165,6 +160,8 @@ export async function startServer(
         downloading: null,
         gated: m.gated,
         licenseAccepted: there,
+        // How it fits the GPU it would render on.
+        fit: d.fit[m.id] ?? null,
         error: there || !d.version ? null : `Not installed on ${d.name}. Install it there.`,
       };
     });
@@ -182,15 +179,12 @@ export async function startServer(
   };
 
   // What this computer tells devices paired with it.
-  let gpuInfo: { name: string; vramGb: number | null } | null | undefined;
-  const gpu = () => {
-    if (config.fake) return { name: 'Stand-in GPU', vramGb: null };
-    if (gpuInfo === undefined) {
-      const g = detectGpu();
-      gpuInfo = g.backend === 'cpu' ? null : { name: g.name, vramGb: g.vramGb };
-    }
-    return gpuInfo;
-  };
+  const gpu = () =>
+    config.fake
+      ? { name: 'Stand-in GPU', vramGb: null }
+      : localGpu && localGpu.backend !== 'cpu'
+        ? { name: localGpu.name, vramGb: localGpu.vramGb }
+        : null;
   const node = nodeRoutes({
     choir,
     scheduler,
@@ -244,6 +238,7 @@ export async function startServer(
   const server = await listen(app.fetch, config.host, config.port);
   const addr = server.address();
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
+  writeFileSync(portFile(config.dataDir), `${JSON.stringify({ port })}\n`);
   const host = config.host.includes(':') ? `[${config.host}]` : config.host;
   // Bound to one address (a Tailscale IP, say), it still answers on loopback: the CLI and linked AI apps use that.
   const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)
@@ -317,12 +312,17 @@ export async function startServer(
       scheduler.stop();
       await runtime?.stop();
       store.flush();
-      await shut(server);
-      if (loopback) await shut(loopback);
-      if (share) await shut(share.server);
+      await Promise.all([server, loopback, share?.server].map((s) => (s ? shut(s) : null)));
       await fake?.close();
     },
   };
+}
+
+/** Stops listening and ends every live connection, so an open Studio tab's event stream can't keep the process up. */
+function shut(s: ReturnType<typeof serve>): Promise<void> {
+  const done = new Promise<void>((r) => s.close(() => r()));
+  if ('closeAllConnections' in s) s.closeAllConnections();
+  return done;
 }
 
 export { VERSION };
