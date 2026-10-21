@@ -228,7 +228,7 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         const queued = s.takes.filter((t) => t.status === 'queued').length;
         const running = s.takes.find((t) => t.status === 'running');
         const lines = [
-          `Hildegard ${s.version} at ${client.url}. Renders on ${s.engine.fake ? 'a stand-in GPU (test mode)' : s.engine.device}; ComfyUI ${s.engine.online ? 'is online' : 'is not answering'}${s.engine.paused ? ', rendering is paused' : ''}.`,
+          `Hildegard ${s.version} at ${client.url}. Renders on ${s.engine.comfy === 'remote' ? `${s.engine.device}, another of the owner’s devices${s.engine.fake ? ' (stand-in GPU, test mode)' : ''}` : s.engine.fake ? 'a stand-in GPU (test mode)' : s.engine.device}; ComfyUI ${s.engine.online ? 'is online' : 'is not answering'}${s.engine.paused ? ', rendering is paused' : ''}.`,
           `Queue: ${running ? `rendering ${running.id}, ` : ''}${queued} waiting.`,
           `Hugging Face: ${s.hf.linked ? `linked${s.hf.user ? ` as ${s.hf.user}` : ''}` : 'not linked (needed only for gated models)'}.`,
           'Models:',
