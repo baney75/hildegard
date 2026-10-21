@@ -170,6 +170,17 @@ export async function startServer(
     });
   };
 
+  // This computer on its tailnet: asking Tailscale takes a moment, so the answer is kept briefly.
+  let tailnetAt = 0;
+  let tailnetSelf: ReturnType<typeof tailscaleSelf> = null;
+  const tailnet = () => {
+    if (Date.now() - tailnetAt > 15_000) {
+      tailnetSelf = tailscaleSelf();
+      tailnetAt = Date.now();
+    }
+    return tailnetSelf;
+  };
+
   // What this computer tells devices paired with it.
   let gpuInfo: { name: string; vramGb: number | null } | null | undefined;
   const gpu = () => {
@@ -213,8 +224,12 @@ export async function startServer(
     choir,
     modelStates,
     node,
+    tailnet: () => {
+      const ts = tailnet();
+      return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
+    },
     invite: async (url) => {
-      const ts = tailscaleSelf();
+      const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);
       if (!target)
         throw new ChoirError(

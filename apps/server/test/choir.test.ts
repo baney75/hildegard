@@ -345,5 +345,8 @@ describe('pairing', () => {
     expect(((await r.json()) as { error: string }).error).toContain('own code');
     await post(gpu, '/api/choir/revoke');
     expect((await post(gpu, '/api/choir/invite', { url: 'http://192.168.1.4:7341' })).status).toBe(400);
+    // The Studio asks first whether Tailscale is up, so it can ask for an address instead.
+    const t = (await (await fetch(`${gpu.url}/api/choir/tailnet`)).json()) as { url: string | null };
+    expect(t.url === null || /^http:\/\/100\./.test(t.url)).toBe(true);
   });
 });

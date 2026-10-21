@@ -85,6 +85,8 @@ export interface AppDeps {
   node?: Hono;
   /** Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address. */
   invite: (url?: string) => Promise<{ code: string; url: string }>;
+  /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
+  tailnet: () => string | null;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -499,6 +501,7 @@ export function createApp(deps: AppDeps) {
   const pairLocal = (c: Context) =>
     local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
+  app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
   app.post('/api/choir/invite', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;
