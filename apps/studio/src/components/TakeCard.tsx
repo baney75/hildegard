@@ -92,7 +92,7 @@ function TakeCardImpl({ take: t, selected, online, paused, left, onSelect, onFor
           </span>
         ) : null}
         {t.status === 'done' && t.quality === 'draft' ? (
-          <span className="cs-badge draft">
+          <span className="cs-badge draft" aria-hidden="true">
             <Icon name="feather" size={14} />
             Draft
           </span>

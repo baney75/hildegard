@@ -19,6 +19,14 @@ import { useNow, type WindowClass } from '../lib/hooks.ts';
 import { upsert, useStore } from '../lib/store.ts';
 
 type Filter = 'all' | 'running' | 'waiting' | 'done';
+/** The progress bar's colour says the state with the status word: gold only while a take renders. */
+const BAR: Record<Take['status'], string> = {
+  running: '',
+  queued: ' q',
+  done: ' ok',
+  failed: ' err',
+  canceled: ' idle',
+};
 
 export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; go: (to: string) => void }) {
   const takes = useStore((s) => s.takes);
@@ -66,7 +74,13 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
     return (
       <div key={t.id} className={`st-job${t.status === 'running' ? ' live' : ''}`}>
         {thumb ? (
-          <img src={thumb} alt="" />
+          <img
+            src={thumb}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className={t.status === 'failed' || t.status === 'canceled' ? 'dim' : undefined}
+          />
         ) : (
           <span className="thph" aria-hidden="true">
             <Icon name="video" size={18} />
@@ -92,7 +106,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           {t.status === 'failed' ? <Status kind="error">{t.error?.message ?? 'Stopped'}</Status> : null}
           {t.status === 'canceled' ? <Status kind="idle">Canceled</Status> : null}
           <span
-            className={`st-bar${t.status === 'queued' ? ' q' : t.status === 'done' ? ' ok' : ''}`}
+            className={`st-bar${BAR[t.status]}`}
             role="progressbar"
             aria-label="Progress"
             aria-valuemin={0}
@@ -104,7 +118,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
         </span>
         <span style={{ minWidth: 0 }}>
           <b style={{ fontWeight: 500 }}>{where}</b>
-          <small>
+          <small className={t.status === 'failed' ? 'wrap' : undefined}>
             {t.status === 'running'
               ? left !== null
                 ? `${about(left).replace('~', '')} left`
@@ -195,7 +209,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
       key: 'done',
       title: 'Done today',
       list: [...done, ...stopped],
-      sub: `${done.length} made · $0.00 spent`,
+      sub: `${done.length} made${stopped.length ? ` · ${stopped.length} stopped` : ''} · $0.00 spent`,
     },
   ];
   const shown = groups.filter((g) => filter === 'all' || g.key === filter);
@@ -230,6 +244,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           ) : null}
           <div className="hg-between hg-wrap">
             <Segmented
+              className="hg-seg hg-seg--fill"
               label="Show"
               value={filter}
               onChange={setFilter}
@@ -240,7 +255,10 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
                 },
                 { value: 'running', label: `Rendering · ${running.length}` },
                 { value: 'waiting', label: `Waiting · ${waiting.length}` },
-                { value: 'done', label: `Done today · ${done.length}` },
+                {
+                  value: 'done',
+                  label: `${wc === 'compact' ? 'Done' : 'Done today'} · ${done.length + stopped.length}`,
+                },
               ]}
             />
             {wc === 'compact' ? null : (

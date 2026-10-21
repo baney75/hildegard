@@ -53,3 +53,42 @@ export async function freshFilm(page: Page, request: APIRequestContext) {
   await page.goto(`/#/film/${id}`);
   return id;
 }
+
+/** UI text uses curly quotes and apostrophes. Code, commands and what people typed are left out. */
+export async function expectCurlyQuotes(page: Page, what: string) {
+  const straight = await page.evaluate(() => {
+    const out: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement;
+      if (!el || el.closest('code, pre, kbd, script, style, textarea, .num, .cs-folio__t, .hg-linkbtn'))
+        continue;
+      if (!el.checkVisibility()) continue;
+      if (/['"]/.test(n.textContent ?? '')) out.push(n.textContent!.trim().slice(0, 80));
+    }
+    return out;
+  });
+  expect(straight, `${what}: straight quotes`).toEqual([]);
+}
+
+/**
+ * Show the first-run welcome: the test server runs the stand-in GPU, which skips it, so the snapshot the page
+ * receives says this is a real computer with nothing made yet.
+ */
+export async function asFirstRun(page: Page, request: APIRequestContext) {
+  const snapshot = await (await request.get('/api/snapshot')).json();
+  const first = {
+    ...snapshot,
+    projects: [],
+    shots: [],
+    takes: [],
+    engine: { ...snapshot.engine, fake: false },
+  };
+  await page.route('**/api/events', (route) =>
+    route.fulfill({
+      status: 200,
+      headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' },
+      body: `retry: 600000\nevent: hello\ndata: ${JSON.stringify({ snapshot: first })}\n\n`,
+    }),
+  );
+}

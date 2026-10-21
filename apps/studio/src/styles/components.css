@@ -28,7 +28,7 @@
 .hg-btn:active { transform: translateY(.5px); }
 .hg-btn[disabled], .hg-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; transform: none; }
 .hg-btn--primary { background: var(--brand); color: var(--on-brand); border-color: transparent; }
-.hg-btn--primary:hover { background: color-mix(in oklab, var(--brand), var(--text-primary) 10%); }
+.hg-btn--primary:hover { background: color-mix(in oklab, var(--brand), var(--text-primary) 5%); }
 .hg-btn--force { background: var(--ember); color: var(--on-ember); border-color: transparent; box-shadow: var(--glow-force); }
 .hg-btn--force:hover { background: color-mix(in oklab, var(--ember), #fff 10%); }
 .hg-btn--ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }

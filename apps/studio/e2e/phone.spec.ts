@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from '@playwright/test';
-import { createShot, expectAccessible, freshFilm, watchErrors } from './helpers.ts';
+import { asFirstRun, createShot, expectAccessible, freshFilm, watchErrors } from './helpers.ts';
+
+test.afterEach(async ({ request }) => {
+  await request.post('/api/engine/resume', { headers: { 'x-hildegard': '1' } });
+});
 
 test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, request }) => {
   const errors = watchErrors(page);
@@ -29,5 +33,50 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   await page.getByRole('link', { name: /Settings/ }).click();
   await page.getByRole('link', { name: /Hugging Face/ }).click();
   await expect(page.getByRole('heading', { name: 'Link Hugging Face' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('phone: the first-run welcome fits the screen', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await asFirstRun(page, request);
+  await page.goto('/');
+  const go = page.getByRole('button', { name: /Set up this computer/ });
+  await expect(go).toBeInViewport();
+  const vp = page.viewportSize()!;
+  const box = await go.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width);
+  await expectAccessible(page, 'phone welcome');
+  await go.click();
+  // Each model's button sits below its words, not on top of them.
+  const row = page.locator('.hg-model', { hasText: 'Wan 2.2 5B' });
+  const words = await row.getByText(/no usage limits/).boundingBox();
+  const get = await row.getByRole('button', { name: /^Get/ }).boundingBox();
+  expect(get!.y).toBeGreaterThanOrEqual(words!.y + words!.height);
+  expect(get!.x + get!.width).toBeLessThanOrEqual(vp.width);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect(errors).toEqual([]);
+});
+
+test('phone: queue filters stay on one line and the badge sits in the tab bar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await freshFilm(page, request);
+  await request.post('/api/engine/pause', { headers: { 'x-hildegard': '1' } });
+  await createShot(page, 'Rain on a slate roof');
+  await page.getByRole('link', { name: /Queue/ }).click();
+  const filters = page.getByRole('radiogroup', { name: 'Show' }).getByRole('radio');
+  await expect(filters).toHaveCount(4);
+  for (const f of await filters.all()) {
+    const lines = await f.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+    });
+    expect(lines).toBe(1);
+  }
+  const bar = await page.locator('.hg-tabbar').boundingBox();
+  const badge = await page.locator('.hg-tabbar .hg-nav-item__badge').boundingBox();
+  expect(badge!.y).toBeGreaterThanOrEqual(bar!.y);
   expect(errors).toEqual([]);
 });

@@ -6,15 +6,15 @@
 id = "ltx-2-5-distilled"
 name = "LTX-2.5 distilled"
 family = "ltx-2.5"
-blurb = "Lightricks' newest open model. Video and sound together, fast 8-step sampling."
+blurb = "Lightricks’ newest open model. Video and sound together, fast 8-step sampling."
 license = "LTX-2.x Community License"
 licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x"
 terms = [
   "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
-  "You may not use it to build a product that competes with Lightricks' own.",
+  "You may not use it to build a product that competes with Lightricks’ own.",
   "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
   "No deepfakes of real people without their consent, and no sexual content.",
-  "Hugging Face also asks you to accept the license on the model's page before it can download.",
+  "Hugging Face also asks you to accept the license on the model’s page before it can download.",
 ]
 gated = true
 graph = "ltx-2.5-distilled"
@@ -65,15 +65,15 @@ gated = true
 id = "ltx-2-distilled"
 name = "LTX-2 distilled"
 family = "ltx-2"
-blurb = "The model with Lightricks' camera-control LoRAs: exact dollies, jibs and locked-off shots."
+blurb = "The model with Lightricks’ camera-control LoRAs: exact dollies, jibs and locked-off shots."
 license = "LTX-2 Community License"
 licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2"
 terms = [
   "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
-  "You may not use it to build a product that competes with Lightricks' own.",
+  "You may not use it to build a product that competes with Lightricks’ own.",
   "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
   "No deepfakes of real people without their consent, and no sexual content.",
-  "Its text encoder, Gemma 3, comes under Google's Gemma Terms of Use.",
+  "Its text encoder, Gemma 3, comes under Google’s Gemma Terms of Use.",
 ]
 graph = "ltx-2-distilled"
 minVramGb = 24
@@ -115,7 +115,7 @@ camera-jib-down = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Down", 
 id = "wan-2-2-ti2v-5b"
 name = "Wan 2.2 5B"
 family = "wan-2.2"
-blurb = "Alibaba's open model under Apache-2.0: no usage limits, runs on a 12 GB GPU. Silent video."
+blurb = "Alibaba’s open model under Apache-2.0: no usage limits, runs on a 12 GB GPU. Silent video."
 license = "Apache-2.0"
 licenseUrl = "https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt"
 terms = [

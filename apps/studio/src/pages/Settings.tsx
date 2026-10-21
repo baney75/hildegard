@@ -89,7 +89,7 @@ function Models({ catalog, go }: { catalog: Catalog; go: (to: string) => void })
         Models
       </h2>
       <p className="body-sm sec-text">
-        Downloads come straight from each model's Hugging Face page to this computer and are checked file by
+        Downloads come straight from each model’s Hugging Face page to this computer and are checked file by
         file. Stop at any time; the next start picks up where it left off.
       </p>
       <div style={{ display: 'grid', gap: 12 }}>
@@ -205,7 +205,7 @@ function HuggingFace({ catalog }: { catalog: Catalog }) {
                 <span key={m.id}>
                   {i ? ', ' : ''}
                   <a href={m.licenseUrl} target="_blank" rel="noreferrer noopener">
-                    {m.name}'s page
+                    {m.name}’s page
                   </a>
                 </span>
               ))}{' '}
@@ -333,7 +333,7 @@ function HuggingFace({ catalog }: { catalog: Catalog }) {
       </form>
       <p className="body-sm muted">
         Your token is kept in your system keychain where there is one, and in a file only your account can
-        read where there is not. It is never written to Hugging Face's own cache.
+        read where there is not. It is never written to Hugging Face’s own cache.
       </p>
     </section>
   );
