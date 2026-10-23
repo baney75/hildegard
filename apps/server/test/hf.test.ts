@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { HfLink } from '../src/hf.ts';
+import { HfLink, keychainStore, secretStores } from '../src/hf.ts';
 import { fakeFetch, memoryStore } from './helpers.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -137,5 +141,35 @@ describe('HfLink', () => {
     });
     expect(await hf.access('org/open', 'main', 'a.safetensors')).toBe('ok');
     expect(await hf.access('org/gated', 'main', 'a.safetensors')).toBe('needs-license');
+  });
+});
+
+describe('secret stores', () => {
+  // A keyring whose reads work and writes fail, as on a Linux box whose Secret Service has no unlocked collection.
+  const keyring = (writes: boolean) => async () =>
+    ({
+      Entry: class {
+        getPassword() {
+          return null;
+        }
+        setPassword() {
+          if (!writes) throw new Error("Couldn't access platform storage: KeyRevoked");
+        }
+        deletePassword() {}
+      },
+    }) as never;
+
+  it('use files when the keychain reads but won’t take a write', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-secrets-'));
+    expect(await keychainStore('huggingface', {}, keyring(false))).toBeNull();
+    const store = (await secretStores(dir, {}, keyring(false)))('choir-parish1');
+    expect(store.kind).toBe('file');
+    store.set('key');
+    expect(store.get()).toBe('key');
+  });
+
+  it('use the keychain when it takes writes', async () => {
+    expect((await keychainStore('huggingface', {}, keyring(true)))?.kind).toBe('keychain');
+    expect((await secretStores('/nowhere', {}, keyring(true)))('choir-parish1').kind).toBe('keychain');
   });
 });

@@ -11,6 +11,9 @@ import {
   type RenderOptions,
 } from '@hildegard/comfy';
 
+/** The detail on the error a device gives when it refuses this computer's key. */
+export const REFUSED = 'key refused';
+
 /** GET /api/node/info: what a sharing device says about itself. */
 export interface NodeInfo {
   /** Random and stable, so a device can recognise its own code. */
@@ -141,7 +144,7 @@ export class RemoteEngine implements Engine {
     return new EngineError(
       'engine_offline',
       `${this.name} no longer accepts this computer.`,
-      '',
+      REFUSED,
       `On ${this.name}, open Settings › Devices and share its GPU again, then add the new code here.`,
     );
   }

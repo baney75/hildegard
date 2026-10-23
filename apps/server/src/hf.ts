@@ -24,59 +24,75 @@ export interface SecretStore {
   delete(): void;
 }
 
+type Keyring = typeof import('@napi-rs/keyring');
+const loadKeyring = (): Promise<Keyring> => import('@napi-rs/keyring');
+
 /**
- * The OS keychain entry for one secret ("huggingface", or "choir-parish1" for a joined device's key). Null where no
- * keychain runs, or when HILDEGARD_SECRETS=file asks for files (tests, and machines where a prompt would hang).
+ * The keyring's Entry class when this computer has a keychain that takes writes, otherwise null. Reading proves
+ * little: a Linux box whose Secret Service has no unlocked collection reads fine (nothing there) and only fails, with
+ * KeyRevoked, on the first write. So the probe writes and removes a throwaway entry.
  */
-export async function keychainStore(account = 'huggingface', env = process.env): Promise<SecretStore | null> {
+async function usableKeyring(
+  env: NodeJS.ProcessEnv,
+  load: () => Promise<Keyring>,
+): Promise<Keyring['Entry'] | null> {
   if (env.HILDEGARD_SECRETS === 'file') return null;
   try {
-    const { Entry } = await import('@napi-rs/keyring');
-    const entry = new Entry('Hildegard', account);
-    // Probe: a Linux box without a Secret Service throws here, not later.
-    entry.getPassword();
-    return {
-      kind: 'keychain',
-      get: () => entry.getPassword() ?? null,
-      set: (v) => entry.setPassword(v),
-      delete: () => {
-        try {
-          entry.deletePassword();
-        } catch {}
-      },
-    };
+    const { Entry } = await load();
+    const probe = new Entry('Hildegard', 'probe');
+    probe.setPassword('probe');
+    try {
+      probe.deletePassword();
+    } catch {}
+    return Entry;
   } catch {
     return null;
   }
+}
+
+function keychainEntry(Entry: Keyring['Entry'], account: string): SecretStore {
+  const entry = new Entry('Hildegard', account);
+  return {
+    kind: 'keychain',
+    get: () => {
+      try {
+        return entry.getPassword() ?? null;
+      } catch {
+        return null;
+      }
+    },
+    set: (v) => entry.setPassword(v),
+    delete: () => {
+      try {
+        entry.deletePassword();
+      } catch {}
+    },
+  };
+}
+
+/**
+ * The OS keychain entry for one secret ("huggingface", or "choir-parish1" for a joined device's key). Null where no
+ * keychain takes writes, or when HILDEGARD_SECRETS=file asks for files (tests, and machines where a prompt would hang).
+ */
+export async function keychainStore(
+  account = 'huggingface',
+  env = process.env,
+  load = loadKeyring,
+): Promise<SecretStore | null> {
+  const Entry = await usableKeyring(env, load);
+  return Entry ? keychainEntry(Entry, account) : null;
 }
 
 /** Where each named secret goes: the keychain when there is one, otherwise a 0600 file under `dir`. */
 export async function secretStores(
   dir: string,
   env = process.env,
+  load = loadKeyring,
 ): Promise<(account: string) => SecretStore> {
-  const keychain = (await keychainStore('huggingface', env)) !== null;
-  const { Entry } = keychain ? await import('@napi-rs/keyring') : { Entry: null };
+  const Entry = await usableKeyring(env, load);
   return (account) => {
     if (!/^[a-z0-9][a-z0-9-]{0,80}$/.test(account)) throw new Error(`Bad secret name ${account}`);
-    if (!Entry) return fileStore(join(dir, `${account}.secret`));
-    const entry = new Entry('Hildegard', account);
-    return {
-      kind: 'keychain',
-      get: () => {
-        try {
-          return entry.getPassword() ?? null;
-        } catch {
-          return null;
-        }
-      },
-      set: (v) => entry.setPassword(v),
-      delete: () => {
-        try {
-          entry.deletePassword();
-        } catch {}
-      },
-    };
+    return Entry ? keychainEntry(Entry, account) : fileStore(join(dir, `${account}.secret`));
   };
 }
 

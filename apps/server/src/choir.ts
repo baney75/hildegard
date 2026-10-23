@@ -10,9 +10,10 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
+import { EngineError } from '@hildegard/comfy';
 import type { ChoirDevice, ChoirState } from '@hildegard/presets';
 import type { SecretStore } from './hf.ts';
-import { type NodeInfo, RemoteEngine, shortGpu } from './remote-engine.ts';
+import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
 
 export class ChoirError extends Error {
   readonly status: 400 | 403 | 404 | 409 | 502;
@@ -344,7 +345,15 @@ export class Choir {
     try {
       info = await engine.info();
     } catch (e) {
-      throw new ChoirError(502, (e as Error).message);
+      // At join, a refused key means the code was never good (mistyped, or revoked before use), not that a pairing
+      // ended.
+      const refused = e instanceof EngineError && e.detail === REFUSED;
+      throw new ChoirError(
+        refused ? 403 : 502,
+        refused
+          ? `${c.name} doesn’t accept that code. On ${c.name}, open Settings › Devices and share its GPU for a new one.`
+          : (e as Error).message,
+      );
     }
     if (info.id === this.id)
       throw new ChoirError(409, 'That’s this computer’s own code. Paste it on your other device.');
