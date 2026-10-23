@@ -6,18 +6,22 @@ import { Button, Icon, RadioGroup, Segmented, Status, toast, WithCode } from '..
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
-import { getState, useStore } from '../lib/store.ts';
+import { getState, isOwner, useStore } from '../lib/store.ts';
 import { setThemeMode, type ThemeMode, useTheme } from '../lib/theme.ts';
+import { Account, People, Sharing } from './Sharing.tsx';
 
-const SECTIONS = [
-  { id: 'models', label: 'Models', icon: 'models' },
-  { id: 'huggingface', label: 'Hugging Face', icon: 'link' },
-  { id: 'computer', label: 'This computer', icon: 'desktop' },
-  { id: 'devices', label: 'Devices', icon: 'server' },
-  { id: 'privacy', label: 'Privacy', icon: 'privacy' },
-  { id: 'about', label: 'About', icon: 'book' },
+const ALL = [
+  { id: 'models', label: 'Models', icon: 'models', who: 'owner' },
+  { id: 'huggingface', label: 'Hugging Face', icon: 'link', who: 'owner' },
+  { id: 'computer', label: 'This computer', icon: 'desktop', who: 'all' },
+  { id: 'devices', label: 'Devices', icon: 'server', who: 'owner' },
+  { id: 'sharing', label: 'Sharing', icon: 'shield', who: 'owner' },
+  { id: 'people', label: 'People', icon: 'person', who: 'owner' },
+  { id: 'account', label: 'Your account', icon: 'key', who: 'signed-in' },
+  { id: 'privacy', label: 'Privacy', icon: 'privacy', who: 'all' },
+  { id: 'about', label: 'About', icon: 'book', who: 'all' },
 ] as const;
-type Section = (typeof SECTIONS)[number]['id'];
+type Section = (typeof ALL)[number]['id'];
 
 export function Settings({
   catalog,
@@ -30,8 +34,11 @@ export function Settings({
   section: string | null;
   go: (to: string) => void;
 }) {
+  const auth = useStore((s) => s.auth);
+  // Directors see their own account and this Studio's look; models, devices, sharing and people are the owner's.
+  const SECTIONS = ALL.filter((s) => s.who === 'all' || (s.who === 'owner' ? isOwner(auth) : !!auth?.person));
   const current = (SECTIONS.find((s) => s.id === section)?.id ??
-    (wc === 'compact' ? null : 'models')) as Section | null;
+    (wc === 'compact' ? null : SECTIONS[0]!.id)) as Section | null;
   const title = SECTIONS.find((s) => s.id === current)?.label;
   return (
     <>
@@ -73,6 +80,9 @@ export function Settings({
               {current === 'huggingface' ? <HuggingFace catalog={catalog} /> : null}
               {current === 'computer' ? <Computer /> : null}
               {current === 'devices' ? <Devices catalog={catalog} /> : null}
+              {current === 'sharing' ? <Sharing /> : null}
+              {current === 'people' ? <People /> : null}
+              {current === 'account' ? <Account /> : null}
               {current === 'privacy' ? <Privacy /> : null}
               {current === 'about' ? <About /> : null}
             </div>
@@ -377,8 +387,12 @@ function Computer() {
             </dd>
           </>
         ) : null}
-        <dt>Address</dt>
-        <dd className="num">{engine?.url}</dd>
+        {engine?.url ? (
+          <>
+            <dt>Address</dt>
+            <dd className="num">{engine.url}</dd>
+          </>
+        ) : null}
         <dt>Hildegard</dt>
         <dd className="num">{version}</dd>
       </dl>
@@ -474,8 +488,8 @@ function Privacy() {
           you pair in Settings › Devices, over your own tailnet.
         </p>
         <p>
-          Hildegard answers only on this computer unless you add another address, such as your Tailscale name,
-          yourself.
+          Hildegard answers only on this computer until you put it at a link in Settings › Sharing. Then
+          everyone else signs in, and each person you invite sees only their own films.
         </p>
         <p>
           The only connections it makes are to Hugging Face, to download the models you choose, and only with

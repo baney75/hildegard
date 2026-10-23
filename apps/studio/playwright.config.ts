@@ -8,6 +8,9 @@ const port = Number(process.env.E2E_PORT ?? 7351);
 // A second Hildegard, with its own stand-in GPU, for the Studio to pair with in Settings › Devices.
 const nodePort = Number(process.env.E2E_NODE_PORT ?? port + 1);
 process.env.E2E_NODE_PORT = String(nodePort);
+// The listener Tailscale Serve would forward to: the Studio as someone on another device sees it, signing in.
+const hostPort = Number(process.env.E2E_HOST_PORT ?? port + 2);
+process.env.E2E_HOST_PORT = String(hostPort);
 const data = mkdtempSync(join(tmpdir(), 'hildegard-e2e-'));
 const nodeData = mkdtempSync(join(tmpdir(), 'hildegard-e2e-node-'));
 // The server gets its own home folder, so linking AI apps in tests never touches this computer's real config. Cursor
@@ -38,7 +41,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `node ../server/src/main.ts --fake-gpu --port ${port} --data ${JSON.stringify(data)} --ui dist`,
+      command: `node ../server/src/main.ts --fake-gpu --port ${port} --host-port ${hostPort} --data ${JSON.stringify(data)} --ui dist`,
       url: `http://127.0.0.1:${port}/api/health`,
       reuseExistingServer: false,
       env: {

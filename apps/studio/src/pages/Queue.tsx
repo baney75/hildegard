@@ -17,7 +17,7 @@ import {
   resolution,
 } from '../lib/format.ts';
 import { useNow, type WindowClass } from '../lib/hooks.ts';
-import { upsert, useStore } from '../lib/store.ts';
+import { isOwner, upsert, useStore } from '../lib/store.ts';
 
 type Filter = 'all' | 'running' | 'waiting' | 'done';
 /** The progress bar's colour says the state with the status word: gold only while a take renders. */
@@ -33,6 +33,8 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
   const takes = useStore((s) => s.takes);
   const shots = useStore((s) => s.shots);
   const engine = useStore((s) => s.engine);
+  const owner = useStore((s) => isOwner(s.auth));
+  const me = useStore((s) => s.auth?.person?.id ?? null);
   const [filter, setFilter] = useState<Filter>('all');
   const [forcing, setForcing] = useState<string | null>(null);
   const all = [...takes.values()];
@@ -96,6 +98,8 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <small>
             {modelName(catalog, t.model)} · {resolution(t)} · {t.seconds}s
             {t.source.kind === 'agent' ? ` · asked by ${t.source.name}` : ''}
+            {/* Whose take it is, when someone signed in from elsewhere asked for it. */}
+            {t.by && t.by.id !== me ? ` · by ${t.by.name}` : ''}
           </small>
         </span>
         <span style={{ display: 'grid', gap: 6 }}>
@@ -227,11 +231,13 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
               : comfyDown(engine).short}
           </span>
         </div>
-        <div className="hg-app__topactions">
-          <Button icon={engine?.paused ? 'play' : 'pause'} onClick={pauseAll}>
-            {engine?.paused ? 'Resume' : 'Pause all'}
-          </Button>
-        </div>
+        {owner ? (
+          <div className="hg-app__topactions">
+            <Button icon={engine?.paused ? 'play' : 'pause'} onClick={pauseAll}>
+              {engine?.paused ? 'Resume' : 'Pause all'}
+            </Button>
+          </div>
+        ) : null}
       </header>
       <main className="cs-stage hg-scroll" id="main">
         <div className="st-page">

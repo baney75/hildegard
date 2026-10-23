@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {
+  AuthState,
   Catalog,
   ChoirState,
   EngineState,
   ExportState,
   HfState,
+  HostState,
   ModelState,
   Project,
   ServerEvent,
@@ -13,7 +15,7 @@ import type {
   Take,
 } from '@hildegard/presets';
 import { useSyncExternalStore } from 'react';
-import { api } from './api.ts';
+import { api, SIGNED_OUT } from './api.ts';
 
 export interface State {
   /** First snapshot and catalog have arrived. */
@@ -33,6 +35,10 @@ export interface State {
   /** The newest export of each film, by film id. */
   exports: Map<string, ExportState>;
   choir: ChoirState | null;
+  /** Who this browser is: this computer, someone signed in, or nobody yet (then the Studio asks them to sign in). */
+  auth: AuthState | null;
+  /** Host mode, for the owner: from the first look at Settings › Sharing, then kept live. */
+  host: HostState | null;
 }
 
 let state: State = {
@@ -50,6 +56,8 @@ let state: State = {
   hf: null,
   exports: new Map(),
   choir: null,
+  auth: null,
+  host: null,
 };
 const listeners = new Set<() => void>();
 
@@ -131,6 +139,9 @@ export function apply(events: ServerEvent[]) {
       case 'export':
         next.exports = new Map(next.exports ?? state.exports).set(e.export.projectId, e.export);
         break;
+      case 'host':
+        next.host = e.host;
+        break;
     }
   }
   set({ ...next, projects, shots, takes });
@@ -143,7 +154,55 @@ export function upsert(e: ServerEvent | ServerEvent[]) {
 
 let source: EventSource | null = null;
 
+/** Signed in from another device, or on this computer: either way the Studio may load. */
+export const allowedIn = (a: AuthState | null) => !!a && (a.local || !!a.person);
+/** The owner, here or signed in from elsewhere: models, devices, people and settings are theirs. */
+export const isOwner = (a: AuthState | null) => !!a && (a.local || a.person?.role === 'owner');
+
+/** Back to the sign-in page, forgetting everything this browser was shown. */
+function signedOut() {
+  source?.close();
+  source = null;
+  const auth = getState().auth;
+  set({
+    ready: false,
+    conn: 'connecting',
+    auth: auth ? { ...auth, person: null } : null,
+    projects: new Map(),
+    shots: new Map(),
+    takes: new Map(),
+    exports: new Map(),
+    host: null,
+  });
+}
+if (typeof window !== 'undefined')
+  window.addEventListener(SIGNED_OUT, () => {
+    if (!getState().auth?.local) signedOut();
+  });
+
+export function setHost(host: HostState) {
+  set({ host });
+}
+
+export async function signOut() {
+  await api.signOut().catch(() => {});
+  signedOut();
+}
+
 export async function connect() {
+  // Who this is comes first: someone who hasn't signed in sees the sign-in page, and nothing else is asked for.
+  try {
+    const auth = await api.me();
+    set({ auth, loadError: null });
+    if (!allowedIn(auth)) {
+      signedOut();
+      return;
+    }
+  } catch (e) {
+    set({ loadError: (e as Error).message, conn: 'down' });
+    setTimeout(connect, 2000);
+    return;
+  }
   if (!getState().catalog) {
     try {
       set({ catalog: await api.catalog(), loadError: null });
@@ -163,5 +222,12 @@ export async function connect() {
   source.addEventListener('batch', (ev) =>
     apply(JSON.parse((ev as MessageEvent<string>).data) as ServerEvent[]),
   );
-  source.addEventListener('error', () => set({ conn: 'down' }));
+  source.addEventListener('error', () => {
+    set({ conn: 'down' });
+    // A stream the server ended for good (signed out elsewhere, or removed) doesn't come back on its own.
+    if (source?.readyState === EventSource.CLOSED)
+      setTimeout(() => {
+        if (source?.readyState === EventSource.CLOSED) void connect();
+      }, 2000);
+  });
 }

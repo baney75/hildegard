@@ -5,12 +5,13 @@ import markVellum from './assets/mark-vellum.svg';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
-import { useStore } from './lib/store.ts';
+import { allowedIn, isOwner, useStore } from './lib/store.ts';
 import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
 import { Cinema } from './pages/Cinema.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
+import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
 import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
@@ -28,6 +29,7 @@ export function App() {
   const engine = useStore((s) => s.engine);
   const projects = useStore((s) => s.projects);
   const models = useStore((s) => s.models);
+  const auth = useStore((s) => s.auth);
   const busy = useStore((s) => {
     let n = 0;
     for (const t of s.takes.values()) if (t.status === 'queued' || t.status === 'running') n++;
@@ -46,9 +48,19 @@ export function App() {
   }, [catalog]);
 
   useEffect(() => {
-    const page = NAV.find((n) => n.match.test(route))?.label ?? 'Cinema';
+    const page =
+      auth && !auth.local && /^\/invite\//.test(route)
+        ? 'Your invite'
+        : auth && !allowedIn(auth)
+          ? 'Sign in'
+          : (NAV.find((n) => n.match.test(route))?.label ?? 'Cinema');
     document.title = busy ? `(${busy}) ${page} · Hildegard` : `${page} · Hildegard`;
-  }, [route, busy]);
+  }, [route, busy, auth]);
+
+  // An invite link, opened on another device: it signs up whoever opens it, so it comes before anything else.
+  const invite = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
+  if (invite && auth && !auth.local) return <AcceptInvite token={invite} go={go} />;
+  if (auth && !allowedIn(auth)) return <SignIn />;
 
   if (!ready || !catalog) {
     return (
@@ -59,14 +71,21 @@ export function App() {
     );
   }
 
+  // The welcome sets up models, which is the owner's to do.
   const firstRun =
-    !welcomed && projects.size === 0 && !models.some((m) => m.installed || m.downloading) && !engine?.fake;
+    isOwner(auth) &&
+    !welcomed &&
+    projects.size === 0 &&
+    !models.some((m) => m.installed || m.downloading) &&
+    !engine?.fake;
+  // Linked AI apps run on the computer Hildegard runs on: the owner's.
+  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents');
   if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
 
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
-  else if (parts[0] === 'agents') page = <Agents wc={wc} />;
+  else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;
   else
@@ -105,18 +124,19 @@ export function App() {
           <div className="hg-app__brand">
             <img src={mark} alt="Hildegard" height={30} />
           </div>
-          {NAV.slice(0, 3).map((n) => item(n, 'hg-nav-item'))}
-          <div className="hg-app__navfoot">{item(NAV[3]!, 'hg-nav-item')}</div>
+          {nav.slice(0, -1).map((n) => item(n, 'hg-nav-item'))}
+          <div className="hg-app__navfoot">{item(nav.at(-1)!, 'hg-nav-item')}</div>
         </nav>
         {page}
         <nav className="hg-tabbar" aria-label="Main">
-          {NAV.map((n) => item(n, 'hg-tab', 22))}
+          {nav.map((n) => item(n, 'hg-tab', 22))}
         </nav>
       </div>
       {conn === 'down' ? (
         <div className="hg-offline" role="alert">
           <Icon name="alert" size={18} />
-          Lost touch with Hildegard on this computer. Reconnecting…
+          {auth?.local ? 'Lost touch with Hildegard on this computer.' : 'Lost touch with Hildegard.'}{' '}
+          Reconnecting…
         </div>
       ) : null}
       <Toasts />

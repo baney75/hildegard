@@ -2,13 +2,18 @@
 import type {
   AgentInfo,
   AgentsResponse,
+  AuthState,
   Catalog,
   ChoirDevice,
   ChoirState,
   ExportState,
   HfState,
+  HostState,
   ModelState,
+  NewInvite,
+  PeopleResponse,
   Project,
+  Role,
   SetupStep,
   Shot,
   Snapshot,
@@ -18,12 +23,18 @@ import type {
 export class ApiError extends Error {
   readonly status: number;
   readonly field: string | undefined;
-  constructor(status: number, message: string, field?: string) {
+  /** What the owner can do about it, when the server says: a command or a page. */
+  readonly fix: string | null;
+  constructor(status: number, message: string, field?: string, fix?: string | null) {
     super(message);
     this.status = status;
     this.field = field;
+    this.fix = fix ?? null;
   }
 }
+
+/** Fired when the server says this browser's session is gone, so the Studio shows the sign-in page. */
+export const SIGNED_OUT = 'hildegard:signed-out';
 
 async function call<T>(method: string, path: string, body?: unknown, raw?: BodyInit): Promise<T> {
   let res: Response;
@@ -41,9 +52,20 @@ async function call<T>(method: string, path: string, body?: unknown, raw?: BodyI
     throw new ApiError(0, 'Hildegard is not answering. Is it still running on this computer?');
   }
   if (res.status === 204) return undefined as T;
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string; field?: string };
+  const data = (await res.json().catch(() => ({}))) as T & {
+    error?: string;
+    field?: string;
+    code?: string;
+    fix?: string | null;
+  };
+  if (res.status === 401 && data.code === 'signin') window.dispatchEvent(new Event(SIGNED_OUT));
   if (!res.ok)
-    throw new ApiError(res.status, data.error ?? `Something went wrong (${res.status}).`, data.field);
+    throw new ApiError(
+      res.status,
+      data.error ?? `Something went wrong (${res.status}).`,
+      data.field,
+      data.fix,
+    );
   return data;
 }
 
@@ -91,6 +113,24 @@ export const api = {
     call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code }),
   choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
   choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
+  me: () => call<AuthState>('GET', '/api/auth/me'),
+  signIn: (name: string, passphrase: string) =>
+    call<AuthState>('POST', '/api/auth/signin', { name, passphrase }),
+  signOut: () => call<AuthState>('POST', '/api/auth/signout'),
+  checkInvite: (token: string) =>
+    call<{ role: Role; expiresAt: string }>('GET', `/api/auth/invite/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string, name: string, passphrase: string) =>
+    call<AuthState>('POST', `/api/auth/invite/${encodeURIComponent(token)}/accept`, { name, passphrase }),
+  people: () => call<PeopleResponse>('GET', '/api/people'),
+  makeOwner: (name: string, passphrase: string) =>
+    call<PeopleResponse>('POST', '/api/people/owner', { name, passphrase }),
+  invite: (role: Role) => call<NewInvite>('POST', '/api/people/invites', { role }),
+  cancelInvite: (id: string) => call<PeopleResponse>('DELETE', `/api/people/invites/${id}`),
+  setRole: (id: string, role: Role) => call<PeopleResponse>('PATCH', `/api/people/${id}`, { role }),
+  removePerson: (id: string) => call<PeopleResponse>('DELETE', `/api/people/${id}`),
+  host: () => call<HostState>('GET', '/api/host'),
+  hostOn: (via: 'tailscale' | 'funnel') => call<HostState>('POST', '/api/host', { via }),
+  hostOff: () => call<HostState>('POST', '/api/host/off'),
   linkAgent: (id: string, link: boolean) =>
     call<{ step: SetupStep; agents: AgentInfo[] }>(
       'POST',

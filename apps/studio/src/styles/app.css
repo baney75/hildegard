@@ -328,6 +328,8 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-welcome__go { height: 72px; width: 100%; justify-content: center; border-radius: 18px; text-align: center; }
 .hg-welcome__go b { font-size: 18px; line-height: 24px; }
 .hg-welcome__foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
+/* Sign-in and invites: the welcome's frame, with a form of a readable width. */
+.hg-signin > .st-tile { width: 100%; max-width: 520px; }
 @media (max-width: 899px) {
   .st-ob.hg-welcome { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(min-content, 1fr); }
   .hg-welcome .st-ob__side { min-height: 0; padding: 20px 24px; flex-direction: row; align-items: center; justify-content: space-between; }
