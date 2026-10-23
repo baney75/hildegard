@@ -105,7 +105,9 @@ People reach a Hildegard from other devices and sign in. Three parts, all in `ap
   sessions as random 256-bit tokens kept only as SHA-256 hashes, compared in constant time, in
   `<data>/people/{people,sessions}.json` (0600). Sessions rotate hourly (the old token lives 60 s more), end after 7 idle
   days or 30 days, and end at once on sign-out, a new owner passphrase or removal, which also ends open event streams.
-  `Limiter` counts failed sign-ins per account and per address.
+  Changing your own passphrase (`POST /api/auth/passphrase`, current one required) ends every other session of yours.
+  `Limiter` counts failed sign-ins per account and per address. `directorQueue` (default 3) caps the takes each
+  director has queued or running; `queueFull` in `app.ts` answers 429 with `code: 'queue'` past it.
 - **The link** (`host.ts`, `server.ts`). `hildegard host` (or `POST /api/host`, loopback only) runs
   `tailscale serve --bg --https=<443|8443|10000> http://127.0.0.1:<hostPort>`, or `tailscale funnel` when asked by
   name; `hostPort` (`--host-port`, else the main port plus one) is a listener where every request is from elsewhere.

@@ -150,6 +150,9 @@ behind the link.
    owners; an **owner** (`--role owner`) can do everything, including models, devices, people and settings.
    `hildegard host people --json` lists everyone and unused invites; `hildegard host role <name> owner|director --json`
    changes a role; `hildegard host revoke <name> --json` removes someone and ends every session they have at once.
+   `hildegard host limit <n> --json` sets how many takes each director may have waiting at once (default 3, 1 to 100;
+   owners and this computer have no limit), and `hildegard host limit --json` reads it. Anyone signed in can change
+   their own passphrase in Settings › Your account; doing so signs them out everywhere else.
 
 5. Verify:
 

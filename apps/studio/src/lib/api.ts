@@ -128,6 +128,10 @@ export const api = {
   cancelInvite: (id: string) => call<PeopleResponse>('DELETE', `/api/people/invites/${id}`),
   setRole: (id: string, role: Role) => call<PeopleResponse>('PATCH', `/api/people/${id}`, { role }),
   removePerson: (id: string) => call<PeopleResponse>('DELETE', `/api/people/${id}`),
+  setDirectorQueue: (directorQueue: number) =>
+    call<PeopleResponse>('PATCH', '/api/people/settings', { directorQueue }),
+  changePassphrase: (current: string, next: string) =>
+    call<AuthState>('POST', '/api/auth/passphrase', { current, next }),
   host: () => call<HostState>('GET', '/api/host'),
   hostOn: (via: 'tailscale' | 'funnel') => call<HostState>('POST', '/api/host', { via }),
   hostOff: () => call<HostState>('POST', '/api/host/off'),

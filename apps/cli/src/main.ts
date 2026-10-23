@@ -43,7 +43,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard choir list       Devices, and which one renders (choir use <device|local>, choir leave <device>)
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet)
-  hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>)
+  hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
+                             | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard mcp              The MCP server, on stdio (AI apps run this)
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }

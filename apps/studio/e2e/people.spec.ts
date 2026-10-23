@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { type APIRequestContext, type Browser, expect, type Page, test } from '@playwright/test';
 import { expectAccessible, expectCurlyQuotes, watchErrors } from './helpers.ts';
 
 // Host mode, as people on other devices meet it. The server's second listener is the one Tailscale Serve forwards
 // to: everything that arrives there signs in, as it would through the link.
 const hosted = `http://127.0.0.1:${process.env.E2E_HOST_PORT}`;
 const OWNER = { name: 'Donovan', passphrase: 'a feather on the breath' };
+/** The owner's passphrase after they change it, partway through. */
+const NEW_PASSPHRASE = 'o virtus sapientiae';
 const DIRECTOR = { name: 'Ada', passphrase: 'symphonia harmoniae' };
 // The tests build on each other: the owner, then an invite, then what the director may do, then removing them.
 test.describe.configure({ mode: 'serial' });
@@ -22,6 +24,17 @@ async function signIn(page: Page, who: { name: string; passphrase: string }) {
   await page.getByLabel('Passphrase').fill(who.passphrase);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('navigation', { name: 'Main' }).first()).toBeVisible();
+}
+
+const H = { 'x-hildegard': '1' };
+/** Ada's takes that are waiting or rendering, as this computer sees them. */
+async function waiting(request: APIRequestContext) {
+  const snap = (await (await request.get('/api/snapshot')).json()) as {
+    takes: Array<{ status: string; by?: { name: string } }>;
+  };
+  return snap.takes.filter(
+    (t) => t.by?.name === DIRECTOR.name && (t.status === 'queued' || t.status === 'running'),
+  ).length;
 }
 
 /** Only the refusals a test asked for: a wrong passphrase, or a session that has just been ended. */
@@ -131,6 +144,92 @@ test('invites a director, who joins with the link once and sees only their own f
   await expect(late.page.getByRole('heading', { name: 'This invite can’t be used.' })).toBeVisible();
   await expectCurlyQuotes(late.page, 'used invite');
   await Promise.all([owner.context.close(), ada.context.close(), late.context.close()]);
+});
+
+test('the owner limits a director’s waiting takes, and she is told when she reaches it', async ({
+  browser,
+  request,
+}) => {
+  const owner = await elsewhere(browser);
+  await signIn(owner.page, OWNER);
+  await owner.page.goto(`${hosted}/#/settings/people`);
+  const form = owner.page.locator('form', { hasText: 'Takes waiting, per director' });
+  const field = form.getByLabel('Takes each director may have waiting');
+  await expect(field).toHaveValue('3');
+  await expect(form.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await field.fill('0');
+  await expect(form.getByText('A whole number from 1 to 100.')).toBeVisible();
+  await expect(form.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await field.fill('2');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(owner.page.getByText('Each director may have 2 takes waiting')).toBeVisible();
+  await expectAccessible(owner.page, 'people, queue limit');
+  await expectCurlyQuotes(owner.page, 'people, queue limit');
+
+  const ada = await elsewhere(browser);
+  const errors = watchErrors(ada.page);
+  await signIn(ada.page, DIRECTOR);
+  // Her first take has finished; with nothing rendering, what she asks for next waits. The Studio asks for two drafts.
+  await expect.poll(() => waiting(request), { timeout: 30_000 }).toBe(0);
+  await request.post('/api/engine/pause', { headers: H });
+  try {
+    await ada.page.locator('#hg-prompt').fill('Reeds bend under the first wind of evening');
+    await ada.page.keyboard.press('ControlOrMeta+Enter');
+    await expect(ada.page.getByRole('region', { name: /Reeds bend/ })).toBeVisible();
+    await ada.page.locator('#hg-prompt').fill('A second shot, one too many for now');
+    await ada.page.keyboard.press('ControlOrMeta+Enter');
+    await expect(
+      ada.page.getByText(
+        'You can have 2 takes waiting at once here, and you have 2. Wait for one to finish, or cancel one.',
+      ),
+    ).toBeVisible();
+    // Her words stay, to send when there's room.
+    await expect(ada.page.locator('#hg-prompt')).toHaveValue('A second shot, one too many for now');
+    await expectCurlyQuotes(ada.page, 'queue limit reached');
+    expect(unexpected(errors).filter((e) => !/429/.test(e))).toEqual([]);
+  } finally {
+    await request.patch('/api/people/settings', { headers: H, data: { directorQueue: 3 } });
+    await request.post('/api/engine/resume', { headers: H });
+  }
+  await Promise.all([owner.context.close(), ada.context.close()]);
+});
+
+test('the owner changes their passphrase, and every other device is signed out', async ({ browser }) => {
+  const phone = await elsewhere(browser);
+  await signIn(phone.page, OWNER);
+  const laptop = await elsewhere(browser);
+  const errors = watchErrors(laptop.page);
+  await signIn(laptop.page, OWNER);
+  await laptop.page.goto(`${hosted}/#/settings/account`);
+  const form = laptop.page.locator('form', { hasText: 'Change your passphrase' });
+  await expect(form).toBeVisible();
+  await expectAccessible(laptop.page, 'account, change passphrase');
+  await expectCurlyQuotes(laptop.page, 'account, change passphrase');
+
+  await form.getByLabel('Current passphrase').fill('not the passphrase');
+  await form.getByLabel('New passphrase', { exact: true }).fill(NEW_PASSPHRASE);
+  await form.getByLabel('The new passphrase again').fill(NEW_PASSPHRASE);
+  await form.getByRole('button', { name: 'Change passphrase' }).click();
+  await expect(form.getByRole('alert')).toHaveText('That isn’t your current passphrase.');
+  await form.getByLabel('Current passphrase').fill(OWNER.passphrase);
+  await form.getByLabel('The new passphrase again').fill('something else entirely');
+  await form.getByRole('button', { name: 'Change passphrase' }).click();
+  await expect(form.getByRole('alert')).toHaveText('The two new passphrases don’t match.');
+  await form.getByLabel('The new passphrase again').fill(NEW_PASSPHRASE);
+  await form.getByRole('button', { name: 'Change passphrase' }).click();
+  await expect(laptop.page.getByText('Passphrase changed. You’re signed out everywhere else.')).toBeVisible();
+  await expect(form.getByLabel('Current passphrase')).toHaveValue('');
+  OWNER.passphrase = NEW_PASSPHRASE;
+
+  // The phone notices without a reload; this laptop stays signed in.
+  await expect(phone.page.getByRole('heading', { name: 'Sign in to Hildegard.' })).toBeVisible({
+    timeout: 15_000,
+  });
+  await laptop.page.reload();
+  await expect(laptop.page.getByRole('heading', { name: 'Your account' })).toBeVisible();
+  await signIn(phone.page, OWNER);
+  expect(unexpected(errors).filter((e) => !/403/.test(e))).toEqual([]);
+  await Promise.all([phone.context.close(), laptop.context.close()]);
 });
 
 test('the owner removes a director, who is signed out at once', async ({ browser }) => {

@@ -155,15 +155,26 @@ interface StoredSession {
   /** When this token was issued; a session's first token was issued when its person signed in. */
   issuedAt: number;
   signedInAt: number;
+  /** Shared by a session's tokens as it rotates. Sessions saved before it existed go by `signedInAt`. */
+  chain?: string;
   lastSeenAt: number;
   /** Set when a newer token replaced this one: it still works for a moment, for requests already on their way. */
   replacedAt: number | null;
 }
+/** Whether two tokens belong to one session: one sign-in, rotated. */
+const sameSession = (a: StoredSession, b: StoredSession) =>
+  a.personId === b.personId && (a.chain || b.chain ? a.chain === b.chain : a.signedInAt === b.signedInAt);
+
 interface PeopleFile {
   version: 1;
   people: StoredPerson[];
   invites: StoredInvite[];
+  /** Takes a director may have waiting or rendering at once; absent means the default. */
+  directorQueue?: number;
 }
+
+/** Three takes waiting per director unless the owner says otherwise: enough to work, not enough to hog the GPU. */
+export const DIRECTOR_QUEUE = { default: 3, min: 1, max: 100 };
 
 /** A session lasts 30 days from sign-in, or 7 days without use. Its token changes every hour it is used. */
 export const SESSION = {
@@ -234,6 +245,40 @@ export class People {
   private persistSessions() {
     this.lastSessionSave = this.now();
     save(this.sessionsFile, { sessions: this.sessions });
+  }
+
+  directorQueue(): number {
+    return this.data.directorQueue ?? DIRECTOR_QUEUE.default;
+  }
+
+  setDirectorQueue(n: number) {
+    if (!Number.isInteger(n) || n < DIRECTOR_QUEUE.min || n > DIRECTOR_QUEUE.max)
+      throw new PeopleError(
+        400,
+        `Give a whole number of takes from ${DIRECTOR_QUEUE.min} to ${DIRECTOR_QUEUE.max}.`,
+      );
+    this.data.directorQueue = n;
+    this.persist();
+    return n;
+  }
+
+  /**
+   * Change one's own passphrase: the current one first. Every other session of theirs ends; the one asking (by its
+   * id) stays signed in.
+   */
+  async changePassphrase(personId: string, current: string, next: string, keep: string): Promise<boolean> {
+    const p = this.data.people.find((x) => x.id === personId);
+    if (!p) throw new PeopleError(404, 'There’s no one like that here.');
+    const problem = passphraseProblem(next);
+    if (problem) throw new PeopleError(400, problem);
+    if (!(await verifyPassphrase(current, p.pass))) return false;
+    p.pass = await hashPassphrase(next);
+    const mine = this.sessions.find((s) => s.hash === keep);
+    this.sessions = this.sessions.filter((s) => s.personId !== personId || (!!mine && sameSession(s, mine)));
+    this.persist();
+    this.persistSessions();
+    this.changed();
+    return true;
   }
 
   hasOwner(): boolean {
@@ -404,6 +449,7 @@ export class People {
       personId,
       issuedAt: t,
       signedInAt: t,
+      chain: randomUUID(),
       lastSeenAt: t,
       replacedAt: null,
     });
@@ -437,10 +483,7 @@ export class People {
   session(id: string): Signed['person'] | null {
     let s = this.sessions.find((x) => x.hash === id);
     // A stream opened before the token changed follows the session, not the old token.
-    if (s?.replacedAt)
-      s = this.sessions.find(
-        (x) => x.personId === s!.personId && x.signedInAt === s!.signedInAt && !x.replacedAt,
-      );
+    if (s?.replacedAt) s = this.sessions.find((x) => sameSession(x, s!) && !x.replacedAt);
     if (!s || !this.alive(s, this.now())) return null;
     return this.get(s.personId) ?? null;
   }
@@ -449,11 +492,7 @@ export class People {
     const s = findByHash(token, this.sessions);
     if (!s) return;
     // Its replacement, if it was just rotated, goes with it.
-    const linked = new Set(
-      this.sessions
-        .filter((x) => x.personId === s.personId && x.signedInAt === s.signedInAt)
-        .map((x) => x.hash),
-    );
+    const linked = new Set(this.sessions.filter((x) => sameSession(x, s)).map((x) => x.hash));
     this.sessions = this.sessions.filter((x) => !linked.has(x.hash));
     this.persistSessions();
     this.changed();

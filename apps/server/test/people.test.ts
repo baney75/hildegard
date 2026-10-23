@@ -76,7 +76,8 @@ describe('the owner and invites', () => {
     const { invite, token } = people.invite('director', 2);
     expect(invite.expiresAt).toBe(new Date(c.t + 2 * 3600_000).toISOString());
     expect(people.checkInvite(token)).toMatchObject({ role: 'director' });
-    expect(people.checkInvite(`${token.slice(0, -1)}A`)).toBeNull();
+    // A different last character, whatever the last one happened to be.
+    expect(people.checkInvite(`${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`)).toBeNull();
     const r = await people.acceptInvite(token, 'Ada', PASS);
     expect(r.person).toMatchObject({ name: 'Ada', role: 'director' });
     expect(people.authenticate(r.token)?.person.name).toBe('Ada');
@@ -192,9 +193,62 @@ describe('sessions', () => {
     expect(people.setRole(owner.id, 'director', second.person.id).role).toBe('director');
   });
 
+  it('changes your own passphrase only with the current one, and ends every other session of yours', async () => {
+    // A clock that stands still: sign-ins in the same millisecond are still separate sessions.
+    const c = clock();
+    const { people } = fresh(c.now);
+    await people.setOwner('Owner', PASS);
+    const owner = (await people.signIn('Owner', PASS))!;
+    const { token } = people.invite('director');
+    const ada = await people.acceptInvite(token, 'Ada', PASS);
+    const laptop = (await people.signIn('Ada', PASS))!.token;
+    const phone = (await people.signIn('Ada', PASS))!.token;
+    // The laptop's token has just changed; its old one is still in flight.
+    c.add(SESSION.rotateMs);
+    const here = people.authenticate(laptop)!;
+    const NEW = 'a feather on the breath of god';
+
+    expect(await people.changePassphrase(ada.person.id, 'not it at all', NEW, here.session)).toBe(false);
+    expect(people.authenticate(phone)).not.toBeNull();
+    await expect(people.changePassphrase(ada.person.id, PASS, 'short', here.session)).rejects.toThrow(
+      /at least 10/,
+    );
+    await expect(people.changePassphrase('nobody', PASS, NEW, here.session)).rejects.toBeInstanceOf(
+      PeopleError,
+    );
+
+    let changes = 0;
+    people.on(() => changes++);
+    expect(await people.changePassphrase(ada.person.id, PASS, NEW, here.session)).toBe(true);
+    expect(changes).toBe(1);
+    // This device stays signed in, by its new token and the old one for its moment; the others end.
+    expect(people.authenticate(here.rotated!)?.person.name).toBe('Ada');
+    expect(people.authenticate(laptop)?.person.name).toBe('Ada');
+    expect(people.authenticate(phone)).toBeNull();
+    expect(people.authenticate(ada.token)).toBeNull();
+    expect(people.list().find((p) => p.name === 'Ada')!.sessions).toBe(1);
+    // Nobody else is touched.
+    expect(people.authenticate(owner.token)?.person.name).toBe('Owner');
+    expect(await people.signIn('Ada', PASS)).toBeNull();
+    expect((await people.signIn('Ada', NEW))?.person.name).toBe('Ada');
+  });
+
   it('refuses tokens that aren’t tokens', () => {
     const { people } = fresh();
     for (const t of ['', 'x', 'a'.repeat(43), '../../etc/passwd']) expect(people.authenticate(t)).toBeNull();
+  });
+});
+
+describe('the director queue limit', () => {
+  it('is three until the owner changes it, takes whole numbers from 1 to 100, and is kept', () => {
+    const { dataDir, people } = fresh();
+    expect(people.directorQueue()).toBe(3);
+    for (const bad of [0, 101, 2.5, Number.NaN, -1])
+      expect(() => people.setDirectorQueue(bad)).toThrow(/1 to 100/);
+    expect(people.directorQueue()).toBe(3);
+    expect(people.setDirectorQueue(1)).toBe(1);
+    expect(people.setDirectorQueue(100)).toBe(100);
+    expect(new People({ dataDir }).directorQueue()).toBe(100);
   });
 });
 

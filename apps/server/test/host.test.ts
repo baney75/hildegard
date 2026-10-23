@@ -13,6 +13,8 @@ import { memoryStore } from './helpers.ts';
 
 const H = { 'x-hildegard': '1', 'content-type': 'application/json' };
 const PASS = 'a long and private passphrase';
+/** Ada’s passphrase once she has changed it. */
+const NEW = 'symphonia harmoniae caelestium';
 
 const freePort = () =>
   new Promise<number>((resolve) => {
@@ -384,6 +386,112 @@ describe('invites and roles', () => {
   });
 });
 
+describe('a director’s waiting takes', () => {
+  const shot = async (cookie: string | undefined, takes = 1, base = remote) =>
+    send('/api/shots', 'POST', { request: { ...request('A lantern in the reeds'), takes } }, cookie, base);
+
+  it('lets only the owner change the limit, within 1 to 100', async () => {
+    expect(
+      ((await (await there('/api/people', { cookie: owner })).json()) as PeopleResponse).directorQueue,
+    ).toBe(3);
+    expect((await send('/api/people/settings', 'PATCH', { directorQueue: 5 }, director)).status).toBe(403);
+    for (const bad of [0, 101, 1.5, '3'])
+      expect(
+        (await send('/api/people/settings', 'PATCH', { directorQueue: bad }, owner)).status,
+        `${bad}`,
+      ).toBe(400);
+    const res = await send('/api/people/settings', 'PATCH', { directorQueue: 2 }, owner);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as PeopleResponse).directorQueue).toBe(2);
+  });
+
+  it('stops a director at the limit with a clear message; owners and this computer have none', async () => {
+    const settled = () =>
+      [...srv.store.takes.values()].every((t) => t.status !== 'queued' && t.status !== 'running');
+    await until(settled);
+    // Paused, nothing finishes, so everything asked for stays waiting.
+    expect((await send('/api/engine/pause', 'POST', {}, undefined, srv.url)).status).toBe(200);
+    try {
+      const greedy = await shot(director, 4);
+      expect(greedy.status).toBe(429);
+      expect(((await greedy.json()) as { error: string }).error).toBe(
+        'You can have 2 takes waiting at once here. Ask for up to 2 at a time.',
+      );
+      const first = await shot(director);
+      expect(first.status).toBe(201);
+      const firstTake = ((await first.json()) as { takes: Take[] }).takes[0]!;
+
+      const many = await shot(director, 2);
+      expect(many.status).toBe(429);
+      expect(await many.json()).toEqual({
+        error:
+          'You can have 2 takes waiting at once here, and you have 1. Ask for one more take, or wait for one to finish.',
+        code: 'queue',
+      });
+      expect((await shot(director)).status).toBe(201);
+      const full = await shot(director);
+      expect(full.status).toBe(429);
+      expect(((await full.json()) as { error: string }).error).toBe(
+        'You can have 2 takes waiting at once here, and you have 2. Wait for one to finish, or cancel one.',
+      );
+
+      // Owners, signed in or at this computer, aren't counted or stopped.
+      for (let i = 0; i < 3; i++) expect((await shot(owner, 2)).status).toBe(201);
+      expect((await shot(undefined, 4, srv.url)).status).toBe(201);
+      expect((await shot(director)).status).toBe(429);
+
+      // Canceling one makes room; retrying a canceled take counts as asking again.
+      expect((await send(`/api/takes/${firstTake.id}/cancel`, 'POST', {}, director)).status).toBe(200);
+      expect((await shot(director)).status).toBe(201);
+      const retry = await send(`/api/takes/${firstTake.id}/retry`, 'POST', {}, director);
+      expect(retry.status).toBe(429);
+      expect(((await retry.json()) as { code: string }).code).toBe('queue');
+    } finally {
+      await send('/api/people/settings', 'PATCH', { directorQueue: 3 }, owner);
+      await send('/api/engine/resume', 'POST', {}, undefined, srv.url);
+    }
+    await until(settled, 60_000);
+  }, 90_000);
+});
+
+describe('changing your own passphrase', () => {
+  it('needs the current one, and ends every other session of yours but not this one', async () => {
+    const laptop = await signIn('Ada');
+    const phone = await signIn('Ada');
+    const wrong = await send(
+      '/api/auth/passphrase',
+      'POST',
+      { current: 'not my passphrase', next: NEW },
+      laptop,
+    );
+    expect(wrong.status).toBe(403);
+    expect(await wrong.json()).toEqual({ error: 'That isn’t your current passphrase.' });
+    expect(
+      (await send('/api/auth/passphrase', 'POST', { current: PASS, next: 'short' }, laptop)).status,
+    ).toBe(400);
+    expect((await send('/api/auth/passphrase', 'POST', { current: PASS }, laptop)).status).toBe(400);
+    expect((await there('/api/snapshot', { cookie: phone })).status).toBe(200);
+
+    const ok = await send('/api/auth/passphrase', 'POST', { current: PASS, next: NEW }, laptop);
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('cache-control')).toBe('no-store');
+    expect(((await ok.json()) as AuthState).person).toMatchObject({ name: 'Ada', role: 'director' });
+    expect((await there('/api/snapshot', { cookie: laptop })).status).toBe(200);
+    for (const c of [phone, director]) expect((await there('/api/snapshot', { cookie: c })).status).toBe(401);
+    // The owner's sessions are their own.
+    expect((await there('/api/snapshot', { cookie: owner })).status).toBe(200);
+    expect((await send('/api/auth/signin', 'POST', { name: 'Ada', passphrase: PASS })).status).toBe(401);
+    director = await signIn('Ada', NEW);
+  });
+
+  it('is for people who signed in; this computer has none of its own', async () => {
+    const res = await send('/api/auth/passphrase', 'POST', { current: PASS, next: NEW }, undefined, srv.url);
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { error: string }).error).toMatch(/hildegard host owner/);
+    expect((await send('/api/auth/passphrase', 'POST', { current: PASS, next: NEW })).status).toBe(401);
+  });
+});
+
 describe('signing out and removing people', () => {
   it('signs out: the cookie is cleared and the session is gone', async () => {
     const extra = secondDevice;
@@ -396,7 +504,7 @@ describe('signing out and removing people', () => {
   });
 
   it('removes a director: every session ends, open streams too', async () => {
-    const second = await signIn('Ada');
+    const second = await signIn('Ada', NEW);
     const ac = new AbortController();
     const stream = await there('/api/events', { cookie: second, signal: ac.signal });
     const reader = stream.body!.getReader();
@@ -407,7 +515,7 @@ describe('signing out and removing people', () => {
     while (!done) done = (await reader.read()).done;
     for (const c of [director, second])
       expect((await there('/api/snapshot', { cookie: c })).status).toBe(401);
-    expect((await send('/api/auth/signin', 'POST', { name: 'Ada', passphrase: PASS })).status).toBe(401);
+    expect((await send('/api/auth/signin', 'POST', { name: 'Ada', passphrase: NEW })).status).toBe(401);
     // Their films stay, for the owner.
     const snap = (await (await there('/api/snapshot', { cookie: owner })).json()) as Snapshot;
     expect(snap.projects.some((p) => p.owner === directorId)).toBe(true);

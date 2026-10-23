@@ -235,6 +235,8 @@ export interface HostState {
 export interface PeopleResponse {
   people: Person[];
   invites: PendingInvite[];
+  /** How many takes each director may have waiting or rendering at once. Owners have no limit. */
+  directorQueue: number;
 }
 
 /** POST /api/people/invites. `url` holds the one-time secret: show it once, never log it. */

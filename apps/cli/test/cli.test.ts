@@ -287,6 +287,19 @@ describe('host and doctor', () => {
       expect(people.people).toMatchObject([{ name: 'Donovan', role: 'owner' }]);
       expect(people.invites).toMatchObject([{ role: 'director' }]);
 
+      expect(await hildegard(home, 'host', 'limit', ...at)).toMatchObject({ ok: true, directorQueue: 3 });
+      const limit = await hildegard(home, 'host', 'limit', '5', ...at);
+      expect(limit).toMatchObject({ ok: true, directorQueue: 5 });
+      expect(limit.steps[0]).toMatchObject({
+        id: 'limit',
+        status: 'done',
+        detail: expect.stringMatching(/5 takes/),
+      });
+      const bad = await hildegard(home, 'host', 'limit', 'lots', ...at);
+      expect(bad.ok).toBe(false);
+      expect(bad.message).toMatch(/1 to 100/);
+      expect((await hildegard(home, 'host', 'limit', ...at)).directorQueue).toBe(5);
+
       const st = await hildegard(home, 'status', ...at);
       expect(st.host).toMatchObject({ on: true, via: 'tailscale', url: 'https://studio.tail1234.ts.net' });
       expect(st.steps.find((x) => x.id === 'host')).toMatchObject({ status: 'done' });

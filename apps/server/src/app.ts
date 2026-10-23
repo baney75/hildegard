@@ -56,7 +56,7 @@ import { ExportError, type Exporter } from './export.ts';
 import type { HfLink } from './hf.ts';
 import { type Host, HostError } from './host.ts';
 import type { ModelManager } from './models.ts';
-import { INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
+import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
@@ -247,6 +247,25 @@ export function createApp(deps: AppDeps) {
     return w?.kind === 'person' ? w.person : null;
   };
   const sees = (c: Context, projectId: string) => seesProject(whoOf(c), store.projects.get(projectId));
+  /** A director's takes waiting or rendering may not pass the owner's limit; owners and this computer have none. */
+  const queueFull = (c: Context, adding: number) => {
+    const w = whoOf(c);
+    if (w?.kind !== 'person' || w.person.role !== 'director') return null;
+    const limit = people.directorQueue();
+    let mine = 0;
+    for (const t of store.takes.values())
+      if (t.by?.id === w.person.id && (t.status === 'queued' || t.status === 'running')) mine++;
+    if (mine + adding <= limit) return null;
+    const each = limit === 1 ? '1 take' : `${limit} takes`;
+    const room = limit - mine;
+    const error =
+      mine === 0
+        ? `You can have ${each} waiting at once here. Ask for ${limit === 1 ? 'one take' : `up to ${limit}`} at a time.`
+        : room > 0
+          ? `You can have ${each} waiting at once here, and you have ${mine}. Ask for ${room === 1 ? 'one more take' : `up to ${room} more`}, or wait for one to finish.`
+          : `You can have ${each} waiting at once here, and you have ${mine}. Wait for one to finish, or cancel one.`;
+    return c.json({ error, code: 'queue' }, 429);
+  };
 
   const snapshot = (): Snapshot => ({
     version: VERSION,
@@ -427,6 +446,8 @@ export function createApp(deps: AppDeps) {
     let project = store.projects.get(shot?.projectId ?? body.projectId ?? '');
     if (body.projectId && (!project || !sees(c, project.id))) return c.json({ error: 'No such film' }, 404);
     const person = personOf(c);
+    const refused = queueFull(c, request.takes);
+    if (refused) return refused;
     project ??= newProject(person?.id);
     if (!shot) {
       shot = {
@@ -564,6 +585,10 @@ export function createApp(deps: AppDeps) {
   app.post(
     '/api/takes/:id/retry',
     takeAction((t, c) => {
+      if (t.status === 'failed' || t.status === 'canceled') {
+        const refused = queueFull(c, 1);
+        if (refused) return refused;
+      }
       const r = scheduler.retry(t.id);
       return r ? c.json(r) : c.json({ error: 'Only a failed or canceled take can be retried' }, 409);
     }),
@@ -846,6 +871,32 @@ export function createApp(deps: AppDeps) {
     dropCookie(c);
     return c.json({ local: local(c), person: null, owner: people.hasOwner() } satisfies AuthState);
   });
+  app.post('/api/auth/passphrase', async (c) => {
+    c.header('cache-control', 'no-store');
+    const w = whoOf(c);
+    if (!w) return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
+    if (w.kind !== 'person')
+      return c.json(
+        { error: 'This computer has no passphrase of its own. Set the owner’s with `hildegard host owner`.' },
+        409,
+      );
+    const body = z
+      .object({ current: z.string().max(1024), next: z.string().max(1024) })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give your current passphrase and a new one.' }, 400);
+    const keys = [`client:${clientKey(c)}`, `name:${w.person.name.toLocaleLowerCase()}`];
+    const limitedNow = limited(c, keys);
+    if (limitedNow) return limitedNow;
+    try {
+      if (!(await people.changePassphrase(w.person.id, body.data.current, body.data.next, w.session))) {
+        failed(keys);
+        return c.json({ error: 'That isn’t your current passphrase.' }, 403);
+      }
+      return c.json(authState(c));
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
   app.get('/api/auth/invite/:token', (c) => {
     c.header('cache-control', 'no-store');
     const keys = [`client:${clientKey(c)}`];
@@ -878,7 +929,11 @@ export function createApp(deps: AppDeps) {
   // ── People: the owner invites, changes roles and removes ────────────────────────────────────────────────────
   const ownerOnly = (c: Context) =>
     isOwner(c) ? null : c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
-  const peopleList = (): PeopleResponse => ({ people: people.list(), invites: people.invites() });
+  const peopleList = (): PeopleResponse => ({
+    people: people.list(),
+    invites: people.invites(),
+    directorQueue: people.directorQueue(),
+  });
   app.get('/api/people', (c) => ownerOnly(c) ?? c.json(peopleList()));
   app.post('/api/people/owner', async (c) => {
     if (!local(c)) return c.json({ error: 'Make the owner account on the computer Hildegard runs on.' }, 403);
@@ -905,6 +960,22 @@ export function createApp(deps: AppDeps) {
       const base = host.state().url ?? (local(c) ? null : new URL(c.req.url).origin);
       c.header('cache-control', 'no-store');
       return c.json({ invite, url: `${base ?? deps.url ?? ''}/#/invite/${token}` } satisfies NewInvite, 201);
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+  app.patch('/api/people/settings', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z.object({ directorQueue: z.number() }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success)
+      return c.json(
+        { error: `Give a number of takes from ${DIRECTOR_QUEUE.min} to ${DIRECTOR_QUEUE.max}.` },
+        400,
+      );
+    try {
+      people.setDirectorQueue(body.data.directorQueue);
+      return c.json(peopleList());
     } catch (e) {
       return peopleFail(c, e);
     }

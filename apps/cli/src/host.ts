@@ -256,6 +256,33 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
       );
     }
 
+    case 'limit': {
+      const n = args[1];
+      try {
+        const r = n
+          ? await api<PeopleResponse>(c, '/api/people/settings', {
+              method: 'PATCH',
+              body: { directorQueue: Number(n) },
+            })
+          : await api<PeopleResponse>(c, '/api/people');
+        const each = r.directorQueue === 1 ? '1 take' : `${r.directorQueue} takes`;
+        return result(
+          [
+            {
+              id: 'limit',
+              title: 'Takes waiting per director',
+              status: n ? 'done' : 'skipped',
+              detail: `Each director may have ${each} waiting or rendering at once. Owners and this computer have no limit.`,
+            },
+          ],
+          '',
+          { directorQueue: r.directorQueue },
+        );
+      } catch (e) {
+        return failure('limit', 'Takes waiting per director', e);
+      }
+    }
+
     case 'revoke':
     case 'role': {
       const name = args[1];
@@ -303,7 +330,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
     default:
       return result(
         [],
-        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>` or `host role <name> <role>`.',
+        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>`, `host role <name> <role>` or `host limit [<takes>]`.',
         { ok: false },
       );
   }

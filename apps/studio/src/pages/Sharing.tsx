@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useId, useState } from 'react';
 import { Button, Icon, Modal, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api } from '../lib/api.ts';
 import { setHost, signOut, useStore } from '../lib/store.ts';
@@ -314,6 +314,67 @@ const ROLE_WORDS: Record<Role, string> = {
   owner: 'Everything you can do: models, devices, people and settings.',
 };
 
+/** How many takes each director may have waiting at once, so one person can’t fill the GPU’s night. */
+function QueueLimit({ list, onSaved }: { list: PeopleResponse; onSaved: (l: PeopleResponse) => void }) {
+  const [value, setValue] = useState(String(list.directorQueue));
+  const id = useId();
+  const { busy, error, run } = useRunner();
+  useEffect(() => setValue(String(list.directorQueue)), [list.directorQueue]);
+  const n = Number(value);
+  const valid = Number.isInteger(n) && n >= 1 && n <= 100;
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void run('limit', async () => {
+      const saved = await api.setDirectorQueue(n);
+      onSaved(saved);
+      toast(
+        `Each director may have ${saved.directorQueue === 1 ? '1 take' : `${saved.directorQueue} takes`} waiting`,
+      );
+    });
+  };
+  return (
+    <form className="st-tile hg-hfway" onSubmit={submit}>
+      <b>Takes waiting, per director</b>
+      <span className="body-sm muted">
+        How many takes each director may have queued or rendering at once. Owners, and you at this computer,
+        have no limit.
+      </span>
+      <Problem error={error} />
+      <div className="hg-field hg-field--block hg-limit">
+        <label htmlFor={`${id}-n`}>Takes each director may have waiting</label>
+        <div className="hg-limit__row">
+          <input
+            id={`${id}-n`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={100}
+            step={1}
+            value={value}
+            required
+            aria-invalid={!valid}
+            aria-describedby={valid ? undefined : `${id}-hint`}
+            onChange={(e) => setValue(e.target.value)}
+          />
+          <Button
+            kind="ghost"
+            type="submit"
+            busy={busy === 'limit'}
+            disabled={!valid || n === list.directorQueue}
+          >
+            Save
+          </Button>
+        </div>
+        {!valid ? (
+          <span id={`${id}-hint`} className="body-sm muted">
+            A whole number from 1 to 100.
+          </span>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
 /** Settings › People: who may sign in, invites, roles, and removing someone. */
 export function People() {
   const auth = useStore((s) => s.auth);
@@ -404,6 +465,8 @@ export function People() {
           </>
         )}
       </div>
+
+      {list ? <QueueLimit list={list} onSaved={setList} /> : null}
 
       {list?.people.length ? (
         <div className="st-tile hg-devices" role="list" aria-label="People">
@@ -560,6 +623,74 @@ export function Account() {
         </Button>
       </div>
       <p className="body-sm muted">Signing out ends your session on this device only.</p>
+      <PassphraseForm />
     </section>
+  );
+}
+
+/** Change your own passphrase. It needs the current one, and signs you out everywhere but here. */
+function PassphraseForm() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const { busy, error, run } = useRunner();
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void run('passphrase', async () => {
+      if (next !== again) throw new Error('The two new passphrases don’t match.');
+      if (next === current) throw new Error('That’s your passphrase already. Choose a new one.');
+      await api.changePassphrase(current, next);
+      setCurrent('');
+      setNext('');
+      setAgain('');
+      toast('Passphrase changed. You’re signed out everywhere else.');
+    });
+  };
+  return (
+    <form className="st-tile hg-hfway" onSubmit={submit} aria-labelledby="pw-h">
+      <b id="pw-h">Change your passphrase</b>
+      <span className="body-sm muted">
+        At least 10 characters. Every other device signed in as you is signed out; this one stays.
+      </span>
+      <Problem error={error} />
+      <label className="hg-field hg-field--block">
+        Current passphrase
+        <input
+          type="password"
+          value={current}
+          autoComplete="current-password"
+          required
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+      </label>
+      <label className="hg-field hg-field--block">
+        New passphrase
+        <input
+          type="password"
+          value={next}
+          autoComplete="new-password"
+          required
+          onChange={(e) => setNext(e.target.value)}
+        />
+      </label>
+      <label className="hg-field hg-field--block">
+        The new passphrase again
+        <input
+          type="password"
+          value={again}
+          autoComplete="new-password"
+          required
+          onChange={(e) => setAgain(e.target.value)}
+        />
+      </label>
+      <Button
+        kind="primary"
+        type="submit"
+        busy={busy === 'passphrase'}
+        disabled={!current || !next || !again}
+      >
+        Change passphrase
+      </Button>
+    </form>
   );
 }

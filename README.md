@@ -144,7 +144,7 @@ hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local> | leave <device> | revoke
-hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name>
+hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard mcp              The MCP server, on stdio (AI apps run this)
 ```
 
