@@ -112,6 +112,7 @@ export async function start(ctx: Ctx): Promise<Result> {
   // The background server gets the same choices as this command.
   if (c.host !== '127.0.0.1') args.push('--host', c.host);
   if (c.allowedHosts.length) args.push('--allow-host', c.allowedHosts.join(','));
+  if (c.hostPort !== null) args.push('--host-port', String(c.hostPort));
   if (c.comfyExternal) args.push('--comfy', c.comfyUrl);
   const child = spawn(process.execPath, args, {
     detached: true,

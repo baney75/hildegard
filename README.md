@@ -73,17 +73,29 @@ what each app made.
 Tools: `hildegard_status`, `list_presets`, `direct_shot`, `shot_status`, `get_shot`, `make_sequence`, `export_film`,
 `install_model`.
 
-## From another device
+## At a link, for your other devices and the people you invite
 
-Use [Tailscale](https://tailscale.com). Bind Hildegard to this computer's Tailscale address, and allow its name:
+Hildegard can be a server: your own studio at an HTTPS link, for your phone and laptop and for people you invite, all
+signing in. It uses [Tailscale](https://tailscale.com); install it and sign in first. Then, on the computer with the GPU:
 
 ```sh
-hildegard restart --host "$(tailscale ip -4)" --allow-host my-pc.tail1234.ts.net
+hildegard host owner        # your name and a passphrase, for signing in from other devices
+hildegard host              # https://my-pc.tail1234.ts.net, on your tailnet
+hildegard host invite       # a one-time link for someone else to join as a director
 ```
 
-Then open `http://my-pc.tail1234.ts.net:7341` on your phone or laptop. Hildegard still answers on 127.0.0.1 for this
-computer's own apps, and nothing else on your network can reach it. Hildegard Link, an end-to-end encrypted relay of
-our own, is coming.
+Open the link anywhere on your tailnet and sign in. Settings › Sharing and Settings › People do the same with buttons.
+
+- **Directors** make films of their own, which only they and owners see. **Owners** can do everything: models,
+  devices, people and settings. `hildegard host people` lists everyone; `hildegard host revoke <name>` signs someone
+  out everywhere at once and keeps them out.
+- The link is `tailscale serve`: HTTPS, reachable only inside your tailnet. To share with people outside it,
+  `hildegard host --funnel` puts it on the public internet with `tailscale funnel`. Anyone could then reach the sign-in
+  page, so use a long passphrase; Hildegard slows down guessing. `hildegard host off` turns the link off.
+- This computer itself never signs in: the Studio at `127.0.0.1`, the CLI and your linked AI apps work as before.
+  Turning the link on, linking apps, pairing devices and stopping Hildegard stay possible only from here.
+- Passphrases are kept as scrypt hashes; sign-in cookies are HttpOnly, SameSite=Strict, Secure over HTTPS, and change
+  every hour. Neither ComfyUI nor the device-pairing API is ever behind the link.
 
 ## Render on another device
 
@@ -125,17 +137,19 @@ hildegard install          Install ComfyUI and PyTorch for this GPU, then start 
 hildegard setup            Pick a model that fits and link your AI apps
 hildegard start | stop     Run Hildegard in the background, or stop it
 hildegard status           What's installed and running
+hildegard doctor           Check every part, with the command that fixes each problem
 hildegard open             Open the Studio in your browser
 hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local> | leave <device> | revoke
+hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name>
 hildegard mcp              The MCP server, on stdio (AI apps run this)
 ```
 
 Every command takes `--json` and then prints `{ ok, needsOwner, steps[], message }`. Agents setting Hildegard up for
-someone should read [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.md).
+someone should read [docs/agents.md](docs/agents.md): the app on one computer, a host at a link, or a fleet.
 
 ## Licenses
 

@@ -1,13 +1,13 @@
 # Working on Hildegard
 
-For people and coding agents changing this repository. (Installing Hildegard for someone is
-[INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.md).)
+For people and coding agents changing this repository. (Setting Hildegard up for someone, as an app, a host at a link
+or a fleet, is [docs/agents.md](docs/agents.md).)
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
-| `apps/cli` | The `hildegard` command: install, setup, start/stop, models, connect, hf, mcp. Commands return `{ ok, needsOwner, steps[], message }` |
+| `apps/cli` | The `hildegard` command: install, setup, start/stop, models, connect, hf, choir, host, doctor, mcp. Commands return `{ ok, needsOwner, steps[], message }` |
 | `apps/server` | The local HTTP server (Hono): projects, shots, the render queue, model downloads, Hugging Face, agents. Serves the Studio |
 | `apps/studio` | The Studio UI: React and Vite. Pages in `src/pages`, design tokens and components in `src/styles` and `src/components` |
 | `mcp` | The MCP server: tools for AI apps, talking to the HTTP server |
@@ -90,3 +90,28 @@ Setting it up for an owner, end to end:
 
 Rules for changes here: a peer's key opens `/api/node/*` and nothing else; any new graph node class needs a builder
 that makes it, and the `vetGraph` test keeps the allowlist exact; pairing routes stay loopback only.
+
+## Host mode: Hildegard at a link
+
+People reach a Hildegard from other devices and sign in. Three parts, all in `apps/server`:
+
+- **Who is asking** (`access.ts`). `fromThisComputer` is a loopback socket with no proxy headers, not on the hosted
+  listener: that is the owner at this computer, trusted as before, cookies ignored. Everyone else needs a session;
+  `open()` lists the few paths reachable before signing in (the Studio's files, health, `/api/auth/*`). A director may
+  use only the routes in `DIRECTOR`, and handlers check `sees()` for every film, shot, take, export and media file, so
+  someone else's is a 404. `snapshotFor` and `eventFilter` trim what each person sees, and blank ComfyUI's address for
+  anyone not here.
+- **People** (`people.ts`). Passphrases as scrypt (N=2^15, r=8, p=1) with the parameters in the hash; invites and
+  sessions as random 256-bit tokens kept only as SHA-256 hashes, compared in constant time, in
+  `<data>/people/{people,sessions}.json` (0600). Sessions rotate hourly (the old token lives 60 s more), end after 7 idle
+  days or 30 days, and end at once on sign-out, a new owner passphrase or removal, which also ends open event streams.
+  `Limiter` counts failed sign-ins per account and per address.
+- **The link** (`host.ts`, `server.ts`). `hildegard host` (or `POST /api/host`, loopback only) runs
+  `tailscale serve --bg --https=<443|8443|10000> http://127.0.0.1:<hostPort>`, or `tailscale funnel` when asked by
+  name; `hostPort` (`--host-port`, else the main port plus one) is a listener where every request is from elsewhere.
+  `--address` answers on a Tailscale address instead; anything outside the tailnet is refused. The state is
+  `<data>/host.json`, and `resume()` sets the link up again at start.
+
+Rules for changes here: a new route a director may use goes in `DIRECTOR` and checks `sees()`; anything that changes
+the computer stays loopback only (`local(c)`), even for owners signed in elsewhere; never let `/api/node/*` or ComfyUI
+behind the hosted listener; tests in `host.test.ts` cover each refusal, and `people.test.ts` the crypto and expiry.

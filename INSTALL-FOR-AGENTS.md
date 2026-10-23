@@ -4,6 +4,9 @@ This is for AI agents (Claude Code, Codex, Cursor, OpenCode and the like) settin
 Every step runs without questions and prints JSON. A few steps belong to your user alone; the JSON marks them and says
 what to ask.
 
+This page installs the app on one computer. [docs/agents.md](docs/agents.md) covers that and more, end to end: hosting
+Hildegard at a link for other people, joining devices into a fleet, and checking everything with `hildegard doctor`.
+
 ## 1. Install
 
 macOS and Linux:
@@ -33,7 +36,9 @@ hildegard setup --yes --json
 ```
 
 This picks the best video model that fits the GPU, starts its download if your user has accepted its license, and links
-every AI app it finds on this computer (`--yes` links them; leave it off to link none).
+every AI app it finds on this computer (`--yes` links them; leave it off to link none). Once your user has accepted a model's
+license, `hildegard setup --model <id> --accept-license <id> --yes --json` installs it without questions; the license
+is accepted only when `--accept-license` names that very model.
 
 ## 3. Read the result
 
