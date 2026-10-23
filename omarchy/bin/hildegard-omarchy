@@ -12,7 +12,12 @@ exec </dev/null
 umask 077
 
 HERE=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
-PORT=${HILDEGARD_PORT:-7341}
+# The port: HILDEGARD_PORT, else the one Hildegard last started on (it notes it in <data>/server.json), else 7341.
+remembered_port() {
+  local data=${HILDEGARD_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/hildegard}
+  [[ -r $data/server.json ]] && jq -er '.port | select(type == "number" and . > 0 and . < 65536)' "$data/server.json" 2>/dev/null
+}
+PORT=${HILDEGARD_PORT:-$(remembered_port || echo 7341)}
 URL="http://127.0.0.1:$PORT"
 
 fail() {

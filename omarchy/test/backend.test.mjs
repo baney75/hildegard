@@ -275,3 +275,16 @@ test('setup refuses an installer that does not match its checksum', async () => 
   assert.equal(existsSync(join(r.home, 'ran')), false);
   assert.equal(existsSync(join(r.home, 'bin/hildegard')), false);
 });
+
+test('finds the port Hildegard last started on when HILDEGARD_PORT isn’t set', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'hildegard-omarchy-home-'));
+  const data = join(home, '.local', 'share', 'hildegard');
+  (await import('node:fs')).mkdirSync(data, { recursive: true });
+  writeFileSync(join(data, 'server.json'), JSON.stringify({ port: 7351 }));
+  const { HILDEGARD_PORT: _, ...rest } = env();
+  const { stdout } = await promisify(execFile)(cli, ['snapshot'], { env: { ...rest, HOME: home } });
+  assert.equal(JSON.parse(stdout).url, 'http://127.0.0.1:7351');
+  rmSync(join(data, 'server.json'));
+  const { stdout: fallback } = await promisify(execFile)(cli, ['snapshot'], { env: { ...rest, HOME: home } });
+  assert.equal(JSON.parse(fallback).url, 'http://127.0.0.1:7341');
+});
