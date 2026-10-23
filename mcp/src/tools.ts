@@ -245,7 +245,9 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
 
   const createShot = async (a: ShotArgs, projectId?: string) => {
     const [catalog, snap] = await Promise.all([client.catalog(), client.snapshot()]);
-    const installed = new Set(snap.models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id));
+    const installed = new Set(
+      snap.models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id),
+    );
     const request = toRequest(a, catalog, installed);
     if (a.start_frame_path) request.startFrame = await client.upload(a.start_frame_path);
     return client.createShot({ request, projectId, title: a.title, agent: agentName() });
