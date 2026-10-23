@@ -154,7 +154,11 @@ export class Scheduler {
   stop() {
     this.stopped = true;
     if (this.pingTimer) clearTimeout(this.pingTimer);
-    this.running?.abort.abort();
+    // Shutting down is not a cancel: the take goes back in the queue and renders after the next start.
+    if (this.running) {
+      this.running.requeue = true;
+      this.running.abort.abort();
+    }
     for (const g of this.guests.splice(0)) g.reject(new EngineError('canceled', 'Canceled.'));
   }
 
@@ -396,7 +400,7 @@ export class Scheduler {
     } catch (e) {
       const requeue = this.running?.requeue;
       if (requeue) {
-        // Interrupted by Force now: back to the front of its class, no error shown.
+        // Interrupted by Force now, or by Hildegard stopping: back to the front of its class, no error shown.
         Object.assign(take, { status: 'queued', progress: null, startedAt: null } satisfies Partial<Take>);
       } else {
         take.status = e instanceof EngineError && e.code === 'canceled' ? 'canceled' : 'failed';
