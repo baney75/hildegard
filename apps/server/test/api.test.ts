@@ -176,6 +176,23 @@ describe('shots and takes', () => {
     expect(take(c.id).finishedAt! <= take(b.id).finishedAt!).toBe(true);
   });
 
+  it('refuses a shot for a model that isn’t installed where it would render', async () => {
+    // As with Hildegard's own ComfyUI and no models downloaded yet.
+    const sched = srv.scheduler as unknown as { comfy: string };
+    sched.comfy = 'managed';
+    try {
+      const res = await post('/api/shots', { request: request({ model: 'wan-2-2-ti2v-5b' }) });
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({
+        field: 'model',
+        code: 'missing_model',
+        error: expect.stringMatching(/isn’t installed on this computer\. Install it in Settings › Models/),
+      });
+    } finally {
+      sched.comfy = 'fake';
+    }
+  });
+
   it('accepts only real images as start frames, named by their hash', async () => {
     const bad = await api('/api/uploads', {
       method: 'POST',

@@ -440,6 +440,19 @@ export function createApp(deps: AppDeps) {
       if (e instanceof PresetError) return c.json({ error: e.message, field: e.field }, 422);
       throw e;
     }
+    // Here, Hildegard's own ComfyUI renders, so the model's files must be here too; say so now, not after the queue.
+    if (
+      deps.scheduler.engineState().comfy === 'managed' &&
+      !deps.modelStates().find((m) => m.id === composed.model.id)?.installed
+    )
+      return c.json(
+        {
+          error: `${composed.model.name} isn’t installed on this computer. Install it in Settings › Models, or render on a paired device.`,
+          field: 'model',
+          code: 'missing_model',
+        },
+        422,
+      );
 
     let shot = body.shotId ? store.shots.get(body.shotId) : undefined;
     if (body.shotId && (!shot || !sees(c, shot.projectId))) return c.json({ error: 'No such shot' }, 404);

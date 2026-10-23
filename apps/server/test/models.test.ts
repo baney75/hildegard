@@ -180,7 +180,9 @@ describe('ModelManager', () => {
     await mm.install('tiny');
     expect(readFileSync(dest)).toEqual(BYTES);
     expect(mm.states()[0]).toMatchObject({ installed: true, error: null });
-    expect(fetch.calls.some((c) => c.method === 'GET' && c.url.includes('/org/tiny-new/resolve/'))).toBe(true);
+    expect(fetch.calls.some((c) => c.method === 'GET' && c.url.includes('/org/tiny-new/resolve/'))).toBe(
+      true,
+    );
   });
 
   it('downloads the locked revision when models.lock.json pins one', async () => {
