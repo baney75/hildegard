@@ -10,7 +10,7 @@ import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, portFile } from './config.ts';
-import { Exporter } from './export.ts';
+import { Exporter, makePoster } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
 import { ModelManager } from './models.ts';
@@ -139,6 +139,7 @@ export async function startServer(
     fake: config.fake,
     comfy: choir.activeEngine() ? 'remote' : comfy,
     onEngine: (engineState) => store.emit({ type: 'engine', engine: engineState }),
+    poster: (video, out) => makePoster(config.dataDir, video, out),
   });
   route();
   await runtime?.start();

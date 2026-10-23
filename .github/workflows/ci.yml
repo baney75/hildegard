@@ -43,11 +43,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Export film runs on PyAV, which ComfyUI's own requirements bring in an install.
+      # Export film and posters run on PyAV and Pillow, which ComfyUI's own requirements bring in an install.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python -m pip install av==19.0.1 numpy==2.5.3
+      - run: python -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0
       - run: pnpm typecheck
       - run: pnpm test
       # The Omarchy bar widget: Omarchy is Linux only.

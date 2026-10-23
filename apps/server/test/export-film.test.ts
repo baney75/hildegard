@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { exportPython } from '../src/export.ts';
+import { exportPython, makePoster } from '../src/export.ts';
 
 const script = fileURLToPath(new URL('../../../tools/export_film.py', import.meta.url));
 const py = exportPython(mkdtempSync(join(tmpdir(), 'hg-py-')));
@@ -55,5 +55,20 @@ print(json.dumps({"types": [s.type for s in c.streams], "w": v.codec_context.wid
     expect(info.types).toEqual(['video', 'audio']);
     expect([info.w, info.h]).toEqual([1248, 704]);
     expect(info.audio).toBeCloseTo(2, 1);
+  }, 60_000);
+});
+
+describe('poster.py', () => {
+  it('makes a full-size poster from a finished take, and reports failure for a broken one', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-poster-'));
+    const video = join(dir, 'take.mp4');
+    clip(video, 1248, 704, 1);
+    const jpg = join(dir, 'take.jpg');
+    expect(await makePoster(dir, video, jpg)).toBe(true);
+    expect(
+      python('import sys; from PIL import Image; print(*Image.open(sys.argv[1]).size)', jpg).trim(),
+    ).toBe('1248 704');
+    writeFileSync(join(dir, 'broken.mp4'), 'not a video');
+    expect(await makePoster(dir, join(dir, 'broken.mp4'), join(dir, 'broken.jpg'))).toBe(false);
   }, 60_000);
 });

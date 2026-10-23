@@ -75,6 +75,7 @@ export class Scheduler {
   private problem: string | null = null;
   private readonly catalog: Catalog;
   private readonly mediaDir: string;
+  private readonly poster?: (video: string, out: string) => Promise<boolean>;
   private readonly fake: boolean;
 
   constructor(opts: {
@@ -85,7 +86,10 @@ export class Scheduler {
     fake: boolean;
     comfy?: EngineState['comfy'];
     onEngine: (s: EngineState) => void;
+    /** Writes a full-size poster from a finished video; false keeps the sampler's preview. */
+    poster?: (video: string, out: string) => Promise<boolean>;
   }) {
+    this.poster = opts.poster;
     this.comfy = opts.comfy ?? (opts.fake ? 'fake' : 'external');
     this.store = opts.store;
     this.engine = opts.engine;
@@ -385,9 +389,12 @@ export class Scheduler {
           },
         },
       });
+      const jpg = join(this.mediaDir, `${take.id}.jpg`);
       const preview = this.previews.get(take.id);
-      if (preview) {
-        await writeFile(join(this.mediaDir, `${take.id}.jpg`), preview.bytes);
+      if (await this.poster?.(dest, jpg).catch(() => false)) {
+        take.poster = `/media/${take.id}.jpg`;
+      } else if (preview) {
+        await writeFile(jpg, preview.bytes);
         take.poster = `/media/${take.id}.jpg`;
       }
       const { size } = await import('node:fs/promises').then((fs) => fs.stat(dest));

@@ -42,6 +42,31 @@ export function exportPython(dataDir: string): string {
   return process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 }
 
+/**
+ * Writes a full-size poster for a finished take with tools/poster.py. Resolves false when that can't run (no PyAV on a
+ * computer that only renders on other devices, say), and the caller keeps the sampler's smaller preview.
+ */
+export function makePoster(dataDir: string, video: string, out: string): Promise<boolean> {
+  let script: string;
+  try {
+    script = resource(join('tools', 'poster.py'));
+  } catch {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const child = spawn(exportPython(dataDir), ['-I', script, video, out], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    const timer = setTimeout(() => child.kill(), 30_000);
+    child.once('error', () => resolve(false));
+    child.once('close', (code) => {
+      clearTimeout(timer);
+      resolve(code === 0);
+    });
+  });
+}
+
 export interface ExporterOptions {
   store: Store;
   catalog: Catalog;
