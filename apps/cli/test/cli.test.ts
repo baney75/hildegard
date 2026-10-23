@@ -406,4 +406,51 @@ describe('printResult', () => {
       log.mockRestore();
     }
   });
+
+  it('prints each fix without --json for people, and keeps it for agents', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const r = result(
+        [
+          {
+            id: 'host',
+            title: 'Link',
+            status: 'needs-owner',
+            detail: 'Off.',
+            command: 'hildegard host --json',
+          },
+          {
+            id: 'model',
+            title: 'Model',
+            status: 'needs-owner',
+            detail: 'License.',
+            command: 'hildegard setup --model m --accept-license m --yes --json',
+          },
+          {
+            id: 'server',
+            title: 'Server',
+            status: 'failed',
+            detail: 'Down.',
+            command: 'hildegard start --json',
+          },
+        ],
+        'Not yet.',
+      );
+      printResult(r, false);
+      const human = log.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(human).not.toContain('--json');
+      expect(human).toContain('hildegard host\n');
+      expect(human).toContain('hildegard setup --model m --accept-license m --yes');
+      log.mockClear();
+      printResult(r, true);
+      const out = JSON.parse(log.mock.calls[0]![0] as string);
+      expect(out.steps.map((s: { command: string }) => s.command)).toEqual([
+        'hildegard host --json',
+        'hildegard setup --model m --accept-license m --yes --json',
+        'hildegard start --json',
+      ]);
+    } finally {
+      log.mockRestore();
+    }
+  });
 });

@@ -37,10 +37,13 @@ const MARK: Record<Step['status'], string> = {
   failed: red('✗'),
 };
 
+/** Steps name their fix as an agent would run it; a person reading the terminal wants the words, not JSON. */
+export const forPeople = (command: string) => command.replace(/\s--json(?=\s|$)/g, '');
+
 export function printStep(s: Step) {
   console.log(`${MARK[s.status]} ${s.title}`);
   for (const line of s.detail.split('\n')) console.log(`  ${dim(line)}`);
-  if (s.command) console.log(`  ${bold(s.command)}`);
+  if (s.command) console.log(`  ${bold(forPeople(s.command))}`);
 }
 
 export function printResult(r: Result, json: boolean, printed = 0) {
