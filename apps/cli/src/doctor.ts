@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { HostState, Snapshot } from '@hildegard/presets';
 import { detectGpu, listAgents, readRuntime, type Step } from '@hildegard/runtime';
-import { tailnetSelf } from '@hildegard/server';
+import { COMFY_STARTING, tailnetSelf } from '@hildegard/server';
 import { api, baseUrl, type Ctx, running } from './commands.ts';
 import { hostStep } from './host.ts';
 import { type Result, result } from './output.ts';
@@ -51,45 +51,8 @@ export async function doctor(ctx: Ctx): Promise<Result> {
   const snap = up ? await api<Snapshot>(c, '/api/snapshot').catch(() => null) : null;
   const runtime = readRuntime(c.dataDir);
 
-  // ComfyUI: here, or on the device takes render on.
+  steps.push(comfyStep(snap?.engine, runtime, { up: !!up, fake: c.fake, external: !!c.comfyExternal }));
   const e = snap?.engine;
-  if (e?.comfy === 'remote')
-    steps.push(
-      e.online
-        ? { id: 'comfyui', title: 'ComfyUI', status: 'done', detail: `Takes render on ${e.device}.` }
-        : {
-            id: 'comfyui',
-            title: 'ComfyUI',
-            status: 'failed',
-            detail: `Takes render on ${e.device}, which isn’t answering: ${e.problem ?? 'is Hildegard running there?'} Render here again with the command, or start Hildegard there.`,
-            command: 'hildegard choir use local',
-          },
-    );
-  else if (c.fake || e?.fake)
-    steps.push({ id: 'comfyui', title: 'ComfyUI', status: 'done', detail: 'The stand-in GPU, for testing.' });
-  else if (e?.online)
-    steps.push({
-      id: 'comfyui',
-      title: 'ComfyUI',
-      status: 'done',
-      detail: `Running${runtime ? ` (ComfyUI ${runtime.comfyui}, PyTorch ${runtime.torch})` : ''}.`,
-    });
-  else if (!runtime && !c.comfyExternal)
-    steps.push({
-      id: 'comfyui',
-      title: 'ComfyUI',
-      status: 'failed',
-      detail: 'Not installed.',
-      command: 'hildegard install --yes --json',
-    });
-  else
-    steps.push({
-      id: 'comfyui',
-      title: 'ComfyUI',
-      status: up ? 'failed' : 'skipped',
-      detail: e?.problem ?? (up ? 'Not answering.' : 'Starts with Hildegard.'),
-      command: up ? 'hildegard restart --json' : 'hildegard start --json',
-    });
 
   // Models.
   if (snap) {
@@ -212,4 +175,53 @@ export async function doctor(ctx: Ctx): Promise<Result> {
         : 'Everything works.',
     { running: !!up, url: baseUrl(c), gpu, tailscale: ts, host: h, engine: e ?? null },
   );
+}
+
+/** ComfyUI: here, or on the device takes render on. Still loading is a wait, not a fault, so it has no fix. */
+export function comfyStep(
+  e: Snapshot['engine'] | undefined,
+  runtime: ReturnType<typeof readRuntime>,
+  { up, fake, external }: { up: boolean; fake: boolean; external: boolean },
+): Step {
+  if (e?.comfy === 'remote')
+    return e.online
+      ? { id: 'comfyui', title: 'ComfyUI', status: 'done', detail: `Takes render on ${e.device}.` }
+      : {
+          id: 'comfyui',
+          title: 'ComfyUI',
+          status: 'failed',
+          detail: `Takes render on ${e.device}, which isn’t answering: ${e.problem ?? 'is Hildegard running there?'} Render here again with the command, or start Hildegard there.`,
+          command: 'hildegard choir use local',
+        };
+  if (fake || e?.fake)
+    return { id: 'comfyui', title: 'ComfyUI', status: 'done', detail: 'The stand-in GPU, for testing.' };
+  if (e?.online)
+    return {
+      id: 'comfyui',
+      title: 'ComfyUI',
+      status: 'done',
+      detail: `Running${runtime ? ` (ComfyUI ${runtime.comfyui}, PyTorch ${runtime.torch})` : ''}.`,
+    };
+  if (!runtime && !external)
+    return {
+      id: 'comfyui',
+      title: 'ComfyUI',
+      status: 'failed',
+      detail: 'Not installed.',
+      command: 'hildegard install --yes --json',
+    };
+  if (e?.problem === COMFY_STARTING)
+    return {
+      id: 'comfyui',
+      title: 'ComfyUI',
+      status: 'skipped',
+      detail: 'ComfyUI is starting. Run doctor again in a minute.',
+    };
+  return {
+    id: 'comfyui',
+    title: 'ComfyUI',
+    status: up ? 'failed' : 'skipped',
+    detail: e?.problem ?? (up ? 'Not answering.' : 'Starts with Hildegard.'),
+    command: up ? 'hildegard restart --json' : 'hildegard start --json',
+  };
 }

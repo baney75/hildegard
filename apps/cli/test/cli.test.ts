@@ -454,3 +454,31 @@ describe('printResult', () => {
     }
   });
 });
+
+describe('doctor’s ComfyUI step', () => {
+  it('treats ComfyUI still loading as a wait, with no fix to run', async () => {
+    const { comfyStep } = await import('../src/doctor.ts');
+    const { COMFY_STARTING } = await import('@hildegard/server');
+    const runtime = { comfyui: '0.42.1', torch: '2.14.1' } as Parameters<typeof comfyStep>[1];
+    const starting = comfyStep(
+      { comfy: 'managed', online: false, fake: false, problem: COMFY_STARTING } as Parameters<
+        typeof comfyStep
+      >[0],
+      runtime,
+      { up: true, fake: false, external: false },
+    );
+    expect(starting).toMatchObject({
+      status: 'skipped',
+      detail: 'ComfyUI is starting. Run doctor again in a minute.',
+    });
+    expect(starting.command).toBeUndefined();
+    const stuck = comfyStep(
+      { comfy: 'managed', online: false, fake: false, problem: 'It stopped.' } as Parameters<
+        typeof comfyStep
+      >[0],
+      runtime,
+      { up: true, fake: false, external: false },
+    );
+    expect(stuck).toMatchObject({ status: 'failed', command: 'hildegard restart --json' });
+  });
+});

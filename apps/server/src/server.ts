@@ -50,6 +50,9 @@ export interface Running {
 }
 
 /** Start everything: the store, the render queue, model installs, the Hugging Face link and the HTTP server. */
+/** The engine problem while the managed ComfyUI is still loading: a wait, not a fault. */
+export const COMFY_STARTING = 'ComfyUI is starting.';
+
 export async function startServer(
   config: Config,
   opts: {
@@ -98,7 +101,7 @@ export async function startServer(
           s.status === 'failed' || s.status === 'restarting'
             ? s.error
             : s.status === 'starting'
-              ? 'ComfyUI is starting.'
+              ? COMFY_STARTING
               : null;
         route();
       },
