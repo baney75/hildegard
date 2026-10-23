@@ -133,6 +133,16 @@ describe('sessions', () => {
     expect(people.authenticate(r.rotated!)?.person.name).toBe('Owner');
     // One device, one session, however often its token changed.
     expect(people.list()[0]!.sessions).toBe(1);
+    // An event stream opened with the first token still stands, as the session does.
+    expect(people.session(people.authenticate(r.rotated!)!.session)?.name).toBe('Owner');
+    const opened = (await people.signIn('Owner', PASS))!.token;
+    const id = people.authenticate(opened)!.session;
+    c.add(SESSION.rotateMs);
+    people.authenticate(opened);
+    c.add(SESSION.graceMs);
+    expect(people.session(id)?.name).toBe('Owner');
+    people.signOut(opened);
+    expect(people.session(id)).toBeNull();
   });
 
   it('ends after a week unused, and after thirty days whatever happens', async () => {

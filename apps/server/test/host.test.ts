@@ -7,6 +7,7 @@ import type { AuthState, HostState, NewInvite, PeopleResponse, Snapshot, Take } 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseArgs } from '../src/config.ts';
 import type { Exec } from '../src/host.ts';
+import { SESSION } from '../src/people.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -480,5 +481,29 @@ describe('host mode', () => {
       const res = await send('/api/host', 'POST', { via: 'address', address }, undefined, srv.url);
       expect(res.status, address).toBe(400);
     }
+  });
+});
+
+describe('session rotation', () => {
+  it('sends the new token on any response, a streamed file included', async () => {
+    const { takes } = (await (
+      await send('/api/shots', 'POST', { request: request('Rotation') }, owner)
+    ).json()) as {
+      takes: Take[];
+    };
+    await until(() => srv.store.takes.get(takes[0]!.id)?.status === 'done');
+    const saved = SESSION.rotateMs;
+    SESSION.rotateMs = 0;
+    try {
+      const res = await there(`/media/${takes[0]!.id}.jpg`, { cookie: owner });
+      expect(res.status).toBe(200);
+      const next = cookieFrom(res);
+      expect(next).toMatch(/^hildegard_session=[A-Za-z0-9_-]{43}$/);
+      expect(next).not.toBe(owner);
+      owner = next!;
+    } finally {
+      SESSION.rotateMs = saved;
+    }
+    expect((await there('/api/snapshot', { cookie: owner })).status).toBe(200);
   });
 });

@@ -435,7 +435,12 @@ export class People {
 
   /** Whether a session (by its id) still stands, and as whom: event streams ask after every change. */
   session(id: string): Signed['person'] | null {
-    const s = this.sessions.find((x) => x.hash === id);
+    let s = this.sessions.find((x) => x.hash === id);
+    // A stream opened before the token changed follows the session, not the old token.
+    if (s?.replacedAt)
+      s = this.sessions.find(
+        (x) => x.personId === s!.personId && x.signedInAt === s!.signedInAt && !x.replacedAt,
+      );
     if (!s || !this.alive(s, this.now())) return null;
     return this.get(s.personId) ?? null;
   }

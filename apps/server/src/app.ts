@@ -232,8 +232,9 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
     if (who?.kind === 'person' && who.person.role === 'director' && !directorMay(c.req.method, path))
       return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
-    if (rotated) sendCookie(c, rotated);
     await next();
+    // After the handler, so the new token rides on whatever it returned, a streamed video or file included.
+    if (rotated) sendCookie(c, rotated);
   });
   const whoOf = (c: Context) => c.get('who');
   /** The owner, here or signed in from elsewhere. */
