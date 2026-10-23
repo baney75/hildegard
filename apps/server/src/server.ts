@@ -286,13 +286,26 @@ export async function startServer(
       h === config.host ||
       (LOOPBACK_HOSTS.has(h) && !!loopback) ||
       (!!bound && bound.key === `${h}:${p}`));
-  const syncSharing = async (): Promise<void> => {
+  // One at a time: an invite both fires onChange and syncs itself, and two listens racing on one port would leave
+  // the loser's EADDRINUSE standing as the sharing problem.
+  let syncingSharing: Promise<void> = Promise.resolve();
+  const syncSharing = (): Promise<void> => {
+    syncingSharing = syncingSharing.then(syncSharingNow, syncSharingNow);
+    return syncingSharing;
+  };
+  const syncSharingNow = async (): Promise<void> => {
     const want = choir.listen();
     const h = want?.hostname.replace(/^\[|\]$/g, '') ?? '';
     const p = want ? Number(want.port || 80) : 0;
     // An https address means something in front (tailscale serve, say) forwards to this server's own port.
     const key = want && want.protocol === 'http:' && !covered(h, p) ? `${h}:${p}` : '';
-    if (share?.key === key) return;
+    if (share?.key === key) {
+      if (share && choir.sharingProblem) {
+        choir.sharingProblem = null;
+        choir.emit();
+      }
+      return;
+    }
     if (share) {
       const old = share.server;
       share = null;

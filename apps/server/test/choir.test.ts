@@ -170,6 +170,14 @@ afterAll(async () => {
 });
 
 describe('rendering on another device', () => {
+  it('shares without a problem: an invite’s own sync and the one its change sets off never race for the port', async () => {
+    const choir = async () =>
+      ((await (await fetch(`${gpu.url}/api/choir`, { headers: H })).json()) as ChoirState).sharing;
+    expect(await choir()).toMatchObject({ on: true, problem: null });
+    expect((await post(gpu, '/api/choir/invite', { url: shareUrl })).status).toBe(200);
+    expect(await choir()).toMatchObject({ on: true, problem: null });
+  });
+
   it('keeps only the key’s hash on the sharing device and the key in the joined one’s secret store', () => {
     const file = readFileSync(join(gpu.config.dataDir, 'choir', 'sharing.json'), 'utf8');
     expect(file).not.toContain(token);

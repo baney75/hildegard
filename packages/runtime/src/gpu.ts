@@ -94,10 +94,10 @@ function cpu(note: string): Gpu {
 }
 
 function detectNvidia(p: Probe): Gpu | null {
-  const out = p.run('nvidia-smi', [
-    '--query-gpu=name,memory.total,driver_version,compute_cap',
-    '--format=csv,noheader,nounits',
-  ]);
+  const args = ['--query-gpu=name,memory.total,driver_version,compute_cap', '--format=csv,noheader,nounits'];
+  // Under WSL the Windows driver puts nvidia-smi in /usr/lib/wsl/lib, which isn't on PATH by default.
+  const out =
+    p.run('nvidia-smi', args) ?? (p.platform === 'linux' ? p.run('/usr/lib/wsl/lib/nvidia-smi', args) : null);
   if (!out) return null;
   const gpus = out
     .trim()

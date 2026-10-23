@@ -46,6 +46,14 @@ describe('detectGpu', () => {
     });
   });
 
+  it('finds the card under WSL, where nvidia-smi lives in /usr/lib/wsl/lib', () => {
+    const smi = 'NVIDIA GeForce GTX 1650, 4096, 595.95, 7.5\n';
+    const g = detectGpu(
+      probe({ platform: 'linux', run: (c) => (c === '/usr/lib/wsl/lib/nvidia-smi' ? smi : null) }),
+    );
+    expect(g).toMatchObject({ backend: 'cuda', name: 'NVIDIA GeForce GTX 1650', vramGb: 4 });
+  });
+
   it('falls back to older CUDA builds for older drivers and cards, and says why', () => {
     const run = (line: string) => () => line;
     const older = detectGpu(probe({ run: run('NVIDIA GeForce RTX 3090, 24576, 572.16, 8.6') }));
