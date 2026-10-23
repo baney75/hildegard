@@ -12,14 +12,18 @@ import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, portFile } from './config.ts';
 import { Exporter } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
+import { type Exec, Host } from './host.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
+import { People } from './people.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
 
 type HttpServer = ReturnType<typeof serve>;
 
-const listen = (fetch: (r: Request) => Response | Promise<Response>, hostname: string, port: number) =>
+// biome-ignore lint/suspicious/noExplicitAny: the node server hands each request its bindings, typed by Hono.
+type Fetch = (r: Request, env?: any) => Response | Promise<Response>;
+const listen = (fetch: Fetch, hostname: string, port: number) =>
   new Promise<HttpServer>((resolve, reject) => {
     const s = serve({ fetch, hostname, port }, () => resolve(s));
     s.once('error', reject);
@@ -36,6 +40,10 @@ export interface Running {
   models: ModelManager;
   choir: Choir;
   hf: HfLink;
+  people: People;
+  host: Host;
+  /** Where Tailscale Serve and Funnel forward to, while that listener is open. */
+  hostedUrl: () => string | null;
   /** The ComfyUI Hildegard runs itself, when it does. */
   runtime: ComfyRuntime | null;
   close(): Promise<void>;
@@ -51,6 +59,10 @@ export async function startServer(
     /** Where joined devices' keys go; the keychain by default. */
     choirSecrets?: (account: string) => SecretStore;
     onStop?: () => void;
+    /** Runs `tailscale`: tests give a stand-in. */
+    exec?: Exec;
+    /** Sign-in attempts allowed in 15 minutes, per account and per address. */
+    limits?: { perName: number; perClient: number };
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -196,6 +208,20 @@ export async function startServer(
     fake: config.fake,
   });
 
+  // People who sign in from other devices, and the link they reach this Hildegard at.
+  const people = new People({ dataDir: config.dataDir });
+  const host = new Host({
+    dataDir: config.dataDir,
+    port: () => port,
+    hostPort: () => hostedPort,
+    run: opts.exec,
+    owner: () => people.hasOwner(),
+    onChange: (h) => {
+      store.emit({ type: 'host', host: h });
+      void syncHost();
+    },
+  });
+
   const exporter = new Exporter({
     store,
     catalog,
@@ -215,6 +241,9 @@ export async function startServer(
     mediaDir,
     onStop: opts.onStop,
     url: `http://127.0.0.1:${config.port}`,
+    people,
+    host,
+    limits: opts.limits,
     choir,
     modelStates,
     node,
@@ -238,8 +267,9 @@ export async function startServer(
   const server = await listen(app.fetch, config.host, config.port);
   const addr = server.address();
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
+  const hostedPort = config.hostPort ?? port + 1;
   writeFileSync(portFile(config.dataDir), `${JSON.stringify({ port })}\n`);
-  const host = config.host.includes(':') ? `[${config.host}]` : config.host;
+  const bracketed = config.host.includes(':') ? `[${config.host}]` : config.host;
   // Bound to one address (a Tailscale IP, say), it still answers on loopback: the CLI and linked AI apps use that.
   const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)
     ? null
@@ -251,7 +281,11 @@ export async function startServer(
   let shareRetry: NodeJS.Timeout | null = null;
   let closing = false;
   const covered = (h: string, p: number) =>
-    p === port && (WILDCARD.has(config.host) || h === config.host || (LOOPBACK_HOSTS.has(h) && !!loopback));
+    p === port &&
+    (WILDCARD.has(config.host) ||
+      h === config.host ||
+      (LOOPBACK_HOSTS.has(h) && !!loopback) ||
+      (!!bound && bound.key === `${h}:${p}`));
   const syncSharing = async (): Promise<void> => {
     const want = choir.listen();
     const h = want?.hostname.replace(/^\[|\]$/g, '') ?? '';
@@ -294,25 +328,86 @@ export async function startServer(
       shareRetry.unref();
     }
   };
+  // Host mode: the listener Tailscale forwards to, where every request signs in, and, for an `address` host, the
+  // full Studio on this computer's Tailscale address. Both follow the host state as it changes.
+  let hosted: HttpServer | null = null;
+  let bound: { server: HttpServer; key: string } | null = null;
+  let syncingHost: Promise<void> = Promise.resolve();
+  const syncHost = (): Promise<void> => {
+    syncingHost = syncingHost.then(async () => {
+      const cur = host.current();
+      const wantHosted = !closing && (config.hostPort !== null || (cur.on && cur.via !== 'address'));
+      if (wantHosted && !hosted) {
+        try {
+          hosted = await listen((r, env) => app.fetch(r, { ...env, hosted: true }), '127.0.0.1', hostedPort);
+        } catch (e) {
+          const code = (e as NodeJS.ErrnoException).code;
+          host.setProblem(
+            code === 'EADDRINUSE'
+              ? `Something else is using port ${hostedPort}, where the link leads. Start Hildegard with --host-port and another port.`
+              : (e as Error).message,
+          );
+        }
+      } else if (!wantHosted && hosted) {
+        const old = hosted;
+        hosted = null;
+        await shut(old);
+      }
+      const a = cur.on && cur.via === 'address' && !closing ? cur.address : null;
+      const key = a && !covered(a, port) ? `${a}:${port}` : '';
+      if (bound?.key === key) return;
+      if (bound) {
+        const old = bound.server;
+        bound = null;
+        await shut(old);
+      }
+      if (key && a) {
+        try {
+          bound = { key, server: await listen(app.fetch, a, port) };
+          host.setProblem(null);
+        } catch (e) {
+          const code = (e as NodeJS.ErrnoException).code;
+          host.setProblem(
+            code === 'EADDRINUSE'
+              ? `Something else is using port ${port} on ${a}.`
+              : `This computer doesn’t have the address ${a} right now. Is Tailscale up?`,
+            'tailscale up',
+          );
+        }
+      }
+      // The paired-device listener may now be covered by this one, or no longer.
+      await syncSharing();
+    });
+    return syncingHost;
+  };
   await syncSharing();
+  await syncHost();
+  // Tailscale is asked in the background: it can take a few seconds, and nothing here waits on it.
+  void host.resume();
   scheduler.start();
 
   return {
-    url: `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`,
+    url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,
     config,
     store,
     scheduler,
     models,
     choir,
     hf,
+    people,
+    host,
+    hostedUrl: () => (hosted ? `http://127.0.0.1:${hostedPort}` : null),
     runtime,
     async close() {
       closing = true;
+      await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
       scheduler.stop();
       await runtime?.stop();
       store.flush();
-      await Promise.all([server, loopback, share?.server].map((s) => (s ? shut(s) : null)));
+      await Promise.all(
+        [server, loopback, share?.server, hosted, bound?.server].map((s) => (s ? shut(s) : null)),
+      );
       await fake?.close();
     },
   };

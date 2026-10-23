@@ -8,10 +8,13 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import {
   type AgentsResponse,
+  type AuthState,
   type Catalog,
   type CreateShotBody,
   composeShot,
   type ModelState,
+  type NewInvite,
+  type PeopleResponse,
   PresetError,
   type Priority,
   type Project,
@@ -29,14 +32,31 @@ import {
   mcpCommand,
   snippet,
 } from '@hildegard/runtime';
-import { type Context, Hono } from 'hono';
+import { Hono } from 'hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
+import {
+  COOKIE,
+  type Ctx as Context,
+  clientKey,
+  directorMay,
+  eventFilter,
+  fromThisComputer,
+  type HgEnv,
+  open,
+  secureRequest,
+  seesProject,
+  snapshotFor,
+  type Who,
+} from './access.ts';
 import { type Choir, ChoirError } from './choir.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import type { HfLink } from './hf.ts';
+import { type Host, HostError } from './host.ts';
 import type { ModelManager } from './models.ts';
+import { INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
@@ -87,6 +107,12 @@ export interface AppDeps {
   invite: (url?: string) => Promise<{ code: string; url: string }>;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
+  /** Who may sign in from other devices. */
+  people: People;
+  /** Host mode: this Hildegard at a link. */
+  host: Host;
+  /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
+  limits?: { perName: number; perClient: number };
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -124,22 +150,32 @@ const CreateShot = z.object({
 });
 
 export function createApp(deps: AppDeps) {
-  const { config, store, scheduler, catalog, mediaDir } = deps;
+  const { config, store, scheduler, catalog, mediaDir, people, host } = deps;
   mkdirSync(join(mediaDir, 'uploads'), { recursive: true });
-  const app = new Hono();
+  const app = new Hono<HgEnv>();
   // The address it is bound to is allowed too (a Tailscale IP, say); names must be listed with --allow-host.
   const bound = ['0.0.0.0', '::'].includes(config.host)
     ? []
     : [config.host.includes(':') ? `[${config.host}]` : config.host];
-  const allowedHosts = new Set([...LOOPBACK, ...bound, ...config.allowedHosts].map((h) => h.toLowerCase()));
+  const fixedHosts = new Set([...LOOPBACK, ...bound, ...config.allowedHosts].map((h) => h.toLowerCase()));
+  // Host mode adds its link's name, and the Tailscale address it answers on, while it is on.
+  const allowed = (h: string) => {
+    if (fixedHosts.has(h)) return true;
+    const cur = host.current();
+    if (!cur.on) return false;
+    const addr = cur.address?.includes(':') ? `[${cur.address}]` : cur.address;
+    return cur.names.includes(h) || h === addr;
+  };
 
   // ── Security: DNS-rebinding and cross-site request protection ─────────────────────────────────────────────
   app.use('*', async (c, next) => {
-    const host = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
-    if (!allowedHosts.has(host)) return c.text('Unknown host', 421);
+    const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+    if (!allowed(hostName)) return c.text('Unknown host', 421);
     const method = c.req.method;
     // Paired devices authenticate with a bearer key, which a browser never sends on its own.
     const paired = c.req.path.startsWith('/api/node/');
+    // Behind the link there is the Studio and nothing else: never the paired-device API.
+    if (paired && c.env?.hosted) return c.body(null, 404);
     if (!paired && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
       // Browsers cannot add this header cross-site without a CORS preflight, which this server never grants.
       if (c.req.header('x-hildegard') !== '1') return c.json({ error: 'Missing x-hildegard header' }, 403);
@@ -147,7 +183,7 @@ export function createApp(deps: AppDeps) {
       if (origin) {
         try {
           const o = new URL(origin);
-          if (!allowedHosts.has(o.hostname.toLowerCase()) && !allowedHosts.has(`[${o.hostname}]`))
+          if (!allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
             return c.json({ error: 'Cross-site request refused' }, 403);
         } catch {
           return c.json({ error: 'Bad origin' }, 403);
@@ -161,6 +197,55 @@ export function createApp(deps: AppDeps) {
     c.header('cross-origin-opener-policy', 'same-origin');
     c.header('cross-origin-resource-policy', 'same-origin');
   });
+
+  // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
+  const cookieOf = (c: Context) => getCookie(c, COOKIE.secure) ?? getCookie(c, COOKIE.plain);
+  const sendCookie = (c: Context, token: string) =>
+    setCookie(c, secureRequest(c) ? COOKIE.secure : COOKIE.plain, token, {
+      httpOnly: true,
+      secure: secureRequest(c),
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: Math.floor(SESSION.maxMs / 1000),
+    });
+  const dropCookie = (c: Context) => {
+    deleteCookie(c, COOKIE.plain, { path: '/' });
+    if (secureRequest(c)) deleteCookie(c, COOKIE.secure, { path: '/', secure: true });
+  };
+  app.use('*', async (c, next) => {
+    const path = c.req.path;
+    // Paired devices bring their own key, checked by the node API.
+    if (path.startsWith('/api/node/')) return next();
+    let who: Who | null = null;
+    let rotated: string | null = null;
+    if (fromThisComputer(c)) who = { kind: 'local' };
+    else {
+      const token = cookieOf(c);
+      const signed = token ? people.authenticate(token) : null;
+      if (signed) {
+        who = { kind: 'person', person: signed.person, session: signed.session };
+        rotated = signed.rotated;
+      }
+    }
+    c.set('who', who);
+    if (!who && !open(c.req.method, path))
+      return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
+    if (who?.kind === 'person' && who.person.role === 'director' && !directorMay(c.req.method, path))
+      return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    if (rotated) sendCookie(c, rotated);
+    await next();
+  });
+  const whoOf = (c: Context) => c.get('who');
+  /** The owner, here or signed in from elsewhere. */
+  const isOwner = (c: Context) => {
+    const w = whoOf(c);
+    return w?.kind === 'local' || (w?.kind === 'person' && w.person.role === 'owner');
+  };
+  const personOf = (c: Context) => {
+    const w = whoOf(c);
+    return w?.kind === 'person' ? w.person : null;
+  };
+  const sees = (c: Context, projectId: string) => seesProject(whoOf(c), store.projects.get(projectId));
 
   const snapshot = (): Snapshot => ({
     version: VERSION,
@@ -179,7 +264,7 @@ export function createApp(deps: AppDeps) {
   if (deps.node) app.route('/api/node', deps.node);
 
   // ── This computer: stopping, and linking AI apps. Only from this computer itself, never over the network. ─────
-  const local = (c: Context) => LOOPBACK.has((c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, ''));
+  const local = (c: Context) => whoOf(c)?.kind === 'local';
   app.post('/api/system/stop', (c) => {
     if (!local(c)) return c.json({ error: 'Only this computer can stop Hildegard.' }, 403);
     if (!deps.onStop) return c.json({ error: 'This server can’t stop itself.' }, 501);
@@ -201,7 +286,7 @@ export function createApp(deps: AppDeps) {
       action === 'connect' ? connectAgent(agentId, mcpCommand({ url: deps.url })) : disconnectAgent(agentId);
     return c.json({ step, agents: listAgents() }, step.status === 'failed' ? 500 : 200);
   });
-  app.get('/api/snapshot', (c) => c.json(snapshot()));
+  app.get('/api/snapshot', (c) => c.json(snapshotFor(whoOf(c), snapshot())));
   app.get('/api/catalog', (c) => {
     c.header('cache-control', 'no-cache');
     return c.json(catalog);
@@ -209,6 +294,7 @@ export function createApp(deps: AppDeps) {
 
   app.get('/api/events', (c) =>
     streamSSE(c, async (stream) => {
+      let who = whoOf(c);
       const queue: ServerEvent[] = [];
       let wake: (() => void) | null = null;
       const off = store.on((e) => {
@@ -220,32 +306,59 @@ export function createApp(deps: AppDeps) {
         queue.push(e);
         wake?.();
       });
+      // Someone removed, signed out or given another role: look again at once.
+      let recheck = false;
+      const offPeople = people.on(() => {
+        recheck = true;
+        wake?.();
+      });
       stream.onAbort(() => {
         off();
+        offPeople();
         wake?.();
       });
       // The snapshot is taken in the same tick as the subscription, so no change can fall between the two.
-      const hello = JSON.stringify({ version: VERSION, snapshot: snapshot() });
-      await stream.writeSSE({ event: 'hello', data: hello });
+      const first = snapshotFor(who, snapshot());
+      const sent = new Set<string>([
+        ...first.projects.map((p) => p.id),
+        ...first.shots.map((x) => x.id),
+        ...first.takes.map((t) => t.id),
+        ...first.exports.map((x) => x.id),
+      ]);
+      const filter = eventFilter((id) => store.projects.get(id), sent);
+      await stream.writeSSE({ event: 'hello', data: JSON.stringify({ version: VERSION, snapshot: first }) });
       while (!stream.aborted) {
-        if (!queue.length) {
+        if (!queue.length && !recheck) {
           await Promise.race([new Promise<void>((r) => (wake = r)), stream.sleep(15_000)]);
           wake = null;
-          if (!queue.length) {
-            await stream.writeSSE({ event: 'ping', data: '{}' });
-            continue;
-          }
         }
-        const batch = queue.splice(0);
-        await stream.writeSSE({ event: 'batch', data: JSON.stringify(batch) });
+        if (who?.kind === 'person') {
+          recheck = false;
+          const person = people.session(who.session);
+          // Signed out or removed: the stream ends, and the Studio asks them to sign in.
+          if (!person) break;
+          who = { ...who, person };
+        }
+        if (!queue.length) {
+          await stream.writeSSE({ event: 'ping', data: '{}' });
+          continue;
+        }
+        const batch = queue
+          .splice(0)
+          .map((e) => filter(who, e))
+          .filter((e): e is ServerEvent => e !== null);
+        if (batch.length) await stream.writeSSE({ event: 'batch', data: JSON.stringify(batch) });
       }
       off();
+      offPeople();
     }),
   );
 
   // ── Projects ────────────────────────────────────────────────────────────────────────────────────────────────
-  const newProject = (title = 'Untitled film'): Project => {
+  /** A new film: the person who asked for it owns it, or nobody when it is this computer's own. */
+  const newProject = (owner: string | undefined, title = 'Untitled film'): Project => {
     const p: Project = { id: id(), title, createdAt: now(), updatedAt: now(), shotIds: [] };
+    if (owner) p.owner = owner;
     store.putProject(p);
     return p;
   };
@@ -255,12 +368,12 @@ export function createApp(deps: AppDeps) {
       .object({ title: z.string().trim().min(1).max(120).optional() })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give the film a title of up to 120 characters' }, 400);
-    return c.json(newProject(body.data.title), 201);
+    return c.json(newProject(personOf(c)?.id, body.data.title), 201);
   });
 
   app.patch('/api/projects/:id', async (c) => {
     const p = store.projects.get(c.req.param('id'));
-    if (!p) return c.json({ error: 'No such film' }, 404);
+    if (!p || !sees(c, p.id)) return c.json({ error: 'No such film' }, 404);
     const body = z
       .object({ title: z.string().trim().min(1).max(120) })
       .safeParse(await c.req.json().catch(() => null));
@@ -272,6 +385,7 @@ export function createApp(deps: AppDeps) {
 
   // ── Export film ─────────────────────────────────────────────────────────────────────────────────────────────
   app.post('/api/projects/:id/export', (c) => {
+    if (!sees(c, c.req.param('id'))) return c.json({ error: 'No such film' }, 404);
     try {
       return c.json(deps.exporter.start(c.req.param('id')), 202);
     } catch (e) {
@@ -281,9 +395,9 @@ export function createApp(deps: AppDeps) {
   });
   app.get('/api/exports/:id', (c) => {
     const e = deps.exporter.get(c.req.param('id'));
-    if (!e) return c.json({ error: 'No such export' }, 404);
+    if (!e || !sees(c, e.projectId)) return c.json({ error: 'No such export' }, 404);
     // Where the file is on this computer, for agents running here.
-    return c.json({ ...e, file: e.status === 'done' ? deps.exporter.file(e) : null });
+    return c.json({ ...e, file: e.status === 'done' && local(c) ? deps.exporter.file(e) : null });
   });
 
   // ── Shots and takes ─────────────────────────────────────────────────────────────────────────────────────────
@@ -308,10 +422,11 @@ export function createApp(deps: AppDeps) {
     }
 
     let shot = body.shotId ? store.shots.get(body.shotId) : undefined;
-    if (body.shotId && !shot) return c.json({ error: 'No such shot' }, 404);
+    if (body.shotId && (!shot || !sees(c, shot.projectId))) return c.json({ error: 'No such shot' }, 404);
     let project = store.projects.get(shot?.projectId ?? body.projectId ?? '');
-    if (body.projectId && !project) return c.json({ error: 'No such film' }, 404);
-    project ??= newProject();
+    if (body.projectId && (!project || !sees(c, project.id))) return c.json({ error: 'No such film' }, 404);
+    const person = personOf(c);
+    project ??= newProject(person?.id);
     if (!shot) {
       shot = {
         id: id(),
@@ -337,6 +452,7 @@ export function createApp(deps: AppDeps) {
             status: 'queued',
             priority,
             source: body.agent ? { kind: 'agent', name: body.agent } : { kind: 'studio' },
+            ...(person ? { by: { id: person.id, name: person.name } } : {}),
             request,
             seed,
             model: composed.model.id,
@@ -375,17 +491,18 @@ export function createApp(deps: AppDeps) {
   /** One shot with its takes. Finished takes include the video's path on this computer, for local agents. */
   app.get('/api/shots/:id', (c) => {
     const shot = store.shots.get(c.req.param('id'));
-    if (!shot) return c.json({ error: 'No such shot' }, 404);
+    if (!shot || !sees(c, shot.projectId)) return c.json({ error: 'No such shot' }, 404);
     const takes = shot.takeIds.map((t) => store.takes.get(t)).filter((t): t is Take => !!t);
-    const files = Object.fromEntries(
-      takes.filter((t) => t.video).map((t) => [t.id, join(mediaDir, `${t.id}.mp4`)]),
-    );
+    // Paths on this computer mean nothing elsewhere, and say more than they should.
+    const files = local(c)
+      ? Object.fromEntries(takes.filter((t) => t.video).map((t) => [t.id, join(mediaDir, `${t.id}.mp4`)]))
+      : {};
     return c.json({ shot, takes, files });
   });
 
   app.patch('/api/shots/:id', async (c) => {
     const s = store.shots.get(c.req.param('id'));
-    if (!s) return c.json({ error: 'No such shot' }, 404);
+    if (!s || !sees(c, s.projectId)) return c.json({ error: 'No such shot' }, 404);
     const body = z
       .object({ title: z.string().trim().min(1).max(120) })
       .safeParse(await c.req.json().catch(() => null));
@@ -402,7 +519,7 @@ export function createApp(deps: AppDeps) {
 
   app.delete('/api/shots/:id', async (c) => {
     const s = store.shots.get(c.req.param('id'));
-    if (!s) return c.json({ error: 'No such shot' }, 404);
+    if (!s || !sees(c, s.projectId)) return c.json({ error: 'No such shot' }, 404);
     for (const tid of s.takeIds) {
       scheduler.cancel(tid);
       const t = store.takes.get(tid);
@@ -420,7 +537,7 @@ export function createApp(deps: AppDeps) {
 
   const takeAction = (fn: (t: Take, c: Context) => Promise<Response> | Response) => async (c: Context) => {
     const t = store.takes.get(c.req.param('id') ?? '');
-    if (!t) return c.json({ error: 'No such take' }, 404);
+    if (!t || !sees(c, t.projectId)) return c.json({ error: 'No such take' }, 404);
     return fn(t, c);
   };
 
@@ -433,7 +550,11 @@ export function createApp(deps: AppDeps) {
   app.post(
     '/api/takes/:id/force',
     takeAction(async (t, c) => {
-      const interrupt = (await c.req.json().catch(() => ({})))?.interrupt !== false;
+      // A director may stop only their own render to make room, never someone else's.
+      const running = scheduler.runningTake();
+      const interrupt =
+        (await c.req.json().catch(() => ({})))?.interrupt !== false &&
+        (isOwner(c) || (!!running && sees(c, running.projectId)));
       return scheduler.force(t.id, interrupt)
         ? c.json(t)
         : c.json({ error: 'Only a waiting take can be forced' }, 409);
@@ -472,6 +593,8 @@ export function createApp(deps: AppDeps) {
 
   app.get('/api/takes/:id/preview', (c) => {
     const id = c.req.param('id');
+    const take = store.takes.get(id);
+    if (!take || !sees(c, take.projectId)) return c.body(null, 404);
     const p = scheduler.previews.get(id);
     if (!p) {
       // The take finished between the event and this request: its last preview is now the poster.
@@ -623,7 +746,7 @@ export function createApp(deps: AppDeps) {
   app.post('/api/hf/oauth/start', (c) => {
     // Hugging Face accepts any port on a loopback redirect, so browser sign-in works only from this computer.
     const u = new URL(c.req.url);
-    if (!LOOPBACK.has(u.hostname))
+    if (!LOOPBACK.has(u.hostname) || !local(c))
       return c.json({ error: 'Sign in from this computer, or use a code from another device' }, 409);
     try {
       return c.json({ url: deps.hf.beginOAuth(`${u.protocol}//${u.host}/api/hf/callback`) });
@@ -667,6 +790,192 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  // ── Signing in, from other devices ─────────────────────────────────────────────────────────────────────────
+  const perName = new Limiter(deps.limits?.perName ?? 10, 15 * 60_000);
+  const perClient = new Limiter(deps.limits?.perClient ?? 30, 15 * 60_000);
+  /** Too many wrong tries: from this address, or at this account from anywhere. */
+  const limited = (c: Context, keys: string[]) => {
+    const wait = Math.max(...keys.map((k) => (k.startsWith('name:') ? perName : perClient).wait(k)));
+    if (!wait) return null;
+    c.header('retry-after', String(wait));
+    return c.json(
+      {
+        error: `Too many tries. Wait ${wait > 90 ? `${Math.ceil(wait / 60)} minutes` : `${wait} seconds`}, then try again.`,
+      },
+      429,
+    );
+  };
+  const failed = (keys: string[]) => {
+    for (const k of keys) (k.startsWith('name:') ? perName : perClient).fail(k);
+  };
+  const authState = (c: Context): AuthState => ({
+    local: local(c),
+    person: personOf(c),
+    owner: people.hasOwner(),
+  });
+  const peopleFail = (c: Context, e: unknown) => {
+    if (e instanceof PeopleError) return c.json({ error: e.message }, e.status);
+    throw e;
+  };
+  const Credentials = z.object({ name: z.string().max(200), passphrase: z.string().max(1024) });
+
+  app.get('/api/auth/me', (c) => {
+    c.header('cache-control', 'no-store');
+    return c.json(authState(c));
+  });
+  app.post('/api/auth/signin', async (c) => {
+    c.header('cache-control', 'no-store');
+    const body = Credentials.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give your name and passphrase.' }, 400);
+    const keys = [`client:${clientKey(c)}`, `name:${body.data.name.trim().toLocaleLowerCase()}`];
+    const refused = limited(c, keys);
+    if (refused) return refused;
+    const r = await people.signIn(body.data.name, body.data.passphrase);
+    if (!r) {
+      failed(keys);
+      return c.json({ error: 'That name and passphrase don’t match.' }, 401);
+    }
+    perName.clear(keys[1]!);
+    sendCookie(c, r.token);
+    return c.json({ local: local(c), person: r.person, owner: true } satisfies AuthState);
+  });
+  app.post('/api/auth/signout', (c) => {
+    const token = cookieOf(c);
+    if (token) people.signOut(token);
+    dropCookie(c);
+    return c.json({ local: local(c), person: null, owner: people.hasOwner() } satisfies AuthState);
+  });
+  app.get('/api/auth/invite/:token', (c) => {
+    c.header('cache-control', 'no-store');
+    const keys = [`client:${clientKey(c)}`];
+    const refused = limited(c, keys);
+    if (refused) return refused;
+    const invite = people.checkInvite(c.req.param('token'));
+    if (!invite) {
+      failed(keys);
+      return c.json({ error: 'This invite has been used or has expired. Ask for a new one.' }, 404);
+    }
+    return c.json({ role: invite.role, expiresAt: invite.expiresAt });
+  });
+  app.post('/api/auth/invite/:token/accept', async (c) => {
+    c.header('cache-control', 'no-store');
+    const keys = [`client:${clientKey(c)}`];
+    const refused = limited(c, keys);
+    if (refused) return refused;
+    const body = Credentials.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Choose a name and a passphrase.' }, 400);
+    try {
+      const r = await people.acceptInvite(c.req.param('token'), body.data.name, body.data.passphrase);
+      sendCookie(c, r.token);
+      return c.json({ local: local(c), person: r.person, owner: true } satisfies AuthState, 201);
+    } catch (e) {
+      if (e instanceof PeopleError && e.status === 404) failed(keys);
+      return peopleFail(c, e);
+    }
+  });
+
+  // ── People: the owner invites, changes roles and removes ────────────────────────────────────────────────────
+  const ownerOnly = (c: Context) =>
+    isOwner(c) ? null : c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+  const peopleList = (): PeopleResponse => ({ people: people.list(), invites: people.invites() });
+  app.get('/api/people', (c) => ownerOnly(c) ?? c.json(peopleList()));
+  app.post('/api/people/owner', async (c) => {
+    if (!local(c)) return c.json({ error: 'Make the owner account on the computer Hildegard runs on.' }, 403);
+    const body = Credentials.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give a name and a passphrase.' }, 400);
+    try {
+      const owner = await people.setOwner(body.data.name, body.data.passphrase);
+      store.emit({ type: 'host', host: host.state() });
+      return c.json({ owner, ...peopleList() }, owner.created ? 201 : 200);
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+  app.post('/api/people/invites', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({ role: z.enum(['owner', 'director']).default('director'), hours: z.number().optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Choose director or owner.' }, 400);
+    try {
+      const { invite, token } = people.invite(body.data.role, body.data.hours ?? INVITE_HOURS.default);
+      // The link goes where people reach this Hildegard: its host link, or the address this page came from.
+      const base = host.state().url ?? (local(c) ? null : new URL(c.req.url).origin);
+      c.header('cache-control', 'no-store');
+      return c.json({ invite, url: `${base ?? deps.url ?? ''}/#/invite/${token}` } satisfies NewInvite, 201);
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+  app.delete('/api/people/invites/:id', (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    try {
+      people.cancelInvite(c.req.param('id'));
+      return c.json(peopleList());
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+  app.patch('/api/people/:id', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({ role: z.enum(['owner', 'director']) })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Choose director or owner.' }, 400);
+    try {
+      people.setRole(c.req.param('id'), body.data.role, personOf(c)?.id ?? null);
+      return c.json(peopleList());
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+  app.delete('/api/people/:id', (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    try {
+      people.revoke(c.req.param('id'), personOf(c)?.id ?? null);
+      return c.json(peopleList());
+    } catch (e) {
+      return peopleFail(c, e);
+    }
+  });
+
+  // ── Host mode: the link. Turning it on or off changes this computer, so only this computer may. ───────────
+  const hostFail = (c: Context, e: unknown) => {
+    if (e instanceof HostError) return c.json({ error: e.message, fix: e.fix }, e.status);
+    throw e;
+  };
+  app.get('/api/host', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    await host.tailscale();
+    return c.json(host.state());
+  });
+  app.post('/api/host', async (c) => {
+    if (!local(c))
+      return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
+    const body = z
+      .object({
+        via: z.enum(['tailscale', 'funnel', 'address']).optional(),
+        address: z.string().max(64).optional(),
+      })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Choose tailscale, funnel or address.' }, 400);
+    try {
+      return c.json(await host.on(body.data));
+    } catch (e) {
+      return hostFail(c, e);
+    }
+  });
+  app.post('/api/host/off', async (c) => {
+    if (!local(c))
+      return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
+    return c.json(await host.off());
+  });
+
   // ── Uploads (start frames) ─────────────────────────────────────────────────────────────────────────────────
   app.post('/api/uploads', async (c) => {
     const len = Number(c.req.header('content-length') ?? 0);
@@ -693,6 +1002,15 @@ export function createApp(deps: AppDeps) {
     if (!/^((uploads|exports)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..')) return c.body(null, 404);
     const file = resolve(mediaDir, rel);
     if (!file.startsWith(resolve(mediaDir) + sep)) return c.body(null, 404);
+    // A take's video and poster, or a film's export, only for those who may see the film. Start frames are named
+    // by their own SHA-256, so only someone who has the image can ask for it.
+    if (!isOwner(c) && !rel.startsWith('uploads/')) {
+      const name = rel.replace(/^exports\//, '').replace(/\.[a-z0-9]+$/, '');
+      const projectId = rel.startsWith('exports/')
+        ? deps.exporter.get(name)?.projectId
+        : store.takes.get(name)?.projectId;
+      if (!projectId || !sees(c, projectId)) return c.body(null, 404);
+    }
     const res = sendFile(
       c,
       file,

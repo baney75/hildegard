@@ -22,6 +22,11 @@ export interface Config {
   hfClientId: string | null;
   /** Extra host names this server answers to (for example a Tailscale name). */
   allowedHosts: string[];
+  /**
+   * The port on 127.0.0.1 that Tailscale Serve and Funnel forward to, where everyone signs in. Given, it is always
+   * open; otherwise it is the next port up, open only while host mode is on through Tailscale.
+   */
+  hostPort: number | null;
 }
 
 export function defaultDataDir(env = process.env): string {
@@ -69,5 +74,9 @@ export function parseArgs(argv: string[], env = process.env): Config {
     uiDir: opt('ui') ?? env.HILDEGARD_UI_DIR ?? null,
     hfClientId: env.HILDEGARD_HF_CLIENT_ID ?? null,
     allowedHosts: (opt('allow-host') ?? env.HILDEGARD_ALLOWED_HOSTS ?? '').split(',').filter(Boolean),
+    hostPort:
+      opt('host-port') || env.HILDEGARD_HOST_PORT
+        ? Number(opt('host-port') ?? env.HILDEGARD_HOST_PORT)
+        : null,
   };
 }

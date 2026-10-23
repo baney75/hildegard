@@ -185,6 +185,11 @@ export class Scheduler {
     );
   }
 
+  /** The take rendering now, when it is one of this computer's own rather than a paired device's. */
+  runningTake(): Take | null {
+    return this.running ? (this.store.takes.get(this.running.id) ?? null) : null;
+  }
+
   /** How many renders are waiting or running, paired devices' included. */
   load(): number {
     return this.order().length + (this.running ? 1 : 0);

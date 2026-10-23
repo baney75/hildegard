@@ -25,6 +25,8 @@ export interface Take {
   priority: Priority;
   /** Who asked: the Studio, or an agent by name. */
   source: { kind: 'studio' } | { kind: 'agent'; name: string };
+  /** The person signed in from another device who asked for it; absent when it came from this computer. */
+  by?: { id: string; name: string };
   request: ShotRequest;
   seed: number;
   model: string;
@@ -68,6 +70,8 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   shotIds: string[];
+  /** The person, signed in from another device, whose film it is; absent for the owner's own films. */
+  owner?: string;
 }
 
 export interface EngineState {
@@ -174,6 +178,71 @@ export interface Snapshot {
   choir: ChoirState;
 }
 
+/** Owners may do everything; directors make films of their own and nothing else. */
+export type Role = 'owner' | 'director';
+
+/** Someone who signs in to this Hildegard from another device. */
+export interface Person {
+  id: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+  /** When they last used Hildegard, if they have signed in. */
+  lastSeenAt: string | null;
+  /** Devices they are signed in on. */
+  sessions: number;
+}
+
+/** An invite link that has not been used yet. The link itself is shown once, when it is made. */
+export interface PendingInvite {
+  id: string;
+  role: Role;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/** GET /api/auth/me: who this browser is. */
+export interface AuthState {
+  /** On the computer Hildegard runs on: no sign-in, and every power, as always. */
+  local: boolean;
+  /** Signed in from another device. */
+  person: { id: string; name: string; role: Role } | null;
+  /** An owner account exists, so people can sign in from other devices. */
+  owner: boolean;
+}
+
+/** Host mode: Hildegard at a link, for you and the people you invite. */
+export interface HostState {
+  on: boolean;
+  /**
+   * How people reach it: Tailscale Serve (HTTPS on your tailnet), Tailscale Funnel (HTTPS on the public internet),
+   * or this computer's own Tailscale address (plain HTTP inside the tailnet, which WireGuard encrypts).
+   */
+  via: 'tailscale' | 'funnel' | 'address' | null;
+  /** The link to open, once it works. */
+  url: string | null;
+  /** Why the link doesn't work right now, in a sentence. */
+  problem: string | null;
+  /** What the owner must do about the problem, when it is theirs to do: a command or a page to open. */
+  fix: string | null;
+  /** Tailscale on this computer. */
+  tailscale: { running: boolean; name: string | null; ip: string | null };
+  /** An owner account exists. */
+  owner: boolean;
+}
+
+/** GET /api/people */
+export interface PeopleResponse {
+  people: Person[];
+  invites: PendingInvite[];
+}
+
+/** POST /api/people/invites. `url` holds the one-time secret: show it once, never log it. */
+export interface NewInvite {
+  invite: PendingInvite;
+  url: string;
+}
+
 /** Server-sent events on /api/events. */
 export type ServerEvent =
   | { type: 'take'; take: Take }
@@ -184,7 +253,8 @@ export type ServerEvent =
   | { type: 'models'; models: ModelState[] }
   | { type: 'hf'; hf: HfState }
   | { type: 'export'; export: ExportState }
-  | { type: 'choir'; choir: ChoirState };
+  | { type: 'choir'; choir: ChoirState }
+  | { type: 'host'; host: HostState };
 
 /** POST /api/shots */
 export interface CreateShotBody {
