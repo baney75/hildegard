@@ -48,7 +48,15 @@ function TakeCardImpl({ take: t, selected, online, paused, left, onSelect, onFor
   const aspect = `${t.width} / ${t.height}`;
   let status: string;
   if (t.status === 'running')
-    status = left ? `Rendering · ${left} left` : t.progress?.value ? `Rendering · ${pct}%` : 'Starting';
+    // Past the sampler's last step the video still decodes and saves, which reports no steps of its own.
+    status =
+      (t.progress?.value ?? 0) >= 1
+        ? 'Rendering · finishing'
+        : left
+          ? `Rendering · ${left} left`
+          : t.progress?.value
+            ? `Rendering · ${pct}%`
+            : 'Starting';
   else if (t.status === 'queued') status = waitingFor(t, { online, paused });
   else if (t.status === 'failed') status = t.error?.message ?? 'Failed';
   else if (t.status === 'canceled') status = 'Canceled';

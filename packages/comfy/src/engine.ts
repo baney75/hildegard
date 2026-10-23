@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Comfy, type Job } from '@comfyorg/sdk';
+import { Comfy, type ComfyEvent, type Job, type Progress } from '@comfyorg/sdk';
+import { ComfyLow } from '@comfyorg/sdk/low';
 import type { BuiltGraph } from './graph.ts';
 
 export interface RenderProgress {
@@ -95,6 +96,8 @@ export function classifyFailure(code: string | undefined, message: string | unde
 export class ComfySdkEngine implements Engine {
   readonly url: string;
   private readonly client: Comfy;
+  /** For the raw event stream: `Job.events()` drops any progress frame lower than the last, see {@link liveEvents}. */
+  private readonly low: ComfyLow;
 
   constructor(baseUrl: string) {
     const u = new URL(baseUrl);
@@ -110,6 +113,7 @@ export class ComfySdkEngine implements Engine {
     delete process.env.COMFY_API_KEY;
     try {
       this.client = new Comfy({ clientInfo: 'hildegard' } as ConstructorParameters<typeof Comfy>[0]);
+      this.low = new ComfyLow(this.url, undefined, { clientInfo: 'hildegard' });
     } finally {
       if (prevUrl === undefined) delete process.env.COMFY_BASE_URL;
       else process.env.COMFY_BASE_URL = prevUrl;
@@ -156,7 +160,7 @@ export class ComfySdkEngine implements Engine {
       handlers.onQueued?.(job.queuePosition ?? null);
       let started = false;
       try {
-        for await (const ev of job.events(signal)) {
+        for await (const ev of this.liveEvents(job, signal)) {
           if (ev.kind === 'statusChange') {
             if (ev.status === 'queued') handlers.onQueued?.(ev.queuePosition);
             if (ev.status === 'running' && !started) {
@@ -197,6 +201,42 @@ export class ComfySdkEngine implements Engine {
     }
   }
 
+  /**
+   * The job's live events, every progress frame included. The SDK's own `Job.events()` keeps progress monotonic by
+   * `value`, but comfy-api-proxy's `value` reads 1 once the text encoders finish and then drops back while sampling,
+   * so through it no sampler step ever arrives. Reconnects a few times, without replay, like the SDK.
+   */
+  private async *liveEvents(job: Job, signal?: AbortSignal): AsyncGenerator<ComfyEvent, void, void> {
+    const url = job.urls.events || job.id;
+    for (let drops = 0; drops < 4; drops++) {
+      try {
+        for await (const raw of this.low.getJobEvents(url, { signal })) {
+          const data = raw.data;
+          if (raw.event === 'progress') yield progressFrame(data);
+          else if (raw.event === 'status') {
+            const status = typeof data.status === 'string' ? data.status : '';
+            const queuePosition = typeof data.queue_position === 'number' ? data.queue_position : null;
+            yield { kind: 'statusChange', status, queuePosition };
+            if (TERMINAL.has(status)) return;
+          } else if (raw.event === 'preview' && typeof data.data_base64 === 'string') {
+            yield {
+              kind: 'preview',
+              nodeId: typeof data.node_id === 'string' ? data.node_id : '',
+              contentType:
+                typeof data.content_type === 'string' ? data.content_type : 'application/octet-stream',
+              data: new Uint8Array(Buffer.from(data.data_base64, 'base64')),
+            };
+          }
+        }
+      } catch (e) {
+        if (signal?.aborted) throw e;
+      }
+      await job.refresh(signal);
+      if (TERMINAL.has(job.status)) return;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
   private wrap(e: unknown): EngineError {
     if (e instanceof EngineError) return e;
     const err = e as { code?: string; message?: string; name?: string; cause?: { code?: string } };
@@ -212,19 +252,31 @@ export class ComfySdkEngine implements Engine {
   }
 }
 
+const TERMINAL = new Set(['succeeded', 'failed', 'canceled']);
+
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+function progressFrame(data: Record<string, unknown>): Progress {
+  return {
+    kind: 'progress',
+    value: num(data.value) ?? 0,
+    message: typeof data.message === 'string' ? data.message : null,
+    nodesDone: num(data.nodes_done),
+    nodesTotal: num(data.nodes_total),
+    currentNode: typeof data.current_node === 'string' ? data.current_node : null,
+    currentNodeClass: typeof data.current_node_class === 'string' ? data.current_node_class : null,
+    step: num(data.step),
+    steps: num(data.steps),
+  };
+}
+
 /**
- * How far a render is, 0 to 1, from one progress frame: the sampler's steps when it reports them, else the share of
- * nodes done. A bare "this node finished" frame (value 1 with neither) says nothing about the whole render, so it's
- * null rather than a full bar.
+ * How far a render is, 0 to 1, from one progress frame: the sampler's steps, and nothing else. The proxy's `value`
+ * and its node counts are guesses about a graph it hasn't finished walking (they read 100% after the text encoders),
+ * so outside sampling, while models load or the video decodes, this is null and the UI shows it as working, not as a
+ * number.
  */
-export function progressOf(ev: {
-  value: number;
-  step: number | null;
-  steps: number | null;
-  nodesDone: number | null;
-  nodesTotal: number | null;
-}): number | null {
-  if (ev.step !== null && ev.steps) return Math.min(1, ev.step / ev.steps);
-  if (ev.nodesDone !== null && ev.nodesTotal) return Math.min(1, ev.nodesDone / ev.nodesTotal);
-  return ev.value < 1 ? Math.max(0, ev.value) : null;
+export function progressOf(ev: { step: number | null; steps: number | null }): number | null {
+  if (ev.step === null || !ev.steps) return null;
+  return Math.min(1, Math.max(0, ev.step / ev.steps));
 }

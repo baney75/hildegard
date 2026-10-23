@@ -187,7 +187,8 @@ describe('ComfySdkEngine against the fake proxy', () => {
       },
     });
     expect(running).toBe(true);
-    expect(steps.at(-1)).toBe(8);
+    // Every sampler step arrives, though the proxy's `value` read 1 after the text encoders and fell back after.
+    expect(steps).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(previews).toBeGreaterThan(0);
     expect(statSync(dest).size).toBe(readFileSync(new URL('../fixtures/sample.mp4', import.meta.url)).length);
   });
@@ -290,20 +291,12 @@ describe('vetGraph', () => {
 });
 
 describe('progressOf', () => {
-  const frame = (over: Partial<Parameters<typeof progressOf>[0]>) => ({
-    value: 0,
-    step: null,
-    steps: null,
-    nodesDone: null,
-    nodesTotal: null,
-    ...over,
+  it('reads only the sampler’s steps', () => {
+    expect(progressOf({ step: 5, steps: 20 })).toBe(0.25);
+    expect(progressOf({ step: 20, steps: 20 })).toBe(1);
   });
-  it('reads the sampler’s steps first, then the share of nodes done', () => {
-    expect(progressOf(frame({ value: 1, step: 5, steps: 20 }))).toBe(0.25);
-    expect(progressOf(frame({ value: 1, nodesDone: 3, nodesTotal: 12 }))).toBe(0.25);
-    expect(progressOf(frame({ value: 0.4 }))).toBe(0.4);
-  });
-  it('ignores a bare “node finished” frame instead of showing a full bar', () => {
-    expect(progressOf(frame({ value: 1 }))).toBeNull();
+  it('says nothing outside sampling, where the proxy’s own numbers read 100% too early', () => {
+    expect(progressOf({ step: null, steps: null })).toBeNull();
+    expect(progressOf({ step: 0, steps: 0 })).toBeNull();
   });
 });

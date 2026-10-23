@@ -73,12 +73,14 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
     };
   };
 
+  // Shaped like comfy-api-proxy's real frames: `value` and the node counts are per-run guesses that read 100% after
+  // the text encoders and then fall back while sampling, so only step/steps say how far a render is.
   const progress = (j: FakeJob) =>
     j.status === 'running' || j.status === 'succeeded'
       ? {
-          value: j.steps ? j.step / j.steps : 0,
-          nodes_done: j.step,
-          nodes_total: j.steps,
+          value: j.steps ? 0.88 + (0.11 * j.step) / j.steps : 0,
+          nodes_done: 4,
+          nodes_total: 8,
           current_node: null,
           current_node_class: 'SamplerCustomAdvanced',
           step: j.step,
@@ -86,6 +88,17 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
           message: null,
         }
       : null;
+
+  const nodeDone = (done: number, total: number, cls: string) => ({
+    value: 1,
+    nodes_done: done,
+    nodes_total: total,
+    current_node: null,
+    current_node_class: cls,
+    step: null,
+    steps: null,
+    message: null,
+  });
 
   const queuePosition = (j: FakeJob) => {
     if (j.status !== 'queued') return null;
@@ -132,12 +145,19 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
     if (!running) return;
     const j = running;
     setStatus(j, 'running');
+    let encoded = false;
     const timer = setInterval(() => {
       if (j.status !== 'running') {
         clearInterval(timer);
         if (j.status === 'canceling') setStatus(j, 'canceled');
         running = undefined;
         pump();
+        return;
+      }
+      if (!encoded) {
+        // The text encoders take the first tick, as they finish before the sampler starts.
+        encoded = true;
+        emit(j, 'progress', nodeDone(4, 4, 'CLIPTextEncode'));
         return;
       }
       j.step++;
@@ -162,6 +182,7 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
       });
       if (j.step >= j.steps) {
         clearInterval(timer);
+        emit(j, 'progress', nodeDone(12, 12, 'VAEDecode'));
         const saveNode = Object.entries(j.workflow).find(([, n]) => n.class_type === 'SaveVideo')?.[0] ?? '';
         const id = randomUUID();
         assets.set(id, { bytes: video, type: 'video/mp4', name: 'hildegard_00001_.mp4', job: j.id });
