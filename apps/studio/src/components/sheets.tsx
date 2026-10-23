@@ -702,10 +702,18 @@ export function ModelRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [askingBig, setAskingBig] = useState(false);
   const dl = state?.downloading;
   const { name, blurb } = model;
-  const install = async (acceptLicense = false) => {
+  const tooBig = state?.fit === 'no';
+  const install = async (acceptLicense = false, big = false) => {
     if (!state) return;
+    // A model this computer can't run is a big download for nothing, unless they mean to; ask first.
+    if (tooBig && !big && !acceptLicense) {
+      setAskingBig(true);
+      return;
+    }
+    setAskingBig(false);
     // The license comes first, once per model and license version.
     if (!state.licenseAccepted && !acceptLicense) {
       setAsking(true);
@@ -769,11 +777,44 @@ export function ModelRow({
             Link Hugging Face
           </Button>
         ) : (
-          <Button size="sm" kind="primary" icon="download" onClick={() => install()} busy={busy}>
+          <Button
+            size="sm"
+            kind={tooBig ? undefined : 'primary'}
+            icon="download"
+            onClick={() => install()}
+            busy={busy}
+          >
             {state?.error ? 'Try again' : `Get · ${bytes(state?.missingBytes ?? 0)}`}
           </Button>
         )}
       </div>
+      {askingBig ? (
+        <Modal
+          open
+          onClose={() => setAskingBig(false)}
+          labelledBy={`big-${model.id}`}
+          variant="dialog"
+          className="st-dialog"
+        >
+          <div className="st-dialog__h">
+            <div style={{ flex: 1 }}>
+              <h2 id={`big-${model.id}`}>{name} is too big to render on this computer</h2>
+              <p>
+                It needs more GPU memory than this computer has, so takes would fail here. To use it, install
+                it on a paired device with a bigger GPU and render there.
+              </p>
+            </div>
+          </div>
+          <div className="st-dialog__f">
+            <Button kind="primary" onClick={() => setAskingBig(false)} data-autofocus="">
+              Not now
+            </Button>
+            <Button kind="ghost" icon="download" onClick={() => install(false, true)} busy={busy}>
+              Download anyway · {bytes(state?.missingBytes ?? 0)}
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
       {asking ? (
         <LicenseDialog
           model={model}
