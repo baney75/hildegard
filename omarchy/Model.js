@@ -40,6 +40,12 @@ function percent(v) {
   return Math.max(0, Math.min(100, Math.round((v || 0) * 100)))
 }
 
+// Under the panel's bar: a share while the sampler steps, then "Finishing" while the video decodes and saves.
+function progressLine(v) {
+  if (!v) return "Starting"
+  return v >= 1 ? "Finishing" : percent(v) + "%"
+}
+
 // The Studio route for a take: its film, opened at that take.
 function takeRoute(t) {
   return t && t.projectId && t.id ? "#/film/" + t.projectId + "/take/" + t.id : ""

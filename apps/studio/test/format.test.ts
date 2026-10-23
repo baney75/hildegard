@@ -89,6 +89,8 @@ describe('estimates', () => {
     expect(leftMs(running, 60_000, now)).toBe(10_000);
     expect(leftMs({ ...running, progress: { value: 0.05, step: 0, steps: 8 } }, 60_000, now)).toBe(50_000);
     expect(leftMs({ ...running, progress: null }, null, now)).toBeNull();
+    // Past the last step only decoding is left, which reports nothing to estimate from.
+    expect(leftMs({ ...running, progress: { value: 1, step: 8, steps: 8 } }, 60_000, now)).toBeNull();
   });
 });
 
@@ -175,6 +177,7 @@ describe('renders from paired devices', () => {
   it('say who sent them and how far along they are', () => {
     expect(guestLine(g)).toBe('From rectory1 · rendering · 42%');
     expect(guestLine({ ...g, progress: null })).toBe('From rectory1 · rendering');
+    expect(guestLine({ ...g, progress: 1 })).toBe('From rectory1 · rendering · finishing');
     expect(guestLine({ ...g, status: 'queued', queuePosition: 1, progress: null })).toBe(
       'From rectory1 · waiting · up next',
     );

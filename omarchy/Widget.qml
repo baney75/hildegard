@@ -196,6 +196,13 @@ Panel {
               Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
             }
           }
+          Text {
+            text: Model.progressLine(root.snap && root.snap.current ? root.snap.current.progress : 0)
+            textFormat: Text.PlainText
+            color: Qt.darker(root.fg, 1.3)
+            font.family: root.font
+            font.pixelSize: Style.font.bodySmall
+          }
         }
 
         // What just finished

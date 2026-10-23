@@ -149,9 +149,11 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <b style={{ fontWeight: 500 }}>{where}</b>
           <small className={t.status === 'failed' ? 'wrap' : undefined}>
             {t.status === 'running'
-              ? left !== null
-                ? `${about(left).replace('~', '')} left`
-                : `${pct}%`
+              ? pct >= 100
+                ? 'Finishing'
+                : left !== null
+                  ? `${about(left).replace('~', '')} left`
+                  : `${pct}%`
               : null}
             {t.status === 'queued'
               ? `${t.queuePosition ? ordinal(t.queuePosition) : 'Next'}${starts ? ` · starts in ${about(starts)}` : ''}${!engine?.online || engine.paused ? ` · ${waitingFor(t, { online: !!engine?.online, paused: !!engine?.paused })}` : ''}`
@@ -242,7 +244,9 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <b style={{ fontWeight: 500 }}>{where}</b>
           <small>
             {live
-              ? `${pct}%`
+              ? pct >= 100
+                ? 'Finishing'
+                : `${pct}%`
               : `${g.queuePosition ? ordinal(g.queuePosition) : 'Next'}${!engine?.online || engine.paused ? ` · ${waitingFor(g, { online: !!engine?.online, paused: !!engine?.paused })}` : ''}`}
           </small>
         </span>

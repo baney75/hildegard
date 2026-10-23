@@ -11,7 +11,7 @@ const M = {};
 // Arrays made inside the vm context have another realm's prototype; compare them by value.
 const same = (actual, expected) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 vm.runInNewContext(
-  `${source.replace(/^\.pragma library\n/, '')}\nObject.assign(M, { mark, plural, status, percent, takeRoute, ago, finished, actions })`,
+  `${source.replace(/^\.pragma library\n/, '')}\nObject.assign(M, { mark, plural, status, percent, progressLine, takeRoute, ago, finished, actions })`,
   { M },
 );
 
@@ -62,6 +62,12 @@ test('status', () => {
     M.status(up({ queue: { running: 1, queued: 2, guests: 2 }, engine: { online: true, paused: true } })),
     'Rendering 1 take, 2 waiting · 2 from other devices · paused',
   );
+});
+
+test('progressLine says starting, a share, then finishing', () => {
+  assert.equal(M.progressLine(0), 'Starting');
+  assert.equal(M.progressLine(0.5), '50%');
+  assert.equal(M.progressLine(1), 'Finishing');
 });
 
 test('percent clamps and rounds', () => {

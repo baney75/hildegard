@@ -105,7 +105,9 @@ export function leftMs(t: Take, history: number | null, now = Date.now()): numbe
   if (t.status !== 'running' || !t.startedAt) return null;
   const elapsed = Math.max(0, now - Date.parse(t.startedAt));
   const v = t.progress?.value ?? 0;
-  if (v >= 0.15 && v < 1) return (elapsed * (1 - v)) / v;
+  // Sampling is done; decoding and saving report nothing, so there's no honest time left to show.
+  if (v >= 1) return null;
+  if (v >= 0.15) return (elapsed * (1 - v)) / v;
   return history === null ? null : Math.max(0, history - elapsed);
 }
 
@@ -117,7 +119,7 @@ export function guestFrom(g: GuestTake): string {
 /** A paired device's render, in a line: "From rectory1 · rendering · 42%", "From rectory1 · waiting · up next". */
 export function guestLine(g: GuestTake): string {
   if (g.status === 'running')
-    return `${guestFrom(g)} · rendering${g.progress !== null ? ` · ${Math.round(g.progress * 100)}%` : ''}`;
+    return `${guestFrom(g)} · rendering${g.progress === null ? '' : g.progress >= 1 ? ' · finishing' : ` · ${Math.round(g.progress * 100)}%`}`;
   const place = g.queuePosition && g.queuePosition > 1 ? `${ordinal(g.queuePosition)} in line` : 'up next';
   return `${guestFrom(g)} · waiting · ${place}`;
 }
