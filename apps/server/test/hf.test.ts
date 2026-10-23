@@ -145,7 +145,8 @@ describe('HfLink', () => {
 });
 
 describe('secret stores', () => {
-  // A keyring whose reads work and writes fail, as on a Linux box whose Secret Service has no unlocked collection.
+  // A keyring whose reads work and whose writes may fail, as on a Linux box whose Secret Service has no unlocked
+  // collection.
   const keyring = (writes: boolean) => async () =>
     ({
       Entry: class {
@@ -158,18 +159,34 @@ describe('secret stores', () => {
         deletePassword() {}
       },
     }) as never;
+  const mac = (writes: boolean) => ({ load: keyring(writes), platform: 'darwin' as const });
 
   it('use files when the keychain reads but won’t take a write', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-secrets-'));
-    expect(await keychainStore('huggingface', {}, keyring(false))).toBeNull();
-    const store = (await secretStores(dir, {}, keyring(false)))('choir-parish1');
+    expect(await keychainStore('huggingface', {}, mac(false))).toBeNull();
+    const store = (await secretStores(dir, {}, mac(false)))('choir-parish1');
     expect(store.kind).toBe('file');
     store.set('key');
     expect(store.get()).toBe('key');
   });
 
+  it('use files on Linux without a Secret Service, where only the login session’s kernel keyring is left', async () => {
+    const linux = (up: boolean) => ({
+      load: keyring(true),
+      platform: 'linux' as const,
+      secretService: () => up,
+    });
+    expect(await keychainStore('huggingface', {}, linux(false))).toBeNull();
+    expect((await secretStores('/nowhere', {}, linux(false)))('choir-parish1').kind).toBe('file');
+    expect((await keychainStore('huggingface', {}, linux(true)))?.kind).toBe('keychain');
+  });
+
   it('use the keychain when it takes writes', async () => {
-    expect((await keychainStore('huggingface', {}, keyring(true)))?.kind).toBe('keychain');
-    expect((await secretStores('/nowhere', {}, keyring(true)))('choir-parish1').kind).toBe('keychain');
+    expect((await keychainStore('huggingface', {}, mac(true)))?.kind).toBe('keychain');
+    expect((await secretStores('/nowhere', {}, mac(true)))('choir-parish1').kind).toBe('keychain');
+  });
+
+  it('use files when asked to', async () => {
+    expect(await keychainStore('huggingface', { HILDEGARD_SECRETS: 'file' }, mac(true))).toBeNull();
   });
 });

@@ -189,18 +189,25 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
     }
 
     // PyTorch, ComfyUI's requirements and the proxy, in one resolve so the GPU build of torch is the one that stays.
+    // uv counts any torch as satisfied, so a CPU build from before the GPU was found would stay: reinstall it then.
+    const installedTorch = await run(L.python, ['-c', 'import torch; print(torch.__version__)'], {
+      log,
+    }).then(
+      (v) => v.trim(),
+      () => null,
+    );
+    const rebuild = installedTorch !== null && torchMismatch(installedTorch, gpu.torchBackend);
     const pkgArgs = [
       'pip',
       'install',
       '--python',
       L.python,
-      'torch',
-      'torchvision',
-      'torchaudio',
+      ...TORCH,
       '-r',
       join(L.comfyDir, 'requirements.txt'),
       PROXY,
       ...(gpu.torchBackend ? ['--torch-backend', gpu.torchBackend] : []),
+      ...(rebuild ? TORCH.flatMap((p) => ['--reinstall-package', p]) : []),
     ];
     const out = await run(uv, pkgArgs, { log });
     record({
@@ -249,9 +256,11 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
         title: 'Check the GPU works',
         status: 'needs-owner',
         detail: `PyTorch ${torchVersion} can't use the ${gpu.name}. ${
-          gpu.backend === 'cuda'
-            ? 'Update the NVIDIA driver, restart, then run `hildegard install` again.'
-            : 'Check the GPU driver is loaded, then run `hildegard install` again.'
+          torchVersion.endsWith('+cpu')
+            ? 'It’s the CPU build. Run `hildegard install` again to put the GPU build in.'
+            : gpu.backend === 'cuda'
+              ? 'Update the NVIDIA driver, restart, then run `hildegard install` again.'
+              : 'Check the GPU driver is loaded, then run `hildegard install` again.'
         }`,
         command: 'hildegard install --yes --json',
       });
@@ -410,4 +419,18 @@ export function run(
       }
     });
   });
+}
+
+const TORCH = ['torch', 'torchvision', 'torchaudio'];
+
+/**
+ * Whether the installed PyTorch is a different build from the one this GPU wants: a `+cpu` torch on a CUDA card, a
+ * `+cu126` on a card that now takes cu130, and so on. Builds without a local tag (macOS, plain PyPI) match only a
+ * backend uv doesn't tag either.
+ */
+export function torchMismatch(version: string, torchBackend: string | null): boolean {
+  if (!torchBackend) return false;
+  const tag = version.split('+')[1] ?? null;
+  if (torchBackend === 'cpu') return tag !== null && tag !== 'cpu';
+  return tag !== torchBackend;
 }

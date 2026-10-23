@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -25,18 +26,56 @@ export interface SecretStore {
 }
 
 type Keyring = typeof import('@napi-rs/keyring');
-const loadKeyring = (): Promise<Keyring> => import('@napi-rs/keyring');
+
+/** What decides whether secrets go to the keychain; tests swap these. */
+export interface KeychainDeps {
+  load?: () => Promise<Keyring>;
+  /** Whether a Secret Service (GNOME Keyring, KWallet) answers on the session bus. Only asked on Linux. */
+  secretService?: (env: NodeJS.ProcessEnv) => boolean;
+  platform?: NodeJS.Platform;
+}
 
 /**
- * The keyring's Entry class when this computer has a keychain that takes writes, otherwise null. Reading proves
- * little: a Linux box whose Secret Service has no unlocked collection reads fine (nothing there) and only fails, with
- * KeyRevoked, on the first write. So the probe writes and removes a throwaway entry.
+ * On Linux, the keyring library falls back to the kernel's session keyring when no Secret Service runs, and that
+ * keyring dies with the login session that started the server (an ssh session, say), after which every read and
+ * write fails with KeyRevoked. So the keychain counts only when a Secret Service is on the session bus, running or
+ * startable.
  */
-async function usableKeyring(
-  env: NodeJS.ProcessEnv,
-  load: () => Promise<Keyring>,
-): Promise<Keyring['Entry'] | null> {
+function secretServiceOnBus(env: NodeJS.ProcessEnv): boolean {
+  if (!env.DBUS_SESSION_BUS_ADDRESS) return false;
+  for (const method of ['ListNames', 'ListActivatableNames']) {
+    try {
+      const out = execFileSync(
+        'dbus-send',
+        [
+          '--session',
+          '--print-reply',
+          '--dest=org.freedesktop.DBus',
+          '/org/freedesktop/DBus',
+          `org.freedesktop.DBus.${method}`,
+        ],
+        { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 },
+      );
+      if (out.includes('"org.freedesktop.secrets"')) return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * The keyring's Entry class when this computer has a keychain that lasts and takes writes, otherwise null. Reading
+ * proves little (an empty or locked store reads fine), so the probe writes and removes a throwaway entry.
+ */
+async function usableKeyring(env: NodeJS.ProcessEnv, deps: KeychainDeps): Promise<Keyring['Entry'] | null> {
   if (env.HILDEGARD_SECRETS === 'file') return null;
+  const {
+    load = () => import('@napi-rs/keyring'),
+    secretService = secretServiceOnBus,
+    platform = process.platform,
+  } = deps;
+  if (platform === 'linux' && !secretService(env)) return null;
   try {
     const { Entry } = await load();
     const probe = new Entry('Hildegard', 'probe');
@@ -77,9 +116,9 @@ function keychainEntry(Entry: Keyring['Entry'], account: string): SecretStore {
 export async function keychainStore(
   account = 'huggingface',
   env = process.env,
-  load = loadKeyring,
+  deps: KeychainDeps = {},
 ): Promise<SecretStore | null> {
-  const Entry = await usableKeyring(env, load);
+  const Entry = await usableKeyring(env, deps);
   return Entry ? keychainEntry(Entry, account) : null;
 }
 
@@ -87,9 +126,9 @@ export async function keychainStore(
 export async function secretStores(
   dir: string,
   env = process.env,
-  load = loadKeyring,
+  deps: KeychainDeps = {},
 ): Promise<(account: string) => SecretStore> {
-  const Entry = await usableKeyring(env, load);
+  const Entry = await usableKeyring(env, deps);
   return (account) => {
     if (!/^[a-z0-9][a-z0-9-]{0,80}$/.test(account)) throw new Error(`Bad secret name ${account}`);
     return Entry ? keychainEntry(Entry, account) : fileStore(join(dir, `${account}.secret`));

@@ -15,6 +15,7 @@ import {
   listAgents,
   type Probe,
   run,
+  torchMismatch,
   UV,
 } from '../src/index.ts';
 
@@ -283,5 +284,21 @@ setTimeout(() => process.stdout.write('==2.11.0'), 100);`;
     const out = await run(process.execPath, ['-e', script], { log: (l) => lines.push(l) });
     expect(out.replace('warn', '')).toBe(' + torch==2.14.1\n + torchaudio==2.11.0');
     expect(lines.sort()).toEqual([' + torch==2.14.1', ' + torchaudio==2.11.0', 'warn']);
+  });
+});
+
+describe('torchMismatch', () => {
+  it('reinstalls PyTorch when the build on disk is not the one this GPU wants', () => {
+    expect(torchMismatch('2.14.1+cpu', 'cu130')).toBe(true);
+    expect(torchMismatch('2.14.1+cu126', 'cu130')).toBe(true);
+    expect(torchMismatch('2.14.1', 'cu130')).toBe(true);
+    expect(torchMismatch('2.14.1+cu130', 'cpu')).toBe(true);
+  });
+
+  it('leaves a matching build alone', () => {
+    expect(torchMismatch('2.14.1+cu130', 'cu130')).toBe(false);
+    expect(torchMismatch('2.14.1+cpu', 'cpu')).toBe(false);
+    expect(torchMismatch('2.14.1', 'cpu')).toBe(false);
+    expect(torchMismatch('2.14.1', null)).toBe(false);
   });
 });

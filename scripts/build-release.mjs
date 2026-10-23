@@ -106,8 +106,12 @@ for (const t of TARGETS) {
     { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' },
   );
   const archive = join(out, `${name}.tar.gz`);
-  // macOS tar would add Apple xattr headers (com.apple.provenance) that GNU tar warns about on every install.
-  execFileSync('tar', ['-czf', archive, '-C', out, name], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
+  // macOS tar (bsdtar) would add Apple xattr headers (com.apple.provenance) that GNU tar warns about on every
+  // install; COPYFILE_DISABLE drops the AppleDouble files and --no-xattrs the pax headers.
+  const noXattrs = process.platform === 'darwin' ? ['--no-xattrs'] : [];
+  execFileSync('tar', [...noXattrs, '-czf', archive, '-C', out, name], {
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
+  });
   rmSync(dir, { recursive: true, force: true });
   sums[t] = sha(archive);
 }
