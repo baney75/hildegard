@@ -320,6 +320,8 @@ mod tests {
     assert!(!older("0.1.0", "0.1.0"));
   }
 
+  // Paths join with the host's separator, so a Linux layout only reads right on a Unix host.
+  #[cfg(unix)]
   #[test]
   fn the_launcher_matches_install_sh() {
     let env: Env = &|k: &str| (k == "HOME").then(|| "/home/ann".to_owned());
