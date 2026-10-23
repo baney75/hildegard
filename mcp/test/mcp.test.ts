@@ -42,6 +42,7 @@ describe('Hildegard MCP server', () => {
   it('offers the tools an agent needs, with instructions', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'cancel_take',
       'direct_shot',
       'export_film',
       'get_shot',
@@ -151,5 +152,63 @@ describe('Hildegard MCP server', () => {
     expect(r.isError).toBe(true);
     expect(textOf(r)).toContain('hildegard start');
     await c.close();
+  });
+
+  it('puts a shot in a film named by title, reusing it, or by id', async () => {
+    const first = textOf(
+      await call('direct_shot', { prompt: 'A door opens', seconds: 1, film: 'Agent Cut' }),
+    );
+    const [, filmId, title] = /in film (\w+) "([^"]+)"/.exec(first)!;
+    expect(title).toBe('Agent Cut');
+    expect(srv.store.projects.get(filmId!)!.title).toBe('Agent Cut');
+    // The same title again lands in the same film, and so does its id.
+    const again = textOf(
+      await call('direct_shot', { prompt: 'A door closes', seconds: 1, film: 'Agent Cut' }),
+    );
+    expect(again).toContain(`in film ${filmId} "Agent Cut"`);
+    const byId = textOf(await call('direct_shot', { prompt: 'The hall is empty', seconds: 1, film: filmId }));
+    expect(byId).toContain(`in film ${filmId} "Agent Cut"`);
+    expect(srv.store.projects.get(filmId!)!.shotIds).toHaveLength(3);
+    expect([...srv.store.projects.values()].filter((p) => p.title === 'Agent Cut')).toHaveLength(1);
+    // Status names the film too.
+    const shotId = /Directed shot (\w+)/.exec(byId)![1]!;
+    expect(textOf(await call('shot_status', { shot_id: shotId }))).toMatch(
+      new RegExp(`^Shot ${shotId} ".+" in film ${filmId} "Agent Cut"`),
+    );
+    // Without a film, a new untitled one.
+    const lone = textOf(await call('direct_shot', { prompt: 'Rain on glass', seconds: 1 }));
+    expect(lone).toMatch(/in film \w+ "Untitled film"/);
+    expect(lone).not.toContain(filmId);
+  });
+
+  it('lists recent takes and cancels one the way the Studio does', async () => {
+    // Paused, so the take is still waiting when we cancel it.
+    srv.scheduler.setPaused(true);
+    const r = textOf(
+      await call('direct_shot', { prompt: 'A long tracking shot', seconds: 2, film: 'Cancel me' }),
+    );
+    const takeId = /queued \((\w+)\)/.exec(r)![1]!;
+    const status = textOf(await call('hildegard_status', { recent_takes: 3 }));
+    expect(status).toContain('Recent takes');
+    expect(status).toMatch(new RegExp(`- ${takeId}: (waiting|rendering).* in film \\w+ "Cancel me"`));
+    expect(
+      status.split('\n').filter((l) => /^- \w+: (waiting|rendering|done|failed|canceled)/.test(l)),
+    ).toHaveLength(3);
+    const canceled = await call('cancel_take', { take_id: takeId, reason: 'queued twice' });
+    expect(canceled.isError).toBeFalsy();
+    expect(textOf(canceled)).toMatch(
+      new RegExp(
+        `^Canceled take ${takeId} \\(take 1 of shot \\w+ ".+" in film \\w+ "Cancel me"\\): queued twice\\.$`,
+      ),
+    );
+    expect(srv.store.takes.get(takeId)!.status).toBe('canceled');
+    // Same rules as the API: a finished take stays as it is.
+    const again = await call('cancel_take', { take_id: takeId });
+    expect(again.isError).toBe(true);
+    expect(textOf(again)).toContain('already finished (canceled)');
+    const missing = await call('cancel_take', { take_id: 'nope' });
+    expect(missing.isError).toBe(true);
+    expect(textOf(missing)).toContain('hildegard_status lists recent takes');
+    srv.scheduler.setPaused(false);
   });
 });

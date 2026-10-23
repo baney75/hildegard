@@ -210,16 +210,18 @@ describe('shots and takes', () => {
 });
 
 describe('shot lookup', () => {
-  it('returns a shot with its takes and, once done, where each video is on disk', async () => {
+  it('returns a shot with its takes, its film and, once done, where each video is on disk', async () => {
     const { shot, takes } = (await (await post('/api/shots', { request: request() })).json()) as {
-      shot: { id: string };
+      shot: { id: string; projectId: string };
       takes: Take[];
     };
     await until(() => takes.every((t) => take(t.id).status === 'done'));
     const body = (await (await api(`/api/shots/${shot.id}`)).json()) as {
       takes: Take[];
       files: Record<string, string>;
+      project: { id: string; title: string };
     };
+    expect(body.project).toEqual({ id: shot.projectId, title: 'Untitled film' });
     expect(body.takes.map((t) => t.id)).toEqual(takes.map((t) => t.id));
     expect(existsSync(body.files[takes[0]!.id]!)).toBe(true);
     expect((await api('/api/shots/nope')).status).toBe(404);

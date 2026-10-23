@@ -25,6 +25,8 @@ export interface ShotDetail {
   takes: Take[];
   /** Take id → the finished video's path on the computer Hildegard runs on. */
   files: Record<string, string>;
+  /** The film the shot is in. */
+  project: { id: string; title: string };
 }
 
 /** Talks to the Hildegard server on this computer, as the Studio does. */
@@ -71,7 +73,9 @@ export class HildegardClient {
   shot = (id: string) => this.call<ShotDetail>('GET', `/api/shots/${encodeURIComponent(id)}`);
   createProject = (title: string) => this.call<Project>('POST', '/api/projects', { title });
   createShot = (body: { request: ShotRequestInput; projectId?: string; title?: string; agent: string }) =>
-    this.call<{ shot: Shot; takes: Take[] }>('POST', '/api/shots', body);
+    this.call<{ project: Project; shot: Shot; takes: Take[] }>('POST', '/api/shots', body);
+  /** Stops a waiting or rendering take, as the Studio's Cancel does; a finished one answers 409. */
+  cancelTake = (id: string) => this.call<Take>('POST', `/api/takes/${encodeURIComponent(id)}/cancel`);
   exportFilm = (id: string) =>
     this.call<ExportState>('POST', `/api/projects/${encodeURIComponent(id)}/export`);
   exportState = (id: string) =>

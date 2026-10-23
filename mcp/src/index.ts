@@ -9,6 +9,7 @@ export { registerTools, toRequest } from './tools.ts';
 export const INSTRUCTIONS = `Hildegard renders film shots on the user's own GPU, through ComfyUI. Nothing leaves their computers and nothing costs money.
 Start with hildegard_status. If no video model is installed, offer install_model, and show the user the license terms it returns before accepting.
 Use list_presets for the ids of camera bodies, lenses, moves and looks. Write prompts as literal, chronological action; the camera and look come from the fields.
+To put shots in a film, pass its id or its title as film to direct_shot. To stop a take, cancel_take with its id; hildegard_status lists recent takes.
 Draft first, then re-render the take you like with quality "final" and the same seed.`;
 
 export function createMcpServer(client = new HildegardClient()) {

@@ -510,7 +510,7 @@ export function createApp(deps: AppDeps) {
     return c.json({ project, shot, takes }, 201);
   });
 
-  /** One shot with its takes. Finished takes include the video's path on this computer, for local agents. */
+  /** One shot with its takes and its film. Finished takes include the video's path on this computer, for local agents. */
   app.get('/api/shots/:id', (c) => {
     const shot = store.shots.get(c.req.param('id'));
     if (!shot || !sees(c, shot.projectId)) return c.json({ error: 'No such shot' }, 404);
@@ -519,7 +519,13 @@ export function createApp(deps: AppDeps) {
     const files = local(c)
       ? Object.fromEntries(takes.filter((t) => t.video).map((t) => [t.id, join(mediaDir, `${t.id}.mp4`)]))
       : {};
-    return c.json({ shot, takes, files });
+    const film = store.projects.get(shot.projectId);
+    return c.json({
+      shot,
+      takes,
+      files,
+      project: { id: shot.projectId, title: film?.title ?? 'Untitled film' },
+    });
   });
 
   app.patch('/api/shots/:id', async (c) => {

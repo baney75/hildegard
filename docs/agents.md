@@ -93,6 +93,12 @@ paired devices, host mode and linked apps, changes nothing, and gives each probl
 
    The Studio is at `url` (`http://127.0.0.1:7341` unless another port was given). `hildegard open` opens it.
 
+4. Direct with the tools. In a linked app, start with `hildegard_status`: it lists the models and the recent takes,
+   with their ids, status, shot and film. `direct_shot` puts a shot in the film named by `film`, a film id or a title
+   (such as `"Agent Cut"`): a title reuses the film with exactly that title, or makes it. `make_sequence` makes a new
+   film of several shots at once. To stop a take you queued by mistake, `cancel_take` with its id; a finished take
+   can't be canceled.
+
 ## B. Host it at a link
 
 Hildegard as a server your user and the people they invite reach at a link. Everyone signs in there; this computer

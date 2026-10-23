@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { Catalog, ShotRequestInput, Take } from '@hildegard/presets';
+import type { Catalog, ShotRequestInput, Snapshot, Take } from '@hildegard/presets';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
@@ -158,10 +158,37 @@ function describeTake(t: Take, file?: string): string {
   }
 }
 
+const filmOf = (f: { id: string; title: string }) => `film ${f.id} "${f.title}"`;
+
 function describeShot(d: ShotDetail): string {
-  return [`Shot ${d.shot.id} "${d.shot.title}"`, ...d.takes.map((t) => describeTake(t, d.files[t.id]))].join(
-    '\n',
-  );
+  return [
+    `Shot ${d.shot.id} "${d.shot.title}" in ${filmOf(d.project)}`,
+    ...d.takes.map((t) => describeTake(t, d.files[t.id])),
+  ].join('\n');
+}
+
+/** One line per take, the ones still going first, so an agent can find what to follow or cancel. */
+function recentTakes(s: Snapshot, limit: number): string[] {
+  if (limit === 0) return [];
+  const active = (t: Take) => (t.status === 'queued' || t.status === 'running' ? 0 : 1);
+  const takes = [...s.takes]
+    .sort((a, b) => active(a) - active(b) || b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit);
+  if (!takes.length) return ['No takes yet.'];
+  return [
+    'Recent takes (waiting and rendering first, then newest):',
+    ...takes.map((t) => {
+      const shot = s.shots.find((x) => x.id === t.shotId);
+      const film = s.projects.find((x) => x.id === t.projectId);
+      const state =
+        t.status === 'queued'
+          ? `waiting${t.queuePosition ? `, number ${t.queuePosition} in line` : ''}`
+          : t.status === 'running'
+            ? `rendering, ${Math.round((t.progress?.value ?? 0) * 100)}%`
+            : t.status;
+      return `- ${t.id}: ${state}. Take ${t.number} of shot ${t.shotId} "${shot?.title ?? '?'}" in ${filmOf({ id: t.projectId, title: film?.title ?? '?' })}`;
+    }),
+  ];
 }
 
 export function registerTools(server: McpServer, client: HildegardClient, agentName: () => string) {
@@ -205,6 +232,17 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     }
   };
 
+  /** A film by id; else the newest film with exactly this title; else a new film with this title. */
+  const filmFor = async (film: string | undefined): Promise<string | undefined> => {
+    const name = film?.trim();
+    if (!name) return undefined;
+    const { projects } = await client.snapshot();
+    const found =
+      projects.find((p) => p.id === name) ??
+      projects.filter((p) => p.title === name).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    return (found ?? (await client.createProject(name))).id;
+  };
+
   const createShot = async (a: ShotArgs, projectId?: string) => {
     const [catalog, snap] = await Promise.all([client.catalog(), client.snapshot()]);
     const installed = new Set(snap.models.filter((m) => m.installed).map((m) => m.id));
@@ -218,32 +256,41 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     {
       title: 'Hildegard status',
       description:
-        'Check that Hildegard is running, which video models are installed, whether a Hugging Face account is linked, and what is in the render queue. Call this first.',
+        'Check that Hildegard is running, which video models are installed, whether a Hugging Face account is linked, and what is in the render queue. Lists recent takes with their ids, status, shot and film, so you can follow one or cancel it with cancel_take. Call this first.',
+      inputSchema: {
+        recent_takes: z
+          .number()
+          .int()
+          .min(0)
+          .max(50)
+          .optional()
+          .describe('How many recent takes to list. Default 10; 0 for none.'),
+      },
       annotations: { readOnlyHint: true },
     },
-    (extra) =>
-      guard(async () => {
-        const s = await client.snapshot();
-        const catalog = await client.catalog();
-        const queued = s.takes.filter((t) => t.status === 'queued').length;
-        const running = s.takes.find((t) => t.status === 'running');
-        const lines = [
-          `Hildegard ${s.version} at ${client.url}. Renders on ${s.engine.comfy === 'remote' ? `${s.engine.device}, another of the owner’s devices${s.engine.fake ? ' (stand-in GPU, test mode)' : ''}` : s.engine.fake ? 'a stand-in GPU (test mode)' : s.engine.device}; ComfyUI ${s.engine.online ? 'is online' : 'is not answering'}${s.engine.paused ? ', rendering is paused' : ''}.`,
-          `Queue: ${running ? `rendering ${running.id}, ` : ''}${queued} waiting.`,
-          `Hugging Face: ${s.hf.linked ? `linked${s.hf.user ? ` as ${s.hf.user}` : ''}` : 'not linked (needed only for gated models)'}.`,
-          'Models:',
-          ...catalog.models.map((m) => {
-            const st = s.models.find((x) => x.id === m.id);
-            const state = st?.installed
-              ? 'installed'
-              : st?.downloading
-                ? `downloading ${Math.round((st.downloading.done / Math.max(1, st.downloading.total)) * 100)}%`
-                : `not installed (${(m.files.reduce((n, f) => n + f.size, 0) / 1e9).toFixed(0)} GB${m.gated ? ', needs a linked Hugging Face account' : ''})`;
-            return `- ${m.id}: ${m.name}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
-          }),
-        ];
-        return text(lines.join('\n'));
-      })(undefined, extra),
+    guard(async (a) => {
+      const s = await client.snapshot();
+      const catalog = await client.catalog();
+      const queued = s.takes.filter((t) => t.status === 'queued').length;
+      const running = s.takes.find((t) => t.status === 'running');
+      const lines = [
+        `Hildegard ${s.version} at ${client.url}. Renders on ${s.engine.comfy === 'remote' ? `${s.engine.device}, another of the owner’s devices${s.engine.fake ? ' (stand-in GPU, test mode)' : ''}` : s.engine.fake ? 'a stand-in GPU (test mode)' : s.engine.device}; ComfyUI ${s.engine.online ? 'is online' : 'is not answering'}${s.engine.paused ? ', rendering is paused' : ''}.`,
+        `Queue: ${running ? `rendering ${running.id}, ` : ''}${queued} waiting.`,
+        `Hugging Face: ${s.hf.linked ? `linked${s.hf.user ? ` as ${s.hf.user}` : ''}` : 'not linked (needed only for gated models)'}.`,
+        'Models:',
+        ...catalog.models.map((m) => {
+          const st = s.models.find((x) => x.id === m.id);
+          const state = st?.installed
+            ? 'installed'
+            : st?.downloading
+              ? `downloading ${Math.round((st.downloading.done / Math.max(1, st.downloading.total)) * 100)}%`
+              : `not installed (${(m.files.reduce((n, f) => n + f.size, 0) / 1e9).toFixed(0)} GB${m.gated ? ', needs a linked Hugging Face account' : ''})`;
+          return `- ${m.id}: ${m.name}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
+        }),
+        ...recentTakes(s, a.recent_takes ?? 10),
+      ];
+      return text(lines.join('\n'));
+    }),
   );
 
   server.registerTool(
@@ -290,10 +337,13 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         'Render a video shot on the GPU of the computer Hildegard runs on. Describe the action; choose the camera, lens, move and look by id (see list_presets). Returns the shot id at once; set wait to get the finished videos in the same call. Rendering costs nothing and nothing leaves the computer.',
       inputSchema: {
         ...shotShape,
-        film_id: z
+        film: z
           .string()
+          .max(120)
           .optional()
-          .describe('Add the shot to this film (from an earlier result). Default: a new film.'),
+          .describe(
+            'The film to put the shot in: a film id from an earlier result, or a film title such as "Agent Cut". A title reuses the film with exactly that title, or makes a new film with that title if there is none. Leave it out for a new untitled film.',
+          ),
         wait: z
           .boolean()
           .optional()
@@ -301,10 +351,10 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
       },
     },
     guard(async (a, extra) => {
-      const { shot, takes } = await createShot(a, a.film_id);
+      const { project, shot, takes } = await createShot(a, await filmFor(a.film));
       if (!a.wait)
         return text(
-          `Directed shot ${shot.id} "${shot.title}" in film ${shot.projectId}: ${takes.length} take${takes.length > 1 ? 's' : ''} queued (${takes.map((t) => t.id).join(', ')}). Check it with shot_status or get_shot.`,
+          `Directed shot ${shot.id} "${shot.title}" in ${filmOf(project)}: ${takes.length} take${takes.length > 1 ? 's' : ''} queued (${takes.map((t) => t.id).join(', ')}). Check it with shot_status or get_shot; stop a take with cancel_take.`,
         );
       const [detail] = await waitFor([shot.id], 600, extra);
       return withPosters(detail!);
@@ -316,7 +366,7 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     {
       title: 'Shot status',
       description:
-        'Where each take of a shot is: waiting, rendering with progress, done with its video, or failed and why.',
+        'Where each take of a shot is: waiting, rendering with progress, done with its video, or failed and why, with the film the shot is in.',
       inputSchema: { shot_id: z.string() },
       annotations: { readOnlyHint: true },
     },
@@ -334,6 +384,47 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
       ],
     };
   };
+
+  server.registerTool(
+    'cancel_take',
+    {
+      title: 'Cancel a take',
+      description:
+        'Stop a take that is waiting or rendering, as Cancel in the Studio does: it frees the GPU and keeps the shot, so the take can be retried later. Take ids are in the results of direct_shot, shot_status and hildegard_status. A finished take cannot be canceled.',
+      inputSchema: {
+        take_id: z.string().describe('The take id, e.g. from hildegard_status.'),
+        reason: z
+          .string()
+          .max(200)
+          .optional()
+          .describe('Why, in a few words, to repeat to your user. Not stored.'),
+      },
+      annotations: { destructiveHint: true },
+    },
+    guard(async (a) => {
+      try {
+        const t = await client.cancelTake(a.take_id);
+        const d = await client.shot(t.shotId);
+        return text(
+          `Canceled take ${t.id} (take ${t.number} of shot ${d.shot.id} "${d.shot.title}" in ${filmOf(d.project)})${a.reason ? `: ${a.reason}` : ''}.`,
+        );
+      } catch (e) {
+        if (e instanceof HildegardError && e.status === 404)
+          throw new HildegardError(
+            404,
+            `No take ${a.take_id}. hildegard_status lists recent takes with their ids.`,
+          );
+        if (e instanceof HildegardError && e.status === 409) {
+          const t = (await client.snapshot()).takes.find((x) => x.id === a.take_id);
+          throw new HildegardError(
+            409,
+            `Take ${a.take_id} has already finished${t ? ` (${t.status})` : ''}, so there is nothing to cancel.`,
+          );
+        }
+        throw e;
+      }
+    }),
+  );
 
   server.registerTool(
     'get_shot',
