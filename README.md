@@ -30,9 +30,10 @@ hildegard open      # opens the Studio
 
 | GPU memory | What `hildegard setup` picks |
 | --- | --- |
-| 24 GB or more (NVIDIA, AMD on Linux, or a Mac with 32 GB) | LTX-2.5 distilled: video with sound, up to 1088p |
+| 24 GB or more (NVIDIA, or AMD on Linux) | LTX-2.5 distilled: video with sound, up to 1088p |
 | 12 to 23 GB | Wan 2.2 5B: silent video, 720p |
-| Less, or no GPU | Nothing yet. The Studio works, but renders would take hours |
+| A Mac with Apple silicon | Nothing yet: on Apple's GPU Wan 2.2 came out blurred after an hour, and LTX needs int8 or fp8 kernels Apple lacks. Pair it with a computer that has an NVIDIA or AMD GPU (`hildegard choir join`) |
+| Less, or no GPU | Nothing yet. The Studio works; pair it with a computer that has a GPU |
 
 Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Support/Hildegard` on macOS,
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,

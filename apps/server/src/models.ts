@@ -22,7 +22,7 @@ import {
   type ModelLock,
   type ModelState,
 } from '@hildegard/presets';
-import { fit, type Gpu } from '@hildegard/runtime';
+import { fit, fitWhy, type Gpu } from '@hildegard/runtime';
 
 /** A file's identity once checked: what we verified it against, so a restart does not hash 20 GB again. */
 interface Verified {
@@ -192,6 +192,7 @@ export class ModelManager {
         gated: m.gated,
         licenseAccepted: this.licenseAccepted(m.id),
         fit: this.gpu ? fit(this.gpu, m) : null,
+        fitWhy: this.gpu ? fitWhy(this.gpu, m) : null,
         error: this.errors.get(m.id) ?? null,
       };
     });

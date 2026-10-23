@@ -11,6 +11,7 @@ import {
   download,
   findUv,
   fit,
+  fitWhy,
   layout,
   listAgents,
   type Probe,
@@ -117,6 +118,10 @@ describe('detectGpu', () => {
     expect(fit(mac, { minVramGb: 12, files: files(17) })).toBe('fits');
     expect(fit(mac, { minVramGb: 12, files: files(22) })).toBe('no');
     expect(fit({ ...mac, vramGb: 96 }, { minVramGb: 24, files: files(37), mps: false })).toBe('no');
+    // And says which of the two it is, since "too big" is the wrong reason for a model Apple's GPU can't render.
+    expect(fitWhy({ ...mac, vramGb: 96 }, { minVramGb: 24, mps: false })).toBe('apple-gpu');
+    expect(fitWhy(mac, { minVramGb: 24 })).toBe('memory');
+    expect(fitWhy(mac, { minVramGb: 12, files: files(17) })).toBeNull();
   });
 });
 

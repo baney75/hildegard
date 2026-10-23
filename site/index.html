@@ -228,7 +228,7 @@
               </div>
             </div>
           </div>
-          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-choir"/></svg>A Mac with 32 GB of memory renders Wan 2.2 itself. Any Mac can <a href="#devices">render on another computer’s GPU</a>.</p>
+          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-choir"/></svg>On a Mac, takes <a href="#devices">render on another computer’s GPU</a>: the models don’t render well on Apple’s GPU yet.</p>
         </div>
 
         <div class="panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" data-panel="linux" hidden>
@@ -328,14 +328,15 @@
           <p>Silent video at 720p. With 9 to 11 GB it still runs, just slower.</p>
         </article>
         <article class="gpu">
-          <p class="gpu__mem"><span class="num">32</span><span class="gpu__u">GB</span><span class="gpu__rest"> of memory</span></p>
+          <p class="gpu__mem">Any Mac</p>
           <h3 class="gpu__title">A Mac with Apple silicon</h3>
-          <p class="model"><span class="model__name">Wan 2.2 5B</span></p>
-          <p>With 64 GB or more, LTX-2 too, with sound.</p>
+          <p class="model"><span class="model__name">Your other computer’s GPU</span></p>
+          <p>The Studio runs on the Mac. Takes render on a paired computer with an NVIDIA or AMD GPU, since the models don’t render well on Apple’s GPU yet.</p>
+          <a class="more" href="#devices">Pair it with another computer<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
         </article>
         <article class="gpu gpu--other">
           <p class="gpu__mem">Anything else</p>
-          <h3 class="gpu__title">A smaller Mac, a laptop, or no GPU</h3>
+          <h3 class="gpu__title">A laptop, or no GPU</h3>
           <p>Install it anyway, and let it render on another computer’s GPU.</p>
           <a class="more" href="#devices">Render on another device<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
         </article>

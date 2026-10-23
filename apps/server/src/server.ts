@@ -179,6 +179,7 @@ export async function startServer(
         licenseAccepted: there,
         // How it fits the GPU it would render on.
         fit: d.fit[m.id] ?? null,
+        fitWhy: d.fitWhy[m.id] ?? (d.fit[m.id] === 'no' ? 'memory' : null),
         error: there || !d.version ? null : `Not installed on ${d.name}. Install it there.`,
       };
     });

@@ -29,6 +29,8 @@ export interface NodeInfo {
   models: string[];
   /** How each model fits its GPU (null for the stand-in); missing from versions before it was added. */
   fit?: Record<string, 'fits' | 'tight' | 'no' | null>;
+  /** Why a model won't run there, by model id; missing from versions before it was added. */
+  fitWhy?: Record<string, 'memory' | 'apple-gpu' | null>;
   /** Takes and paired renders waiting there, the running one included. */
   queue: number;
   /** False while it renders on yet another device itself, so it takes no work. */

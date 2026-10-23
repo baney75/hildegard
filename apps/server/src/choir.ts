@@ -272,6 +272,7 @@ export class Choir {
       version: i?.version ?? null,
       models: i?.models ?? [],
       fit: i?.fit ?? {},
+      fitWhy: i?.fitWhy ?? {},
       problem,
     };
   }

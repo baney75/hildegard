@@ -154,8 +154,14 @@ export interface Need {
   minVramGb: number;
   /** Its weight files, for their size on disk. */
   files?: { size: number }[];
-  /** False when its weights need int8 or fp8 kernels that Apple's GPU lacks. */
+  /** False when it doesn't render on Apple's GPU: kernels it lacks, or weights that come out wrong there. */
   mps?: boolean;
+}
+
+/** Why a model won't run on this GPU, for the words beside it: too little memory, or Apple's GPU can't render it. */
+export function fitWhy(gpu: Gpu, need: Need): 'memory' | 'apple-gpu' | null {
+  if (fit(gpu, need) !== 'no') return null;
+  return gpu.backend === 'mps' && need.mps === false ? 'apple-gpu' : 'memory';
 }
 
 /** How a model fits this GPU: the Studio and the CLI show the same words. */

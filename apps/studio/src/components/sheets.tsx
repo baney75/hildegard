@@ -706,6 +706,7 @@ export function ModelRow({
   const dl = state?.downloading;
   const { name, blurb } = model;
   const tooBig = state?.fit === 'no';
+  const apple = state?.fitWhy === 'apple-gpu';
   const install = async (acceptLicense = false, big = false) => {
     if (!state) return;
     // A model this computer can't run is a big download for nothing, unless they mean to; ask first.
@@ -740,7 +741,11 @@ export function ModelRow({
           {state?.fit === 'tight' ? (
             <span className="cs-fit muted">Tight on this computer, slower</span>
           ) : null}
-          {state?.fit === 'no' ? <span className="cs-fit no">Too big for this computer</span> : null}
+          {state?.fit === 'no' ? (
+            <span className="cs-fit no">
+              {apple ? 'Doesn’t render on this Mac yet' : 'Too big for this computer'}
+            </span>
+          ) : null}
         </div>
         <span className="body-sm sec-text">{blurb}</span>
         <span className="body-sm muted">{detail}</span>
@@ -798,10 +803,15 @@ export function ModelRow({
         >
           <div className="st-dialog__h">
             <div style={{ flex: 1 }}>
-              <h2 id={`big-${model.id}`}>{name} is too big to render on this computer</h2>
+              <h2 id={`big-${model.id}`}>
+                {apple
+                  ? `${name} doesn’t render on this Mac yet`
+                  : `${name} is too big to render on this computer`}
+              </h2>
               <p>
-                It needs more GPU memory than this computer has, so takes would fail here. To use it, install
-                it on a paired device with a bigger GPU and render there.
+                {apple
+                  ? 'On Apple’s GPU its takes come out blurred and take over an hour, so Hildegard doesn’t render it here yet. To use it, install it on a paired device with an NVIDIA or AMD GPU and render there.'
+                  : 'It needs more GPU memory than this computer has, so takes would fail here. To use it, install it on a paired device with a bigger GPU and render there.'}
               </p>
             </div>
           </div>

@@ -12,6 +12,7 @@ import {
   disconnectAgent,
   findAgent,
   fit,
+  fitWhy,
   type Gpu,
   installRuntime,
   layout,
@@ -292,6 +293,7 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
       licenseUrl: m.licenseUrl,
       minVramGb: m.minVramGb,
       fit: fit(gpu, m),
+      fitWhy: fitWhy(gpu, m),
       installed: s?.installed ?? false,
       licenseAccepted: s?.licenseAccepted ?? false,
       downloading: s?.downloading ?? null,
@@ -301,7 +303,7 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
     id: m.id,
     title: `${m.name} (${m.id})`,
     status: m.installed ? 'done' : 'skipped',
-    detail: `${m.installed ? 'Installed' : m.downloading ? `Downloading, ${Math.round((m.downloading.done / m.downloading.total) * 100)}%` : 'Not installed'} · needs ${m.minVramGb} GB · ${{ fits: 'fits this GPU', tight: 'tight on this GPU, slower', no: 'won’t fit this GPU' }[m.fit]} · ${m.license}`,
+    detail: `${m.installed ? 'Installed' : m.downloading ? `Downloading, ${Math.round((m.downloading.done / m.downloading.total) * 100)}%` : 'Not installed'} · needs ${m.minVramGb} GB · ${m.fitWhy === 'apple-gpu' ? 'doesn’t render on Apple’s GPU yet, use a paired device' : { fits: 'fits this GPU', tight: 'tight on this GPU, slower', no: 'won’t fit this GPU' }[m.fit]} · ${m.license}`,
   }));
   return result(steps, '', { models: list, gpu });
 }
@@ -375,7 +377,10 @@ export async function setup(ctx: Ctx): Promise<Result> {
       status: want ? 'failed' : 'skipped',
       detail: want
         ? `No model “${want}”. Models: ${catalog.models.map((m) => m.id).join(', ')}.`
-        : `No video model fits ${gpu.backend === 'cpu' ? 'without a GPU' : `${gpu.vramGb} GB`}. Hildegard can still render on a cloud GPU (coming soon).`,
+        : gpu.backend === 'mps' && catalog.models.some((m) => fitWhy(gpu, m) === 'apple-gpu')
+          ? 'None of the video models render well on Apple’s GPU yet. Pair this Mac with a computer that has an NVIDIA or AMD GPU, and takes render there.'
+          : `No video model fits ${gpu.backend === 'cpu' ? 'without a GPU' : `${gpu.vramGb} GB`}. Pair this computer with one that has a bigger GPU, and takes render there.`,
+      ...(want ? {} : { command: 'hildegard choir join' }),
     });
   else {
     // Without questions, a license is accepted only when `--accept-license` names this very model: the owner said

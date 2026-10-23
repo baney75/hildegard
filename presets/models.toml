@@ -79,6 +79,8 @@ terms = [
 ]
 graph = "ltx-2-distilled"
 minVramGb = 24
+# Its fp8 weights: PyTorch on Apple's GPU has no float8 type to load them into.
+mps = false
 fps = 24
 frameMultiple = 8
 maxSeconds = 10
@@ -127,6 +129,9 @@ terms = [
 graph = "wan-2.2-ti2v"
 twoStageFinal = false
 minVramGb = 12
+# On Apple's GPU its fp16 weights render a blurred blob, at about 200 s a step on a 24 GB M5 (Oct 2026), so Macs
+# render it on a paired device until it's proven there.
+mps = false
 fps = 24
 frameMultiple = 4
 maxSeconds = 5

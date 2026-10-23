@@ -100,6 +100,8 @@ export interface ModelState {
   licenseAccepted: boolean;
   /** How it fits this computer's GPU, as `hildegard models` says it; null when unknown (the stand-in GPU). */
   fit: 'fits' | 'tight' | 'no' | null;
+  /** Why it won't run here when fit is 'no'. */
+  fitWhy: 'memory' | 'apple-gpu' | null;
   error: string | null;
 }
 
@@ -143,6 +145,8 @@ export interface ChoirDevice {
   models: string[];
   /** How each model fits its GPU, by model id, as ModelState.fit says it. */
   fit: Record<string, 'fits' | 'tight' | 'no' | null>;
+  /** Why each model won't run there, by model id, as ModelState.fitWhy says it. */
+  fitWhy: Record<string, 'memory' | 'apple-gpu' | null>;
   /** Why it is not answering, in a sentence. */
   problem: string | null;
 }

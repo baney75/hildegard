@@ -148,9 +148,10 @@ describe('ModelManager', () => {
           .map((s) => [s.id, s.fit]),
       );
     // A 32 GB Apple silicon Mac: macOS lets the GPU use 24 GB of it.
+    // None renders well on Apple's GPU yet, so none says it fits.
     expect(fits({ backend: 'mps', name: 'Apple M5', vramGb: 24, torchBackend: null })).toMatchObject({
       'ltx-2-5-distilled': 'no',
-      'wan-2-2-ti2v-5b': 'fits',
+      'wan-2-2-ti2v-5b': 'no',
     });
     expect(fits(null)['wan-2-2-ti2v-5b']).toBeNull();
   });
