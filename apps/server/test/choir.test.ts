@@ -337,7 +337,7 @@ describe('rendering on another device', () => {
     expect(waiting.guests).toEqual([
       {
         id: expect.any(String),
-        from: mac.choir.sharingName(),
+        from: guestName(mac.choir.sharingName()),
         status: 'queued',
         queuePosition: 0,
         progress: null,
@@ -353,7 +353,7 @@ describe('rendering on another device', () => {
     off();
     const running = lists.flat().filter((g) => g.status === 'running');
     expect(running.length).toBeGreaterThan(1);
-    expect(running.every((g) => g.from === mac.choir.sharingName() && g.queuePosition === 0)).toBe(true);
+    expect(running.every((g) => g.from === guestName(mac.choir.sharingName()) && g.queuePosition === 0)).toBe(true);
     const progress = running.map((g) => g.progress ?? 0);
     expect(Math.max(...progress)).toBeGreaterThan(0);
     expect(progress).toEqual([...progress].sort((x, y) => x - y));
