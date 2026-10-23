@@ -2,7 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ExportState, Project, Snapshot, Take } from '@hildegard/presets';
+import type { ExportState, ModelState, Project, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseArgs } from '../src/config.ts';
 import { type Running, startServer } from '../src/server.ts';
@@ -190,6 +190,28 @@ describe('shots and takes', () => {
       });
     } finally {
       sched.comfy = 'fake';
+    }
+  });
+
+  it('refuses a shot for a model this Mac’s GPU renders wrong, though its files are here', async () => {
+    // As on a Mac that downloaded Wan 2.2 before Hildegard knew it comes out blurred there.
+    const models = srv.models as unknown as { states: () => ModelState[] };
+    const real = models.states;
+    models.states = () =>
+      real
+        .call(srv.models)
+        .map((m) => ({ ...m, installed: true, fit: 'no', fitWhy: 'apple-gpu' }) as ModelState);
+    try {
+      const res = await post('/api/shots', { request: request({ model: 'wan-2-2-ti2v-5b' }) });
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({
+        field: 'model',
+        code: 'no_local_render',
+        error:
+          'Wan 2.2 5B doesn’t render on this Mac yet. Pair a device with an NVIDIA or AMD GPU and render there.',
+      });
+    } finally {
+      models.states = real;
     }
   });
 

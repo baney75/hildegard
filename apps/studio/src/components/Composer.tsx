@@ -36,7 +36,9 @@ export function Composer({
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
 
-  const installed = models.filter((m) => m.installed).map((m) => m.id);
+  // A model Apple's GPU can't render well stays installed, but takes don't go to it.
+  const appleOnly = models.some((m) => m.installed && m.fitWhy === 'apple-gpu');
+  const installed = models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id);
   // The chosen model if it is installed, otherwise the first installed one. The stand-in GPU renders any model.
   const usable = engine?.fake ? catalog.models.map((m) => m.id) : installed;
   const modelId = draft.model && usable.includes(draft.model) ? draft.model : (usable[0] ?? null);
@@ -167,9 +169,15 @@ export function Composer({
   const variant = compact ? 'bottom' : 'center';
   const takesWord = `${draft.takes} ${draft.format.quality === 'draft' ? (draft.takes === 1 ? 'draft' : 'drafts') : draft.takes === 1 ? 'take' : 'takes'}`;
   const where = deviceLabel(engine).replace(/^(This|Stand-in)/, (m) => m.toLowerCase());
-  const createLabel = !modelId ? 'Choose a model' : `Create ${takesWord}`;
+  const createLabel = !modelId
+    ? appleOnly
+      ? 'Pair a device to render'
+      : 'Choose a model'
+    : `Create ${takesWord}`;
   const createSub = !modelId
-    ? 'Install one to start'
+    ? appleOnly
+      ? 'Models don’t render on this Mac yet'
+      : 'Install one to start'
     : estimate
       ? `${about(estimate)} on ${where}`
       : `On ${where}`;

@@ -446,6 +446,17 @@ export function createApp(deps: AppDeps) {
       if (e instanceof PresetError) return c.json({ error: e.message, field: e.field }, 422);
       throw e;
     }
+    // Apple's GPU renders some models wrong, slowly: refuse them before the queue, wherever their files are.
+    const state = deps.modelStates().find((m) => m.id === composed.model.id);
+    if (state?.fitWhy === 'apple-gpu')
+      return c.json(
+        {
+          error: `${composed.model.name} doesn’t render on this Mac yet. Pair a device with an NVIDIA or AMD GPU and render there.`,
+          field: 'model',
+          code: 'no_local_render',
+        },
+        422,
+      );
     // Here, Hildegard's own ComfyUI renders, so the model's files must be here too; say so now, not after the queue.
     if (
       deps.scheduler.engineState().comfy === 'managed' &&
