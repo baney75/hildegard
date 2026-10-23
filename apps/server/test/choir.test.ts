@@ -4,8 +4,9 @@ import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState, Snapshot, Take } from '@hildegard/presets';
+import type { ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
 import {
   checkUrl,
   encodeJoinCode,
@@ -18,6 +19,7 @@ import {
 } from '../src/choir.ts';
 import { parseArgs } from '../src/config.ts';
 import type { SecretStore } from '../src/hf.ts';
+import { guestName } from '../src/node-api.ts';
 import { RemoteEngine } from '../src/remote-engine.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
@@ -98,6 +100,54 @@ describe('join codes', () => {
     expect(tailscaleSelf(() => status)).toEqual({ ip: '100.70.1.2', name: 'parish1' });
     expect(tailscaleSelf(() => JSON.stringify({ BackendState: 'Stopped', Self: {} }))).toBeNull();
     expect(tailscaleSelf(() => null)).toBeNull();
+  });
+});
+
+describe('renders from paired devices', () => {
+  it('keep only a short, plain name from what the other device calls itself', () => {
+    expect(guestName('rectory1')).toBe('rectory1');
+    expect(guestName('  Donovan’s  MacBook\n')).toBe('Donovans MacBook');
+    expect(guestName('<img src=x onerror=alert(1)>')).toBe('img srcx onerroralert1');
+    expect(guestName('\u202Eevil\u0000')).toBe('evil');
+    expect(guestName('x'.repeat(500))).toBe('x'.repeat(40));
+    expect(guestName('   ')).toBeNull();
+    expect(guestName(undefined)).toBeNull();
+  });
+
+  it('show directors that the GPU is busy, not which device sent the render', () => {
+    const g: GuestTake = {
+      id: 'g1',
+      from: 'rectory1',
+      status: 'running',
+      queuePosition: 0,
+      progress: 0.42,
+      quality: null,
+      createdAt: '2026-10-23T12:00:00.000Z',
+    };
+    const snap = {
+      projects: [],
+      shots: [],
+      takes: [],
+      exports: [],
+      engine: { url: 'http://127.0.0.1:8188' },
+      hf: {},
+      choir: { use: 'local', devices: [], sharing: { on: true, url: null, paired: 1, problem: null } },
+      guests: [g],
+    } as unknown as Snapshot;
+    const director: Who = {
+      kind: 'person',
+      person: { id: 'p1', name: 'Ada', role: 'director' },
+      session: 's',
+    };
+    const owner: Who = { kind: 'person', person: { id: 'p0', name: 'Don', role: 'owner' }, session: 's' };
+    expect(snapshotFor({ kind: 'local' }, snap).guests).toEqual([g]);
+    expect(snapshotFor(owner, snap).guests).toEqual([g]);
+    expect(snapshotFor(director, snap).guests).toEqual([{ ...g, from: null }]);
+    const filter = eventFilter(() => undefined, new Set());
+    expect(filter(director, { type: 'guests', guests: [g] })).toEqual({
+      type: 'guests',
+      guests: [{ ...g, from: null }],
+    });
   });
 });
 
@@ -267,6 +317,50 @@ describe('rendering on another device', () => {
     expect(mac.store.takes.get(remote.id)?.status).not.toBe('done');
     await until(() => mac.store.takes.get(remote.id)?.status === 'done');
     expect(gpu.store.takes.get(ownTake.id)?.status).toBe('done');
+  });
+
+  it('shows a paired device’s render in the GPU computer’s own snapshot and events, by name, without its prompt', async () => {
+    const lists: GuestTake[][] = [];
+    const off = gpu.store.on((e) => {
+      if (e.type === 'guests') lists.push(e.guests);
+    });
+    const snap = async () => (await (await fetch(`${gpu.url}/api/snapshot`)).json()) as Snapshot;
+    expect((await snap()).guests).toEqual([]);
+    gpu.scheduler.setPaused(true);
+    const res = await post(mac, '/api/shots', { request: request('A secret about the orchard at night') });
+    const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+    await until(async () => (await snap()).guests.length === 1);
+    // A take of the GPU computer's own, asked for after it, waits behind it, and the reason is on screen.
+    const own = await post(gpu, '/api/shots', { request: request('Moths around a porch light') });
+    const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+    const waiting = await snap();
+    expect(waiting.guests).toEqual([
+      {
+        id: expect.any(String),
+        from: mac.choir.sharingName(),
+        status: 'queued',
+        queuePosition: 0,
+        progress: null,
+        quality: 'draft',
+        createdAt: expect.any(String),
+      },
+    ]);
+    expect(waiting.takes.find((t) => t.id === ownTake.id)?.queuePosition).toBe(1);
+    expect(JSON.stringify(waiting)).not.toContain('orchard');
+
+    gpu.scheduler.setPaused(false);
+    await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+    off();
+    const running = lists.flat().filter((g) => g.status === 'running');
+    expect(running.length).toBeGreaterThan(1);
+    expect(running.every((g) => g.from === mac.choir.sharingName() && g.queuePosition === 0)).toBe(true);
+    const progress = running.map((g) => g.progress ?? 0);
+    expect(Math.max(...progress)).toBeGreaterThan(0);
+    expect(progress).toEqual([...progress].sort((x, y) => x - y));
+    // Gone once it is done.
+    expect(lists.at(-1)).toEqual([]);
+    expect((await snap()).guests).toEqual([]);
+    await until(() => gpu.store.takes.get(ownTake.id)?.status === 'done');
   });
 });
 

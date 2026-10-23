@@ -278,6 +278,7 @@ export function createApp(deps: AppDeps) {
     hf: deps.hf.state(),
     exports: deps.exporter.list(),
     choir: deps.choir.state(),
+    guests: scheduler.guestTakes(),
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
@@ -321,6 +322,11 @@ export function createApp(deps: AppDeps) {
         // Coalesce: only the newest state of each take matters.
         if (e.type === 'take') {
           const i = queue.findIndex((q) => q.type === 'take' && q.take.id === e.take.id);
+          if (i >= 0) queue.splice(i, 1);
+        }
+        // Each list of paired devices' renders replaces the last.
+        if (e.type === 'guests') {
+          const i = queue.findIndex((q) => q.type === 'guests');
           if (i >= 0) queue.splice(i, 1);
         }
         queue.push(e);

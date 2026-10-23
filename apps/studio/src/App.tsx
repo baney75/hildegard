@@ -31,7 +31,8 @@ export function App() {
   const models = useStore((s) => s.models);
   const auth = useStore((s) => s.auth);
   const busy = useStore((s) => {
-    let n = 0;
+    // Paired devices' renders count too: they hold the GPU just the same.
+    let n = s.guests.length;
     for (const t of s.takes.values()) if (t.status === 'queued' || t.status === 'running') n++;
     return n;
   });

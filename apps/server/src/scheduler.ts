@@ -7,6 +7,7 @@ import {
   type Catalog,
   composeShot,
   type EngineState,
+  type GuestTake,
   type Priority,
   type Take,
   type TakeError,
@@ -38,6 +39,9 @@ export function explain(e: unknown): TakeError {
 
 /** A render a paired device sent (Choir): it waits in this computer's queue like a studio take. */
 export interface GuestRender {
+  /** The sending device's name, sanitized: display only. */
+  from: string | null;
+  quality: 'draft' | 'final' | null;
   built: BuiltGraph;
   /** Local path of its start frame. */
   startFrame?: string;
@@ -51,6 +55,8 @@ interface Guest {
   id: string;
   createdAt: string;
   position: number | null;
+  /** 0 to 1 once it renders. */
+  progress: number | null;
   job: GuestRender;
   resolve: () => void;
   reject: (e: unknown) => void;
@@ -64,6 +70,11 @@ interface Guest {
 export class Scheduler {
   private running: { id: string; priority: Priority; abort: AbortController; requeue: boolean } | null = null;
   private guests: Guest[] = [];
+  /** The paired device's render on the GPU now, if that is what runs. */
+  private guestRunning: Guest | null = null;
+  private readonly onGuests: (g: GuestTake[]) => void;
+  private guestsSent = '[]';
+  private guestProgressAt = 0;
   private paused = false;
   private online = false;
   readonly previews = new Map<string, { bytes: Uint8Array; type: string }>();
@@ -86,6 +97,8 @@ export class Scheduler {
     fake: boolean;
     comfy?: EngineState['comfy'];
     onEngine: (s: EngineState) => void;
+    /** Paired devices' renders here changed: one came, moved, progressed or left. */
+    onGuests?: (g: GuestTake[]) => void;
     /** Writes a full-size poster from a finished video; false keeps the sampler's preview. */
     poster?: (video: string, out: string) => Promise<boolean>;
   }) {
@@ -97,6 +110,7 @@ export class Scheduler {
     this.mediaDir = opts.mediaDir;
     this.fake = opts.fake;
     this.onEngine = opts.onEngine;
+    this.onGuests = opts.onGuests ?? (() => {});
   }
 
   engineState(): EngineState {
@@ -164,6 +178,7 @@ export class Scheduler {
       this.running.abort.abort();
     }
     for (const g of this.guests.splice(0)) g.reject(new EngineError('canceled', 'Canceled.'));
+    this.guestsChanged();
   }
 
   setPaused(paused: boolean) {
@@ -198,6 +213,30 @@ export class Scheduler {
     return this.running ? (this.store.takes.get(this.running.id) ?? null) : null;
   }
 
+  /** Paired devices' renders here, the running one first, then the waiting ones in the order they will run. */
+  guestTakes(): GuestTake[] {
+    const view = (g: Guest, status: GuestTake['status']): GuestTake => ({
+      id: g.id,
+      from: g.job.from,
+      status,
+      queuePosition: g.position,
+      progress: g.progress,
+      quality: g.job.quality,
+      createdAt: g.createdAt,
+    });
+    const waiting = this.order().flatMap((x) => ('guest' in x ? [view(x.guest, 'queued')] : []));
+    return this.guestRunning ? [view(this.guestRunning, 'running'), ...waiting] : waiting;
+  }
+
+  /** Tell the UI when paired devices' renders changed; the same list twice says nothing. */
+  private guestsChanged() {
+    const list = this.guestTakes();
+    const json = JSON.stringify(list);
+    if (json === this.guestsSent) return;
+    this.guestsSent = json;
+    this.onGuests(list);
+  }
+
   /** How many renders are waiting or running, paired devices' included. */
   load(): number {
     return this.order().length + (this.running ? 1 : 0);
@@ -217,6 +256,7 @@ export class Scheduler {
         x.guest.job.handlers.onQueued?.(pos);
       }
     });
+    this.guestsChanged();
   }
 
   /** Queue a paired device's render. Resolves when the video is at job.dest. */
@@ -227,6 +267,7 @@ export class Scheduler {
         id: randomUUID(),
         createdAt: new Date().toISOString(),
         position: null,
+        progress: null,
         job,
         resolve,
         reject,
@@ -320,25 +361,42 @@ export class Scheduler {
     g.job.signal.addEventListener('abort', onAbort, { once: true });
     this.guests.splice(this.guests.indexOf(g), 1);
     this.running = { id: g.id, priority: 'interactive', abort, requeue: false };
+    this.guestRunning = g;
     g.position = 0;
+    g.progress = null;
     this.renumber();
+    const { handlers } = g.job;
     try {
       await this.engine.render(g.job.built, {
         dest: g.job.dest,
         startFrame: g.job.startFrame,
         signal: abort.signal,
-        handlers: g.job.handlers,
+        handlers: {
+          ...handlers,
+          // This computer's queue shows its progress too, about as often as a local take's.
+          onProgress: (p) => {
+            g.progress = Math.min(1, Math.max(0, p.value));
+            const now = Date.now();
+            if (now - this.guestProgressAt > 160 || p.value >= 1) {
+              this.guestProgressAt = now;
+              this.guestsChanged();
+            }
+            handlers.onProgress?.(p);
+          },
+        },
       });
       g.resolve();
     } catch (e) {
       if (this.running?.requeue && !g.job.signal.aborted) {
         // Interrupted by Force now here: back in line, oldest first, and the other device hears it's waiting.
         g.position = null;
+        g.progress = null;
         this.guests.push(g);
       } else g.reject(e);
     } finally {
       g.job.signal.removeEventListener('abort', onAbort);
       this.running = null;
+      this.guestRunning = null;
       this.renumber();
       this.pump();
     }
@@ -368,6 +426,7 @@ export class Scheduler {
       let lastProgressAt = 0;
       await this.engine.render(built, {
         dest,
+        quality: take.quality,
         signal: abort.signal,
         startFrame: take.request.startFrame
           ? join(this.mediaDir, 'uploads', take.request.startFrame)

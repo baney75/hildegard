@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, EngineState, Take } from '@hildegard/presets';
+import type { Catalog, EngineState, GuestTake, Take } from '@hildegard/presets';
 
 const ROMAN: Array<[number, string]> = [
   [1000, 'M'],
@@ -107,6 +107,19 @@ export function leftMs(t: Take, history: number | null, now = Date.now()): numbe
   const v = t.progress?.value ?? 0;
   if (v >= 0.15 && v < 1) return (elapsed * (1 - v)) / v;
   return history === null ? null : Math.max(0, history - elapsed);
+}
+
+/** Who sent a paired device's render here: "From rectory1", or just another device when it didn't say. */
+export function guestFrom(g: GuestTake): string {
+  return g.from ? `From ${g.from}` : 'From another device';
+}
+
+/** A paired device's render, in a line: "From rectory1 · rendering · 42%", "From rectory1 · waiting · up next". */
+export function guestLine(g: GuestTake): string {
+  if (g.status === 'running')
+    return `${guestFrom(g)} · rendering${g.progress !== null ? ` · ${Math.round(g.progress * 100)}%` : ''}`;
+  const place = g.queuePosition && g.queuePosition > 1 ? `${ordinal(g.queuePosition)} in line` : 'up next';
+  return `${guestFrom(g)} · waiting · ${place}`;
 }
 
 /** Which device takes render on, for people: "parish1 · RTX 4080 Laptop", "Stand-in GPU", "This computer". */

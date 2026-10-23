@@ -21,9 +21,12 @@ export function ForceDialog({
   const takes = useStore((s) => s.takes);
   const shots = useStore((s) => s.shots);
   const engine = useStore((s) => s.engine);
+  const guest = useStore((s) => s.guests.find((g) => g.status === 'running') ?? null);
   const [busy, setBusy] = useState(false);
   const running = [...takes.values()].find((t) => t.status === 'running');
   const stops = running && running.priority !== 'forced' ? running : null;
+  // Another device's render stops the same way, and goes back in line there.
+  const stopsGuest = !running && guest ? guest : null;
   const go = async (interrupt: boolean) => {
     setBusy(true);
     try {
@@ -48,7 +51,7 @@ export function ForceDialog({
         <div style={{ flex: 1 }}>
           <h2 id="fn-t">Force {title} now?</h2>
           <p>
-            {stops
+            {stops || stopsGuest
               ? `It will run on ${engine?.device ?? 'this computer'} right away.`
               : 'It will run next, ahead of everything waiting.'}
           </p>
@@ -67,6 +70,20 @@ export function ForceDialog({
               <small>
                 {Math.round((stops.progress?.value ?? 0) * 100)}% done. It goes back in line and starts again
                 from the beginning.
+              </small>
+            </span>
+          </div>
+        ) : null}
+        {stopsGuest ? (
+          <div className="st-agent" style={{ gridTemplateColumns: '44px minmax(0, 1fr)' }}>
+            <span className="av">
+              <Icon name="pause" />
+            </span>
+            <span>
+              <b>Stops: the take from {stopsGuest.from ?? 'another device'}</b>
+              <small>
+                {Math.round((stopsGuest.progress ?? 0) * 100)}% done. It goes back in line here and starts
+                again from the beginning, and that device shows it waiting.
               </small>
             </span>
           </div>
@@ -96,7 +113,7 @@ export function ForceDialog({
         <Button kind="ghost" onClick={onClose} style={{ marginRight: 'auto' }} data-autofocus="">
           Keep waiting
         </Button>
-        {stops ? (
+        {stops || stopsGuest ? (
           <Button onClick={() => go(false)} disabled={busy}>
             Run next
           </Button>

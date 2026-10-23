@@ -9,7 +9,10 @@ export function takeLabel(t: Take): string {
 }
 
 /** What a waiting take is waiting for, in a few words. */
-export function waitingFor(t: Take, ctx: { online: boolean; paused: boolean }): string {
+export function waitingFor(
+  t: Pick<Take, 'queuePosition'>,
+  ctx: { online: boolean; paused: boolean },
+): string {
   if (!ctx.online) return 'Waiting for ComfyUI';
   if (ctx.paused) return 'Paused';
   return t.queuePosition && t.queuePosition > 1 ? `${ordinal(t.queuePosition)} in line` : 'Up next';

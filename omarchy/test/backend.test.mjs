@@ -157,7 +157,7 @@ test('snapshot of a running Hildegard', async () => {
     const s = JSON.parse((await run('snapshot')).stdout);
     return s.recent.length === takeIds.length ? s : null;
   });
-  assert.deepEqual(snap.queue, { running: 0, queued: 0 });
+  assert.deepEqual(snap.queue, { running: 0, queued: 0, guests: 0 });
   assert.equal(snap.current, null);
   assert.equal(snap.url, `http://127.0.0.1:${port}`);
   assert.deepEqual(
@@ -168,6 +168,70 @@ test('snapshot of a running Hildegard', async () => {
     ].sort(),
   );
   for (const t of snap.recent) assert.ok(!Number.isNaN(Date.parse(t.at)));
+});
+
+test('snapshot counts renders paired devices sent here, and shows the running one as the current take', async () => {
+  // Hildegard's own snapshot, as a GPU computer busy with another device's render gives it: curl is a stub here.
+  const snapshot = {
+    version: '0.0.0',
+    engine: { online: true, fake: false, paused: false, device: 'RTX 4090', problem: null },
+    takes: [
+      {
+        id: 't1',
+        projectId: 'p1',
+        shotId: 's1',
+        status: 'queued',
+        prompt: 'A heron in the reeds',
+        progress: null,
+        quality: 'final',
+        createdAt: '2026-10-23T12:00:00.000Z',
+      },
+    ],
+    shots: [{ id: 's1', title: 'Heron' }],
+    models: [],
+    hf: { linked: false },
+    guests: [
+      {
+        id: 'g1',
+        from: 'rectory1',
+        status: 'running',
+        queuePosition: 0,
+        progress: 0.42,
+        quality: 'draft',
+        createdAt: '2026-10-23T11:59:00.000Z',
+      },
+      {
+        id: 'g2',
+        from: null,
+        status: 'queued',
+        queuePosition: 2,
+        progress: null,
+        quality: null,
+        createdAt: '2026-10-23T12:01:00.000Z',
+      },
+    ],
+  };
+  writeFileSync(join(tmp, 'snapshot.json'), JSON.stringify(snapshot));
+  stub('curl', `cat "${join(tmp, 'snapshot.json')}"`);
+  try {
+    const s = JSON.parse((await run('snapshot')).stdout);
+    assert.deepEqual(s.queue, { running: 1, queued: 2, guests: 2 });
+    assert.deepEqual(s.current, {
+      id: 'g1',
+      projectId: null,
+      title: 'From rectory1',
+      progress: 0.42,
+      quality: 'draft',
+    });
+    // An older server without guests still reads.
+    delete snapshot.guests;
+    writeFileSync(join(tmp, 'snapshot.json'), JSON.stringify(snapshot));
+    const old = JSON.parse((await run('snapshot')).stdout);
+    assert.deepEqual(old.queue, { running: 0, queued: 1, guests: 0 });
+    assert.equal(old.current, null);
+  } finally {
+    rmSync(join(stubs, 'curl'));
+  }
 });
 
 test('open only sends Studio routes to the browser', async () => {

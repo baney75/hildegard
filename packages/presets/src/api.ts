@@ -164,6 +164,23 @@ export interface ChoirState {
   };
 }
 
+/**
+ * A render a paired device sent to this computer (Choir), as this computer's queue shows it. Only what the queue
+ * needs: never its prompt, which belongs to whoever asked for it there.
+ */
+export interface GuestTake {
+  id: string;
+  /** The sending device's name, as it gave it; display only, never proof of who sent it. Null when it didn't say. */
+  from: string | null;
+  status: 'running' | 'queued';
+  /** Place in this computer's queue, 0 while rendering, as Take.queuePosition counts it. */
+  queuePosition: number | null;
+  /** 0 to 1 while rendering; null before the first step. */
+  progress: number | null;
+  quality: 'draft' | 'final' | null;
+  createdAt: string;
+}
+
 export interface Snapshot {
   version: string;
   /** Where this build's source code is (AGPL §13): the repository and, when known, the exact commit. */
@@ -176,6 +193,8 @@ export interface Snapshot {
   hf: HfState;
   exports: ExportState[];
   choir: ChoirState;
+  /** Renders paired devices sent here, waiting or rendering, in queue order. */
+  guests: GuestTake[];
 }
 
 /** Owners may do everything; directors make films of their own and nothing else. */
@@ -256,6 +275,7 @@ export type ServerEvent =
   | { type: 'hf'; hf: HfState }
   | { type: 'export'; export: ExportState }
   | { type: 'choir'; choir: ChoirState }
+  | { type: 'guests'; guests: GuestTake[] }
   | { type: 'host'; host: HostState };
 
 /** POST /api/shots */

@@ -142,6 +142,7 @@ export async function startServer(
     fake: config.fake,
     comfy: choir.activeEngine() ? 'remote' : comfy,
     onEngine: (engineState) => store.emit({ type: 'engine', engine: engineState }),
+    onGuests: (guests) => store.emit({ type: 'guests', guests }),
     poster: (video, out) => makePoster(config.dataDir, video, out),
   });
   route();

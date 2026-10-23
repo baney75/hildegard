@@ -38,7 +38,23 @@ const RenderBody = z.object({
     .string()
     .max(28 * 1024 * 1024)
     .optional(),
+  // What the queue here shows about it. Both are the other device's say-so, for display only; anything odd is
+  // dropped rather than refusing the take.
+  from: z.string().max(200).optional().catch(undefined),
+  quality: z.enum(['draft', 'final']).optional().catch(undefined),
 });
+
+/** The name a paired device gave itself, cut down to something safe to show: a few plain characters, or null. */
+export function guestName(raw: string | undefined): string | null {
+  const n = (raw ?? '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N} ._-]+/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40)
+    .trim();
+  return n || null;
+}
 
 export interface NodeDeps {
   choir: Choir;
@@ -186,6 +202,8 @@ export function nodeRoutes(deps: NodeDeps): Hono {
         void send({ type: 'accepted', job });
         try {
           await scheduler.guest({
+            from: guestName(parsed.data.from),
+            quality: parsed.data.quality ?? null,
             built,
             startFrame,
             dest,

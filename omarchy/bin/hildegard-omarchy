@@ -47,6 +47,8 @@ snapshot() {
     def title($s): . as $t | ([$s.shots[] | select(.id == $t.shotId) | .title][0]) // $t.prompt;
     . as $s
     | [.takes[] | select(.status == "running" or .status == "queued")] as $live
+    # Renders paired devices sent here: they hold the GPU like any take, so they count, without their prompts.
+    | (.guests // []) as $guests
     | {
         installed: true,
         running: true,
@@ -60,17 +62,29 @@ snapshot() {
           problem: .engine.problem
         },
         queue: {
-          running: ([$live[] | select(.status == "running")] | length),
-          queued: ([$live[] | select(.status == "queued")] | length)
+          running: ([$live[], $guests[] | select(.status == "running")] | length),
+          queued: ([$live[], $guests[] | select(.status == "queued")] | length),
+          guests: ($guests | length)
         },
         current: (
-          [$live[] | select(.status == "running")][0]
-          | if . == null then null else {
-              id, projectId,
-              title: title($s),
-              progress: (.progress.value // 0),
-              quality
-            } end
+          (
+            [$live[] | select(.status == "running")][0]
+            | if . == null then null else {
+                id, projectId,
+                title: title($s),
+                progress: (.progress.value // 0),
+                quality
+              } end
+          ) // (
+            [$guests[] | select(.status == "running")][0]
+            | if . == null then null else {
+                id,
+                projectId: null,
+                title: (if .from then "From \(.from)" else "From another device" end),
+                progress: (.progress // 0),
+                quality
+              } end
+          )
         ),
         recent: (
           [.takes[] | select(.status == "done" or .status == "failed")]

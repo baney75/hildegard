@@ -83,3 +83,51 @@ test('shares this GPU with a code to copy, and stops sharing', async ({ page, co
   await expect(page.getByRole('button', { name: 'Share this GPU' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('shows a paired device’s render in this computer’s queue, by the name it sent', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const errors = watchErrors(page);
+  // This computer shares its GPU, and the second Hildegard renders here.
+  const res = await request.post('/api/choir/invite', { headers: H, data: { url: baseURL } });
+  expect(res.status()).toBe(200);
+  const { code } = (await res.json()) as { code: string };
+  const here = JSON.parse(Buffer.from(code.slice(5), 'base64url').toString('utf8')).n as string;
+  try {
+    expect((await request.post(`${node}/api/choir/join`, { headers: H, data: { code } })).status()).toBe(201);
+    await request.post(`${node}/api/choir/use`, { headers: H, data: { name: here } });
+    await request.post('/api/engine/pause', { headers: H });
+    const shot = await request.post(`${node}/api/shots`, {
+      headers: H,
+      data: {
+        request: {
+          prompt: 'A heron waits in the reeds',
+          rig: { body: 'vintage-16mm', lens: 'clean', focal: 35, aperture: 2.8 },
+          format: { quality: 'draft', seconds: 3 },
+        },
+      },
+    });
+    expect(shot.status()).toBe(201);
+
+    await page.goto('/#/queue');
+    const row = page.locator('[data-guest]');
+    await expect(row).toContainText(/^From \S+/);
+    await expect(row).toContainText('Waiting');
+    await expect(row).toContainText('A draft sent from another of your devices');
+    // Its prompt stays on the device that sent it.
+    await expect(page.getByText('A heron waits in the reeds')).toHaveCount(0);
+    await expectAccessible(page, 'queue, paired render');
+    await expectCurlyQuotes(page, 'queue, paired render');
+
+    await request.post('/api/engine/resume', { headers: H });
+    await expect(row).toContainText('Rendering');
+    await expect(row).toHaveCount(0, { timeout: 30_000 });
+  } finally {
+    await request.post('/api/engine/resume', { headers: H });
+    await request.post(`${node}/api/choir/use`, { headers: H, data: { name: 'local' } });
+    await request.post(`${node}/api/choir/leave`, { headers: H, data: { name: here } });
+  }
+  expect(errors).toEqual([]);
+});

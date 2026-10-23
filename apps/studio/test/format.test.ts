@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { EngineState, Take } from '@hildegard/presets';
+import type { EngineState, GuestTake, Take } from '@hildegard/presets';
 import { describe, expect, it } from 'vitest';
 import { draftNote } from '../src/components/ExportDialog.tsx';
 import { fromRequest, toRequest } from '../src/lib/draft.ts';
@@ -11,6 +11,8 @@ import {
   deviceLabel,
   duration,
   estimateMs,
+  guestFrom,
+  guestLine,
   leftMs,
   ordinal,
   roman,
@@ -157,5 +159,28 @@ describe('render device', () => {
     const down = comfyDown({ ...remote, online: false, problem: 'parish1 isn’t answering.' });
     expect(down.short).toBe('parish1 isn’t answering');
     expect(down.long).toMatch(/^parish1 isn’t answering\. Takes wait/);
+  });
+});
+
+describe('renders from paired devices', () => {
+  const g: GuestTake = {
+    id: 'g1',
+    from: 'rectory1',
+    status: 'running',
+    queuePosition: 0,
+    progress: 0.416,
+    quality: 'draft',
+    createdAt: '2026-10-23T12:00:00.000Z',
+  };
+  it('say who sent them and how far along they are', () => {
+    expect(guestLine(g)).toBe('From rectory1 · rendering · 42%');
+    expect(guestLine({ ...g, progress: null })).toBe('From rectory1 · rendering');
+    expect(guestLine({ ...g, status: 'queued', queuePosition: 1, progress: null })).toBe(
+      'From rectory1 · waiting · up next',
+    );
+    expect(guestLine({ ...g, status: 'queued', queuePosition: 3, progress: null })).toBe(
+      'From rectory1 · waiting · 3rd in line',
+    );
+    expect(guestFrom({ ...g, from: null })).toBe('From another device');
   });
 });

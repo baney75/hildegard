@@ -100,6 +100,7 @@ export class RemoteEngine implements Engine {
   private readonly token: () => string | null;
   private readonly fetchFn: typeof fetch;
   private readonly onInfo: (info: NodeInfo | null, problem: string | null) => void;
+  private readonly from: () => string | null;
   private last: NodeInfo | null = null;
 
   constructor(opts: {
@@ -108,12 +109,15 @@ export class RemoteEngine implements Engine {
     token: () => string | null;
     fetch?: typeof fetch;
     onInfo?: (info: NodeInfo | null, problem: string | null) => void;
+    /** This computer's short name, for the other device's queue to show; display only. */
+    from?: () => string | null;
   }) {
     this.url = opts.url.replace(/\/$/, '');
     this.name = opts.name;
     this.token = opts.token;
     this.fetchFn = opts.fetch ?? fetch;
     this.onInfo = opts.onInfo ?? (() => {});
+    this.from = opts.from ?? (() => null);
   }
 
   /** "parish1 · RTX 4080 Laptop" once it has said which GPU it has. */
@@ -225,7 +229,12 @@ export class RemoteEngine implements Engine {
         res = await this.fetchFn(`${this.url}/api/node/render`, {
           method: 'POST',
           headers: this.headers({ 'content-type': 'application/json' }),
-          body: JSON.stringify({ built, startFrame }),
+          body: JSON.stringify({
+            built,
+            startFrame,
+            from: this.from() ?? undefined,
+            quality: opts.quality,
+          }),
           signal: ac.signal,
         });
       } catch (e) {

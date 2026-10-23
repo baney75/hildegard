@@ -24,6 +24,8 @@ export interface RenderOptions {
   dest: string;
   signal?: AbortSignal;
   handlers?: RenderHandlers;
+  /** The take's quality, for another device's queue to show when it renders there; graphs don't say. */
+  quality?: 'draft' | 'final';
 }
 
 export type EngineErrorCode =

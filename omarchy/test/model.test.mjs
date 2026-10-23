@@ -32,6 +32,8 @@ test('mark', () => {
   assert.equal(M.mark(up()), 'idle');
   assert.equal(M.mark(up({ queue: { running: 1, queued: 0 } })), 'busy');
   assert.equal(M.mark(up({ queue: { running: 0, queued: 2 } })), 'busy');
+  // Another device's render keeps the GPU busy too.
+  assert.equal(M.mark(up({ queue: { running: 1, queued: 0, guests: 1 } })), 'busy');
   assert.equal(M.mark(up({ engine: { online: false } })), 'failed');
   assert.equal(M.mark(up({ engine: { online: true, problem: 'Out of GPU memory' } })), 'failed');
 });
@@ -51,6 +53,15 @@ test('status', () => {
     '1 waiting · paused',
   );
   assert.equal(M.status(up({ engine: { online: true, paused: true } })), 'Paused');
+  // Renders paired devices sent here count, and the line says whose they are.
+  assert.equal(
+    M.status(up({ queue: { running: 1, queued: 0, guests: 1 } })),
+    'Rendering 1 take · 1 from another device',
+  );
+  assert.equal(
+    M.status(up({ queue: { running: 1, queued: 2, guests: 2 }, engine: { online: true, paused: true } })),
+    'Rendering 1 take, 2 waiting · 2 from other devices · paused',
+  );
 });
 
 test('percent clamps and rounds', () => {
@@ -95,6 +106,7 @@ test('actions', () => {
   same(ids({ installed: true, running: false }), ['start', 'setup']);
   same(ids(up()), ['studio', 'agents', 'stop']);
   same(ids(up({ queue: { running: 1, queued: 0 } })), ['studio', 'queue', 'agents', 'stop']);
+  same(ids(up({ queue: { running: 1, queued: 0, guests: 1 } })), ['studio', 'queue', 'agents', 'stop']);
   for (const s of [{ installed: false }, { installed: true, running: false }, up()])
     assert.equal(M.actions(s).filter((a) => a.primary).length, 1);
 });

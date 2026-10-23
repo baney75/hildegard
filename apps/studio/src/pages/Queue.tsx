@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, Take } from '@hildegard/presets';
+import type { Catalog, GuestTake, Take } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { ForceDialog } from '../components/ForceDialog.tsx';
 import { previewUrl, takeLabel, waitingFor } from '../components/TakeCard.tsx';
@@ -11,6 +11,8 @@ import {
   deviceLabel,
   duration,
   estimateMs,
+  guestFrom,
+  guestLine,
   leftMs,
   modelName,
   ordinal,
@@ -33,6 +35,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
   const takes = useStore((s) => s.takes);
   const shots = useStore((s) => s.shots);
   const engine = useStore((s) => s.engine);
+  const guests = useStore((s) => s.guests);
   const owner = useStore((s) => isOwner(s.auth));
   const me = useStore((s) => s.auth?.person?.id ?? null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -53,14 +56,35 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
     (t) => (t.status === 'failed' || t.status === 'canceled') && (t.finishedAt ?? '') >= dayStart,
   );
   const where = deviceLabel(engine);
+  // Renders paired devices sent here: they take the GPU in turn like any take, so they show in line with them.
+  const guestsRunning = guests.filter((g) => g.status === 'running');
+  const guestsWaiting = guests.filter((g) => g.status === 'queued');
+  const inLine: Array<{ take: Take } | { guest: GuestTake }> = [
+    ...waiting.map((take) => ({ take })),
+    ...guestsWaiting.map((guest) => ({ guest })),
+  ].sort(
+    (a, b) =>
+      (('take' in a ? a.take.queuePosition : a.guest.queuePosition) ?? 99) -
+      (('take' in b ? b.take.queuePosition : b.guest.queuePosition) ?? 99),
+  );
+  const busy = running.length + guestsRunning.length;
 
   // Time until each waiting take starts: what is left of the current render plus everything ahead of it.
   const startsIn = (() => {
     const m = new Map<string, number | null>();
-    let acc: number | null = running[0] ? leftMs(running[0], estimateMs(all, running[0]), now) : 0;
-    for (const t of waiting) {
-      m.set(t.id, acc);
-      const own = estimateMs(all, t);
+    // Another device's render takes as long as it takes: nothing behind it can promise a start time.
+    let acc: number | null = running[0]
+      ? leftMs(running[0], estimateMs(all, running[0]), now)
+      : guestsRunning.length
+        ? null
+        : 0;
+    for (const x of inLine) {
+      if ('guest' in x) {
+        acc = null;
+        continue;
+      }
+      m.set(x.take.id, acc);
+      const own = estimateMs(all, x.take);
       acc = acc === null || own === null ? null : acc + own;
     }
     return m;
@@ -185,18 +209,68 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
     );
   };
 
-  const groups: Array<{ key: Filter; title: string; list: Take[]; sub: string; extra?: React.ReactNode }> = [
+  /** A paired device's render: who sent it and how far along it is. Its prompt stays on that device. */
+  const guestRow = (g: GuestTake) => {
+    const pct = Math.round((g.progress ?? 0) * 100);
+    const live = g.status === 'running';
+    return (
+      <div key={g.id} className={`st-job${live ? ' live' : ''}`} title={guestLine(g)} data-guest={g.id}>
+        <span className="thph" aria-hidden="true">
+          <Icon name="desktop" size={18} />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <b>{guestFrom(g)}</b>
+          <small>
+            {g.quality === 'draft' ? 'A draft' : g.quality === 'final' ? 'A final take' : 'A take'} sent from
+            another of your devices
+          </small>
+        </span>
+        <span style={{ display: 'grid', gap: 6 }}>
+          {live ? <Status kind="running">Rendering</Status> : <Status kind="queued">Waiting</Status>}
+          <span
+            className={`st-bar${live ? '' : ' q'}`}
+            role="progressbar"
+            aria-label="Progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+          >
+            <i style={{ width: `${pct}%` }} />
+          </span>
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <b style={{ fontWeight: 500 }}>{where}</b>
+          <small>
+            {live
+              ? `${pct}%`
+              : `${g.queuePosition ? ordinal(g.queuePosition) : 'Next'}${!engine?.online || engine.paused ? ` · ${waitingFor(g, { online: !!engine?.online, paused: !!engine?.paused })}` : ''}`}
+          </small>
+        </span>
+        <span className="acts" />
+      </div>
+    );
+  };
+  const nTakes = (n: number) => (n === 1 ? '1 take' : `${n} takes`);
+  const waitingCount = inLine.length;
+
+  const groups: Array<{
+    key: Filter;
+    title: string;
+    rows: React.ReactNode[];
+    sub: string;
+    extra?: React.ReactNode;
+  }> = [
     {
       key: 'running',
       title: 'Rendering',
-      list: running,
-      sub: running.length === 1 ? '1 take' : `${running.length} takes`,
+      rows: [...guestsRunning.map(guestRow), ...running.map(row)],
+      sub: nTakes(busy),
     },
     {
       key: 'waiting',
       title: 'Waiting',
-      list: waiting,
-      sub: waiting.length === 1 ? '1 take' : `${waiting.length} takes`,
+      rows: inLine.map((x) => ('take' in x ? row(x.take) : guestRow(x.guest))),
+      sub: nTakes(waitingCount),
       extra:
         waiting.length > 1 ? (
           <Button
@@ -213,12 +287,12 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
     {
       key: 'done',
       title: 'Done today',
-      list: [...done, ...stopped],
+      rows: [...done, ...stopped].map(row),
       sub: `${done.length} made${stopped.length ? ` · ${stopped.length} stopped` : ''} · $0.00 spent`,
     },
   ];
   const shown = groups.filter((g) => filter === 'all' || g.key === filter);
-  const empty = !running.length && !waiting.length && !done.length && !stopped.length;
+  const empty = !busy && !waitingCount && !done.length && !stopped.length;
 
   return (
     <>
@@ -227,7 +301,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
           <span className="t">Queue</span>
           <span className="s">
             {engine?.online
-              ? `${engine.comfy === 'remote' ? `Rendering on ${where}` : where}${engine.paused ? ' · paused' : running.length ? ' · busy' : ' · ready'}`
+              ? `${engine.comfy === 'remote' ? `Rendering on ${where}` : where}${engine.paused ? ' · paused' : busy ? ' · busy' : ' · ready'}`
               : comfyDown(engine).short}
           </span>
         </div>
@@ -258,10 +332,10 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
               options={[
                 {
                   value: 'all',
-                  label: `All · ${running.length + waiting.length + done.length + stopped.length}`,
+                  label: `All · ${busy + waitingCount + done.length + stopped.length}`,
                 },
-                { value: 'running', label: `Rendering · ${running.length}` },
-                { value: 'waiting', label: `Waiting · ${waiting.length}` },
+                { value: 'running', label: `Rendering · ${busy}` },
+                { value: 'waiting', label: `Waiting · ${waitingCount}` },
                 {
                   value: 'done',
                   label: `${wc === 'compact' ? 'Done' : 'Done today'} · ${done.length + stopped.length}`,
@@ -285,14 +359,14 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
             </div>
           ) : (
             shown.map((g) =>
-              g.list.length ? (
+              g.rows.length ? (
                 <section key={g.key} aria-label={g.title} style={{ display: 'grid', gap: 10 }}>
                   <div className="st-grouph">
                     <b>{g.title}</b>
                     <span>{g.sub}</span>
                     {g.extra}
                   </div>
-                  <div className="st-jobs">{g.list.map(row)}</div>
+                  <div className="st-jobs">{g.rows}</div>
                 </section>
               ) : null,
             )

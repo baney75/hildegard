@@ -28,7 +28,9 @@ function status(s) {
     var parts = []
     if (q.running) parts.push("Rendering " + plural(q.running, "take", "takes"))
     if (q.queued) parts.push(q.queued + " waiting")
-    return parts.join(", ") + (e.paused ? " · paused" : "")
+    // Paired devices' renders are in those counts; say so, or a GPU busy with nothing of yours looks odd.
+    var others = q.guests ? " · " + q.guests + " from " + (q.guests === 1 ? "another device" : "other devices") : ""
+    return parts.join(", ") + others + (e.paused ? " · paused" : "")
   }
   if (e.paused) return "Paused"
   return "Ready" + (e.device ? " on " + e.device : "") + (e.fake ? " (stand-in GPU)" : "")

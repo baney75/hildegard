@@ -411,6 +411,7 @@ export class Choir {
         token: () => secret.get(),
         fetch: this.fetchFn,
         onInfo: (info, problem) => this.record(d.name, info, problem),
+        from: () => this.sharingName(),
       });
       const known = this.info.get(d.name);
       if (known) this.engine.known(known);

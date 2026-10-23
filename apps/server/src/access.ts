@@ -9,6 +9,7 @@ import type {
   ChoirState,
   EngineState,
   ExportState,
+  GuestTake,
   HfState,
   Project,
   Role,
@@ -124,6 +125,12 @@ function choirFor(who: Who | null, s: ChoirState): ChoirState {
 const hfFor = (who: Who | null, s: HfState): HfState =>
   who?.kind === 'person' && who.person.role === 'director' ? { ...s, user: null } : s;
 
+/** Everyone sees that the GPU is busy with another device's render; only the owner sees which device sent it. */
+const guestsFor = (who: Who | null, g: GuestTake[]): GuestTake[] =>
+  who?.kind === 'local' || (who?.kind === 'person' && who.person.role === 'owner')
+    ? g
+    : g.map((x) => ({ ...x, from: null }));
+
 export function snapshotFor(who: Who | null, s: Snapshot): Snapshot {
   const films = new Set(s.projects.filter((p) => seesProject(who, p)).map((p) => p.id));
   return {
@@ -135,6 +142,7 @@ export function snapshotFor(who: Who | null, s: Snapshot): Snapshot {
     engine: engineFor(who, s.engine),
     hf: hfFor(who, s.hf),
     choir: choirFor(who, s.choir),
+    guests: guestsFor(who, s.guests),
   };
 }
 
@@ -170,6 +178,8 @@ export function eventFilter(projects: (id: string) => Project | undefined, sent:
         return { ...e, hf: hfFor(who, e.hf) };
       case 'choir':
         return { ...e, choir: choirFor(who, e.choir) };
+      case 'guests':
+        return { ...e, guests: guestsFor(who, e.guests) };
       case 'host':
         return who?.kind === 'local' || (who?.kind === 'person' && who.person.role === 'owner') ? e : null;
       default:
