@@ -248,6 +248,10 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     const installed = new Set(
       snap.models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id),
     );
+    if (!a.model && !installed.size && snap.models.some((m) => m.fitWhy === 'apple-gpu'))
+      throw new Error(
+        'No video model renders on this Mac yet. Pair a device with an NVIDIA or AMD GPU (`hildegard choir join`) and render there.',
+      );
     const request = toRequest(a, catalog, installed);
     if (a.start_frame_path) request.startFrame = await client.upload(a.start_frame_path);
     return client.createShot({ request, projectId, title: a.title, agent: agentName() });
