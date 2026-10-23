@@ -135,19 +135,19 @@ draft = { height = 480, steps = 20, cfg = 5.0 }
 final = { height = 704, steps = 30, cfg = 5.0 }
 
 [[models.files]]
-repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+repo = "Comfy-Org/Wan-2.2"
 path = "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors"
 dir = "diffusion_models"
 size = 9999658848
 
 [[models.files]]
-repo = "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
+repo = "Comfy-Org/Wan-2.1"
 path = "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
 dir = "text_encoders"
 size = 6735906897
 
 [[models.files]]
-repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+repo = "Comfy-Org/Wan-2.2"
 path = "split_files/vae/wan2.2_vae.safetensors"
 dir = "vae"
 size = 1409400960

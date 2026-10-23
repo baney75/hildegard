@@ -288,13 +288,19 @@ export class ModelManager {
 
   /** Ask Hugging Face where a file is, what it hashes to, and whether this account may read it. */
   private async resolve(f: ModelFile, revision: string, token: string | null, signal: AbortSignal) {
-    const url = `${this.endpoint}/${f.repo}/resolve/${revision}/${f.path.split('/').map(encodeURIComponent).join('/')}`;
-    const res = await this.fetchFn(url, {
-      method: 'HEAD',
-      redirect: 'manual',
-      headers: this.headers(token),
-      signal,
-    });
+    let url = `${this.endpoint}/${f.repo}/resolve/${revision}/${f.path.split('/').map(encodeURIComponent).join('/')}`;
+    const head = (u: string) =>
+      this.fetchFn(u, { method: 'HEAD', redirect: 'manual', headers: this.headers(token), signal });
+    let res = await head(url);
+    // A renamed repo answers 307 or 308 to its new name on the same host; the file's hash is on that answer's answer.
+    const moved = res.headers.get('location');
+    if ((res.status === 307 || res.status === 308) && moved) {
+      const next = new URL(moved, url);
+      if (next.origin === new URL(url).origin) {
+        url = next.href;
+        res = await head(url);
+      }
+    }
     if (res.status === 401)
       throw token
         ? new ModelError('needs-license', `Accept the license on huggingface.co/${f.repo}, then try again.`)
@@ -314,6 +320,8 @@ export class ModelManager {
       .replace(/"/g, '');
     return {
       url,
+      // Where the repo lives now, which differs from the catalog's name after a rename.
+      repoUrl: url.slice(0, url.indexOf('/resolve/')),
       commit: res.headers.get('x-repo-commit') ?? revision,
       sha256: /^[0-9a-f]{64}$/.test(etag) ? etag : null,
       size: Number(res.headers.get('x-linked-size') ?? res.headers.get('content-length') ?? 0) || null,
@@ -359,7 +367,7 @@ export class ModelManager {
 
     if (have < want.size) {
       const res = await this.fetchFn(
-        `${this.endpoint}/${f.repo}/resolve/${want.revision}/${f.path.split('/').map(encodeURIComponent).join('/')}`,
+        `${info.repoUrl}/resolve/${want.revision}/${f.path.split('/').map(encodeURIComponent).join('/')}`,
         {
           headers: { ...this.headers(token), ...(have ? { range: `bytes=${have}-` } : {}) },
           signal,

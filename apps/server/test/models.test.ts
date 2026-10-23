@@ -23,6 +23,8 @@ function setup(
     body?: Buffer;
     ignoreRange?: boolean;
     token?: string | null;
+    /** The repo was renamed: Hugging Face answers 307 to org/tiny-new. */
+    renamed?: boolean;
   } = {},
 ) {
   const base = real.models[0]!;
@@ -47,9 +49,23 @@ function setup(
     ],
   };
   const body = opts.body ?? BYTES;
+  const at = opts.renamed ? '/org/tiny-new/resolve/' : '/org/tiny/resolve/';
+  const rename: Parameters<typeof fakeFetch>[0] = opts.renamed
+    ? [
+        [
+          'HEAD /org/tiny/resolve/',
+          (u) =>
+            new Response(null, {
+              status: 307,
+              headers: { location: new URL(u).pathname.replace('/org/tiny/', '/org/tiny-new/') },
+            }),
+        ],
+      ]
+    : [];
   const fetch = fakeFetch([
+    ...rename,
     [
-      'HEAD /org/tiny/resolve/',
+      `HEAD ${at}`,
       () =>
         opts.status
           ? new Response(null, { status: opts.status })
@@ -63,7 +79,7 @@ function setup(
             }),
     ],
     [
-      'GET /org/tiny/resolve/',
+      `GET ${at}`,
       (_u, init) => {
         const range = (init.headers as Record<string, string>).range;
         const m = range && !opts.ignoreRange ? /bytes=(\d+)-/.exec(range) : null;
@@ -157,6 +173,14 @@ describe('ModelManager', () => {
       size: BYTES.length,
     });
     expect(events.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('follows a renamed repo to its new name and still verifies the hash', async () => {
+    const { mm, dest, fetch } = setup({ renamed: true });
+    await mm.install('tiny');
+    expect(readFileSync(dest)).toEqual(BYTES);
+    expect(mm.states()[0]).toMatchObject({ installed: true, error: null });
+    expect(fetch.calls.some((c) => c.method === 'GET' && c.url.includes('/org/tiny-new/resolve/'))).toBe(true);
   });
 
   it('downloads the locked revision when models.lock.json pins one', async () => {
