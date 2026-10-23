@@ -12,9 +12,28 @@ exec </dev/null
 umask 077
 
 HERE=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+# The hildegard command: on PATH, or where its installer puts it.
+cli() {
+  if command -v hildegard >/dev/null 2>&1; then
+    command -v hildegard
+  elif [[ -x ${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard ]]; then
+    echo "${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard"
+  fi
+}
+
+# Where Hildegard keeps its data: HILDEGARD_HOME, else the home its installed command was set up with, else the default.
+data_dir() {
+  local bin home=${HILDEGARD_HOME:-}
+  if [[ -z $home ]] && bin=$(cli) && [[ -n $bin && -r $bin ]]; then
+    home=$(sed -n 's/^export HILDEGARD_HOME="\(.*\)"$/\1/p' "$bin" 2>/dev/null | head -n 1)
+  fi
+  echo "${home:-${XDG_DATA_HOME:-$HOME/.local/share}/hildegard}"
+}
+
 # The port: HILDEGARD_PORT, else the one Hildegard last started on (it notes it in <data>/server.json), else 7341.
 remembered_port() {
-  local data=${HILDEGARD_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/hildegard}
+  local data
+  data=$(data_dir)
   [[ -r $data/server.json ]] && jq -er '.port | select(type == "number" and . > 0 and . < 65536)' "$data/server.json" 2>/dev/null
 }
 PORT=${HILDEGARD_PORT:-$(remembered_port || echo 7341)}
@@ -23,15 +42,6 @@ URL="http://127.0.0.1:$PORT"
 fail() {
   printf 'hildegard: %s\n' "$*" >&2
   exit 1
-}
-
-# The hildegard command: on PATH, or where its installer puts it.
-cli() {
-  if command -v hildegard >/dev/null 2>&1; then
-    command -v hildegard
-  elif [[ -x ${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard ]]; then
-    echo "${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard"
-  fi
 }
 
 # Everything the panel shows, as one JSON object, from Hildegard's own snapshot.

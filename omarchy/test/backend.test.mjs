@@ -352,3 +352,20 @@ test('finds the port Hildegard last started on when HILDEGARD_PORT isn’t set',
   const { stdout: fallback } = await promisify(execFile)(cli, ['snapshot'], { env: { ...rest, HOME: home } });
   assert.equal(JSON.parse(fallback).url, 'http://127.0.0.1:7341');
 });
+
+test('finds the port of an install with its own home, from the hildegard command it set up', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'hildegard-omarchy-home-'));
+  const data = join(home, 'custom-home');
+  const bin = join(home, '.local', 'bin');
+  (await import('node:fs')).mkdirSync(data, { recursive: true });
+  (await import('node:fs')).mkdirSync(bin, { recursive: true });
+  writeFileSync(join(data, 'server.json'), JSON.stringify({ port: 7399 }));
+  writeFileSync(join(bin, 'hildegard'), `#!/bin/sh\nexport HILDEGARD_HOME="${data}"\nexit 0\n`);
+  chmodSync(join(bin, 'hildegard'), 0o755);
+  const { HILDEGARD_PORT: _, XDG_BIN_HOME: __, ...rest } = env();
+  // Only the installed command, not the test's stub of it.
+  const { stdout } = await promisify(execFile)(cli, ['snapshot'], {
+    env: { ...rest, HOME: home, PATH: '/usr/bin:/bin' },
+  });
+  assert.equal(JSON.parse(stdout).url, 'http://127.0.0.1:7399');
+});

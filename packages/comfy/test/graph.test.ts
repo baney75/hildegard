@@ -15,6 +15,7 @@ import {
   classifyFailure,
   EngineError,
   GRAPH_NODE_CLASSES,
+  progressOf,
   vetGraph,
 } from '../src/index.ts';
 
@@ -285,5 +286,24 @@ describe('vetGraph', () => {
       /plain value/,
     );
     expect(vetGraph({ ...base, graph: {} }, files)).not.toEqual([]);
+  });
+});
+
+describe('progressOf', () => {
+  const frame = (over: Partial<Parameters<typeof progressOf>[0]>) => ({
+    value: 0,
+    step: null,
+    steps: null,
+    nodesDone: null,
+    nodesTotal: null,
+    ...over,
+  });
+  it('reads the sampler’s steps first, then the share of nodes done', () => {
+    expect(progressOf(frame({ value: 1, step: 5, steps: 20 }))).toBe(0.25);
+    expect(progressOf(frame({ value: 1, nodesDone: 3, nodesTotal: 12 }))).toBe(0.25);
+    expect(progressOf(frame({ value: 0.4 }))).toBe(0.4);
+  });
+  it('ignores a bare “node finished” frame instead of showing a full bar', () => {
+    expect(progressOf(frame({ value: 1 }))).toBeNull();
   });
 });

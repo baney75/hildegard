@@ -168,12 +168,9 @@ export class ComfySdkEngine implements Engine {
               started = true;
               handlers.onRunning?.();
             }
-            handlers.onProgress?.({
-              value: ev.value,
-              step: ev.step,
-              steps: ev.steps,
-              node: ev.currentNodeClass,
-            });
+            const value = progressOf(ev);
+            if (value !== null)
+              handlers.onProgress?.({ value, step: ev.step, steps: ev.steps, node: ev.currentNodeClass });
           } else if (ev.kind === 'preview' && ev.data.length) {
             handlers.onPreview?.(ev.data, ev.contentType);
           }
@@ -213,4 +210,21 @@ export class ComfySdkEngine implements Engine {
     if (err?.name === 'AbortError') return new EngineError('canceled', 'Canceled.');
     return classifyFailure(err?.code, msg);
   }
+}
+
+/**
+ * How far a render is, 0 to 1, from one progress frame: the sampler's steps when it reports them, else the share of
+ * nodes done. A bare "this node finished" frame (value 1 with neither) says nothing about the whole render, so it's
+ * null rather than a full bar.
+ */
+export function progressOf(ev: {
+  value: number;
+  step: number | null;
+  steps: number | null;
+  nodesDone: number | null;
+  nodesTotal: number | null;
+}): number | null {
+  if (ev.step !== null && ev.steps) return Math.min(1, ev.step / ev.steps);
+  if (ev.nodesDone !== null && ev.nodesTotal) return Math.min(1, ev.nodesDone / ev.nodesTotal);
+  return ev.value < 1 ? Math.max(0, ev.value) : null;
 }
