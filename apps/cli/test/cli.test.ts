@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { loadCatalog } from '@hildegard/presets';
 import { fit } from '@hildegard/runtime';
-import { fileStore, parseArgs, startServer } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -19,31 +19,46 @@ import { printResult, result } from '../src/output.ts';
 const main = process.env.HILDEGARD_CLI ?? fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const run = promisify(execFile);
 
+const cliEnv = (home: string) => ({
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  APPDATA: join(home, 'AppData'),
+  XDG_CONFIG_HOME: join(home, '.config'),
+  PATH: '',
+  HF_TOKEN: '',
+  // Never a real keychain from tests.
+  HILDEGARD_SECRETS: 'file',
+  // As the installed launcher does.
+  ...(process.env.HILDEGARD_CLI ? { HILDEGARD_ENTRY: main } : {}),
+});
+type Out = {
+  ok: boolean;
+  needsOwner: boolean;
+  message: string;
+  steps: { id: string; status: string; detail: string; command?: string }[];
+  [k: string]: unknown;
+};
+
 /** Runs `hildegard …` in its own home folder, so no real app config is ever touched. */
 async function hildegard(home: string, ...args: string[]) {
   const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
-    env: {
-      ...process.env,
-      HOME: home,
-      USERPROFILE: home,
-      APPDATA: join(home, 'AppData'),
-      XDG_CONFIG_HOME: join(home, '.config'),
-      PATH: '',
-      HF_TOKEN: '',
-      // Never a real keychain from tests.
-      HILDEGARD_SECRETS: 'file',
-      // As the installed launcher does.
-      ...(process.env.HILDEGARD_CLI ? { HILDEGARD_ENTRY: main } : {}),
-    },
+    env: cliEnv(home),
     timeout: 60_000,
   }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
-  return JSON.parse(stdout) as {
-    ok: boolean;
-    needsOwner: boolean;
-    message: string;
-    steps: { id: string; status: string; detail: string }[];
-    [k: string]: unknown;
-  };
+  return JSON.parse(stdout) as Out;
+}
+
+/** The same, with something piped to its stdin, as an agent pipes a secret the owner gave it. */
+function hildegardWithStdin(home: string, input: string, ...args: string[]) {
+  return new Promise<Out>((resolve, reject) => {
+    const child = spawn(process.execPath, [main, ...args, '--json'], { env: cliEnv(home) });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.on('error', reject);
+    child.on('close', () => resolve(JSON.parse(out) as Out));
+    child.stdin.end(input);
+  });
 }
 
 describe('hildegard', () => {
@@ -200,6 +215,166 @@ describe('hildegard', () => {
     expect(starterModel(catalog, mac)?.id).toBe('wan-2-2-ti2v-5b');
     expect(fit(mac, catalog.models.find((m) => m.id === 'ltx-2-5-distilled')!)).toBe('no');
   });
+});
+
+describe('host and doctor', () => {
+  it('makes the owner from a piped passphrase, hosts at a link, invites, and turns it off', async () => {
+    const calls: string[][] = [];
+    const tailscale: Exec = async (_cmd, args) => {
+      calls.push(args);
+      if (args[0] === 'status')
+        return {
+          ok: true,
+          out: JSON.stringify({
+            BackendState: 'Running',
+            Self: { DNSName: 'studio.tail1234.ts.net.', TailscaleIPs: ['100.101.102.103'] },
+          }),
+        };
+      return { ok: true, out: args[0] === 'serve' && args[1] === 'status' ? '{}' : '' };
+    };
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-host-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')), exec: tailscale },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    try {
+      // No owner yet: an agent gets the command to hand the owner, never a passphrase prompt.
+      const first = await hildegard(home, 'host', ...at);
+      expect(first.needsOwner).toBe(true);
+      expect(first.steps[0]).toMatchObject({
+        id: 'owner',
+        status: 'needs-owner',
+        command: 'hildegard host owner',
+      });
+      expect((await hildegard(home, 'host', 'invite', ...at)).needsOwner).toBe(true);
+      const short = await hildegardWithStdin(
+        home,
+        'short\n',
+        'host',
+        'owner',
+        '--name',
+        'Donovan',
+        '--passphrase-stdin',
+        ...at,
+      );
+      expect(short.ok).toBe(false);
+      const owner = await hildegardWithStdin(
+        home,
+        'a long and private passphrase\n',
+        'host',
+        'owner',
+        '--name',
+        'Donovan',
+        '--passphrase-stdin',
+        ...at,
+      );
+      expect(owner.steps[0]).toMatchObject({ id: 'owner', status: 'done' });
+      expect(srv.people.find('donovan')).toMatchObject({ role: 'owner' });
+
+      const on = await hildegard(home, 'host', ...at);
+      expect(on.ok).toBe(true);
+      expect(on.url).toBe('https://studio.tail1234.ts.net');
+      expect(on.steps.at(-1)).toMatchObject({ id: 'host', status: 'done' });
+      expect(calls).toContainEqual(['serve', '--bg', '--https=443', srv.hostedUrl()]);
+      // Again: nothing changes, nothing breaks.
+      expect((await hildegard(home, 'host', ...at)).url).toBe('https://studio.tail1234.ts.net');
+
+      const invite = await hildegard(home, 'host', 'invite', '--role', 'director', '--hours', '24', ...at);
+      expect(invite.url).toMatch(/^https:\/\/studio\.tail1234\.ts\.net\/#\/invite\/[A-Za-z0-9_-]{43}$/);
+      const people = await hildegard(home, 'host', 'people', ...at);
+      expect(people.people).toMatchObject([{ name: 'Donovan', role: 'owner' }]);
+      expect(people.invites).toMatchObject([{ role: 'director' }]);
+
+      const st = await hildegard(home, 'status', ...at);
+      expect(st.host).toMatchObject({ on: true, via: 'tailscale', url: 'https://studio.tail1234.ts.net' });
+      expect(st.steps.find((x) => x.id === 'host')).toMatchObject({ status: 'done' });
+
+      const funnel = await hildegard(home, 'host', '--funnel', ...at);
+      expect(funnel.warning).toMatch(/public internet/);
+      expect(calls).toContainEqual(['funnel', '--bg', '--https=443', srv.hostedUrl()]);
+      const off = await hildegard(home, 'host', 'off', ...at);
+      expect(off.host).toMatchObject({ on: false });
+      expect(calls).toContainEqual(['funnel', '--https=443', 'off']);
+      expect((await hildegard(home, 'host', 'revoke', 'Donovan', ...at)).ok).toBe(false);
+    } finally {
+      await srv.close();
+    }
+  }, 90_000);
+
+  it('checks every part and prints the command that fixes each', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const port = String(7400 + Math.floor(Math.random() * 400));
+    // Not running: that's the first thing to fix.
+    const down = await hildegard(home, 'doctor', '--port', port, '--data', data);
+    expect(down.ok).toBe(false);
+    expect(down.steps.find((s) => s.id === 'server')).toMatchObject({
+      status: 'failed',
+      command: 'hildegard start --json',
+    });
+    const common = ['--port', port, '--data', data, '--fake-gpu'];
+    expect((await hildegard(home, 'start', ...common)).ok).toBe(true);
+    try {
+      const d = await hildegard(home, 'doctor', ...common);
+      expect(d.steps.map((s) => s.id)).toEqual(
+        expect.arrayContaining([
+          'gpu',
+          'server',
+          'comfyui',
+          'models',
+          'huggingface',
+          'tailscale',
+          'host',
+          'agents',
+        ]),
+      );
+      expect(d.steps.find((s) => s.id === 'server')!.status).toBe('done');
+      // Tailscale isn't on this test's PATH.
+      expect(d.steps.find((s) => s.id === 'tailscale')).toMatchObject({
+        status: 'skipped',
+        command: 'tailscale up',
+      });
+      expect(d.steps.find((s) => s.id === 'models')).toMatchObject({ status: 'needs-owner' });
+      expect(d.host).toMatchObject({ on: false, owner: false });
+      // Whatever is broken or waits on the owner comes with the command that fixes it.
+      for (const s of d.steps.filter((x) => x.status === 'failed' || x.status === 'needs-owner'))
+        expect(s.command, s.id).toBeTruthy();
+    } finally {
+      await hildegard(home, 'stop', ...common);
+    }
+  }, 60_000);
+
+  it('accepts a license only when --accept-license names the model', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const common = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data, '--fake-gpu'];
+    try {
+      for (const accept of [['--accept-license'], ['--accept-license', 'ltx-2-5-distilled'], []]) {
+        const r = await hildegard(home, 'setup', '--model', 'wan-2-2-ti2v-5b', ...accept, ...common);
+        const model = r.steps.find((s) => s.id === 'model')!;
+        expect(model.status, accept.join(' ')).toBe('needs-owner');
+        expect(model.command).toBe(
+          'hildegard setup --model wan-2-2-ti2v-5b --accept-license wan-2-2-ti2v-5b --yes --json',
+        );
+        expect(model.detail).toContain('Apache-2.0');
+      }
+      const wrong = await hildegard(
+        home,
+        'models',
+        'install',
+        'wan-2-2-ti2v-5b',
+        '--accept-license',
+        'ltx-2-5-distilled',
+        ...common,
+      );
+      expect(wrong.ok).toBe(false);
+      expect(wrong.message).toContain('Nothing changed');
+    } finally {
+      await hildegard(home, 'stop', ...common);
+    }
+  }, 60_000);
 });
 
 describe('printResult', () => {

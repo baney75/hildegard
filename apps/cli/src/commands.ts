@@ -4,7 +4,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:f
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import type { Catalog, ChoirDevice, ChoirState, HfState, Snapshot } from '@hildegard/presets';
+import type { Catalog, ChoirDevice, ChoirState, HfState, HostState, Snapshot } from '@hildegard/presets';
 import {
   AGENTS,
   connectAgent,
@@ -23,6 +23,7 @@ import {
   snippet,
 } from '@hildegard/runtime';
 import { type Config, startServer, VERSION } from '@hildegard/server';
+import { hostStep } from './host.ts';
 import { printStep, type Result, result } from './output.ts';
 
 export interface Ctx {
@@ -37,9 +38,13 @@ export interface Ctx {
 export const entry = () =>
   process.env.HILDEGARD_ENTRY ?? fileURLToPath(new URL('./main.ts', import.meta.url));
 
-const baseUrl = (c: Config) => `http://127.0.0.1:${c.port}`;
+export const baseUrl = (c: Config) => `http://127.0.0.1:${c.port}`;
 
-async function api<T>(c: Config, path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+export async function api<T>(
+  c: Config,
+  path: string,
+  init?: { method?: string; body?: unknown },
+): Promise<T> {
   const res = await fetch(`${baseUrl(c)}${path}`, {
     method: init?.method ?? 'GET',
     headers: init?.method ? { 'x-hildegard': '1', 'content-type': 'application/json' } : {},
@@ -193,7 +198,7 @@ export async function install(ctx: Ctx): Promise<Result> {
 
 // ── models ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-async function ensureRunning(ctx: Ctx): Promise<Step | null> {
+export async function ensureRunning(ctx: Ctx): Promise<Step | null> {
   if (await running(ctx.config)) return null;
   const s = await start(ctx);
   return s.steps[0] ?? null;
@@ -255,8 +260,14 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
   if (args[0] === 'install') {
-    const id = args[1];
+    const named = ctx.opts.get('accept-license');
+    const id = args[1] ?? named;
     if (!id) return result([], 'Say which model: `hildegard models install <id>`.', { ok: false });
+    // `--accept-license` accepts the license of the model named here, and only that one.
+    if (named && named !== id)
+      return result([], `--accept-license names ${named}, but this installs ${id}. Nothing changed.`, {
+        ok: false,
+      });
     const step = await installModel(ctx, id, ctx.flags.has('accept-license'));
     return result([step], step.status === 'needs-owner' ? 'Waiting on the license.' : step.detail);
   }
@@ -290,7 +301,7 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
 
 // ── setup ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-async function ask(question: string): Promise<boolean> {
+export async function ask(question: string): Promise<boolean> {
   if (!process.stdin.isTTY) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const a = (await rl.question(`${question} [Y/n] `)).trim().toLowerCase();
@@ -360,14 +371,27 @@ export async function setup(ctx: Ctx): Promise<Result> {
         : `No video model fits ${gpu.backend === 'cpu' ? 'without a GPU' : `${gpu.vramGb} GB`}. Hildegard can still render on a cloud GPU (coming soon).`,
     });
   else {
-    let accept = ctx.flags.has('accept-license');
-    if (!accept && !ctx.yes && !ctx.json) {
+    // Without questions, a license is accepted only when `--accept-license` names this very model: the owner said
+    // yes to its terms, and the agent passes that on. A bare flag accepts nothing, whichever model setup picks.
+    let accept = ctx.opts.get('accept-license') === pick.id;
+    if (!accept && !ctx.yes && !ctx.json && process.stdin.isTTY) {
       console.log(`\n${pick.name} fits this computer. It comes under the ${pick.license}:`);
       for (const t of pick.terms) console.log(`  • ${t}`);
       console.log(`  ${pick.licenseUrl}`);
       accept = await ask(`Accept it and download ${pick.name}?`);
     }
+    if (ctx.flags.has('hf-token-stdin')) {
+      // The owner's token, piped in: never on the command line, where shell history and process lists keep it.
+      const linked = await hf({ ...ctx, flags: new Set([...ctx.flags, 'token-stdin']) }, ['login']);
+      add({ ...linked.steps[0]!, id: 'huggingface' });
+      if (!linked.ok) return { ...result(steps, linked.message), printed: steps.length };
+    }
     let step = await installModel(ctx, pick.id, accept);
+    if (step.status === 'needs-owner' && step.command?.endsWith('--accept-license'))
+      step = {
+        ...step,
+        command: `hildegard setup --model ${pick.id} --accept-license ${pick.id} --yes --json`,
+      };
     // At a terminal, link Hugging Face right here rather than sending the owner off to do it.
     if (step.command === 'hildegard hf login' && process.stdin.isTTY && !ctx.json) {
       const linked = await hf(ctx, ['login']);
@@ -505,6 +529,8 @@ export async function status(ctx: Ctx): Promise<Result> {
   const agents = listAgents();
   for (const a of agents.filter((x) => x.connected))
     steps.push({ id: `agent-${a.id}`, title: a.name, status: 'done', detail: 'Linked.' });
+  const hosting = up ? await api<HostState>(c, '/api/host').catch(() => null) : null;
+  if (hosting?.on) steps.push(hostStep(hosting));
   return result(steps, '', {
     running: Boolean(up),
     url: baseUrl(c),
@@ -515,6 +541,7 @@ export async function status(ctx: Ctx): Promise<Result> {
     models: snap?.models ?? [],
     agents,
     choir: snap?.choir ?? null,
+    host: hosting,
     dataDir: c.dataDir,
   });
 }
@@ -546,7 +573,7 @@ export function open(ctx: Ctx): Result {
 const TOKEN_PAGE = 'https://huggingface.co/settings/tokens/new?tokenType=read';
 
 /** Reads a line without echoing it, so a token never shows on screen or in scrollback. */
-function askSecret(question: string): Promise<string> {
+export function askSecret(question: string): Promise<string> {
   const stdin = process.stdin;
   process.stdout.write(question);
   return new Promise((resolve) => {
@@ -575,7 +602,7 @@ function askSecret(question: string): Promise<string> {
   });
 }
 
-async function readStdin(): Promise<string> {
+export async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const c of process.stdin) chunks.push(c as Buffer);
   return Buffer.concat(chunks).toString('utf8').trim();
