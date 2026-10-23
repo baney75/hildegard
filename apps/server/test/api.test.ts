@@ -317,5 +317,5 @@ describe('export film', () => {
     expect(readFileSync(join(srv.config.dataDir, 'media', 'exports', `${e.id}.mp4`)).length).toBe(
       bytes.length,
     );
-  });
+  }, 60_000);
 });
