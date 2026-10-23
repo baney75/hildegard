@@ -60,6 +60,9 @@ paired devices, host mode and linked apps, changes nothing, and gives each probl
    finds, and starts Hildegard. The command lands in `~/.local/bin` (Windows: `%LOCALAPPDATA%\Hildegard\bin`); call
    it by that path if it isn't on `PATH` yet. Rerunning it fetches only what changed.
 
+   A person can install with the [Hildegard app](../README.md#the-hildegard-app) instead: it runs this same install
+   from a window, into the same folder and with the same `hildegard` command, so every step below works after it.
+
 2. Set up a model and link the AI apps on this computer:
 
    ```sh

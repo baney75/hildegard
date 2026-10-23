@@ -1,0 +1,81 @@
+name: Desktop app
+
+# The Hildegard app (apps/desktop), built on each OS and kept as workflow artifacts to download and try. It makes no
+# release or tag. The bundles aren't signed yet: see "The Hildegard app" in the README.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: msi,nsis
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          # The oldest Ubuntu runner, so the AppImage and .deb run on older glibc too.
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: WebKitGTK and the tray library
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libsoup-3.0-dev libxdo-dev patchelf file
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hildegard/desktop typecheck
+      - run: pnpm --filter @hildegard/desktop test
+      - run: pnpm --filter @hildegard/studio build
+      - name: Hildegard and Node.js for the app to carry
+        run: node apps/desktop/scripts/prepare-bundle.mjs --target ${{ matrix.target }}
+      # The start-up page and the files above are compiled in, so the Rust tests come after them.
+      - run: pnpm --filter @hildegard/desktop build
+      - name: Rust tests
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked
+      - name: Build the app
+        working-directory: apps/desktop
+        run: pnpm tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hildegard-app-${{ matrix.target }}
+          path: |
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 14

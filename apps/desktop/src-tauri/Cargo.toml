@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "hildegard-desktop"
+version = "0.1.0"
+description = "The Hildegard app: a native window around the Studio"
+license = "AGPL-3.0-only"
+repository = "https://github.com/baney75/hildegard"
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "hildegard_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.2", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.3", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "=2.7.1"
+tauri-plugin-single-instance = "=2.5.3"
+tauri-plugin-window-state = "=2.5.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Plain HTTP to Hildegard on 127.0.0.1 only, so no TLS.
+ureq = { version = "=3.4.2", default-features = false, features = ["json"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

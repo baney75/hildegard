@@ -46,6 +46,14 @@ export function printStep(s: Step) {
   if (s.command) console.log(`  ${bold(forPeople(s.command))}`);
 }
 
+/**
+ * `install --events`, for the Hildegard app: each step, and each line of the installer's output, as one line of JSON
+ * the moment it happens. The result follows at the end, as with --json.
+ */
+export function printEvent(e: { step: Step } | { log: string }) {
+  console.log(JSON.stringify(e));
+}
+
 export function printResult(r: Result, json: boolean, printed = 0) {
   if (json) {
     // `printed` is how many steps already went to the terminal: bookkeeping for people, not part of the result.

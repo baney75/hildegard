@@ -24,8 +24,12 @@ const packages = Object.entries(list)
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const licenseText = (dir) => {
-  const f = readdirSync(dir).find((x) => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(x));
-  return f ? readFileSync(join(dir, f), 'utf8').trim() : null;
+  const files = readdirSync(dir);
+  const f = files.find((x) => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(x));
+  if (f) return readFileSync(join(dir, f), 'utf8').trim();
+  // A package under two licenses (MIT OR Apache-2.0, say) ships one file for each, like LICENSE-MIT.
+  const each = files.filter((x) => /^licen[cs]e-[\w.-]+$/i.test(x) && !/\.spdx$/i.test(x)).sort();
+  return each.length ? each.map((x) => readFileSync(join(dir, x), 'utf8').trim()).join('\n\n') : null;
 };
 
 const fonts = [

@@ -1,0 +1,4 @@
+# Two-space indents, as in the rest of the repository.
+tab_spaces = 2
+max_width = 120
+use_small_heuristics = "Max"

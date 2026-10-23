@@ -2,9 +2,11 @@
 // Builds Hildegard's release archives, one per platform, and the install scripts with every hash written in.
 //
 //   pnpm --filter @hildegard/studio build && node scripts/build-release.mjs [out-dir]
+//   node scripts/build-release.mjs --payload <dir> --target <os-cpu>
 //
 // Each archive holds hildegard.mjs (the CLI, server and MCP server in one file), the built Studio, the presets, the
-// film-look node, the licenses, and the OS keychain module for that platform.
+// film-look node, the licenses, and the OS keychain module for that platform. With --payload it writes one target's
+// files, unpacked, to <dir> and stops there: what the Hildegard app (apps/desktop) carries inside it.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -13,13 +15,21 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const out = process.argv[2] ?? join(root, 'dist', 'release');
+const argv = process.argv.slice(2);
+const flagValue = (flag) => (argv.includes(flag) ? argv[argv.indexOf(flag) + 1] : undefined);
+const payload = flagValue('--payload');
+const out = payload ?? argv[0] ?? join(root, 'dist', 'release');
 const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const { version: keyring } = JSON.parse(
   readFileSync(join(root, 'apps', 'server', 'node_modules', '@napi-rs', 'keyring', 'package.json'), 'utf8'),
 );
 const NODE = '24.21.0';
 const TARGETS = ['linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64', 'win32-arm64'];
+const payloadTarget = flagValue('--target');
+if (payload && !TARGETS.includes(payloadTarget)) {
+  console.error(`Name the platform with --target, one of: ${TARGETS.join(', ')}`);
+  process.exit(1);
+}
 const commit = (() => {
   try {
     return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
@@ -35,7 +45,7 @@ if (!existsSync(join(studio, 'index.html'))) {
 }
 
 rmSync(out, { recursive: true, force: true });
-const stage = join(out, 'stage');
+const stage = payload ? out : join(out, 'stage');
 mkdirSync(stage, { recursive: true });
 
 // One file for the CLI, server and MCP server. The banner tells the code where its files are, before any of it runs.
@@ -83,14 +93,9 @@ writeFileSync(
   `${JSON.stringify({ name: 'hildegard', version, private: true, type: 'module', license: 'AGPL-3.0-only', dependencies: { '@napi-rs/keyring': keyring } }, null, 2)}\n`,
 );
 
-const sha = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
-const sums = {};
-for (const t of TARGETS) {
+// The keychain module's build for that platform only; npm picks it by the flags, so this runs anywhere.
+const keychainFor = (dir, t) => {
   const [os, cpu] = t.split('-');
-  const name = `hildegard-${version}-${t}`;
-  const dir = join(out, name);
-  cpSync(stage, dir, { recursive: true });
-  // The keychain module's build for that platform only; npm picks it by the flags, so this runs anywhere.
   execFileSync(
     'npm',
     [
@@ -106,6 +111,21 @@ for (const t of TARGETS) {
     ],
     { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' },
   );
+};
+
+if (payload) {
+  keychainFor(stage, payloadTarget);
+  console.log(`Hildegard ${version} for ${payloadTarget} in ${stage}`);
+  process.exit(0);
+}
+
+const sha = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+const sums = {};
+for (const t of TARGETS) {
+  const name = `hildegard-${version}-${t}`;
+  const dir = join(out, name);
+  cpSync(stage, dir, { recursive: true });
+  keychainFor(dir, t);
   const archive = join(out, `${name}.tar.gz`);
   // macOS tar (bsdtar) would add Apple xattr headers (com.apple.provenance) that GNU tar warns about on every
   // install; COPYFILE_DISABLE drops the AppleDouble files and --no-xattrs the pax headers.

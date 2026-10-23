@@ -24,7 +24,7 @@ import {
 } from '@hildegard/runtime';
 import { type Config, startServer, VERSION } from '@hildegard/server';
 import { hostStep } from './host.ts';
-import { printStep, type Result, result } from './output.ts';
+import { printEvent, printStep, type Result, result } from './output.ts';
 
 export interface Ctx {
   config: Config;
@@ -171,11 +171,16 @@ export async function stop(ctx: Ctx): Promise<Result> {
 
 export async function install(ctx: Ctx): Promise<Result> {
   const c = ctx.config;
+  const events = ctx.flags.has('events');
   const steps = await installRuntime({
     dataDir: c.dataDir,
     cpu: ctx.flags.has('cpu'),
-    onStep: ctx.json ? undefined : printStep,
-    onLog: ctx.json || !ctx.flags.has('verbose') ? undefined : (l) => console.log(`    ${l}`),
+    onStep: events ? (step) => printEvent({ step }) : ctx.json ? undefined : printStep,
+    onLog: events
+      ? (log) => printEvent({ log })
+      : ctx.json || !ctx.flags.has('verbose')
+        ? undefined
+        : (l) => console.log(`    ${l}`),
   });
   const printed = ctx.json ? 0 : steps.length;
   const failed = steps.find((s) => s.status === 'failed' || s.status === 'needs-owner');
@@ -184,6 +189,7 @@ export async function install(ctx: Ctx): Promise<Result> {
   // Restart, so the server runs the ComfyUI it just installed.
   if (await running(c)) await stop(ctx);
   const s = await start(ctx);
+  if (events) for (const step of s.steps) printEvent({ step });
   steps.push(...s.steps);
   return {
     ...result(

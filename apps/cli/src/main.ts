@@ -51,6 +51,7 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
   --port N    Hildegard's port (last used, or 7341)    --data DIR   Where Hildegard keeps everything
   --cpu       Install the CPU build of PyTorch    --verbose    Show the installer's output
+  --events    With install: each step as a line of JSON while it runs, then the result (the Hildegard app)
 
 Agents: see docs/agents.md. Everything stays on your own devices.`;
 
@@ -88,7 +89,14 @@ for (let i = 0; i < argv.length; i++) {
 }
 const [command = 'help', ...rest] = positional;
 const config = parseArgs(argv);
-const ctx: Ctx = { config, json: flags.has('json'), yes: flags.has('yes'), flags, opts };
+// --events is --json with each install step printed as it happens, for the Hildegard app.
+const ctx: Ctx = {
+  config,
+  json: flags.has('json') || flags.has('events'),
+  yes: flags.has('yes'),
+  flags,
+  opts,
+};
 
 async function main(): Promise<Result | null> {
   if (flags.has('version') || command === 'version') {

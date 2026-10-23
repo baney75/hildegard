@@ -41,6 +41,51 @@ added to your PATH). To remove Hildegard, run `hildegard stop` and delete that f
 On [Omarchy](https://omarchy.org), the [Hildegard bar widget](omarchy/README.md) shows renders in your bar and can do
 the install for you.
 
+## The Hildegard app
+
+The Studio in a window of its own, for Windows, macOS and Linux, with Hildegard in the tray (the menu bar on a Mac).
+There are no releases of it yet: each run of the [Desktop app workflow](.github/workflows/desktop.yml) keeps the
+builds for two weeks under its **Artifacts**.
+
+| Download | What you get |
+| --- | --- |
+| `hildegard-app-x86_64-pc-windows-msvc` | `Hildegard_…_x64-setup.exe` installs it for you alone, no admin rights; the `.msi` installs it for everyone |
+| `hildegard-app-aarch64-apple-darwin` | `Hildegard_…_aarch64.dmg`, for Macs with Apple silicon |
+| `hildegard-app-x86_64-unknown-linux-gnu` | `Hildegard_…_amd64.AppImage` for any distribution (Omarchy and Arch included), and a `.deb` for Debian and Ubuntu |
+
+- **The first time**, if Hildegard isn't installed, the app installs it, step by step in its window: the same install
+  as the one-line installer, in the same folder, with the `hildegard` command too. The app and the terminal share one
+  Hildegard, so everything above works the same with either.
+- **Each time**, the app opens the Hildegard already running on this computer, or starts one. Quitting the app stops
+  Hildegard only if the app started it; one you started with `hildegard start` keeps running.
+- **The tray** has Open Studio, Pause sharing (turns off the link from Settings › Sharing, and Resume sharing turns it
+  back on), and Quit Hildegard. Closing the window leaves Hildegard running in the tray; opening the app again brings
+  the window back.
+- The window shows the Studio from `127.0.0.1` and nothing else: links to other sites open in your browser, and
+  downloads go to your Downloads folder. The Studio inside it can't reach the app or your files.
+
+The builds aren't signed yet, so each system asks once whether you trust them:
+
+- **Windows:** "Windows protected your PC". Choose **More info**, then **Run anyway**.
+- **macOS:** "Apple could not verify…". Open it once with Control-click › **Open**, or **Open Anyway** in System
+  Settings › Privacy & Security.
+- **Linux:** make the AppImage executable (`chmod +x Hildegard_*.AppImage`) and run it. The tray icon needs a
+  StatusNotifier tray, which Omarchy's Waybar has; on GNOME, the AppIndicator extension. The AppImage carries the
+  GStreamer plugins that play videos in the window; with the `.deb`, install `gstreamer1.0-libav` if videos don't play.
+
+To build it yourself you need Rust, and on Linux WebKitGTK 4.1 and libayatana-appindicator (Ubuntu:
+`sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev`; Arch:
+`sudo pacman -S webkit2gtk-4.1 libayatana-appindicator librsvg`):
+
+```sh
+pnpm install && pnpm --filter @hildegard/studio build
+node apps/desktop/scripts/prepare-bundle.mjs     # the Hildegard and Node.js the app carries, for this computer
+pnpm --filter @hildegard/desktop tauri build     # or tauri dev
+```
+
+Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), updates through Tauri's
+signed updater, a universal macOS build and Linux on arm64, and notices for the Rust crates inside the app.
+
 ## Hugging Face
 
 Wan downloads without an account. LTX asks you to accept its license on Hugging Face first, so Hildegard needs your

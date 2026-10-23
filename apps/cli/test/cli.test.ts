@@ -13,7 +13,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
-import { printResult, result } from '../src/output.ts';
+import { printEvent, printResult, result } from '../src/output.ts';
 
 // HILDEGARD_CLI tests an installed release's hildegard.mjs instead of the source.
 const main = process.env.HILDEGARD_CLI ?? fileURLToPath(new URL('../src/main.ts', import.meta.url));
@@ -388,6 +388,24 @@ describe('host and doctor', () => {
       await hildegard(home, 'stop', ...common);
     }
   }, 60_000);
+});
+
+describe('printEvent', () => {
+  it('prints each install step and log line as one line of JSON, for the Hildegard app', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      printEvent({ step: { id: 'uv', title: 'Get uv', status: 'done', detail: 'Installed uv.\nIn tools.' } });
+      printEvent({ log: 'Downloading torch' });
+      const lines = log.mock.calls.map((c) => c[0] as string);
+      expect(lines.every((l) => !l.includes('\n'))).toBe(true);
+      expect(lines.map((l) => JSON.parse(l))).toEqual([
+        { step: { id: 'uv', title: 'Get uv', status: 'done', detail: 'Installed uv.\nIn tools.' } },
+        { log: 'Downloading torch' },
+      ]);
+    } finally {
+      log.mockRestore();
+    }
+  });
 });
 
 describe('printResult', () => {

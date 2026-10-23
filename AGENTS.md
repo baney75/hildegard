@@ -10,6 +10,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `apps/cli` | The `hildegard` command: install, setup, start/stop, models, connect, hf, choir, host, doctor, mcp. Commands return `{ ok, needsOwner, steps[], message }` |
 | `apps/server` | The local HTTP server (Hono): projects, shots, the render queue, model downloads, Hugging Face, agents. Serves the Studio |
 | `apps/studio` | The Studio UI: React and Vite. Pages in `src/pages`, design tokens and components in `src/styles` and `src/components` |
+| `apps/desktop` | The Hildegard app (Tauri 2): the Studio from the local server in a native window, a tray, and the first-run install (`ui/`). `src-tauri` is the Rust shell |
 | `mcp` | The MCP server: tools for AI apps, talking to the HTTP server |
 | `packages/presets` | Cameras, lenses, looks and models (`presets/*.toml`), prompt composition, and the API types shared by everything |
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
@@ -35,7 +36,11 @@ UI works without a GPU. Put `[fail:oom]` or `[fail:node]` in a prompt to see fai
 ```sh
 pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you touched omarchy/
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if you touched apps/desktop/
 ```
+
+The desktop app's Rust build wants what the app carries in place first: `pnpm --filter @hildegard/studio build`,
+`node apps/desktop/scripts/prepare-bundle.mjs`, then `pnpm --filter @hildegard/desktop build` (see the README).
 
 The server's film-export tests run `python3` with PyAV and numpy; install them as CI does:
 `python3 -m pip install av==19.0.1 numpy==2.5.3`.
