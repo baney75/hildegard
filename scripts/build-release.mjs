@@ -147,6 +147,9 @@ for (const script of ['install.sh', 'install.ps1']) {
   writeFileSync(join(out, script), text);
 }
 
+// The install page, ready for a static host (see site/README.md). It is not a release asset and has no checksum.
+cpSync(join(root, 'site'), join(out, 'site'), { recursive: true, filter: (s) => !s.endsWith('README.md') });
+
 const lines = Object.entries(sums).map(([t, s]) => `${s}  hildegard-${version}-${t}.tar.gz`);
 for (const s of ['install.sh', 'install.ps1']) lines.push(`${sha(join(out, s))}  ${s}`);
 writeFileSync(join(out, 'SHA256SUMS'), `${lines.join('\n')}\n`);

@@ -59,6 +59,11 @@ jobs:
       - run: pnpm e2e
         env:
           CI: '1'
+      # The install page in site/: plain files, the same on every OS, so once.
+      - if: runner.os == 'Linux'
+        run: pnpm --filter @hildegard/studio e2e:site
+        env:
+          CI: '1'
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

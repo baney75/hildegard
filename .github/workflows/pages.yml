@@ -1,0 +1,33 @@
+# Publishes the install page (site/) to GitHub Pages.
+#
+# OFF until the owner says yes: it runs only when started by hand (workflow_dispatch), and Pages must also be turned
+# on in the repository settings. The page's home is https://dbaney.com/hildegard/; this is only a fallback host.
+# Don't add a push trigger without the owner's OK.
+name: Install page
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
