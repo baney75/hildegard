@@ -8,16 +8,17 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | Path | What it is |
 | --- | --- |
 | `apps/cli` | The `hildegard` command: install, setup, start/stop, models, connect, hf, choir, host, doctor, mcp. Commands return `{ ok, needsOwner, steps[], message }` |
-| `apps/server` | The local HTTP server (Hono): projects, shots, the render queue, model downloads, Hugging Face, agents. Serves the Studio |
+| `apps/server` | The local HTTP server (Hono): projects, shots, the render queue, model downloads, Hugging Face, agents, loops (`loop.ts`). Serves the Studio |
 | `apps/studio` | The Studio UI: React and Vite. Pages in `src/pages`, design tokens and components in `src/styles` and `src/components` |
 | `apps/desktop` | The Hildegard app (Tauri 2): the Studio from the local server in a native window, a tray, and the first-run install (`ui/`). `src-tauri` is the Rust shell |
-| `mcp` | The MCP server: tools for AI apps, talking to the HTTP server |
+| `mcp` | The MCP server: tools for AI apps, talking to the HTTP server, the loop tools (`loop-tools.ts`) and the skills over MCP (`skill-tools.ts`) |
 | `packages/presets` | Cameras, lenses, looks and models (`presets/*.toml`), prompt composition, and the API types shared by everything |
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
-| `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` (runs `tools/review_media.py`), and critique rubrics |
+| `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` and `reviewMesh` (run `tools/review_media.py` and `tools/review_mesh.py`), and critique rubrics |
 | `packages/agents` | Runs Claude Code, Codex and OMP only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
-| `skills/` | Agent skills (Claude Code, Codex, OMP) for film, video and photo editing, art, sound, setup and cloud, with Hildegard's quality gates |
+| `skills/` | Agent skills for creative work (hildegard), film, video and photo editing, art, sound, 3D, the loop, setup and cloud, with Hildegard's quality gates. Packed for uploads by `scripts/pack-skills.mjs` |
+| `.claude-plugin/`, `plugin/` | The repository as a Claude Code plugin and marketplace; `plugin/mcp.mjs` starts the installed Hildegard's MCP server. See [docs/chatbots.md](docs/chatbots.md) |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
 | `voice-engine/` | The voice engine (Python, Apache-2.0): speech, voice design, consented cloning, speech to speech and transcription, one worker per environment. See [docs/voice.md](docs/voice.md) |
 | `comfy-nodes/hildegard_look` | The film-look ComfyUI node (Python): grain, halation, gate weave |

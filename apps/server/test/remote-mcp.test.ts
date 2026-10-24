@@ -164,6 +164,22 @@ describe('MCP over HTTP on this computer', { timeout: 30_000 }, () => {
     });
     expect(res.status).toBe(415);
   });
+  it('answers an app that leaves out the protocol header or sends a session id again (Grok Bot does both)', async () => {
+    const res = await fetch(`${srv.url}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': 'a-session-from-before',
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 7, method: 'tools/list' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('"id":7');
+    expect(body).toContain('loop_start');
+    expect(body).toContain('read_skill');
+  });
   it('answers only POST: there are no sessions or streams to open', async () => {
     expect((await fetch(`${srv.url}/mcp`)).status).toBe(405);
   });

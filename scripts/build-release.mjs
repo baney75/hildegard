@@ -10,9 +10,10 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { packSkills } from './pack-skills.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const argv = process.argv.slice(2);
@@ -86,6 +87,7 @@ copy('packages/comfy/fixtures', 'fixtures');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');
 copy('tools/review_media.py', 'tools/review_media.py');
+copy('tools/review_mesh.py', 'tools/review_mesh.py');
 copy('skills', 'skills');
 copy('deploy/runpod/boot.sh', 'deploy/runpod/boot.sh');
 copy('licenses', 'licenses');
@@ -172,7 +174,11 @@ for (const script of ['install.sh', 'install.ps1']) {
 // The install page, ready for a static host (see site/README.md). It is not a release asset and has no checksum.
 cpSync(join(root, 'site'), join(out, 'site'), { recursive: true, filter: (s) => !s.endsWith('README.md') });
 
+// The skills for apps that take an upload: hildegard.plugin (the Claude app, Cowork) and one zip per skill (claude.ai,
+// ChatGPT).
+const packed = packSkills(out, version).map((f) => basename(f));
+
 const lines = Object.entries(sums).map(([t, s]) => `${s}  hildegard-${version}-${t}.tar.gz`);
-for (const s of ['install.sh', 'install.ps1']) lines.push(`${sha(join(out, s))}  ${s}`);
+for (const s of ['install.sh', 'install.ps1', ...packed]) lines.push(`${sha(join(out, s))}  ${s}`);
 writeFileSync(join(out, 'SHA256SUMS'), `${lines.join('\n')}\n`);
 console.log(`Hildegard ${version} release in ${out}:\n${lines.join('\n')}`);

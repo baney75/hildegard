@@ -226,6 +226,29 @@ describe('linking agents', () => {
     ]);
   });
 
+  it('leaves Claude Code to the Hildegard plugin when it is on, unless the link is to another Hildegard', () => {
+    const { home, env, calls } = setup('linux', ['claude']);
+    mkdirSync(join(home, '.claude'));
+    writeFileSync(
+      join(home, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'hildegard@hildegard': true } }),
+    );
+    const step = connectAgent('claude-code', m, env);
+    expect(step).toMatchObject({ status: 'skipped' });
+    expect(step.detail).toContain('plugin');
+    expect(calls).toEqual([['claude', 'mcp', 'remove', '--scope', 'user', 'hildegard']]);
+    const far = {
+      command: '/opt/node',
+      args: ['/opt/hildegard.mjs', 'mcp', '--remote', 'https://abbey1.ts.net'],
+    };
+    expect(connectAgent('claude-code', far, env).status).toBe('done');
+    writeFileSync(
+      join(home, '.claude', 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'hildegard@hildegard': false } }),
+    );
+    expect(connectAgent('claude-code', m, env).status).toBe('done');
+  });
+
   it('writes a Codex TOML table, replacing an earlier one and keeping the rest', () => {
     const { home, env } = setup();
     const file = join(home, '.codex', 'config.toml');

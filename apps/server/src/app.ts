@@ -76,6 +76,8 @@ import type { HfLink } from './hf.ts';
 import { type Host, HostError } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
+import type { Loops } from './loop.ts';
+import { loopRoutes } from './loop-routes.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
@@ -87,7 +89,7 @@ import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
-export const VERSION = '0.1.5';
+export const VERSION = '0.1.6';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -163,8 +165,12 @@ export interface AppDeps {
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
   /** Consent from real people that characters are based on. */
   likeness: Likeness;
+  /** Generate, render, critique, refine: agents iterating on 3D models and other media. */
+  loops?: Loops;
 }
 
+/** A loop's round or sheet, which an MCP result may link to like media. */
+const LOOP_FILE = /^\/api\/loops\/[a-f0-9]{16}\/files\/[\w.-]+$/;
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const MAX_UPLOAD = 20 * 1024 * 1024;
 /** A character's reference image, at most, so four of them travel to a paired device in one render. */
@@ -289,7 +295,7 @@ export function createApp(deps: AppDeps) {
     // A link from an MCP result: one file, until it expires, without signing in.
     if (
       (c.req.method === 'GET' || c.req.method === 'HEAD') &&
-      path.startsWith('/media/') &&
+      (path.startsWith('/media/') || LOOP_FILE.test(path)) &&
       deps.signer.verify(path, c.req.query('exp'), c.req.query('sig'))
     ) {
       c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
@@ -1989,6 +1995,17 @@ export function createApp(deps: AppDeps) {
     );
     app.route('/api/consent', consentLinkRoutes(v.studio));
   }
+
+  // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.loops)
+    app.route(
+      '/api/loops',
+      loopRoutes({
+        loops: deps.loops,
+        ownerOnly,
+        sendFile: (c, file, type) => sendFile(c, file, type, 'private, max-age=31536000, immutable'),
+      }),
+    );
 
   // ── Uploads (start frames) ─────────────────────────────────────────────────────────────────────────────────
   app.post('/api/uploads', async (c) => {

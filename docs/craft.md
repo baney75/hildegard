@@ -59,6 +59,7 @@ three rounds with an honest note.
 
 | Skill | For |
 | --- | --- |
+| hildegard | The midwife's method for any creative work: interview, research, drafts, critique, delivery |
 | hildegard-craft | The bar: slop, the gates, prompting |
 | hildegard-film | Films from a brief: shot list, takes, review, export |
 | hildegard-video-edit | Cutting, grading, stabilising, captions, sound mixing and delivery with FFmpeg |
@@ -67,5 +68,18 @@ three rounds with an honest note.
 | hildegard-sound | Music, voice and mixing levels |
 | hildegard-setup | Installing Hildegard, linking AI apps, agent access within terms |
 | hildegard-cloud | Renting a GPU on Runpod |
+| hildegard-3d | 3D models for screens and printing, built in code (`scripts/mesh_kit.py`) and checked view by view |
+| hildegard-loop | Generate, render, critique, refine: the loop, by hand or as a coding-agent run |
 
-`hildegard skills install --json` puts them where Claude Code, Codex and OMP read them, from any model provider.
+`hildegard skills install --json` puts them where Claude Code, Codex and OMP read them, from any model provider. Every
+app linked to Hildegard also reads them over MCP (`list_skills`, `read_skill`), and [chatbots.md](chatbots.md) has the
+uploads for the Claude app, claude.ai and ChatGPT.
+
+## The loop
+
+A piece that needs several tries goes through Hildegard's loop (`apps/server/src/loop.ts`): `loop_start` takes the
+brief and targets, `loop_submit` takes a version (a 3D model, an image, a take or a sound) and returns Hildegard's
+checks and a contact sheet, and `loop_critique` must answer every rubric question with evidence before the next round
+is taken. 3D models are measured and drawn by `tools/review_mesh.py`: watertight, manifold, winding, volume, bodies,
+debris and size, and for prints units, bed, base, overhang and balance, on a sheet of eight views, a top or bottom
+view and silhouettes. `hildegard loop run codex "<idea>"` hands a whole loop to a coding agent, within its terms.

@@ -1,0 +1,16 @@
+{
+  "name": "hildegard",
+  "owner": { "name": "Donovan Baney", "url": "https://github.com/baney75" },
+  "metadata": {
+    "description": "Hildegard, the open-source studio that runs on your own machines, for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "hildegard",
+      "source": "./",
+      "description": "Your own studio, on your own GPUs: Hildegard's tools, its craft skills, and its generate, render, critique, refine loop.",
+      "category": "creative",
+      "homepage": "https://dbaney.com/hildegard/"
+    }
+  ]
+}

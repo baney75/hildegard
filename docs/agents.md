@@ -256,6 +256,15 @@ three rounds. Agent runs follow each provider's terms ([agent-terms.md](agent-te
 only in its own app, only when your user starts the run; API keys (piped with
 `hildegard agents key <provider> --key-stdin`) for everything else; never a plan's sign-in inside another tool.
 
+A whole loop (generate, render, critique, refine) can go to a coding agent, started by your user:
+
+```sh
+hildegard loop run codex "a standing heron finial, 120 mm, for an FDM print" --kind model --print --size 40x40x120 --json
+hildegard loop show <id> --json   # every round: its checks, its sheet, its critique
+```
+
+The result's `loop` names the loop and the round delivered. The **hildegard-loop** skill has the rest.
+
 ## F. AI apps on other devices, and chatbots
 
 Hildegard's MCP answers at `/mcp` (Streamable HTTP, stateless) as well as on stdio. On the computer Hildegard runs on
@@ -289,6 +298,11 @@ public link, which only your user may ask for: `hildegard host --funnel --json` 
 - **claude.ai:** Settings › Connectors › Add custom connector, with the address in `mcpUrl`.
 - **ChatGPT:** Settings › Apps › Developer mode, then Create, with that address. It needs Plus or
   higher.
+- **Grok:** grok.com › Connectors › New connector › Custom, with that address.
+- **Grok Bot:** it runs on its own cloud computer, so it needs this public link too. Tell it to add a custom MCP
+  server named `hildegard` at that address, with OAuth.
+
+Every app's steps, the Claude Code plugin and the skill uploads are in `docs/chatbots.md`.
 
 The chatbot opens Hildegard's sign-in page, where **your user** types their own name and passphrase. Never do it for
 them. It then acts as them, until they revoke it or change their passphrase.

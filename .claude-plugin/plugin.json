@@ -1,0 +1,13 @@
+{
+  "name": "hildegard",
+  "version": "0.1.6",
+  "description": "Your own studio, on your own GPUs: image, film, voice, music and 3D tools from the Hildegard on your computers, the craft skills to make work that isn't slop, and a generate, render, critique, refine loop for 3D models and media.",
+  "author": { "name": "Donovan Baney", "url": "https://github.com/baney75" },
+  "homepage": "https://dbaney.com/hildegard/",
+  "repository": "https://github.com/baney75/hildegard",
+  "license": "AGPL-3.0-only",
+  "keywords": ["mcp", "self-hosted", "comfyui", "3d", "art", "film", "music", "voice", "gpu"],
+  "mcpServers": {
+    "hildegard": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/plugin/mcp.mjs"] }
+  }
+}

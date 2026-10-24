@@ -55,6 +55,53 @@ export interface ShotDetail {
 /** A voice job, and where its clips are on the computer Hildegard runs on. */
 export type VoiceJobDetail = VoiceJob & { files: string[] };
 
+export interface LoopCheck {
+  id: string;
+  status: 'pass' | 'warn' | 'fail';
+  value: unknown;
+  limit: unknown;
+  detail: string;
+}
+export interface LoopRound {
+  n: number;
+  at: string;
+  file: string;
+  format: string;
+  note: string;
+  sheet: string | null;
+  review: { passed: boolean; summary: string; info: Record<string, unknown>; checks: LoopCheck[] };
+  critique: { verdict: 'ready' | 'revise' | 'stop'; change?: string } | null;
+}
+export interface LoopSummary {
+  id: string;
+  kind: string;
+  title: string;
+  status: 'open' | 'done' | 'stopped';
+  rounds: number;
+  maxRounds: number;
+  chosen: number | null;
+  updatedAt: string;
+}
+export interface LoopDetail extends Omit<LoopSummary, 'rounds'> {
+  rounds: LoopRound[];
+  note: string | null;
+  questions: string;
+  brief: Record<string, unknown>;
+  target: Record<string, unknown>;
+}
+export interface RoundResult {
+  loop: string;
+  round: LoopRound;
+  roundsLeft: number;
+  questions: string;
+}
+export interface CritiqueResult {
+  loop: string;
+  round: LoopRound;
+  verdict: 'ready' | 'revise' | 'stop';
+  next: string;
+}
+
 /** Talks to the Hildegard server on this computer, as the Studio does. */
 export class HildegardClient {
   readonly url: string;
@@ -134,6 +181,29 @@ export class HildegardClient {
   isOurs = (source: string) => this.call<MarkCheck>('POST', '/api/voice/check', { source });
   installVoiceModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/voice/models/${encodeURIComponent(id)}/install`, { acceptLicense });
+  // ── Loops ──
+  loops = () => this.call<{ loops: LoopSummary[] }>('GET', '/api/loops');
+  loop = (id: string) => this.call<LoopDetail>('GET', `/api/loops/${encodeURIComponent(id)}`);
+  startLoop = (body: Record<string, unknown>) => this.call<LoopDetail>('POST', '/api/loops', body);
+  /** A round: the file's bytes, and what changed. The server reads what the file is from its bytes. */
+  submitRound = (id: string, bytes: Uint8Array, note: string) =>
+    this.call<RoundResult>(
+      'POST',
+      `/api/loops/${encodeURIComponent(id)}/rounds?note=${encodeURIComponent(note.slice(0, 1000))}`,
+      undefined,
+      bytes,
+    );
+  critique = (id: string, n: number, body: Record<string, unknown>) =>
+    this.call<CritiqueResult>('POST', `/api/loops/${encodeURIComponent(id)}/rounds/${n}/critique`, body);
+  finishLoop = (id: string, round: number, note: string) =>
+    this.call<LoopDetail>('POST', `/api/loops/${encodeURIComponent(id)}/finish`, { round, note });
+  /** Any file the server serves (a take's video, a still), as bytes; null if it isn't there. */
+  async bytes(path: string): Promise<Uint8Array | null> {
+    const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);
+    if (!res?.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
   /** A recording's bytes; the server checks it is audio. */
   async uploadAudio(bytes: Uint8Array): Promise<string> {
     return (await this.call<{ name: string }>('POST', '/api/voice/uploads', undefined, bytes)).name;

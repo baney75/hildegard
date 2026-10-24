@@ -52,7 +52,7 @@ function settings(ctx: Ctx): { shareKeysWithDirectors: boolean } {
 const keys = async (ctx: Ctx) => await secretStores(join(ctx.config.dataDir, 'secrets'));
 const keyAccount = (provider: string) => `agent-key-${provider}`;
 
-function skillsDir(): string | null {
+export function skillsDir(): string | null {
   try {
     return resource('skills');
   } catch {
@@ -227,7 +227,21 @@ function shareKeys(ctx: Ctx, value: string | undefined): Promise<Result> | Resul
 }
 
 async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
-  const agent = ALIASES[args[0] ?? ''];
+  const task = ctx.flags.has('task-stdin') ? await readStdin() : args.slice(1).join(' ').trim();
+  return runAgentTask(ctx, args[0] ?? '', task);
+}
+
+/**
+ * Runs one coding agent on one task, if the provider's terms allow it. `extraTools` are tools a headless Claude Code
+ * may use beyond the usual ones (a loop's modeling programs, say); Codex and OMP work inside their own sandboxes.
+ */
+export async function runAgentTask(
+  ctx: Ctx,
+  name: string,
+  task: string,
+  extraTools: string[] = [],
+): Promise<Result> {
+  const agent = ALIASES[name];
   if (!agent)
     return result(
       [
@@ -240,7 +254,6 @@ async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
       ],
       'Nothing ran.',
     );
-  const task = ctx.flags.has('task-stdin') ? await readStdin() : args.slice(1).join(' ').trim();
   if (!task)
     return result(
       [
@@ -274,6 +287,7 @@ async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
     skillsDir: skillsDir() ?? undefined,
     addDirs: ctx.opts.get('add-dir') ? [resolve(ctx.opts.get('add-dir')!)] : undefined,
     budgetUsd: ctx.opts.get('budget') ? Number(ctx.opts.get('budget')) : undefined,
+    extraTools,
   };
   const detected = detectAgents().find((d) => d.agent === agent)!;
   const p = plan(input, detected, settings(ctx));

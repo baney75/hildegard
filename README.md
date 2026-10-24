@@ -122,6 +122,16 @@ moment they take it back. The stills come from FLUX.2 [klein] 4B (Apache-2.0, ab
 
 ## Use it from your AI apps
 
+Hildegard is how your AI apps reach your own computers. In Claude Code, it's a plugin:
+
+```text
+/plugin marketplace add baney75/hildegard
+/plugin install hildegard@hildegard
+```
+
+ChatGPT, claude.ai, the Claude app, Grok and Grok Bot each have their steps in [docs/chatbots.md](docs/chatbots.md).
+Every linked app gets the tools, the craft skills (`list_skills`, `read_skill`) and the loop.
+
 Hildegard is an MCP server. Linked apps (Claude Code, Claude Desktop, Codex, Cursor, OpenCode, VS Code, Windsurf, LM
 Studio) can direct shots on your GPU as tools:
 
@@ -137,7 +147,9 @@ what each app made.
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`, and for characters `list_characters`,
 `create_character`, `make_character_stills` and `keep_still`. `direct_shot` takes a `film`: a film's id, or a title,
-which reuses the film with that title or makes one; and `characters`, to cast them.
+which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
+`loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, still, take or sound until it
+passes, and `hildegard loop run codex "<idea>" --kind model` hands a whole loop to a coding agent.
 
 The same tools answer over HTTP at `http://127.0.0.1:7341/mcp` (Streamable HTTP), for apps that take an MCP address
 instead of a command: Open WebUI, Jan, LM Studio and the like. On this computer it needs nothing.
