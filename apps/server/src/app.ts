@@ -7,15 +7,18 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
+import { HildegardClient } from '@hildegard/mcp';
 import {
   type AgentsResponse,
   type AuthState,
   type Catalog,
   type CreateShotBody,
   composeShot,
+  type GrantsResponse,
   loadSafety,
   type ModelState,
   type NewInvite,
+  type NewKey,
   type PeopleResponse,
   PresetError,
   type Priority,
@@ -48,6 +51,7 @@ import {
   fromThisComputer,
   type HgEnv,
   open,
+  ownAuth,
   secureRequest,
   seesProject,
   snapshotFor,
@@ -56,10 +60,14 @@ import {
 import { type Choir, ChoirError } from './choir.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
+import { GrantError, type Grants } from './grants.ts';
 import type { HfLink } from './hf.ts';
 import { type Host, HostError } from './host.ts';
+import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { ModelManager } from './models.ts';
+import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
+import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
@@ -121,6 +129,14 @@ export interface AppDeps {
   host: Host;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
+  /** Keys and chatbots that use the MCP from other devices. */
+  grants: Grants;
+  /** Signs the media links MCP results give apps on other devices. */
+  signer: MediaSigner;
+  /** Reads an OAuth app's metadata document; tests give a stand-in. */
+  fetchMetadata?: FetchMetadata;
+  /** The language models running on this computer, which can direct. */
+  llm: LocalModels;
   /** Technical checks on a finished file (tools/review_media.py); absent where that can't run. */
   review?: (spec: ReviewSpec) => Promise<Review>;
   /** What may render; presets/safety.toml unless a test says otherwise. */
@@ -182,16 +198,28 @@ export function createApp(deps: AppDeps) {
 
   // ── Security: DNS-rebinding and cross-site request protection ─────────────────────────────────────────────
   app.use('*', async (c, next) => {
+    // The server calling itself for an MCP call: no browser is involved, and the person was checked on the way in.
+    if (c.env?.as) return next();
     const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
     if (!allowed(hostName)) return c.text('Unknown host', 421);
     const method = c.req.method;
+    // OAuth is called by AI apps, cross-site by design, with no cookie; its sign-in page checks its own origin.
+    if (c.req.path.startsWith('/oauth/')) {
+      await next();
+      c.header('x-content-type-options', 'nosniff');
+      c.header('referrer-policy', 'no-referrer');
+      c.header('x-frame-options', 'DENY');
+      return;
+    }
     // Paired devices authenticate with a bearer key, which a browser never sends on its own.
     const paired = c.req.path.startsWith('/api/node/');
     // Behind the link there is the Studio and nothing else: never the paired-device API.
     if (paired && c.env?.hosted) return c.body(null, 404);
     if (!paired && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-      // Browsers cannot add this header cross-site without a CORS preflight, which this server never grants.
-      if (c.req.header('x-hildegard') !== '1') return c.json({ error: 'Missing x-hildegard header' }, 403);
+      // Browsers cannot add this header cross-site without a CORS preflight, which this server never grants. MCP
+      // apps don't send it; /mcp takes only JSON, which a browser can't send cross-site without that preflight either.
+      if (c.req.header('x-hildegard') !== '1' && c.req.path !== '/mcp' && !c.req.path.startsWith('/v1/'))
+        return c.json({ error: 'Missing x-hildegard header' }, 403);
       const origin = c.req.header('origin');
       if (origin) {
         try {
@@ -229,9 +257,25 @@ export function createApp(deps: AppDeps) {
     const path = c.req.path;
     // Paired devices bring their own key, checked by the node API.
     if (path.startsWith('/api/node/')) return next();
+    // MCP and OAuth check their own bearer tokens and passphrases; a cookie means nothing to them.
+    if (ownAuth(path) && !c.env?.as) {
+      c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
+      return next();
+    }
+    // A link from an MCP result: one file, until it expires, without signing in.
+    if (
+      (c.req.method === 'GET' || c.req.method === 'HEAD') &&
+      path.startsWith('/media/') &&
+      deps.signer.verify(path, c.req.query('exp'), c.req.query('sig'))
+    ) {
+      c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
+      c.set('signedMedia', true);
+      return next();
+    }
     let who: Who | null = null;
     let rotated: string | null = null;
-    if (fromThisComputer(c)) who = { kind: 'local' };
+    if (c.env?.as) who = c.env.as;
+    else if (fromThisComputer(c)) who = { kind: 'local' };
     else {
       const token = cookieOf(c);
       const signed = token ? people.authenticate(token) : null;
@@ -1138,6 +1182,161 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  // ── Keys and chatbots: what AI apps on other devices use the MCP with ───────────────────────────────────────
+  const { grants } = deps;
+  people.onPassphrase((personId) => grants.endChatbots(personId));
+  const mcpUrl = () => {
+    const u = host.state().url;
+    return u ? `${u.replace(/\/$/, '')}/mcp` : null;
+  };
+  const grantFail = (c: Context, e: unknown) => {
+    if (e instanceof GrantError) return c.json({ error: e.message }, e.status);
+    throw e;
+  };
+  /** Everyone's for the owner and this computer; one's own for a director. */
+  app.get('/api/auth/grants', (c) => {
+    c.header('cache-control', 'no-store');
+    const w = whoOf(c);
+    if (!w) return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
+    return c.json({
+      grants: grants.list(isOwner(c) ? null : (personOf(c)?.id ?? null)),
+      mcpUrl: mcpUrl(),
+    } satisfies GrantsResponse);
+  });
+  app.post('/api/auth/keys', async (c) => {
+    c.header('cache-control', 'no-store');
+    const w = whoOf(c);
+    if (!w) return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
+    const body = z
+      .object({
+        name: z.string().max(200),
+        person: z.string().max(200).optional(),
+        days: z.number().optional(),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Name the key for the app and device it’s for.' }, 400);
+    // On this computer a key may be for anyone here (the owner by default); signed in, only for oneself.
+    let personId: string | undefined;
+    if (w.kind === 'person') {
+      if (body.data.person && people.find(body.data.person)?.id !== w.person.id)
+        return c.json({ error: 'You can make keys for yourself only.' }, 403);
+      personId = w.person.id;
+    } else {
+      const found = body.data.person
+        ? people.find(body.data.person)
+        : people.list().find((p) => p.role === 'owner');
+      if (!found)
+        return c.json(
+          {
+            error: body.data.person
+              ? `There’s no one called ${body.data.person} here.`
+              : 'Make the owner account first: a key acts as someone, and nobody is here yet.',
+            ...(body.data.person ? {} : { fix: 'hildegard host owner' }),
+          },
+          body.data.person ? 404 : 409,
+        );
+      personId = found.id;
+    }
+    try {
+      const { grant, key } = grants.newKey(personId, body.data.name, body.data.days ?? null);
+      return c.json({ grant, key, mcpUrl: mcpUrl() } satisfies NewKey, 201);
+    } catch (e) {
+      return grantFail(c, e);
+    }
+  });
+  app.delete('/api/auth/grants/:id', (c) => {
+    const w = whoOf(c);
+    if (!w) return c.json({ error: 'Sign in to Hildegard first.', code: 'signin' }, 401);
+    const g = grants.get(c.req.param('id'));
+    if (!g || (!isOwner(c) && g.person.id !== personOf(c)?.id))
+      return c.json({ error: 'That key or chatbot is gone already.' }, 404);
+    try {
+      grants.revoke(g.id);
+      return c.json({ grants: grants.list(isOwner(c) ? null : (personOf(c)?.id ?? null)), mcpUrl: mcpUrl() });
+    } catch (e) {
+      return grantFail(c, e);
+    }
+  });
+
+  // ── Local language models: found on this computer, or the owner's own; one can direct ───────────────────────
+  const llmFail = (c: Context, e: unknown) => {
+    if (e instanceof LlmError) return c.json({ error: e.message }, e.status);
+    throw e;
+  };
+  app.get('/api/llm', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    return c.json(await deps.llm.state(c.req.query('fresh') !== undefined));
+  });
+  app.post('/api/llm/use', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({ endpoint: z.string().max(80), model: z.string().max(300).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which endpoint, and optionally which model.' }, 400);
+    try {
+      await deps.llm.use(body.data.endpoint, body.data.model);
+      return c.json(await deps.llm.state());
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  // Adding an address makes this computer call it: only from this computer.
+  app.post('/api/llm/endpoints', async (c) => {
+    if (!local(c)) return c.json({ error: 'Add model endpoints on the computer Hildegard runs on.' }, 403);
+    const body = z
+      .object({ name: z.string().max(200), url: z.string().max(2000), key: z.string().max(4096).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give a name and an address.' }, 400);
+    try {
+      return c.json(await deps.llm.add(body.data.name, body.data.url, body.data.key || undefined), 201);
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  app.delete('/api/llm/endpoints/:id', async (c) => {
+    if (!local(c)) return c.json({ error: 'Remove model endpoints on the computer Hildegard runs on.' }, 403);
+    try {
+      deps.llm.remove(c.req.param('id'));
+      return c.json(await deps.llm.state());
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  app.post('/api/llm/direct', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({
+        idea: z.string().trim().min(1).max(4000),
+        film: z.string().max(120).optional(),
+        endpoint: z.string().max(80).optional(),
+        model: z.string().max(300).optional(),
+        mode: z.enum(['auto', 'tools', 'plan']).optional(),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give the idea to direct.' }, 400);
+    const as = whoOf(c)!;
+    const client = new HildegardClient(deps.url ?? 'http://127.0.0.1', ((
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const u = new URL(String(input instanceof Request ? input.url : input));
+      return app.fetch(new Request(`http://127.0.0.1${u.pathname}${u.search}`, init), { as });
+    }) as typeof fetch);
+    try {
+      return c.json(await directWithLocal({ llm: deps.llm, client, ...body.data }));
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+
+  // ── MCP over HTTP, and the OAuth that lets chatbots sign in to it ───────────────────────────────────────────
+  oauthRoutes(app, { grants, people, limited, failed, perName, fetchMetadata: deps.fetchMetadata });
+  remoteMcpRoutes(app, { grants, signer: deps.signer, fetch: (r, env) => app.fetch(r, env) });
+  llmProxyRoutes(app, { llm: deps.llm, grants });
+
   // ── Host mode: the link. Turning it on or off changes this computer, so only this computer may. ───────────
   const hostFail = (c: Context, e: unknown) => {
     if (e instanceof HostError) return c.json({ error: e.message, fix: e.fix }, e.status);
@@ -1199,7 +1398,7 @@ export function createApp(deps: AppDeps) {
     if (!file.startsWith(resolve(mediaDir) + sep)) return c.body(null, 404);
     // A take's video and poster, or a film's export, only for those who may see the film. Start frames are named
     // by their own SHA-256, so only someone who has the image can ask for it.
-    if (!isOwner(c) && !rel.startsWith('uploads/')) {
+    if (!isOwner(c) && !c.get('signedMedia') && !rel.startsWith('uploads/')) {
       const name = rel.replace(/^exports\//, '').replace(/\.[a-z0-9]+$/, '');
       const projectId = rel.startsWith('exports/')
         ? deps.exporter.get(name)?.projectId

@@ -1,0 +1,15 @@
+{
+  "name": "@hildegard/link",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Hildegard Link: a relay that gives a Hildegard a public HTTPS address without ever decrypting its traffic.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

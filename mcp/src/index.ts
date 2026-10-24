@@ -13,12 +13,30 @@ To put shots in a film, pass its id or its title as film to direct_shot. To stop
 Draft first, then re-render the take you like with quality "final" and the same seed.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
-export function createMcpServer(client = new HildegardClient()) {
+export interface McpOptions {
+  /**
+   * The name takes are labelled with. By default the name the AI app reports for itself; over the network, the name
+   * of the key or chatbot it signed in with, which the app can't change.
+   */
+  agentName?: string;
+  /**
+   * The AI app is on another device: Hildegard's files are not on its disk. Videos and stills come back as links
+   * (signed, so they open without signing in, and expiring), and start frames come as image data, never as paths.
+   */
+  remote?: { link: (path: string) => string };
+}
+
+export function createMcpServer(client = new HildegardClient(), opts: McpOptions = {}) {
   const server = new McpServer(
     { name: 'hildegard', title: 'Hildegard', version: '0.1.2' },
     { instructions: INSTRUCTIONS },
   );
   // Takes are labelled with the agent that asked for them, as its client reports its own name.
-  registerTools(server, client, () => server.server.getClientVersion()?.name?.slice(0, 60) || 'agent');
+  registerTools(
+    server,
+    client,
+    () => opts.agentName ?? (server.server.getClientVersion()?.name?.slice(0, 60) || 'agent'),
+    opts.remote,
+  );
   return server;
 }

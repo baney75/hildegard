@@ -219,6 +219,7 @@ export class People {
   private sessions: StoredSession[];
   private readonly now: () => number;
   private readonly listeners = new Set<() => void>();
+  private readonly passListeners = new Set<(personId: string) => void>();
   private lastSessionSave = 0;
 
   constructor(opts: { dataDir: string; now?: () => number }) {
@@ -237,6 +238,15 @@ export class People {
   }
   private changed() {
     for (const l of this.listeners) l();
+  }
+
+  /** Called with a person's id when their passphrase changes, so what was approved with the old one can end. */
+  onPassphrase(l: (personId: string) => void): () => void {
+    this.passListeners.add(l);
+    return () => this.passListeners.delete(l);
+  }
+  private passphraseChanged(personId: string) {
+    for (const l of this.passListeners) l(personId);
   }
 
   private persist() {
@@ -277,6 +287,7 @@ export class People {
     this.sessions = this.sessions.filter((s) => s.personId !== personId || (!!mine && sameSession(s, mine)));
     this.persist();
     this.persistSessions();
+    this.passphraseChanged(personId);
     this.changed();
     return true;
   }
@@ -362,6 +373,7 @@ export class People {
       this.sessions = this.sessions.filter((s) => s.personId !== existing.id);
       this.persistSessions();
       this.persist();
+      this.passphraseChanged(existing.id);
       this.changed();
       return { id: existing.id, name: existing.name, role: existing.role, created: false };
     }

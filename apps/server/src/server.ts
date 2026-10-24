@@ -11,11 +11,15 @@ import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { Exporter, makePoster, reviewer } from './export.ts';
+import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
+import { LocalModels, type LocalModelsDeps } from './llm.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
+import type { FetchMetadata } from './oauth.ts';
 import { People } from './people.ts';
+import { MediaSigner } from './remote-mcp.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
 
@@ -42,6 +46,10 @@ export interface Running {
   hf: HfLink;
   people: People;
   host: Host;
+  /** Keys and chatbots that use the MCP from other devices. */
+  grants: Grants;
+  /** The language models running on this computer. */
+  llm: LocalModels;
   /** Where Tailscale Serve and Funnel forward to, while that listener is open. */
   hostedUrl: () => string | null;
   /** The ComfyUI Hildegard runs itself, when it does. */
@@ -66,6 +74,10 @@ export async function startServer(
     exec?: Exec;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
+    /** Reads OAuth apps' metadata documents: tests give a stand-in. */
+    fetchMetadata?: FetchMetadata;
+    /** How local model runtimes are reached: tests give stand-ins. */
+    llm?: Partial<Omit<LocalModelsDeps, 'dataDir'>>;
     /** The token file `hf auth login` writes; tests point it elsewhere. */
     hubToken?: string;
   } = {},
@@ -114,9 +126,10 @@ export async function startServer(
     comfy === 'not-installed' ? 'ComfyUI isn’t installed yet. Run `hildegard install`.' : null;
 
   // Choir: the devices this one joined (one of which may render), and sharing this GPU with them.
+  const secretsFor = opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets')));
   const choir = new Choir({
     dataDir: config.dataDir,
-    secrets: opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets'))),
+    secrets: secretsFor,
     onChange: (s) => {
       store.emit({ type: 'choir', choir: s });
       route();
@@ -219,6 +232,9 @@ export async function startServer(
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
   const people = new People({ dataDir: config.dataDir });
+  const grants = new Grants({ dataDir: config.dataDir, person: (id) => people.get(id) });
+  const signer = new MediaSigner({ dataDir: config.dataDir });
+  const llm = new LocalModels({ dataDir: config.dataDir, secrets: secretsFor, ...opts.llm });
   const host = new Host({
     dataDir: config.dataDir,
     port: () => port,
@@ -254,6 +270,10 @@ export async function startServer(
     people,
     host,
     limits: opts.limits,
+    grants,
+    signer,
+    fetchMetadata: opts.fetchMetadata,
+    llm,
     review: reviewer(config.dataDir),
     choir,
     modelStates,
@@ -420,6 +440,8 @@ export async function startServer(
     hf,
     people,
     host,
+    grants,
+    llm,
     hostedUrl: () => (hosted ? `http://127.0.0.1:${hostedPort}` : null),
     runtime,
     async close() {

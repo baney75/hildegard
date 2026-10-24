@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { createInterface } from 'node:readline/promises';
-import type { HostState, NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
+import type {
+  AgentGrant,
+  GrantsResponse,
+  HostState,
+  NewInvite,
+  NewKey,
+  PeopleResponse,
+  Person,
+  Role,
+} from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
 import { api, askSecret, type Ctx, ensureRunning } from './commands.ts';
 import { bold, type Result, result } from './output.ts';
@@ -40,6 +49,30 @@ const hostStep = (h: HostState): Step =>
           detail: 'Off. Only this computer can use Hildegard.',
           command: 'hildegard host --json',
         };
+
+/**
+ * How AI apps on other devices reach the MCP at this link. Tailscale Serve is inside the tailnet, so only the owner's
+ * own devices can; chatbots that live on the web (claude.ai, ChatGPT) need the public internet: Funnel.
+ */
+const mcpStep = (h: HostState): Step | null =>
+  h.on && h.url
+    ? {
+        id: 'mcp',
+        title: 'MCP for AI apps elsewhere',
+        status: 'done',
+        detail:
+          h.via === 'funnel'
+            ? `${h.url}/mcp. Paste it into claude.ai (Settings › Connectors › Add custom connector) or ChatGPT (developer mode), then sign in there with your name and passphrase. Apps on your own devices use a key: \`hildegard host key "<app and device>"\`.`
+            : `${h.url}/mcp, for AI apps on your own devices, with a key: \`hildegard host key "<app and device>"\`. Chatbots on the web (claude.ai, ChatGPT) can't reach your tailnet: they need \`hildegard host --funnel\`.`,
+      }
+    : null;
+
+const grantStep = (g: AgentGrant): Step => ({
+  id: `grant-${g.id}`,
+  title: g.name,
+  status: 'done',
+  detail: `${g.kind === 'key' ? 'Key' : 'Chatbot'} · acts as ${g.person.name} · ${g.lastUsedAt ? `last used ${g.lastUsedAt}` : 'not used yet'}${g.expiresAt ? ` · until ${g.expiresAt}` : ''} · id ${g.id}`,
+});
 
 const ownerStep = (): Step => ({
   id: 'owner',
@@ -89,12 +122,14 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
   switch (action) {
     case 'status': {
       const h = await api<HostState>(c, '/api/host');
+      const mcp = mcpStep(h);
       return result(
-        [h.owner ? hostStep(h) : { ...ownerStep(), status: h.on ? 'needs-owner' : 'skipped' }],
+        [
+          h.owner ? hostStep(h) : { ...ownerStep(), status: h.on ? 'needs-owner' : 'skipped' },
+          ...(mcp ? [mcp] : []),
+        ],
         '',
-        {
-          host: h,
-        },
+        { host: h, mcpUrl: h.url ? `${h.url}/mcp` : null },
       );
     }
 
@@ -176,12 +211,20 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
         return { ...f, steps: [...steps, ...f.steps] };
       }
       steps.push(hostStep(h));
+      // The host step stays last, as agents read it; how AI apps reach the MCP rides along as fields.
+      const mcp = mcpStep(h);
       return result(
         steps,
         h.url
           ? `Open ${h.url} on your other devices and sign in. Invite people with \`hildegard host invite\`.`
           : (h.problem ?? ''),
-        { host: h, url: h.url, ...(funnel ? { warning: FUNNEL_WARNING } : {}) },
+        {
+          host: h,
+          url: h.url,
+          mcpUrl: h.url ? `${h.url}/mcp` : null,
+          ...(mcp ? { mcp: mcp.detail } : {}),
+          ...(funnel ? { warning: FUNNEL_WARNING } : {}),
+        },
       );
     }
 
@@ -327,10 +370,87 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
       }
     }
 
+    case 'key': {
+      const name = args.slice(1).join(' ').trim() || ctx.opts.get('name') || '';
+      if (!name)
+        return result(
+          [],
+          'Name the key for the app and device it’s for: `hildegard host key "Claude Code on my laptop"`.',
+          { ok: false },
+        );
+      const days = ctx.opts.has('days') ? Number(ctx.opts.get('days')) : undefined;
+      try {
+        const r = await api<NewKey>(c, '/api/auth/keys', {
+          method: 'POST',
+          body: { name, person: ctx.opts.get('person'), days },
+        });
+        const remote = r.mcpUrl?.replace(/\/mcp$/, '') ?? '<this link>';
+        if (!ctx.json)
+          console.log(
+            `This key lets an AI app act as ${r.grant.person.name} here. It shows only now; treat it as a password:\n\n${r.key}\n\nOn the other device: hildegard connect <app> --remote ${remote} --key-stdin (and paste it)\nOr give the app ${r.mcpUrl ?? '<link>/mcp'} with the header  Authorization: Bearer <key>\n`,
+          );
+        return result(
+          [
+            {
+              id: 'key',
+              title: `Key for ${r.grant.name}`,
+              status: 'done',
+              detail: `Acts as ${r.grant.person.name}${r.grant.expiresAt ? ` until ${r.grant.expiresAt}` : ', until revoked'}. Hand it straight to the next step; never log it.`,
+              command: `hildegard connect <app> --remote ${remote} --key-stdin`,
+            },
+          ],
+          r.mcpUrl ? '' : 'Turn host mode on (`hildegard host`) so other devices can reach this Hildegard.',
+          { key: r.key, grant: r.grant, mcpUrl: r.mcpUrl },
+        );
+      } catch (e) {
+        return failure('key', `Key for ${name}`, e);
+      }
+    }
+
+    case 'keys': {
+      const r = await api<GrantsResponse>(c, '/api/auth/grants');
+      if (args[1] === 'revoke') {
+        const which = args.slice(2).join(' ').trim();
+        const g =
+          r.grants.find((x) => x.id === which) ??
+          r.grants.find((x) => x.name.toLocaleLowerCase() === which.toLocaleLowerCase());
+        if (!which || !g)
+          return result(
+            [],
+            which
+              ? `No key or chatbot called ${which}.`
+              : 'Say which: `hildegard host keys revoke <id|name>`.',
+            {
+              ok: false,
+            },
+          );
+        const after = await api<GrantsResponse>(c, `/api/auth/grants/${g.id}`, { method: 'DELETE' });
+        return result(
+          [
+            {
+              id: 'revoke',
+              title: `Disconnect ${g.name}`,
+              status: 'done',
+              detail: 'It can’t use this Hildegard any more.',
+            },
+          ],
+          '',
+          { grants: after.grants },
+        );
+      }
+      return result(
+        r.grants.map(grantStep),
+        r.grants.length
+          ? ''
+          : 'No keys or chatbots yet. `hildegard host key "<app and device>"` makes a key.',
+        { grants: r.grants, mcpUrl: r.mcpUrl },
+      );
+    }
+
     default:
       return result(
         [],
-        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>`, `host role <name> <role>` or `host limit [<takes>]`.',
+        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>`, `host role <name> <role>`, `host limit [<takes>]`, `host key <name>` or `host keys [revoke <id|name>]`.',
         { ok: false },
       );
   }

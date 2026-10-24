@@ -2,11 +2,14 @@
 export * from './app.ts';
 export { encodeJoinCode, parseJoinCode, TOKEN_RE } from './choir.ts';
 export * from './config.ts';
+export * from './grants.ts';
 export * from './hf.ts';
 export * from './host.ts';
 export * from './lifecycle.ts';
 export * from './models.ts';
+export * from './oauth.ts';
 export * from './people.ts';
+export * from './remote-mcp.ts';
 export * from './scheduler.ts';
 export * from './server.ts';
 export * from './store.ts';

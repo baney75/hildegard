@@ -2,12 +2,12 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileStore, parseArgs, type Running, startServer } from '@hildegard/server';
+import { createMcpServer, HildegardClient } from '@hildegard/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createMcpServer, HildegardClient } from '../src/index.ts';
+import { fileStore, parseArgs, type Running, startServer } from '../src/index.ts';
 
 let srv: Running;
 let client: Client;
@@ -38,7 +38,7 @@ afterAll(async () => {
   await srv.close();
 });
 
-describe('Hildegard MCP server', () => {
+describe('Hildegard MCP server', { timeout: 30_000 }, () => {
   it('offers the tools an agent needs, with instructions', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([

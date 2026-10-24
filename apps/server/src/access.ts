@@ -29,8 +29,13 @@ export interface HgEnv {
     incoming?: IncomingMessage;
     /** The listener Tailscale Serve and Funnel forward to: nothing that arrives there is this computer. */
     hosted?: boolean;
+    /**
+     * A request the server makes to itself for an MCP call over HTTP, as the person whose token it carried. Only
+     * code in this process can set it: nothing from the network reaches the bindings.
+     */
+    as?: Who;
   };
-  Variables: { who: Who | null };
+  Variables: { who: Who | null; signedMedia?: boolean };
 }
 export type Ctx = Context<HgEnv>;
 
@@ -59,6 +64,20 @@ export function clientKey(c: Ctx): string {
 export const COOKIE = { secure: '__Host-hildegard', plain: 'hildegard_session' };
 export const secureRequest = (c: Ctx) => !!c.env?.hosted && c.req.header('x-forwarded-proto') === 'https';
 
+/** The address this request reached Hildegard at, as its sender sees it: the link's https name, or this computer. */
+export const originOf = (c: Ctx) =>
+  `${secureRequest(c) ? 'https' : 'http'}://${c.req.header('host') ?? '127.0.0.1'}`;
+
+/**
+ * Paths that check who is asking themselves, with no cookie: the MCP endpoint and the local models' OpenAI-compatible
+ * API (bearer tokens), and OAuth (the sign-in page, and calls an AI app makes on its own).
+ */
+export const ownAuth = (path: string) =>
+  path === '/mcp' ||
+  path.startsWith('/v1/') ||
+  path.startsWith('/oauth/') ||
+  path.startsWith('/.well-known/oauth-');
+
 /**
  * What a director may ask for, by method and path: their films, shots, takes and exports, start frames, and their
  * own account. Models, devices, settings, people and the computer are the owner's.
@@ -81,7 +100,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/auth\//,
   ],
   PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/],
-  DELETE: [/^\/api\/shots\/[^/]+$/, /^\/api\/takes\/[^/]+$/],
+  DELETE: [/^\/api\/shots\/[^/]+$/, /^\/api\/takes\/[^/]+$/, /^\/api\/auth\/grants\/[^/]+$/],
 };
 export function directorMay(method: string, path: string): boolean {
   if (method === 'GET' || method === 'HEAD') {
@@ -94,6 +113,7 @@ export function directorMay(method: string, path: string): boolean {
 /** Paths anyone may reach before signing in: the Studio's own files, health, and signing in. */
 export function open(method: string, path: string): boolean {
   if (path === '/api/health') return true;
+  if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))
     return true;

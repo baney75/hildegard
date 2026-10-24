@@ -45,13 +45,13 @@ export const baseUrl = (c: Config) => `http://127.0.0.1:${c.port}`;
 export async function api<T>(
   c: Config,
   path: string,
-  init?: { method?: string; body?: unknown },
+  init?: { method?: string; body?: unknown; timeoutMs?: number },
 ): Promise<T> {
   const res = await fetch(`${baseUrl(c)}${path}`, {
     method: init?.method ?? 'GET',
     headers: init?.method ? { 'x-hildegard': '1', 'content-type': 'application/json' } : {},
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(init?.timeoutMs ?? 10_000),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok)

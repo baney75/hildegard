@@ -120,6 +120,47 @@ Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `di
 `get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`. `direct_shot` takes a `film`: a film's id,
 or a title, which reuses the film with that title or makes one.
 
+The same tools answer over HTTP at `http://127.0.0.1:7341/mcp` (Streamable HTTP), for apps that take an MCP address
+instead of a command: Open WebUI, Jan, LM Studio and the like. On this computer it needs nothing.
+
+### From your other devices, and from claude.ai or ChatGPT
+
+With Hildegard [at a link](#at-a-link-for-your-other-devices-and-the-people-you-invite), its MCP is at `<link>/mcp`
+and asks who's calling:
+
+- **AI apps on your own devices** use a key. On the computer with the GPU, `hildegard host key "Claude Code on my
+  laptop"` prints one (once). On the laptop, `hildegard connect claude-code --remote <link> --key-stdin` and paste it:
+  the key goes to the laptop's keychain, never into the app's config, and the app runs `hildegard mcp --remote`,
+  which carries its messages to the other computer. Any app that takes an address and a header can use
+  `<link>/mcp` with `Authorization: Bearer <key>` instead.
+- **Chatbots on the web** (claude.ai, ChatGPT) can't reach your tailnet, so they need the public link:
+  `hildegard host --funnel`. Then add `<link>/mcp` as a custom connector (claude.ai: Settings › Connectors; ChatGPT:
+  developer mode). They sign in on Hildegard's own page with your name and passphrase (OAuth 2.1 with PKCE), and act
+  as you. A new passphrase disconnects them all.
+
+`hildegard host keys` lists keys and chatbots, and `hildegard host keys revoke <name>` disconnects one at once.
+Results for apps elsewhere carry links to the videos (signed, good for a day) instead of paths on this computer.
+
+## Your local models
+
+Hildegard finds the language models you already run on this computer: Ollama, LM Studio, llama.cpp, vLLM, MLX LM,
+SGLang, Jan, KoboldCpp, TabbyAPI, and Local AI on Omarchy. Add any other OpenAI-compatible server yourself.
+
+```sh
+hildegard llm                                  # what's running here, and its models
+hildegard llm add "Desk vLLM" http://desk:8000 --key-stdin   # yours; the key goes to the keychain
+hildegard llm use ollama qwen3:8b              # which one directs
+hildegard llm direct "a heron lifting off a misty lake at dawn"
+```
+
+`llm direct` hands the model Hildegard's own tools (never `install_model`: licenses are yours to accept). A model that
+can't call tools writes a shot list instead, which Hildegard checks and queues. Either way the takes carry the model's
+name in the Queue.
+
+Hildegard also serves every local model here as one OpenAI-compatible API at `/v1`, named `<endpoint>/<model>`
+(`GET /v1/models` lists them). On this computer it needs no key; from your other devices, through the link, it takes an
+owner's key from `hildegard host key`.
+
 ## At a link, for your other devices and the people you invite
 
 Hildegard can be a server: your own studio at an HTTPS link, for your phone and laptop and for people you invite, all
@@ -192,7 +233,10 @@ hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local> | leave <device> | revoke
 hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
-hildegard mcp              The MCP server, on stdio (AI apps run this)
+hildegard host key <name> | keys [revoke <name>]
+hildegard connect <app> --remote <link> --key-stdin
+hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
+hildegard mcp [--remote <link>]   The MCP server, on stdio (AI apps run this); also at /mcp over HTTP
 ```
 
 Every command takes `--json` and then prints `{ ok, needsOwner, steps[], message }`. Agents setting Hildegard up for

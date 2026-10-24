@@ -89,6 +89,13 @@ const shotShape = {
     .describe(
       'Absolute path to a PNG, JPEG or WebP on the computer Hildegard runs on. The video starts from this image.',
     ),
+  start_frame_data: z
+    .string()
+    .max(28_000_000)
+    .optional()
+    .describe(
+      'The start frame itself, as base64 PNG, JPEG or WebP data (up to 20 MB), when the image isn’t on the computer Hildegard runs on. Use this or start_frame_path, not both.',
+    ),
   title: z
     .string()
     .max(120)
@@ -149,7 +156,7 @@ export function toRequest(a: ShotArgs, catalog: Catalog, installed: Set<string>)
   };
 }
 
-function describeTake(t: Take, file?: string): string {
+function describeTake(t: Take, video: string | undefined): string {
   const head = `- ${t.id} take ${t.number} (${t.quality}, ${t.width}×${t.height}, ${t.seconds}s, seed ${t.seed}): `;
   switch (t.status) {
     case 'queued':
@@ -157,7 +164,7 @@ function describeTake(t: Take, file?: string): string {
     case 'running':
       return `${head}rendering, ${Math.round((t.progress?.value ?? 0) * 100)}%`;
     case 'done':
-      return `${head}done. Video: ${file ?? t.video}`;
+      return `${head}done. Video: ${video ?? t.video}`;
     case 'failed':
       return `${head}failed: ${t.error?.message ?? 'unknown error'}${t.error?.hint ? ` ${t.error.hint}` : ''}`;
     default:
@@ -167,10 +174,13 @@ function describeTake(t: Take, file?: string): string {
 
 const filmOf = (f: { id: string; title: string }) => `film ${f.id} "${f.title}"`;
 
-function describeShot(d: ShotDetail): string {
+/** Where a finished take's video is: its path on this computer, or a link for an app on another device. */
+type VideoOf = (d: ShotDetail, t: Take) => string | undefined;
+
+function describeShot(d: ShotDetail, videoOf: VideoOf): string {
   return [
     `Shot ${d.shot.id} "${d.shot.title}" in ${filmOf(d.project)}`,
-    ...d.takes.map((t) => describeTake(t, d.files[t.id])),
+    ...d.takes.map((t) => describeTake(t, videoOf(d, t))),
   ].join('\n');
 }
 
@@ -198,7 +208,15 @@ function recentTakes(s: Snapshot, limit: number): string[] {
   ];
 }
 
-export function registerTools(server: McpServer, client: HildegardClient, agentName: () => string) {
+export function registerTools(
+  server: McpServer,
+  client: HildegardClient,
+  agentName: () => string,
+  remote?: { link: (path: string) => string },
+) {
+  const videoOf: VideoOf = (d, t) =>
+    remote ? (t.video ? remote.link(t.video) : undefined) : (d.files[t.id] ?? t.video ?? undefined);
+  const describe = (d: ShotDetail) => describeShot(d, videoOf);
   const guard =
     <A>(fn: (a: A, extra: Extra) => Promise<CallToolResult>) =>
     async (a: A, extra: Extra): Promise<CallToolResult> => {
@@ -260,7 +278,19 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         'No video model renders on this Mac yet. Pair a device with an NVIDIA or AMD GPU (`hildegard choir join`) and render there.',
       );
     const request = toRequest(a, catalog, installed);
+    if (a.start_frame_path && a.start_frame_data)
+      throw new HildegardError(422, 'Give start_frame_path or start_frame_data, not both.');
+    if (a.start_frame_path && remote)
+      throw new HildegardError(
+        422,
+        'Hildegard runs on another computer, so it can’t read a path on yours. Send the image itself as start_frame_data (base64).',
+      );
     if (a.start_frame_path) request.startFrame = await client.upload(a.start_frame_path);
+    if (a.start_frame_data) {
+      const bytes = Buffer.from(a.start_frame_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+      if (!bytes.length) throw new HildegardError(422, 'start_frame_data isn’t base64 image data.');
+      request.startFrame = await client.uploadBytes(bytes);
+    }
     return client.createShot({ request, projectId, title: a.title, agent: agentName() });
   };
 
@@ -386,14 +416,14 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
       inputSchema: { shot_id: z.string() },
       annotations: { readOnlyHint: true },
     },
-    guard(async (a) => text(describeShot(await client.shot(a.shot_id)))),
+    guard(async (a) => text(describe(await client.shot(a.shot_id)))),
   );
 
   const withPosters = async (d: ShotDetail): Promise<CallToolResult> => {
     const images = await Promise.all(d.takes.filter((t) => t.status === 'done').map((t) => client.poster(t)));
     return {
       content: [
-        { type: 'text', text: describeShot(d) },
+        { type: 'text', text: describe(d) },
         ...images
           .filter((i) => i !== null)
           .map((i) => ({ type: 'image' as const, data: i.data, mimeType: i.mimeType })),
@@ -446,8 +476,9 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     'get_shot',
     {
       title: 'Get a shot',
-      description:
-        'The finished videos of a shot, as paths on the computer Hildegard runs on, with a still from each. Optionally waits for takes still rendering.',
+      description: remote
+        ? 'The finished videos of a shot, as links that open for a day without signing in, with a still from each. Optionally waits for takes still rendering.'
+        : 'The finished videos of a shot, as paths on the computer Hildegard runs on, with a still from each. Optionally waits for takes still rendering.',
       inputSchema: {
         shot_id: z.string(),
         wait_seconds: z
@@ -494,7 +525,7 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         1800,
         extra,
       );
-      return text([`Film ${film.id} "${film.title}"`, ...details.map(describeShot)].join('\n\n'));
+      return text([`Film ${film.id} "${film.title}"`, ...details.map(describe)].join('\n\n'));
     }),
   );
 
@@ -502,8 +533,9 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
     'export_film',
     {
       title: 'Export a film',
-      description:
-        "Join a film's shots, in order, into one MP4 on the computer Hildegard runs on. Each shot uses its kept take, or its newest finished one. Returns the file's path when it's done.",
+      description: remote
+        ? "Join a film's shots, in order, into one MP4. Each shot uses its kept take, or its newest finished one. Returns a link to the file, good for a day, when it's done."
+        : "Join a film's shots, in order, into one MP4 on the computer Hildegard runs on. Each shot uses its kept take, or its newest finished one. Returns the file's path when it's done.",
       inputSchema: {
         film_id: z.string().describe('The film id, from direct_shot or make_sequence.'),
         wait_seconds: z
@@ -533,7 +565,9 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
       e = full;
       if (full.status === 'done')
         return text(
-          `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s, at ${full.file}. In the browser: ${client.url}${e.url}`,
+          remote && e.url
+            ? `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s. Download it (the link works for a day): ${remote.link(e.url)}`
+            : `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s, at ${full.file}. In the browser: ${client.url}${e.url}`,
         );
       if (full.status === 'failed') return { ...text(`The export failed: ${e.error}`), isError: true };
       return text(
