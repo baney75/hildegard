@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composeShot, loadCatalog, ShotRequest } from '@hildegard/presets';
+import { composeShot, loadCatalog, loadSafety, ShotRequest } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type FakeProxy, startFakeProxy } from '../src/fake-proxy.ts';
 import {
@@ -15,6 +15,7 @@ import {
   classifyFailure,
   EngineError,
   GRAPH_NODE_CLASSES,
+  graphSafety,
   progressOf,
   vetGraph,
 } from '../src/index.ts';
@@ -242,6 +243,7 @@ describe('ComfySdkEngine against the fake proxy', () => {
 
 describe('vetGraph', () => {
   const files = catalogFiles(catalog.models);
+  const safety = graphSafety(catalog, loadSafety());
   const variants = catalog.models.flatMap((m) =>
     (['draft', 'final'] as const).flatMap((quality) =>
       [undefined, 'start.png'].map((startFrame) =>
@@ -262,7 +264,7 @@ describe('vetGraph', () => {
   it('accepts every graph the builders make, and the allowlist names only classes they use', () => {
     const used = new Set<string>();
     for (const b of variants) {
-      expect(vetGraph(b, files)).toEqual([]);
+      expect(vetGraph(b, files, safety)).toEqual([]);
       for (const c of classes(b.graph)) used.add(c);
     }
     expect([...used].sort()).toEqual([...GRAPH_NODE_CLASSES].sort());
@@ -271,22 +273,68 @@ describe('vetGraph', () => {
   it('refuses nodes Hildegard never builds, files outside the catalog, and stray image loads', () => {
     const base = variants[0]!;
     const withNode = (node: object) => ({ ...base, graph: { ...base.graph, 999: node } }) as never;
-    expect(vetGraph(withNode({ class_type: 'ExecutePython', inputs: { code: 'x' } }), files).join()).toMatch(
-      /ExecutePython, which Hildegard never uses/,
-    );
     expect(
-      vetGraph(withNode({ class_type: 'VAELoader', inputs: { vae_name: '../../etc/passwd' } }), files).join(),
+      vetGraph(withNode({ class_type: 'ExecutePython', inputs: { code: 'x' } }), files, safety).join(),
+    ).toMatch(/ExecutePython, which Hildegard never uses/);
+    expect(
+      vetGraph(
+        withNode({ class_type: 'VAELoader', inputs: { vae_name: '../../etc/passwd' } }),
+        files,
+        safety,
+      ).join(),
     ).toMatch(/not in the catalog/);
     expect(
-      vetGraph(withNode({ class_type: 'LoadImage', inputs: { image: 'secret.png' } }), files).join(),
+      vetGraph(withNode({ class_type: 'LoadImage', inputs: { image: 'secret.png' } }), files, safety).join(),
     ).toMatch(/not the start frame/);
     expect(
-      vetGraph(withNode({ class_type: 'SaveVideo', inputs: { video: ['1', 0] } }), files).join(),
+      vetGraph(withNode({ class_type: 'SaveVideo', inputs: { video: ['1', 0] } }), files, safety).join(),
     ).toMatch(/one video/);
-    expect(vetGraph(withNode({ class_type: 'KSampler', inputs: { x: { y: 1 } } }), files).join()).toMatch(
-      /plain value/,
-    );
-    expect(vetGraph({ ...base, graph: {} }, files)).not.toEqual([]);
+    expect(
+      vetGraph(withNode({ class_type: 'KSampler', inputs: { x: { y: 1 } } }), files, safety).join(),
+    ).toMatch(/plain value/);
+    expect(vetGraph({ ...base, graph: {} }, files, safety)).not.toEqual([]);
+  });
+
+  const find = (b: (typeof variants)[number], cls: string, what?: string) =>
+    Object.entries(b.graph).find(([, n]) => n.class_type === cls && (!what || n.inputs.what === what))!;
+  const clone = (b: (typeof variants)[number]) => structuredClone(b);
+
+  it('refuses a graph whose frames skip the safety check', () => {
+    for (const b of variants) {
+      const g = clone(b);
+      const [, look] = find(g, 'HildegardLook');
+      const [, check] = find(g, 'HildegardGuard', 'take');
+      look.inputs.images = check.inputs.images!;
+      expect(vetGraph(g, files, safety).join()).toMatch(/without the safety check/);
+    }
+  });
+
+  it('refuses a start frame used before its check, a weaker check or another classifier', () => {
+    const b = variants.find((v) => v.startFrameNode)!;
+    const skip = clone(b);
+    const [, check] = find(skip, 'HildegardGuard', 'start frame');
+    const [, scale] = Object.entries(skip.graph).find(
+      ([, n]) => n.class_type === 'ImageScale' && Array.isArray(n.inputs.image),
+    )!;
+    scale.inputs.image = check.inputs.images!;
+    expect(vetGraph(skip, files, safety).join()).toMatch(/start frame is used before the safety check/);
+
+    const weak = clone(b);
+    find(weak, 'HildegardGuard', 'take')[1].inputs.threshold = 0.95;
+    expect(vetGraph(weak, files, safety).join()).toMatch(/less strictly/);
+
+    const other = clone(b);
+    find(other, 'HildegardGuard', 'take')[1].inputs.classifier = 'always-fine.safetensors';
+    expect(vetGraph(other, files, safety).join()).toMatch(/another classifier/);
+  });
+
+  it('refuses a sexual prompt from a paired device, but not the negative prompt', () => {
+    const g = clone(variants[0]!);
+    const [, pos] = Object.entries(g.graph).find(([, n]) => n._meta?.title === 'Prompt')!;
+    pos.inputs.text = 'a naked woman on a bed';
+    expect(vetGraph(g, files, safety).join()).toMatch(/asks for sexual content/);
+    // The builders' own negative prompt names nudity, to steer away from it.
+    expect(vetGraph(variants[0]!, files, safety)).toEqual([]);
   });
 });
 

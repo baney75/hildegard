@@ -131,7 +131,11 @@ function TakeCardImpl({ take: t, selected, online, paused, left, onSelect, onFor
         {t.status === 'failed' || t.status === 'canceled' ? (
           <span className="cs-qmeta">
             <Status kind={t.status === 'failed' ? 'error' : 'idle'}>
-              {t.status === 'failed' ? 'Stopped' : 'Canceled'}
+              {t.status === 'canceled'
+                ? 'Canceled'
+                : t.error?.code === 'content_blocked'
+                  ? 'Refused'
+                  : 'Stopped'}
             </Status>
             <b>
               {t.status === 'failed' ? (t.error?.message ?? 'Something went wrong') : 'Nothing was rendered'}

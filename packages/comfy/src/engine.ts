@@ -36,6 +36,7 @@ export type EngineErrorCode =
   | 'engine_offline'
   | 'invalid_graph'
   | 'node_failed'
+  | 'content_blocked'
   | 'canceled'
   | 'unknown';
 
@@ -68,6 +69,22 @@ export interface Engine {
 /** Map a ComfyUI failure into a code and a plain sentence. */
 export function classifyFailure(code: string | undefined, message: string | undefined): EngineError {
   const text = `${code ?? ''} ${message ?? ''}`;
+  // Hildegard's safety check stopped it (comfy-nodes/hildegard_guard). Its own missing-classifier message says so.
+  const guard = /HildegardGuard: ([^\n]*)/.exec(text);
+  if (guard)
+    return /classifier is missing/.test(guard[1]!)
+      ? new EngineError(
+          'model_missing',
+          'The safety classifier isn’t installed, so nothing can render.',
+          guard[1],
+        )
+      : new EngineError(
+          'content_blocked',
+          /start frame/.test(guard[1]!)
+            ? 'Hildegard refused this start frame: it looks sexual.'
+            : 'Hildegard refused this take: a frame looked sexual, so it was deleted.',
+          guard[1],
+        );
   if (
     /out[ _]of[ _]memory|OutOfMemory|CUDA out of memory|Allocation on device|MPS backend out of memory/i.test(
       text,

@@ -148,6 +148,35 @@ describe('shots and takes', () => {
     expect(take(t!.id).status).not.toBe('failed');
   });
 
+  it('refuses a sexual prompt or title before it queues, for people and agents alike', async () => {
+    const before = srv.store.takes.size;
+    for (const body of [
+      { request: request({ prompt: 'A naked woman on a bed' }) },
+      { request: request({ prompt: 'A sexy 12-year-old' }), agent: 'Claude' },
+      { request: request(), title: 'p0rn' },
+    ]) {
+      const res = await post('/api/shots', body);
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({ code: 'content_blocked' });
+    }
+    const child = await post('/api/shots', { request: request({ prompt: 'A sexy 12-year-old' }) });
+    expect(((await child.json()) as { error: string }).error).toMatch(/children/);
+    expect(srv.store.takes.size).toBe(before);
+  });
+
+  it('deletes a take the safety check refused, keeps no poster, and won’t retry it', async () => {
+    const res = await post('/api/shots', { request: request({ prompt: 'A storm at sea [fail:guard]' }) });
+    const [t] = ((await res.json()) as { takes: Take[] }).takes;
+    await until(() => take(t!.id).status === 'failed');
+    expect(take(t!.id).error).toMatchObject({ code: 'content_blocked' });
+    expect(take(t!.id).error!.message).toMatch(/refused this take/);
+    expect(take(t!.id).poster).toBeNull();
+    expect((await api(`/media/${t!.id}.jpg`)).status).toBe(404);
+    const retry = await post(`/api/takes/${t!.id}/retry`);
+    expect(retry.status).toBe(409);
+    expect(take(t!.id).status).toBe('failed');
+  });
+
   it('cancels a waiting take, and Force now jumps the queue', async () => {
     srv.scheduler.setPaused(true);
     const a = (

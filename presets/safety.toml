@@ -1,0 +1,97 @@
+# What Hildegard refuses to make or load. Read by packages/presets/src/safety.ts; tests in packages/presets/test.
+#
+# Hildegard doesn't make sexual content, and never anything sexual or suggestive involving children. These lists are
+# the first and cheapest of the checks: every prompt and every model or LoRA's name, tags and card pass through them.
+# Rendered frames and start frames pass the classifier named in models.toml's [safety] table, and model files are
+# checked against the hashes below before and after they download. See docs/safety.md.
+#
+# Words match whole words after folding case, accents, look-alike letters, l33t digits, s p a c e d letters and
+# repeated letters. A trailing * matches any ending ("masturbat*"), and a plain word also matches its plural with -s.
+# Phrases match their words in order.
+
+version = 1
+
+[prompt]
+# Always refused, whatever surrounds them (unless an allowed phrase below covers the word, or it's negated).
+sexual = [
+  "nude", "nudes", "nudity", "naked", "nakedness", "topless", "bottomless", "unclothed", "undress*", "disrob*",
+  "nsfw", "porn*", "xxx", "sex", "sexual*", "sexed", "intercourse", "erotic*", "erotica", "hentai", "ecchi",
+  "smut*", "lewd*", "fetish*", "bdsm", "bondage", "orgasm*", "masturbat*", "ejaculat*", "cum", "cumshot*",
+  "creampie*", "blowjob*", "handjob*", "footjob*", "fellatio", "cunnilingus", "genital*", "penis*", "vagina*",
+  "vulva*", "clitor*", "labia", "testicle*", "scrotum", "anus", "anal", "nipple*", "areola*", "boob*", "tits",
+  "titty", "titties", "pussy", "dildo*", "onlyfans", "camgirl*", "stripper*", "striptease", "gangbang*",
+  "threesome*", "orgy", "orgies", "incest*", "rape", "raped", "raping", "rapist*", "molest*", "upskirt*",
+  "downblouse", "voyeur*", "nipslip*", "milf*", "ahegao", "futanari", "futa", "yaoi", "rule34", "r34",
+  "bukkake", "deepthroat*", "sodomy", "sodomize*", "bestiality", "zoophil*", "uncensored", "spread-eagle",
+  # Other languages
+  "desnud*", "nackt*", "sexo", "sesso", "nue", "nues", "hadaka", "erotik*", "pornografi*", "tetas", "seins",
+  "голая", "голый", "порно", "секс", "эротика",
+]
+# Read as one word each: "no clothes" is as sexual as "naked", and isn't undone by "no".
+sexualPhrases = [
+  "no clothes", "without clothes", "no clothing", "without clothing", "wearing nothing",
+  "not wearing anything", "takes off her clothes", "takes off his clothes", "taking off her clothes",
+  "taking off his clothes", "take off her clothes", "take off his clothes", "remove her clothes",
+  "remove his clothes", "removing her clothes", "removing his clothes", "clothes off", "in the nude",
+  "birthday suit", "x rated", "adult film", "adult films", "adult video", "adult content", "adult movie",
+  "sex scene", "making love", "make love", "oral sex", "bare breasts", "bare breast", "spread legs",
+  "spreading her legs", "spread her legs", "wet t shirt", "nip slip", "camel toe", "18 plus", "for adults only",
+]
+# Sexual content involving children, by name. Refused as harshly as a child with a sexual word.
+childSexual = [
+  "lolicon", "loli", "lolis", "shotacon", "shota", "pedo", "pedos", "pedophil*", "paedo", "paedos", "paedophil*",
+  "csam", "jailbait", "child porn", "kiddie porn", "underage sex",
+]
+# Not sexual on their own, so they pass; next to a child they are refused.
+suggestive = [
+  "sexy", "seductive*", "seduc*", "sensual*", "provocative*", "lingerie", "bikini*", "panties", "panty", "thong*",
+  "underwear", "undies", "bra", "bras", "busty", "cleavage", "swimsuit*", "spank*", "flirt*", "straddl*",
+  "skimpy", "revealing", "pantyhose", "stockings", "fishnet*", "latex", "submissive", "booty", "buttocks", "curvy",
+  "see-through", "sheer",
+]
+# Children, by word. Ages under 18 ("12 year old", "aged 9", "12yo") count too, in code.
+minors = [
+  "child", "children", "childlike", "kid", "kids", "kiddie*", "toddler*", "infant*", "baby", "babies",
+  "preteen*", "tween*", "teen", "teens", "teenage*", "teenager*", "minor", "minors", "underage*",
+  "under-age", "adolescen*", "schoolgirl*", "schoolboy*", "juvenile*", "youngster*",
+  "kindergarten*", "daycare", "nursery", "grade-schooler*", "elementary", "pubescent", "prepubescent",
+  "lolita", "enfant*", "fillette", "kinder", "mädchen",
+  "ребенок", "девочка", "школьница",
+]
+minorPhrases = [
+  "little girl", "little girls", "little boy", "little boys", "young girl", "young girls", "young boy",
+  "young boys", "school girl", "school girls", "school boy", "school boys", "middle school", "high school",
+  "grade school", "primary school", "elementary school", "pre teen", "barely legal", "small girl", "small boy",
+  "underage girl", "underage boy", "1st grade", "2nd grade", "3rd grade", "4th grade", "5th grade", "6th grade",
+  "7th grade", "8th grade", "9th grade",
+]
+# Where a listed word means something else. A match inside one of these is ignored.
+allowed = [
+  "nude color", "nude colour", "nude colors", "nude colours", "nude tone", "nude tones", "nude palette",
+  "nude lipstick", "nude lip", "nude heels", "nude shoes", "nude makeup", "nude shade", "nude shades",
+  "nude beige", "nude pink", "nude nail", "nude nails", "sex pistols", "sex and the city", "cum laude",
+  "magna cum laude", "summa cum laude",
+]
+# Words that undo a sexual word right after them ("no nudity", "without sexual content").
+# Only the word right before counts, or the one before "any": "no nudity", "without any sexual content".
+negations = ["no", "not", "without", "non", "avoid", "avoiding", "never", "zero", "nothing"]
+
+[models]
+# A model or LoRA whose Hugging Face or Civitai tags include one of these is refused before it downloads.
+blockedTags = [
+  "not-for-all-audiences", "nsfw", "porn", "pornography", "hentai", "sexual", "sex", "nudity", "nude", "erotic",
+  "adult", "explicit", "lewd", "uncensored", "fetish", "ecchi", "r18", "r-18", "xxx",
+]
+# Civitai's nsfwLevel is a bit field of the ratings its images carry: 1 PG, 2 PG-13, 4 R, 8 X, 16 XXX, 32 blocked. A
+# model with any of these bits (R and above) is refused. Its `nsfw` flag alone can't be trusted: Pony Diffusion V6 XL
+# reads nsfw = false with nsfwLevel 7. Models Civitai marks `minor` (made to depict children) or `poi` (a real person)
+# are refused too.
+civitaiBlockedNsfwBits = 60
+# Repos and authors that only publish sexual models. "author/*" refuses everything from an author.
+blockedRepos = []
+# SHA-256 of model and LoRA files known to make sexual content, or to have been trained on children. A file with one
+# of these hashes is refused before it downloads, deleted if it downloads anyway, and never loaded.
+blockedSha256 = []
+# The classifiers Hildegard itself downloads to find sexual frames. Their repos carry the not-for-all-audiences tag
+# because of what they detect; that tag alone doesn't refuse them. Hash checks still apply.
+trustedRepos = ["Falconsai/nsfw_image_detection"]

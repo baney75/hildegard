@@ -221,18 +221,20 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
       detail: `PyTorch for ${gpu.backend === 'cpu' ? 'the CPU' : gpu.backend.toUpperCase()}${gpu.torchBackend && gpu.torchBackend !== 'cpu' ? ` (${gpu.torchBackend})` : ''}, ComfyUI’s packages and ${PROXY.replace('==', ' ')}.`,
     });
 
-    // The film-look node
-    const look = join(L.comfyDir, 'custom_nodes', 'hildegard_look');
-    rmSync(look, { recursive: true, force: true });
-    cpSync(resource(join('comfy-nodes', 'hildegard_look')), look, {
-      recursive: true,
-      filter: (src) => !/__pycache__|test_look\.py$/.test(src),
-    });
+    // Hildegard's own ComfyUI nodes: the film look, and the safety check every take passes
+    for (const node of ['hildegard_look', 'hildegard_guard']) {
+      const dest = join(L.comfyDir, 'custom_nodes', node);
+      rmSync(dest, { recursive: true, force: true });
+      cpSync(resource(join('comfy-nodes', node)), dest, {
+        recursive: true,
+        filter: (src) => !/__pycache__|test_\w+\.py$/.test(src),
+      });
+    }
     record({
       id: 'film-look',
-      title: 'Add the film look',
+      title: 'Add the film look and the safety check',
       status: 'done',
-      detail: 'Installed Hildegard’s film-look node.',
+      detail: 'Installed Hildegard’s film-look and safety-check nodes.',
     });
 
     // Check PyTorch sees the GPU
