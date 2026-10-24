@@ -72,7 +72,7 @@ import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 import type { Updates } from './update.ts';
 
-export const VERSION = '0.1.5';
+export const VERSION = '0.1.6';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
