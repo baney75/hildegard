@@ -54,7 +54,8 @@ an upload of an old recording as consent. The method:
 3. **Heard.** Whisper transcribes the recording, and at least 85% of the line must be heard in order, with every
    random word (`phraseMatch`).
 4. **Not made by AI.** The recording must not carry Hildegard’s watermark (Perth), so a voice Hildegard made can’t
-   consent for anyone (`markedAbove`).
+   consent for anyone (`markedAbove`, 0.5). Measured on LibriSpeech, real speech reads 0.01 to 0.03 unmarked and
+   1.0 marked.
 5. **Same person throughout.** Every sample to clone from must match the consent recording on the speaker encoder,
    cosine 0.75 or more (`sameSpeaker`). A clip of someone else is refused.
 6. **Enough speech.** Ten seconds or more in all, counting the consent line (`quickSeconds`).
