@@ -73,6 +73,7 @@ jobs:
     needs: version
     if: needs.version.outputs.release == 'true'
     uses: ./.github/workflows/desktop.yml
+    secrets: inherit
 
   publish:
     needs: [version, cli, desktop]
@@ -102,6 +103,12 @@ jobs:
           for f in Hildegard_x64-setup.exe Hildegard_x64.msi Hildegard_aarch64.dmg Hildegard_amd64.AppImage Hildegard_amd64.deb; do
             test -f "out/$f" || { echo "missing $f"; exit 1; }
           done
+          # What the app's updater reads, once the release has signed app files.
+          if ls out/*.sig > /dev/null 2>&1; then
+            node scripts/updater-manifest.mjs out "${{ needs.version.outputs.tag }}"
+          else
+            echo "::warning::No signed app files, so the apps won't be offered this release."
+          fi
           # One list of hashes for everything, the installers' own lines included.
           (cd out && sha256sum -- * > SHA256SUMS)
           cat out/SHA256SUMS

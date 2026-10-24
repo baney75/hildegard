@@ -9,6 +9,11 @@ on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -68,9 +73,19 @@ jobs:
       - name: Rust tests
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
+      # Signs the files the app's updater installs. Without the key (a fork's PR), it builds the app unsigned.
       - name: Build the app
         working-directory: apps/desktop
-        run: pnpm tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          unsigned=()
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::warning::No updater signing key here, so this build can't update itself."
+            unsigned=(--config '{"bundle":{"createUpdaterArtifacts":false}}')
+          fi
+          pnpm tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} "${unsigned[@]}"
       - uses: actions/upload-artifact@v4
         with:
           name: hildegard-app-${{ matrix.target }}
@@ -80,5 +95,7 @@ jobs:
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/*/*.sig
           if-no-files-found: error
           retention-days: 14

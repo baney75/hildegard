@@ -62,6 +62,9 @@ builds for two weeks under its **Artifacts**.
 - **The tray** has Open Studio, Pause sharing (turns off the link from Settings › Sharing, and Resume sharing turns it
   back on), and Quit Hildegard. Closing the window leaves Hildegard running in the tray; opening the app again brings
   the window back.
+- **Updates:** the app looks for a newer release when it opens and every six hours, downloads it in the background,
+  and adds **Restart to update** to the top of the tray. Nothing installs until you choose it. Updates are signed,
+  and the app refuses any that aren’t. The `.deb` doesn’t update itself: install the new one from the site.
 - The window shows the Studio from `127.0.0.1` and nothing else: links to other sites open in your browser, and
   downloads go to your Downloads folder. The Studio inside it can't reach the app or your files.
 

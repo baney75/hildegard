@@ -7,6 +7,7 @@ mod install;
 mod nav;
 mod paths;
 mod server;
+mod update;
 
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
@@ -59,6 +60,8 @@ struct Hildegard {
   showing_studio: AtomicBool,
   sharing: Mutex<Sharing>,
   sharing_item: Mutex<Option<MenuItem<Wry>>>,
+  /// The tray's menu, which an update ready to install joins.
+  menu: Mutex<Option<Menu<Wry>>>,
 }
 
 fn log(layout: &Layout, line: &str) {
@@ -253,6 +256,12 @@ fn quit(app: &AppHandle) {
   if QUITTING.swap(true, Ordering::SeqCst) {
     return;
   }
+  stop_here(app);
+  app.exit(0);
+}
+
+/// Stops the install and the Hildegard this app started, as quitting does.
+fn stop_here(app: &AppHandle) {
   let hg = app.state::<Hildegard>();
   let _ = app.save_window_state(StateFlags::all() - StateFlags::VISIBLE);
   if let Some(mut c) = hg.installer.lock().unwrap().take() {
@@ -263,7 +272,43 @@ fn quit(app: &AppHandle) {
     let mut sidecar = hg.sidecar.lock().unwrap().take();
     server::stop(port, sidecar.as_mut());
   }
-  app.exit(0);
+}
+
+/// Installs the app update the tray offered and opens the new app, which starts Hildegard again and moves the
+/// command to its version.
+fn restart_to_update(app: &AppHandle) {
+  stop_here(app);
+  if let Err(e) = update::install(app) {
+    log(&app.state::<Hildegard>().layout, &format!("Couldn’t install the app update: {e}"));
+  }
+  app.restart();
+}
+
+/// On launch and every six hours: downloads a newer app, if there is one, and offers it at the top of the tray.
+fn watch_updates(app: AppHandle) {
+  if !update::updatable() {
+    return;
+  }
+  std::thread::spawn(move || loop {
+    match tauri::async_runtime::block_on(update::fetch(&app)) {
+      Ok(Some(version)) => {
+        let offer = || -> tauri::Result<()> {
+          let item = MenuItem::with_id(&app, "update", format!("Restart to update to {version}"), true, None::<&str>)?;
+          if let Some(menu) = app.state::<Hildegard>().menu.lock().unwrap().as_ref() {
+            menu.insert_items(&[&item, &PredefinedMenuItem::separator(&app)?], 0)?;
+          }
+          Ok(())
+        };
+        if let Err(e) = offer() {
+          log(&app.state::<Hildegard>().layout, &format!("Couldn’t offer the app update in the tray: {e}"));
+        }
+      }
+      Ok(None) => {}
+      // Offline, or GitHub didn't answer: the next check tries again.
+      Err(e) => log(&app.state::<Hildegard>().layout, &format!("Couldn’t check for an app update: {e}")),
+    }
+    std::thread::sleep(Duration::from_secs(6 * 60 * 60));
+  });
 }
 
 fn tray(app: &AppHandle) -> tauri::Result<()> {
@@ -275,6 +320,7 @@ fn tray(app: &AppHandle) -> tauri::Result<()> {
     &[&open, &PredefinedMenuItem::separator(app)?, &sharing, &PredefinedMenuItem::separator(app)?, &quit_item],
   )?;
   *app.state::<Hildegard>().sharing_item.lock().unwrap() = Some(sharing);
+  *app.state::<Hildegard>().menu.lock().unwrap() = Some(menu.clone());
   TrayIconBuilder::with_id("main")
     .icon(Image::from_bytes(TRAY_ICON)?)
     .icon_as_template(cfg!(target_os = "macos"))
@@ -285,6 +331,10 @@ fn tray(app: &AppHandle) -> tauri::Result<()> {
     .on_menu_event(|app, e| match e.id().as_ref() {
       "open" => show_window(app),
       "sharing" => toggle_sharing(app),
+      "update" => {
+        let app = app.clone();
+        std::thread::spawn(move || restart_to_update(&app));
+      }
       "quit" => {
         let app = app.clone();
         // Stopping Hildegard can take a few seconds; not on the thread that draws the menu.
@@ -383,6 +433,7 @@ pub fn run() {
     // First, so a second launch only brings this one forward.
     .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
     .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(
       tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::all() - StateFlags::VISIBLE).build(),
     )
@@ -406,7 +457,9 @@ pub fn run() {
         showing_studio: AtomicBool::new(false),
         sharing: Mutex::new(Sharing::Off),
         sharing_item: Mutex::new(None),
+        menu: Mutex::new(None),
       });
+      app.manage(update::Pending::default());
 
       let handle = app.handle().clone();
       WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
@@ -438,6 +491,7 @@ pub fn run() {
 
       tray(app.handle())?;
       watch(app.handle().clone());
+      watch_updates(app.handle().clone());
       Ok(())
     })
     .on_window_event(|window, event| {
