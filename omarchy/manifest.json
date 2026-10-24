@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.baney75.hildegard",
   "name": "Hildegard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "Donovan Baney",
   "license": "AGPL-3.0-only",
   "description": "Your own film studio, on your own GPU. Direct shots with real camera language through ComfyUI, watch renders from the bar, and let your AI apps use your GPU as tools. Everything runs on this computer, on 127.0.0.1.",
