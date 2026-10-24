@@ -9,6 +9,8 @@ it, and is safe to run again: a step that is already done comes back as `skipped
 | [A. The app on this computer](#a-the-app-on-this-computer) | The Studio at `http://127.0.0.1:7341`, and Hildegard's tools in their AI apps |
 | [B. Host it at a link](#b-host-it-at-a-link) | Their own Hildegard at an HTTPS link, for their phone, laptop and the people they invite, all signing in |
 | [C. Join a fleet](#c-join-a-fleet) | Their devices render on each other over Tailscale: a laptop without a GPU uses the desktop's |
+| [D. AI apps on other devices, and chatbots](#d-ai-apps-on-other-devices-and-chatbots) | Hildegard's tools in the AI apps on their laptop, and in claude.ai or ChatGPT |
+| [E. Their local models](#e-their-local-models) | The models they run (Ollama, LM Studio, llama.cpp, vLLM, MLX…) direct shots, and serve their other devices |
 
 B and C build on A: do A first on every computer involved.
 
@@ -225,6 +227,81 @@ in on each.
 A fleet and a link go together: the computer with the link (B) can render on the fleet's GPU (C), so people signing in
 at the link use it without knowing where it is.
 
+## D. AI apps on other devices, and chatbots
+
+Hildegard's MCP answers at `/mcp` (Streamable HTTP, stateless) as well as on stdio. On the computer Hildegard runs on
+it needs nothing. Anywhere else it needs a bearer token and acts as that token's person, with their role. Do B first.
+
+**An AI app on another of your user's devices** (their laptop's Claude Code, say):
+
+1. On the computer with Hildegard:
+
+   ```sh
+   hildegard host key "Claude Code on the laptop" --json
+   ```
+
+   `key` (`hgk_…`) is a secret, shown this once. Hand it straight to the next step; never log it or write it to a file.
+   It acts as the owner unless you pass `--person <name>`; `--days <n>` makes it expire.
+2. On the other device, with Hildegard installed there too (the CLI is enough), pipe it in:
+
+   ```sh
+   printf %s "$KEY" | hildegard connect claude-code --remote https://parish1.tail1234.ts.net --key-stdin --json
+   ```
+
+   It checks the key against that Hildegard first, keeps it in the keychain, and links the app to
+   `hildegard mcp --remote <link>`. The app's config never holds the key.
+3. Verify: the `remote` step is `done` with a tool count, and the app's `connect-…` step is `done`.
+
+An app that takes an MCP address and headers can skip step 2: `<link>/mcp` with `Authorization: Bearer <key>`.
+
+**A chatbot on the web** (claude.ai, ChatGPT) runs on its maker's servers, so it can't reach a tailnet. It needs the
+public link, which only your user may ask for: `hildegard host --funnel --json` (show them its `warning`). Then:
+
+- **claude.ai:** Settings › Connectors › Add custom connector, with the address in `mcpUrl`.
+- **ChatGPT:** Settings › Apps › Developer mode, then Create, with that address. It needs Plus or
+  higher.
+
+The chatbot opens Hildegard's sign-in page, where **your user** types their own name and passphrase. Never do it for
+them. It then acts as them, until they revoke it or change their passphrase.
+
+`hildegard host keys --json` lists every key and chatbot (`grants[]`, with `kind`, `person` and `lastUsedAt`);
+`hildegard host keys revoke <id|name> --json` ends one at once. `hildegard doctor --json` has an `mcp` step.
+
+What a remote app gets differs in two ways: videos and stills come as links (signed, good for a day) instead of paths,
+and a start frame goes as `start_frame_data` (base64), since a path would be read on the wrong computer.
+
+## E. Their local models
+
+Hildegard finds what runs on this computer: Ollama (11434, or `OLLAMA_HOST`'s port), LM Studio (1234), llama.cpp,
+MLX LM or llamafile (8080), vLLM (8000), SGLang (30000), Jan (1337), KoboldCpp (5001), TabbyAPI (5000), and Local AI's
+gateways on Omarchy.
+
+```sh
+hildegard llm --json
+```
+
+`endpoints[]` lists each with `online`, `url` and `models[]` (`id`, and `size`, `context`, `loaded` where the runtime
+says). To add one it doesn't find, such as a server elsewhere on their network:
+
+```sh
+printf %s "$API_KEY" | hildegard llm add "Desk vLLM" http://desk:8000/v1 --key-stdin --json   # key only if it needs one
+```
+
+To let one direct:
+
+```sh
+hildegard llm use ollama qwen3:8b --json                          # optional: which one, from now on
+hildegard llm direct "a heron lifting off a misty lake at dawn" --film "Heron" --json
+```
+
+`mode` is `tools` when the model called Hildegard's tools itself, or `plan` when it wrote a shot list that Hildegard
+checked and queued (`--plan` asks for that from the start, which suits small models). `shots[]` are the shot ids;
+follow them with `hildegard status --json` or the MCP's `shot_status`. A local model is never given `install_model`.
+
+Every local model here is also one OpenAI-compatible API at `http://127.0.0.1:7341/v1`, with models named
+`<endpoint>/<model>` (`ollama/qwen3:8b`). From your user's other devices it is at `<link>/v1`, with an owner's key from
+`hildegard host key` as the bearer token: point any OpenAI-compatible app or agent there.
+
 ## What only your user can do
 
 | Step | What to tell them |
@@ -235,6 +312,8 @@ at the link use it without knowing where it is.
 | Tailscale (`command`: `tailscale up`) | Install Tailscale and sign in |
 | The owner account (`command`: `hildegard host owner`) | Run it in a terminal here and choose a passphrase, or use Settings › Sharing |
 | Tailscale permission or a Tailscale admin page | Run the command, or open the page and turn the feature on |
+| A chatbot's sign-in (claude.ai, ChatGPT) | They add the connector and type their own name and passphrase on Hildegard's page |
+| The public internet (`hildegard host --funnel`) | Only when they asked for it: chatbots on the web need it, AI apps on their own devices don't |
 
 ## If something fails
 
