@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { loadCatalog } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
-import { type Exec, fileStore, parseArgs, startServer } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -75,7 +75,7 @@ describe('hildegard', () => {
 
     const st = await hildegard(home, 'status', ...common);
     expect(st.running).toBe(true);
-    expect(st.version).toBe('0.1.0');
+    expect(st.version).toBe(VERSION);
     expect(st.engine).toMatchObject({ comfy: 'fake', online: true });
 
     const linked = await hildegard(home, 'connect', 'cursor', ...common);
