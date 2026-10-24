@@ -178,8 +178,10 @@ describe('hildegard', () => {
 
   // Fifteen runs of the CLI: give Windows' slow Node starts room.
   it('pairs devices: invite on the GPU, join, list, use and leave on the other, revoke', async () => {
+    // Commands for the GPU name its folder as well as its port: a server is only theirs when the folders match.
+    const nodeData = mkdtempSync(join(tmpdir(), 'hg-cli-node-'));
     const node = await startServer(
-      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-cli-node-'))]), port: 0 },
+      { ...parseArgs(['--fake-gpu', '--data', nodeData]), port: 0 },
       { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-node-${process.pid}.json`)) },
     );
     const nodePort = new URL(node.url).port;
@@ -188,7 +190,7 @@ describe('hildegard', () => {
     const mac = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data];
     try {
       // Without Tailscale, the owner has to say where this computer is reachable.
-      const bare = await hildegard(home, 'choir', 'invite', '--port', nodePort);
+      const bare = await hildegard(home, 'choir', 'invite', '--port', nodePort, '--data', nodeData);
       if (!bare.ok || bare.needsOwner) expect(bare.steps[0]).toMatchObject({ status: 'needs-owner' });
       const outside = await hildegard(
         home,
@@ -196,12 +198,24 @@ describe('hildegard', () => {
         'invite',
         '--port',
         nodePort,
+        '--data',
+        nodeData,
         '--url',
         'http://192.168.0.9:1',
       );
       expect(outside.ok).toBe(false);
 
-      const invite = await hildegard(home, 'choir', 'invite', '--port', nodePort, '--url', node.url);
+      const invite = await hildegard(
+        home,
+        'choir',
+        'invite',
+        '--port',
+        nodePort,
+        '--data',
+        nodeData,
+        '--url',
+        node.url,
+      );
       expect(invite.ok).toBe(true);
       expect(invite.code).toMatch(/^hgc1_/);
 
@@ -226,7 +240,9 @@ describe('hildegard', () => {
       expect((await hildegard(home, 'choir', 'leave', name, ...mac)).ok).toBe(true);
       expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
 
-      expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort)).ok).toBe(true);
+      expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort, '--data', nodeData)).ok).toBe(
+        true,
+      );
       expect(node.choir.state().sharing.on).toBe(false);
     } finally {
       await hildegard(home, 'stop', ...mac);
