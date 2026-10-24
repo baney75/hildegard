@@ -4,17 +4,26 @@ import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
-import { type EngineState, type LoadedCatalog, loadCatalog, type ModelState } from '@hildegard/presets';
+import {
+  type EngineState,
+  type LoadedCatalog,
+  loadCatalog,
+  loadSafety,
+  loadVoiceCatalog,
+  type ModelState,
+  type VoiceCatalog,
+} from '@hildegard/presets';
 import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
+import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, reviewer } from './export.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
-import { LocalModels, type LocalModelsDeps } from './llm.ts';
+import { jsonFrom, LocalModels, type LocalModelsDeps } from './llm.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
@@ -23,6 +32,9 @@ import { MediaSigner } from './remote-mcp.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
 import { runUpdate, Updates } from './update.ts';
+import { llmTranslator, VoiceStudio } from './voice.ts';
+import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
+import { VoiceModels } from './voice-models.ts';
 
 type HttpServer = ReturnType<typeof serve>;
 
@@ -56,6 +68,8 @@ export interface Running {
   hostedUrl: () => string | null;
   /** The ComfyUI Hildegard runs itself, when it does. */
   runtime: ComfyRuntime | null;
+  voice: VoiceStudio;
+  voiceModels: VoiceModels;
   close(): Promise<void>;
 }
 
@@ -84,6 +98,10 @@ export async function startServer(
     hubToken?: string;
     /** How model files download: tests give a stand-in. */
     modelFetch?: typeof fetch;
+    /** The voice catalog; presets/voices.toml by default. */
+    voiceCatalog?: VoiceCatalog;
+    /** The voice engine: tests give a stand-in. */
+    voiceEngine?: VoiceEngine;
     /** Checking for and running updates: tests give stand-ins. */
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
   } = {},
@@ -165,6 +183,8 @@ export async function startServer(
     onEngine: (engineState) => store.emit({ type: 'engine', engine: engineState }),
     onGuests: (guests) => store.emit({ type: 'guests', guests }),
     poster: (video, out) => makePoster(config.dataDir, video, out),
+    // Voice models let go of the GPU before a render needs it.
+    beforeRender: () => voiceEngine.release(),
   });
   route();
   await runtime?.start();
@@ -242,6 +262,49 @@ export async function startServer(
   const grants = new Grants({ dataDir: config.dataDir, person: (id) => people.get(id) });
   const signer = new MediaSigner({ dataDir: config.dataDir });
   const llm = new LocalModels({ dataDir: config.dataDir, secrets: secretsFor, ...opts.llm });
+
+  // Voice: its own models and Python workers; it shares the GPU with renders through the scheduler.
+  const voiceEngine: VoiceEngine =
+    opts.voiceEngine ??
+    (config.fake ? new FakeVoiceEngine() : new LocalVoiceEngine({ dataDir: config.dataDir }));
+  const voiceCatalog = opts.voiceCatalog ?? loadVoiceCatalog(undefined, lock);
+  const voiceModels = new VoiceModels({
+    dataDir: config.dataDir,
+    catalog: voiceCatalog,
+    lock,
+    tokens: hf,
+    safety: loadSafety(),
+    gpu: localGpu,
+    envReady: (env) => voiceEngine.ready(env),
+    onChange: (models) => store.emit({ type: 'voice-models', models }),
+    fetch: opts.modelFetch,
+  });
+  const consentSigner = new ConsentSigner(config.dataDir);
+  const voice = new VoiceStudio({
+    dataDir: config.dataDir,
+    mediaDir,
+    catalog: voiceCatalog,
+    models: voiceModels,
+    engine: voiceEngine,
+    // Hold the GPU, then ask ComfyUI to unload what it kept from the last render.
+    lease: async () => {
+      const release = await scheduler.lease();
+      const comfyUrl = runtime?.comfyUrl();
+      if (comfyUrl)
+        await fetch(`${comfyUrl}/free`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ unload_models: true, free_memory: true }),
+          signal: AbortSignal.timeout(5000),
+        }).catch(() => {});
+      return release;
+    },
+    safety: loadSafety(),
+    signer: consentSigner,
+    emit: (e) => store.emit(e),
+    translate: llmTranslator(llm, jsonFrom),
+    device: () => hostname(),
+  });
   const host = new Host({
     dataDir: config.dataDir,
     port: () => port,
@@ -274,7 +337,9 @@ export async function startServer(
       [...store.takes.values()].some((t) => t.status === 'queued' || t.status === 'running') ||
       scheduler.guestTakes().length > 0 ||
       models.states().some((m) => m.downloading) ||
-      exporter.list().some((e) => e.status === 'running'),
+      exporter.list().some((e) => e.status === 'running') ||
+      voice.state().jobs.some((j) => j.status === 'queued' || j.status === 'running') ||
+      voiceModels.states().some((m) => m.downloading),
     run:
       opts.updates?.run ??
       (() => {
@@ -289,6 +354,7 @@ export async function startServer(
   });
   const app = createApp({
     updates,
+    voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     exporter,
     config,
     store,
@@ -485,12 +551,16 @@ export async function startServer(
     hostedUrl: () => (hosted ? `http://127.0.0.1:${hostedPort}` : null),
     updates,
     runtime,
+    voice,
+    voiceModels,
     async close() {
       closing = true;
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
       scheduler.stop();
+      voice.close();
+      await voiceEngine.close();
       await runtime?.stop();
       store.flush();
       await Promise.all(

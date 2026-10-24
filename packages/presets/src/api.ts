@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Shapes the Studio UI, the MCP server and the local server share. Plain data, safe to send as JSON. */
 import type { ShotRequest } from './schema.ts';
+import type { ConsentSessionView, Voice, VoiceJob, VoiceModelState } from './voice.ts';
 
 export type TakeStatus = 'queued' | 'running' | 'done' | 'failed' | 'canceled';
 /** Force now jumps the queue; studio work comes before agent work. */
@@ -389,7 +390,11 @@ export type ServerEvent =
   | { type: 'choir'; choir: ChoirState }
   | { type: 'guests'; guests: GuestTake[] }
   | { type: 'host'; host: HostState }
-  | { type: 'update'; update: UpdateState };
+  | { type: 'update'; update: UpdateState }
+  | { type: 'voice-job'; job: VoiceJob }
+  | { type: 'voices'; voices: Voice[] }
+  | { type: 'voice-models'; models: VoiceModelState[] }
+  | { type: 'consent'; session: ConsentSessionView };
 
 /** POST /api/shots */
 export interface CreateShotBody {

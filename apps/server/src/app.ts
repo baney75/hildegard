@@ -71,6 +71,9 @@ import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 import type { Updates } from './update.ts';
+import type { VoiceStudio } from './voice.ts';
+import type { VoiceModels } from './voice-models.ts';
+import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
 export const VERSION = '0.1.5';
 
@@ -144,6 +147,8 @@ export interface AppDeps {
   safety?: SafetyCheck;
   /** Newer releases, and updating to them. */
   updates: Updates;
+  /** The voice studio: speech, voices, consent. */
+  voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -1394,6 +1399,23 @@ export function createApp(deps: AppDeps) {
     return c.json(await host.off());
   });
 
+  // ── Voice ───────────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.voice) {
+    const v = deps.voice;
+    app.route(
+      '/api/voice',
+      voiceRoutes({
+        studio: v.studio,
+        models: v.models,
+        publicKey: v.publicKey,
+        ownerOnly,
+        // The speaker's phone records best over the https link; over Tailscale it can still send a recording.
+        linkBase: () => host.state().url ?? deps.tailnet(),
+      }),
+    );
+    app.route('/api/consent', consentLinkRoutes(v.studio));
+  }
+
   // ── Uploads (start frames) ─────────────────────────────────────────────────────────────────────────────────
   app.post('/api/uploads', async (c) => {
     const len = Number(c.req.header('content-length') ?? 0);
@@ -1414,10 +1436,19 @@ export function createApp(deps: AppDeps) {
     '.jpg': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
+    '.wav': 'audio/wav',
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4',
+    '.ogg': 'audio/ogg',
+    '.flac': 'audio/flac',
+    '.webm': 'audio/webm',
   };
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
-    if (!/^((uploads|exports)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..')) return c.body(null, 404);
+    if (!/^((uploads|exports|voice)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..'))
+      return c.body(null, 404);
+    // Voice is the owner's alone: clips, uploads and consent recordings.
+    if (rel.startsWith('voice/') && !isOwner(c) && !c.get('signedMedia')) return c.body(null, 404);
     const file = resolve(mediaDir, rel);
     if (!file.startsWith(resolve(mediaDir) + sep)) return c.body(null, 404);
     // A take's video and poster, or a film's export, only for those who may see the film. Start frames are named
@@ -1497,7 +1528,7 @@ export function createApp(deps: AppDeps) {
 function sendFile(c: Context, file: string, type: string, cache: string): Response {
   if (!existsSync(file)) return c.body(null, 404);
   const accept = c.req.header('accept-encoding') ?? '';
-  if (!type.startsWith('video/') && !type.startsWith('image/')) {
+  if (!type.startsWith('video/') && !type.startsWith('image/') && !type.startsWith('audio/')) {
     for (const [enc, ext] of [
       ['br', '.br'],
       ['gzip', '.gz'],

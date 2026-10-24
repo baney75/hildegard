@@ -4,3 +4,4 @@ export * from './compose.ts';
 export * from './load.ts';
 export * from './safety.ts';
 export * from './schema.ts';
+export * from './voice.ts';

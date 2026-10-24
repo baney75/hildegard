@@ -1,0 +1,564 @@
+# Voice models and built-in voices. Only open weights, under licenses that allow commercial use. Hildegard never
+# rehosts weights: each file comes from its publisher's Hugging Face repo, pinned like video models in
+# models.lock.json (or by the hash Hugging Face publishes, on first install, until it is pinned there).
+#
+# `env` is the Python environment the model runs in (voice-engine/requirements/<env>.txt): Chatterbox and Qwen3-TTS
+# pin different versions of the same libraries, so each family has its own. `can` is what it does: speak (with its
+# own voices), clone (from a consented sample), design (a new voice from words), convert (speech to speech) and
+# transcribe. `controls` are the Studio's sliders it honours; the rest show greyed out, with the reason.
+
+# The consent check every clone passes (docs/voice.md): the speaker's recorded consent and each sample must be the
+# same person. Chatterbox's speaker encoder (MIT), 5.7 MB; it downloads with any model that can clone.
+[consent]
+encoder = { repo = "ResembleAI/chatterbox", path = "ve.safetensors", size = 5695784 }
+# Two clips this alike or more are the same person, on the encoder's cosine scale.
+sameSpeaker = 0.75
+# A consent phrase is good for this long after Hildegard writes it.
+phraseMinutes = 10
+# How much of the phrase must be heard, word for word, in order.
+phraseMatch = 0.85
+# A consent recording with Hildegard's watermark (or another AI voice's, where it carries the same mark) at this
+# score or more was made by an AI, and can't consent for anyone.
+markedAbove = 0.5
+# Samples for a quick clone: at least this much speech in all, from one person.
+quickSeconds = 10
+# And for a pro clone.
+proSeconds = 1800
+
+[[models]]
+id = "kokoro-82m"
+name = "Kokoro"
+engine = "kokoro"
+env = "speech"
+blurb = "Small, quick and clear. 24 built-in voices in eight languages, fast even on a CPU."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/hexgrad/Kokoro-82M"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "You are responsible for what you make with it, and for following the law where you publish it.",
+]
+can = ["speak"]
+controls = ["speed"]
+languages = ["en", "es", "fr", "hi", "it", "pt", "zh"]
+minVramGb = 0
+files = [
+  { repo = "hexgrad/Kokoro-82M", path = "config.json", size = 2351 },
+  { repo = "hexgrad/Kokoro-82M", path = "kokoro-v1_0.pth", size = 327212226 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_heart.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_bella.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_nicole.pt", size = 523430 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_sarah.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_kore.pt", size = 523420 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/af_aoede.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/am_fenrir.pt", size = 523430 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/am_michael.pt", size = 523435 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/am_puck.pt", size = 523420 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/bf_emma.pt", size = 523420 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/bf_isabella.pt", size = 523440 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/bm_george.pt", size = 523430 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/bm_fable.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/ef_dora.pt", size = 523420 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/em_alex.pt", size = 523420 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/ff_siwis.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/hf_alpha.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/hm_omega.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/if_sara.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/im_nicola.pt", size = 523341 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/pf_dora.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/pm_alex.pt", size = 523425 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/zf_xiaoxiao.pt", size = 523440 },
+  { repo = "hexgrad/Kokoro-82M", path = "voices/zm_yunxi.pt", size = 523425 },
+]
+
+[[models]]
+id = "chatterbox-multilingual"
+name = "Chatterbox"
+engine = "chatterbox"
+env = "chatterbox"
+blurb = "Resemble AI’s expressive voice model. Clones a consented voice from 10 seconds, in 23 languages, and turns one voice into another."
+license = "MIT"
+licenseUrl = "https://huggingface.co/ResembleAI/chatterbox"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Every clip it makes carries an inaudible watermark, which Hildegard keeps.",
+  "Clone only voices whose owners agree. Hildegard checks their recorded consent before it makes anything.",
+]
+can = ["speak", "clone", "convert"]
+controls = ["speed", "expressiveness", "stability", "variety"]
+languages = ["ar", "da", "de", "el", "en", "es", "fi", "fr", "he", "hi", "it", "ja", "ko", "ms", "nl", "no", "pl", "pt", "ru", "sv", "sw", "tr", "zh"]
+minVramGb = 6
+files = [
+  { repo = "ResembleAI/chatterbox", path = "ve.pt", size = 5698626 },
+  { repo = "ResembleAI/chatterbox", path = "t3_mtl23ls_v2.safetensors", size = 2143989752 },
+  { repo = "ResembleAI/chatterbox", path = "s3gen.pt", size = 1057165844 },
+  { repo = "ResembleAI/chatterbox", path = "grapheme_mtl_merged_expanded_v1.json", size = 69989 },
+  { repo = "ResembleAI/chatterbox", path = "conds.pt", size = 107374 },
+  { repo = "ResembleAI/chatterbox", path = "Cangjie5_TC.json", size = 1920163 },
+]
+
+[[models]]
+id = "qwen3-tts-design"
+name = "Qwen3-TTS Voice Design"
+engine = "qwen3-tts"
+env = "qwen"
+blurb = "Describe a voice in words and hear it: age, accent, timbre, pace and mood. Follows a line of acting direction too."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Don’t describe a real person to imitate them: a designed voice is a new voice.",
+]
+can = ["design"]
+controls = ["speed", "variety", "direction"]
+languages = ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+minVramGb = 8
+files = [
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "config.json", size = 4421 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "generation_config.json", size = 245 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "merges.txt", size = 1671839 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "model.safetensors", size = 3833402552 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "preprocessor_config.json", size = 127 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "tokenizer_config.json", size = 7344 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "vocab.json", size = 2776833 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "speech_tokenizer/config.json", size = 2336 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "speech_tokenizer/configuration.json", size = 76 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "speech_tokenizer/model.safetensors", size = 682293092 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", path = "speech_tokenizer/preprocessor_config.json", size = 234 },
+]
+
+[[models]]
+id = "qwen3-tts-clone"
+name = "Qwen3-TTS"
+engine = "qwen3-tts"
+env = "qwen"
+blurb = "Speaks in a consented clone or a voice you designed, closely, from a short sample and what it says. Ten languages."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Clone only voices whose owners agree. Hildegard checks their recorded consent before it makes anything.",
+]
+can = ["clone"]
+controls = ["speed", "variety"]
+languages = ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+minVramGb = 4
+files = [
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "config.json", size = 4494 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "generation_config.json", size = 245 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "merges.txt", size = 1671839 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "model.safetensors", size = 1829344272 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "preprocessor_config.json", size = 127 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "tokenizer_config.json", size = 7344 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "vocab.json", size = 2776833 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "speech_tokenizer/config.json", size = 2336 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "speech_tokenizer/configuration.json", size = 76 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "speech_tokenizer/model.safetensors", size = 682293092 },
+  { repo = "Qwen/Qwen3-TTS-12Hz-0.6B-Base", path = "speech_tokenizer/preprocessor_config.json", size = 234 },
+]
+
+[[models]]
+id = "whisper-small"
+name = "Whisper"
+engine = "whisper"
+env = "speech"
+blurb = "OpenAI’s Whisper, small size: transcripts with word timings in about a hundred languages. Checks every consent recording."
+license = "MIT"
+licenseUrl = "https://huggingface.co/Systran/faster-whisper-small"
+terms = ["Use it for anything, commercial work included, with no revenue limit."]
+can = ["transcribe"]
+controls = []
+languages = []
+minVramGb = 0
+files = [
+  { repo = "Systran/faster-whisper-small", path = "config.json", size = 2370 },
+  { repo = "Systran/faster-whisper-small", path = "model.bin", size = 483546902 },
+  { repo = "Systran/faster-whisper-small", path = "tokenizer.json", size = 2203239 },
+  { repo = "Systran/faster-whisper-small", path = "vocabulary.txt", size = 459861 },
+]
+
+# Built-in voices: Kokoro's best-trained ones (its VOICES.md grades), named as Kokoro names them, and Chatterbox's own.
+[[voices]]
+id = "kokoro-heart"
+model = "kokoro-82m"
+preset = "af_heart"
+name = "Heart"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Warm and clear; Kokoro’s best voice"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-bella"
+model = "kokoro-82m"
+preset = "af_bella"
+name = "Bella"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Bright and lively"
+uses = ["conversational", "characters"]
+
+[[voices]]
+id = "kokoro-nicole"
+model = "kokoro-82m"
+preset = "af_nicole"
+name = "Nicole"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Soft, close to the mic"
+uses = ["narration", "meditation"]
+
+[[voices]]
+id = "kokoro-sarah"
+model = "kokoro-82m"
+preset = "af_sarah"
+name = "Sarah"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Even and friendly"
+uses = ["explainer", "conversational"]
+
+[[voices]]
+id = "kokoro-kore"
+model = "kokoro-82m"
+preset = "af_kore"
+name = "Kore"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Calm and assured"
+uses = ["narration", "explainer"]
+
+[[voices]]
+id = "kokoro-aoede"
+model = "kokoro-82m"
+preset = "af_aoede"
+name = "Aoede"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Light, a little musical"
+uses = ["characters", "narration"]
+
+[[voices]]
+id = "kokoro-fenrir"
+model = "kokoro-82m"
+preset = "am_fenrir"
+name = "Fenrir"
+language = "en"
+accent = "American"
+gender = "male"
+blurb = "Deep and steady"
+uses = ["narration", "trailer"]
+
+[[voices]]
+id = "kokoro-michael"
+model = "kokoro-82m"
+preset = "am_michael"
+name = "Michael"
+language = "en"
+accent = "American"
+gender = "male"
+blurb = "Plain and warm"
+uses = ["explainer", "conversational"]
+
+[[voices]]
+id = "kokoro-puck"
+model = "kokoro-82m"
+preset = "am_puck"
+name = "Puck"
+language = "en"
+accent = "American"
+gender = "male"
+blurb = "Quick and playful"
+uses = ["characters", "conversational"]
+
+[[voices]]
+id = "kokoro-emma"
+model = "kokoro-82m"
+preset = "bf_emma"
+name = "Emma"
+language = "en"
+accent = "British"
+gender = "female"
+blurb = "Poised and precise"
+uses = ["narration", "explainer"]
+
+[[voices]]
+id = "kokoro-isabella"
+model = "kokoro-82m"
+preset = "bf_isabella"
+name = "Isabella"
+language = "en"
+accent = "British"
+gender = "female"
+blurb = "Gentle and bright"
+uses = ["narration", "characters"]
+
+[[voices]]
+id = "kokoro-george"
+model = "kokoro-82m"
+preset = "bm_george"
+name = "George"
+language = "en"
+accent = "British"
+gender = "male"
+blurb = "Low and measured"
+uses = ["narration", "documentary"]
+
+[[voices]]
+id = "kokoro-fable"
+model = "kokoro-82m"
+preset = "bm_fable"
+name = "Fable"
+language = "en"
+accent = "British"
+gender = "male"
+blurb = "A storyteller’s lilt"
+uses = ["narration", "characters"]
+
+[[voices]]
+id = "kokoro-dora-es"
+model = "kokoro-82m"
+preset = "ef_dora"
+name = "Dora"
+language = "es"
+accent = "Spain"
+gender = "female"
+blurb = "Clear and warm"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-alex-es"
+model = "kokoro-82m"
+preset = "em_alex"
+name = "Alex"
+language = "es"
+accent = "Spain"
+gender = "male"
+blurb = "Easy and even"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-siwis"
+model = "kokoro-82m"
+preset = "ff_siwis"
+name = "Siwis"
+language = "fr"
+accent = "France"
+gender = "female"
+blurb = "Light and articulate"
+uses = ["narration", "explainer"]
+
+[[voices]]
+id = "kokoro-alpha-hi"
+model = "kokoro-82m"
+preset = "hf_alpha"
+name = "Alpha"
+language = "hi"
+accent = "India"
+gender = "female"
+blurb = "Bright and clear"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-omega-hi"
+model = "kokoro-82m"
+preset = "hm_omega"
+name = "Omega"
+language = "hi"
+accent = "India"
+gender = "male"
+blurb = "Steady and full"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-sara-it"
+model = "kokoro-82m"
+preset = "if_sara"
+name = "Sara"
+language = "it"
+accent = "Italy"
+gender = "female"
+blurb = "Warm and expressive"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-nicola-it"
+model = "kokoro-82m"
+preset = "im_nicola"
+name = "Nicola"
+language = "it"
+accent = "Italy"
+gender = "male"
+blurb = "Relaxed and low"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-dora-pt"
+model = "kokoro-82m"
+preset = "pf_dora"
+name = "Dora"
+language = "pt"
+accent = "Brazil"
+gender = "female"
+blurb = "Bright and friendly"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-alex-pt"
+model = "kokoro-82m"
+preset = "pm_alex"
+name = "Alex"
+language = "pt"
+accent = "Brazil"
+gender = "male"
+blurb = "Even and calm"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-xiaoxiao"
+model = "kokoro-82m"
+preset = "zf_xiaoxiao"
+name = "Xiaoxiao"
+language = "zh"
+accent = "Mandarin"
+gender = "female"
+blurb = "Gentle and clear"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "kokoro-yunxi"
+model = "kokoro-82m"
+preset = "zm_yunxi"
+name = "Yunxi"
+language = "zh"
+accent = "Mandarin"
+gender = "male"
+blurb = "Young and bright"
+uses = ["narration", "conversational"]
+
+[[voices]]
+id = "chatterbox-default"
+model = "chatterbox-multilingual"
+preset = "default"
+name = "Chatterbox"
+language = "en"
+accent = "American"
+gender = "female"
+blurb = "Chatterbox’s own voice: expressive, in any of its 23 languages"
+uses = ["characters", "conversational", "narration"]
+
+# Audio tags typed in brackets. They shape the delivery and are never spoken. Each model that can take a tag says how:
+# Qwen3-TTS reads `direction` as acting direction, and Chatterbox raises or lowers its expressiveness by `lift`.
+# Kokoro has no way to act, so the Studio shows its tags greyed out with that reason.
+[[tags]]
+id = "excited"
+group = "emotion"
+direction = "excited, eager"
+lift = 0.3
+
+[[tags]]
+id = "happy"
+group = "emotion"
+direction = "happy, smiling as you speak"
+lift = 0.2
+
+[[tags]]
+id = "sad"
+group = "emotion"
+direction = "sad, heavy"
+lift = -0.1
+
+[[tags]]
+id = "angry"
+group = "emotion"
+direction = "angry, tight and forceful"
+lift = 0.4
+
+[[tags]]
+id = "afraid"
+group = "emotion"
+direction = "afraid, breathless"
+lift = 0.3
+
+[[tags]]
+id = "tender"
+group = "emotion"
+direction = "tender, warm and close"
+lift = -0.1
+
+[[tags]]
+id = "exhausted"
+group = "emotion"
+direction = "exhausted, slow and low"
+lift = -0.2
+
+[[tags]]
+id = "exasperated"
+group = "emotion"
+direction = "exasperated, sighing"
+lift = 0.2
+
+[[tags]]
+id = "calm"
+group = "emotion"
+direction = "calm, unhurried"
+lift = -0.2
+
+[[tags]]
+id = "whispers"
+group = "delivery"
+direction = "whispering, hushed"
+lift = -0.2
+
+[[tags]]
+id = "shouts"
+group = "delivery"
+direction = "shouting, projecting"
+lift = 0.5
+
+[[tags]]
+id = "slowly"
+group = "delivery"
+direction = "slowly, each word weighed"
+lift = -0.1
+
+[[tags]]
+id = "quickly"
+group = "delivery"
+direction = "quickly, running the words together"
+lift = 0.1
+
+[[tags]]
+id = "sarcastic"
+group = "delivery"
+direction = "dry and sarcastic"
+lift = 0.1
+
+[[tags]]
+id = "laughs softly"
+group = "sound"
+direction = "with a soft laugh"
+lift = 0.2
+
+[[tags]]
+id = "laughs"
+group = "sound"
+direction = "laughing"
+lift = 0.3
+
+[[tags]]
+id = "sighs"
+group = "sound"
+direction = "with a sigh"
+lift = 0.0
+
+[[tags]]
+id = "clears throat"
+group = "sound"
+direction = "clearing the throat first"
+lift = 0.0

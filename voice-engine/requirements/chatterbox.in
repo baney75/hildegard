@@ -1,0 +1,5 @@
+# Chatterbox pins its own torch and transformers, so it gets an environment of its own.
+chatterbox-tts==0.1.7
+resemble-perth==1.0.1
+soundfile
+pyloudnorm

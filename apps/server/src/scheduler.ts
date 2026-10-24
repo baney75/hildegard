@@ -80,6 +80,10 @@ export class Scheduler {
   private guestProgressAt = 0;
   private paused = false;
   private online = false;
+  /** Other work holding this GPU (voice), and work waiting for it; no take starts while it is held. */
+  private leased = false;
+  private readonly leaseQueue: Array<() => void> = [];
+  private readonly beforeRender: () => Promise<void>;
   readonly previews = new Map<string, { bytes: Uint8Array; type: string }>();
   private readonly onEngine: (s: EngineState) => void;
   private pingTimer: NodeJS.Timeout | null = null;
@@ -107,8 +111,11 @@ export class Scheduler {
     poster?: (video: string, out: string) => Promise<boolean>;
     /** What may render; presets/safety.toml unless a test says otherwise. */
     safety?: SafetyCheck;
+    /** Runs before each render on this computer's GPU: voice lets go of the memory it holds. */
+    beforeRender?: () => Promise<void>;
   }) {
     this.poster = opts.poster;
+    this.beforeRender = opts.beforeRender ?? (async () => {});
     this.safety = opts.safety ?? loadSafety();
     this.comfy = opts.comfy ?? (opts.fake ? 'fake' : 'external');
     this.store = opts.store;
@@ -353,9 +360,40 @@ export class Scheduler {
     return t;
   }
 
+  /**
+   * Hold the GPU for other work, such as speech: waits for the render on it now to finish (never stops one), then no
+   * take starts until the returned function is called. Voice goes ahead of takes still waiting, since it takes
+   * seconds. Renders that go to another device don't need this GPU, so the lease comes at once.
+   */
+  lease(): Promise<() => void> {
+    return new Promise((resolve) => {
+      if (this.comfy === 'remote') {
+        resolve(() => {});
+        return;
+      }
+      this.leaseQueue.push(() => {
+        let done = false;
+        resolve(() => {
+          if (done) return;
+          done = true;
+          this.leased = false;
+          this.pump();
+        });
+      });
+      this.pump();
+    });
+  }
+
   /** Start the next take if the GPU is free. */
   pump() {
-    if (this.running || this.paused || !this.online || this.stopped) return;
+    if (this.running || this.leased || this.stopped) return;
+    const lease = this.leaseQueue.shift();
+    if (lease) {
+      this.leased = true;
+      lease();
+      return;
+    }
+    if (this.paused || !this.online) return;
     const next = this.order()[0];
     if (!next) return;
     if ('take' in next) void this.run(next.take);
@@ -374,6 +412,7 @@ export class Scheduler {
     this.renumber();
     const { handlers } = g.job;
     try {
+      await this.beforeRender().catch(() => {});
       await this.engine.render(g.job.built, {
         dest: g.job.dest,
         startFrame: g.job.startFrame,
@@ -435,6 +474,7 @@ export class Scheduler {
         startFrame: take.request.startFrame ? 'start.png' : undefined,
       });
       let lastProgressAt = 0;
+      if (this.comfy !== 'remote') await this.beforeRender().catch(() => {});
       await this.engine.render(built, {
         dest,
         quality: take.quality,

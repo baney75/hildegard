@@ -1,0 +1,15 @@
+[project]
+name = "hildegard-voice"
+version = "0.1.0"
+description = "Hildegard's voice engine: speech, voice design, consented cloning, speech to speech and transcription on your own GPU."
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+# Each model family's pinned packages are in requirements/; the engine itself needs only numpy and soundfile.
+dependencies = ["numpy", "soundfile"]
+
+[project.urls]
+Repository = "https://github.com/baney75/hildegard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -89,6 +89,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/shots\/[^/]+$/,
     /^\/api\/exports\/[^/]+$/,
     /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,
+    /^\/api\/consent\/[^/]+$/,
     /^\/media\//,
   ],
   POST: [
@@ -98,6 +99,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/takes\/[^/]+\/(cancel|force|retry|keep)$/,
     /^\/api\/uploads$/,
     /^\/api\/auth\//,
+    /^\/api\/consent\/[^/]+\/recording$/,
   ],
   PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/],
   DELETE: [/^\/api\/shots\/[^/]+$/, /^\/api\/takes\/[^/]+$/, /^\/api\/auth\/grants\/[^/]+$/],
@@ -115,6 +117,8 @@ export function open(method: string, path: string): boolean {
   if (path === '/api/health') return true;
   if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
+  // A speaker reading their consent line on their own phone: the link's token is the key.
+  if (/^\/api\/consent\/[^/]+(\/recording)?$/.test(path)) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))
     return true;
   return false;
@@ -201,6 +205,10 @@ export function eventFilter(projects: (id: string) => Project | undefined, sent:
       case 'guests':
         return { ...e, guests: guestsFor(who, e.guests) };
       case 'host':
+      case 'voice-job':
+      case 'voices':
+      case 'voice-models':
+      case 'consent':
         return who?.kind === 'local' || (who?.kind === 'person' && who.person.role === 'owner') ? e : null;
       default:
         return e;
