@@ -149,7 +149,7 @@ export function voiceRoutes(d: VoiceRouteDeps) {
   );
   app.get(
     '/jobs/:id',
-    go((c) => studio.job(param(c, 'id'))),
+    go((c) => ({ ...studio.job(param(c, 'id')), files: studio.files(param(c, 'id')) })),
   );
   app.post(
     '/jobs/:id/cancel',

@@ -382,7 +382,9 @@ export class VoiceStudio {
 
   state(): VoiceState {
     const speech = this.engine.ready('speech');
+    const { voices: _builtin, ...catalog } = this.catalog;
     return {
+      catalog,
       voices: this.list(),
       models: this.models.states(),
       jobs: [...this.jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100),
@@ -492,6 +494,11 @@ export class VoiceStudio {
     const j = this.jobs.get(jobId);
     if (!j) throw new VoiceError(404, 'missing', 'No such voice job.');
     return j;
+  }
+
+  /** Where a job's clips are on this computer, for agents running here. */
+  files(jobId: string): string[] {
+    return this.job(jobId).audio.map((a) => join(this.mediaDir, a.replace('/media/voice/', '')));
   }
 
   private queued(): VoiceJob[] {

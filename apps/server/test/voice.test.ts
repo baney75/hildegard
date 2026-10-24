@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createMcpServer, HildegardClient } from '@hildegard/mcp';
 import {
   type ConsentSessionView,
   loadVoiceCatalog,
@@ -14,6 +15,9 @@ import {
   type VoiceState,
   type VoiceUse,
 } from '@hildegard/presets';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { directorMay, eventFilter, open } from '../src/access.ts';
 import { parseArgs } from '../src/config.ts';
@@ -273,6 +277,67 @@ describe('speaking', () => {
     expect((await finished(b.id)).status).toBe('canceled');
     expect((await finished(a.id)).status).toBe('done');
     engine.delayMs = 0;
+  });
+});
+
+describe('voice over MCP', () => {
+  let mcp: Client;
+  const call = async (name: string, args: Record<string, unknown> = {}) =>
+    (await mcp.callTool({ name, arguments: args })) as CallToolResult;
+  const textOf = (r: CallToolResult) =>
+    r.content
+      .filter((c) => c.type === 'text')
+      .map((c) => (c as { text: string }).text)
+      .join('\n');
+
+  beforeAll(async () => {
+    const server = createMcpServer(new HildegardClient(srv.url));
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await server.connect(a);
+    mcp = new Client({ name: 'test-agent', version: '1.0.0' });
+    await mcp.connect(b);
+  });
+  afterAll(() => mcp.close());
+
+  it('lists voices, models and script tags in words a small model can act on', async () => {
+    const t = textOf(await call('list_voices'));
+    expect(t).toMatch(/- kokoro-heart: Heart \(builtin\), en/);
+    expect(t).toMatch(/- kokoro-82m: Kokoro, Apache-2\.0\. Can speak; \d+ languages\. installed\./);
+    expect(t).toMatch(/Tags for scripts.*whispers/);
+  });
+
+  it('speaks a script and says where the clip is, labelled with the agent', async () => {
+    const r = await call('speak', {
+      script: 'First paragraph.\n\n[whispers] Second one.',
+      voice: 'kokoro-heart',
+      include_audio: true,
+    });
+    expect(r.isError).toBeFalsy();
+    const path = /Audio: (\S+\.wav)/.exec(textOf(r))![1]!;
+    expect(readFileSync(path).subarray(0, 4).toString()).toBe('RIFF');
+    expect(r.content.some((c) => c.type === 'audio')).toBe(true);
+    const j = (await state()).jobs.find((x) => path.includes(x.id))!;
+    expect(j.source).toEqual({ kind: 'agent', name: 'test-agent' });
+    expect(j.segments).toHaveLength(2);
+  });
+
+  it('shows the license terms first, and of the models a model brings', async () => {
+    const t = textOf(await call('install_voice_model', { model: 'qwen3-tts-clone' }));
+    expect(t).toMatch(/comes under the Apache-2\.0/);
+    expect(t).toMatch(/accept_license: true/);
+    expect((await state()).models.find((m) => m.id === 'qwen3-tts-clone')!.licenseAccepted).toBe(false);
+  });
+
+  it('can’t clone a voice, and says how the person does it', async () => {
+    const t = textOf(await call('clone_voice'));
+    expect(t).toMatch(/can’t be done from here/);
+    expect(t).toMatch(/#\/voice\/clone/);
+  });
+
+  it('says what went wrong in words', async () => {
+    const r = await call('speak', { script: 'Hello', voice: 'nobody' });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toMatch(/no voice nobody/);
   });
 });
 

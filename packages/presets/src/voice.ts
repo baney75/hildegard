@@ -620,6 +620,8 @@ export interface VoiceModelState {
 }
 
 export interface VoiceState {
+  /** The models, tags and consent rules from presets/voices.toml. */
+  catalog: Omit<VoiceCatalog, 'voices'>;
   voices: Voice[];
   models: VoiceModelState[];
   jobs: VoiceJob[];

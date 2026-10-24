@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HildegardClient } from './client.ts';
 import { registerTools } from './tools.ts';
 
-export { HildegardClient, HildegardError } from './client.ts';
+export { HildegardClient, HildegardError, type VoiceJobDetail } from './client.ts';
 export { registerTools, toRequest } from './tools.ts';
 
 export const INSTRUCTIONS = `Hildegard renders film shots on the user's own GPU, through ComfyUI. Nothing leaves their computers and nothing costs money.
@@ -11,6 +11,7 @@ Start with hildegard_status. If no video model is installed, offer install_model
 Use list_presets for the ids of camera bodies, lenses, moves and looks. Write prompts as literal, chronological action; the camera and look come from the fields.
 To put shots in a film, pass its id or its title as film to direct_shot. To stop a take, cancel_take with its id; hildegard_status lists recent takes.
 Draft first, then re-render the take you like with quality "final" and the same seed.
+Voice: list_voices, then speak a script in any voice there; design_voice makes a new one from words. You can't clone a voice: clone_voice says how the person does it themselves, with their consent.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
 export interface McpOptions {
