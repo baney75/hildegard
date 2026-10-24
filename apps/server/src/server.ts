@@ -19,12 +19,13 @@ import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
-import { Exporter, makePoster, reviewer } from './export.ts';
+import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
 import { Likeness } from './likeness.ts';
 import { jsonFrom, LocalModels, type LocalModelsDeps } from './llm.ts';
+import { Loops } from './loop.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
@@ -380,6 +381,11 @@ export async function startServer(
     fetchMetadata: opts.fetchMetadata,
     llm,
     review: reviewer(config.dataDir),
+    loops: new Loops({
+      dir: join(mediaDir, 'loops'),
+      reviewModel: meshReviewer(config.dataDir),
+      reviewMedia: reviewer(config.dataDir),
+    }),
     choir,
     modelStates,
     node,

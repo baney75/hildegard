@@ -262,6 +262,20 @@ function dropTomlBlock(text: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+/**
+ * Whether Claude Code has the Hildegard plugin on (`/plugin install hildegard@hildegard`). The plugin starts this
+ * computer's Hildegard itself, so a second entry would only list every tool twice.
+ */
+export function claudePluginEnabled(e: AgentEnv): boolean {
+  const file = join(e.env.CLAUDE_CONFIG_DIR ?? join(e.home, '.claude'), 'settings.json');
+  try {
+    const j = JSON.parse(readFileSync(file, 'utf8')) as { enabledPlugins?: Record<string, unknown> };
+    return j.enabledPlugins?.['hildegard@hildegard'] === true;
+  } catch {
+    return false;
+  }
+}
+
 export function connectAgent(id: string, m: McpCommand, e: AgentEnv = systemAgentEnv()): Step {
   const a = findAgent(id);
   if (!a)
@@ -272,6 +286,18 @@ export function connectAgent(id: string, m: McpCommand, e: AgentEnv = systemAgen
       detail: `Hildegard doesn’t know an app called “${id}”. It can link: ${AGENTS.map((x) => x.id).join(', ')}.`,
     };
   const base = { id: `connect-${a.id}`, title: `Link ${a.name}` };
+  // Only this computer's Hildegard, on its own address: the plugin can't reach one elsewhere.
+  if (a.id === 'claude-code' && !m.env && !m.args.includes('--remote') && claudePluginEnabled(e)) {
+    if (a.cli && e.has(a.cli.cmd))
+      try {
+        e.exec(a.cli.cmd, a.cli.remove);
+      } catch {}
+    return {
+      ...base,
+      status: 'skipped',
+      detail: 'The Hildegard plugin already links Claude Code to Hildegard, with its skills.',
+    };
+  }
   if (a.cli && e.has(a.cli.cmd)) {
     try {
       try {

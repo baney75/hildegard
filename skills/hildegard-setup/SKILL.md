@@ -33,7 +33,12 @@ hildegard skills install --json     # these skills, where Claude Code, Codex and
 ```
 
 Start a new session of the agent afterwards. `hildegard skills install --project <dir>` puts them in one project
-instead.
+instead. In Claude Code the plugin does both: `/plugin marketplace add baney75/hildegard`, then
+`/plugin install hildegard@hildegard`.
+
+Chatbots that run on their makers' servers (claude.ai, ChatGPT, Grok, Grok Bot) need the public link, which only your
+user may ask for: `hildegard host --funnel --json`, then the app's custom connector with `mcpUrl`, and your user signs
+in on Hildegard's page. Each app's steps: `docs/chatbots.md`. They read these skills over MCP with `read_skill`.
 
 ## Letting Hildegard run coding agents
 

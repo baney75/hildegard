@@ -140,6 +140,49 @@ const WORDS: Question[] = [
   },
 ];
 
+const MODEL: Question[] = [
+  {
+    id: 'intent',
+    ask: 'Can you say in one sentence what this model is for (to print, to view, for a game, for a render) and who it is for, and does every choice in it serve that sentence?',
+    fix: 'Write that sentence first, then cut whatever doesn’t serve it.',
+  },
+  {
+    id: 'silhouette',
+    ask: 'Does the silhouette read as the subject from every one of the eight views, not only from the front?',
+    fix: 'Work the primary masses again in the weakest view: push the gesture, open negative space, fix the proportions there.',
+  },
+  {
+    id: 'proportion',
+    ask: 'Are the proportions measured against a reference in units (head units for a figure, millimetres for an object) and right?',
+    fix: 'Measure the reference, write the numbers down, and move or scale the masses to them.',
+  },
+  {
+    id: 'hierarchy',
+    ask: 'Do the big forms read first, with detail only where it will be seen and never breaking up the big planes?',
+    fix: 'Take detail off until the primary and secondary forms read on their own, then add it back only where it earns its place.',
+  },
+  {
+    id: 'surface',
+    ask: 'Is the surface free of unintended lumps, faceting, noise and magenta patches (holes or flipped faces) in every view?',
+    fix: 'Smooth or remesh the lumpy area, raise subdivision where it facets, recalculate normals, fill holes.',
+  },
+  {
+    id: 'life',
+    ask: 'For a figure or creature: is there weight and life (a line of action, a weight shift, broken symmetry)? For a made object: is any symmetry there for a reason?',
+    fix: 'Turn symmetry off and tilt, shift and vary: a head turned, shoulders uneven, weight on one foot.',
+  },
+  {
+    id: 'base',
+    ask: 'Does it stand or rest the way it should, with a base that is part of the work and real contact with the ground?',
+    fix: 'Design the base (plinth, ground, contact), move the mass over it, or flatten a footprint.',
+  },
+  {
+    id: 'near',
+    ask: 'Up close, is there something worth finding: a join, a texture, an inscription, a motif in a hollow?',
+    fix: 'Add one true detail at the scale the nozzle or the viewer’s zoom can carry.',
+  },
+];
+
 /** Questions everything must pass, whatever the medium. */
 const ALWAYS: Question[] = [
   {
@@ -154,8 +197,13 @@ const ALWAYS: Question[] = [
   },
 ];
 
-export function rubric(medium: Medium | 'sequence'): Question[] {
+/** What can be judged: a prompt's medium, a whole film, or a 3D model. */
+export type Judged = Medium | 'sequence' | 'model';
+
+export function rubric(medium: Judged): Question[] {
   switch (medium) {
+    case 'model':
+      return [...MODEL, ...ALWAYS];
     case 'image':
       return [...PICTURE, ...ALWAYS];
     case 'video':
@@ -172,9 +220,11 @@ export function rubric(medium: Medium | 'sequence'): Question[] {
 }
 
 /** The rubric as a numbered list, to answer one line each: `id: yes|no, evidence`. */
-export function describeRubric(medium: Medium | 'sequence'): string {
+export function describeRubric(medium: Judged): string {
   return [
-    'Answer each, one line each, as `id: yes|no, the frame, time or line that shows it`. Any “no” means change one thing and render again (at most three rounds), or tell your user plainly what is still wrong.',
+    medium === 'model'
+      ? 'Answer each, one line each, as `id: yes|no, the view or check that shows it`. Any “no” means change one thing and send the model again, or tell your user plainly what is still wrong.'
+      : 'Answer each, one line each, as `id: yes|no, the frame, time or line that shows it`. Any “no” means change one thing and render again (at most three rounds), or tell your user plainly what is still wrong.',
     ...rubric(medium).map((q, i) => `${i + 1}. ${q.id}: ${q.ask} If no: ${q.fix}`),
   ].join('\n');
 }

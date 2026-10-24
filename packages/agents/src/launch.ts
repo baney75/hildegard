@@ -49,6 +49,8 @@ export interface LaunchInput {
   addDirs?: string[];
   /** With an API key: stop past this many US dollars (Claude Code enforces it). */
   budgetUsd?: number;
+  /** Tools a headless Claude Code may also use without asking, such as `Bash(blender:*)` for a modeling loop. */
+  extraTools?: string[];
 }
 
 export interface Plan {
@@ -141,7 +143,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       '--permission-mode',
       'acceptEdits',
       '--allowedTools',
-      CLAUDE_TOOLS.join(','),
+      [...CLAUDE_TOOLS, ...(input.extraTools ?? [])].join(','),
       ...(input.model ? ['--model', input.model] : []),
       ...(input.addDirs ?? []).flatMap((d) => ['--add-dir', d]),
     ];

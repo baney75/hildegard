@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { type Review, type ReviewSpec, reviewMedia } from '@hildegard/craft';
+import { type MeshSpec, type Review, type ReviewSpec, reviewMedia, reviewMesh } from '@hildegard/craft';
 import type { Catalog, ExportState, Take } from '@hildegard/presets';
 import { layout, resource } from '@hildegard/runtime';
 import type { Store } from './store.ts';
@@ -77,6 +77,17 @@ export function reviewer(dataDir: string): ((spec: ReviewSpec) => Promise<Review
     return undefined;
   }
   return (spec) => reviewMedia(exportPython(dataDir), script, spec);
+}
+
+/** Checks on a 3D model with tools/review_mesh.py, on the same Python; undefined if the script is missing. */
+export function meshReviewer(dataDir: string): ((spec: MeshSpec) => Promise<Review>) | undefined {
+  let script: string;
+  try {
+    script = resource(join('tools', 'review_mesh.py'));
+  } catch {
+    return undefined;
+  }
+  return (spec) => reviewMesh(exportPython(dataDir), script, spec);
 }
 
 export interface ExporterOptions {

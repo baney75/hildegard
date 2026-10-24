@@ -17,7 +17,7 @@ export interface Check {
 }
 
 export interface Review {
-  kind: 'video' | 'image' | 'audio';
+  kind: 'video' | 'image' | 'audio' | 'mesh';
   info: Record<string, unknown>;
   checks: Check[];
   /** No check failed. */
@@ -39,6 +39,24 @@ export interface ReviewSpec {
   film?: boolean;
 }
 
+/** A 3D model to check with tools/review_mesh.py. */
+export interface MeshSpec {
+  /** A GLB, glTF (embedded buffers), STL, OBJ or PLY file. */
+  path: string;
+  /** Where to write the turntable sheet (JPEG): eight views around it, one above or below, and silhouettes. */
+  sheet?: string;
+  /** Hold it to the bar for a 3D print: watertight, millimetres, fits the bed, a base, few overhangs. */
+  print?: boolean;
+  /** The size the brief asked for, in millimetres (any order). */
+  size_mm?: [number, number, number];
+  /** The printer's build volume, in millimetres; 256 × 256 × 256 unless given. */
+  bed_mm?: [number, number, number];
+  /** More triangles than this is a warning. */
+  max_triangles?: number;
+  /** Which axis is up in the file. By default y for GLB and glTF (as their specification says), z for STL and PLY, and for OBJ z when printing, y otherwise. */
+  up?: 'y' | 'z';
+}
+
 export class ReviewError extends Error {}
 
 /** Runs the review. `python` must have PyAV, numpy and Pillow; `script` is tools/review_media.py. */
@@ -48,6 +66,20 @@ export function reviewMedia(
   spec: ReviewSpec,
   timeoutMs = 120_000,
 ): Promise<Review> {
+  return runReview(python, script, spec, timeoutMs);
+}
+
+/** Checks a 3D model. `python` must have numpy and Pillow; `script` is tools/review_mesh.py. */
+export function reviewMesh(
+  python: string,
+  script: string,
+  spec: MeshSpec,
+  timeoutMs = 180_000,
+): Promise<Review> {
+  return runReview(python, script, spec, timeoutMs);
+}
+
+function runReview(python: string, script: string, spec: object, timeoutMs: number): Promise<Review> {
   const dir = mkdtempSync(join(tmpdir(), 'hg-review-'));
   const specPath = join(dir, 'spec.json');
   writeFileSync(specPath, JSON.stringify(spec));

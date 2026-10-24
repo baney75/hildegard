@@ -20,6 +20,7 @@ import {
 } from './commands.ts';
 import { doctor } from './doctor.ts';
 import { host } from './host.ts';
+import { loop } from './loop.ts';
 import { bold, dim, printResult, type Result } from './output.ts';
 
 const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own GPU.
@@ -71,6 +72,11 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              (cloud runpod key --key-stdin | status | down [--delete])
   hildegard review <file>    Check a video, image or sound for the marks of slop (--final, --seconds N,
                              --audio, --film, --sheet out.jpg for a contact sheet)
+  hildegard loop run <codex|claude-code|omp> "<what to make>"
+                             A coding agent makes it in rounds: generate, render, critique, refine
+                             (--kind model|image|video|audio, --print, --size 40x40x120, --rounds N)
+  hildegard loop             Loops and their rounds (loop show <id>; loop submit <id> <file> --note;
+                             loop critique <id> <round> --stdin; loop finish <id> <round> --note)
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
@@ -118,6 +124,10 @@ const valued = new Set([
   'disk',
   'volume',
   'wait-minutes',
+  'kind',
+  'size',
+  'rounds',
+  'note',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -193,6 +203,8 @@ async function main(): Promise<Result | null> {
       return skills(ctx, rest);
     case 'review':
       return review(ctx, rest);
+    case 'loop':
+      return loop(ctx, rest);
     case 'cloud':
       return cloud(ctx, rest);
     case 'disconnect':
