@@ -69,11 +69,14 @@ export const originOf = (c: Ctx) =>
   `${secureRequest(c) ? 'https' : 'http'}://${c.req.header('host') ?? '127.0.0.1'}`;
 
 /**
- * Paths that check who is asking themselves, with no cookie: the MCP endpoint (a bearer token) and OAuth (the
- * sign-in page, and calls an AI app makes on its own).
+ * Paths that check who is asking themselves, with no cookie: the MCP endpoint and the local models' OpenAI-compatible
+ * API (bearer tokens), and OAuth (the sign-in page, and calls an AI app makes on its own).
  */
 export const ownAuth = (path: string) =>
-  path === '/mcp' || path.startsWith('/oauth/') || path.startsWith('/.well-known/oauth-');
+  path === '/mcp' ||
+  path.startsWith('/v1/') ||
+  path.startsWith('/oauth/') ||
+  path.startsWith('/.well-known/oauth-');
 
 /**
  * What a director may ask for, by method and path: their films, shots, takes and exports, start frames, and their

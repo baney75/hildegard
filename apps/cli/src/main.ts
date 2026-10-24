@@ -49,6 +49,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard host key <name>  A key for an AI app on another device (host keys: keys and chatbots;
                              host keys revoke <id|name>). Chatbots sign in at the link's /mcp themselves
+  hildegard llm              Local models running here (Ollama, LM Studio, llama.cpp, vLLM, MLX, Jan, Local AI),
+                             and yours: llm add <name> <address> [--key-stdin] | remove | use <endpoint> [<model>]
+  hildegard llm direct "<idea>"  Let a local model direct shots with Hildegard's tools (--film, --model, --plan)
   hildegard mcp              The MCP server, on stdio (AI apps run this). It's also at /mcp, over HTTP
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
@@ -80,6 +83,8 @@ const valued = new Set([
   'remote',
   'person',
   'days',
+  'film',
+  'endpoint',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -129,6 +134,8 @@ async function main(): Promise<Result | null> {
       return doctor(ctx);
     case 'host':
       return host(ctx, rest);
+    case 'llm':
+      return (await import('./llm.ts')).llm(ctx, rest);
     case 'open':
       if (!(await running(config))) await start(ctx);
       return open(ctx);

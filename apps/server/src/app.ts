@@ -6,6 +6,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { HildegardClient } from '@hildegard/mcp';
 import {
   type AgentsResponse,
   type AuthState,
@@ -59,6 +60,7 @@ import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
 import type { HfLink } from './hf.ts';
 import { type Host, HostError } from './host.ts';
+import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
@@ -125,6 +127,8 @@ export interface AppDeps {
   signer: MediaSigner;
   /** Reads an OAuth app's metadata document; tests give a stand-in. */
   fetchMetadata?: FetchMetadata;
+  /** The language models running on this computer, which can direct. */
+  llm: LocalModels;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -201,7 +205,7 @@ export function createApp(deps: AppDeps) {
     if (!paired && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
       // Browsers cannot add this header cross-site without a CORS preflight, which this server never grants. MCP
       // apps don't send it; /mcp takes only JSON, which a browser can't send cross-site without that preflight either.
-      if (c.req.header('x-hildegard') !== '1' && c.req.path !== '/mcp')
+      if (c.req.header('x-hildegard') !== '1' && c.req.path !== '/mcp' && !c.req.path.startsWith('/v1/'))
         return c.json({ error: 'Missing x-hildegard header' }, 403);
       const origin = c.req.header('origin');
       if (origin) {
@@ -1167,9 +1171,84 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  // ── Local language models: found on this computer, or the owner's own; one can direct ───────────────────────
+  const llmFail = (c: Context, e: unknown) => {
+    if (e instanceof LlmError) return c.json({ error: e.message }, e.status);
+    throw e;
+  };
+  app.get('/api/llm', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    return c.json(await deps.llm.state(c.req.query('fresh') !== undefined));
+  });
+  app.post('/api/llm/use', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({ endpoint: z.string().max(80), model: z.string().max(300).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which endpoint, and optionally which model.' }, 400);
+    try {
+      await deps.llm.use(body.data.endpoint, body.data.model);
+      return c.json(await deps.llm.state());
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  // Adding an address makes this computer call it: only from this computer.
+  app.post('/api/llm/endpoints', async (c) => {
+    if (!local(c)) return c.json({ error: 'Add model endpoints on the computer Hildegard runs on.' }, 403);
+    const body = z
+      .object({ name: z.string().max(200), url: z.string().max(2000), key: z.string().max(4096).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give a name and an address.' }, 400);
+    try {
+      return c.json(await deps.llm.add(body.data.name, body.data.url, body.data.key || undefined), 201);
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  app.delete('/api/llm/endpoints/:id', async (c) => {
+    if (!local(c)) return c.json({ error: 'Remove model endpoints on the computer Hildegard runs on.' }, 403);
+    try {
+      deps.llm.remove(c.req.param('id'));
+      return c.json(await deps.llm.state());
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+  app.post('/api/llm/direct', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const body = z
+      .object({
+        idea: z.string().trim().min(1).max(4000),
+        film: z.string().max(120).optional(),
+        endpoint: z.string().max(80).optional(),
+        model: z.string().max(300).optional(),
+        mode: z.enum(['auto', 'tools', 'plan']).optional(),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Give the idea to direct.' }, 400);
+    const as = whoOf(c)!;
+    const client = new HildegardClient(deps.url ?? 'http://127.0.0.1', ((
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const u = new URL(String(input instanceof Request ? input.url : input));
+      return app.fetch(new Request(`http://127.0.0.1${u.pathname}${u.search}`, init), { as });
+    }) as typeof fetch);
+    try {
+      return c.json(await directWithLocal({ llm: deps.llm, client, ...body.data }));
+    } catch (e) {
+      return llmFail(c, e);
+    }
+  });
+
   // ── MCP over HTTP, and the OAuth that lets chatbots sign in to it ───────────────────────────────────────────
   oauthRoutes(app, { grants, people, limited, failed, perName, fetchMetadata: deps.fetchMetadata });
   remoteMcpRoutes(app, { grants, signer: deps.signer, fetch: (r, env) => app.fetch(r, env) });
+  llmProxyRoutes(app, { llm: deps.llm, grants });
 
   // ── Host mode: the link. Turning it on or off changes this computer, so only this computer may. ───────────
   const hostFail = (c: Context, e: unknown) => {

@@ -425,6 +425,75 @@ describe('host and doctor', () => {
     }
   }, 90_000);
 
+  it('lists local models, adds an endpoint with its key piped in, and lets a local model direct', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-llm-'));
+    let round = 0;
+    const runtimes = (async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (url === 'http://127.0.0.1:11434/api/tags') return Response.json({ models: [{ name: 'qwen3:4b' }] });
+      if (url === 'http://127.0.0.1:11434/v1/chat/completions')
+        return Response.json({
+          choices: [
+            round++ === 0
+              ? {
+                  message: {
+                    role: 'assistant',
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: 'c1',
+                        type: 'function',
+                        function: { name: 'direct_shot', arguments: '{"prompt":"Rain on a tin roof"}' },
+                      },
+                    ],
+                  },
+                }
+              : { message: { role: 'assistant', content: 'One shot of rain.' } },
+          ],
+        });
+      throw new TypeError('fetch failed');
+    }) as typeof fetch;
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 'secret.json')),
+        llm: { fetch: runtimes, env: {}, localAi: { gateways: async () => [], key: () => null } },
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    try {
+      const list = await hildegard(home, 'llm', ...at);
+      expect(list.ok).toBe(true);
+      expect(list.steps).toMatchObject([
+        { id: 'llm-ollama', status: 'done', detail: expect.stringContaining('qwen3:4b') },
+      ]);
+      const added = await hildegardWithStdin(
+        home,
+        'sk-secret\n',
+        'llm',
+        'add',
+        'Desk',
+        'http://10.0.0.9:8000',
+        '--key-stdin',
+        ...at,
+      );
+      expect(added.endpoint).toMatchObject({
+        id: 'custom-desk',
+        keyed: true,
+        url: 'http://10.0.0.9:8000/v1',
+      });
+      expect(JSON.stringify(added)).not.toContain('sk-secret');
+      expect((await hildegard(home, 'llm', 'remove', 'Desk', ...at)).ok).toBe(true);
+      const directed = await hildegard(home, 'llm', 'direct', 'rain on a tin roof', ...at);
+      expect(directed.ok, directed.message).toBe(true);
+      expect(directed.message).toContain('qwen3:4b directed a shot');
+    } finally {
+      await srv.close();
+    }
+  }, 60_000);
+
   it('checks every part and prints the command that fixes each', async () => {
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));

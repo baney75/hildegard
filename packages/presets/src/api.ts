@@ -284,6 +284,64 @@ export interface NewKey {
   mcpUrl: string | null;
 }
 
+/** The local model runtimes Hildegard can use: Ollama, LM Studio, llama.cpp, vLLM, MLX and the like. */
+export type LlmRuntime =
+  | 'ollama'
+  | 'lm-studio'
+  | 'llama-cpp'
+  | 'vllm'
+  | 'mlx'
+  | 'sglang'
+  | 'jan'
+  | 'koboldcpp'
+  | 'tabby'
+  | 'local-ai'
+  | 'openai';
+
+export interface LlmModel {
+  id: string;
+  /** Bytes on disk, when the runtime says. */
+  size: number | null;
+  /** Context length in tokens, when the runtime says. */
+  context: number | null;
+  /** Loaded in memory right now, when the runtime says. */
+  loaded: boolean | null;
+}
+
+/** One OpenAI-compatible endpoint: found running on this computer, or added by the owner. */
+export interface LlmEndpoint {
+  id: string;
+  runtime: LlmRuntime;
+  name: string;
+  /** The OpenAI-compatible base, ending in /v1 for most runtimes. */
+  url: string;
+  online: boolean;
+  models: LlmModel[];
+  /** Added by the owner, rather than found. */
+  custom: boolean;
+  /** Sends a key; the key itself stays in the keychain. */
+  keyed: boolean;
+  error: string | null;
+}
+
+/** GET /api/llm */
+export interface LlmState {
+  endpoints: LlmEndpoint[];
+  /** What directs when no endpoint or model is named. */
+  use: { endpoint: string; model: string } | null;
+}
+
+/** POST /api/llm/direct: what a local model did with an idea. */
+export interface LlmDirectResult {
+  endpoint: string;
+  model: string;
+  /** How it directed: calling Hildegard's tools itself, or writing a shot list Hildegard then queued. */
+  mode: 'tools' | 'plan';
+  steps: Array<{ tool: string; args: Record<string, unknown>; ok: boolean; result: string }>;
+  shots: string[];
+  reply: string;
+}
+
 /** GET /api/people */
 export interface PeopleResponse {
   people: Person[];
