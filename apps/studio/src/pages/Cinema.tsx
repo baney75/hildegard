@@ -212,7 +212,7 @@ export function Cinema({
       {forceTake ? (
         <ForceDialog
           take={forceTake}
-          title={`${shots.get(forceTake.shotId)?.title ?? 'this take'} · ${takeLabel(forceTake)}`}
+          title={shots.get(forceTake.shotId)?.title ?? 'Untitled shot'}
           compact={wc === 'compact'}
           onClose={() => setForcing(null)}
         />

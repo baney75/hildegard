@@ -15,7 +15,7 @@ const ALL = [
   { id: 'huggingface', label: 'Hugging Face', icon: 'link', who: 'owner' },
   { id: 'computer', label: 'This computer', icon: 'desktop', who: 'all' },
   { id: 'devices', label: 'Devices', icon: 'server', who: 'owner' },
-  { id: 'sharing', label: 'Sharing', icon: 'shield', who: 'owner' },
+  { id: 'sharing', label: 'Sharing', icon: 'phone', who: 'owner' },
   { id: 'people', label: 'People', icon: 'person', who: 'owner' },
   { id: 'account', label: 'Your account', icon: 'key', who: 'signed-in' },
   { id: 'privacy', label: 'Privacy', icon: 'privacy', who: 'all' },
@@ -398,7 +398,7 @@ function Computer() {
       </dl>
       <Appearance />
       {engine?.fake ? (
-        <p className="body-sm hg-err" role="note">
+        <p className="body-sm hg-note" role="note">
           <Icon name="alert" size={16} /> This is the stand-in GPU for testing. It makes placeholder clips,
           not real video.
         </p>

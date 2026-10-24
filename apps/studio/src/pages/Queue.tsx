@@ -115,8 +115,10 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
         )}
         <span style={{ minWidth: 0 }}>
           <b>
-            <button type="button" className="hg-linkbtn" onClick={open}>
-              {shot?.title ?? 'Shot'} · {takeLabel(t)}
+            {/* A long shot title gives way; which take it is always shows. */}
+            <button type="button" className="hg-linkbtn st-job__name" onClick={open}>
+              <span className="t">{shot?.title ?? 'Shot'}</span>
+              <span className="k"> · {takeLabel(t)}</span>
             </button>
           </b>
           <small>
@@ -156,7 +158,8 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
                   : `${pct}%`
               : null}
             {t.status === 'queued'
-              ? `${t.queuePosition ? ordinal(t.queuePosition) : 'Next'}${starts ? ` · starts in ${about(starts)}` : ''}${!engine?.online || engine.paused ? ` · ${waitingFor(t, { online: !!engine?.online, paused: !!engine?.paused })}` : ''}`
+              ? // While paused or offline nothing starts, so it says why instead of when.
+                `${t.queuePosition ? ordinal(t.queuePosition) : 'Next'}${!engine?.online || engine.paused ? ` · ${waitingFor(t, { online: !!engine?.online, paused: !!engine?.paused })}` : starts ? ` · starts in ${about(starts)}` : ''}`
               : null}
             {t.status === 'done' ? `${t.renderMs ? duration(t.renderMs) : ''} · $0.00` : null}
             {t.status === 'failed' ? t.error?.hint : null}
@@ -380,7 +383,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
       {forcing && takes.get(forcing) ? (
         <ForceDialog
           take={takes.get(forcing)!}
-          title={`${shots.get(takes.get(forcing)!.shotId)?.title ?? 'this take'} · ${takeLabel(takes.get(forcing)!)}`}
+          title={shots.get(takes.get(forcing)!.shotId)?.title ?? 'Untitled shot'}
           compact={wc === 'compact'}
           onClose={() => setForcing(null)}
         />

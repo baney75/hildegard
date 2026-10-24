@@ -100,23 +100,43 @@ export function Inspector({
                 <Status kind="done">Done</Status>
               </div>
               <h3>{shot?.title ?? 'Untitled shot'}</h3>
+              {/* Each fact stays whole, so a narrow inspector breaks the line between facts, never inside one. */}
               <span className="cs-meta1">
-                {modelName(catalog, t.model)} · seed {t.seed} · {clock(t.seconds)} · {resolution(t)}
+                <span>{modelName(catalog, t.model)}</span> · <span>seed {t.seed}</span>
                 <br />
-                {where}
-                {t.renderMs ? ` · ${duration(t.renderMs)}` : ''} · <span className="ok">$0 spent</span>
+                <span>
+                  {clock(t.seconds)} · {resolution(t)}
+                </span>{' '}
+                · <span>{where}</span>
+                {t.renderMs ? (
+                  <>
+                    {' '}
+                    · <span>{duration(t.renderMs)}</span>
+                  </>
+                ) : null}{' '}
+                · <span className="ok">$0 spent</span>
               </span>
             </div>
           )}
         </div>
       ) : (
-        <div className="cs-insp__media" style={{ aspectRatio: `${t.width} / ${t.height}` }}>
+        <div
+          className={`cs-insp__media${t.status === 'queued' ? ' is-queued' : ''}`}
+          style={{ aspectRatio: `${t.width} / ${t.height}` }}
+        >
           {media ? (
             <img
               src={media}
               alt=""
               className={t.status === 'failed' || t.status === 'canceled' ? 'dim' : undefined}
             />
+          ) : null}
+          {t.status === 'queued' ? (
+            <span className="cs-qmeta" aria-hidden="true">
+              <Status kind="queued">
+                {waitingFor(t, { online: !!engine?.online, paused: !!engine?.paused })}
+              </Status>
+            </span>
           ) : null}
           {t.status === 'running' ? (
             <span className="cs-live">
@@ -148,13 +168,18 @@ export function Inspector({
 
         {t.status !== 'done' ? (
           <div style={{ display: 'grid', gap: 6 }}>
-            <div className="cs-insp__title">
-              <div>
-                <span className="ovl">{title}</span>
-                <h3>{headline(t, !!engine?.online, !!engine?.paused)}</h3>
-              </div>
+            <div className="hg-between">
+              <span className="ovl">{title}</span>
+              {stateChip(t)}
             </div>
-            <span className="body-sm sec-text">{explain(t, left, where)}</span>
+            <h3 className="cs-insp__h">
+              {t.status === 'running' || t.status === 'queued'
+                ? (shot?.title ?? 'Untitled shot')
+                : headline(t)}
+            </h3>
+            <span className="body-sm sec-text">
+              {explain(t, left, where, waitingFor(t, { online: !!engine?.online, paused: !!engine?.paused }))}
+            </span>
           </div>
         ) : null}
 
@@ -328,22 +353,32 @@ export function Inspector({
   );
 }
 
-function headline(t: Take, online: boolean, paused: boolean): string {
-  if (t.status === 'running') return 'Rendering';
-  if (t.status === 'queued') return waitingFor(t, { online, paused });
+/** The take's state as a glyph and a word, beside the shot and take name. */
+function stateChip(t: Take) {
+  if (t.status === 'running') return <Status kind="running">Running</Status>;
+  if (t.status === 'queued')
+    return <Status kind="queued">{t.priority === 'forced' ? 'Forced' : 'Queued'}</Status>;
+  if (t.status === 'canceled') return <Status kind="idle">Canceled</Status>;
+  return <Status kind="error">Stopped</Status>;
+}
+
+/** What stopped a take, as its headline; running and waiting takes are headed by their shot instead. */
+function headline(t: Take): string {
   if (t.status === 'canceled') return 'Canceled';
   return t.error?.message ?? 'Stopped';
 }
 
-function explain(t: Take, left: number | null, where: string): string {
+function explain(t: Take, left: number | null, where: string, waiting: string): string {
   if (t.status === 'running') {
     const pct = Math.round((t.progress?.value ?? 0) * 100);
+    // Past the sampler's last step the video still decodes and saves.
+    if (pct >= 100) return `${where} · Finishing`;
     return `${where} · ${pct}%${left !== null ? ` · ${about(left)} left` : ''}`;
   }
   if (t.status === 'queued')
     return t.priority === 'forced'
-      ? 'Forced: it goes before everything else.'
-      : 'Force now to run it before the others.';
+      ? `${waiting}. Forced: it goes before everything else.`
+      : `${waiting}. Force now to run it before the others.`;
   if (t.status === 'canceled') return 'Your prompt, seed and rig are kept. Retry when you want it.';
   return `${t.error?.hint ?? 'Retry, and if it fails again the details say why.'} Your prompt, seed and rig are kept, and nothing was spent.`;
 }

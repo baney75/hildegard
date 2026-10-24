@@ -2,6 +2,7 @@
 import type { Take } from '@hildegard/presets';
 import { useState } from 'react';
 import { api } from '../lib/api.ts';
+import { deviceLabel } from '../lib/format.ts';
 import { upsert, useStore } from '../lib/store.ts';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, toastError } from './ui.tsx';
@@ -27,6 +28,8 @@ export function ForceDialog({
   const stops = running && running.priority !== 'forced' ? running : null;
   // Another device's render stops the same way, and goes back in line there.
   const stopsGuest = !running && guest ? guest : null;
+  // A device's name reads as a name; "This computer" mid-sentence reads as "this computer".
+  const here = deviceLabel(engine).replace(/^(This|Stand-in)\b/, (m) => m.toLowerCase());
   const go = async (interrupt: boolean) => {
     setBusy(true);
     try {
@@ -49,10 +52,11 @@ export function ForceDialog({
     >
       <div className="st-dialog__h">
         <div style={{ flex: 1 }}>
-          <h2 id="fn-t">Force {title} now?</h2>
+          <h2 id="fn-t">Force {takeLabel(take)} now?</h2>
           <p>
+            <span className="hg-dlg__ctx">{title}</span>
             {stops || stopsGuest
-              ? `It will run on ${engine?.device ?? 'this computer'} right away.`
+              ? `It will run on ${here} right away.`
               : 'It will run next, ahead of everything waiting.'}
           </p>
         </div>

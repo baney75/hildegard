@@ -99,9 +99,17 @@ export function ExportDialog({
           <ol className="hg-export__list">
             {chosen.map(({ no, shot, take }, i) => (
               <li key={shot.id} data-done={running && job && i < job.done ? '' : undefined}>
-                <span className="num muted">{roman(no)}</span>
+                <span className="hg-export__no" aria-hidden="true">
+                  {roman(no)}
+                </span>
+                <span className="hg-export__thumb" aria-hidden="true">
+                  {take.poster ? <img src={take.poster} alt="" loading="lazy" decoding="async" /> : null}
+                </span>
                 <span className="hg-export__t">
-                  <b>{shot.title}</b>
+                  <b>
+                    <span className="sr">Shot {no}: </span>
+                    {shot.title}
+                  </b>
                   <small className="body-sm muted">
                     {takeLabel(take)} · {clock(take.seconds)}
                   </small>

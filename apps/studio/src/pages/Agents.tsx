@@ -66,7 +66,7 @@ export function Agents({ wc }: { wc: WindowClass }) {
         </div>
       </header>
       <main className="cs-stage hg-scroll" id="main">
-        <div className="st-page">
+        <div className="st-page hg-narrow">
           <p className="body sec-text hg-measure">
             AI apps like Claude Code and Codex can direct shots here, on your own GPU, as tools. They see your
             films and takes, and nothing they make costs money.
@@ -97,7 +97,15 @@ export function Agents({ wc }: { wc: WindowClass }) {
               </div>
             ) : (
               <div className="st-tile hg-empty-tile">
-                <span className="body-sm sec-text">No apps linked yet.</span>
+                <span className="st-dev__g" aria-hidden="true">
+                  <Icon name="agent" size={22} />
+                </span>
+                <span className="hg-empty-tile__t">
+                  <b>No apps linked yet.</b>
+                  <small className="body-sm muted">
+                    Link Claude Code, Codex or Cursor and they direct shots here as tools.
+                  </small>
+                </span>
                 <Button kind="primary" icon="plus" onClick={() => setLinking(true)}>
                   Link an app
                 </Button>

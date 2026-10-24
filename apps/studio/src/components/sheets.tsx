@@ -17,22 +17,66 @@ interface SheetProps {
 }
 
 /** Stand-in art for a preset until sample frames ship: the preset's own colours and glyph, never a fake photo. */
-function Plate({ hue, glyph, colors }: { hue: number; glyph: string; colors?: string[] }) {
+function Plate({
+  hue,
+  glyph,
+  colors,
+  light,
+}: {
+  hue: number;
+  glyph?: string;
+  colors?: string[];
+  light?: string;
+}) {
   return (
-    <span className="hg-plate" style={{ '--h': hue } as React.CSSProperties} aria-hidden="true">
-      {colors ? (
+    <span
+      className={`hg-plate${light ? ' hg-plate--light' : ''}`}
+      style={(light ? { background: light } : { '--h': hue }) as React.CSSProperties}
+      aria-hidden="true"
+    >
+      {light ? null : colors ? (
         <span className="hg-plate__sw">
           {colors.map((c) => (
             <i key={c} style={{ background: c }} />
           ))}
         </span>
       ) : (
-        <Icon name={glyph} size={24} />
+        <Icon name={glyph ?? 'sparkle'} size={24} />
       )}
     </span>
   );
 }
-const hueOf = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const hashHue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+/** Each camera body and lens gets a ground in the hue of the film it evokes; anything new falls back to a hash. */
+const HUES: Record<string, number> = {
+  'full-frame': 250,
+  'large-format': 200,
+  'vintage-16mm': 60,
+  'super-35': 150,
+  documentary: 230,
+  'super-8': 35,
+  'dv-camcorder': 185,
+  clean: 255,
+  anamorphic: 280,
+  macro: 120,
+  swirl: 320,
+  diffusion: 75,
+};
+const hueOf = (id: string) => HUES[id] ?? hashHue(id);
+/** A small picture of each lighting: where the light falls, its colour, and how deep the shadows go. */
+const LIGHTS: Record<string, string> = {
+  'golden-hour':
+    'radial-gradient(70% 90% at 82% 78%, oklch(.84 .14 75), oklch(.58 .12 55) 38%, oklch(.26 .06 35) 85%)',
+  'soft-mist':
+    'radial-gradient(130% 110% at 50% 25%, oklch(.82 .02 220), oklch(.62 .025 225) 55%, oklch(.46 .02 235))',
+  'hard-practical':
+    'radial-gradient(26% 40% at 30% 38%, oklch(.9 .1 80), oklch(.55 .1 60) 45%, transparent 70%), oklch(.13 .02 260)',
+  'even-daylight': 'linear-gradient(180deg, oklch(.84 .04 230), oklch(.66 .035 220) 60%, oklch(.56 .03 140))',
+  'night-neon':
+    'radial-gradient(55% 75% at 18% 85%, oklch(.62 .21 345), transparent 70%), radial-gradient(50% 70% at 86% 18%, oklch(.68 .14 200), transparent 70%), oklch(.14 .04 285)',
+  candlelight:
+    'radial-gradient(34% 55% at 50% 72%, oklch(.86 .15 70), oklch(.55 .14 45) 40%, transparent 75%), oklch(.12 .03 40)',
+};
 
 function Check() {
   return (
@@ -68,7 +112,7 @@ export function RigSheet({ open, onClose, catalog, draft, variant }: SheetProps)
             <span className="ovl">1 · Camera body</span>
             <span className="body-sm muted">Sets grain, colour and how highlights roll off</span>
           </div>
-          <RadioGroup label="Camera body" className="hg-optgrid">
+          <RadioGroup label="Camera body" className="hg-optgrid hg-optgrid--rig">
             {catalog.bodies.map((b) => (
               <button
                 key={b.id}
@@ -93,7 +137,7 @@ export function RigSheet({ open, onClose, catalog, draft, variant }: SheetProps)
             <span className="ovl">2 · Lens</span>
             <span className="body-sm muted">How the glass draws light, flare and blur</span>
           </div>
-          <RadioGroup label="Lens" className="hg-optgrid">
+          <RadioGroup label="Lens" className="hg-optgrid hg-optgrid--rig">
             {catalog.lenses.map((l) => (
               <button
                 key={l.id}
@@ -416,7 +460,7 @@ export function LookSheet({ open, onClose, catalog, draft, variant }: SheetProps
                 tabIndex={look.lighting === l.id || (!look.lighting && l === catalog.lightings[0]) ? 0 : -1}
                 onClick={() => pick('lighting', l.id)}
               >
-                <Plate hue={hueOf(l.id)} glyph="sun" />
+                <Plate hue={hueOf(l.id)} glyph="sun" light={LIGHTS[l.id]} />
                 {look.lighting === l.id ? <Check /> : null}
                 <b>{l.name}</b>
                 <small>{l.blurb}</small>

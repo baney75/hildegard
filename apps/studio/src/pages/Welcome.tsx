@@ -30,6 +30,20 @@ export function Welcome({
   return (
     <div className="st-ob hg-welcome">
       <div className="st-ob__side">
+        {/* The Choir's orbits, in gold leaf: the outer one carries a voice that turns once a minute. */}
+        <svg
+          className="hg-welcome__orbit"
+          viewBox="0 0 460 900"
+          aria-hidden="true"
+          preserveAspectRatio="xMidYMax slice"
+        >
+          {[120, 200, 280, 360].map((r, i) => (
+            <circle key={r} cx="230" cy="620" r={r} style={{ strokeOpacity: [0.25, 0.16, 0.1, 0.06][i] }} />
+          ))}
+          <g className="hg-welcome__voice">
+            <circle cx="230" cy="420" r="4" />
+          </g>
+        </svg>
         <div className="hg-welcome__brand">
           <img src={mark} alt="" height={34} />
           <img src={wordmark} alt="Hildegard" height={26} />
