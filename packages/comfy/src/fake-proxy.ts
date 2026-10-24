@@ -54,6 +54,7 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
   const tickMs = opts.tickMs ?? 120;
   const video = readFileSync(join(fixtures, 'sample.mp4'));
   const preview = readFileSync(join(fixtures, 'preview.jpg'));
+  const still = readFileSync(join(fixtures, 'still.png'));
   const jobs = new Map<string, FakeJob>();
   const assets = new Map<string, { bytes: Buffer; type: string; name: string; job?: string }>();
   let origin = '';
@@ -183,10 +184,21 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
       if (j.step >= j.steps) {
         clearInterval(timer);
         emit(j, 'progress', nodeDone(12, 12, 'VAEDecode'));
-        const saveNode = Object.entries(j.workflow).find(([, n]) => n.class_type === 'SaveVideo')?.[0] ?? '';
+        const [saveNode = '', save] =
+          Object.entries(j.workflow).find(
+            ([, n]) => n.class_type === 'SaveVideo' || n.class_type === 'SaveImage',
+          ) ?? [];
         const id = randomUUID();
-        assets.set(id, { bytes: video, type: 'video/mp4', name: 'hildegard_00001_.mp4', job: j.id });
-        const output = { ...assetModel(id), node_id: saveNode, name: 'hildegard_00001_.mp4', type: 'image' }; // as comfy-api-proxy 0.1.6 labels it
+        const image = save?.class_type === 'SaveImage';
+        const name = image ? 'hildegard_00001_.png' : 'hildegard_00001_.mp4';
+        assets.set(
+          id,
+          image
+            ? // Each render its own bytes, as a real one would be: the job id rides after IEND, where readers ignore it.
+              { bytes: Buffer.concat([still, Buffer.from(j.id)]), type: 'image/png', name, job: j.id }
+            : { bytes: video, type: 'video/mp4', name, job: j.id },
+        );
+        const output = { ...assetModel(id), node_id: saveNode, name, type: 'image' }; // as comfy-api-proxy 0.1.6 labels it
         j.outputs.push(output);
         emit(j, 'output', output);
         setStatus(j, 'succeeded');

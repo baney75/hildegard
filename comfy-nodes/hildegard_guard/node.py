@@ -53,7 +53,7 @@ class HildegardGuard:
                 "images": ("IMAGE",),
                 "classifier": (_files(),),
                 "threshold": ("FLOAT", {"default": 0.8, "min": MIN_THRESHOLD, "max": MAX_THRESHOLD, "step": 0.01}),
-                "what": (["take", "start frame"], {"default": "take"}),
+                "what": (["take", "start frame", "reference", "still"], {"default": "take"}),
             }
         }
 

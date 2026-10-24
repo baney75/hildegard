@@ -1,25 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Project, ServerEvent, Shot, Take } from '@hildegard/presets';
+import type { Character, Project, ServerEvent, Shot, Still, Take } from '@hildegard/presets';
 
 interface StateFile {
   version: 1;
   projects: Project[];
   shots: Shot[];
   takes: Take[];
+  characters?: Character[];
+  stills?: Still[];
 }
 
 type Listener = (e: ServerEvent) => void;
 
 /**
- * Projects, shots and takes, kept in memory and saved to one JSON file. Writes are atomic (temp file + rename) and
+ * Projects, shots, takes, characters and their stills, kept in memory and saved to one JSON file. Writes are atomic (temp file + rename) and
  * coalesced, so a burst of progress updates costs one write.
  */
 export class Store {
   readonly projects = new Map<string, Project>();
   readonly shots = new Map<string, Shot>();
   readonly takes = new Map<string, Take>();
+  readonly characters = new Map<string, Character>();
+  readonly stills = new Map<string, Still>();
   private readonly file: string;
   private readonly listeners = new Set<Listener>();
   private saveTimer: NodeJS.Timeout | null = null;
@@ -48,6 +52,15 @@ export class Store {
       }
       this.takes.set(t.id, t);
     }
+    for (const c of data.characters ?? []) this.characters.set(c.id, c);
+    for (const st of data.stills ?? []) {
+      if (st.status === 'running') {
+        st.status = 'queued';
+        st.progress = null;
+        st.startedAt = null;
+      }
+      this.stills.set(st.id, st);
+    }
   }
 
   on(l: Listener): () => void {
@@ -73,6 +86,8 @@ export class Store {
       projects: [...this.projects.values()],
       shots: [...this.shots.values()],
       takes: [...this.takes.values()],
+      characters: [...this.characters.values()],
+      stills: [...this.stills.values()],
     };
     const tmp = `${this.file}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify(data));
@@ -98,8 +113,27 @@ export class Store {
     this.save(progressOnly);
   }
 
-  remove(kind: 'take' | 'shot' | 'project', id: string) {
-    const map = kind === 'take' ? this.takes : kind === 'shot' ? this.shots : this.projects;
+  putCharacter(c: Character) {
+    c.updatedAt = new Date().toISOString();
+    this.characters.set(c.id, c);
+    this.emit({ type: 'character', character: c });
+    this.save();
+  }
+
+  putStill(st: Still, progressOnly = false) {
+    this.stills.set(st.id, st);
+    this.emit({ type: 'still', still: st });
+    this.save(progressOnly);
+  }
+
+  remove(kind: 'take' | 'shot' | 'project' | 'character' | 'still', id: string) {
+    const map: Map<string, unknown> = {
+      take: this.takes,
+      shot: this.shots,
+      project: this.projects,
+      character: this.characters,
+      still: this.stills,
+    }[kind];
     if (!map.delete(id)) return;
     this.emit({ type: 'removed', kind, id });
     this.save();

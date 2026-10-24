@@ -19,7 +19,7 @@ import {
 } from '../src/choir.ts';
 import { parseArgs } from '../src/config.ts';
 import type { SecretStore } from '../src/hf.ts';
-import { guestName } from '../src/node-api.ts';
+import { guestName, MAX_RENDER_BODY } from '../src/node-api.ts';
 import { RemoteEngine } from '../src/remote-engine.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
@@ -133,6 +133,8 @@ describe('renders from paired devices', () => {
       hf: {},
       choir: { use: 'local', devices: [], sharing: { on: true, url: null, paired: 1, problem: null } },
       guests: [g],
+      characters: [],
+      stills: [],
     } as unknown as Snapshot;
     const director: Who = {
       kind: 'person',
@@ -425,7 +427,7 @@ describe('the sharing device’s door', () => {
         headers: {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',
-          'content-length': String(31 * 1024 * 1024),
+          'content-length': String(MAX_RENDER_BODY + 1024 * 1024),
         },
       });
       req.on('response', (res) => {

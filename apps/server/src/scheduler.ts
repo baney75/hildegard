@@ -1,18 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from 'node:crypto';
-import { rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { type BuiltGraph, buildGraph, type Engine, EngineError, type RenderHandlers } from '@hildegard/comfy';
+import {
+  type BuiltGraph,
+  buildGraph,
+  buildStillGraph,
+  type Engine,
+  EngineError,
+  type RenderHandlers,
+} from '@hildegard/comfy';
 import {
   type Catalog,
+  type Character,
+  characterText,
   composeShot,
   type EngineState,
   type GuestTake,
   loadSafety,
   type Priority,
+  pickStillModel,
   type SafetyCheck,
+  type Still,
   type Take,
   type TakeError,
+  usable,
 } from '@hildegard/presets';
 import type { Store } from './store.ts';
 
@@ -28,7 +40,9 @@ export function explain(e: unknown): TakeError {
     engine_offline: 'Start ComfyUI with `hildegard start`, then retry.',
     invalid_graph: 'Run `hildegard install` to add the missing ComfyUI nodes, then retry.',
     node_failed: 'Retry. If it fails again, the details say which step stopped.',
-    content_blocked: 'Change the prompt or the start frame. Hildegard doesn’t make sexual content.',
+    content_blocked:
+      'Change the prompt, the start frame or the references. Hildegard doesn’t make sexual content.',
+    character: 'Open the character to see why, then retry.',
     canceled: 'Retry when you want it.',
     unknown: 'Retry. If it fails again, the details say what happened.',
   };
@@ -48,6 +62,8 @@ export interface GuestRender {
   built: BuiltGraph;
   /** Local path of its start frame. */
   startFrame?: string;
+  /** Local paths of its reference images, in the graph's order. */
+  references?: string[];
   dest: string;
   /** Aborted when the other device cancels or hangs up. */
   signal: AbortSignal;
@@ -65,10 +81,14 @@ interface Guest {
   reject: (e: unknown) => void;
 }
 
+/** A take or a character's still: either waits in the one queue and renders on the one GPU. */
+type Job = { take: Take } | { still: Still };
+const jobOf = (j: Job): Take | Still => ('take' in j ? j.take : j.still);
+
 /**
- * One GPU, one render at a time. Forced takes go first, then studio work, then agent work; within a class, oldest
- * first. Force now stops a lower-priority render, which goes back to the front of its class. Renders from paired
- * devices queue here too, as studio work, so they never run alongside a local take.
+ * One GPU, one render at a time. Forced work goes first, then studio work, then agent work; within a class, oldest
+ * first. Force now stops a lower-priority render, which goes back to the front of its class. Stills queue with takes,
+ * and renders from paired devices queue here too, as studio work, so nothing runs alongside anything else.
  */
 export class Scheduler {
   private running: { id: string; priority: Priority; abort: AbortController; requeue: boolean } | null = null;
@@ -200,19 +220,33 @@ export class Scheduler {
       .sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.createdAt.localeCompare(b.createdAt));
   }
 
-  /** Everything waiting, takes and paired devices' renders alike, in the order it will run. */
-  private order(): Array<{ take: Take } | { guest: Guest }> {
-    const key = (x: { take: Take } | { guest: Guest }) =>
-      'take' in x
-        ? ([RANK[x.take.priority], x.take.createdAt] as const)
-        : ([RANK.interactive, x.guest.createdAt] as const);
-    return [...this.queued().map((take) => ({ take })), ...this.guests.map((guest) => ({ guest }))].sort(
-      (a, b) => {
-        const [ra, ca] = key(a);
-        const [rb, cb] = key(b);
-        return ra - rb || ca.localeCompare(cb);
-      },
-    );
+  /** Everything waiting, takes, stills and paired devices' renders alike, in the order it will run. */
+  private order(): Array<Job | { guest: Guest }> {
+    const key = (x: Job | { guest: Guest }) =>
+      'guest' in x
+        ? ([RANK.interactive, x.guest.createdAt] as const)
+        : ([RANK[jobOf(x).priority], jobOf(x).createdAt] as const);
+    const stills = [...this.store.stills.values()]
+      .filter((s) => s.status === 'queued')
+      .map((still) => ({ still }));
+    return [
+      ...this.queued().map((take) => ({ take })),
+      ...stills,
+      ...this.guests.map((guest) => ({ guest })),
+    ].sort((a, b) => {
+      const [ra, ca] = key(a);
+      const [rb, cb] = key(b);
+      return ra - rb || ca.localeCompare(cb);
+    });
+  }
+
+  /** A take or a still by id, and how to save it. */
+  private job(id: string): { job: Take | Still; put: (progressOnly?: boolean) => void } | null {
+    const t = this.store.takes.get(id);
+    if (t) return { job: t, put: (p) => this.store.putTake(t, p) };
+    const s = this.store.stills.get(id);
+    if (s) return { job: s, put: (p) => this.store.putStill(s, p) };
+    return null;
   }
 
   /** The take rendering now, when it is one of this computer's own rather than a paired device's. */
@@ -257,6 +291,11 @@ export class Scheduler {
         if (x.take.queuePosition !== pos) {
           x.take.queuePosition = pos;
           this.store.putTake(x.take, true);
+        }
+      } else if ('still' in x) {
+        if (x.still.queuePosition !== pos) {
+          x.still.queuePosition = pos;
+          this.store.putStill(x.still, true);
         }
       } else if (x.guest.position !== pos) {
         x.guest.position = pos;
@@ -303,9 +342,17 @@ export class Scheduler {
     this.pump();
   }
 
+  enqueueStill(still: Still) {
+    this.store.putStill(still);
+    this.renumber();
+    this.pump();
+  }
+
+  /** Cancel a take or a still. */
   cancel(id: string): boolean {
-    const t = this.store.takes.get(id);
-    if (!t) return false;
+    const found = this.job(id);
+    if (!found) return false;
+    const { job: t, put } = found;
     if (this.running?.id === id) {
       this.running.requeue = false;
       this.running.abort.abort();
@@ -316,18 +363,18 @@ export class Scheduler {
     t.queuePosition = null;
     t.finishedAt = new Date().toISOString();
     t.error = explain(new EngineError('canceled', 'Canceled.'));
-    this.store.putTake(t);
+    put();
     this.renumber();
     return true;
   }
 
-  /** `interrupt` stops whatever is rendering (it restarts later); otherwise the take just runs next. */
+  /** `interrupt` stops whatever is rendering (it restarts later); otherwise the take or still just runs next. */
   force(id: string, interrupt: boolean): boolean {
-    const t = this.store.takes.get(id);
-    if (t?.status !== 'queued') return false;
-    t.priority = 'forced';
-    t.createdAt = new Date().toISOString();
-    this.store.putTake(t);
+    const found = this.job(id);
+    if (found?.job.status !== 'queued') return false;
+    found.job.priority = 'forced';
+    found.job.createdAt = new Date().toISOString();
+    found.put();
     if (interrupt && this.running && this.running.priority !== 'forced') {
       this.running.requeue = true;
       this.running.abort.abort();
@@ -337,9 +384,10 @@ export class Scheduler {
     return true;
   }
 
-  retry(id: string): Take | null {
-    const t = this.store.takes.get(id);
-    if (!t || (t.status !== 'failed' && t.status !== 'canceled')) return null;
+  retry(id: string): Take | Still | null {
+    const found = this.job(id);
+    const t = found?.job;
+    if (!found || !t || (t.status !== 'failed' && t.status !== 'canceled')) return null;
     Object.assign(t, {
       status: 'queued',
       error: null,
@@ -349,17 +397,54 @@ export class Scheduler {
       renderMs: null,
       createdAt: new Date().toISOString(),
     } satisfies Partial<Take>);
-    this.enqueue(t);
+    found.put();
+    this.renumber();
+    this.pump();
     return t;
   }
 
-  /** Start the next take if the GPU is free. */
+  /** Start the next take or still if the GPU is free. */
   pump() {
     if (this.running || this.paused || !this.online || this.stopped) return;
     const next = this.order()[0];
     if (!next) return;
     if ('take' in next) void this.run(next.take);
+    else if ('still' in next) void this.runStill(next.still);
     else void this.runGuest(next.guest);
+  }
+
+  /** The characters a take casts, as they are now: each must still exist, and may still be drawn. */
+  private castOf(take: Take): Character[] {
+    return take.request.characters.map((id) => {
+      const c = this.store.characters.get(id);
+      if (!c)
+        throw new EngineError(
+          'character',
+          'A character in this shot was deleted.',
+          '',
+          'Remove them from the shot, then retry.',
+        );
+      const ok = usable(c);
+      if (!ok.ok) throw new EngineError('character', ok.why);
+      const words = this.safety.text(characterText(c));
+      if (!words.ok) throw new EngineError('content_blocked', words.message);
+      return c;
+    });
+  }
+
+  /** Local paths of reference images, which must all still be there. */
+  private async referencePaths(files: readonly string[]): Promise<string[]> {
+    const paths = files.map((f) => join(this.mediaDir, 'uploads', f));
+    for (const p of paths)
+      await stat(p).catch(() => {
+        throw new EngineError(
+          'character',
+          'A reference image is missing.',
+          '',
+          'Add the character’s references again, then retry.',
+        );
+      });
+    return paths;
   }
 
   private async runGuest(g: Guest) {
@@ -377,6 +462,7 @@ export class Scheduler {
       await this.engine.render(g.job.built, {
         dest: g.job.dest,
         startFrame: g.job.startFrame,
+        references: g.job.references,
         signal: abort.signal,
         handlers: {
           ...handlers,
@@ -427,18 +513,20 @@ export class Scheduler {
       // Checked again here, not only when it was asked for: a take queued before an update, or retried, too.
       const words = this.safety.text(take.request.prompt);
       if (!words.ok) throw new EngineError('content_blocked', words.message);
-      const shot = composeShot(this.catalog, take.request);
+      const shot = composeShot(this.catalog, take.request, this.castOf(take));
       const built: BuiltGraph = buildGraph({
         shot,
         seed: take.seed,
         prefix: `hildegard/${take.id}`,
         startFrame: take.request.startFrame ? 'start.png' : undefined,
       });
+      const references = await this.referencePaths(shot.cast?.keyframe.references ?? []);
       let lastProgressAt = 0;
       await this.engine.render(built, {
         dest,
         quality: take.quality,
         signal: abort.signal,
+        references,
         startFrame: take.request.startFrame
           ? join(this.mediaDir, 'uploads', take.request.startFrame)
           : undefined,
@@ -510,6 +598,105 @@ export class Scheduler {
         this.previews.delete(take.id);
       }
       this.store.putTake(take);
+      this.running = null;
+      this.renumber();
+      this.pump();
+    }
+  }
+
+  /** Render one still of a character, from its record: the words and references fixed when it was asked for. */
+  private async runStill(still: Still) {
+    const abort = new AbortController();
+    this.running = { id: still.id, priority: still.priority, abort, requeue: false };
+    Object.assign(still, {
+      status: 'running',
+      queuePosition: 0,
+      startedAt: new Date().toISOString(),
+      progress: { value: 0, step: null, steps: null },
+      error: null,
+    } satisfies Partial<Still>);
+    this.store.putStill(still);
+    this.renumber();
+
+    const started = Date.now();
+    let ranFrom: number | null = null;
+    const dir = join(this.mediaDir, 'stills');
+    const dest = join(dir, `${still.id}.png`);
+    try {
+      const c = this.store.characters.get(still.characterId);
+      if (!c) throw new EngineError('character', 'This character was deleted.');
+      const ok = usable(c);
+      if (!ok.ok) throw new EngineError('character', ok.why);
+      const words = this.safety.text(still.prompt);
+      if (!words.ok) throw new EngineError('content_blocked', words.message);
+      const model = pickStillModel(this.catalog, still.model);
+      const q = model.final;
+      const built = buildStillGraph({
+        still: {
+          model,
+          prompt: still.prompt,
+          width: still.width,
+          height: still.height,
+          steps: q.steps,
+          cfg: q.cfg,
+          references: still.references,
+          guard: {
+            classifier: this.catalog.safety.classifier.path.split('/').pop()!,
+            threshold: this.catalog.safety.threshold,
+          },
+        },
+        seed: still.seed,
+        prefix: `hildegard/still-${still.id}`,
+      });
+      const references = await this.referencePaths(still.references);
+      await mkdir(dir, { recursive: true });
+      let lastProgressAt = 0;
+      await this.engine.render(built, {
+        dest,
+        quality: 'final',
+        signal: abort.signal,
+        references,
+        handlers: {
+          onRunning: () => {
+            ranFrom ??= Date.now();
+          },
+          onProgress: (p) => {
+            still.progress = { value: p.value, step: p.step, steps: p.steps };
+            const now = Date.now();
+            if (now - lastProgressAt > 160 || p.value >= 1) {
+              lastProgressAt = now;
+              this.store.putStill(still, true);
+            }
+          },
+          onPreview: (bytes, type) => {
+            this.previews.set(still.id, { bytes, type });
+            still.previewVersion++;
+            this.store.putStill(still, true);
+          },
+        },
+      });
+      Object.assign(still, {
+        status: 'done',
+        image: `/media/stills/${still.id}.png`,
+        progress: { value: 1, step: still.progress?.steps ?? null, steps: still.progress?.steps ?? null },
+      } satisfies Partial<Still>);
+    } catch (e) {
+      if (this.running?.requeue) {
+        Object.assign(still, { status: 'queued', progress: null, startedAt: null } satisfies Partial<Still>);
+      } else {
+        still.status = e instanceof EngineError && e.code === 'canceled' ? 'canceled' : 'failed';
+        still.error = explain(e);
+        await rm(dest, { force: true });
+      }
+    } finally {
+      if ((still.status as Still['status']) !== 'queued') {
+        still.queuePosition = null;
+        still.finishedAt = new Date().toISOString();
+        still.renderMs = Date.now() - (ranFrom ?? started);
+        if (still.error?.code === 'content_blocked') still.previewVersion++;
+        this.previews.delete(still.id);
+      }
+      this.store.putStill(still);
       this.running = null;
       this.renumber();
       this.pump();

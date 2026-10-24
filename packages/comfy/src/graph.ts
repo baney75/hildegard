@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { basename } from 'node:path';
-import type { Catalog, ComposedShot, Model, SafetyCheck } from '@hildegard/presets';
+import type { Catalog, ComposedShot, ComposedStill, Model, SafetyCheck } from '@hildegard/presets';
 
 /** A link to another node's output: `[nodeId, outputIndex]`, as ComfyUI's API format writes it. */
 export type Link = [string, number];
@@ -17,8 +17,12 @@ export type ApiGraph = Record<string, ApiNode>;
 export interface BuiltGraph {
   graph: ApiGraph;
   outputNode: string;
+  /** What the output node saves: a video (a take), or one image (a still). A video when absent. */
+  output?: 'video' | 'image';
   /** Set when the graph loads a start frame; the engine binds the uploaded image here. */
   startFrameNode?: string;
+  /** The LoadImage nodes for reference images, in order; the engine binds each reference image to its node. */
+  referenceNodes?: string[];
 }
 
 export interface GraphInput {
@@ -29,6 +33,9 @@ export interface GraphInput {
   /** Start frame file name, already in ComfyUI's input folder (or an SDK asset bound later). */
   startFrame?: string;
 }
+
+/** Placeholder names for reference images until the engine binds the real ones. */
+export const referenceName = (i: number) => `reference-${i + 1}.png`;
 
 export class GraphBuilder {
   readonly graph: ApiGraph = {};
@@ -135,21 +142,136 @@ function loadLtx2(g: GraphBuilder, m: Model, shot: ComposedShot): Loaded {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Hildegard's safety check: stops the render if a frame looks sexual, else passes the frames on untouched. */
-function guard(g: GraphBuilder, shot: ComposedShot, images: Link, what: 'take' | 'start frame'): Link {
+function guard(
+  g: GraphBuilder,
+  shot: { guard: { classifier: string; threshold: number } },
+  images: Link,
+  what: GuardWhat,
+): Link {
   return out(
     g.add(
       'HildegardGuard',
       { images, classifier: shot.guard.classifier, threshold: shot.guard.threshold, what },
-      what === 'take' ? 'Safety check' : 'Safety check: start frame',
+      what === 'take' ? 'Safety check' : `Safety check: ${what}`,
     ),
   );
+}
+
+/** What a HildegardGuard is checking, as the node names it when it refuses. */
+export type GuardWhat = 'take' | 'start frame' | 'reference' | 'still';
+
+/**
+ * FLUX.2 [klein], distilled: one still from words and up to four reference images. Each reference is checked, scaled
+ * to a megapixel, encoded and attached to both conditionings (BFL's multi-reference recipe), so the still keeps the
+ * people in them. Returns the decoded image, not yet checked.
+ */
+function klein(
+  g: GraphBuilder,
+  still: ComposedStill,
+  seed: number,
+  refs: string[],
+): { image: Link; nodes: string[] } {
+  const m = still.model;
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /klein/), weight_dtype: 'default' },
+    'Stills model',
+  );
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /qwen/), type: 'flux2', device: 'default' },
+    'Stills text encoder',
+  );
+  const vae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /flux2/) }, 'Stills VAE');
+  const text = g.add('CLIPTextEncode', { text: still.prompt, clip: out(clip) }, 'Still prompt');
+  let pos: Link = out(text);
+  let neg: Link = out(g.add('ConditioningZeroOut', { conditioning: out(text) }));
+  const nodes: string[] = [];
+  refs.forEach((name, i) => {
+    const load = g.add('LoadImage', { image: name }, `Reference ${i + 1}`);
+    nodes.push(load);
+    const scaled = g.add('ImageScaleToTotalPixels', {
+      image: guard(g, still, out(load), 'reference'),
+      upscale_method: 'lanczos',
+      megapixels: 1,
+      resolution_steps: 1,
+    });
+    const latent = g.add('VAEEncode', { pixels: out(scaled), vae: out(vae) });
+    pos = out(g.add('ReferenceLatent', { conditioning: pos, latent: out(latent) }));
+    neg = out(g.add('ReferenceLatent', { conditioning: neg, latent: out(latent) }));
+  });
+  const guider = g.add('CFGGuider', { model: out(unet), positive: pos, negative: neg, cfg: still.cfg });
+  const sampled = g.add(
+    'SamplerCustomAdvanced',
+    {
+      noise: out(g.add('RandomNoise', { noise_seed: seed })),
+      guider: out(guider),
+      sampler: out(g.add('KSamplerSelect', { sampler_name: 'euler' })),
+      sigmas: out(g.add('Flux2Scheduler', { steps: still.steps, width: still.width, height: still.height })),
+      latent_image: out(
+        g.add('EmptyFlux2LatentImage', { width: still.width, height: still.height, batch_size: 1 }),
+      ),
+    },
+    'Still sampler',
+  );
+  return { image: out(g.add('VAEDecode', { samples: out(sampled), vae: out(vae) })), nodes };
+}
+
+export interface StillInput {
+  still: ComposedStill;
+  seed: number;
+  /** File name prefix inside ComfyUI's output folder. */
+  prefix: string;
+}
+
+/** One still, checked, then saved as a PNG. */
+export function buildStillGraph({ still, seed, prefix }: StillInput): BuiltGraph {
+  const g = new GraphBuilder();
+  const { image, nodes } = klein(
+    g,
+    still,
+    seed,
+    still.references.map((_, i) => referenceName(i)),
+  );
+  const save = g.add(
+    'SaveImage',
+    { images: guard(g, still, image, 'still'), filename_prefix: prefix },
+    'Save',
+  );
+  return { graph: g.graph, outputNode: save, output: 'image', referenceNodes: nodes };
+}
+
+/**
+ * Where a take starts from, if anywhere: the uploaded start frame, checked; or, for a shot with characters, a still
+ * the stills model draws of them from their references.
+ */
+function startImage(
+  g: GraphBuilder,
+  { shot, seed, startFrame }: GraphInput,
+): { image?: Link; startFrameNode?: string; referenceNodes?: string[] } {
+  if (startFrame) {
+    const node = g.add('LoadImage', { image: startFrame }, 'Start frame');
+    return { image: guard(g, shot, out(node), 'start frame'), startFrameNode: node };
+  }
+  if (shot.cast) {
+    const k = shot.cast.keyframe;
+    const { image, nodes } = klein(
+      g,
+      k,
+      seed,
+      k.references.map((_, i) => referenceName(i)),
+    );
+    return { image, referenceNodes: nodes };
+  }
+  return {};
 }
 
 /**
  * LTX video with joint audio, distilled sampling. Final quality renders at half size, upsamples the latent ×2 and
  * refines with three more steps (Lightricks' two-stage recipe); draft runs stage one only at full size.
  */
-export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): BuiltGraph {
+export function buildLtxGraph(input: GraphInput): BuiltGraph {
+  const { shot, seed, prefix } = input;
   const g = new GraphBuilder();
   const m = shot.model;
   const L = m.graph === 'ltx-2.5-distilled' ? loadLtx25(g, m) : loadLtx2(g, m, shot);
@@ -165,11 +287,10 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   );
 
   let image: Link | undefined;
-  let startFrameNode: string | undefined;
-  if (startFrame) {
-    startFrameNode = g.add('LoadImage', { image: startFrame }, 'Start frame');
+  const start = startImage(g, input);
+  if (start.image) {
     const scaled = g.add('ImageScale', {
-      image: guard(g, shot, out(startFrameNode), 'start frame'),
+      image: start.image,
       upscale_method: 'lanczos',
       width: shot.width,
       height: shot.height,
@@ -249,14 +370,26 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   );
   const vid = g.add('CreateVideo', { images: out(look), fps: shot.fps, audio: out(sound) });
   const save = g.add('SaveVideo', { video: out(vid), filename_prefix: prefix, format: 'mp4' }, 'Save');
-  return { graph: g.graph, outputNode: save, startFrameNode };
+  return built(g, save, start);
 }
+
+const built = (
+  g: GraphBuilder,
+  save: string,
+  start: { startFrameNode?: string; referenceNodes?: string[] },
+): BuiltGraph => ({
+  graph: g.graph,
+  outputNode: save,
+  ...(start.startFrameNode ? { startFrameNode: start.startFrameNode } : {}),
+  ...(start.referenceNodes?.length ? { referenceNodes: start.referenceNodes } : {}),
+});
 
 /**
  * Wan 2.2 TI2V-5B: one dense model for text-to-video and image-to-video, 24 fps, no sound. A plain KSampler run over
  * Wan's own latent, with the start frame (if any) encoded into the first latent frame.
  */
-export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): BuiltGraph {
+export function buildWanGraph(input: GraphInput): BuiltGraph {
+  const { shot, seed, prefix } = input;
   const g = new GraphBuilder();
   const m = shot.model;
   const q = m[shot.quality];
@@ -275,7 +408,6 @@ export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   const pos = g.add('CLIPTextEncode', { text: shot.prompt, clip: out(clip) }, 'Prompt');
   const neg = g.add('CLIPTextEncode', { text: shot.negative, clip: out(clip) }, 'Negative prompt');
 
-  let startFrameNode: string | undefined;
   const latentInputs: Record<string, InputValue> = {
     vae: out(vae),
     width: shot.width,
@@ -283,11 +415,11 @@ export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): B
     length: shot.frames,
     batch_size: 1,
   };
-  if (startFrame) {
-    startFrameNode = g.add('LoadImage', { image: startFrame }, 'Start frame');
+  const start = startImage(g, input);
+  if (start.image) {
     latentInputs.start_image = out(
       g.add('ImageScale', {
-        image: guard(g, shot, out(startFrameNode), 'start frame'),
+        image: start.image,
         upscale_method: 'lanczos',
         width: shot.width,
         height: shot.height,
@@ -320,7 +452,7 @@ export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   );
   const vid = g.add('CreateVideo', { images: out(look), fps: shot.fps });
   const save = g.add('SaveVideo', { video: out(vid), filename_prefix: prefix, format: 'mp4' }, 'Save');
-  return { graph: g.graph, outputNode: save, startFrameNode };
+  return built(g, save, start);
 }
 
 /** The graph for whichever model the shot uses. */
@@ -350,11 +482,15 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'CLIPLoader',
   'CLIPTextEncode',
   'CheckpointLoaderSimple',
+  'ConditioningZeroOut',
   'CreateVideo',
+  'EmptyFlux2LatentImage',
   'EmptyLTXVLatentVideo',
+  'Flux2Scheduler',
   'HildegardGuard',
   'HildegardLook',
   'ImageScale',
+  'ImageScaleToTotalPixels',
   'KSampler',
   'KSamplerSelect',
   'LTXAVTextEncoderLoader',
@@ -373,14 +509,20 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'ManualSigmas',
   'ModelSamplingSD3',
   'RandomNoise',
+  'ReferenceLatent',
   'SamplerCustomAdvanced',
+  'SaveImage',
   'SaveVideo',
   'UNETLoader',
   'VAEDecode',
   'VAEDecodeTiled',
+  'VAEEncode',
   'VAELoader',
   'Wan22ImageToVideoLatent',
 ]);
+
+/** Most reference images a graph may load (FLUX.2 [klein]'s budget, MAX_REFERENCES in presets). */
+const MAX_REFERENCE_NODES = 4;
 
 /** Inputs that name a model file; on a shared GPU they may only name files from the catalog. */
 const FILE_INPUTS = new Set([
@@ -407,6 +549,16 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
   if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return ['the graph is not an object'];
   const ids = Object.keys(graph);
   if (!ids.length || ids.length > MAX_NODES) return [`the graph has ${ids.length} nodes`];
+  if (built.output !== undefined && built.output !== 'video' && built.output !== 'image')
+    return ['the graph saves something Hildegard never makes'];
+  const refs = built.referenceNodes ?? [];
+  if (
+    !Array.isArray(refs) ||
+    refs.length > MAX_REFERENCE_NODES ||
+    refs.some((r) => typeof r !== 'string' || r === built.startFrameNode) ||
+    new Set(refs).size !== refs.length
+  )
+    return ['the reference images are not ones Hildegard binds'];
   const negatives = new Set(
     Object.values(graph).flatMap((n) => {
       const v = n?.inputs?.negative;
@@ -440,8 +592,8 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
       if (FILE_INPUTS.has(k) && (typeof v !== 'string' || !modelFiles.has(v)))
         problems.push(`node ${id} names a model file that is not in the catalog`);
     }
-    if (node.class_type === 'LoadImage' && id !== built.startFrameNode)
-      problems.push(`node ${id} loads an image that is not the start frame`);
+    if (node.class_type === 'LoadImage' && id !== built.startFrameNode && !refs.includes(id))
+      problems.push(`node ${id} loads an image that is neither the start frame nor a reference`);
     if (node.class_type === 'HildegardGuard') {
       const { classifier, threshold } = node.inputs;
       if (classifier !== safety.classifier) problems.push(`node ${id} checks frames with another classifier`);
@@ -458,11 +610,19 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
     )
       problems.push(`node ${id} asks for sexual content`);
   }
-  const saves = Object.entries(graph).filter(([, n]) => n?.class_type === 'SaveVideo');
-  if (saves.length !== 1 || saves[0]![0] !== built.outputNode)
-    problems.push('the graph must save one video, from its output node');
+  // One output, of the kind the graph says it makes, and nothing else saved.
+  const want = built.output === 'image' ? 'SaveImage' : 'SaveVideo';
+  const saves = Object.entries(graph).filter(
+    ([, n]) => n?.class_type === 'SaveVideo' || n?.class_type === 'SaveImage',
+  );
+  if (saves.length !== 1 || saves[0]![0] !== built.outputNode || saves[0]![1].class_type !== want)
+    problems.push(
+      `the graph must save one ${built.output === 'image' ? 'image' : 'video'}, from its output node`,
+    );
   if (built.startFrameNode !== undefined && graph[built.startFrameNode]?.class_type !== 'LoadImage')
     problems.push('the start frame node is not a LoadImage');
+  if (refs.some((r) => graph[r]?.class_type !== 'LoadImage'))
+    problems.push('a reference image node is not a LoadImage');
   if (!problems.length) problems.push(...checkLinks(graph));
   if (!problems.length) problems.push(...guarded(built));
   return problems;
@@ -490,21 +650,33 @@ function guarded(built: BuiltGraph): string[] {
   const graph = built.graph;
   const problems: string[] = [];
   const save = graph[built.outputNode]!;
-  const video = Array.isArray(save.inputs.video) ? graph[save.inputs.video[0]] : undefined;
-  if (video?.class_type !== 'CreateVideo') return ['the video is not made by CreateVideo'];
-  const path = source(graph, video.inputs.images, new Set(['HildegardLook', 'HildegardGuard']));
-  if (!path.some((n) => n.class_type === 'HildegardGuard'))
-    problems.push('the frames reach the video without the safety check');
-  if (built.startFrameNode !== undefined) {
-    const users = Object.values(graph).filter((n) =>
-      Object.values(n.inputs).some((v) => Array.isArray(v) && v[0] === built.startFrameNode),
-    );
-    if (
-      !users.length ||
-      users.some((n) => n.class_type !== 'HildegardGuard' || n.inputs.what !== 'start frame')
-    )
-      problems.push('the start frame is used before the safety check');
+  let frames: InputValue | undefined;
+  if (built.output === 'image') frames = save.inputs.images;
+  else {
+    const video = Array.isArray(save.inputs.video) ? graph[save.inputs.video[0]] : undefined;
+    if (video?.class_type !== 'CreateVideo') return ['the video is not made by CreateVideo'];
+    frames = video.inputs.images;
   }
+  const path = source(graph, frames, new Set(['HildegardLook', 'HildegardGuard']));
+  if (!path.some((n) => n.class_type === 'HildegardGuard'))
+    problems.push(
+      built.output === 'image'
+        ? 'the image is saved without the safety check'
+        : 'the frames reach the video without the safety check',
+    );
+  // Every image the graph loads is checked before anything else touches it.
+  const checkedFirst = (node: string, what: string) => {
+    const users = Object.values(graph).filter((n) =>
+      Object.values(n.inputs).some((v) => Array.isArray(v) && v[0] === node),
+    );
+    return (
+      users.length > 0 && users.every((n) => n.class_type === 'HildegardGuard' && n.inputs.what === what)
+    );
+  };
+  if (built.startFrameNode !== undefined && !checkedFirst(built.startFrameNode, 'start frame'))
+    problems.push('the start frame is used before the safety check');
+  for (const r of built.referenceNodes ?? [])
+    if (!checkedFirst(r, 'reference')) problems.push('a reference image is used before the safety check');
   return problems;
 }
 
