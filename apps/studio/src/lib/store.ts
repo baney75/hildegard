@@ -14,6 +14,7 @@ import type {
   Shot,
   Snapshot,
   Take,
+  UpdateState,
 } from '@hildegard/presets';
 import { useSyncExternalStore } from 'react';
 import { api, SIGNED_OUT } from './api.ts';
@@ -42,6 +43,8 @@ export interface State {
   auth: AuthState | null;
   /** Host mode, for the owner: from the first look at Settings › Sharing, then kept live. */
   host: HostState | null;
+  /** Newer releases, and whether Hildegard updates itself. */
+  update: UpdateState | null;
 }
 
 let state: State = {
@@ -62,6 +65,7 @@ let state: State = {
   guests: [],
   auth: null,
   host: null,
+  update: null,
 };
 const listeners = new Set<() => void>();
 
@@ -95,6 +99,7 @@ function fromSnapshot(s: Snapshot): Partial<State> {
     exports: new Map((s.exports ?? []).map((x) => [x.projectId, x])),
     choir: s.choir ?? null,
     guests: s.guests ?? [],
+    update: s.update ?? null,
   };
 }
 
@@ -149,6 +154,9 @@ export function apply(events: ServerEvent[]) {
         break;
       case 'host':
         next.host = e.host;
+        break;
+      case 'update':
+        next.update = e.update;
         break;
     }
   }

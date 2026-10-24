@@ -168,6 +168,12 @@ test('snapshot of a running Hildegard', async () => {
     ].sort(),
   );
   for (const t of snap.recent) assert.ok(!Number.isNaN(Date.parse(t.at)));
+  assert.deepEqual(snap.update, { available: null, applying: false });
+
+  // Update asks the server, which says why it can't when it can't: this one runs from its source code.
+  const u = await run('update');
+  assert.equal(u.code, 1);
+  assert.equal(u.stderr, 'hildegard: This Hildegard runs from its source code. Update it with git.\n');
 });
 
 test('snapshot counts renders paired devices sent here, and shows the running one as the current take', async () => {

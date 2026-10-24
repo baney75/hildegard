@@ -3,7 +3,8 @@
 Hildegard in your Omarchy bar. A small aperture ring sits on the right; it fills while a take renders. Click it
 for a panel that shows what's rendering, the last five takes (click one to open it in the Studio), and buttons
 to start or stop Hildegard, open the Studio, the queue, or the page that links your AI apps. When a take finishes
-while the panel is closed, you get a notification that opens it.
+while the panel is closed, you get a notification that opens it. When a new Hildegard is out, the panel offers
+**Update to** it; Hildegard also updates itself when nothing is rendering, unless you turned that off in Settings.
 
 The widget only talks to Hildegard on `127.0.0.1`. It runs no root commands, installs no services, and changes
 none of your config. **Set up** opens a terminal that installs Hildegard for you alone, from a release whose
@@ -59,7 +60,7 @@ That removes the widget only. To remove Hildegard too, run `hildegard stop`, the
 ## Develop
 
 - `Widget.qml` draws the ring and the panel; `Model.js` decides what they show, as plain functions.
-- `bin/hildegard-omarchy` is the backend: `snapshot | start | stop | open [route] | setup | notify`.
+- `bin/hildegard-omarchy` is the backend: `snapshot | start | stop | update | open [route] | setup | notify`.
 - `bin/hildegard-omarchy-setup` is what **Set up** runs in a terminal.
 
 From the Hildegard repo root: `node --test omarchy/test/*.test.mjs` runs the tests (the backend ones start a real

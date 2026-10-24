@@ -70,8 +70,9 @@ import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSIO
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
+import type { Updates } from './update.ts';
 
-export const VERSION = '0.1.4';
+export const VERSION = '0.1.5';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -141,6 +142,8 @@ export interface AppDeps {
   review?: (spec: ReviewSpec) => Promise<Review>;
   /** What may render; presets/safety.toml unless a test says otherwise. */
   safety?: SafetyCheck;
+  /** Newer releases, and updating to them. */
+  updates: Updates;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -336,6 +339,7 @@ export function createApp(deps: AppDeps) {
     exports: deps.exporter.list(),
     choir: deps.choir.state(),
     guests: scheduler.guestTakes(),
+    update: deps.updates.state(),
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION, home: deps.home }));
@@ -349,6 +353,26 @@ export function createApp(deps: AppDeps) {
     setTimeout(deps.onStop, 50);
     return c.json({ ok: true });
   });
+
+  // ── Updates: the owner updates now, or turns automatic updates on or off ──────────────────────────────────────
+  app.post('/api/update/check', async (c) => {
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    return c.json(await deps.updates.check());
+  });
+  app.post('/api/update', (c) => {
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    const why = deps.updates.apply();
+    return why ? c.json({ error: why }, 409) : c.json(deps.updates.state());
+  });
+  app.put('/api/update', async (c) => {
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    const body = (await c.req.json().catch(() => null)) as { auto?: unknown } | null;
+    if (typeof body?.auto !== 'boolean')
+      return c.json({ error: 'Send { "auto": true } or { "auto": false }.' }, 400);
+    deps.updates.setAuto(body.auto);
+    return c.json(deps.updates.state());
+  });
+
   app.get('/api/agents', (c) =>
     c.json({
       agents: listAgents(),

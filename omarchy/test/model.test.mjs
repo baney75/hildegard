@@ -43,6 +43,7 @@ test('status', () => {
   assert.equal(M.status({ installed: false, running: false }), 'Not set up on this computer yet');
   assert.equal(M.status({ installed: true, running: false }), 'Not running');
   assert.equal(M.status(up()), 'Ready on RTX 4090');
+  assert.equal(M.status(up({ update: { available: '0.2.0', applying: true } })), 'Updating to 0.2.0');
   assert.equal(M.status(up({ engine: { online: true, fake: true } })), 'Ready (stand-in GPU)');
   assert.equal(M.status(up({ engine: { online: false } })), 'Waiting for ComfyUI');
   assert.equal(M.status(up({ engine: { online: true, problem: 'Out of GPU memory' } })), 'Out of GPU memory');
@@ -113,6 +114,14 @@ test('actions', () => {
   same(ids(up()), ['studio', 'agents', 'stop']);
   same(ids(up({ queue: { running: 1, queued: 0 } })), ['studio', 'queue', 'agents', 'stop']);
   same(ids(up({ queue: { running: 1, queued: 0, guests: 1 } })), ['studio', 'queue', 'agents', 'stop']);
+  // A newer release: offered once, and not while it installs.
+  same(ids(up({ update: { available: '0.2.0', applying: false } })), ['studio', 'agents', 'update', 'stop']);
+  assert.equal(
+    M.actions(up({ update: { available: '0.2.0', applying: false } }))[2].label,
+    'Update to 0.2.0',
+  );
+  same(ids(up({ update: { available: '0.2.0', applying: true } })), ['studio', 'agents', 'stop']);
+  same(ids(up({ update: { available: null, applying: false } })), ['studio', 'agents', 'stop']);
   for (const s of [{ installed: false }, { installed: true, running: false }, up()])
     assert.equal(M.actions(s).filter((a) => a.primary).length, 1);
 });

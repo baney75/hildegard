@@ -76,7 +76,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PUBKEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM3MUY1NjVEODE4QjRFNkUKUldSdVRvdUJYVllmeCs0RytuWEdkeTFGSlo4N0o1YXZqdy9sSERBRVM2WW5tdW1Ya3BLN3kwRlYK",
       "endpoints": ["https://github.com/baney75/hildegard/releases/latest/download/latest.json"],
       "requireSignedVersion": true,
       "windows": {

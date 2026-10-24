@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: AGPL-3.0-only
 # omarchy:summary=Hildegard in the Omarchy bar: render status, start and stop, open the Studio
-# omarchy:args=snapshot | start | stop | open [route] | setup | notify <title> <body> [route]
+# omarchy:args=snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route]
 # omarchy:hidden=true
 #
 # The bar widget's backend. It only talks to the hildegard command and to Hildegard's server on 127.0.0.1; it
@@ -102,7 +102,8 @@ snapshot() {
           | map({ id, projectId, status, title: title($s), at: (.finishedAt // .createdAt) })
         ),
         models: ([.models[] | select(.installed)] | length),
-        hf: (.hf.linked // false)
+        hf: (.hf.linked // false),
+        update: (if .update then { available: .update.available, applying: .update.applying } else null end)
       }' <<<"$raw"
 }
 
@@ -119,6 +120,14 @@ stop() {
   bin=$(cli)
   [[ -n $bin ]] || fail "Hildegard isn't installed."
   "$bin" stop --json --port "$PORT" >/dev/null 2>&1 || fail "it didn't stop"
+}
+
+# Asks Hildegard to update itself to the newest release. It checks the release's signature, installs it next to this
+# one and restarts; the snapshot says so meanwhile.
+update() {
+  local out
+  out=$(curl -sS --max-time 10 -X POST -H 'x-hildegard: 1' "$URL/api/update" 2>&1) || fail "Hildegard isn't running."
+  if [[ $(jq -r 'has("error")' <<<"$out" 2>/dev/null) == true ]]; then fail "$(jq -r '.error' <<<"$out")"; fi
 }
 
 # Opens the Studio, at a route such as "#/queue" or "#/film/<id>/take/<id>". Routes are checked, so nothing but
@@ -144,8 +153,9 @@ case ${1:-} in
 snapshot) snapshot ;;
 start) start ;;
 stop) stop ;;
+update) update ;;
 open) open_studio "${2:-}" ;;
 setup) setup ;;
 notify) notify "${2:-}" "${3:-}" "${4:-}" ;;
-*) fail "usage: hildegard-omarchy snapshot | start | stop | open [route] | setup | notify <title> <body> [route]" ;;
+*) fail "usage: hildegard-omarchy snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route]" ;;
 esac

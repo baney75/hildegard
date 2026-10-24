@@ -39,6 +39,12 @@ Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Supp
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,
 added to your PATH). To remove Hildegard, run `hildegard stop` and delete that folder.
 
+**Updates.** Hildegard checks for a new release every six hours. When one is out and nothing is rendering or
+downloading, it updates itself and starts again as the new version; the version before stays in the folder. Each
+release's installer is signed, and Hildegard refuses one that isn't signed with Hildegard's key. To choose when
+instead: Settings › About › **Ask me first**, or `hildegard update auto off`, then `hildegard update` (or **Update** in
+Settings) when you want it. `hildegard update --check` only looks.
+
 On [Omarchy](https://omarchy.org), the [Hildegard bar widget](omarchy/README.md) shows renders in your bar and can do
 the install for you.
 
@@ -87,8 +93,8 @@ node apps/desktop/scripts/prepare-bundle.mjs     # the Hildegard and Node.js the
 pnpm --filter @hildegard/desktop tauri build     # or tauri dev
 ```
 
-Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), updates through Tauri's
-signed updater, a universal macOS build and Linux on arm64, and notices for the Rust crates inside the app.
+Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), a universal macOS build
+and Linux on arm64, and notices for the Rust crates inside the app.
 
 ## Hugging Face
 

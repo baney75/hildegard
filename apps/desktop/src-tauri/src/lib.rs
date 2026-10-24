@@ -370,6 +370,11 @@ fn watch(app: AppHandle) {
         }
         continue;
       }
+      // An update restarts Hildegard as the new version; that's a pause, not a stop.
+      if updating(&hg.layout) {
+        misses = 0;
+        continue;
+      }
       misses += 1;
       if misses < 2 {
         continue;
@@ -386,6 +391,14 @@ fn watch(app: AppHandle) {
       }
     }
   });
+}
+
+/// `hildegard update` is restarting Hildegard: it leaves this file until the new version answers, or for at most
+/// fifteen minutes.
+fn updating(layout: &Layout) -> bool {
+  std::fs::metadata(layout.data.join("updating"))
+    .and_then(|m| m.modified())
+    .is_ok_and(|t| t.elapsed().is_ok_and(|e| e < Duration::from_secs(15 * 60)))
 }
 
 /// Saves a download in the Downloads folder, under a name nothing else there has, and shows it when it's done.

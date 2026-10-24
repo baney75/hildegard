@@ -86,6 +86,9 @@ jobs:
         with:
           path: artifacts
       - name: Gather the files, with version-free names for the app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           mkdir out
           cp artifacts/release/install.sh artifacts/release/install.ps1 artifacts/release/*.tar.gz out/
@@ -103,11 +106,13 @@ jobs:
           for f in Hildegard_x64-setup.exe Hildegard_x64.msi Hildegard_aarch64.dmg Hildegard_amd64.AppImage Hildegard_amd64.deb; do
             test -f "out/$f" || { echo "missing $f"; exit 1; }
           done
-          # What the app's updater reads, once the release has signed app files.
-          if ls out/*.sig > /dev/null 2>&1; then
+          # Updates: the installers `hildegard update` runs, signed with the key the app's files were signed with, and
+          # latest.json, which the app and Hildegard read to learn of this release. Without the key, nothing is offered.
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            for f in install.sh install.ps1; do npx --yes @tauri-apps/cli@2.12.2 signer sign "out/$f" > /dev/null; done
             node scripts/updater-manifest.mjs out "${{ needs.version.outputs.tag }}"
           else
-            echo "::warning::No signed app files, so the apps won't be offered this release."
+            echo "::warning::No update signing key, so nothing will be offered this release as an update."
           fi
           # One list of hashes for everything, the installers' own lines included.
           (cd out && sha256sum -- * > SHA256SUMS)
