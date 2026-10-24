@@ -44,7 +44,12 @@ export function Voice({ parts, wc, go }: { parts: string[]; wc: WindowClass; go:
   }, [state]);
 
   const sub = parts[1] ?? 'speak';
-  const tab: Tab = sub === 'voices' && !parts[2] ? 'voices' : sub === 'recordings' ? 'recordings' : 'speak';
+  const tab: Tab =
+    sub === 'voices' || sub === 'design' || sub === 'clone'
+      ? 'voices'
+      : sub === 'recordings'
+        ? 'recordings'
+        : 'speak';
   const sessionId = sub === 'clone' ? (parts[2] ?? null) : null;
   // biome-ignore lint/correctness/useExhaustiveDependencies: another clone starts at its own step.
   useEffect(() => setRedo(null), [sessionId]);

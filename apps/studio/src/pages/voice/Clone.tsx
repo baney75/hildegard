@@ -447,6 +447,9 @@ function Record({
       const j = await api.checkConsent(s.id);
       upsert({ type: 'voice-job', job: j });
       onCheck();
+      // A check that couldn't run at all leaves no result to show, so say why here.
+      const done = await whenVoiceJob(j.id);
+      if (done.status === 'failed') throw new Error(done.error?.message ?? 'The check stopped.');
     } catch (e) {
       toastError(e);
     } finally {

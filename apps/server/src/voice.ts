@@ -1374,7 +1374,7 @@ export class VoiceStudio {
       }
       // Same person throughout.
       const enc = this.models.encoderPath();
-      if (!existsSync(enc))
+      if (!this.models.hasEncoder())
         throw new VoiceError(
           409,
           'model_missing',

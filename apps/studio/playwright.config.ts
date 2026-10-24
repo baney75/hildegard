@@ -17,7 +17,11 @@ const nodeData = mkdtempSync(join(tmpdir(), 'hildegard-e2e-node-'));
 // is "installed" there, so there's something to link.
 const home = mkdtempSync(join(tmpdir(), 'hildegard-e2e-home-'));
 mkdirSync(join(home, '.cursor'));
-const chromium = process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {};
+// A stand-in microphone, allowed without asking, for recording voice samples and consent.
+const chromium = {
+  ...(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {}),
+  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+};
 
 export default defineConfig({
   testDir: 'e2e',

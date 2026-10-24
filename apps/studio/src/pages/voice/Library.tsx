@@ -86,6 +86,8 @@ export function Library({ state, go }: { state: VoiceState; go: (to: string) => 
 
 function VoiceCard({ v, go }: { v: Voice; go: (to: string) => void }) {
   const [busy, setBusy] = useState(false);
+  // The sample just made, until the library learns of it.
+  const [made, setMade] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const off = v.kind === 'clone' && v.consent?.status !== 'active';
@@ -97,7 +99,10 @@ function VoiceCard({ v, go }: { v: Voice; go: (to: string) => void }) {
       const done = 'id' in r ? await whenVoiceJob(r.id) : null;
       if (done && done.status !== 'done') throw new Error(done.error?.message ?? 'The sample stopped.');
       const url = done ? done.audio[0] : 'id' in r ? null : r.audio;
-      if (url) toggle(url);
+      if (url) {
+        setMade(url);
+        toggle(url);
+      }
     } catch (e) {
       toastError(e);
     } finally {
@@ -113,7 +118,7 @@ function VoiceCard({ v, go }: { v: Voice; go: (to: string) => void }) {
           <small>{voiceLine(v)}</small>
         </span>
         <PlayButton
-          url={v.preview}
+          url={made ?? v.preview}
           onNeed={preview}
           busy={busy}
           label={`a sample of ${v.name}`}

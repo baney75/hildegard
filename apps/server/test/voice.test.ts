@@ -665,6 +665,27 @@ describe('the stand-in GPU', () => {
         j = (await (await fetch(`${s.url}/api/voice/jobs/${id}`)).json()) as VoiceJob;
         return j.status === 'done';
       });
+      // Cloning needs the speaker check, whose weights the stand-in doesn't download either.
+      const c = (await (
+        await fetch(`${s.url}/api/voice/consent`, {
+          method: 'POST',
+          headers: H,
+          body: JSON.stringify({ speaker: 'Ada', relation: 'self' }),
+        })
+      ).json()) as ConsentSessionView;
+      const rec = await fetch(`${s.url}/api/voice/consent/${c.id}/recording`, {
+        method: 'POST',
+        headers: { 'x-hildegard': '1', 'content-type': 'audio/wav' },
+        body: Buffer.from(recording(12)),
+      });
+      expect(rec.status).toBe(200);
+      const chk = await fetch(`${s.url}/api/voice/consent/${c.id}/check`, { method: 'POST', headers: H });
+      const cid = ((await chk.json()) as VoiceJob).id;
+      await until(async () => {
+        j = (await (await fetch(`${s.url}/api/voice/jobs/${cid}`)).json()) as VoiceJob;
+        return j.status !== 'queued' && j.status !== 'running';
+      });
+      expect(j).toMatchObject({ status: 'done' });
       expect(fetched).toEqual([]);
     } finally {
       await s.close();

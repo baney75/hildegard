@@ -4,7 +4,7 @@
  * video models: free space first, resumable, verified against models.lock.json or the hash Hugging Face publishes.
  * A model that clones also brings the speaker check and Whisper, which consent needs.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import type {
   ModelLock,
@@ -113,6 +113,11 @@ export class VoiceModels {
   /** The speaker check's weights file. */
   encoderPath(): string {
     return this.pathOf('consent', this.catalog.consent.encoder);
+  }
+
+  /** Whether the speaker check can run: its weights are here, or the stand-in GPU needs none. */
+  hasEncoder(): boolean {
+    return this.standIn || existsSync(this.encoderPath());
   }
 
   private filesOf(m: VoiceModel): Array<{ file: VoiceFile; path: string }> {

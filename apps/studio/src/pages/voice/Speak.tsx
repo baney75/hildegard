@@ -551,7 +551,7 @@ function Paragraph({
     if (!typing) return;
     const before = para.text.slice(0, typing.start);
     const after = para.text.slice(caret ?? typing.start).replace(/^[a-z ]*\]?/i, '');
-    const pad = after.startsWith(' ') || !after ? '' : ' ';
+    const pad = after.startsWith(' ') ? '' : ' ';
     const text = `${before}[${tag}]${pad}${after}`;
     onChange({ text });
     const at = before.length + tag.length + 2 + pad.length;

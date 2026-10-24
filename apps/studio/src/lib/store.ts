@@ -112,6 +112,9 @@ function fromSnapshot(s: Snapshot): Partial<State> {
   };
 }
 
+/** How far along a voice job is: it only ever moves forward. */
+const stage = (s: VoiceJob['status']) => (s === 'queued' ? 0 : s === 'running' ? 1 : 2);
+
 /** Apply a batch of server events in one update, so a burst of progress costs one render. */
 export function apply(events: ServerEvent[]) {
   let { projects, shots, takes } = state;
@@ -173,6 +176,9 @@ export function apply(events: ServerEvent[]) {
       case 'voice-job': {
         const v = next.voice ?? state.voice;
         if (!v) break;
+        // A reply to the request can land after the event saying the job already finished: keep the later state.
+        const old = v.jobs.find((j) => j.id === e.job.id);
+        if (old && stage(old.status) > stage(e.job.status)) break;
         const jobs = [...v.jobs.filter((j) => j.id !== e.job.id), e.job];
         jobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         next.voice = { ...v, jobs };
