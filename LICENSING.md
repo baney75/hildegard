@@ -9,5 +9,6 @@ Copyright 2026 Donovan Baney and Hildegard contributors.
   - LTX-2.5: [LTX-2.x Community License](https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x)
   - LTX-2 and its camera LoRAs: [LTX-2 Community License](https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2); its Gemma 3 text encoder comes under Google's Gemma Terms of Use
   - Wan 2.2 5B: [Apache-2.0](https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt)
+  - FLUX.2 [klein] 4B, the stills model for characters: [Apache-2.0](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B), with the Qwen3-4B text encoder ([Apache-2.0](https://huggingface.co/Qwen/Qwen3-4B))
 
 ComfyUI (GPL-3.0) runs as a separate program that Hildegard talks to over HTTP; it is not part of Hildegard.

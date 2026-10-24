@@ -43,12 +43,16 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cancel_take',
+      'create_character',
       'direct_shot',
       'export_film',
       'get_shot',
       'hildegard_status',
       'install_model',
+      'keep_still',
+      'list_characters',
       'list_presets',
+      'make_character_stills',
       'make_sequence',
       'review_prompt',
       'review_take',
@@ -85,6 +89,46 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     const take = [...srv.store.takes.values()].find((x) => x.request.prompt.startsWith('A heron'))!;
     expect(take.source).toEqual({ kind: 'agent', name: 'test-agent' });
     expect(take.priority).toBe('agent');
+  });
+
+  it('makes a character, keeps a face, draws a sheet and casts them, as an agent would', async () => {
+    const made = await call('create_character', {
+      name: 'Brother Konrad',
+      description: 'A tall monk in his sixties, shaved head, deep laugh lines',
+      wardrobe: 'a black wool habit',
+      wait_seconds: 60,
+    });
+    expect(made.isError).toBeFalsy();
+    expect(made.content.filter((c) => c.type === 'image')).toHaveLength(4);
+    expect(made.content.find((c) => c.type === 'image')).toMatchObject({ mimeType: 'image/png' });
+    const stills = [...textOf(made).matchAll(/- (\w{16}) portrait \(seed \d+\): done/g)].map((m) => m[1]!);
+    expect(stills).toHaveLength(4);
+    const id = /Made character (\w{16})/.exec(textOf(made))![1]!;
+    expect(srv.store.characters.get(id)!.likeness).toBe('invented');
+    expect(srv.store.stills.get(stills[0]!)!.source).toEqual({ kind: 'agent', name: 'test-agent' });
+
+    expect(textOf(await call('keep_still', { still_id: stills[0] }))).toContain('Ready to cast');
+    const sheet = await call('make_character_stills', {
+      character: 'brother konrad',
+      view: 'sheet',
+      wait_seconds: 60,
+    });
+    expect(textOf(sheet)).toMatch(/three-quarter.*\n.*profile.*\n.*full-body/);
+    expect(textOf(await call('list_characters'))).toContain(`${id} "Brother Konrad"`);
+
+    const r = await call('direct_shot', {
+      prompt: 'Brother Konrad rings the chapel bell at dawn',
+      characters: ['Brother Konrad'],
+      seconds: 3,
+      wait: true,
+    });
+    expect(r.isError).toBeFalsy();
+    expect(textOf(r)).toContain('done. Video:');
+    const take = [...srv.store.takes.values()].find((x) => x.request.prompt.startsWith('Brother Konrad'))!;
+    expect(take.request.characters).toEqual([id]);
+    // The words a character carries are checked like any prompt.
+    const refused = await call('create_character', { name: 'X', description: 'nude', portraits: 0 });
+    expect(refused.isError).toBe(true);
   });
 
   it('corrects a wrong id with the ids that would work', async () => {

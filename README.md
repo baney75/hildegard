@@ -111,6 +111,15 @@ echo. The token goes to your system keychain (macOS Keychain, Windows Credential
 Linux), or to a file only you can read when no keychain runs. It is never written to `~/.cache/huggingface`, never
 passed on the command line, and never shown to AI apps. The Studio's Settings › Hugging Face does the same.
 
+## Characters
+
+Make someone once and cast them in every shot: Hildegard draws portraits from your description, you keep the face you
+like, it draws the other angles from it, and every shot you cast them in (type `@` in the prompt) starts from those
+references, so the face and clothes stay the same. Characters can have a voice from the voice studio. A character based
+on a real person draws only from photos that person takes themselves, live, on a link you send them, and stops the
+moment they take it back. The stills come from FLUX.2 [klein] 4B (Apache-2.0, about 13 GB of GPU memory). See
+[docs/characters.md](docs/characters.md).
+
 ## Use it from your AI apps
 
 Hildegard is an MCP server. Linked apps (Claude Code, Claude Desktop, Codex, Cursor, OpenCode, VS Code, Windsurf, LM
@@ -126,8 +135,9 @@ Each app's config is backed up once before Hildegard adds itself. The Studio's A
 what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
-`get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`. `direct_shot` takes a `film`: a film's id,
-or a title, which reuses the film with that title or makes one.
+`get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`, and for characters `list_characters`,
+`create_character`, `make_character_stills` and `keep_still`. `direct_shot` takes a `film`: a film's id, or a title,
+which reuses the film with that title or makes one; and `characters`, to cast them.
 
 The same tools answer over HTTP at `http://127.0.0.1:7341/mcp` (Streamable HTTP), for apps that take an MCP address
 instead of a command: Open WebUI, Jan, LM Studio and the like. On this computer it needs nothing.
@@ -254,8 +264,8 @@ someone should read [docs/agents.md](docs/agents.md): the app on one computer, a
 ## Licenses
 
 Hildegard is AGPL-3.0-only; the presets in `presets/` are Apache-2.0. The models have their own licenses, which
-Hildegard shows before any download: LTX-2.x is free for people and companies under $10M yearly revenue, Wan 2.2 is
-Apache-2.0. See [LICENSING.md](LICENSING.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Hildegard shows before any download: LTX-2.x is free for people and companies under $10M yearly revenue, Wan 2.2 and
+FLUX.2 [klein] 4B are Apache-2.0. See [LICENSING.md](LICENSING.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Develop
 

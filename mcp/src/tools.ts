@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
-import type { Catalog, ShotRequestInput, Snapshot, Take } from '@hildegard/presets';
+import type {
+  Catalog,
+  Character,
+  CharacterView,
+  ShotRequestInput,
+  Snapshot,
+  Still,
+  Take,
+} from '@hildegard/presets';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
@@ -101,6 +109,13 @@ const shotShape = {
     .max(120)
     .optional()
     .describe('A short title for the shot. Default: the first words of the prompt.'),
+  characters: z
+    .array(z.string())
+    .max(3)
+    .optional()
+    .describe(
+      'Up to 3 characters in the shot, by id or name from list_characters. Hildegard draws the first frame from their reference images, so faces and clothes stay the same from shot to shot. Name them in the prompt too. Not with a start frame.',
+    ),
 };
 const ShotArgs = z.object(shotShape);
 type ShotArgs = z.infer<typeof ShotArgs>;
@@ -141,9 +156,10 @@ export function toRequest(a: ShotArgs, catalog: Catalog, installed: Set<string>)
   if (a.genre) pick(catalog.genres, a.genre, 'genre');
   if (a.era) pick(catalog.eras, a.era, 'era');
   if (a.aspect) pick(catalog.aspects, a.aspect, 'aspect');
+  const videos = videoModels(catalog);
   const model = a.model
-    ? pick(catalog.models, a.model, 'model')
-    : (catalog.models.find((m) => installed.has(m.id)) ?? catalog.models[0]!);
+    ? pick(videos, a.model, 'model')
+    : (videos.find((m) => installed.has(m.id)) ?? videos[0]!);
   return {
     prompt: a.prompt,
     rig: { body: body.id, lens: lens.id, focal, aperture: a.aperture ?? 2.8 },
@@ -173,6 +189,33 @@ function describeTake(t: Take, video: string | undefined): string {
 }
 
 const filmOf = (f: { id: string; title: string }) => `film ${f.id} "${f.title}"`;
+
+/** Models that make shots; the stills model draws characters. */
+const videoModels = (c: Catalog) => c.models.filter((m) => m.kind !== 'image');
+
+/** Whether a character can be drawn now, and why not. */
+function drawable(c: Character): string | null {
+  if (c.likeness === 'real' && c.consent?.status !== 'active')
+    return c.consent?.status === 'revoked'
+      ? 'their consent was taken back'
+      : 'they are a real person who hasn’t consented yet; only they can, on the link their maker sends them';
+  if (!c.references.length) return 'no reference images yet; make_character_stills, then keep_still';
+  return null;
+}
+
+function describeCharacter(c: Character): string {
+  const why = drawable(c);
+  const views = [...new Set(c.references.map((r) => r.view ?? 'other'))].join(', ');
+  return `- ${c.id} "${c.name}"${c.likeness === 'real' ? ' (real person)' : ''}: ${c.description || 'no description'}${c.wardrobe ? `; wears ${c.wardrobe}` : ''}. ${c.references.length} reference${c.references.length === 1 ? '' : 's'}${views ? ` (${views})` : ''}${c.voice ? `, voice ${c.voice}` : ''}. ${why ? `Can’t be cast: ${why}.` : 'Ready to cast.'}`;
+}
+
+function describeStill(s: Still): string {
+  const head = `- ${s.id} ${s.view} (seed ${s.seed}): `;
+  if (s.status === 'done') return `${head}done${s.kept ? ', kept as a reference' : ''}`;
+  if (s.status === 'failed') return `${head}failed: ${s.error?.message ?? 'unknown error'}`;
+  if (s.status === 'running') return `${head}drawing, ${Math.round((s.progress?.value ?? 0) * 100)}%`;
+  return `${head}${s.status === 'queued' ? 'waiting' : s.status}`;
+}
 
 /** Where a finished take's video is: its path on this computer, or a link for an app on another device. */
 type VideoOf = (d: ShotDetail, t: Take) => string | undefined;
@@ -270,9 +313,11 @@ export function registerTools(
 
   const createShot = async (a: ShotArgs, projectId?: string) => {
     const [catalog, snap] = await Promise.all([client.catalog(), client.snapshot()]);
+    const videos = new Set(videoModels(catalog).map((m) => m.id));
     const installed = new Set(
-      snap.models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id),
+      snap.models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu' && videos.has(m.id)).map((m) => m.id),
     );
+    const characters = snap.characters ?? [];
     if (!a.model && !installed.size && snap.models.some((m) => m.fitWhy === 'apple-gpu'))
       throw new Error(
         'No video model renders on this Mac yet. Pair a device with an NVIDIA or AMD GPU (`hildegard choir join`) and render there.',
@@ -285,6 +330,26 @@ export function registerTools(
         422,
         'Hildegard runs on another computer, so it can’t read a path on yours. Send the image itself as start_frame_data (base64).',
       );
+    if (a.characters?.length) {
+      if (a.start_frame_path || a.start_frame_data)
+        throw new HildegardError(
+          422,
+          'Give characters or a start frame, not both: the characters draw the start frame.',
+        );
+      request.characters = a.characters.map((who) => {
+        const c =
+          characters.find((x) => x.id === who) ??
+          characters.find((x) => x.name.toLowerCase() === who.trim().toLowerCase());
+        if (!c)
+          throw new HildegardError(
+            422,
+            `No character "${who}". ${characters.length ? `Use one of: ${characters.map((x) => `${x.id} (${x.name})`).join(', ')}.` : 'Make one with create_character.'}`,
+          );
+        const why = drawable(c);
+        if (why) throw new HildegardError(422, `${c.name} can’t be cast: ${why}.`);
+        return c.id;
+      });
+    }
     if (a.start_frame_path) request.startFrame = await client.upload(a.start_frame_path);
     if (a.start_frame_data) {
       const bytes = Buffer.from(a.start_frame_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
@@ -328,7 +393,7 @@ export function registerTools(
             : st?.downloading
               ? `downloading ${Math.round((st.downloading.done / Math.max(1, st.downloading.total)) * 100)}%`
               : `not installed (${(m.files.reduce((n, f) => n + f.size, 0) / 1e9).toFixed(0)} GB${m.gated ? ', needs a linked Hugging Face account' : ''})`;
-          return `- ${m.id}: ${m.name}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
+          return `- ${m.id}: ${m.name}${m.kind === 'image' ? ' (stills, for characters)' : ''}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
         }),
         ...recentTakes(s, a.recent_takes ?? 10),
       ];
@@ -362,10 +427,14 @@ export function registerTools(
             `aspect: ${c.aspects.map((a) => a.id).join(', ')}`,
             list(
               'model',
-              c.models.map((m) => ({
+              videoModels(c).map((m) => ({
                 ...m,
                 blurb: `${m.blurb} Up to ${m.maxSeconds}s${m.audio ? ', with sound' : ''}.`,
               })),
+            ),
+            list(
+              'stills model (draws characters; install it with install_model to use characters)',
+              c.models.filter((m) => m.kind === 'image'),
             ),
           ].join('\n\n'),
         );
@@ -679,6 +748,203 @@ export function registerTools(
           );
         throw e;
       }
+    }),
+  );
+
+  // ── Characters ─────────────────────────────────────────────────────────────────────────────────────────────────
+  /** Stills drawn, with each finished one as an image, after waiting up to `seconds` for them. */
+  const stillsResult = async (ids: string[], seconds: number, extra: Extra, head: string) => {
+    const until = Date.now() + seconds * 1000;
+    let stills: Still[] = [];
+    for (;;) {
+      const snap = await client.snapshot();
+      stills = ids.map((id) => snap.stills.find((s) => s.id === id)).filter((s) => s !== undefined);
+      const done = stills.every((s) => DONE.includes(s.status));
+      if (done || Date.now() >= until || extra.signal.aborted) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    const images = await Promise.all(
+      stills.map((s) => (s.status === 'done' && s.image ? client.image(s.image) : Promise.resolve(null))),
+    );
+    const content: CallToolResult['content'] = [
+      { type: 'text', text: [head, ...stills.map(describeStill)].join('\n') },
+    ];
+    stills.forEach((s, i) => {
+      const img = images[i];
+      if (!img) return;
+      content.push({ type: 'text', text: `Still ${s.id} (${s.view}):` });
+      content.push({ type: 'image', data: img.data, mimeType: img.mimeType });
+    });
+    const pending = stills.filter((s) => !DONE.includes(s.status)).length;
+    content.push({
+      type: 'text',
+      text: pending
+        ? `${pending} still${pending === 1 ? ' is' : 's are'} still drawing; call make_character_stills with wait_seconds and no view later, or look in the Studio.`
+        : 'Look at each still. Keep the one that best matches the description with keep_still: the first portrait you keep becomes their face, and every later still and cast shot starts from it.',
+    });
+    return { content };
+  };
+  const characterFor = async (who: string) => {
+    const { characters = [] } = await client.snapshot();
+    const c =
+      characters.find((x) => x.id === who) ??
+      characters.find((x) => x.name.toLowerCase() === who.trim().toLowerCase());
+    if (!c)
+      throw new HildegardError(
+        404,
+        `No character "${who}". ${characters.length ? `Use one of: ${characters.map((x) => `${x.id} (${x.name})`).join(', ')}.` : 'Make one with create_character.'}`,
+      );
+    return c;
+  };
+
+  server.registerTool(
+    'list_characters',
+    {
+      title: 'List characters',
+      description:
+        'The characters your user has made: reusable people with reference images, so the same face and clothes appear in every shot they are cast in (the characters field of direct_shot). Says which can be cast now and why not.',
+      annotations: { readOnlyHint: true },
+    },
+    (extra) =>
+      guard(async () => {
+        const { characters = [] } = await client.snapshot();
+        if (!characters.length) return text('No characters yet. Make one with create_character.');
+        return text(['Characters:', ...characters.map(describeCharacter)].join('\n'));
+      })(undefined, extra),
+  );
+
+  server.registerTool(
+    'create_character',
+    {
+      title: 'Create a character',
+      description:
+        'Make an invented character and draw portraits of them to pick a face from, on the computer Hildegard runs on. Then keep the best portrait with keep_still, draw the other angles with make_character_stills (view "sheet"), and cast them in shots. Only invented people: a character of a real person needs that person’s own consent, which they give themselves in the Studio; you can’t give it for them. Never describe anyone sexually: Hildegard refuses it.',
+      inputSchema: {
+        name: z.string().min(1).max(60).describe('What to call them, e.g. Mara.'),
+        description: z
+          .string()
+          .max(600)
+          .optional()
+          .describe(
+            'How they look, concretely: age, build, face, hair, skin, marks. E.g. "Early thirties, auburn side braid, light freckles, gray-green eyes".',
+          ),
+        wardrobe: z
+          .string()
+          .max(300)
+          .optional()
+          .describe('What they wear in every shot, e.g. "an undyed linen shirt and a canvas apron".'),
+        portraits: z
+          .number()
+          .int()
+          .min(0)
+          .max(4)
+          .optional()
+          .describe('Portraits to draw to pick a face from. Default 4; 0 for none.'),
+        wait_seconds: z
+          .number()
+          .int()
+          .min(0)
+          .max(600)
+          .optional()
+          .describe('Wait up to this long for the portraits and return them. Default 0.'),
+      },
+    },
+    guard(async (a, extra) => {
+      const c = await client.createCharacter({
+        name: a.name,
+        description: a.description,
+        wardrobe: a.wardrobe,
+      });
+      const n = a.portraits ?? 4;
+      if (!n) return text(`Made character ${c.id} "${c.name}". Draw portraits with make_character_stills.`);
+      const { stills } = await client.makeStills(c.id, { view: 'portrait', count: n, agent: agentName() });
+      return stillsResult(
+        stills.map((s) => s.id),
+        a.wait_seconds ?? 0,
+        extra,
+        `Made character ${c.id} "${c.name}" and queued ${n} portrait${n === 1 ? '' : 's'}:`,
+      );
+    }),
+  );
+
+  const SHEET: CharacterView[] = ['three-quarter', 'profile', 'full-body'];
+  server.registerTool(
+    'make_character_stills',
+    {
+      title: 'Draw a character',
+      description:
+        'Draw stills of a character from their reference images: more portraits to choose from, other angles, or "sheet" for three-quarter, profile and full body at once, so later shots can read the face and outfit from every side. Keep the good ones with keep_still. With no view, reports on the stills already drawn.',
+      inputSchema: {
+        character: z.string().describe('Character id or name, from list_characters.'),
+        view: z
+          .enum(['portrait', 'three-quarter', 'profile', 'full-body', 'sheet'])
+          .optional()
+          .describe('What to draw. "sheet" draws the three angles a character sheet needs.'),
+        count: z
+          .number()
+          .int()
+          .min(1)
+          .max(4)
+          .optional()
+          .describe('Stills of each view, each with its own seed. Default 1.'),
+        note: z
+          .string()
+          .max(300)
+          .optional()
+          .describe('Extra words for these stills only: an expression, a mood. Not a new outfit.'),
+        wait_seconds: z
+          .number()
+          .int()
+          .min(0)
+          .max(600)
+          .optional()
+          .describe('Wait up to this long and return the stills. Default 0.'),
+      },
+    },
+    guard(async (a, extra) => {
+      const c = await characterFor(a.character);
+      if (!a.view) {
+        const { stills = [] } = await client.snapshot();
+        const ours = stills.filter((s) => s.characterId === c.id && !s.kept);
+        if (!ours.length) return text(`${c.name} has no stills waiting to be kept.`);
+        return stillsResult(
+          ours.map((s) => s.id),
+          a.wait_seconds ?? 0,
+          extra,
+          `Stills of ${c.name} not yet kept:`,
+        );
+      }
+      const views = a.view === 'sheet' ? SHEET : [a.view];
+      const ids: string[] = [];
+      for (const view of views) {
+        const { stills } = await client.makeStills(c.id, {
+          view,
+          count: a.count ?? 1,
+          note: a.note,
+          agent: agentName(),
+        });
+        ids.push(...stills.map((s) => s.id));
+      }
+      return stillsResult(
+        ids,
+        a.wait_seconds ?? 0,
+        extra,
+        `Queued ${ids.length} still${ids.length === 1 ? '' : 's'} of ${c.name}:`,
+      );
+    }),
+  );
+
+  server.registerTool(
+    'keep_still',
+    {
+      title: 'Keep a still',
+      description:
+        'Keep a finished still as one of its character’s reference images. The first portrait kept becomes their face. Keep only stills that match the description and each other; a reference that looks like someone else makes every later shot drift.',
+      inputSchema: { still_id: z.string().describe('A finished still’s id.') },
+    },
+    guard(async (a) => {
+      const c = await client.keepStill(a.still_id);
+      return text(`Kept. ${describeCharacter(c).slice(2)}`);
     }),
   );
 }

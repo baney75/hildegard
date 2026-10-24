@@ -269,9 +269,9 @@ describe('a character based on a real person', () => {
     expect(revokeUrl).toMatch(/#\/likeness\/revoke\/[\w-]{43}$/);
     // The link works once.
     expect((await api(`/api/likeness/${token}`)).status).toBe(410);
-    expect((await post(`/api/likeness/${token}`, { person: 'X', agree: true, photos: photos() })).status).toBe(
-      410,
-    );
+    expect(
+      (await post(`/api/likeness/${token}`, { person: 'X', agree: true, photos: photos() })).status,
+    ).toBe(410);
 
     const now = character(c.id);
     expect(now.consent).toMatchObject({ status: 'active', person: 'Anna Weiss' });
