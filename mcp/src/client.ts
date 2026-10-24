@@ -24,7 +24,13 @@ export interface TakeReview {
   take: string;
   kind: 'video' | 'image' | 'audio';
   passed: boolean;
-  checks: Array<{ id: string; status: 'pass' | 'warn' | 'fail'; value: unknown; limit: unknown; detail: string }>;
+  checks: Array<{
+    id: string;
+    status: 'pass' | 'warn' | 'fail';
+    value: unknown;
+    limit: unknown;
+    detail: string;
+  }>;
   info: Record<string, unknown>;
   summary: string;
   sheet: string | null;

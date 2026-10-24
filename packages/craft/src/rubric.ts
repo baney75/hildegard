@@ -174,7 +174,7 @@ export function rubric(medium: Medium | 'sequence'): Question[] {
 /** The rubric as a numbered list, to answer one line each: `id: yes|no, evidence`. */
 export function describeRubric(medium: Medium | 'sequence'): string {
   return [
-    'Answer each, one line each, as `id: yes|no — the frame, time or line that shows it`. Any "no" means change something and render again (at most three rounds), or tell your user plainly what is still wrong.',
+    'Answer each, one line each, as `id: yes|no, the frame, time or line that shows it`. Any “no” means change one thing and render again (at most three rounds), or tell your user plainly what is still wrong.',
     ...rubric(medium).map((q, i) => `${i + 1}. ${q.id}: ${q.ask} If no: ${q.fix}`),
   ].join('\n');
 }

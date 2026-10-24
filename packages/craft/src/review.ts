@@ -42,7 +42,12 @@ export interface ReviewSpec {
 export class ReviewError extends Error {}
 
 /** Runs the review. `python` must have PyAV, numpy and Pillow; `script` is tools/review_media.py. */
-export function reviewMedia(python: string, script: string, spec: ReviewSpec, timeoutMs = 120_000): Promise<Review> {
+export function reviewMedia(
+  python: string,
+  script: string,
+  spec: ReviewSpec,
+  timeoutMs = 120_000,
+): Promise<Review> {
   const dir = mkdtempSync(join(tmpdir(), 'hg-review-'));
   const specPath = join(dir, 'spec.json');
   writeFileSync(specPath, JSON.stringify(spec));
@@ -71,14 +76,23 @@ export function reviewMedia(python: string, script: string, spec: ReviewSpec, ti
       try {
         r = JSON.parse(line);
       } catch {
-        reject(new ReviewError(`The media check stopped without an answer. ${err.trim().split('\n').at(-1) ?? ''}`.trim()));
+        reject(
+          new ReviewError(
+            `The media check stopped without an answer. ${err.trim().split('\n').at(-1) ?? ''}`.trim(),
+          ),
+        );
         return;
       }
       if (!r.ok) {
         reject(new ReviewError(r.error ?? 'The media check failed.'));
         return;
       }
-      resolve({ kind: r.kind, info: r.info, checks: r.checks, passed: !r.checks.some((c) => c.status === 'fail') });
+      resolve({
+        kind: r.kind,
+        info: r.info,
+        checks: r.checks,
+        passed: !r.checks.some((c) => c.status === 'fail'),
+      });
     });
   }).finally(() => rmSync(dir, { recursive: true, force: true }));
 }
@@ -93,6 +107,9 @@ export function describeReview(r: Review): string {
     : `Technical checks failed (${bad.filter((c) => c.status === 'fail').length}):`;
   return [
     head,
-    ...bad.map((c) => `- ${c.status === 'fail' ? 'FAIL' : 'warn'} ${c.id} = ${JSON.stringify(c.value)} (limit ${JSON.stringify(c.limit)}). ${c.detail}`),
+    ...bad.map(
+      (c) =>
+        `- ${c.status === 'fail' ? 'FAIL' : 'warn'} ${c.id} = ${JSON.stringify(c.value)} (limit ${JSON.stringify(c.limit)}). ${c.detail}`,
+    ),
   ].join('\n');
 }

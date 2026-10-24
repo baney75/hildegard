@@ -266,7 +266,9 @@ describe('take review', () => {
       sheet: string;
     };
     expect(r.kind).toBe('video');
-    expect(r.checks.map((c) => c.id)).toEqual(expect.arrayContaining(['size', 'length', 'colour', 'flicker']));
+    expect(r.checks.map((c) => c.id)).toEqual(
+      expect.arrayContaining(['size', 'length', 'colour', 'flicker']),
+    );
     expect(r.summary).toMatch(/^Technical checks/);
     expect(r.sheet).toBe(`/api/takes/${id}/sheet`);
     const sheet = await api(r.sheet);

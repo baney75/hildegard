@@ -4,7 +4,14 @@ import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { describeRubric, describeReview, lintPrompt, type Review, reviewMedia, rubric } from '../src/index.ts';
+import {
+  describeReview,
+  describeRubric,
+  lintPrompt,
+  type Review,
+  reviewMedia,
+  rubric,
+} from '../src/index.ts';
 
 const python = process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 const script = resolve(import.meta.dirname, '../../../tools/review_media.py');
@@ -75,7 +82,9 @@ describe('prompt lint', () => {
     expect(ids).toContain('tag-salad');
     expect(ids).toContain('too-thin');
     const boost = r.findings.find((f) => f.id === 'quality-words')!;
-    expect(boost.match).toEqual(expect.arrayContaining(['8k', 'masterpiece', 'trending on artstation', 'cinematic']));
+    expect(boost.match).toEqual(
+      expect.arrayContaining(['8k', 'masterpiece', 'trending on artstation', 'cinematic']),
+    );
     expect(boost.fix).toMatch(/Delete them/);
   });
 
@@ -92,13 +101,23 @@ describe('prompt lint', () => {
       'Shot on 35mm film with a 50mm lens: a woman with no umbrella walks to the bus stop, then waits, then boards, in the style of Gregory Crewdson.',
     );
     const ids = r.findings.map((f) => f.id);
-    expect(ids).toEqual(expect.arrayContaining(['camera-in-prompt', 'negation', 'too-many-beats', 'named-artist']));
+    expect(ids).toEqual(
+      expect.arrayContaining(['camera-in-prompt', 'negation', 'too-many-beats', 'named-artist']),
+    );
     expect(r.ok).toBe(true); // only warnings: choices the agent may make on purpose
-    expect(lintPrompt('Shot on 35mm film, a woman walks to the bus stop in the rain at night alone.', 'video', false).findings.map((f) => f.id)).not.toContain('camera-in-prompt');
+    expect(
+      lintPrompt(
+        'Shot on 35mm film, a woman walks to the bus stop in the rain at night alone.',
+        'video',
+        false,
+      ).findings.map((f) => f.id),
+    ).not.toContain('camera-in-prompt');
   });
 
   it('catches stock phrases in words, and lyric clichés in songs', () => {
-    expect(lintPrompt('Delve into a tapestry of sound that will elevate your journey.', 'words').ok).toBe(false);
+    expect(lintPrompt('Delve into a tapestry of sound that will elevate your journey.', 'words').ok).toBe(
+      false,
+    );
     const song = lintPrompt('Verse about chasing dreams into the night, with fire in my soul.', 'music');
     expect(song.findings.map((f) => f.id)).toContain('lyric-cliches');
     expect(lintPrompt('Plain words about the harbour wall and the 6:40 ferry.', 'words').ok).toBe(true);

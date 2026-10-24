@@ -147,7 +147,10 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 function find(text: string, terms: string[]): string[] {
   const hits: string[] = [];
   for (const t of terms) {
-    const pattern = t === 'mm' ? /\b\d{2,3}\s?mm\b/i : new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t)}($|[^\\p{L}\\p{N}])`, 'iu');
+    const pattern =
+      t === 'mm'
+        ? /\b\d{2,3}\s?mm\b/i
+        : new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t)}($|[^\\p{L}\\p{N}])`, 'iu');
     const m = text.match(pattern);
     if (m) hits.push(t === 'mm' ? m[0].trim() : t);
   }
@@ -158,7 +161,10 @@ const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w
 
 /** A comma-separated heap of tags with no sentence in it, the way scraped image captions read. */
 function tagSalad(prompt: string): boolean {
-  const parts = prompt.split(',').map((p) => p.trim()).filter(Boolean);
+  const parts = prompt
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
   if (parts.length < 5) return false;
   const short = parts.filter((p) => words(p).length <= 3).length;
   return short / parts.length >= 0.7;
@@ -197,7 +203,8 @@ export function lintPrompt(prompt: string, medium: Medium = 'video', fieldsSetCa
           id: 'camera-in-prompt',
           severity: 'warn',
           match: cam,
-          detail: 'Camera, lens and movement words in the prompt fight the camera Hildegard sets from its fields.',
+          detail:
+            'Camera, lens and movement words in the prompt fight the camera Hildegard sets from its fields.',
           fix: 'Move them to camera_body, lens, focal_mm, aperture and motion (ids from list_presets), and keep the prompt to what happens in front of the camera.',
         });
     }
@@ -228,7 +235,8 @@ export function lintPrompt(prompt: string, medium: Medium = 'video', fieldsSetCa
         id: 'negation',
         severity: 'warn',
         match: neg,
-        detail: 'Most image and video models see the noun and ignore the "no", so "no people" can add people.',
+        detail:
+          'Most image and video models see the noun and ignore the "no", so "no people" can add people.',
         fix: 'Describe what is there instead: "an empty street" rather than "a street with no people".',
       });
     if (medium === 'video') {
@@ -289,7 +297,8 @@ export function lintPrompt(prompt: string, medium: Medium = 'video', fieldsSetCa
       id: 'named-artist',
       severity: 'warn',
       match: [artist[0]],
-      detail: 'Imitating a working artist by name copies their signature instead of making a choice of your own.',
+      detail:
+        'Imitating a working artist by name copies their signature instead of making a choice of your own.',
       fix: 'Describe the qualities you want instead: the palette, the brushwork, the framing, the era.',
     });
 

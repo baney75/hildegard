@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 import { parseArgs, VERSION } from '@hildegard/server';
+import { agents, review, skills } from './agents.ts';
 import {
   type Ctx,
   choir,
@@ -46,6 +47,15 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard mcp              The MCP server, on stdio (AI apps run this)
+  hildegard skills install   Put Hildegard's skills where Claude Code, Codex and OMP look
+                             (--agent claude-code|codex|omp, --project DIR; skills list | remove)
+  hildegard agents           Which coding agents are here, and how Hildegard may run each under
+                             its provider's terms (agents key <provider> --key-stdin, share-keys on|off)
+  hildegard agents run <claude-code|codex|omp> "<task>"
+                             Run one for you: its own sign-in, or --use key (your API key; needed
+                             with --unattended), or --use local --model ollama/<model> for OMP
+  hildegard review <file>    Check a video, image or sound for the marks of slop (--final, --seconds N,
+                             --audio, --film, --sheet out.jpg for a contact sheet)
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
@@ -73,6 +83,15 @@ const valued = new Set([
   'address',
   'host-port',
   'accept-license',
+  'use',
+  'provider',
+  'workspace',
+  'add-dir',
+  'budget',
+  'agent',
+  'project',
+  'sheet',
+  'seconds',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -133,6 +152,12 @@ async function main(): Promise<Result | null> {
       return choir(ctx, rest);
     case 'connect':
       return connect(ctx, rest);
+    case 'agents':
+      return agents(ctx, rest);
+    case 'skills':
+      return skills(ctx, rest);
+    case 'review':
+      return review(ctx, rest);
     case 'disconnect':
       return connect(ctx, rest, true);
     case 'mcp': {

@@ -113,7 +113,9 @@ describe('Hildegard MCP server', () => {
   });
 
   it('reviews a prompt before rendering, and says what to write instead', async () => {
-    const bad = textOf(await call('review_prompt', { prompt: 'epic sunset, 8k, masterpiece, cinematic, hdr' }));
+    const bad = textOf(
+      await call('review_prompt', { prompt: 'epic sunset, 8k, masterpiece, cinematic, hdr' }),
+    );
     expect(bad).toMatch(/^Fix these before rendering:/);
     expect(bad).toContain('quality-words (8k, hdr, masterpiece, epic, cinematic)');
     const good = textOf(
@@ -124,7 +126,9 @@ describe('Hildegard MCP server', () => {
     );
     expect(good).toMatch(/^No problems found/);
     // direct_shot still renders, and passes the advice along for the next shot.
-    const r = textOf(await call('direct_shot', { prompt: 'epic dragon, 8k, masterpiece, trending on artstation' }));
+    const r = textOf(
+      await call('direct_shot', { prompt: 'epic dragon, 8k, masterpiece, trending on artstation' }),
+    );
     expect(r).toMatch(/Directed shot \w+/);
     expect(r).toContain('About the prompt (review_prompt explains): quality-words');
   });
@@ -134,7 +138,9 @@ describe('Hildegard MCP server', () => {
       prompt: 'A lighthouse keeper winds the clockwork lamp at dusk while the beam sweeps the grey sea below',
       wait: true,
     });
-    const id = [...srv.store.takes.values()].findLast((t) => t.prompt.startsWith('A lighthouse keeper winds'))!.id;
+    const id = [...srv.store.takes.values()].findLast((t) =>
+      t.prompt.startsWith('A lighthouse keeper winds'),
+    )!.id;
     const review = await call('review_take', { take_id: id });
     expect(review.isError).toBeFalsy();
     expect(textOf(review)).toMatch(new RegExp(`^Take ${id}\\. Technical checks`));

@@ -26,6 +26,12 @@ importers:
 
   apps/cli:
     dependencies:
+      '@hildegard/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../../packages/craft
       '@hildegard/mcp':
         specifier: workspace:*
         version: link:../../mcp
@@ -131,6 +137,12 @@ importers:
       '@hildegard/server':
         specifier: workspace:*
         version: link:../apps/server
+
+  packages/agents:
+    dependencies:
+      '@hildegard/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/comfy:
     dependencies:

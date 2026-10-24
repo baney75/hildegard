@@ -6,6 +6,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import {
   type AgentsResponse,
   type AuthState,
@@ -24,7 +25,6 @@ import {
   type Take,
   takeSeeds,
 } from '@hildegard/presets';
-import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import {
   connectAgent,
   disconnectAgent,
@@ -682,7 +682,10 @@ export function createApp(deps: AppDeps) {
     const t = store.takes.get(c.req.param('id'));
     if (!t || !sees(c, t.projectId)) return c.json({ error: 'No such take' }, 404);
     if (t.status !== 'done' || !t.video)
-      return c.json({ error: 'This take hasn’t finished, so there is nothing to check yet', code: 'unfinished' }, 409);
+      return c.json(
+        { error: 'This take hasn’t finished, so there is nothing to check yet', code: 'unfinished' },
+        409,
+      );
     if (!deps.review)
       return c.json({ error: 'Media checks can’t run on this computer: it has no Python with PyAV' }, 501);
     const file = join(mediaDir, `${t.id}.mp4`);

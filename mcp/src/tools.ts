@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
 import type { Catalog, ShotRequestInput, Snapshot, Take } from '@hildegard/presets';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
-import { describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type ShotDetail } from './client.ts';
 
@@ -553,7 +553,9 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         medium: z
           .enum(['video', 'image', 'music', 'voice', 'words'])
           .optional()
-          .describe('What the prompt is for: video (default), image, music, voice, or words (titles, captions, lyrics, narration).'),
+          .describe(
+            'What the prompt is for: video (default), image, music, voice, or words (titles, captions, lyrics, narration).',
+          ),
       },
       annotations: { readOnlyHint: true },
     },
@@ -589,7 +591,10 @@ export function registerTools(server: McpServer, client: HildegardClient, agentN
         r = await client.review(a.take_id);
       } catch (e) {
         if (e instanceof HildegardError && e.status === 409)
-          throw new HildegardError(409, `Take ${a.take_id} hasn't finished yet. Wait with get_shot, then review it.`);
+          throw new HildegardError(
+            409,
+            `Take ${a.take_id} hasn't finished yet. Wait with get_shot, then review it.`,
+          );
         throw e;
       }
       const sheet = r.sheet ? await client.image(r.sheet) : null;
