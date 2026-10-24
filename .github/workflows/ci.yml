@@ -103,6 +103,8 @@ jobs:
       - run: node apps/cli/src/main.ts voice install --cpu --env speech,chatterbox,qwen --data "$RUNNER_TEMP/hg" --verbose
       - run: node apps/cli/src/main.ts voice --data "$RUNNER_TEMP/hg" --json | tee voice.json && node -e "const r=require('./voice.json'); if (r.steps.some((s) => s.status !== 'done')) process.exit(1)"
       - run: '"$RUNNER_TEMP/hg/tools/uv" pip install --python "$RUNNER_TEMP/hg/voice/envs/speech/bin/python" pytest==8.4.2'
+      # TEMP diagnostic: how Perth's detector reads real speech, unmarked and marked.
+      - run: '"$RUNNER_TEMP/hg/tools/uv" pip install --python "$RUNNER_TEMP/hg/voice/envs/speech/bin/python" pooch && "$RUNNER_TEMP/hg/voice/envs/speech/bin/python" voice-engine/perth_diag.py'
       - run: '"$RUNNER_TEMP/hg/voice/envs/speech/bin/python" -m pytest -q'
         working-directory: voice-engine
       - run: pnpm --filter @hildegard/server exec vitest run test/voice-worker.test.ts
