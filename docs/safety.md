@@ -14,6 +14,8 @@ own. A refusal says why in plain words and costs nothing: nothing is kept, and n
 | Hugging Face tags at download | `hubVerdict` in `apps/server/src/models.ts` | A file that isn’t pinned in `models.lock.json` and whose repository Hugging Face tags as adult |
 | Every frame | The `HildegardGuard` ComfyUI node in `comfy-nodes/hildegard_guard` | A start frame or rendered take that an image classifier scores as sexual. The take stops with `content_blocked`, and its preview and poster are deleted |
 | Every graph | `vetGraph` in `packages/comfy/src/graph.ts` | A graph without the guard after every decode and every loaded image, with the wrong classifier, or with a threshold outside 0.5 to 0.95. Another device can’t send a graph that skips the check |
+| Voice scripts | `SafetyCheck.text()`, called by `VoiceStudio` on every script, voice description and dub before it’s queued | The same words as prompts. Returns `422 content_blocked` |
+| Cloned voices | Living consent in `apps/server/src/voice.ts` ([docs/voice.md](voice.md)) | A clone without the person reading a fresh consent line aloud, a consent line made by AI, or a sample from someone else |
 | Negative prompt | `NEGATIVE` in `packages/presets/src/compose.ts` | Nudity drifting into an innocent shot |
 
 ## The classifier

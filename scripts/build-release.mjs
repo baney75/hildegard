@@ -80,6 +80,8 @@ copy('apps/studio/dist', 'studio');
 copy('presets', 'presets');
 for (const node of ['hildegard_look', 'hildegard_guard'])
   copy(`comfy-nodes/${node}`, `comfy-nodes/${node}`, (s) => !/__pycache__|\.pyc$|test_\w+\.py$/.test(s));
+// The voice engine and the pinned packages each of its environments installs; its tests stay behind.
+copy('voice-engine', 'voice-engine', (s) => !/__pycache__|\.pyc$|[\\/]tests([\\/]|$)|\.pytest_cache/.test(s));
 copy('packages/comfy/fixtures', 'fixtures');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');

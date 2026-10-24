@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Writes THIRD_PARTY_NOTICES.md (repo) and apps/studio/public/THIRD_PARTY_NOTICES.txt (shipped with the UI) from
-// every production dependency's own license file, plus the fonts' OFL notices. Run after changing dependencies:
+// every production dependency's own license file, plus code adapted into Hildegard's own files and the fonts' OFL notices. Run after changing dependencies:
 //   node scripts/notices.mjs          write the files
 //   node scripts/notices.mjs --check  fail if they are out of date (CI)
 import { execFileSync } from 'node:child_process';
@@ -47,6 +47,22 @@ const fonts = [
   ['DM Mono', 'a subset', 'DMMono-OFL.txt'],
 ];
 
+// Code adapted into Hildegard's own files, with each file naming its source.
+const vendored = [
+  [
+    'Chatterbox voice encoder',
+    'https://github.com/resemble-ai/chatterbox',
+    'voice-engine/hildegard_voice/speaker.py follows its speaker encoder.',
+    'Chatterbox-MIT.txt',
+  ],
+  [
+    'Real-Time-Voice-Cloning',
+    'https://github.com/CorentinJ/Real-Time-Voice-Cloning',
+    'Chatterbox’s speaker encoder, and so voice-engine/hildegard_voice/speaker.py, is adapted from it.',
+    'Real-Time-Voice-Cloning-MIT.txt',
+  ],
+];
+
 let out = `# Third-party notices
 
 Hildegard includes the following software and fonts. Each is used under its own license, reproduced below.
@@ -57,6 +73,10 @@ for (const p of packages) {
   const text = licenseText(p.paths[0]);
   if (!text) throw new Error(`${p.name} has no license file; add its notice by hand`);
   out += `## ${p.name} ${p.versions.join(', ')} (${p.license})\n\n${p.homepage ? `${p.homepage}\n\n` : ''}\`\`\`\n${text}\n\`\`\`\n\n`;
+}
+for (const [name, url, what, file] of vendored) {
+  const text = readFileSync(join(root, 'licenses/code', file), 'utf8').trim();
+  out += `## Code: ${name} (MIT)\n\n${url}\n\n${what}\n\n\`\`\`\n${text}\n\`\`\`\n\n`;
 }
 for (const [name, what, file] of fonts) {
   const text = readFileSync(join(root, 'licenses/fonts', file), 'utf8').trim();

@@ -8,12 +8,9 @@ import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { type VoiceEnv, voiceLayout } from '@hildegard/runtime';
 
-export type VoiceEnv = 'speech' | 'chatterbox' | 'qwen';
-export const VOICE_ENVS: readonly VoiceEnv[] = ['speech', 'chatterbox', 'qwen'];
-
-/** The Python each environment wants: Chatterbox pins a torch that has no 3.12 wheels on every platform. */
-export const VOICE_PYTHON: Record<VoiceEnv, string> = { speech: '3.12', chatterbox: '3.11', qwen: '3.12' };
+export { VOICE_ENVS, VOICE_PYTHON, type VoiceEnv, voiceLayout } from '@hildegard/runtime';
 
 export interface CallOpts {
   onProgress?: (p: { done: number; total: number }) => void;
@@ -172,24 +169,6 @@ class Worker {
     await done;
     clearTimeout(t);
   }
-}
-
-const win = process.platform === 'win32';
-
-/** Where voice lives in Hildegard's data folder. */
-export function voiceLayout(dataDir: string) {
-  const root = join(dataDir, 'voice');
-  return {
-    root,
-    models: join(root, 'models'),
-    envs: join(root, 'envs'),
-    /** The worker's code, copied from the release so an update doesn't change it under a running worker. */
-    engine: join(root, 'engine'),
-    python: (env: VoiceEnv) =>
-      win ? join(root, 'envs', env, 'Scripts', 'python.exe') : join(root, 'envs', env, 'bin', 'python'),
-    /** Written last by the installer: its presence means the environment is ready. */
-    manifest: (env: VoiceEnv) => join(root, 'envs', env, 'hildegard-voice.json'),
-  };
 }
 
 export class LocalVoiceEngine implements VoiceEngine {
