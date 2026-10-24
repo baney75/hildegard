@@ -19,8 +19,12 @@ jobs:
       github.event.pull_request.user.login == github.repository_owner
     runs-on: ubuntu-latest
     steps:
+      # GitHub's own auto-merge, never a merge now: `gh pr merge --auto` merges at once when the repo has auto-merge
+      # off or main requires no checks, which would skip CI. enablePullRequestAutoMerge only ever waits for the checks,
+      # and refuses when auto-merge is off, which leaves the PR for a manual merge.
       - env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.html_url }}
-        # Until the repo allows auto-merge, this says so on the run instead of turning the PR red.
-        run: gh pr merge "$PR" --auto --merge || echo "::warning::Auto-merge isn't on for this repo yet, so this PR waits for a manual merge."
+          ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          gh api graphql -f id="$ID" -f query='mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: MERGE}) { clientMutationId } }' \
+            || echo "::warning::Auto-merge isn't on for this repo, or main requires no checks yet, so this PR waits for a manual merge."
