@@ -1,11 +1,17 @@
 name: Release
 
-# A tag like v0.1.0 publishes a GitHub release: the CLI for every OS, the one-line installers, SHA256SUMS and the
-# desktop app. The app's files also go up under names without the version, so the install page's
-# releases/latest/download links never change.
+# Publishes a GitHub release: the CLI for every OS, the one-line installers, SHA256SUMS and the desktop app. The
+# app's files also go up under names without the version, so the install page's releases/latest/download links never
+# change. A version on main with no release yet releases itself: merging a version bump is the whole release, and
+# this makes the tag. A pushed tag like v0.1.0 still works. The hourly run catches a merge whose push started no
+# workflow (one GitHub's own token made, as auto-merge.yml's are).
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +21,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Which tag this run releases, if any: the pushed tag, or main's version when it has no release yet.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(node -p 'require("./package.json").version')"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            # install.sh fetches from releases/download/v<version>, so the tag must be exactly that.
+            test "$GITHUB_REF_NAME" = "$tag" || { echo "The tag $GITHUB_REF_NAME isn't the version, $tag."; exit 1; }
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$tag is already released."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing $tag from main."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   cli:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,9 +63,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @hildegard/studio build
       - run: node scripts/build-release.mjs dist/release
-      # install.sh fetches from releases/download/v<version>, so the tag must be exactly that.
-      - name: The tag names this version
-        run: test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
       - uses: actions/upload-artifact@v4
         with:
           name: release
@@ -37,10 +70,12 @@ jobs:
           retention-days: 7
 
   desktop:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     uses: ./.github/workflows/desktop.yml
 
   publish:
-    needs: [cli, desktop]
+    needs: [version, cli, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,7 +108,9 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
-          notes=".github/release-notes/${GITHUB_REF_NAME}.md"
+          notes=".github/release-notes/${TAG}.md"
           test -f "$notes" || notes=/dev/null
-          gh release create "$GITHUB_REF_NAME" out/* --title "Hildegard ${GITHUB_REF_NAME#v} (pre-alpha)" --notes-file "$notes" --verify-tag
+          # From main, this makes the tag on the commit that was built.
+          gh release create "$TAG" out/* --target "$GITHUB_SHA" --title "Hildegard ${TAG#v} (pre-alpha)" --notes-file "$notes"
