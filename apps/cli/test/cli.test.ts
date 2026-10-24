@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFile, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,15 @@ type Out = {
 async function hildegard(home: string, ...args: string[]) {
   const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
     env: cliEnv(home),
+    timeout: 60_000,
+  }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
+  return JSON.parse(stdout) as Out;
+}
+
+/** The same, with more environment (test doubles for outside services). */
+async function hildegardEnv(home: string, env: Record<string, string>, ...args: string[]) {
+  const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
+    env: { ...cliEnv(home), ...env },
     timeout: 60_000,
   }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
   return JSON.parse(stdout) as Out;
@@ -188,6 +198,119 @@ describe('hildegard', () => {
     } finally {
       await hildegard(home, 'stop', ...mac);
       await node.close();
+    }
+  }, 90_000);
+
+  it('rents a Runpod GPU that joins the fleet, reports it, and stops it', async () => {
+    // A stand-in pod: a Hildegard server with a fake GPU, which "boots" when the fake Runpod creates it.
+    const pod = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-cli-pod-'))]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-pod-${process.pid}.json`)) },
+    );
+    const pods = new Map<
+      string,
+      { id: string; desiredStatus: string; costPerHr: number; env: Record<string, string> }
+    >();
+    const auths: (string | undefined)[] = [];
+    const runpod = createServer((req, res) => {
+      let body = '';
+      req.on('data', (d) => (body += d));
+      req.on('end', () => {
+        auths.push(req.headers.authorization);
+        const send = (status: number, v: unknown) => {
+          res.writeHead(status, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(v));
+        };
+        const [, , id, verb] = (req.url ?? '').split('/');
+        if (req.method === 'POST' && req.url === '/pods') {
+          const spec = JSON.parse(body) as { env: Record<string, string>; cloudType: string };
+          const p = {
+            id: 'pod7XYZ',
+            desiredStatus: 'RUNNING',
+            costPerHr: 0.69,
+            env: spec.env,
+            gpu: { displayName: 'RTX 4090' },
+          };
+          pods.set(p.id, p);
+          // What boot.sh does on the pod: share the GPU with the key the owner's computer made.
+          pod.choir.invite(pod.url, 'pod', spec.env.HILDEGARD_JOIN_KEY);
+          return send(200, p);
+        }
+        const p = id ? pods.get(id) : undefined;
+        if (!p) return send(404, { error: 'not found' });
+        if (req.method === 'GET') return send(200, p);
+        if (req.method === 'POST' && verb === 'stop') p.desiredStatus = 'EXITED';
+        if (req.method === 'POST' && verb === 'start') p.desiredStatus = 'RUNNING';
+        if (req.method === 'DELETE') pods.delete(p.id);
+        return send(200, p);
+      });
+    });
+    await new Promise<void>((r) => runpod.listen(0, '127.0.0.1', r));
+    const rpPort = (runpod.address() as { port: number }).port;
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-mac-'));
+    const mac = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data];
+    const env = { HILDEGARD_RUNPOD_API: `http://127.0.0.1:${rpPort}`, HILDEGARD_RUNPOD_PROXY: pod.url };
+    const cloud = (...a: string[]) => hildegardEnv(home, env, 'cloud', 'runpod', ...a, ...mac);
+    try {
+      const overview = await hildegard(home, 'cloud');
+      expect(overview.steps.map((s) => s.id)).toEqual(['runpod', 'huggingface', 'colab']);
+
+      const noKey = await cloud('up');
+      expect(noKey.steps[0]).toMatchObject({ id: 'key', status: 'needs-owner' });
+      expect(
+        (await hildegardWithStdin(home, 'short', 'cloud', 'runpod', 'key', '--key-stdin', ...mac)).ok,
+      ).toBe(false);
+      const key = `rpa_${'x'.repeat(40)}`;
+      expect((await hildegardWithStdin(home, key, 'cloud', 'runpod', 'key', '--key-stdin', ...mac)).ok).toBe(
+        true,
+      );
+      // Kept as a secret, never in the settings.
+      expect(JSON.stringify(await hildegard(home, 'cloud', 'runpod', 'key', ...mac))).not.toContain(key);
+
+      // Never accepts a license for the owner.
+      const license = await cloud('up', '--model', 'wan-2-2-ti2v-5b');
+      expect(license.steps[0]).toMatchObject({ id: 'model', status: 'needs-owner' });
+      expect(pods.size).toBe(0);
+
+      const up = await cloud('up', '--model', 'wan-2-2-ti2v-5b', '--accept-license', 'wan-2-2-ti2v-5b');
+      expect(up.ok).toBe(true);
+      expect(up.steps.map((s) => [s.id, s.status])).toEqual([
+        ['pod', 'done'],
+        ['join', 'done'],
+        ['use', 'done'],
+      ]);
+      expect(auths.every((a) => a === `Bearer ${key}`)).toBe(true);
+      const created = [...pods.values()][0]!;
+      expect(created.env).toMatchObject({
+        HILDEGARD_MODEL: 'wan-2-2-ti2v-5b',
+        HILDEGARD_ACCEPT_LICENSE: 'wan-2-2-ti2v-5b',
+      });
+      expect(created.env).not.toHaveProperty('HF_TOKEN');
+
+      const list = await hildegard(home, 'choir', 'list', ...mac);
+      expect(list.choir).toMatchObject({
+        use: 'runpod-pod7xyz',
+        devices: [{ name: 'runpod-pod7xyz', online: true }],
+      });
+      const st = await cloud('status');
+      expect(st).toMatchObject({ pod: { status: 'RUNNING', costPerHr: 0.69 }, device: { online: true } });
+
+      // Up again does nothing new; down stops it; up starts it again.
+      expect((await cloud('up')).steps.map((s) => s.id)).toEqual(['use']);
+      expect((await cloud('down')).ok).toBe(true);
+      expect(created.desiredStatus).toBe('EXITED');
+      expect((await cloud('up')).steps[0]).toMatchObject({ id: 'pod', status: 'done' });
+      expect(created.desiredStatus).toBe('RUNNING');
+
+      expect((await cloud('down', '--delete')).ok).toBe(true);
+      expect(pods.size).toBe(0);
+      expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
+      expect((await cloud('status')).steps[0]).toMatchObject({ status: 'skipped' });
+    } finally {
+      await hildegard(home, 'stop', ...mac);
+      runpod.close();
+      await pod.close();
     }
   }, 90_000);
 

@@ -142,7 +142,7 @@ const LYRIC_CLICHES = [
   'electric dreams',
 ];
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 /** Whole-word, case-insensitive matches of `terms` in `text`, in the order of `terms`. */
 function find(text: string, terms: string[]): string[] {
   const hits: string[] = [];
@@ -150,7 +150,7 @@ function find(text: string, terms: string[]): string[] {
     const pattern =
       t === 'mm'
         ? /\b\d{2,3}\s?mm\b/i
-        : new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t)}($|[^\\p{L}\\p{N}])`, 'iu');
+        : new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(t)}($|[^\\p{L}\\p{N}])`, 'iu');
     const m = text.match(pattern);
     if (m) hits.push(t === 'mm' ? m[0].trim() : t);
   }

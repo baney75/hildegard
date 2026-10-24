@@ -9,6 +9,8 @@ it, and is safe to run again: a step that is already done comes back as `skipped
 | [A. The app on this computer](#a-the-app-on-this-computer) | The Studio at `http://127.0.0.1:7341`, and Hildegard's tools in their AI apps |
 | [B. Host it at a link](#b-host-it-at-a-link) | Their own Hildegard at an HTTPS link, for their phone, laptop and the people they invite, all signing in |
 | [C. Join a fleet](#c-join-a-fleet) | Their devices render on each other over Tailscale: a laptop without a GPU uses the desktop's |
+| [D. Rent a GPU](#d-rent-a-gpu) | A Runpod GPU that joins their fleet and stops itself when idle |
+| [E. Skills and coding agents](#e-skills-and-coding-agents) | Hildegard's skills in Claude Code, Codex and OMP, and agent runs within each provider's terms |
 
 B and C build on A: do A first on every computer involved.
 
@@ -225,6 +227,33 @@ in on each.
 A fleet and a link go together: the computer with the link (B) can render on the fleet's GPU (C), so people signing in
 at the link use it without knowing where it is.
 
+## D. Rent a GPU
+
+For a user with no GPU, or who needs a bigger one for a while. Billed to their own Runpod account; say so first. Do A
+on this computer (no model needed), then:
+
+```sh
+printf %s "$RUNPOD_API_KEY" | hildegard cloud runpod key --key-stdin --json
+hildegard cloud runpod up --model wan-2-2-ti2v-5b --json
+```
+
+The second command returns the model's license as `needs-owner`; handle it as in the rules above, then run the step's
+`command`. The first start takes 10 to 30 minutes; if `up` says it is still setting up, run it again later. Verify
+with `hildegard cloud runpod status --json` (`device.online: true`). `hildegard cloud runpod down --json` stops it; it
+also stops itself after 30 idle minutes. Details: [cloud.md](cloud.md).
+
+## E. Skills and coding agents
+
+```sh
+hildegard skills install --json   # skills where Claude Code, Codex and OMP read them
+hildegard agents --json           # each coding agent here, how it's signed in, and what Hildegard may do with it
+```
+
+The skills hold Hildegard's quality bar ([craft.md](craft.md)): brief, lint the prompt, review every take, at most
+three rounds. Agent runs follow each provider's terms ([agent-terms.md](agent-terms.md)): a Claude or ChatGPT plan
+only in its own app, only when your user starts the run; API keys (piped with
+`hildegard agents key <provider> --key-stdin`) for everything else; never a plan's sign-in inside another tool.
+
 ## What only your user can do
 
 | Step | What to tell them |
@@ -235,6 +264,7 @@ at the link use it without knowing where it is.
 | Tailscale (`command`: `tailscale up`) | Install Tailscale and sign in |
 | The owner account (`command`: `hildegard host owner`) | Run it in a terminal here and choose a passphrase, or use Settings › Sharing |
 | Tailscale permission or a Tailscale admin page | Run the command, or open the page and turn the feature on |
+| A Runpod or provider API key (`key`, `needs-owner`) | Make the key on the provider's site and hand it to you to pipe in; it's billed to them |
 
 ## If something fails
 

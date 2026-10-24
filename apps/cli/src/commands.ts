@@ -769,9 +769,11 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
   switch (action) {
     case 'invite': {
       try {
+        // --key-stdin: a key the joining device made itself (a rented GPU it started), never on the command line.
+        const key = ctx.flags.has('key-stdin') ? await readStdin() : undefined;
         const r = await api<{ code: string; url: string }>(c, '/api/choir/invite', {
           method: 'POST',
-          body: { url: ctx.opts.get('url') },
+          body: { url: ctx.opts.get('url'), key },
         });
         if (!ctx.json)
           console.log(

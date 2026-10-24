@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { parseArgs, VERSION } from '@hildegard/server';
 import { agents, review, skills } from './agents.ts';
+import { cloud } from './cloud.ts';
 import {
   type Ctx,
   choir,
@@ -54,6 +55,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard agents run <claude-code|codex|omp> "<task>"
                              Run one for you: its own sign-in, or --use key (your API key; needed
                              with --unattended), or --use local --model ollama/<model> for OMP
+  hildegard cloud            Rented GPUs: Runpod, Hugging Face Jobs, Colab, with what each costs and sees
+  hildegard cloud runpod up  Rent a Runpod GPU that joins your fleet and stops itself when idle
+                             (cloud runpod key --key-stdin | status | down [--delete])
   hildegard review <file>    Check a video, image or sound for the marks of slop (--final, --seconds N,
                              --audio, --film, --sheet out.jpg for a contact sheet)
 
@@ -92,6 +96,11 @@ const valued = new Set([
   'project',
   'sheet',
   'seconds',
+  'gpu',
+  'idle-minutes',
+  'disk',
+  'volume',
+  'wait-minutes',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -158,6 +167,8 @@ async function main(): Promise<Result | null> {
       return skills(ctx, rest);
     case 'review':
       return review(ctx, rest);
+    case 'cloud':
+      return cloud(ctx, rest);
     case 'disconnect':
       return connect(ctx, rest, true);
     case 'mcp': {

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@hildegard/agents": "workspace:*",
+    "@hildegard/cloud": "workspace:*",
     "@hildegard/craft": "workspace:*",
     "@hildegard/mcp": "workspace:*",
     "@hildegard/presets": "workspace:*",

@@ -86,6 +86,9 @@ copy(
 copy('packages/comfy/fixtures', 'fixtures');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');
+copy('tools/review_media.py', 'tools/review_media.py');
+copy('skills', 'skills');
+copy('deploy/runpod/boot.sh', 'deploy/runpod/boot.sh');
 copy('licenses', 'licenses');
 for (const f of ['LICENSE', 'LICENSE-APACHE', 'LICENSING.md', 'THIRD_PARTY_NOTICES.md']) copy(f, f);
 writeFileSync(

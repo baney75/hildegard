@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export * from './app.ts';
+export { encodeJoinCode, parseJoinCode, TOKEN_RE } from './choir.ts';
 export * from './config.ts';
 export * from './hf.ts';
 export * from './host.ts';

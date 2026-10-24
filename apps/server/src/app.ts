@@ -104,8 +104,11 @@ export interface AppDeps {
   modelStates: () => ModelState[];
   /** /api/node/*, for devices paired with this one. */
   node?: Hono;
-  /** Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address. */
-  invite: (url?: string) => Promise<{ code: string; url: string }>;
+  /**
+   * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
+   * the other device made (a rented GPU it started), instead of a fresh one.
+   */
+  invite: (url?: string, key?: string) => Promise<{ code: string; url: string }>;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
   /** Who may sign in from other devices. */
@@ -746,12 +749,12 @@ export function createApp(deps: AppDeps) {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ url: z.string().max(200).optional() })
+      .object({ url: z.string().max(200).optional(), key: z.string().max(100).optional() })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give an address like http://100.101.102.103:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
-      return c.json(await deps.invite(body.data.url));
+      return c.json(await deps.invite(body.data.url, body.data.key));
     } catch (e) {
       return choirFail(c, e);
     }

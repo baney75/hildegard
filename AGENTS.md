@@ -14,6 +14,10 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `mcp` | The MCP server: tools for AI apps, talking to the HTTP server |
 | `packages/presets` | Cameras, lenses, looks and models (`presets/*.toml`), prompt composition, and the API types shared by everything |
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
+| `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` (runs `tools/review_media.py`), and critique rubrics |
+| `packages/agents` | Runs Claude Code, Codex and OMP only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
+| `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
+| `skills/` | Agent skills (Claude Code, Codex, OMP) for film, video and photo editing, art, sound, setup and cloud, with Hildegard's quality gates |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
 | `comfy-nodes/hildegard_look` | The film-look ComfyUI node (Python): grain, halation, gate weave |
 | `omarchy/` | The Omarchy bar widget (QML, a bash backend, `Model.js` for what it shows). Its own README, tests and rules: `node scripts/check-omarchy.mjs` |

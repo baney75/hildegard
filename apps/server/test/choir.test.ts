@@ -471,6 +471,20 @@ describe('pairing', () => {
     expect(mac.choir.state().devices).toEqual([]);
   });
 
+  it('takes a key the other device made, so it can build the same code itself, and refuses one that isn’t a key', async () => {
+    const key = newToken();
+    const r = await post(gpu, '/api/choir/invite', { url: shareUrl, key });
+    expect(r.status).toBe(200);
+    const { code } = (await r.json()) as { code: string };
+    expect(parseJoinCode(code).token).toBe(key);
+    // The device that made the key builds the very same code without being sent it.
+    expect(encodeJoinCode({ ...parseJoinCode(code), token: key })).toBe(code);
+    const file = readFileSync(join(gpu.config.dataDir, 'choir', 'sharing.json'), 'utf8');
+    expect(file).not.toContain(key);
+    expect(file).toContain(hashToken(key));
+    expect((await post(gpu, '/api/choir/invite', { url: shareUrl, key: 'short' })).status).toBe(400);
+  });
+
   it('refuses a computer’s own code, and addresses outside the tailnet', async () => {
     const own = (await (await post(gpu, '/api/choir/invite', { url: shareUrl })).json()) as { code: string };
     const r = await post(gpu, '/api/choir/join', { code: own.code });
