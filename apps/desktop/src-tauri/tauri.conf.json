@@ -1,0 +1,65 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Hildegard",
+  "mainBinaryName": "hildegard-app",
+  "version": "../../../package.json",
+  "identifier": "io.github.baney75.hildegard",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "beforeDevCommand": "node scripts/build-ui.mjs",
+    "beforeBuildCommand": "node scripts/build-ui.mjs"
+  },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": false,
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self'",
+        "img-src": "'self' data:",
+        "font-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "frame-ancestors": "'none'"
+      },
+      "freezePrototype": true,
+      "capabilities": ["main"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "msi", "nsis", "dmg", "app"],
+    "publisher": "Hildegard",
+    "category": "Video",
+    "shortDescription": "Your own film studio, on your own GPU.",
+    "longDescription": "Hildegard directs video models through ComfyUI with real camera language. Everything runs on your computer.",
+    "copyright": "Hildegard contributors. AGPL-3.0-only.",
+    "license": "AGPL-3.0-only",
+    "licenseFile": "../../../LICENSE",
+    "homepage": "https://github.com/baney75/hildegard",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/hildegard-node"],
+    "resources": { "payload/": "hildegard/" },
+    "linux": {
+      "appimage": { "bundleMediaFramework": true },
+      "deb": {
+        "recommends": ["gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"]
+      }
+    },
+    "macOS": { "minimumSystemVersion": "11.0" },
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}

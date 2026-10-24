@@ -1,0 +1,212 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Formatting, lint and the notices file: the same on every OS, so once.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: node scripts/notices.mjs --check
+      - run: node scripts/check-omarchy.mjs
+
+  # Typecheck, unit tests, the UI build and the browser tests, on each desktop OS Hildegard runs on.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Export film and posters run on PyAV and Pillow, which ComfyUI's own requirements bring in an install.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0
+      - run: pnpm typecheck
+      - run: pnpm test
+      # The Omarchy bar widget: Omarchy is Linux only.
+      - if: runner.os == 'Linux'
+        run: node --test omarchy/test/*.test.mjs
+      - run: pnpm --filter @hildegard/studio build
+      - name: Install Chromium for the browser tests
+        run: pnpm --filter @hildegard/studio exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          CI: '1'
+      # The install page in site/: plain files, the same on every OS, so once.
+      - if: runner.os == 'Linux'
+        run: pnpm --filter @hildegard/studio e2e:site
+        env:
+          CI: '1'
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.os }}
+          path: |
+            apps/studio/test-results
+            apps/studio/playwright-report
+          retention-days: 7
+
+  # The film-look node, on CPU.
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install pytest
+      - run: python -m pytest -q
+        working-directory: comfy-nodes/hildegard_look
+
+  # Every graph Hildegard builds, validated by the ComfyUI version the installer pins. No GPU or weights needed.
+  comfyui:
+    runs-on: ubuntu-latest
+    env:
+      COMFYUI_REF: v0.42.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: comfyanonymous/ComfyUI
+          ref: ${{ env.COMFYUI_REF }}
+          path: .comfyui
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio && pip install -r .comfyui/requirements.txt comfy-api-proxy==0.1.6
+      - run: cp -r comfy-nodes/hildegard_look .comfyui/custom_nodes/
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node packages/comfy/scripts/validate-on-comfy.ts --prepare .comfyui
+      - name: Start ComfyUI on CPU
+        run: |
+          cd .comfyui
+          nohup python main.py --cpu --listen 127.0.0.1 --port 8188 > ../comfyui.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8188/system_stats >/dev/null && exit 0; sleep 2; done
+          cat ../comfyui.log; exit 1
+      - run: node packages/comfy/scripts/validate-on-comfy.ts .comfyui
+      - name: Render a real video through comfy-api-proxy
+        run: |
+          nohup comfy-api-proxy run --comfyui http://127.0.0.1:8188 --port 8189 --comfyui-base-dir .comfyui > proxy.log 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8189/api/v2/jobs/x && break; sleep 1; done
+          node packages/comfy/scripts/smoke-on-comfy.ts http://127.0.0.1:8189 || { cat proxy.log; exit 1; }
+      - name: Check the film-look node loaded
+        run: grep -q "hildegard_look" comfyui.log && ! grep -q "IMPORT FAILED.*hildegard_look" comfyui.log
+      - if: failure()
+        run: cat comfyui.log
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hildegard/studio build
+      - run: node scripts/build-release.mjs dist/release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: dist/release
+          retention-days: 7
+
+  # What a user does, on every OS: the one-line installer (Node and the release, hash-checked), then hildegard
+  # install (uv, ComfyUI, Python, PyTorch's CPU build, comfy-api-proxy), then a real render through the ComfyUI
+  # Hildegard runs itself, then the CLI tests against the installed app.
+  install:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: rel
+      - name: Serve the release on loopback
+        run: |
+          nohup node scripts/serve-dir.mjs rel 8765 > serve.log 2>&1 &
+          sleep 1
+      - name: install.sh
+        if: runner.os != 'Windows'
+        env:
+          HILDEGARD_RELEASE_URL: http://127.0.0.1:8765
+        run: sh rel/install.sh --cpu --json
+      - name: install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          HILDEGARD_RELEASE_URL: http://127.0.0.1:8765
+          HILDEGARD_INSTALL_ARGS: --cpu --json
+        run: ./rel/install.ps1
+      - name: Where it went
+        run: |
+          case "$RUNNER_OS" in
+            Linux) home="$HOME/.local/share/hildegard"; hg="$HOME/.local/bin/hildegard" ;;
+            macOS) home="$HOME/Library/Application Support/Hildegard"; hg="$HOME/.local/bin/hildegard" ;;
+            Windows) home="$LOCALAPPDATA/Hildegard"; hg="$home/bin/hildegard.cmd" ;;
+          esac
+          echo "HG_HOME=$home" >> "$GITHUB_ENV"
+          echo "HG=$hg" >> "$GITHUB_ENV"
+      - name: Wait for the ComfyUI Hildegard runs
+        run: echo "COMFY_URL=$(node scripts/wait-for-comfy.mjs 7341 300)" >> "$GITHUB_ENV"
+      - name: Render a real video through it
+        run: node packages/comfy/scripts/smoke-on-comfy.ts "$COMFY_URL"
+      - run: '"$HG" status --json'
+      - name: Install again changes nothing
+        run: |
+          "$HG" install --yes --json --cpu > again.json
+          node -e "const r=require('./again.json'); const s=r.steps.filter(x=>['uv','comfyui','python','packages'].includes(x.id)); console.log(s.map(x=>x.id+'='+x.status).join(' ')); process.exit(r.ok && s.every(x=>x.status==='skipped')?0:1)"
+      - name: CLI tests against the installed app
+        run: |
+          cd apps/cli
+          HILDEGARD_CLI="$HG_HOME/app/hildegard.mjs" npx vitest run
+      - run: '"$HG" stop --json'
+      - if: failure()
+        run: for f in "$HG_HOME"/logs/*.log; do echo "=== $f"; tail -n 80 "$f"; done

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The app's own start-up page: find or start Hildegard, install it, open its logs. No \"remote\" here, so the Studio (from http://127.0.0.1) gets nothing.",
+  "windows": ["main"],
+  "permissions": ["allow-launch", "allow-install", "allow-open-logs"]
+}

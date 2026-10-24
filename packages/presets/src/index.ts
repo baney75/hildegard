@@ -1,3 +1,5 @@
-export * from './schema.ts';
+// SPDX-License-Identifier: Apache-2.0
+export * from './api.ts';
 export * from './compose.ts';
 export * from './load.ts';
+export * from './schema.ts';

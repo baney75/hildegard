@@ -17,11 +17,12 @@
     "format": "biome format --write .",
     "test": "pnpm -r test",
     "e2e": "pnpm --filter @hildegard/studio e2e",
-    "validate": "node scripts/validate-presets.mjs"
+    "release": "node scripts/build-release.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@types/node": "^22.20.5",
+    "esbuild": "0.28.2",
     "typescript": "~7.0.2",
     "vitest": "5.0.5"
   }

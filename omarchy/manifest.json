@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.baney75.hildegard",
+  "name": "Hildegard",
+  "version": "0.1.0",
+  "author": "Donovan Baney",
+  "license": "AGPL-3.0-only",
+  "description": "Your own film studio, on your own GPU. Direct shots with real camera language through ComfyUI, watch renders from the bar, and let your AI apps use your GPU as tools. Everything runs on this computer, on 127.0.0.1.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "Hildegard",
+    "description": "Watch renders, start and stop Hildegard, and open the Studio.",
+    "category": "AI",
+    "aliases": ["hildegard", "video", "comfyui", "studio"],
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}

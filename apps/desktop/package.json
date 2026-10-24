@@ -1,0 +1,21 @@
+{
+  "name": "@hildegard/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "The Hildegard app: a native window around the Studio, with a tray icon and a first-run install.",
+  "scripts": {
+    "build": "node scripts/build-ui.mjs",
+    "prepare-bundle": "node scripts/prepare-bundle.mjs",
+    "tauri": "tauri",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.2"
+  }
+}

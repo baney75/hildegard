@@ -1,0 +1,151 @@
+#!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# omarchy:summary=Hildegard in the Omarchy bar: render status, start and stop, open the Studio
+# omarchy:args=snapshot | start | stop | open [route] | setup | notify <title> <body> [route]
+# omarchy:hidden=true
+#
+# The bar widget's backend. It only talks to the hildegard command and to Hildegard's server on 127.0.0.1; it
+# installs nothing itself (Set up opens a terminal for that). Failures end with one "hildegard: " line on stderr,
+# which the panel shows.
+set -euo pipefail
+exec </dev/null
+umask 077
+
+HERE=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+# The hildegard command: on PATH, or where its installer puts it.
+cli() {
+  if command -v hildegard >/dev/null 2>&1; then
+    command -v hildegard
+  elif [[ -x ${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard ]]; then
+    echo "${XDG_BIN_HOME:-$HOME/.local/bin}/hildegard"
+  fi
+}
+
+# Where Hildegard keeps its data: HILDEGARD_HOME, else the home its installed command was set up with, else the default.
+data_dir() {
+  local bin home=${HILDEGARD_HOME:-}
+  if [[ -z $home ]] && bin=$(cli) && [[ -n $bin && -r $bin ]]; then
+    home=$(sed -n 's/^export HILDEGARD_HOME="\(.*\)"$/\1/p' "$bin" 2>/dev/null | head -n 1)
+  fi
+  echo "${home:-${XDG_DATA_HOME:-$HOME/.local/share}/hildegard}"
+}
+
+# The port: HILDEGARD_PORT, else the one Hildegard last started on (it notes it in <data>/server.json), else 7341.
+remembered_port() {
+  local data
+  data=$(data_dir)
+  [[ -r $data/server.json ]] && jq -er '.port | select(type == "number" and . > 0 and . < 65536)' "$data/server.json" 2>/dev/null
+}
+PORT=${HILDEGARD_PORT:-$(remembered_port || echo 7341)}
+URL="http://127.0.0.1:$PORT"
+
+fail() {
+  printf 'hildegard: %s\n' "$*" >&2
+  exit 1
+}
+
+# Everything the panel shows, as one JSON object, from Hildegard's own snapshot.
+snapshot() {
+  local bin raw
+  bin=$(cli)
+  if ! raw=$(curl -fsS --max-time 3 "$URL/api/snapshot" 2>/dev/null); then
+    jq -n --arg url "$URL" --argjson installed "$([[ -n $bin ]] && echo true || echo false)" \
+      '{installed: $installed, running: false, url: $url}'
+    return
+  fi
+  jq --arg url "$URL" '
+    def title($s): . as $t | ([$s.shots[] | select(.id == $t.shotId) | .title][0]) // $t.prompt;
+    . as $s
+    | [.takes[] | select(.status == "running" or .status == "queued")] as $live
+    # Renders paired devices sent here: they hold the GPU like any take, so they count, without their prompts.
+    | (.guests // []) as $guests
+    | {
+        installed: true,
+        running: true,
+        url: $url,
+        version: .version,
+        engine: {
+          online: .engine.online,
+          fake: .engine.fake,
+          paused: .engine.paused,
+          device: .engine.device,
+          problem: .engine.problem
+        },
+        queue: {
+          running: ([$live[], $guests[] | select(.status == "running")] | length),
+          queued: ([$live[], $guests[] | select(.status == "queued")] | length),
+          guests: ($guests | length)
+        },
+        current: (
+          (
+            [$live[] | select(.status == "running")][0]
+            | if . == null then null else {
+                id, projectId,
+                title: title($s),
+                progress: (.progress.value // 0),
+                quality
+              } end
+          ) // (
+            [$guests[] | select(.status == "running")][0]
+            | if . == null then null else {
+                id,
+                projectId: null,
+                title: (if .from then "From \(.from)" else "From another device" end),
+                progress: (.progress // 0),
+                quality
+              } end
+          )
+        ),
+        recent: (
+          [.takes[] | select(.status == "done" or .status == "failed")]
+          | sort_by(.finishedAt // .createdAt) | reverse | .[:5]
+          | map({ id, projectId, status, title: title($s), at: (.finishedAt // .createdAt) })
+        ),
+        models: ([.models[] | select(.installed)] | length),
+        hf: (.hf.linked // false)
+      }' <<<"$raw"
+}
+
+start() {
+  local bin
+  bin=$(cli)
+  [[ -n $bin ]] || fail "Hildegard isn't installed yet. Use Set up."
+  local out
+  out=$("$bin" start --json --port "$PORT" 2>&1) || fail "$(jq -r '.message // empty' <<<"$out" 2>/dev/null || echo "it didn't start; see the log")"
+}
+
+stop() {
+  local bin
+  bin=$(cli)
+  [[ -n $bin ]] || fail "Hildegard isn't installed."
+  "$bin" stop --json --port "$PORT" >/dev/null 2>&1 || fail "it didn't stop"
+}
+
+# Opens the Studio, at a route such as "#/queue" or "#/film/<id>/take/<id>". Routes are checked, so nothing but
+# Hildegard's own address reaches the browser.
+open_studio() {
+  local route=${1:-}
+  [[ -z $route || $route =~ ^#/[A-Za-z0-9/_-]*$ ]] || fail "not a Studio route: $route"
+  omarchy-launch-browser "$URL/$route" >/dev/null 2>&1 &
+}
+
+setup() {
+  omarchy-launch-tui --app-id=org.omarchy.hildegard-setup "$HERE/hildegard-omarchy-setup" >/dev/null 2>&1 &
+}
+
+notify() {
+  local title=${1//[<>&]/} body=${2//[<>&]/} route=${3:-}
+  [[ -z $route || $route =~ ^#/[A-Za-z0-9/_-]*$ ]] || route=
+  omarchy-notification-send --app-name Hildegard "$title" "$body" --exec omarchy-launch-browser "$URL/$route" ||
+    true
+}
+
+case ${1:-} in
+snapshot) snapshot ;;
+start) start ;;
+stop) stop ;;
+open) open_studio "${2:-}" ;;
+setup) setup ;;
+notify) notify "${2:-}" "${3:-}" "${4:-}" ;;
+*) fail "usage: hildegard-omarchy snapshot | start | stop | open [route] | setup | notify <title> <body> [route]" ;;
+esac

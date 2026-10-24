@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Catalog, Model, MotionImpl, Post, ShotRequest } from './schema.ts';
 import { Post as PostSchema } from './schema.ts';
 
@@ -46,7 +47,8 @@ export function apertureWords(f: number): string {
   return `shot at f/${fmtF(f)}, deep focus, foreground and background sharp`;
 }
 
-export const fmtF = (f: number): string => (Number.isInteger(f) ? f.toFixed(1) : String(Math.round(f * 10) / 10));
+export const fmtF = (f: number): string =>
+  Number.isInteger(f) ? f.toFixed(1) : String(Math.round(f * 10) / 10);
 
 function need<T>(value: T | undefined, field: string, what: string): T {
   if (value === undefined) throw new PresetError(`Unknown ${what}`, field);
@@ -80,42 +82,92 @@ export function frameSize(aspect: { width: number; height: number }, shortSide: 
   return { width: round(aspect.width * scale, step), height: round(aspect.height * scale, step) };
 }
 
-/** LTX wants 8n + 1 frames. */
+/** LTX wants 8n + 1 frames, Wan 4n + 1. */
 export function frameCount(fps: number, seconds: number, multiple: number): number {
   return 1 + Math.max(1, Math.round((fps * seconds) / multiple)) * multiple;
 }
 
 export function pickModel(catalog: Catalog, id?: string): Model {
-  if (id) return need(catalog.models.find((m) => m.id === id), 'model', 'model');
+  if (id)
+    return need(
+      catalog.models.find((m) => m.id === id),
+      'model',
+      'model',
+    );
   return catalog.models[0]!;
 }
 
 export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
   const model = pickModel(catalog, req.model);
-  const body = need(catalog.bodies.find((b) => b.id === req.rig.body), 'rig.body', 'camera body');
-  const lens = need(catalog.lenses.find((l) => l.id === req.rig.lens), 'rig.lens', 'lens');
-  const focal = need(catalog.focals.find((f) => f.mm === req.rig.focal), 'rig.focal', 'focal length');
-  const aspect = need(catalog.aspects.find((a) => a.id === req.format.aspect), 'format.aspect', 'aspect ratio');
+  const body = need(
+    catalog.bodies.find((b) => b.id === req.rig.body),
+    'rig.body',
+    'camera body',
+  );
+  const lens = need(
+    catalog.lenses.find((l) => l.id === req.rig.lens),
+    'rig.lens',
+    'lens',
+  );
+  const focal = need(
+    catalog.focals.find((f) => f.mm === req.rig.focal),
+    'rig.focal',
+    'focal length',
+  );
+  const aspect = need(
+    catalog.aspects.find((a) => a.id === req.format.aspect),
+    'format.aspect',
+    'aspect ratio',
+  );
   const look = req.look;
   const lighting = look.lighting
-    ? need(catalog.lightings.find((l) => l.id === look.lighting), 'look.lighting', 'lighting')
+    ? need(
+        catalog.lightings.find((l) => l.id === look.lighting),
+        'look.lighting',
+        'lighting',
+      )
     : undefined;
   const palette = look.palette
-    ? need(catalog.palettes.find((p) => p.id === look.palette), 'look.palette', 'palette')
+    ? need(
+        catalog.palettes.find((p) => p.id === look.palette),
+        'look.palette',
+        'palette',
+      )
     : undefined;
-  const genre = look.genre ? need(catalog.genres.find((g) => g.id === look.genre), 'look.genre', 'genre') : undefined;
-  const era = look.era ? need(catalog.eras.find((e) => e.id === look.era), 'look.era', 'era') : undefined;
+  const genre = look.genre
+    ? need(
+        catalog.genres.find((g) => g.id === look.genre),
+        'look.genre',
+        'genre',
+      )
+    : undefined;
+  const era = look.era
+    ? need(
+        catalog.eras.find((e) => e.id === look.era),
+        'look.era',
+        'era',
+      )
+    : undefined;
 
   const motions: ResolvedMotion[] = req.motion.map((m, i) => {
-    const motion = need(catalog.motions.find((x) => x.id === m.id), `motion.${i}`, 'camera motion');
-    return { id: motion.id, name: motion.name, strength: m.strength, impl: motion.impl[model.id] ?? { kind: 'prompt' } };
+    const motion = need(
+      catalog.motions.find((x) => x.id === m.id),
+      `motion.${i}`,
+      'camera motion',
+    );
+    return {
+      id: motion.id,
+      name: motion.name,
+      strength: m.strength,
+      impl: motion.impl[model.id] ?? { kind: 'prompt' },
+    };
   });
   const motionText = req.motion
     .map((m) => catalog.motions.find((x) => x.id === m.id)!.prompt)
     .join(', while ');
 
   const seconds = Math.min(req.format.seconds, model.maxSeconds);
-  const twoStage = req.format.quality === 'final';
+  const twoStage = req.format.quality === 'final' && model.twoStageFinal;
   const quality = model[req.format.quality];
   const { width, height } = frameSize(aspect, quality.height, twoStage);
 

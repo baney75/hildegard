@@ -1,0 +1,15 @@
+[project]
+name = "hildegard-look"
+version = "0.1.0"
+description = "Film look for ComfyUI: grain, halation, vignette, gate weave, softness and a simple grade. Part of Hildegard."
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/baney75/hildegard"
+
+[tool.comfy]
+PublisherId = "baney75"
+DisplayName = "Hildegard Look"

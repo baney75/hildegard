@@ -6,12 +6,21 @@
 id = "ltx-2-5-distilled"
 name = "LTX-2.5 distilled"
 family = "ltx-2.5"
-blurb = "Lightricks' newest open model. Video and sound together, fast 8-step sampling."
-license = "LTX-2 Community License"
-licenseUrl = "https://huggingface.co/Lightricks/LTX-2.5"
+blurb = "Lightricks’ newest open model. Video and sound together, fast 8-step sampling."
+license = "LTX-2.x Community License"
+licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x"
+terms = [
+  "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
+  "You may not use it to build a product that competes with Lightricks’ own.",
+  "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
+  "No deepfakes of real people without their consent, and no sexual content.",
+  "Hugging Face also asks you to accept the license on the model’s page before it can download.",
+]
 gated = true
 graph = "ltx-2.5-distilled"
 minVramGb = 24
+# Its int8 weights run on int8 kernels, which Apple's GPU doesn't have.
+mps = false
 fps = 24
 frameMultiple = 8
 maxSeconds = 10
@@ -58,11 +67,20 @@ gated = true
 id = "ltx-2-distilled"
 name = "LTX-2 distilled"
 family = "ltx-2"
-blurb = "The model with Lightricks' camera-control LoRAs: exact dollies, jibs and locked-off shots."
+blurb = "The model with Lightricks’ camera-control LoRAs: exact dollies, jibs and locked-off shots."
 license = "LTX-2 Community License"
-licenseUrl = "https://huggingface.co/Lightricks/LTX-2"
+licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2"
+terms = [
+  "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
+  "You may not use it to build a product that competes with Lightricks’ own.",
+  "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
+  "No deepfakes of real people without their consent, and no sexual content.",
+  "Its text encoder, Gemma 3, comes under Google’s Gemma Terms of Use.",
+]
 graph = "ltx-2-distilled"
 minVramGb = 24
+# Its fp8 weights: PyTorch on Apple's GPU has no float8 type to load them into.
+mps = false
 fps = 24
 frameMultiple = 8
 maxSeconds = 10
@@ -96,3 +114,45 @@ camera-dolly-left = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Lef
 camera-dolly-right = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Right", path = "ltx-2-19b-lora-camera-control-dolly-right.safetensors", dir = "loras", size = 330000000 }
 camera-jib-up = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Up", path = "ltx-2-19b-lora-camera-control-jib-up.safetensors", dir = "loras", size = 330000000 }
 camera-jib-down = { repo = "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Down", path = "ltx-2-19b-lora-camera-control-jib-down.safetensors", dir = "loras", size = 330000000 }
+
+[[models]]
+id = "wan-2-2-ti2v-5b"
+name = "Wan 2.2 5B"
+family = "wan-2.2"
+blurb = "Alibaba’s open model under Apache-2.0: no usage limits, runs on a 12 GB GPU. Silent video."
+license = "Apache-2.0"
+licenseUrl = "https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "You are responsible for what you make with it, and for following the law where you publish it.",
+]
+graph = "wan-2.2-ti2v"
+twoStageFinal = false
+minVramGb = 12
+# On Apple's GPU its fp16 weights render a blurred blob, at about 200 s a step on a 24 GB M5 (Oct 2026), so Macs
+# render it on a paired device until it's proven there.
+mps = false
+fps = 24
+frameMultiple = 4
+maxSeconds = 5
+audio = false
+draft = { height = 480, steps = 20, cfg = 5.0 }
+final = { height = 704, steps = 30, cfg = 5.0 }
+
+[[models.files]]
+repo = "Comfy-Org/Wan-2.2"
+path = "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors"
+dir = "diffusion_models"
+size = 9999658848
+
+[[models.files]]
+repo = "Comfy-Org/Wan-2.1"
+path = "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+dir = "text_encoders"
+size = 6735906897
+
+[[models.files]]
+repo = "Comfy-Org/Wan-2.2"
+path = "split_files/vae/wan2.2_vae.safetensors"
+dir = "vae"
+size = 1409400960

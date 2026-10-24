@@ -1,0 +1,7 @@
+# Made by scripts/build-ui.mjs and scripts/prepare-bundle.mjs, and by cargo and the Tauri CLI.
+/ui/dist/
+/src-tauri/target/
+/src-tauri/gen/
+/src-tauri/binaries/
+/src-tauri/payload/
+/.cache/
