@@ -80,11 +80,20 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Couldn't unpack $f." }
 
   # `app` is a junction to the current version (no admin rights needed), so paths given to AI apps survive upgrades.
-  # Keep this version and the one before it, for going back.
+  # Keep this version and the one before it, for going back. exFAT and FAT32 drives can't hold a junction, so there
+  # `app` is a copy of the current version instead.
   $link = Join-Path $Root 'app'
-  $prev = if (Test-Path $link) { Split-Path -Leaf (Get-Item $link).Target } else { '' }
-  if (Test-Path $link) { (Get-Item $link).Delete() }
-  New-Item -ItemType Junction -Path $link -Target $app | Out-Null
+  $prev = ''
+  if (Test-Path $link) {
+    $old = Get-Item $link
+    if ($old.LinkType -eq 'Junction') { $prev = Split-Path -Leaf $old.Target; $old.Delete() }
+    else { Remove-Item -Recurse -Force $link }
+  }
+  try { New-Item -ItemType Junction -Path $link -Target $app -ErrorAction Stop | Out-Null }
+  catch {
+    if (Test-Path $link) { Remove-Item -Recurse -Force $link }
+    Copy-Item -Recurse -Path $app -Destination $link
+  }
   Get-ChildItem -Directory -Path $Root -Filter 'app-*' | Where-Object { $_.Name -ne "app-$Version" -and $_.Name -ne $prev } | Remove-Item -Recurse -Force
 
   $launcher = Join-Path $Bin 'hildegard.cmd'
