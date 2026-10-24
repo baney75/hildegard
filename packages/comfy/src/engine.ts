@@ -21,7 +21,9 @@ export interface RenderHandlers {
 export interface RenderOptions {
   /** Local path of a start frame to upload and bind to the graph's LoadImage node. */
   startFrame?: string;
-  /** Where to write the finished video. */
+  /** Local paths of reference images, bound in order to the graph's referenceNodes. */
+  references?: string[];
+  /** Where to write the finished video, or the still for a graph that saves an image. */
   dest: string;
   signal?: AbortSignal;
   handlers?: RenderHandlers;
@@ -37,6 +39,8 @@ export type EngineErrorCode =
   | 'invalid_graph'
   | 'node_failed'
   | 'content_blocked'
+  /** A character in it can't be drawn now: deleted, its references gone, or its real person's consent taken back. */
+  | 'character'
   | 'canceled'
   | 'unknown';
 
@@ -82,7 +86,11 @@ export function classifyFailure(code: string | undefined, message: string | unde
           'content_blocked',
           /start frame/.test(guard[1]!)
             ? 'Hildegard refused this start frame: it looks sexual.'
-            : 'Hildegard refused this take: a frame looked sexual, so it was deleted.',
+            : /refused this reference/.test(guard[1]!)
+              ? 'Hildegard refused a reference image: it looks sexual.'
+              : /refused this still/.test(guard[1]!)
+                ? 'Hildegard refused this still: it looked sexual, so it was deleted.'
+                : 'Hildegard refused this take: a frame looked sexual, so it was deleted.',
           guard[1],
         );
   if (
@@ -164,6 +172,12 @@ export class ComfySdkEngine implements Engine {
       if (!built.startFrameNode) throw new EngineError('invalid_graph', 'This graph takes no start frame.');
       wf.setInput(built.startFrameNode, 'image', this.client.assets.fromFile(opts.startFrame));
     }
+    const refs = opts.references ?? [];
+    if (refs.length !== (built.referenceNodes?.length ?? 0))
+      throw new EngineError('invalid_graph', 'The reference images don’t match the graph.');
+    refs.forEach((file, i) => {
+      wf.setInput(built.referenceNodes![i]!, 'image', this.client.assets.fromFile(file));
+    });
 
     let job: Job;
     try {
@@ -208,10 +222,12 @@ export class ComfySdkEngine implements Engine {
         throw new EngineError('canceled', 'Canceled.');
       if (job.status !== 'succeeded') throw classifyFailure(job.error?.code, job.error?.message);
       // comfy-api-proxy 0.1.6 labels SaveVideo files type "image", so trust the content type.
-      const isVideo = (o: { type: string; contentType: string }) =>
-        o.type === 'video' || o.contentType.startsWith('video/');
-      const output = job.getOutputs(built.outputNode).find(isVideo) ?? job.outputs.find(isVideo);
-      if (!output) throw new EngineError('node_failed', 'ComfyUI finished but saved no video.');
+      const still = built.output === 'image';
+      const wanted = (o: { type: string; contentType: string }) =>
+        still ? o.contentType.startsWith('image/') : o.type === 'video' || o.contentType.startsWith('video/');
+      const output = job.getOutputs(built.outputNode).find(wanted) ?? job.outputs.find(wanted);
+      if (!output)
+        throw new EngineError('node_failed', `ComfyUI finished but saved no ${still ? 'image' : 'video'}.`);
       await output.toFile(opts.dest, { signal });
     } finally {
       signal?.removeEventListener('abort', onAbort);

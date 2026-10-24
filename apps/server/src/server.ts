@@ -14,6 +14,7 @@ import { Exporter, makePoster, reviewer } from './export.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
+import { Likeness } from './likeness.ts';
 import { LocalModels, type LocalModelsDeps } from './llm.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
@@ -271,7 +272,9 @@ export async function startServer(
     version: VERSION,
     updatable: !!opts.updates?.run || !!entry,
     busy: () =>
-      [...store.takes.values()].some((t) => t.status === 'queued' || t.status === 'running') ||
+      [...store.takes.values(), ...store.stills.values()].some(
+        (t) => t.status === 'queued' || t.status === 'running',
+      ) ||
       scheduler.guestTakes().length > 0 ||
       models.states().some((m) => m.downloading) ||
       exporter.list().some((e) => e.status === 'running'),
@@ -289,6 +292,7 @@ export async function startServer(
   });
   const app = createApp({
     updates,
+    likeness: new Likeness(config.dataDir),
     exporter,
     config,
     store,

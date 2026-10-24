@@ -6,6 +6,7 @@
  */
 import type { IncomingMessage } from 'node:http';
 import type {
+  Character,
   ChoirState,
   EngineState,
   ExportState,
@@ -16,6 +17,7 @@ import type {
   ServerEvent,
   Shot,
   Snapshot,
+  Still,
   Take,
 } from '@hildegard/presets';
 import type { Context } from 'hono';
@@ -89,6 +91,8 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/shots\/[^/]+$/,
     /^\/api\/exports\/[^/]+$/,
     /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,
+    /^\/api\/characters\/[^/]+\/consent$/,
+    /^\/api\/stills\/[^/]+\/preview$/,
     /^\/media\//,
   ],
   POST: [
@@ -98,9 +102,19 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/takes\/[^/]+\/(cancel|force|retry|keep)$/,
     /^\/api\/uploads$/,
     /^\/api\/auth\//,
+    /^\/api\/characters$/,
+    /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
+    /^\/api\/stills\/[^/]+\/(cancel|force|retry|keep)$/,
   ],
-  PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/],
-  DELETE: [/^\/api\/shots\/[^/]+$/, /^\/api\/takes\/[^/]+$/, /^\/api\/auth\/grants\/[^/]+$/],
+  PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/, /^\/api\/characters\/[^/]+$/],
+  DELETE: [
+    /^\/api\/shots\/[^/]+$/,
+    /^\/api\/takes\/[^/]+$/,
+    /^\/api\/auth\/grants\/[^/]+$/,
+    /^\/api\/characters\/[^/]+$/,
+    /^\/api\/characters\/[^/]+\/references\/[^/]+$/,
+    /^\/api\/stills\/[^/]+$/,
+  ],
 };
 export function directorMay(method: string, path: string): boolean {
   if (method === 'GET' || method === 'HEAD') {
@@ -115,6 +129,8 @@ export function open(method: string, path: string): boolean {
   if (path === '/api/health') return true;
   if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
+  // A real person giving (or taking back) consent for a character of them: the one-time link is their key.
+  if (path.startsWith('/api/likeness/')) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))
     return true;
   return false;
@@ -127,6 +143,13 @@ export function seesProject(who: Who | null, p: Project | undefined): boolean {
   if (!who || !p) return false;
   if (who.kind === 'local' || who.person.role === 'owner') return true;
   return p.owner === who.person.id;
+}
+
+/** A character a person may see and use: the owner and this computer see all of them; a director, their own. */
+export function seesCharacter(who: Who | null, c: Character | undefined): boolean {
+  if (!who || !c) return false;
+  if (who.kind === 'local' || who.person.role === 'owner') return true;
+  return c.owner === who.person.id;
 }
 
 /** ComfyUI's address is this computer's business; the engine's state is everyone's. */
@@ -163,6 +186,13 @@ export function snapshotFor(who: Who | null, s: Snapshot): Snapshot {
     hf: hfFor(who, s.hf),
     choir: choirFor(who, s.choir),
     guests: guestsFor(who, s.guests),
+    characters: s.characters.filter((c) => seesCharacter(who, c)),
+    stills: s.stills.filter((x) =>
+      seesCharacter(
+        who,
+        s.characters.find((c) => c.id === x.characterId),
+      ),
+    ),
   };
 }
 
@@ -170,10 +200,19 @@ export function snapshotFor(who: Who | null, s: Snapshot): Snapshot {
  * Filter one event stream for one person. `projects` looks a film up as it is now; `sent` holds the ids this stream
  * has shown, from its first snapshot on, so a removal reaches only those who saw the thing removed.
  */
-export function eventFilter(projects: (id: string) => Project | undefined, sent: Set<string>) {
+export function eventFilter(
+  projects: (id: string) => Project | undefined,
+  sent: Set<string>,
+  characters: (id: string) => Character | undefined = () => undefined,
+) {
   return (who: Who | null, e: ServerEvent): ServerEvent | null => {
     const see = (projectId: string, id: string) => {
       if (!seesProject(who, projects(projectId))) return false;
+      sent.add(id);
+      return true;
+    };
+    const seeCharacter = (characterId: string, id: string) => {
+      if (!seesCharacter(who, characters(characterId))) return false;
       sent.add(id);
       return true;
     };
@@ -186,6 +225,10 @@ export function eventFilter(projects: (id: string) => Project | undefined, sent:
         return see(e.project.id, e.project.id) ? e : null;
       case 'export':
         return see((e.export as ExportState).projectId, e.export.id) ? e : null;
+      case 'character':
+        return seeCharacter(e.character.id, e.character.id) ? e : null;
+      case 'still':
+        return seeCharacter((e.still as Still).characterId, e.still.id) ? e : null;
       case 'removed':
         return who?.kind === 'local' ||
           (who?.kind === 'person' && who.person.role === 'owner') ||

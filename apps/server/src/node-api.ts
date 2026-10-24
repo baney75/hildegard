@@ -27,8 +27,11 @@ import type { NodeEvent, NodeInfo } from './remote-engine.ts';
 import type { Scheduler } from './scheduler.ts';
 import { explain } from './scheduler.ts';
 
-/** A start frame is up to 20 MB, so its base64 and the graph fit well inside this. */
-export const MAX_RENDER_BODY = 30 * 1024 * 1024;
+/** A start frame is up to 20 MB and each of four reference images up to 10 MB: their base64 and the graph fit in this. */
+export const MAX_RENDER_BODY = 88 * 1024 * 1024;
+/** Base64 of one image: 20 MB for a start frame, 10 MB for a reference, with room for the encoding. */
+const B64_START = 28 * 1024 * 1024;
+const B64_REF = 14 * 1024 * 1024;
 /** Finished videos wait this long for the paired device to fetch them. */
 const MEDIA_TTL_MS = 10 * 60_000;
 /** Preview frames to a paired device: about two a second is plenty over a tailnet. */
@@ -38,12 +41,12 @@ const RenderBody = z.object({
   built: z.object({
     graph: z.record(z.string(), z.unknown()),
     outputNode: z.string().max(8),
+    output: z.enum(['video', 'image']).optional(),
     startFrameNode: z.string().max(8).optional(),
+    referenceNodes: z.array(z.string().max(8)).max(4).optional(),
   }),
-  startFrame: z
-    .string()
-    .max(28 * 1024 * 1024)
-    .optional(),
+  startFrame: z.string().max(B64_START).optional(),
+  references: z.array(z.string().max(B64_REF)).max(4).optional(),
   // What the queue here shows about it. Both are the other device's say-so, for display only; anything odd is
   // dropped rather than refusing the take.
   from: z.string().max(200).optional().catch(undefined),
@@ -183,21 +186,45 @@ export function nodeRoutes(deps: NodeDeps): Hono {
         );
       if (!!built.startFrameNode !== !!parsed.data.startFrame)
         return c.json({ error: 'The start frame is missing.', code: 'invalid_graph' }, 422);
+      if ((built.referenceNodes?.length ?? 0) !== (parsed.data.references?.length ?? 0))
+        return c.json({ error: 'The reference images are missing.', code: 'invalid_graph' }, 422);
 
       const job = id();
       // Saved under this computer's own name for it, whatever the other device asked for.
-      const save = Object.values(built.graph).find((n) => n.class_type === 'SaveVideo')!;
+      const save = built.graph[built.outputNode]!;
       save.inputs.filename_prefix = `hildegard/paired-${job}`;
+      // Every image it brings, sniffed by its bytes and written where only this route reads it.
+      const images: string[] = [];
+      const keep = async (b64: string, name: string): Promise<string | null> => {
+        const bytes = Buffer.from(b64, 'base64');
+        const kind = sniffImage(bytes);
+        if (!kind) return null;
+        const path = join(dir, `${name}.${kind}`);
+        await writeFile(path, bytes, { mode: 0o600 });
+        images.push(path);
+        return path;
+      };
+      const cleanup = () => Promise.all(images.map((p) => rm(p, { force: true })));
       let startFrame: string | undefined;
       if (parsed.data.startFrame) {
-        const bytes = Buffer.from(parsed.data.startFrame, 'base64');
-        const kind = sniffImage(bytes);
-        if (!kind)
+        startFrame = (await keep(parsed.data.startFrame, job)) ?? undefined;
+        if (!startFrame)
           return c.json({ error: 'The start frame isn’t a PNG, JPEG or WebP.', code: 'invalid_graph' }, 415);
-        startFrame = join(dir, `${job}.${kind}`);
-        await writeFile(startFrame, bytes, { mode: 0o600 });
       }
-      const dest = join(dir, `${job}.mp4`);
+      const references: string[] = [];
+      for (const [i, b64] of (parsed.data.references ?? []).entries()) {
+        const path = await keep(b64, `${job}-ref${i + 1}`);
+        if (!path) {
+          await cleanup();
+          return c.json(
+            { error: 'A reference image isn’t a PNG, JPEG or WebP.', code: 'invalid_graph' },
+            415,
+          );
+        }
+        references.push(path);
+      }
+      const still = built.output === 'image';
+      const dest = join(dir, `${job}.${still ? 'png' : 'mp4'}`);
       const ac = new AbortController();
       jobs.set(job, ac);
       c.req.raw.signal?.addEventListener('abort', () => ac.abort(), { once: true });
@@ -227,6 +254,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
             quality: parsed.data.quality ?? null,
             built,
             startFrame,
+            references,
             dest,
             signal: ac.signal,
             handlers: {
@@ -261,7 +289,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
         } finally {
           clearInterval(ping);
           jobs.delete(job);
-          if (startFrame) await rm(startFrame, { force: true });
+          await cleanup();
         }
       });
     },
@@ -274,18 +302,23 @@ export function nodeRoutes(deps: NodeDeps): Hono {
     return c.json({ ok: true });
   });
 
-  /** The finished video, once: it is deleted as soon as it has been sent. */
+  /** The finished video or still, once: it is deleted as soon as it has been sent. */
   app.get('/media/:id', (c: Context) => {
     const mid = c.req.param('id') ?? '';
-    const file = join(dir, `${mid}.mp4`);
-    if (!/^[a-f0-9]{32}$/.test(mid) || !ready.has(mid) || !existsSync(file))
-      return c.json({ error: 'No such video.' }, 404);
+    const ok = /^[a-f0-9]{32}$/.test(mid) && ready.has(mid);
+    const ext = ok ? (['mp4', 'png'] as const).find((e) => existsSync(join(dir, `${mid}.${e}`))) : undefined;
+    if (!ext) return c.json({ error: 'No such render.' }, 404);
+    const file = join(dir, `${mid}.${ext}`);
     ready.delete(mid);
     const size = statSync(file).size;
     const rs = createReadStream(file);
     rs.once('end', () => void rm(file, { force: true }));
     return new Response(Readable.toWeb(rs) as ReadableStream, {
-      headers: { 'content-type': 'video/mp4', 'content-length': String(size), 'cache-control': 'no-store' },
+      headers: {
+        'content-type': ext === 'png' ? 'image/png' : 'video/mp4',
+        'content-length': String(size),
+        'cache-control': 'no-store',
+      },
     });
   });
 

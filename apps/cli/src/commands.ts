@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import type { Catalog, ChoirDevice, ChoirState, HfState, HostState, Snapshot } from '@hildegard/presets';
+import { videoModels } from '@hildegard/presets';
 import {
   AGENTS,
   connectAgent,
@@ -320,13 +321,10 @@ export async function ensureRunning(ctx: Ctx): Promise<Step | null> {
   return s.steps[0] ?? null;
 }
 
-/** The first model in the catalog that fits this GPU, or one that fits tightly. */
+/** The first video model in the catalog that fits this GPU, or one that fits tightly. */
 export function starterModel(catalog: Catalog, gpu: Gpu) {
-  return (
-    catalog.models.find((m) => fit(gpu, m) === 'fits') ??
-    catalog.models.find((m) => fit(gpu, m) === 'tight') ??
-    null
-  );
+  const video = videoModels(catalog);
+  return video.find((m) => fit(gpu, m) === 'fits') ?? video.find((m) => fit(gpu, m) === 'tight') ?? null;
 }
 
 export async function installModel(ctx: Ctx, id: string, accept: boolean): Promise<Step> {
@@ -459,7 +457,7 @@ export async function setup(ctx: Ctx): Promise<Result> {
   const pick = want
     ? catalog.models.find((m) => m.id === want)
     : remote
-      ? catalog.models.find((m) => remote.models.includes(m.id))
+      ? videoModels(catalog).find((m) => remote.models.includes(m.id))
       : starterModel(catalog, gpu);
   if (remote && !want)
     add(

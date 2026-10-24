@@ -4,6 +4,8 @@ import type {
   AgentsResponse,
   AuthState,
   Catalog,
+  Character,
+  CharacterView,
   ChoirDevice,
   ChoirState,
   ExportState,
@@ -17,6 +19,7 @@ import type {
   SetupStep,
   Shot,
   Snapshot,
+  Still,
   Take,
   UpdateState,
 } from '@hildegard/presets';
@@ -80,6 +83,15 @@ export interface DeviceStart {
   expiresIn: number;
 }
 
+/** What a real person's consent link asks them, for the page it opens. */
+export interface LikenessAsk {
+  character: string;
+  maker: string;
+  expiresAt: string;
+  photos: CharacterView[];
+  statement: string;
+}
+
 export const api = {
   snapshot: () => call<Snapshot>('GET', '/api/snapshot'),
   catalog: () => call<Catalog>('GET', '/api/catalog'),
@@ -140,6 +152,67 @@ export const api = {
   host: () => call<HostState>('GET', '/api/host'),
   hostOn: (via: 'tailscale' | 'funnel') => call<HostState>('POST', '/api/host', { via }),
   hostOff: () => call<HostState>('POST', '/api/host/off'),
+  createCharacter: (body: {
+    name: string;
+    description?: string;
+    wardrobe?: string;
+    likeness?: 'invented' | 'real';
+  }) => call<Character>('POST', '/api/characters', body),
+  editCharacter: (
+    id: string,
+    body: {
+      name?: string;
+      description?: string;
+      wardrobe?: string;
+      voice?: string | null;
+      cover?: string | null;
+    },
+  ) => call<Character>('PATCH', `/api/characters/${id}`, body),
+  deleteCharacter: (id: string) => call<void>('DELETE', `/api/characters/${id}`),
+  addReference: (id: string, file: string, view: CharacterView | null) =>
+    call<Character>('POST', `/api/characters/${id}/references`, { file, view, noRealPerson: true }),
+  removeReference: (id: string, file: string) =>
+    call<Character>('DELETE', `/api/characters/${id}/references/${file}`),
+  makeStills: (id: string, body: { view: CharacterView; count?: number; note?: string }) =>
+    call<{ character: Character; stills: Still[] }>('POST', `/api/characters/${id}/stills`, body),
+  keepStill: (id: string) => call<Character>('POST', `/api/stills/${id}/keep`),
+  cancelStill: (id: string) => call<Still>('POST', `/api/stills/${id}/cancel`),
+  retryStill: (id: string) => call<Still>('POST', `/api/stills/${id}/retry`),
+  deleteStill: (id: string) => call<void>('DELETE', `/api/stills/${id}`),
+  askConsent: (id: string, maker?: string) =>
+    call<{ character: Character; url: string; local: boolean }>('POST', `/api/characters/${id}/consent`, {
+      maker,
+    }),
+  revokeConsent: (id: string) => call<Character>('POST', `/api/characters/${id}/consent/revoke`),
+  likeness: (token: string) => call<LikenessAsk>('GET', `/api/likeness/${encodeURIComponent(token)}`),
+  giveLikeness: (token: string, person: string, photos: string[]) =>
+    call<{ ok: true; revokeUrl: string }>('POST', `/api/likeness/${encodeURIComponent(token)}`, {
+      person,
+      agree: true,
+      photos,
+    }),
+  declineLikeness: (token: string) => call('POST', `/api/likeness/${encodeURIComponent(token)}/decline`),
+  revokeLikeness: (token: string) =>
+    call<{ ok: true; character: string | null }>('POST', `/api/likeness/revoke/${encodeURIComponent(token)}`),
+  /** The voice studio's voices, for a character to speak in: none where there is no voice studio. */
+  voices: () =>
+    call<
+      Array<{
+        id: string;
+        name: string;
+        kind: string;
+        blurb: string;
+        hue?: number;
+        consent?: { status: string };
+      }>
+    >('GET', '/api/voice/voices')
+      // A Hildegard without the voice studio answers with something else, or not at all.
+      .then((v) => (Array.isArray(v) ? v : []))
+      .catch((e) => {
+        // The voices are the owner's.
+        if (e instanceof ApiError && (e.status === 404 || e.status === 403)) return [];
+        throw e;
+      }),
   linkAgent: (id: string, link: boolean) =>
     call<{ step: SetupStep; agents: AgentInfo[] }>(
       'POST',

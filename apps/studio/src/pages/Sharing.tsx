@@ -49,7 +49,7 @@ function Problem({ error }: { error: { text: string; fix: string | null } | null
 }
 
 /** A secret to hand over: shown once, copied with one press. */
-function Secret({ label, value }: { label: string; value: string }) {
+export function Secret({ label, value }: { label: string; value: string }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);

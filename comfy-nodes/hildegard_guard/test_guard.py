@@ -114,6 +114,11 @@ def test_refuses_a_sexual_frame():
         judge(frames(), Fixed(0.9), 0.8)
     with pytest.raises(GuardBlocked, match="start frame"):
         judge(frames(1), Fixed(0.9), 0.8, what="start frame")
+    # A character's reference image, before the stills model reads it, and a still before it is saved.
+    with pytest.raises(GuardBlocked, match="refused this reference"):
+        judge(frames(1), Fixed(0.9), 0.8, what="reference")
+    with pytest.raises(GuardBlocked, match="refused this still"):
+        judge(frames(1), Fixed(0.9), 0.8, what="still")
 
 
 def test_threshold_cannot_be_turned_off():

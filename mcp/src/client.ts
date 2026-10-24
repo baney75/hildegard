@@ -2,11 +2,14 @@
 import { readFile } from 'node:fs/promises';
 import type {
   Catalog,
+  Character,
+  CharacterView,
   ExportState,
   Project,
   Shot,
   ShotRequestInput,
   Snapshot,
+  Still,
   Take,
 } from '@hildegard/presets';
 
@@ -99,6 +102,15 @@ export class HildegardClient {
   /** Technical checks on a finished take, and where its contact sheet is. */
   review = (takeId: string) =>
     this.call<TakeReview>('GET', `/api/takes/${encodeURIComponent(takeId)}/review`);
+  createCharacter = (body: { name: string; description?: string; wardrobe?: string }) =>
+    this.call<Character>('POST', '/api/characters', { ...body, likeness: 'invented' });
+  makeStills = (id: string, body: { view: CharacterView; count?: number; note?: string; agent: string }) =>
+    this.call<{ character: Character; stills: Still[] }>(
+      'POST',
+      `/api/characters/${encodeURIComponent(id)}/stills`,
+      body,
+    );
+  keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   installModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/models/${encodeURIComponent(id)}/install`, { acceptLicense });
 
@@ -119,10 +131,14 @@ export class HildegardClient {
     return take.poster ? this.image(take.poster) : Promise.resolve(null);
   }
 
-  /** A JPEG the server serves, such as a poster or a contact sheet, as base64. */
+  /** An image the server serves, such as a poster, a contact sheet or a still, as base64. */
   async image(path: string): Promise<{ data: string; mimeType: string } | null> {
     const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);
     if (!res?.ok) return null;
-    return { data: Buffer.from(await res.arrayBuffer()).toString('base64'), mimeType: 'image/jpeg' };
+    const type = res.headers.get('content-type')?.split(';')[0] ?? '';
+    return {
+      data: Buffer.from(await res.arrayBuffer()).toString('base64'),
+      mimeType: type.startsWith('image/') ? type : 'image/jpeg',
+    };
   }
 }

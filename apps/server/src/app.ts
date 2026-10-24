@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
-import { rm, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -12,10 +12,17 @@ import {
   type AgentsResponse,
   type AuthState,
   type Catalog,
+  type Character,
+  type CharacterRef,
+  CreateCharacter,
   type CreateShotBody,
+  characterText,
+  composeCharacterStill,
   composeShot,
+  EditCharacter,
   type GrantsResponse,
   loadSafety,
+  MAX_CHARACTER_REFS,
   type ModelState,
   type NewInvite,
   type NewKey,
@@ -27,8 +34,11 @@ import {
   type ServerEvent,
   ShotRequest,
   type Snapshot,
+  type Still,
+  StillRequest,
   type Take,
   takeSeeds,
+  usable,
 } from '@hildegard/presets';
 import {
   connectAgent,
@@ -53,6 +63,7 @@ import {
   open,
   ownAuth,
   secureRequest,
+  seesCharacter,
   seesProject,
   snapshotFor,
   type Who,
@@ -63,6 +74,7 @@ import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
 import type { HfLink } from './hf.ts';
 import { type Host, HostError } from './host.ts';
+import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
@@ -144,10 +156,19 @@ export interface AppDeps {
   safety?: SafetyCheck;
   /** Newer releases, and updating to them. */
   updates: Updates;
+  /** Consent from real people that characters are based on. */
+  likeness: Likeness;
+  /**
+   * The Voice studio's voices, for a character's voice: whether one exists and may speak now, with its name. Absent
+   * where this build has no Voice studio, and then characters carry no voice.
+   */
+  voice?: (id: string) => { name: string; usable: boolean } | null;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const MAX_UPLOAD = 20 * 1024 * 1024;
+/** A character's reference image, at most, so four of them travel to a paired device in one render. */
+const MAX_REFERENCE = 10 * 1024 * 1024;
 
 const id = () => randomUUID().replace(/-/g, '').slice(0, 16);
 const now = () => new Date().toISOString();
@@ -313,7 +334,7 @@ export function createApp(deps: AppDeps) {
     if (w?.kind !== 'person' || w.person.role !== 'director') return null;
     const limit = people.directorQueue();
     let mine = 0;
-    for (const t of store.takes.values())
+    for (const t of [...store.takes.values(), ...store.stills.values()])
       if (t.by?.id === w.person.id && (t.status === 'queued' || t.status === 'running')) mine++;
     if (mine + adding <= limit) return null;
     const each = limit === 1 ? '1 take' : `${limit} takes`;
@@ -340,6 +361,8 @@ export function createApp(deps: AppDeps) {
     choir: deps.choir.state(),
     guests: scheduler.guestTakes(),
     update: deps.updates.state(),
+    characters: [...store.characters.values()],
+    stills: [...store.stills.values()],
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION, home: deps.home }));
@@ -405,6 +428,10 @@ export function createApp(deps: AppDeps) {
           const i = queue.findIndex((q) => q.type === 'take' && q.take.id === e.take.id);
           if (i >= 0) queue.splice(i, 1);
         }
+        if (e.type === 'still') {
+          const i = queue.findIndex((q) => q.type === 'still' && q.still.id === e.still.id);
+          if (i >= 0) queue.splice(i, 1);
+        }
         // Each list of paired devices' renders replaces the last.
         if (e.type === 'guests') {
           const i = queue.findIndex((q) => q.type === 'guests');
@@ -431,8 +458,14 @@ export function createApp(deps: AppDeps) {
         ...first.shots.map((x) => x.id),
         ...first.takes.map((t) => t.id),
         ...first.exports.map((x) => x.id),
+        ...first.characters.map((x) => x.id),
+        ...first.stills.map((x) => x.id),
       ]);
-      const filter = eventFilter((id) => store.projects.get(id), sent);
+      const filter = eventFilter(
+        (id) => store.projects.get(id),
+        sent,
+        (id) => store.characters.get(id),
+      );
       await stream.writeSSE({ event: 'hello', data: JSON.stringify({ version: VERSION, snapshot: first }) });
       while (!stream.aborted) {
         if (!queue.length && !recheck) {
@@ -507,6 +540,34 @@ export function createApp(deps: AppDeps) {
     return c.json({ ...e, file: e.status === 'done' && local(c) ? deps.exporter.file(e) : null });
   });
 
+  /**
+   * The stills model must render where renders go: refused before the queue when this computer's own ComfyUI renders
+   * and it isn't installed here, or when it won't run on this Mac.
+   */
+  const stillModelRefused = (c: Context, modelId: string, field: string) => {
+    const st = deps.modelStates().find((m) => m.id === modelId);
+    const name = catalog.models.find((m) => m.id === modelId)?.name ?? modelId;
+    if (st?.fitWhy === 'apple-gpu')
+      return c.json(
+        {
+          error: `${name} doesn’t render on this Mac yet. Pair a device with an NVIDIA or AMD GPU and render there.`,
+          field,
+          code: 'no_local_render',
+        },
+        422,
+      );
+    if (scheduler.engineState().comfy === 'managed' && !st?.installed)
+      return c.json(
+        {
+          error: `Characters are drawn with ${name}, which isn’t installed on this computer. Install it in Settings › Models.`,
+          field,
+          code: 'missing_model',
+        },
+        422,
+      );
+    return null;
+  };
+
   // ── Shots and takes ─────────────────────────────────────────────────────────────────────────────────────────
   app.post('/api/shots', async (c) => {
     const parsed = CreateShot.safeParse(await c.req.json().catch(() => null));
@@ -528,13 +589,35 @@ export function createApp(deps: AppDeps) {
     }
     if (request.startFrame && !existsSync(join(mediaDir, 'uploads', request.startFrame)))
       return c.json({ error: 'That start frame is gone; add it again', field: 'startFrame' }, 422);
+    const cast: Character[] = [];
+    for (const cid of request.characters) {
+      const ch = store.characters.get(cid);
+      if (!ch || !seesCharacter(whoOf(c), ch))
+        return c.json({ error: 'Unknown character', field: 'characters' }, 422);
+      const ok = usable(ch);
+      if (!ok.ok) return c.json({ error: ok.why, field: 'characters', code: 'character' }, 422);
+      if (!ch.references.length)
+        return c.json(
+          {
+            error: `${ch.name} has no reference images yet. Make a portrait of them first.`,
+            field: 'characters',
+            code: 'character',
+          },
+          422,
+        );
+      cast.push(ch);
+    }
     let composed: ReturnType<typeof composeShot>;
     try {
-      composed = composeShot(catalog, request);
+      composed = composeShot(catalog, request, cast);
     } catch (e) {
       if (e instanceof PresetError) return c.json({ error: e.message, field: e.field }, 422);
       throw e;
     }
+    const stillsRefused = composed.cast
+      ? stillModelRefused(c, composed.cast.keyframe.model.id, 'characters')
+      : null;
+    if (stillsRefused) return stillsRefused;
     // Apple's GPU renders some models wrong, slowly: refuse them before the queue, wherever their files are.
     const state = deps.modelStates().find((m) => m.id === composed.model.id);
     if (state?.fitWhy === 'apple-gpu')
@@ -815,6 +898,497 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── Engine ──────────────────────────────────────────────────────────────────────────────────────────────────
+  // ── Characters ──────────────────────────────────────────────────────────────────────────────────────────────
+  const charOf = (c: Context) => {
+    const ch = store.characters.get(c.req.param('id') ?? '');
+    return ch && seesCharacter(whoOf(c), ch) ? ch : null;
+  };
+  const noCharacter = (c: Context) => c.json({ error: 'No such character' }, 404);
+  const zodFail = (c: Context, e: z.ZodError) => {
+    const issue = e.issues[0]!;
+    return c.json({ error: issue.message, field: issue.path.join('.') }, 422);
+  };
+  /** The words a character carries, refused before anything is kept when they ask for sexual content. */
+  const wordsRefused = (c: Context, ch: Pick<Character, 'name' | 'description' | 'wardrobe'>) => {
+    const v = safety.text(characterText(ch));
+    return v.ok ? null : c.json({ error: v.message, code: 'content_blocked' }, 422);
+  };
+  /** Files a character's references are, in the uploads folder. */
+  const uploadPath = (file: string) => join(mediaDir, 'uploads', file);
+  const deleteStillFiles = async (st: Still) => rm(join(mediaDir, 'stills', `${st.id}.png`), { force: true });
+
+  /** Consent taken back, by the person or the maker: the character stops, and the person's photos go. */
+  const revoked = async (ch: Character) => {
+    const record = deps.likeness.record(ch.id);
+    ch.consent = {
+      status: 'revoked',
+      person: ch.consent?.person ?? record?.record.person ?? null,
+      expiresAt: null,
+      givenAt: ch.consent?.givenAt ?? null,
+      revokedAt: record?.revokedAt ?? now(),
+      certificate: ch.consent?.certificate ?? null,
+    };
+    // Everything drawn of them goes: their photos, and the stills made from them.
+    for (const st of [...store.stills.values()].filter((x) => x.characterId === ch.id)) {
+      scheduler.cancel(st.id);
+      await deleteStillFiles(st);
+      store.remove('still', st.id);
+    }
+    const files = ch.references.map((r) => r.file);
+    ch.references = [];
+    ch.cover = null;
+    store.putCharacter(ch);
+    const used = new Set([...store.characters.values()].flatMap((x) => x.references.map((r) => r.file)));
+    await Promise.all(files.filter((f) => !used.has(f)).map((f) => rm(uploadPath(f), { force: true })));
+  };
+
+  app.post('/api/characters', async (c) => {
+    const body = CreateCharacter.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return zodFail(c, body.error);
+    const refused = wordsRefused(c, body.data);
+    if (refused) return refused;
+    const person = personOf(c);
+    const ch: Character = {
+      id: id(),
+      name: body.data.name,
+      description: body.data.description,
+      wardrobe: body.data.wardrobe,
+      references: [],
+      cover: null,
+      voice: null,
+      likeness: body.data.likeness,
+      consent:
+        body.data.likeness === 'real'
+          ? {
+              status: 'waiting',
+              person: null,
+              expiresAt: null,
+              givenAt: null,
+              revokedAt: null,
+              certificate: null,
+            }
+          : null,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    if (person) ch.owner = person.id;
+    store.putCharacter(ch);
+    return c.json(ch, 201);
+  });
+
+  app.patch('/api/characters/:id', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    const body = EditCharacter.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return zodFail(c, body.error);
+    const next = {
+      ...ch,
+      ...Object.fromEntries(Object.entries(body.data).filter(([, v]) => v !== undefined)),
+    };
+    const refused = wordsRefused(c, next);
+    if (refused) return refused;
+    if (body.data.voice) {
+      const v = deps.voice?.(body.data.voice);
+      if (!v) return c.json({ error: 'No such voice', field: 'voice' }, 422);
+      if (!v.usable)
+        return c.json(
+          { error: `${v.name} can’t speak anymore: its consent was taken back.`, field: 'voice' },
+          422,
+        );
+    }
+    if (body.data.cover && !ch.references.some((r) => r.file === body.data.cover))
+      return c.json({ error: 'Pick the cover from their references', field: 'cover' }, 422);
+    Object.assign(ch, next);
+    store.putCharacter(ch);
+    return c.json(ch);
+  });
+
+  app.delete('/api/characters/:id', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    for (const st of [...store.stills.values()].filter((x) => x.characterId === ch.id)) {
+      scheduler.cancel(st.id);
+      await deleteStillFiles(st);
+      store.remove('still', st.id);
+    }
+    if (ch.likeness === 'real') {
+      deps.likeness.forget(ch.id);
+      // A real person's photos are theirs: they go with the character.
+      const others = new Set(
+        [...store.characters.values()]
+          .filter((x) => x.id !== ch.id)
+          .flatMap((x) => x.references.map((r) => r.file)),
+      );
+      await Promise.all(
+        ch.references.filter((r) => !others.has(r.file)).map((r) => rm(uploadPath(r.file), { force: true })),
+      );
+    }
+    store.remove('character', ch.id);
+    return c.body(null, 204);
+  });
+
+  /** Add an image to an invented character's references: an upload, which the person says shows no real person. */
+  app.post('/api/characters/:id/references', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    const body = z
+      .object({
+        file: z.string().regex(/^[a-f0-9]{64}\.(png|jpg|webp)$/),
+        view: z.enum(['portrait', 'three-quarter', 'profile', 'full-body']).nullable().default(null),
+        /** The person adding it says it shows no real person, or only artwork they have the rights to. */
+        noRealPerson: z.literal(true),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success)
+      return c.json(
+        {
+          error:
+            'Say that the image shows no real person, or add a real person through their own consent instead.',
+          field: 'noRealPerson',
+        },
+        422,
+      );
+    if (ch.likeness === 'real')
+      return c.json(
+        {
+          error: `Images of ${ch.name} come only from the photos they take themselves when they give consent.`,
+          code: 'consent',
+        },
+        409,
+      );
+    const path = uploadPath(body.data.file);
+    if (!existsSync(path)) return c.json({ error: 'That image is gone; add it again', field: 'file' }, 422);
+    if (statSync(path).size > MAX_REFERENCE)
+      return c.json({ error: 'Reference images up to 10 MB', field: 'file' }, 413);
+    if (ch.references.some((r) => r.file === body.data.file)) return c.json(ch);
+    if (ch.references.length >= MAX_CHARACTER_REFS)
+      return c.json(
+        { error: `A character keeps up to ${MAX_CHARACTER_REFS} references. Remove one first.` },
+        409,
+      );
+    ch.references.push({ file: body.data.file, view: body.data.view, source: 'upload', addedAt: now() });
+    ch.cover ??= body.data.file;
+    store.putCharacter(ch);
+    return c.json(ch, 201);
+  });
+
+  app.delete('/api/characters/:id/references/:file', (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    const file = c.req.param('file');
+    const ref = ch.references.find((r) => r.file === file);
+    if (!ref) return c.json({ error: 'No such reference' }, 404);
+    if (ref.source === 'consent')
+      return c.json(
+        { error: `${ch.name}’s own consent photos stay while their consent does. Revoke it to remove them.` },
+        409,
+      );
+    ch.references = ch.references.filter((r) => r !== ref);
+    if (ch.cover === file) ch.cover = ch.references[0]?.file ?? null;
+    store.putCharacter(ch);
+    return c.json(ch);
+  });
+
+  /** Portraits to pick a face from, or the other views of a sheet: each a still on the queue. */
+  app.post('/api/characters/:id/stills', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    const parsed = z
+      .object({ agent: z.string().trim().min(1).max(60).optional() })
+      .passthrough()
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: 'Malformed request' }, 400);
+    const { agent, ...rest } = parsed.data;
+    const body = StillRequest.safeParse(rest);
+    if (!body.success) return zodFail(c, body.error);
+    const ok = usable(ch);
+    if (!ok.ok) return c.json({ error: ok.why, code: 'character' }, 409);
+    if (ch.likeness === 'real' && !ch.references.length)
+      return c.json({ error: `${ch.name} has no photos yet.`, code: 'character' }, 409);
+    const refused = wordsRefused(c, ch);
+    if (refused) return refused;
+    const v = safety.text(body.data.note);
+    if (!v.ok) return c.json({ error: v.message, field: 'note', code: 'content_blocked' }, 422);
+    let still: ReturnType<typeof composeCharacterStill>;
+    try {
+      still = composeCharacterStill(catalog, ch, body.data.view, { note: body.data.note });
+    } catch (e) {
+      if (e instanceof PresetError) return c.json({ error: e.message, field: e.field }, 422);
+      throw e;
+    }
+    const modelRefused = stillModelRefused(c, still.model.id, 'view');
+    if (modelRefused) return modelRefused;
+    const full = queueFull(c, body.data.count);
+    if (full) return full;
+    const person = personOf(c);
+    const priority: Priority = body.data.priority ?? (agent ? 'agent' : 'interactive');
+    const stills = takeSeeds(body.data.count, body.data.seed).map((seed) => {
+      const st: Still = {
+        id: id(),
+        characterId: ch.id,
+        view: body.data.view,
+        status: 'queued',
+        priority,
+        source: agent ? { kind: 'agent', name: agent } : { kind: 'studio' },
+        ...(person ? { by: { id: person.id, name: person.name } } : {}),
+        seed,
+        model: still.model.id,
+        prompt: still.prompt,
+        references: still.references,
+        width: still.width,
+        height: still.height,
+        queuePosition: null,
+        progress: null,
+        previewVersion: 0,
+        createdAt: now(),
+        startedAt: null,
+        finishedAt: null,
+        renderMs: null,
+        error: null,
+        image: null,
+      };
+      scheduler.enqueueStill(st);
+      return st;
+    });
+    return c.json({ character: ch, stills }, 201);
+  });
+
+  const stillAction =
+    (fn: (st: Still, ch: Character, c: Context) => Promise<Response> | Response) => async (c: Context) => {
+      const st = store.stills.get(c.req.param('id') ?? '');
+      const ch = st ? store.characters.get(st.characterId) : undefined;
+      if (!st || !ch || !seesCharacter(whoOf(c), ch)) return c.json({ error: 'No such still' }, 404);
+      return fn(st, ch, c);
+    };
+  app.post(
+    '/api/stills/:id/cancel',
+    stillAction((st, _ch, c) =>
+      scheduler.cancel(st.id) ? c.json(st) : c.json({ error: 'This still has already finished' }, 409),
+    ),
+  );
+  app.post(
+    '/api/stills/:id/force',
+    stillAction((st, _ch, c) =>
+      scheduler.force(st.id, isOwner(c))
+        ? c.json(st)
+        : c.json({ error: 'Only a waiting still can be forced' }, 409),
+    ),
+  );
+  app.post(
+    '/api/stills/:id/retry',
+    stillAction((st, _ch, c) => {
+      if (st.error?.code === 'content_blocked')
+        return c.json(
+          { error: 'Hildegard refused this still, so it can’t be retried.', code: 'content_blocked' },
+          409,
+        );
+      const full = queueFull(c, 1);
+      if (full) return full;
+      return scheduler.retry(st.id)
+        ? c.json(st)
+        : c.json({ error: 'Only a failed or canceled still can be retried' }, 409);
+    }),
+  );
+  /** Keep a finished still as one of the character's references: copied into uploads under its own SHA-256. */
+  app.post(
+    '/api/stills/:id/keep',
+    stillAction(async (st, ch, c) => {
+      if (st.status !== 'done') return c.json({ error: 'Only a finished still can be kept' }, 409);
+      const ok = usable(ch);
+      if (!ok.ok) return c.json({ error: ok.why, code: 'character' }, 409);
+      const src = join(mediaDir, 'stills', `${st.id}.png`);
+      const bytes = await readFile(src).catch(() => null);
+      if (!bytes) return c.json({ error: 'That still is gone' }, 410);
+      const kind = sniffImage(bytes) ?? 'png';
+      const file = `${createHash('sha256').update(bytes).digest('hex')}.${kind}`;
+      if (!existsSync(uploadPath(file))) await copyFile(src, uploadPath(file));
+      if (!ch.references.some((r) => r.file === file)) {
+        if (ch.references.length >= MAX_CHARACTER_REFS)
+          return c.json(
+            { error: `A character keeps up to ${MAX_CHARACTER_REFS} references. Remove one first.` },
+            409,
+          );
+        const ref: CharacterRef = { file, view: st.view, source: 'still', addedAt: now() };
+        ch.references.push(ref);
+      }
+      // The first portrait kept is their face from now on.
+      if (
+        !ch.cover ||
+        (st.view === 'portrait' && !ch.references.some((r) => r.file === ch.cover && r.view === 'portrait'))
+      )
+        ch.cover = file;
+      store.putCharacter(ch);
+      st.kept = file;
+      store.putStill(st);
+      return c.json(ch);
+    }),
+  );
+  app.delete(
+    '/api/stills/:id',
+    stillAction(async (st, _ch, c) => {
+      scheduler.cancel(st.id);
+      await deleteStillFiles(st);
+      store.remove('still', st.id);
+      return c.body(null, 204);
+    }),
+  );
+  app.get('/api/stills/:id/preview', (c) => {
+    const st = store.stills.get(c.req.param('id'));
+    if (!st || !seesCharacter(whoOf(c), store.characters.get(st.characterId))) return c.body(null, 404);
+    const p = scheduler.previews.get(st.id);
+    if (!p) return st.image ? c.redirect(st.image, 307) : c.body(null, 404);
+    c.header('cache-control', 'no-store');
+    return c.body(Buffer.from(p.bytes), 200, { 'content-type': p.type });
+  });
+
+  // ── Consent from real people ────────────────────────────────────────────────────────────────────────────────
+  /** A one-time link for the real person a character is based on. The link is the secret: shown once. */
+  app.post('/api/characters/:id/consent', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    if (ch.likeness !== 'real')
+      return c.json({ error: `${ch.name} is invented: nobody needs to consent.` }, 409);
+    if (ch.consent?.status === 'active')
+      return c.json(
+        { error: `${ch.consent.person ?? 'They'} already consented. Revoke it first to ask again.` },
+        409,
+      );
+    const body = z
+      .object({ maker: z.string().trim().min(1).max(80).optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Your name, up to 80 characters', field: 'maker' }, 422);
+    const maker = body.data.maker ?? personOf(c)?.name;
+    if (!maker) return c.json({ error: 'Say who is asking: they’ll see your name', field: 'maker' }, 422);
+    const { token, expiresAt } = deps.likeness.start({ characterId: ch.id, character: ch.name, maker });
+    ch.consent = {
+      status: 'waiting',
+      person: null,
+      expiresAt,
+      givenAt: null,
+      revokedAt: null,
+      certificate: null,
+    };
+    store.putCharacter(ch);
+    // The link goes where people reach this Hildegard: its host link, or the address this page came from.
+    const base = host.state().url ?? (local(c) ? null : new URL(c.req.url).origin);
+    c.header('cache-control', 'no-store');
+    return c.json(
+      {
+        character: ch,
+        url: `${base ?? deps.url ?? ''}/#/likeness/${token}`,
+        // Only this computer can open it until Hildegard is at a link.
+        local: !host.state().url,
+      },
+      201,
+    );
+  });
+  app.get('/api/characters/:id/consent', (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    const record = deps.likeness.record(ch.id);
+    if (!record) return c.json({ error: `Nobody has consented to ${ch.name} yet` }, 404);
+    c.header('content-disposition', `attachment; filename="consent-${record.record.id}.json"`);
+    return c.json(record);
+  });
+  app.post('/api/characters/:id/consent/revoke', async (c) => {
+    const ch = charOf(c);
+    if (!ch) return noCharacter(c);
+    if (ch.likeness !== 'real') return c.json({ error: `${ch.name} is invented` }, 409);
+    deps.likeness.revoke({ characterId: ch.id });
+    await revoked(ch);
+    return c.json(ch);
+  });
+
+  /** What the person is asked, for the page their link opens. Anyone holding the link may read it. */
+  app.get('/api/likeness/:token', (c) => {
+    const ask = deps.likeness.lookup(c.req.param('token'));
+    c.header('cache-control', 'no-store');
+    if (!ask) return c.json({ error: 'This link has expired or was already used.' }, 410);
+    return c.json({
+      character: ask.character,
+      maker: ask.maker,
+      expiresAt: ask.expiresAt,
+      photos: CONSENT_PHOTOS,
+      // With their name in place of the blank, this is what they agree to.
+      statement: statement({ person: '…', maker: ask.maker, character: ask.character }),
+    });
+  });
+  app.post('/api/likeness/:token/decline', (c) => {
+    try {
+      const cid = deps.likeness.decline(c.req.param('token'));
+      const ch = store.characters.get(cid);
+      if (ch?.consent?.status === 'waiting') {
+        ch.consent = { ...ch.consent, status: 'declined', expiresAt: null };
+        store.putCharacter(ch);
+      }
+      return c.json({ ok: true });
+    } catch (e) {
+      if (e instanceof LikenessError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  });
+  app.post('/api/likeness/:token', async (c) => {
+    const token = c.req.param('token');
+    const ask = deps.likeness.lookup(token);
+    if (!ask) return c.json({ error: 'This link has expired or was already used.' }, 410);
+    const ch = store.characters.get(ask.characterId);
+    if (ch?.likeness !== 'real') return c.json({ error: 'This character is gone.' }, 410);
+    const len = Number(c.req.header('content-length') ?? 0);
+    if (len > CONSENT_PHOTOS.length * MAX_CONSENT_PHOTO * 1.4)
+      return c.json({ error: 'The photos are too big.' }, 413);
+    const body = z
+      .object({
+        person: z.string().trim().min(1).max(80),
+        agree: z.literal(true),
+        photos: z.array(z.string().max(Math.ceil(MAX_CONSENT_PHOTO * 1.37))).length(CONSENT_PHOTOS.length),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success)
+      return c.json({ error: `Type your name, agree, and take all ${CONSENT_PHOTOS.length} photos.` }, 422);
+    const photos = body.data.photos.map((b64) =>
+      Buffer.from(b64.replace(/^data:image\/\w+;base64,/, ''), 'base64'),
+    );
+    const kinds = photos.map((b) => sniffImage(b));
+    if (kinds.some((k) => !k) || photos.some((b) => b.length > MAX_CONSENT_PHOTO))
+      return c.json({ error: 'Each photo must be a camera picture of up to 10 MB.' }, 422);
+    try {
+      const { consent, revokeToken } = deps.likeness.give(token, body.data.person, photos);
+      const refs: CharacterRef[] = [];
+      for (const [i, b] of photos.entries()) {
+        const file = `${consent.record.photos[i]}.${kinds[i]}`;
+        if (!existsSync(uploadPath(file))) await writeFile(uploadPath(file), b);
+        refs.push({ file, view: CONSENT_PHOTOS[i]!, source: 'consent', addedAt: now() });
+      }
+      ch.references = refs;
+      ch.cover = refs[0]!.file;
+      ch.consent = {
+        status: 'active',
+        person: consent.record.person,
+        expiresAt: null,
+        givenAt: consent.record.givenAt,
+        revokedAt: null,
+        certificate: consent.record.id,
+      };
+      store.putCharacter(ch);
+      const base = host.state().url ?? new URL(c.req.url).origin;
+      c.header('cache-control', 'no-store');
+      return c.json(
+        { ok: true, revokeUrl: `${base}/#/likeness/revoke/${revokeToken}`, record: consent.record },
+        201,
+      );
+    } catch (e) {
+      if (e instanceof LikenessError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  });
+  app.post('/api/likeness/revoke/:token', async (c) => {
+    const cid = deps.likeness.revoke({ token: c.req.param('token') });
+    if (!cid) return c.json({ error: 'That link doesn’t take anything back.' }, 404);
+    const ch = store.characters.get(cid);
+    if (ch && ch.consent?.status !== 'revoked') await revoked(ch);
+    return c.json({ ok: true, character: ch?.name ?? null });
+  });
+
   app.post('/api/engine/pause', (c) => {
     scheduler.setPaused(true);
     return c.json(scheduler.engineState());
@@ -1417,12 +1991,16 @@ export function createApp(deps: AppDeps) {
   };
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
-    if (!/^((uploads|exports)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..')) return c.body(null, 404);
+    if (!/^((uploads|exports|stills)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..'))
+      return c.body(null, 404);
     const file = resolve(mediaDir, rel);
     if (!file.startsWith(resolve(mediaDir) + sep)) return c.body(null, 404);
     // A take's video and poster, or a film's export, only for those who may see the film. Start frames are named
     // by their own SHA-256, so only someone who has the image can ask for it.
-    if (!isOwner(c) && !c.get('signedMedia') && !rel.startsWith('uploads/')) {
+    if (!isOwner(c) && !c.get('signedMedia') && rel.startsWith('stills/')) {
+      const st = store.stills.get(rel.slice('stills/'.length).replace(/\.png$/, ''));
+      if (!st || !seesCharacter(whoOf(c), store.characters.get(st.characterId))) return c.body(null, 404);
+    } else if (!isOwner(c) && !c.get('signedMedia') && !rel.startsWith('uploads/')) {
       const name = rel.replace(/^exports\//, '').replace(/\.[a-z0-9]+$/, '');
       const projectId = rel.startsWith('exports/')
         ? deps.exporter.get(name)?.projectId
