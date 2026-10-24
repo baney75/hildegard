@@ -15,7 +15,7 @@ Quality gate: review_prompt before you render, and review_take on every finished
 
 export function createMcpServer(client = new HildegardClient()) {
   const server = new McpServer(
-    { name: 'hildegard', title: 'Hildegard', version: '0.1.1' },
+    { name: 'hildegard', title: 'Hildegard', version: '0.1.2' },
     { instructions: INSTRUCTIONS },
   );
   // Takes are labelled with the agent that asked for them, as its client reports its own name.
