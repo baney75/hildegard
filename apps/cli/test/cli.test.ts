@@ -385,7 +385,14 @@ describe('host and doctor', () => {
         ...laptopAt,
       );
       expect(linked.ok, linked.message).toBe(true);
-      const config = readFileSync(join(laptop, '.config', 'Claude', 'claude_desktop_config.json'), 'utf8');
+      // Where Claude Desktop keeps its settings on each OS, under the laptop's home (see cliEnv).
+      const settings =
+        process.platform === 'darwin'
+          ? join(laptop, 'Library', 'Application Support')
+          : process.platform === 'win32'
+            ? join(laptop, 'AppData')
+            : join(laptop, '.config');
+      const config = readFileSync(join(settings, 'Claude', 'claude_desktop_config.json'), 'utf8');
       expect(config).toContain('--remote');
       expect(config).not.toContain(key);
 
