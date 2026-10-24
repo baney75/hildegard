@@ -10,7 +10,8 @@ export const INSTRUCTIONS = `Hildegard renders film shots on the user's own GPU,
 Start with hildegard_status. If no video model is installed, offer install_model, and show the user the license terms it returns before accepting.
 Use list_presets for the ids of camera bodies, lenses, moves and looks. Write prompts as literal, chronological action; the camera and look come from the fields.
 To put shots in a film, pass its id or its title as film to direct_shot. To stop a take, cancel_take with its id; hildegard_status lists recent takes.
-Draft first, then re-render the take you like with quality "final" and the same seed.`;
+Draft first, then re-render the take you like with quality "final" and the same seed.
+Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
 export function createMcpServer(client = new HildegardClient()) {
   const server = new McpServer(

@@ -303,10 +303,16 @@ export class Choir {
     return this.sharing?.name ?? deviceName(hostname());
   }
 
-  /** Turn sharing on (or add a device to it): a fresh key, kept hashed, in a code for the other device. */
-  invite(url: string, name: string): { code: string; url: string } {
+  /**
+   * Turn sharing on (or add a device to it): a fresh key, kept hashed, in a code for the other device. `key` is one the
+   * other device made itself and handed over privately, as `hildegard cloud runpod` does when it starts a rented GPU:
+   * that device then builds the same code without this one having to send it anything.
+   */
+  invite(url: string, name: string, key?: string): { code: string; url: string } {
     const origin = checkUrl(url);
-    const token = newToken();
+    if (key !== undefined && !TOKEN_RE.test(key))
+      throw new ChoirError(400, 'A key is 32 random bytes in base64url: 43 letters, digits, - and _.');
+    const token = key ?? newToken();
     const keys = this.sharing?.url === origin ? this.sharing.keys : [];
     this.sharing = {
       name: deviceName(name),

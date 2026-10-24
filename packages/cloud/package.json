@@ -1,0 +1,15 @@
+{
+  "name": "@hildegard/cloud",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Rented and borrowed GPUs for Hildegard: Runpod pods that join the fleet, and batches for Hugging Face Jobs and Colab.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

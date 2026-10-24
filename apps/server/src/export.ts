@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { type Review, type ReviewSpec, reviewMedia } from '@hildegard/craft';
 import type { Catalog, ExportState, Take } from '@hildegard/presets';
 import { layout, resource } from '@hildegard/runtime';
 import type { Store } from './store.ts';
@@ -65,6 +66,17 @@ export function makePoster(dataDir: string, video: string, out: string): Promise
       resolve(code === 0);
     });
   });
+}
+
+/** Technical checks on finished media with tools/review_media.py, on the same Python; undefined if the script is missing. */
+export function reviewer(dataDir: string): ((spec: ReviewSpec) => Promise<Review>) | undefined {
+  let script: string;
+  try {
+    script = resource(join('tools', 'review_media.py'));
+  } catch {
+    return undefined;
+  }
+  return (spec) => reviewMedia(exportPython(dataDir), script, spec);
 }
 
 export interface ExporterOptions {
