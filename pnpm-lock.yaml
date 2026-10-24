@@ -137,6 +137,8 @@ importers:
         specifier: workspace:*
         version: link:../presets
 
+  packages/link: {}
+
   packages/presets:
     dependencies:
       smol-toml:
