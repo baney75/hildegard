@@ -526,3 +526,17 @@ describe('doctor’s model steps', () => {
     expect(account).toMatchObject({ status: 'needs-owner', command: 'hildegard hf login' });
   });
 });
+
+describe('starting from Windows ssh', () => {
+  it('hands WMI one cmd line that notes the entry, quotes every part and logs both streams', async () => {
+    const { wmiLine } = await import('../src/commands.ts');
+    const line = wmiLine(
+      'D:\\Hildegard\\app\\hildegard.mjs',
+      ['D:\\Hildegard\\app\\hildegard.mjs', 'start', '--foreground', '--port', '7341'],
+      'D:\\Hildegard\\logs\\server.log',
+    );
+    expect(line).toBe(
+      `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=D:\\Hildegard\\app\\hildegard.mjs" && "${process.execPath}" "D:\\Hildegard\\app\\hildegard.mjs" "start" "--foreground" "--port" "7341" >> "D:\\Hildegard\\logs\\server.log" 2>&1"`,
+    );
+  });
+});
