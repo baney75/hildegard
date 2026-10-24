@@ -101,6 +101,8 @@ export interface AppDeps {
   onStop?: () => void;
   /** The base URL people and agents reach this server at. */
   url?: string;
+  /** This data folder's id (`homeId`), so a client can tell this server from another Hildegard's. */
+  home?: string;
   choir: Choir;
   /** Models as the Studio should see them: this computer's, or those on the device renders go to. */
   modelStates: () => ModelState[];
@@ -292,7 +294,7 @@ export function createApp(deps: AppDeps) {
     guests: scheduler.guestTakes(),
   });
 
-  app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
+  app.get('/api/health', (c) => c.json({ ok: true, version: VERSION, home: deps.home }));
   if (deps.node) app.route('/api/node', deps.node);
 
   // ── This computer: stopping, and linking AI apps. Only from this computer itself, never over the network. ─────

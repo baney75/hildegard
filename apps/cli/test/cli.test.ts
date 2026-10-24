@@ -121,6 +121,39 @@ describe('hildegard', () => {
     expect((await hildegard(home, 'status', '--data', data, '--port', port)).running).toBe(false);
   });
 
+  it('leaves another home’s server alone and starts on the next free port', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const mine = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const theirs = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const port = 7400 + 2 * Math.floor(Math.random() * 200);
+    expect((await hildegard(home, 'start', '--port', String(port), '--data', theirs, '--fake-gpu')).ok).toBe(
+      true,
+    );
+    try {
+      // Another home's server on the port is neither running here nor this one's to stop.
+      expect((await hildegard(home, 'status', '--port', String(port), '--data', mine)).running).toBe(false);
+      const left = await hildegard(home, 'stop', '--port', String(port), '--data', mine);
+      expect(left.steps[0]).toMatchObject({ status: 'skipped' });
+      expect(left.steps[0]!.detail).toContain('another home');
+
+      const started = await hildegard(home, 'start', '--port', String(port), '--data', mine, '--fake-gpu');
+      expect(started.ok).toBe(true);
+      expect(started.steps[0]!.detail).toContain(`Port ${port} is another Hildegard’s`);
+      const moved = Number(new URL(String(started.url)).port);
+      expect(moved).toBeGreaterThan(port);
+      // Later commands find it from its folder, and both servers keep running.
+      expect(await hildegard(home, 'status', '--data', mine)).toMatchObject({
+        running: true,
+        url: `http://127.0.0.1:${moved}`,
+      });
+      expect((await hildegard(home, 'status', '--data', theirs)).running).toBe(true);
+      expect((await hildegard(home, 'stop', '--data', mine)).steps[0]!.status).toBe('done');
+      expect((await hildegard(home, 'status', '--data', theirs)).running).toBe(true);
+    } finally {
+      await hildegard(home, 'stop', '--data', theirs);
+    }
+  }, 60_000);
+
   it('serves MCP on stdio, as AI apps run it', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-mcp-'));
     const srv = await startServer(

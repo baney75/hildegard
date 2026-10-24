@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ import {
   type Step,
   snippet,
 } from '@hildegard/runtime';
-import { type Config, guardProcess, startServer, VERSION } from '@hildegard/server';
+import { type Config, guardProcess, homeId, startServer, VERSION } from '@hildegard/server';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
 
@@ -58,13 +59,48 @@ export async function api<T>(
   return data;
 }
 
-export async function running(c: Config): Promise<{ version: string } | null> {
+interface Health {
+  version: string;
+  /** The server's data folder id; servers before 0.1.2 don't send it. */
+  home?: string;
+}
+
+async function health(c: Config): Promise<Health | null> {
   try {
     const res = await fetch(`${baseUrl(c)}/api/health`, { signal: AbortSignal.timeout(1500) });
-    return res.ok ? ((await res.json()) as { version: string }) : null;
+    return res.ok ? ((await res.json()) as Health) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a server is this data folder's. Only two ids that differ say no: servers before 0.1.2 send none, and a
+ * folder that doesn't exist yet has none.
+ */
+const ours = (c: Config, h: Health) => {
+  const mine = existsSync(c.dataDir) ? homeId(c.dataDir) : null;
+  return !h.home || !mine || h.home === mine;
+};
+
+/** This data folder's server, when it answers on the port. Another Hildegard there (another home) isn't it. */
+export async function running(c: Config): Promise<Health | null> {
+  const h = await health(c);
+  return h && ours(c, h) ? h : null;
+}
+
+const portFree = (port: number) =>
+  new Promise<boolean>((done) => {
+    const s = createServer();
+    s.once('error', () => done(false));
+    s.listen(port, '127.0.0.1', () => s.close(() => done(true)));
+  });
+
+/** The next port from `from` with the one above it free too (for hosting), in steps of two. */
+export async function nextFreePort(from: number, tries = 50): Promise<number | null> {
+  for (let p = from; p < from + tries * 2 && p < 65535; p += 2)
+    if ((await portFree(p)) && (await portFree(p + 1))) return p;
+  return null;
 }
 
 const tryResource = (rel: string) => {
@@ -74,6 +110,11 @@ const tryResource = (rel: string) => {
     return null;
   }
 };
+
+const moveNote = (r: Result, note: string): Result => ({
+  ...r,
+  steps: r.steps.map((s) => (s.id === 'start' ? { ...s, detail: `${s.detail}${note}` } : s)),
+});
 
 // ── start / stop ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -110,13 +151,35 @@ export function wmiLine(entryPath: string, args: string[], log: string): string 
 export async function start(ctx: Ctx): Promise<Result> {
   const c = ctx.config;
   const url = baseUrl(c);
-  const up = await running(c);
-  if (up)
+  mkdirSync(c.dataDir, { recursive: true, mode: 0o700 });
+  const up = await health(c);
+  if (up && ours(c, up))
     return result(
       [{ id: 'start', title: 'Start Hildegard', status: 'skipped', detail: `Already running at ${url}.` }],
       `Hildegard is running at ${url}`,
       { url },
     );
+  // Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
+  // server remembers in its folder for later commands and the app.
+  if (up || !(await portFree(c.port))) {
+    const p = await nextFreePort(c.port + 2);
+    const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
+    if (p === null)
+      return result(
+        [
+          {
+            id: 'start',
+            title: 'Start Hildegard',
+            status: 'failed',
+            detail: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.`,
+          },
+        ],
+        'Hildegard didn’t start.',
+      );
+    const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
+    c.port = p;
+    return moveNote(await start(ctx), note);
+  }
   const L = layout(c.dataDir);
   mkdirSync(L.logs, { recursive: true });
   const log = join(L.logs, 'server.log');
@@ -186,7 +249,16 @@ export async function stop(ctx: Ctx): Promise<Result> {
   const c = ctx.config;
   if (!(await running(c)))
     return result(
-      [{ id: 'stop', title: 'Stop Hildegard', status: 'skipped', detail: 'It wasn’t running.' }],
+      [
+        {
+          id: 'stop',
+          title: 'Stop Hildegard',
+          status: 'skipped',
+          detail: (await health(c))
+            ? `It wasn’t running. The Hildegard on port ${c.port} is another home’s, so it was left alone.`
+            : 'It wasn’t running.',
+        },
+      ],
       'Hildegard is stopped.',
     );
   await api(c, '/api/system/stop', { method: 'POST' }).catch(() => {});
@@ -223,7 +295,7 @@ export async function install(ctx: Ctx): Promise<Result> {
   const failed = steps.find((s) => s.status === 'failed' || s.status === 'needs-owner');
   if (failed)
     return { ...result(steps, failed.status === 'failed' ? 'The install stopped.' : failed.detail), printed };
-  // Restart, so the server runs the ComfyUI it just installed.
+  // Restart, so the server runs the ComfyUI it just installed: this folder's server only, never another home's.
   if (await running(c)) await stop(ctx);
   const s = await start(ctx);
   if (events) for (const step of s.steps) printEvent({ step });

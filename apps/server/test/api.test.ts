@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ExportState, ModelState, Project, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseArgs } from '../src/config.ts';
+import { parseArgs, readHomeId } from '../src/config.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
 let srv: Running;
+let dataDir: string;
 const H = { 'x-hildegard': '1', 'content-type': 'application/json' };
 const api = (path: string, init: RequestInit = {}) => fetch(srv.url + path, init);
 const post = (path: string, body?: unknown) =>
@@ -33,6 +34,7 @@ const take = (id: string) => srv.store.takes.get(id)!;
 
 beforeAll(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hg-api-'));
+  dataDir = dir;
   // Sign in with Hugging Face is on by default; these tests cover the build where it's off, and the token path.
   srv = await startServer(
     { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0, hfClientId: null },
@@ -63,6 +65,14 @@ describe('security', () => {
     expect(
       (await api('/api/projects', { method: 'POST', headers: { ...H, origin: srv.url }, body: '{}' })).status,
     ).toBe(201);
+  });
+
+  it('answers health with a random id for its data folder, never the path', async () => {
+    const h = (await (await api('/api/health')).json()) as { ok: boolean; home: string };
+    expect(h.ok).toBe(true);
+    expect(h.home).toMatch(/^[\w-]{12}$/);
+    expect(h.home).toBe(readHomeId(dataDir));
+    expect(JSON.stringify(h)).not.toContain(dataDir);
   });
 
   it('sends protective headers', async () => {
