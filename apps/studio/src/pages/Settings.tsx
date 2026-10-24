@@ -526,7 +526,9 @@ function Updates() {
       ? `Hildegard ${u.available} is out. This is ${u.current}.`
       : u.error
         ? `Couldn’t check for updates: ${u.error}`
-        : `Hildegard ${u.current} is up to date.`;
+        : u.checkedAt
+          ? `Hildegard ${u.current} is up to date.`
+          : `This is Hildegard ${u.current}. It looks for a new release every six hours.`;
   return (
     <div className="st-tile hg-hfway">
       <b id="up-h">Updates</b>
