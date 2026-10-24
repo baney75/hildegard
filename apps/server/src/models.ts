@@ -165,6 +165,20 @@ export class ModelManager {
     return all.filter((f, i) => all.findIndex((g) => lockKey(g) === lockKey(f)) === i);
   }
 
+  /**
+   * A model installed before the safety check came (0.1.1) has its own files but not the classifier, so it read as not
+   * installed and nothing rendered after an upgrade. This fetches just the classifier for the first such model.
+   */
+  async completeSafety(): Promise<void> {
+    if (this.isInstalled(this.catalog.safety.classifier)) return;
+    const m = this.catalog.models.find(
+      (x) =>
+        this.licenseAccepted(x.id) &&
+        [...x.files, ...Object.values(x.loras)].every((f) => this.isInstalled(f)),
+    );
+    if (m) await this.install(m.id);
+  }
+
   pathOf(f: ModelFile): string {
     return join(this.modelsDir, f.dir, basename(f.path));
   }
