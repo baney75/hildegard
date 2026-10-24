@@ -49,12 +49,11 @@ const main = document.getElementById('main')!;
 const stagesEl = document.getElementById('stages')!;
 
 // ── Theme ────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Follows the computer: dark unless it's set to light. Light is warm vellum, with the green logo.
-
+// Dark, like the Studio it hands over to, so the window doesn't flip themes when the Studio opens. The preview
+// harness can show light (warm vellum, with the green logo).
 
 function applyTheme() {
   const forced = root.dataset.previewTheme;
-  // Dark, like the Studio it hands over to, so the window doesn't flip themes when the Studio opens.
   const theme = forced === 'light' ? 'light' : 'dark';
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
