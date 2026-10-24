@@ -14,7 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-${{ github.ref }}
+  # Its own group when release.yml calls it, so main's app build and the release's never cancel each other.
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

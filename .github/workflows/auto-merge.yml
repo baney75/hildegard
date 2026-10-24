@@ -1,0 +1,26 @@
+name: Auto-merge
+
+# Every pull request the owner opens from a branch here merges itself once all of main's required checks pass, so
+# nobody has to come back to press Merge. The checks are the gate: branch protection on main names them, and GitHub
+# waits for every one. A draft, or a PR from a fork or from anyone else, is left alone.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.html_url }}
+        # Until the repo allows auto-merge, this says so on the run instead of turning the PR red.
+        run: gh pr merge "$PR" --auto --merge || echo "::warning::Auto-merge isn't on for this repo yet, so this PR waits for a manual merge."
