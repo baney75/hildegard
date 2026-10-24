@@ -1,12 +1,14 @@
 name: Desktop app
 
 # The Hildegard app (apps/desktop), built on each OS and kept as workflow artifacts to download and try. It makes no
-# release or tag. The bundles aren't signed yet: see "The Hildegard app" in the README.
+# release or tag itself; release.yml calls it for a tagged release. The bundles aren't signed yet: see "The Hildegard
+# app" in the README.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
