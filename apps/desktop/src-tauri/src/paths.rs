@@ -88,6 +88,14 @@ pub fn remembered_port(data: &Path) -> Option<u16> {
   v.get("port")?.as_u64().and_then(|p| u16::try_from(p).ok()).filter(|p| *p > 0)
 }
 
+/// This data folder's id, which its server sends from `/api/health`: `readHomeId` in config.ts. The CLI and the server
+/// make it; the app only reads it.
+pub fn home_id(data: &Path) -> Option<String> {
+  let id = std::fs::read_to_string(data.join("home.id")).ok()?;
+  let id = id.trim();
+  (!id.is_empty()).then(|| id.to_owned())
+}
+
 /// The port `hildegard start` would use: HILDEGARD_PORT, the remembered one, or 7341.
 pub fn port(data: &Path, env: Env) -> u16 {
   env("HILDEGARD_PORT")

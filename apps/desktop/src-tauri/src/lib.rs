@@ -108,8 +108,9 @@ fn show_studio(app: &AppHandle, port: u16, page: &str) {
 fn connect(app: &AppHandle, anyway: bool) -> Launch {
   let hg = app.state::<Hildegard>();
   let layout = &hg.layout;
-  let port = paths::port(&layout.data, &system_env);
-  if server::health(port).is_some() {
+  let mut port = paths::port(&layout.data, &system_env);
+  let here = server::who(port, &layout.data);
+  if here == server::Here::Ours {
     show_studio(app, port, "");
     return Launch::Studio;
   }
@@ -122,6 +123,16 @@ fn connect(app: &AppHandle, anyway: bool) -> Launch {
     log(layout, &format!("Couldn’t update Hildegard in its folder: {e}"));
   }
   let failed = |message: String| Launch::Failed { message, log: server::server_log(layout) };
+  // Another home's Hildegard, or another program, on the port: this one starts on the next free port, which its
+  // server remembers for the CLI and the next launch.
+  match server::free_port(port, here == server::Here::Theirs) {
+    Some(p) if p != port => {
+      log(layout, &format!("Port {port} is taken (another Hildegard home or another program), so Hildegard uses {p}."));
+      port = p;
+    }
+    Some(_) => {}
+    None => return failed(format!("Port {port} is taken, and no port near it is free.")),
+  }
   let mut child = match server::spawn(layout, port) {
     Ok(c) => c,
     Err(e) => return failed(format!("Hildegard didn’t start: {e}")),
@@ -162,7 +173,7 @@ async fn install(app: AppHandle, cpu: bool, on_event: Channel<Event>) -> Result<
       let _ = on_event.send(e);
     })?;
     // The installer starts Hildegard as it finishes; this app started it, so quitting it stops it.
-    if server::health(paths::port(&hg.layout.data, &system_env)).is_some() {
+    if server::who(paths::port(&hg.layout.data, &system_env), &hg.layout.data) == server::Here::Ours {
       hg.started_here.store(true, Ordering::SeqCst);
     }
     Ok(outcome)

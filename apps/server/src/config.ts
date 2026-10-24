@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
@@ -61,6 +62,30 @@ export function rememberedPort(dataDir: string): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A random id for this data folder, which `/api/health` answers with, so the CLI and the app can tell their own server
+ * from another Hildegard (another install, another home) on the same port. Random, so it says nothing about the path.
+ */
+export const homeIdFile = (dataDir: string) => join(dataDir, 'home.id');
+
+export function readHomeId(dataDir: string): string | null {
+  try {
+    const id = readFileSync(homeIdFile(dataDir), 'utf8').trim();
+    return id || null;
+  } catch {
+    return null;
+  }
+}
+
+/** This folder's id, made on first use. The folder must exist. */
+export function homeId(dataDir: string): string {
+  const id = readHomeId(dataDir);
+  if (id) return id;
+  const made = randomBytes(9).toString('base64url');
+  writeFileSync(homeIdFile(dataDir), `${made}\n`);
+  return made;
 }
 
 export function parseArgs(argv: string[], env = process.env): Config {
