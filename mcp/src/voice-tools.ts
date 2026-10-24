@@ -420,11 +420,10 @@ export function registerVoiceTools(
         'Explains how a voice is cloned. You can’t clone one yourself: the person whose voice it is must read a fresh consent line aloud in the Studio, and Hildegard checks it’s them before anything is made.',
       annotations: { readOnlyHint: true },
     },
-    guard(async () =>
+    async () =>
       text(
         `Cloning needs the person whose voice it is, so it can’t be done from here. Ask your user to open Voice › Clone in the Hildegard Studio (${remote ? 'the address they use for Hildegard' : client.url}/#/voice/clone). There, the speaker reads a fresh consent line aloud, live, and adds a few recordings of their voice. Hildegard checks the line was said, that it wasn’t made by AI, and that every recording is the same person, then signs a consent certificate the speaker can revoke. Once it’s in the library, list_voices shows it and you can use it with speak.`,
       ),
-    ),
   );
 
   server.registerTool(
