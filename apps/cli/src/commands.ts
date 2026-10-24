@@ -23,7 +23,7 @@ import {
   type Step,
   snippet,
 } from '@hildegard/runtime';
-import { type Config, startServer, VERSION } from '@hildegard/server';
+import { type Config, guardProcess, startServer, VERSION } from '@hildegard/server';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
 
@@ -87,11 +87,24 @@ export async function serveForeground(c: Config): Promise<never> {
     await srv.close();
     process.exit(0);
   };
-  const srv = await startServer({ ...c, uiDir }, { onStop: () => void stop() });
+  const srv = await startServer(
+    { ...c, uiDir },
+    {
+      onStop: () => {
+        console.error(`${new Date().toISOString()} Stopping: asked to from this computer.`);
+        void stop();
+      },
+    },
+  );
   console.log(`Hildegard ${VERSION} is running at ${srv.url}`);
-  process.once('SIGINT', () => void stop());
-  process.once('SIGTERM', () => void stop());
+  guardProcess(stop);
   return new Promise<never>(() => {});
+}
+
+/** The command line WMI runs on Windows: the server, with its entry noted and its output in the log. */
+export function wmiLine(entryPath: string, args: string[], log: string): string {
+  const q = (a: string) => `"${a}"`;
+  return `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=${entryPath}" && ${q(process.execPath)} ${args.map(q).join(' ')} >> ${q(log)} 2>&1"`;
 }
 
 export async function start(ctx: Ctx): Promise<Result> {
@@ -115,14 +128,36 @@ export async function start(ctx: Ctx): Promise<Result> {
   if (c.allowedHosts.length) args.push('--allow-host', c.allowedHosts.join(','));
   if (c.hostPort !== null) args.push('--host-port', String(c.hostPort));
   if (c.comfyExternal) args.push('--comfy', c.comfyUrl);
-  const child = spawn(process.execPath, args, {
-    detached: true,
-    stdio: ['ignore', fd, fd],
-    windowsHide: true,
-    env: { ...process.env, HILDEGARD_ENTRY: entry() },
-  });
-  closeSync(fd);
-  child.unref();
+  // Windows' OpenSSH ends every process of a session when it closes, detached or not, so from ssh the server is
+  // started by Windows itself (WMI), outside the session.
+  const viaWmi = process.platform === 'win32' && !!(process.env.SSH_CONNECTION || process.env.SSH_CLIENT);
+  let child: ReturnType<typeof spawn>;
+  if (viaWmi) {
+    closeSync(fd);
+    child = spawn(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        '$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:HILDEGARD_WMI_LINE }; exit $r.ReturnValue',
+      ],
+      {
+        stdio: 'ignore',
+        windowsHide: true,
+        env: { ...process.env, HILDEGARD_WMI_LINE: wmiLine(entry(), args, log) },
+      },
+    );
+  } else {
+    child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: ['ignore', fd, fd],
+      windowsHide: true,
+      env: { ...process.env, HILDEGARD_ENTRY: entry() },
+    });
+    closeSync(fd);
+    child.unref();
+  }
   for (let i = 0; i < 120; i++) {
     if (await running(c))
       return result(
@@ -130,7 +165,8 @@ export async function start(ctx: Ctx): Promise<Result> {
         `Hildegard is running at ${url}`,
         { url },
       );
-    if (child.exitCode !== null) break;
+    // Through WMI, the launcher exits at once; only a launch it couldn't make ends the wait early.
+    if (child.exitCode !== null && (!viaWmi || child.exitCode !== 0)) break;
     await new Promise((r) => setTimeout(r, 250));
   }
   return result(

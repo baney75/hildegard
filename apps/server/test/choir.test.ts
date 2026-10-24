@@ -312,11 +312,16 @@ describe('rendering on another device', () => {
     const res = await post(mac, '/api/shots', { request: request('Rain on a tin roof, close up') });
     const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
     await until(() => gpu.scheduler.load() === 2);
+    const queuedAt = Date.now();
+    await new Promise((r) => setTimeout(r, 1200));
     gpu.scheduler.setPaused(false);
     await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
     expect(mac.store.takes.get(remote.id)?.status).not.toBe('done');
     await until(() => mac.store.takes.get(remote.id)?.status === 'done');
     expect(gpu.store.takes.get(ownTake.id)?.status).toBe('done');
+    // Its render time is the GPU's work on it, not its wait in the line.
+    const waitedAndRendered = Date.now() - queuedAt;
+    expect(mac.store.takes.get(remote.id)?.renderMs).toBeLessThan(waitedAndRendered - 1200);
   });
 
   it('shows a paired device’s render in the GPU computer’s own snapshot and events, by name, without its prompt', async () => {
