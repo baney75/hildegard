@@ -87,7 +87,17 @@ try {
   if (Test-Path $link) {
     $old = Get-Item $link
     if ($old.LinkType -eq 'Junction') { $prev = Split-Path -Leaf $old.Target; $old.Delete() }
-    else { Remove-Item -Recurse -Force $link }
+    else {
+      # A copy (on exFAT or FAT32) is in use while Hildegard runs from it, so stop Hildegard first; setup below starts
+      # it again.
+      $old = Join-Path $Bin 'hildegard.cmd'
+      if (Test-Path $old) { & $old stop *> $null }
+      # The server closes its port a moment before its process lets go of the files.
+      for ($i = 0; ; $i++) {
+        try { Remove-Item -Recurse -Force $link -ErrorAction Stop; break }
+        catch { if ($i -ge 10) { throw "Couldn't replace $link while something still uses it: $($_.Exception.Message)" }; Start-Sleep -Seconds 1 }
+      }
+    }
   }
   try { New-Item -ItemType Junction -Path $link -Target $app -ErrorAction Stop | Out-Null }
   catch {

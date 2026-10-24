@@ -181,7 +181,9 @@ export function comfyStep(
 }
 
 /** The Models and Hugging Face steps, from what the server says about each model. */
-export function modelSteps(snap: Pick<Snapshot, 'models' | 'hf'>): Step[] {
+export function modelSteps(
+  snap: Pick<Snapshot, 'models' | 'hf'> & { choir?: Pick<Snapshot['choir'], 'use'> },
+): Step[] {
   const out: Step[] = [];
   const installed = snap.models.filter((m) => m.installed);
   const downloading = snap.models.filter((m) => m.downloading);
@@ -218,8 +220,10 @@ export function modelSteps(snap: Pick<Snapshot, 'models' | 'hf'>): Step[] {
               command: 'hildegard setup --json',
             },
   );
-  // A model this computer can't render doesn't need the account here.
-  const gated = snap.models.filter((m) => m.gated && !m.installed && m.fitWhy !== 'apple-gpu');
+  // A model this computer can't render doesn't need the account here, and while takes render on a paired device,
+  // that device downloads the models.
+  const paired = !!snap.choir && snap.choir.use !== 'local';
+  const gated = paired ? [] : snap.models.filter((m) => m.gated && !m.installed && m.fitWhy !== 'apple-gpu');
   out.push(
     snap.hf.linked
       ? {

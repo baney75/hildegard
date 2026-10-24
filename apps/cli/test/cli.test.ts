@@ -519,6 +519,12 @@ describe('doctor’s model steps', () => {
     expect(account).toMatchObject({ status: 'skipped', detail: 'Not linked; no model here needs it.' });
   });
 
+  it('asks for no Hugging Face account while takes render on a paired device', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [, account] = modelSteps({ models: [model('ltx', null, true)], hf, choir: { use: 'parish1' } });
+    expect(account).toMatchObject({ status: 'skipped' });
+  });
+
   it('elsewhere, setup picks a model and a gated one needs the account', async () => {
     const { modelSteps } = await import('../src/doctor.ts');
     const [models, account] = modelSteps({ models: [model('wan', null), model('ltx', null, true)], hf });
