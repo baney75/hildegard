@@ -189,6 +189,7 @@ const input = (over: Partial<LaunchInput>): LaunchInput => ({
   mcp: { command: '/usr/bin/node', args: ['/opt/hildegard/main.ts', 'mcp'] },
   ...over,
 });
+// A stand-in, not shaped like a real key, so secret scanners don't flag it.
 const SECRET = 'test-anthropic-key';
 
 describe('launch plans', () => {
