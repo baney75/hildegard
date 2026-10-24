@@ -6,6 +6,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import { HildegardClient } from '@hildegard/mcp';
 import {
   type AgentsResponse,
@@ -14,6 +15,7 @@ import {
   type CreateShotBody,
   composeShot,
   type GrantsResponse,
+  loadSafety,
   type ModelState,
   type NewInvite,
   type NewKey,
@@ -21,6 +23,7 @@ import {
   PresetError,
   type Priority,
   type Project,
+  type SafetyCheck,
   type ServerEvent,
   ShotRequest,
   type Snapshot,
@@ -68,7 +71,7 @@ import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -106,13 +109,18 @@ export interface AppDeps {
   onStop?: () => void;
   /** The base URL people and agents reach this server at. */
   url?: string;
+  /** This data folder's id (`homeId`), so a client can tell this server from another Hildegard's. */
+  home?: string;
   choir: Choir;
   /** Models as the Studio should see them: this computer's, or those on the device renders go to. */
   modelStates: () => ModelState[];
   /** /api/node/*, for devices paired with this one. */
   node?: Hono;
-  /** Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address. */
-  invite: (url?: string) => Promise<{ code: string; url: string }>;
+  /**
+   * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
+   * the other device made (a rented GPU it started), instead of a fresh one.
+   */
+  invite: (url?: string, key?: string) => Promise<{ code: string; url: string }>;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
   /** Who may sign in from other devices. */
@@ -129,6 +137,10 @@ export interface AppDeps {
   fetchMetadata?: FetchMetadata;
   /** The language models running on this computer, which can direct. */
   llm: LocalModels;
+  /** Technical checks on a finished file (tools/review_media.py); absent where that can't run. */
+  review?: (spec: ReviewSpec) => Promise<Review>;
+  /** What may render; presets/safety.toml unless a test says otherwise. */
+  safety?: SafetyCheck;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -167,6 +179,7 @@ const CreateShot = z.object({
 
 export function createApp(deps: AppDeps) {
   const { config, store, scheduler, catalog, mediaDir, people, host } = deps;
+  const safety = deps.safety ?? loadSafety();
   mkdirSync(join(mediaDir, 'uploads'), { recursive: true });
   const app = new Hono<HgEnv>();
   // The address it is bound to is allowed too (a Tailscale IP, say); names must be listed with --allow-host.
@@ -325,7 +338,7 @@ export function createApp(deps: AppDeps) {
     guests: scheduler.guestTakes(),
   });
 
-  app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }));
+  app.get('/api/health', (c) => c.json({ ok: true, version: VERSION, home: deps.home }));
   if (deps.node) app.route('/api/node', deps.node);
 
   // ── This computer: stopping, and linking AI apps. Only from this computer itself, never over the network. ─────
@@ -481,6 +494,14 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: issue.message, field: issue.path.join('.') }, 422);
     }
     const request = req.data;
+    // Refused before it queues, for people and agents alike; the queue and the GPU check it again.
+    for (const [field, text] of [
+      ['prompt', request.prompt],
+      ['title', body.title ?? ''],
+    ] as const) {
+      const v = safety.text(text);
+      if (!v.ok) return c.json({ error: v.message, field, code: 'content_blocked' }, 422);
+    }
     if (request.startFrame && !existsSync(join(mediaDir, 'uploads', request.startFrame)))
       return c.json({ error: 'That start frame is gone; add it again', field: 'startFrame' }, 422);
     let composed: ReturnType<typeof composeShot>;
@@ -617,6 +638,7 @@ export function createApp(deps: AppDeps) {
   const deleteTakeFiles = async (t: Take) => {
     await rm(join(mediaDir, `${t.id}.mp4`), { force: true });
     await rm(join(mediaDir, `${t.id}.jpg`), { force: true });
+    await rm(join(mediaDir, `${t.id}.sheet.jpg`), { force: true });
   };
 
   app.delete('/api/shots/:id', async (c) => {
@@ -665,6 +687,11 @@ export function createApp(deps: AppDeps) {
   app.post(
     '/api/takes/:id/retry',
     takeAction((t, c) => {
+      if (t.error?.code === 'content_blocked')
+        return c.json(
+          { error: 'Hildegard refused this take, so it can’t be retried.', code: 'content_blocked' },
+          409,
+        );
       if (t.status === 'failed' || t.status === 'canceled') {
         const refused = queueFull(c, 1);
         if (refused) return refused;
@@ -712,6 +739,57 @@ export function createApp(deps: AppDeps) {
     return c.body(Buffer.from(p.bytes), 200, { 'content-type': p.type });
   });
 
+  /**
+   * The technical half of the quality gate for a finished take: exposure, frozen and flickering frames, pushed colour,
+   * clipped or badly levelled sound, held to the bar for its quality and checked against the length and sound its shot
+   * asked for. Writes a contact sheet to look at (`/api/takes/:id/sheet`). Results are kept, since a take never changes.
+   */
+  const reviews = new Map<string, Promise<Review>>();
+  app.get('/api/takes/:id/review', async (c) => {
+    const t = store.takes.get(c.req.param('id'));
+    if (!t || !sees(c, t.projectId)) return c.json({ error: 'No such take' }, 404);
+    if (t.status !== 'done' || !t.video)
+      return c.json(
+        { error: 'This take hasn’t finished, so there is nothing to check yet', code: 'unfinished' },
+        409,
+      );
+    if (!deps.review)
+      return c.json({ error: 'Media checks can’t run on this computer: it has no Python with PyAV' }, 501);
+    const file = join(mediaDir, `${t.id}.mp4`);
+    if (!existsSync(file)) return c.json({ error: 'This take’s video is missing from this computer' }, 410);
+    const model = catalog.models.find((m) => m.id === t.model);
+    let pending = reviews.get(t.id);
+    if (!pending) {
+      pending = deps.review({
+        path: file,
+        sheet: join(mediaDir, `${t.id}.sheet.jpg`),
+        final: t.quality === 'final',
+        seconds: t.seconds,
+        audio: model?.audio ?? false,
+      });
+      reviews.set(t.id, pending);
+      pending.catch(() => reviews.delete(t.id));
+    }
+    try {
+      const r = await pending;
+      return c.json({
+        take: t.id,
+        ...r,
+        summary: describeReview(r),
+        sheet: r.info.sheet ? `/api/takes/${t.id}/sheet` : null,
+      });
+    } catch (e) {
+      return c.json({ error: e instanceof ReviewError ? e.message : 'The media check failed' }, 500);
+    }
+  });
+  app.get('/api/takes/:id/sheet', (c) => {
+    const t = store.takes.get(c.req.param('id'));
+    if (!t || !sees(c, t.projectId)) return c.body(null, 404);
+    const file = join(mediaDir, `${t.id}.sheet.jpg`);
+    if (!/^\w+$/.test(t.id) || !existsSync(file)) return c.body(null, 404);
+    return sendFile(c, file, 'image/jpeg', 'private, max-age=31536000, immutable');
+  });
+
   // ── Engine ──────────────────────────────────────────────────────────────────────────────────────────────────
   app.post('/api/engine/pause', (c) => {
     scheduler.setPaused(true);
@@ -735,12 +813,12 @@ export function createApp(deps: AppDeps) {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ url: z.string().max(200).optional() })
+      .object({ url: z.string().max(200).optional(), key: z.string().max(100).optional() })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give an address like http://100.101.102.103:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
-      return c.json(await deps.invite(body.data.url));
+      return c.json(await deps.invite(body.data.url, body.data.key));
     } catch (e) {
       return choirFail(c, e);
     }
@@ -849,6 +927,15 @@ export function createApp(deps: AppDeps) {
     }
   });
   app.post('/api/hf/unlink', (c) => c.json(deps.hf.unlink()));
+  // Reads a file in the owner's home, so only from this computer.
+  app.post('/api/hf/import', async (c) => {
+    if (!local(c)) return c.json({ error: 'Link Hugging Face from the computer Hildegard runs on' }, 403);
+    try {
+      return c.json(await deps.hf.useHubToken());
+    } catch (e) {
+      return hfFail(c, e);
+    }
+  });
   app.post('/api/hf/oauth/start', (c) => {
     // Hugging Face accepts any port on a loopback redirect, so browser sign-in works only from this computer.
     const u = new URL(c.req.url);

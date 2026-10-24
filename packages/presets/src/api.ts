@@ -110,8 +110,10 @@ export interface HfState {
   user: string | null;
   /** How the token is kept: the OS keychain, a 0600 file, or the environment. */
   storage: 'keychain' | 'file' | 'env' | null;
-  /** Whether "Sign in with Hugging Face" is available (an OAuth app id is configured). */
+  /** Whether "Sign in with Hugging Face" is available (an OAuth client id is configured; it is by default). */
   oauth: boolean;
+  /** Not linked, but this computer is signed in to Hugging Face already (`hf auth login`): one click links it. */
+  found?: boolean;
 }
 
 /** Export film: one MP4 of each shot's chosen take, in order. */

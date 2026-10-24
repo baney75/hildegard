@@ -230,15 +230,17 @@ export function Inspector({
                 <pre>{t.error.detail}</pre>
               </details>
             ) : null}
-            <Button
-              kind="primary"
-              icon="reuse"
-              onClick={() => run('retry', () => api.retry(t.id))}
-              busy={busy === 'retry'}
-              className="hg-btn--block"
-            >
-              Retry {t.error?.code === 'out_of_memory' ? 'as is' : ''}
-            </Button>
+            {t.error?.code === 'content_blocked' ? null : (
+              <Button
+                kind="primary"
+                icon="reuse"
+                onClick={() => run('retry', () => api.retry(t.id))}
+                busy={busy === 'retry'}
+                className="hg-btn--block"
+              >
+                Retry {t.error?.code === 'out_of_memory' ? 'as is' : ''}
+              </Button>
+            )}
             {t.error?.code === 'out_of_memory' && t.quality === 'final' ? (
               <Button
                 icon="feather"
@@ -359,7 +361,7 @@ function stateChip(t: Take) {
   if (t.status === 'queued')
     return <Status kind="queued">{t.priority === 'forced' ? 'Forced' : 'Queued'}</Status>;
   if (t.status === 'canceled') return <Status kind="idle">Canceled</Status>;
-  return <Status kind="error">Stopped</Status>;
+  return <Status kind="error">{t.error?.code === 'content_blocked' ? 'Refused' : 'Stopped'}</Status>;
 }
 
 /** What stopped a take, as its headline; running and waiting takes are headed by their shot instead. */
@@ -380,5 +382,6 @@ function explain(t: Take, left: number | null, where: string, waiting: string): 
       ? `${waiting}. Forced: it goes before everything else.`
       : `${waiting}. Force now to run it before the others.`;
   if (t.status === 'canceled') return 'Your prompt, seed and rig are kept. Retry when you want it.';
+  if (t.error?.code === 'content_blocked') return t.error.hint;
   return `${t.error?.hint ?? 'Retry, and if it fails again the details say why.'} Your prompt, seed and rig are kept, and nothing was spent.`;
 }

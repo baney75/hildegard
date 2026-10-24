@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ import {
   type Step,
   snippet,
 } from '@hildegard/runtime';
-import { type Config, startServer, VERSION } from '@hildegard/server';
+import { type Config, guardProcess, homeId, startServer, VERSION } from '@hildegard/server';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
 
@@ -58,13 +59,48 @@ export async function api<T>(
   return data;
 }
 
-export async function running(c: Config): Promise<{ version: string } | null> {
+interface Health {
+  version: string;
+  /** The server's data folder id; servers before 0.1.2 don't send it. */
+  home?: string;
+}
+
+async function health(c: Config): Promise<Health | null> {
   try {
     const res = await fetch(`${baseUrl(c)}/api/health`, { signal: AbortSignal.timeout(1500) });
-    return res.ok ? ((await res.json()) as { version: string }) : null;
+    return res.ok ? ((await res.json()) as Health) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a server is this data folder's. Only two ids that differ say no: servers before 0.1.2 send none, and a
+ * folder that doesn't exist yet has none.
+ */
+const ours = (c: Config, h: Health) => {
+  const mine = existsSync(c.dataDir) ? homeId(c.dataDir) : null;
+  return !h.home || !mine || h.home === mine;
+};
+
+/** This data folder's server, when it answers on the port. Another Hildegard there (another home) isn't it. */
+export async function running(c: Config): Promise<Health | null> {
+  const h = await health(c);
+  return h && ours(c, h) ? h : null;
+}
+
+const portFree = (port: number) =>
+  new Promise<boolean>((done) => {
+    const s = createServer();
+    s.once('error', () => done(false));
+    s.listen(port, '127.0.0.1', () => s.close(() => done(true)));
+  });
+
+/** The next port from `from` with the one above it free too (for hosting), in steps of two. */
+export async function nextFreePort(from: number, tries = 50): Promise<number | null> {
+  for (let p = from; p < from + tries * 2 && p < 65535; p += 2)
+    if ((await portFree(p)) && (await portFree(p + 1))) return p;
+  return null;
 }
 
 const tryResource = (rel: string) => {
@@ -74,6 +110,11 @@ const tryResource = (rel: string) => {
     return null;
   }
 };
+
+const moveNote = (r: Result, note: string): Result => ({
+  ...r,
+  steps: r.steps.map((s) => (s.id === 'start' ? { ...s, detail: `${s.detail}${note}` } : s)),
+});
 
 // ── start / stop ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -87,23 +128,58 @@ export async function serveForeground(c: Config): Promise<never> {
     await srv.close();
     process.exit(0);
   };
-  const srv = await startServer({ ...c, uiDir }, { onStop: () => void stop() });
+  const srv = await startServer(
+    { ...c, uiDir },
+    {
+      onStop: () => {
+        console.error(`${new Date().toISOString()} Stopping: asked to from this computer.`);
+        void stop();
+      },
+    },
+  );
   console.log(`Hildegard ${VERSION} is running at ${srv.url}`);
-  process.once('SIGINT', () => void stop());
-  process.once('SIGTERM', () => void stop());
+  guardProcess(stop);
   return new Promise<never>(() => {});
+}
+
+/** The command line WMI runs on Windows: the server, with its entry noted and its output in the log. */
+export function wmiLine(entryPath: string, args: string[], log: string): string {
+  const q = (a: string) => `"${a}"`;
+  return `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=${entryPath}" && ${q(process.execPath)} ${args.map(q).join(' ')} >> ${q(log)} 2>&1"`;
 }
 
 export async function start(ctx: Ctx): Promise<Result> {
   const c = ctx.config;
   const url = baseUrl(c);
-  const up = await running(c);
-  if (up)
+  mkdirSync(c.dataDir, { recursive: true, mode: 0o700 });
+  const up = await health(c);
+  if (up && ours(c, up))
     return result(
       [{ id: 'start', title: 'Start Hildegard', status: 'skipped', detail: `Already running at ${url}.` }],
       `Hildegard is running at ${url}`,
       { url },
     );
+  // Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
+  // server remembers in its folder for later commands and the app.
+  if (up || !(await portFree(c.port))) {
+    const p = await nextFreePort(c.port + 2);
+    const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
+    if (p === null)
+      return result(
+        [
+          {
+            id: 'start',
+            title: 'Start Hildegard',
+            status: 'failed',
+            detail: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.`,
+          },
+        ],
+        'Hildegard didn’t start.',
+      );
+    const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
+    c.port = p;
+    return moveNote(await start(ctx), note);
+  }
   const L = layout(c.dataDir);
   mkdirSync(L.logs, { recursive: true });
   const log = join(L.logs, 'server.log');
@@ -115,14 +191,36 @@ export async function start(ctx: Ctx): Promise<Result> {
   if (c.allowedHosts.length) args.push('--allow-host', c.allowedHosts.join(','));
   if (c.hostPort !== null) args.push('--host-port', String(c.hostPort));
   if (c.comfyExternal) args.push('--comfy', c.comfyUrl);
-  const child = spawn(process.execPath, args, {
-    detached: true,
-    stdio: ['ignore', fd, fd],
-    windowsHide: true,
-    env: { ...process.env, HILDEGARD_ENTRY: entry() },
-  });
-  closeSync(fd);
-  child.unref();
+  // Windows' OpenSSH ends every process of a session when it closes, detached or not, so from ssh the server is
+  // started by Windows itself (WMI), outside the session.
+  const viaWmi = process.platform === 'win32' && !!(process.env.SSH_CONNECTION || process.env.SSH_CLIENT);
+  let child: ReturnType<typeof spawn>;
+  if (viaWmi) {
+    closeSync(fd);
+    child = spawn(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        '$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:HILDEGARD_WMI_LINE }; exit $r.ReturnValue',
+      ],
+      {
+        stdio: 'ignore',
+        windowsHide: true,
+        env: { ...process.env, HILDEGARD_WMI_LINE: wmiLine(entry(), args, log) },
+      },
+    );
+  } else {
+    child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: ['ignore', fd, fd],
+      windowsHide: true,
+      env: { ...process.env, HILDEGARD_ENTRY: entry() },
+    });
+    closeSync(fd);
+    child.unref();
+  }
   for (let i = 0; i < 120; i++) {
     if (await running(c))
       return result(
@@ -130,7 +228,8 @@ export async function start(ctx: Ctx): Promise<Result> {
         `Hildegard is running at ${url}`,
         { url },
       );
-    if (child.exitCode !== null) break;
+    // Through WMI, the launcher exits at once; only a launch it couldn't make ends the wait early.
+    if (child.exitCode !== null && (!viaWmi || child.exitCode !== 0)) break;
     await new Promise((r) => setTimeout(r, 250));
   }
   return result(
@@ -150,7 +249,16 @@ export async function stop(ctx: Ctx): Promise<Result> {
   const c = ctx.config;
   if (!(await running(c)))
     return result(
-      [{ id: 'stop', title: 'Stop Hildegard', status: 'skipped', detail: 'It wasn’t running.' }],
+      [
+        {
+          id: 'stop',
+          title: 'Stop Hildegard',
+          status: 'skipped',
+          detail: (await health(c))
+            ? `It wasn’t running. The Hildegard on port ${c.port} is another home’s, so it was left alone.`
+            : 'It wasn’t running.',
+        },
+      ],
       'Hildegard is stopped.',
     );
   await api(c, '/api/system/stop', { method: 'POST' }).catch(() => {});
@@ -187,7 +295,7 @@ export async function install(ctx: Ctx): Promise<Result> {
   const failed = steps.find((s) => s.status === 'failed' || s.status === 'needs-owner');
   if (failed)
     return { ...result(steps, failed.status === 'failed' ? 'The install stopped.' : failed.detail), printed };
-  // Restart, so the server runs the ComfyUI it just installed.
+  // Restart, so the server runs the ComfyUI it just installed: this folder's server only, never another home's.
   if (await running(c)) await stop(ctx);
   const s = await start(ctx);
   if (events) for (const step of s.steps) printEvent({ step });
@@ -614,6 +722,21 @@ export function askSecret(question: string): Promise<string> {
   });
 }
 
+/** Opens a URL in the default browser. Windows' `start` would cut a URL at its first `&`, so it gets rundll32. */
+function openInBrowser(url: string) {
+  const [cmd, args] =
+    process.platform === 'darwin'
+      ? ['open', [url]]
+      : process.platform === 'win32'
+        ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
+        : ['xdg-open', [url]];
+  try {
+    spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true })
+      .on('error', () => {})
+      .unref();
+  } catch {}
+}
+
 export async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const c of process.stdin) chunks.push(c as Buffer);
@@ -703,13 +826,50 @@ export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
           id: 'huggingface',
           title: 'Link Hugging Face',
           status: 'needs-owner',
-          detail: `The owner signs in to their own Hugging Face account; an agent never handles the token. In a terminal on this computer, run the command below${state.oauth ? ' and approve Hildegard on huggingface.co' : `, and paste a read token from ${TOKEN_PAGE}`}. Or use Settings › Hugging Face in the Studio.`,
+          detail: `The owner signs in to their own Hugging Face account; an agent never handles the token. In a terminal on this computer, run the command below${state.found ? ' and press Enter to use the Hugging Face sign-in already on this computer' : state.oauth ? ' and approve Hildegard on huggingface.co' : `, and paste a read token from ${TOKEN_PAGE}`}. Or use Settings › Hugging Face in the Studio.`,
           command: 'hildegard hf login',
         },
       ],
       'Waiting on the owner to link Hugging Face.',
       { hf: state },
     );
+
+  const waitLinked = async (ms: number): Promise<HfState | null> => {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const s = await api<HfState>(c, '/api/hf');
+      if (s.linked) return s;
+    }
+    return null;
+  };
+
+  // Signed in already with Hugging Face's own tools: one keypress.
+  if (state.found) {
+    if (await ask('This computer is signed in to Hugging Face already. Use that sign-in?')) {
+      try {
+        return done(await api<HfState>(c, '/api/hf/import', { method: 'POST' }));
+      } catch (e) {
+        console.log(`${(e as Error).message} Signing in another way.`);
+      }
+    }
+  }
+
+  // At the computer itself: the browser, nothing to copy. Over SSH there's no browser here, so a code instead.
+  if (state.oauth && !process.env.SSH_CONNECTION && !process.env.SSH_TTY) {
+    try {
+      const { url } = await api<{ url: string }>(c, '/api/hf/oauth/start', { method: 'POST' });
+      openInBrowser(url);
+      console.log(
+        `Approve Hildegard on huggingface.co in your browser. If no browser opened, go to:\n${url}`,
+      );
+      const s = await waitLinked(5 * 60_000);
+      if (s) return done(s);
+      console.log('No answer from the browser. Trying a code instead.');
+    } catch {
+      // No browser sign-in from here: a code works just as well.
+    }
+  }
 
   if (state.oauth) {
     try {
@@ -721,12 +881,8 @@ export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
         },
       );
       console.log(`Open ${d.verificationUri}\nand enter the code ${d.userCode}. Waiting for Hugging Face…`);
-      const until = Date.now() + d.expiresIn * 1000;
-      while (Date.now() < until) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const s = await api<HfState>(c, '/api/hf');
-        if (s.linked) return done(s);
-      }
+      const s = await waitLinked(d.expiresIn * 1000);
+      if (s) return done(s);
       return fail('The code expired before it was approved. Run `hildegard hf login` again.');
     } catch {
       // Hugging Face's sign-in isn't reachable: a token works just as well.
@@ -769,9 +925,11 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
   switch (action) {
     case 'invite': {
       try {
+        // --key-stdin: a key the joining device made itself (a rented GPU it started), never on the command line.
+        const key = ctx.flags.has('key-stdin') ? await readStdin() : undefined;
         const r = await api<{ code: string; url: string }>(c, '/api/choir/invite', {
           method: 'POST',
-          body: { url: ctx.opts.get('url') },
+          body: { url: ctx.opts.get('url'), key },
         });
         if (!ctx.json)
           console.log(

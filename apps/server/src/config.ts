@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,7 +19,10 @@ export interface Config {
   fake: boolean;
   /** Built Studio UI to serve; null in development, where Vite serves it. */
   uiDir: string | null;
-  /** Hugging Face OAuth app (public client, no secret). */
+  /**
+   * Hugging Face OAuth client (public, no secret). By default Hildegard's client metadata document, which Hugging Face
+   * reads in place of a registered app; HILDEGARD_HF_CLIENT_ID names another, and an empty value turns sign-in off.
+   */
   hfClientId: string | null;
   /** Extra host names this server answers to (for example a Tailscale name). */
   allowedHosts: string[];
@@ -28,6 +32,12 @@ export interface Config {
    */
   hostPort: number | null;
 }
+
+/**
+ * Hildegard's Hugging Face client: a Client ID Metadata Document (https://huggingface.co/docs/hub/oauth), served from
+ * the install page's site. It names Hildegard, its icon, the scopes, and the loopback callbacks `/api/hf/callback`.
+ */
+export const HF_CLIENT_ID = 'https://dbaney.com/hildegard/oauth/hf-client.json';
 
 export function defaultDataDir(env = process.env): string {
   if (env.HILDEGARD_HOME) return env.HILDEGARD_HOME;
@@ -54,6 +64,30 @@ export function rememberedPort(dataDir: string): number | undefined {
   }
 }
 
+/**
+ * A random id for this data folder, which `/api/health` answers with, so the CLI and the app can tell their own server
+ * from another Hildegard (another install, another home) on the same port. Random, so it says nothing about the path.
+ */
+export const homeIdFile = (dataDir: string) => join(dataDir, 'home.id');
+
+export function readHomeId(dataDir: string): string | null {
+  try {
+    const id = readFileSync(homeIdFile(dataDir), 'utf8').trim();
+    return id || null;
+  } catch {
+    return null;
+  }
+}
+
+/** This folder's id, made on first use. The folder must exist. */
+export function homeId(dataDir: string): string {
+  const id = readHomeId(dataDir);
+  if (id) return id;
+  const made = randomBytes(9).toString('base64url');
+  writeFileSync(homeIdFile(dataDir), `${made}\n`);
+  return made;
+}
+
 export function parseArgs(argv: string[], env = process.env): Config {
   const flag = (name: string) => argv.includes(`--${name}`);
   const opt = (name: string): string | undefined => {
@@ -72,7 +106,7 @@ export function parseArgs(argv: string[], env = process.env): Config {
     comfyDir: opt('comfy-dir') ?? env.HILDEGARD_COMFY_DIR ?? join(dataDir, 'comfyui'),
     fake: flag('fake-gpu') || env.HILDEGARD_FAKE_GPU === '1',
     uiDir: opt('ui') ?? env.HILDEGARD_UI_DIR ?? null,
-    hfClientId: env.HILDEGARD_HF_CLIENT_ID ?? null,
+    hfClientId: (env.HILDEGARD_HF_CLIENT_ID ?? HF_CLIENT_ID) || null,
     allowedHosts: (opt('allow-host') ?? env.HILDEGARD_ALLOWED_HOSTS ?? '').split(',').filter(Boolean),
     hostPort:
       opt('host-port') || env.HILDEGARD_HOST_PORT

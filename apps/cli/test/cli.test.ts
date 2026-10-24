@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFile, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { loadCatalog } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
-import { type Exec, fileStore, parseArgs, startServer } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -49,6 +50,15 @@ async function hildegard(home: string, ...args: string[]) {
   return JSON.parse(stdout) as Out;
 }
 
+/** The same, with more environment (test doubles for outside services). */
+async function hildegardEnv(home: string, env: Record<string, string>, ...args: string[]) {
+  const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
+    env: { ...cliEnv(home), ...env },
+    timeout: 60_000,
+  }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
+  return JSON.parse(stdout) as Out;
+}
+
 /** The same, with something piped to its stdin, as an agent pipes a secret the owner gave it. */
 function hildegardWithStdin(home: string, input: string, ...args: string[]) {
   return new Promise<Out>((resolve, reject) => {
@@ -75,7 +85,7 @@ describe('hildegard', () => {
 
     const st = await hildegard(home, 'status', ...common);
     expect(st.running).toBe(true);
-    expect(st.version).toBe('0.1.0');
+    expect(st.version).toBe(VERSION);
     expect(st.engine).toMatchObject({ comfy: 'fake', online: true });
 
     const linked = await hildegard(home, 'connect', 'cursor', ...common);
@@ -111,6 +121,39 @@ describe('hildegard', () => {
     expect((await hildegard(home, 'status', '--data', data, '--port', port)).running).toBe(false);
   });
 
+  it('leaves another home’s server alone and starts on the next free port', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const mine = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const theirs = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const port = 7400 + 2 * Math.floor(Math.random() * 200);
+    expect((await hildegard(home, 'start', '--port', String(port), '--data', theirs, '--fake-gpu')).ok).toBe(
+      true,
+    );
+    try {
+      // Another home's server on the port is neither running here nor this one's to stop.
+      expect((await hildegard(home, 'status', '--port', String(port), '--data', mine)).running).toBe(false);
+      const left = await hildegard(home, 'stop', '--port', String(port), '--data', mine);
+      expect(left.steps[0]).toMatchObject({ status: 'skipped' });
+      expect(left.steps[0]!.detail).toContain('another home');
+
+      const started = await hildegard(home, 'start', '--port', String(port), '--data', mine, '--fake-gpu');
+      expect(started.ok).toBe(true);
+      expect(started.steps[0]!.detail).toContain(`Port ${port} is another Hildegard’s`);
+      const moved = Number(new URL(String(started.url)).port);
+      expect(moved).toBeGreaterThan(port);
+      // Later commands find it from its folder, and both servers keep running.
+      expect(await hildegard(home, 'status', '--data', mine)).toMatchObject({
+        running: true,
+        url: `http://127.0.0.1:${moved}`,
+      });
+      expect((await hildegard(home, 'status', '--data', theirs)).running).toBe(true);
+      expect((await hildegard(home, 'stop', '--data', mine)).steps[0]!.status).toBe('done');
+      expect((await hildegard(home, 'status', '--data', theirs)).running).toBe(true);
+    } finally {
+      await hildegard(home, 'stop', '--data', theirs);
+    }
+  }, 60_000);
+
   it('serves MCP on stdio, as AI apps run it', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-mcp-'));
     const srv = await startServer(
@@ -135,8 +178,10 @@ describe('hildegard', () => {
 
   // Fifteen runs of the CLI: give Windows' slow Node starts room.
   it('pairs devices: invite on the GPU, join, list, use and leave on the other, revoke', async () => {
+    // Commands for the GPU name its folder as well as its port: a server is only theirs when the folders match.
+    const nodeData = mkdtempSync(join(tmpdir(), 'hg-cli-node-'));
     const node = await startServer(
-      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-cli-node-'))]), port: 0 },
+      { ...parseArgs(['--fake-gpu', '--data', nodeData]), port: 0 },
       { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-node-${process.pid}.json`)) },
     );
     const nodePort = new URL(node.url).port;
@@ -145,7 +190,7 @@ describe('hildegard', () => {
     const mac = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data];
     try {
       // Without Tailscale, the owner has to say where this computer is reachable.
-      const bare = await hildegard(home, 'choir', 'invite', '--port', nodePort);
+      const bare = await hildegard(home, 'choir', 'invite', '--port', nodePort, '--data', nodeData);
       if (!bare.ok || bare.needsOwner) expect(bare.steps[0]).toMatchObject({ status: 'needs-owner' });
       const outside = await hildegard(
         home,
@@ -153,12 +198,24 @@ describe('hildegard', () => {
         'invite',
         '--port',
         nodePort,
+        '--data',
+        nodeData,
         '--url',
         'http://192.168.0.9:1',
       );
       expect(outside.ok).toBe(false);
 
-      const invite = await hildegard(home, 'choir', 'invite', '--port', nodePort, '--url', node.url);
+      const invite = await hildegard(
+        home,
+        'choir',
+        'invite',
+        '--port',
+        nodePort,
+        '--data',
+        nodeData,
+        '--url',
+        node.url,
+      );
       expect(invite.ok).toBe(true);
       expect(invite.code).toMatch(/^hgc1_/);
 
@@ -183,11 +240,126 @@ describe('hildegard', () => {
       expect((await hildegard(home, 'choir', 'leave', name, ...mac)).ok).toBe(true);
       expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
 
-      expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort)).ok).toBe(true);
+      expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort, '--data', nodeData)).ok).toBe(
+        true,
+      );
       expect(node.choir.state().sharing.on).toBe(false);
     } finally {
       await hildegard(home, 'stop', ...mac);
       await node.close();
+    }
+  }, 90_000);
+
+  it('rents a Runpod GPU that joins the fleet, reports it, and stops it', async () => {
+    // A stand-in pod: a Hildegard server with a fake GPU, which "boots" when the fake Runpod creates it.
+    const pod = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-cli-pod-'))]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-pod-${process.pid}.json`)) },
+    );
+    const pods = new Map<
+      string,
+      { id: string; desiredStatus: string; costPerHr: number; env: Record<string, string> }
+    >();
+    const auths: (string | undefined)[] = [];
+    const runpod = createServer((req, res) => {
+      let body = '';
+      req.on('data', (d) => (body += d));
+      req.on('end', () => {
+        auths.push(req.headers.authorization);
+        const send = (status: number, v: unknown) => {
+          res.writeHead(status, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(v));
+        };
+        const [, , id, verb] = (req.url ?? '').split('/');
+        if (req.method === 'POST' && req.url === '/pods') {
+          const spec = JSON.parse(body) as { env: Record<string, string>; cloudType: string };
+          const p = {
+            id: 'pod7XYZ',
+            desiredStatus: 'RUNNING',
+            costPerHr: 0.69,
+            env: spec.env,
+            gpu: { displayName: 'RTX 4090' },
+          };
+          pods.set(p.id, p);
+          // What boot.sh does on the pod: share the GPU with the key the owner's computer made.
+          pod.choir.invite(pod.url, 'pod', spec.env.HILDEGARD_JOIN_KEY);
+          return send(200, p);
+        }
+        const p = id ? pods.get(id) : undefined;
+        if (!p) return send(404, { error: 'not found' });
+        if (req.method === 'GET') return send(200, p);
+        if (req.method === 'POST' && verb === 'stop') p.desiredStatus = 'EXITED';
+        if (req.method === 'POST' && verb === 'start') p.desiredStatus = 'RUNNING';
+        if (req.method === 'DELETE') pods.delete(p.id);
+        return send(200, p);
+      });
+    });
+    await new Promise<void>((r) => runpod.listen(0, '127.0.0.1', r));
+    const rpPort = (runpod.address() as { port: number }).port;
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-mac-'));
+    const mac = ['--port', String(7400 + Math.floor(Math.random() * 400)), '--data', data];
+    const env = { HILDEGARD_RUNPOD_API: `http://127.0.0.1:${rpPort}`, HILDEGARD_RUNPOD_PROXY: pod.url };
+    const cloud = (...a: string[]) => hildegardEnv(home, env, 'cloud', 'runpod', ...a, ...mac);
+    try {
+      const overview = await hildegard(home, 'cloud');
+      expect(overview.steps.map((s) => s.id)).toEqual(['runpod', 'huggingface', 'colab']);
+
+      const noKey = await cloud('up');
+      expect(noKey.steps[0]).toMatchObject({ id: 'key', status: 'needs-owner' });
+      expect(
+        (await hildegardWithStdin(home, 'short', 'cloud', 'runpod', 'key', '--key-stdin', ...mac)).ok,
+      ).toBe(false);
+      const key = `rpa_${'x'.repeat(40)}`;
+      expect((await hildegardWithStdin(home, key, 'cloud', 'runpod', 'key', '--key-stdin', ...mac)).ok).toBe(
+        true,
+      );
+      // Kept as a secret, never in the settings.
+      expect(JSON.stringify(await hildegard(home, 'cloud', 'runpod', 'key', ...mac))).not.toContain(key);
+
+      // Never accepts a license for the owner.
+      const license = await cloud('up', '--model', 'wan-2-2-ti2v-5b');
+      expect(license.steps[0]).toMatchObject({ id: 'model', status: 'needs-owner' });
+      expect(pods.size).toBe(0);
+
+      const up = await cloud('up', '--model', 'wan-2-2-ti2v-5b', '--accept-license', 'wan-2-2-ti2v-5b');
+      expect(up.ok).toBe(true);
+      expect(up.steps.map((s) => [s.id, s.status])).toEqual([
+        ['pod', 'done'],
+        ['join', 'done'],
+        ['use', 'done'],
+      ]);
+      expect(auths.every((a) => a === `Bearer ${key}`)).toBe(true);
+      const created = [...pods.values()][0]!;
+      expect(created.env).toMatchObject({
+        HILDEGARD_MODEL: 'wan-2-2-ti2v-5b',
+        HILDEGARD_ACCEPT_LICENSE: 'wan-2-2-ti2v-5b',
+      });
+      expect(created.env).not.toHaveProperty('HF_TOKEN');
+
+      const list = await hildegard(home, 'choir', 'list', ...mac);
+      expect(list.choir).toMatchObject({
+        use: 'runpod-pod7xyz',
+        devices: [{ name: 'runpod-pod7xyz', online: true }],
+      });
+      const st = await cloud('status');
+      expect(st).toMatchObject({ pod: { status: 'RUNNING', costPerHr: 0.69 }, device: { online: true } });
+
+      // Up again does nothing new; down stops it; up starts it again.
+      expect((await cloud('up')).steps.map((s) => s.id)).toEqual(['use']);
+      expect((await cloud('down')).ok).toBe(true);
+      expect(created.desiredStatus).toBe('EXITED');
+      expect((await cloud('up')).steps[0]).toMatchObject({ id: 'pod', status: 'done' });
+      expect(created.desiredStatus).toBe('RUNNING');
+
+      expect((await cloud('down', '--delete')).ok).toBe(true);
+      expect(pods.size).toBe(0);
+      expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
+      expect((await cloud('status')).steps[0]).toMatchObject({ status: 'skipped' });
+    } finally {
+      await hildegard(home, 'stop', ...mac);
+      runpod.close();
+      await pod.close();
     }
   }, 90_000);
 
@@ -683,5 +855,49 @@ describe('doctor’s ComfyUI step', () => {
       { up: true, fake: false, external: false },
     );
     expect(stuck).toMatchObject({ status: 'failed', command: 'hildegard restart --json' });
+  });
+});
+
+describe('doctor’s model steps', () => {
+  type Snap = Parameters<typeof import('../src/doctor.ts').modelSteps>[0];
+  const model = (id: string, fitWhy: 'memory' | 'apple-gpu' | null, gated = false) =>
+    ({ id, installed: false, downloading: null, gated, fitWhy }) as unknown as Snap['models'][number];
+  const hf = { linked: false } as Snap['hf'];
+
+  it('on a Mac no model renders on, points to pairing and asks for no Hugging Face account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({
+      models: [model('wan', 'apple-gpu'), model('ltx', 'apple-gpu', true)],
+      hf,
+    });
+    expect(models).toMatchObject({ status: 'skipped', command: 'hildegard choir join' });
+    expect(account).toMatchObject({ status: 'skipped', detail: 'Not linked; no model here needs it.' });
+  });
+
+  it('asks for no Hugging Face account while takes render on a paired device', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [, account] = modelSteps({ models: [model('ltx', null, true)], hf, choir: { use: 'parish1' } });
+    expect(account).toMatchObject({ status: 'skipped' });
+  });
+
+  it('elsewhere, setup picks a model and a gated one needs the account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({ models: [model('wan', null), model('ltx', null, true)], hf });
+    expect(models).toMatchObject({ status: 'needs-owner', command: 'hildegard setup --json' });
+    expect(account).toMatchObject({ status: 'needs-owner', command: 'hildegard hf login' });
+  });
+});
+
+describe('starting from Windows ssh', () => {
+  it('hands WMI one cmd line that notes the entry, quotes every part and logs both streams', async () => {
+    const { wmiLine } = await import('../src/commands.ts');
+    const line = wmiLine(
+      'D:\\Hildegard\\app\\hildegard.mjs',
+      ['D:\\Hildegard\\app\\hildegard.mjs', 'start', '--foreground', '--port', '7341'],
+      'D:\\Hildegard\\logs\\server.log',
+    );
+    expect(line).toBe(
+      `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=D:\\Hildegard\\app\\hildegard.mjs" && "${process.execPath}" "D:\\Hildegard\\app\\hildegard.mjs" "start" "--foreground" "--port" "7341" >> "D:\\Hildegard\\logs\\server.log" 2>&1"`,
+    );
   });
 });

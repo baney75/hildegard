@@ -1,6 +1,6 @@
 {
   "name": "@hildegard/server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hildegard/comfy": "workspace:*",
+    "@hildegard/craft": "workspace:*",
     "@hildegard/mcp": "workspace:*",
     "@hildegard/presets": "workspace:*",
     "@hildegard/runtime": "workspace:*",

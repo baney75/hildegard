@@ -1,0 +1,15 @@
+{
+  "name": "@hildegard/craft",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Hildegard's quality gates against slop: a prompt lint, technical checks on finished media, and the rubric agents judge their own work by.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --test-timeout=60000"
+  }
+}

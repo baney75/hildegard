@@ -18,7 +18,7 @@ Built for Omarchy 4 (Quattro) and its `omarchy-shell` bar.
 omarchy plugin add https://github.com/baney75/omarchy-hildegard --enable
 ```
 
-`--enable` asks where in the bar to put it. Without it, enable it later with
+`--enable` asks where in the bar to put it. From a script or an agent, with no terminal to ask in, add `--yes`. Without it, enable it later with
 `omarchy plugin enable io.github.baney75.hildegard`.
 
 To install from a checkout of the Hildegard repo instead (Omarchy wants a copy, not a symlink):

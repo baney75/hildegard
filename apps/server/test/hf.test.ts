@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { HfLink, keychainStore, secretStores } from '../src/hf.ts';
+import { HF_CLIENT_ID, parseArgs } from '../src/config.ts';
+import { HfLink, hubTokenPath, keychainStore, secretStores } from '../src/hf.ts';
 import { fakeFetch, memoryStore } from './helpers.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -127,6 +128,73 @@ describe('HfLink', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('tries once more when Hugging Face hasn’t read the client metadata document yet', async () => {
+    let asks = 0;
+    const fetch = fakeFetch([
+      [
+        'POST /oauth/device',
+        () =>
+          ++asks === 1
+            ? json(
+                { error: 'invalid_client', error_description: 'Client not found, maybe it was deleted' },
+                400,
+              )
+            : json({
+                device_code: 'dc',
+                user_code: 'PRCX-2FCN',
+                verification_uri: 'https://hf.co/oauth/device',
+                expires_in: 300,
+              }),
+      ],
+    ]);
+    const hf = new HfLink({
+      store: memoryStore(),
+      clientId: HF_CLIENT_ID,
+      onChange: () => {},
+      fetch,
+      retryMs: 1,
+    });
+    expect((await hf.beginDevice()).userCode).toBe('PRCX-2FCN');
+    expect(asks).toBe(2);
+    expect(String(fetch.calls[0]!.init.body)).toContain(`client_id=${encodeURIComponent(HF_CLIENT_ID)}`);
+  });
+
+  it('links the account this computer already signed in to with `hf auth login`, in one click', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-hub-'));
+    const file = join(dir, 'token');
+    const fetch = fakeFetch([['GET /api/whoami-v2', () => json({ name: 'donovan' })]]);
+    const hf = new HfLink({
+      store: memoryStore(),
+      clientId: null,
+      onChange: () => {},
+      fetch,
+      hubToken: file,
+    });
+    expect(hf.state().found).toBe(false);
+    await expect(hf.useHubToken()).rejects.toThrow(/isn’t signed in/);
+    writeFileSync(file, 'not a token');
+    expect(hf.state().found).toBe(false);
+    writeFileSync(file, `${TOKEN}\n`);
+    expect(hf.state().found).toBe(true);
+    expect(await hf.useHubToken()).toMatchObject({ linked: true, user: 'donovan' });
+    expect(hf.state().found).toBeUndefined();
+    // Hugging Face's own file is left as it was.
+    expect(readFileSync(file, 'utf8')).toBe(`${TOKEN}\n`);
+  });
+
+  it('finds Hugging Face’s token where its tools put it', () => {
+    expect(hubTokenPath({ HF_TOKEN_PATH: '/x/token' })).toBe('/x/token');
+    expect(hubTokenPath({ HF_HOME: '/hf' })).toBe(join('/hf', 'token'));
+    expect(hubTokenPath({ XDG_CACHE_HOME: '/c' })).toBe(join('/c', 'huggingface', 'token'));
+  });
+
+  it('offers Sign in with Hugging Face by default, through Hildegard’s client metadata document', () => {
+    expect(parseArgs([], {}).hfClientId).toBe(HF_CLIENT_ID);
+    expect(HF_CLIENT_ID).toMatch(/^https:\/\/dbaney\.com\/hildegard\/oauth\/hf-client\.json$/);
+    expect(parseArgs([], { HILDEGARD_HF_CLIENT_ID: '' }).hfClientId).toBeNull();
+    expect(parseArgs([], { HILDEGARD_HF_CLIENT_ID: 'my-app' }).hfClientId).toBe('my-app');
   });
 
   it('says why a gated file cannot be read', async () => {

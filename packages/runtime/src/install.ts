@@ -11,8 +11,10 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -179,7 +181,7 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
         detail: 'The Python environment is here.',
       });
     else {
-      await run(uv, ['venv', '--managed-python', '--python', PYTHON, L.venv], { log });
+      await run(uv, ['venv', '--managed-python', '--python', PYTHON, L.venv], { log, env: uvEnv(L) });
       record({
         id: 'python',
         title: 'Set up Python',
@@ -209,7 +211,7 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
       ...(gpu.torchBackend ? ['--torch-backend', gpu.torchBackend] : []),
       ...(rebuild ? TORCH.flatMap((p) => ['--reinstall-package', p]) : []),
     ];
-    const out = await run(uv, pkgArgs, { log });
+    const out = await run(uv, pkgArgs, { log, env: uvEnv(L) });
     record({
       id: 'packages',
       title: 'Install PyTorch and ComfyUI’s packages',
@@ -221,18 +223,20 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
       detail: `PyTorch for ${gpu.backend === 'cpu' ? 'the CPU' : gpu.backend.toUpperCase()}${gpu.torchBackend && gpu.torchBackend !== 'cpu' ? ` (${gpu.torchBackend})` : ''}, ComfyUI’s packages and ${PROXY.replace('==', ' ')}.`,
     });
 
-    // The film-look node
-    const look = join(L.comfyDir, 'custom_nodes', 'hildegard_look');
-    rmSync(look, { recursive: true, force: true });
-    cpSync(resource(join('comfy-nodes', 'hildegard_look')), look, {
-      recursive: true,
-      filter: (src) => !/__pycache__|test_look\.py$/.test(src),
-    });
+    // Hildegard's own ComfyUI nodes: the film look, and the safety check every take passes
+    for (const node of ['hildegard_look', 'hildegard_guard']) {
+      const dest = join(L.comfyDir, 'custom_nodes', node);
+      rmSync(dest, { recursive: true, force: true });
+      cpSync(resource(join('comfy-nodes', node)), dest, {
+        recursive: true,
+        filter: (src) => !/__pycache__|test_\w+\.py$/.test(src),
+      });
+    }
     record({
       id: 'film-look',
-      title: 'Add the film look',
+      title: 'Add the film look and the safety check',
       status: 'done',
-      detail: 'Installed Hildegard’s film-look node.',
+      detail: 'Installed Hildegard’s film-look and safety-check nodes.',
     });
 
     // Check PyTorch sees the GPU
@@ -318,7 +322,7 @@ async function downloadUv(L: Layout, fetchFn: typeof fetch, log: (l: string) => 
   const archive = join(L.downloads, file);
   await download(UV.url(file), archive, sha, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'uv-'));
-  await run(tar, ['-xf', archive, '-C', tmp], { log });
+  await run(tar, ['-xmf', archive, '-C', tmp], { log });
   const name = win ? 'uv.exe' : 'uv';
   // The Unix archives hold a folder named after the target; the Windows zip holds the binaries at the top.
   const inner = win ? join(tmp, name) : join(tmp, file.replace(/\.tar\.gz$/, ''), name);
@@ -334,7 +338,7 @@ async function installComfy(L: Layout, fetchFn: typeof fetch, log: (l: string) =
   const archive = join(L.downloads, `ComfyUI-${COMFYUI.version}.tar.gz`);
   await download(COMFYUI.url, archive, COMFYUI.sha256, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'comfyui-'));
-  await run(tar, ['-xzf', archive, '-C', tmp], { log });
+  await run(tar, ['-xmzf', archive, '-C', tmp], { log });
   // Over the top of any earlier version: models, custom nodes, inputs and outputs stay.
   cpSync(join(tmp, COMFYUI.root), L.comfyDir, { recursive: true, force: true });
   rmSync(tmp, { recursive: true, force: true });
@@ -369,6 +373,41 @@ export async function download(
     );
   }
   renameSync(part, dest);
+}
+
+/**
+ * uv's download cache and the Python it fetches live in Hildegard's own folder, not the user's profile: on a
+ * Windows PC installed to D:, PyTorch's few GB would otherwise still land on a nearly full C:. uv links each Python
+ * version to its minor version, which an exFAT or FAT32 drive can't hold, so there the Python (about 100 MB) goes in
+ * the user's profile instead.
+ */
+export const uvEnv = (L: Layout): NodeJS.ProcessEnv => ({
+  UV_CACHE_DIR: join(L.dataDir, 'cache', 'uv'),
+  UV_PYTHON_INSTALL_DIR: holdsLinks(L.tools) ? join(L.tools, 'python') : profilePython(),
+});
+
+const profilePython = () =>
+  win
+    ? join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Hildegard-python')
+    : join(homedir(), '.local', 'share', 'hildegard-python');
+
+const linkChecks = new Map<string, boolean>();
+/** Whether this folder's drive can hold a link: a junction on Windows (no admin rights needed), a symlink elsewhere. */
+export function holdsLinks(dir: string): boolean {
+  const known = linkChecks.get(dir);
+  if (known !== undefined) return known;
+  mkdirSync(dir, { recursive: true });
+  const probe = mkdtempSync(join(dir, 'link-'));
+  let ok = true;
+  try {
+    mkdirSync(join(probe, 'to'));
+    symlinkSync(join(probe, 'to'), join(probe, 'from'), 'junction');
+  } catch {
+    ok = false;
+  }
+  rmSync(probe, { recursive: true, force: true });
+  linkChecks.set(dir, ok);
+  return ok;
 }
 
 /** Runs a program, logging its output; resolves with stdout and stderr, rejects with the tail of the output. */

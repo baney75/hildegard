@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type BuiltGraph, buildGraph, type Engine, EngineError, type RenderHandlers } from '@hildegard/comfy';
 import {
@@ -8,7 +8,9 @@ import {
   composeShot,
   type EngineState,
   type GuestTake,
+  loadSafety,
   type Priority,
+  type SafetyCheck,
   type Take,
   type TakeError,
 } from '@hildegard/presets';
@@ -26,6 +28,7 @@ export function explain(e: unknown): TakeError {
     engine_offline: 'Start ComfyUI with `hildegard start`, then retry.',
     invalid_graph: 'Run `hildegard install` to add the missing ComfyUI nodes, then retry.',
     node_failed: 'Retry. If it fails again, the details say which step stopped.',
+    content_blocked: 'Change the prompt or the start frame. Hildegard doesn’t make sexual content.',
     canceled: 'Retry when you want it.',
     unknown: 'Retry. If it fails again, the details say what happened.',
   };
@@ -88,6 +91,7 @@ export class Scheduler {
   private readonly mediaDir: string;
   private readonly poster?: (video: string, out: string) => Promise<boolean>;
   private readonly fake: boolean;
+  private readonly safety: SafetyCheck;
 
   constructor(opts: {
     store: Store;
@@ -101,8 +105,11 @@ export class Scheduler {
     onGuests?: (g: GuestTake[]) => void;
     /** Writes a full-size poster from a finished video; false keeps the sampler's preview. */
     poster?: (video: string, out: string) => Promise<boolean>;
+    /** What may render; presets/safety.toml unless a test says otherwise. */
+    safety?: SafetyCheck;
   }) {
     this.poster = opts.poster;
+    this.safety = opts.safety ?? loadSafety();
     this.comfy = opts.comfy ?? (opts.fake ? 'fake' : 'external');
     this.store = opts.store;
     this.engine = opts.engine;
@@ -414,8 +421,12 @@ export class Scheduler {
     this.renumber();
 
     const started = Date.now();
+    let ranFrom: number | null = null;
     const dest = join(this.mediaDir, `${take.id}.mp4`);
     try {
+      // Checked again here, not only when it was asked for: a take queued before an update, or retried, too.
+      const words = this.safety.text(take.request.prompt);
+      if (!words.ok) throw new EngineError('content_blocked', words.message);
       const shot = composeShot(this.catalog, take.request);
       const built: BuiltGraph = buildGraph({
         shot,
@@ -432,6 +443,10 @@ export class Scheduler {
           ? join(this.mediaDir, 'uploads', take.request.startFrame)
           : undefined,
         handlers: {
+          // Render time counts from when the GPU starts on it, not from a wait in another device's queue.
+          onRunning: () => {
+            ranFrom ??= Date.now();
+          },
           onProgress: (p) => {
             take.progress = { value: p.value, step: p.step, steps: p.steps };
             const now = Date.now();
@@ -478,10 +493,17 @@ export class Scheduler {
       if (!requeued) {
         take.queuePosition = null;
         take.finishedAt = new Date().toISOString();
-        take.renderMs = Date.now() - started;
-        // A stopped take keeps its last frame as a poster, so the card shows where it got to.
+        take.renderMs = Date.now() - (ranFrom ?? started);
+        // A stopped take keeps its last frame as a poster, so the card shows where it got to. A refused one keeps
+        // nothing: its previews may show what was refused.
         const last = this.previews.get(take.id);
-        if (last && !take.poster) {
+        if (take.error?.code === 'content_blocked') {
+          await Promise.all(
+            [`${take.id}.jpg`, `${take.id}.mp4`].map((f) => rm(join(this.mediaDir, f), { force: true })),
+          );
+          take.poster = null;
+          take.previewVersion++;
+        } else if (last && !take.poster) {
           await writeFile(join(this.mediaDir, `${take.id}.jpg`), last.bytes).catch(() => {});
           take.poster = `/media/${take.id}.jpg`;
         }

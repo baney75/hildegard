@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ExportState, ModelState, Project, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseArgs } from '../src/config.ts';
+import { parseArgs, readHomeId } from '../src/config.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
 let srv: Running;
+let dataDir: string;
 const H = { 'x-hildegard': '1', 'content-type': 'application/json' };
 const api = (path: string, init: RequestInit = {}) => fetch(srv.url + path, init);
 const post = (path: string, body?: unknown) =>
@@ -33,9 +34,11 @@ const take = (id: string) => srv.store.takes.get(id)!;
 
 beforeAll(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hg-api-'));
+  dataDir = dir;
+  // Sign in with Hugging Face is on by default; these tests cover the build where it's off, and the token path.
   srv = await startServer(
-    { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0 },
-    { fakeTickMs: 25, secrets: memoryStore() },
+    { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0, hfClientId: null },
+    { fakeTickMs: 25, secrets: memoryStore(), hubToken: join(dir, 'no-hf-token') },
   );
   await until(() => srv.scheduler.engineState().online);
 });
@@ -62,6 +65,14 @@ describe('security', () => {
     expect(
       (await api('/api/projects', { method: 'POST', headers: { ...H, origin: srv.url }, body: '{}' })).status,
     ).toBe(201);
+  });
+
+  it('answers health with a random id for its data folder, never the path', async () => {
+    const h = (await (await api('/api/health')).json()) as { ok: boolean; home: string };
+    expect(h.ok).toBe(true);
+    expect(h.home).toMatch(/^[\w-]{12}$/);
+    expect(h.home).toBe(readHomeId(dataDir));
+    expect(JSON.stringify(h)).not.toContain(dataDir);
   });
 
   it('sends protective headers', async () => {
@@ -146,6 +157,35 @@ describe('shots and takes', () => {
     });
     expect((await post(`/api/takes/${t!.id}/retry`)).status).toBe(200);
     expect(take(t!.id).status).not.toBe('failed');
+  });
+
+  it('refuses a sexual prompt or title before it queues, for people and agents alike', async () => {
+    const before = srv.store.takes.size;
+    for (const body of [
+      { request: request({ prompt: 'A naked woman on a bed' }) },
+      { request: request({ prompt: 'A sexy 12-year-old' }), agent: 'Claude' },
+      { request: request(), title: 'p0rn' },
+    ]) {
+      const res = await post('/api/shots', body);
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({ code: 'content_blocked' });
+    }
+    const child = await post('/api/shots', { request: request({ prompt: 'A sexy 12-year-old' }) });
+    expect(((await child.json()) as { error: string }).error).toMatch(/children/);
+    expect(srv.store.takes.size).toBe(before);
+  });
+
+  it('deletes a take the safety check refused, keeps no poster, and won’t retry it', async () => {
+    const res = await post('/api/shots', { request: request({ prompt: 'A storm at sea [fail:guard]' }) });
+    const [t] = ((await res.json()) as { takes: Take[] }).takes;
+    await until(() => take(t!.id).status === 'failed');
+    expect(take(t!.id).error).toMatchObject({ code: 'content_blocked' });
+    expect(take(t!.id).error!.message).toMatch(/refused this take/);
+    expect(take(t!.id).poster).toBeNull();
+    expect((await api(`/media/${t!.id}.jpg`)).status).toBe(404);
+    const retry = await post(`/api/takes/${t!.id}/retry`);
+    expect(retry.status).toBe(409);
+    expect(take(t!.id).status).toBe('failed');
   });
 
   it('cancels a waiting take, and Force now jumps the queue', async () => {
@@ -244,8 +284,41 @@ describe('shots and takes', () => {
     const s = (await (await api('/api/snapshot')).json()) as Snapshot;
     expect(s.engine).toMatchObject({ online: true, fake: true });
     expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled', 'wan-2-2-ti2v-5b']);
-    expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false });
+    expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false, found: false });
   });
+});
+
+describe('take review', () => {
+  it('checks a finished take against its shot, keeps the result, and serves a contact sheet', async () => {
+    const { takes } = (await (await post('/api/shots', { request: request() })).json()) as { takes: Take[] };
+    const id = takes[0]!.id;
+    // Not finished yet: nothing to check.
+    const early = await api(`/api/takes/${id}/review`);
+    if (take(id).status !== 'done') expect(early.status).toBe(409);
+    await until(() => take(id).status === 'done');
+    const res = await api(`/api/takes/${id}/review`);
+    expect(res.status).toBe(200);
+    const r = (await res.json()) as {
+      kind: string;
+      passed: boolean;
+      checks: Array<{ id: string; status: string }>;
+      summary: string;
+      sheet: string;
+    };
+    expect(r.kind).toBe('video');
+    expect(r.checks.map((c) => c.id)).toEqual(
+      expect.arrayContaining(['size', 'length', 'colour', 'flicker']),
+    );
+    expect(r.summary).toMatch(/^Technical checks/);
+    expect(r.sheet).toBe(`/api/takes/${id}/sheet`);
+    const sheet = await api(r.sheet);
+    expect(sheet.status).toBe(200);
+    expect(sheet.headers.get('content-type')).toBe('image/jpeg');
+    // The second ask is the kept answer.
+    const again = (await (await api(`/api/takes/${id}/review`)).json()) as { checks: unknown[] };
+    expect(again.checks).toEqual(r.checks);
+    expect((await api('/api/takes/nope/review')).status).toBe(404);
+  }, 60_000);
 });
 
 describe('shot lookup', () => {

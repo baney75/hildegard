@@ -1,6 +1,6 @@
 {
   "name": "@hildegard/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -13,6 +13,9 @@
     "test": "vitest run --test-timeout=30000"
   },
   "dependencies": {
+    "@hildegard/agents": "workspace:*",
+    "@hildegard/cloud": "workspace:*",
+    "@hildegard/craft": "workspace:*",
     "@hildegard/mcp": "workspace:*",
     "@hildegard/presets": "workspace:*",
     "@hildegard/runtime": "workspace:*",

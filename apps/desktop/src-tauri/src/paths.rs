@@ -38,10 +38,14 @@ fn home(os: Os, env: Env) -> PathBuf {
   env(var).or_else(|| env("HOME")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Hildegard's folder: `defaultDataDir` in apps/server/src/config.ts.
+/// Hildegard's folder: HILDEGARD_HOME, else the folder an installed `hildegard` command was set up with (an install
+/// to D:\Hildegard, or anywhere HILDEGARD_HOME pointed then), else `defaultDataDir` in apps/server/src/config.ts.
 pub fn data_dir(os: Os, env: Env) -> PathBuf {
   if let Some(h) = env("HILDEGARD_HOME") {
     return PathBuf::from(h);
+  }
+  if let Some(h) = installed_home(os, env) {
+    return h;
   }
   let home = home(os, env);
   match os {
@@ -55,11 +59,41 @@ pub fn data_dir(os: Os, env: Env) -> PathBuf {
   }
 }
 
+/// The home written into the first `hildegard` launcher found in the installers' bin folder or on PATH, if that folder
+/// still exists. install.sh writes `export HILDEGARD_HOME="…"`, install.ps1 `set "HILDEGARD_HOME=…"`.
+fn installed_home(os: Os, env: Env) -> Option<PathBuf> {
+  let (name, prefix, suffix) = match os {
+    Os::Windows => ("hildegard.cmd", "set \"HILDEGARD_HOME=", "\""),
+    _ => ("hildegard", "export HILDEGARD_HOME=\"", "\""),
+  };
+  let mut dirs = Vec::new();
+  if os != Os::Windows {
+    dirs.push(env("XDG_BIN_HOME").map(PathBuf::from).unwrap_or_else(|| home(os, env).join(".local").join("bin")));
+  }
+  if let Some(path) = env("PATH").or_else(|| env("Path")) {
+    dirs.extend(std::env::split_paths(&path));
+  }
+  dirs.iter().find_map(|d| {
+    let text = std::fs::read_to_string(d.join(name)).ok()?;
+    let home = text.lines().find_map(|l| l.trim().strip_prefix(prefix)?.strip_suffix(suffix))?;
+    let home = PathBuf::from(home);
+    home.is_dir().then_some(home)
+  })
+}
+
 /// The port the server last started on, from `<data>/server.json`: `rememberedPort` in config.ts.
 pub fn remembered_port(data: &Path) -> Option<u16> {
   let text = std::fs::read_to_string(data.join("server.json")).ok()?;
   let v: serde_json::Value = serde_json::from_str(&text).ok()?;
   v.get("port")?.as_u64().and_then(|p| u16::try_from(p).ok()).filter(|p| *p > 0)
+}
+
+/// This data folder's id, which its server sends from `/api/health`: `readHomeId` in config.ts. The CLI and the server
+/// make it; the app only reads it.
+pub fn home_id(data: &Path) -> Option<String> {
+  let id = std::fs::read_to_string(data.join("home.id")).ok()?;
+  let id = id.trim();
+  (!id.is_empty()).then(|| id.to_owned())
 }
 
 /// The port `hildegard start` would use: HILDEGARD_PORT, the remembered one, or 7341.
@@ -155,6 +189,26 @@ mod tests {
     assert_eq!(data_dir(Os::Linux, &xdg), PathBuf::from("/data/hildegard"));
     let set = env_of(&[("HOME", "/home/ann"), ("HILDEGARD_HOME", "/srv/hg")]);
     assert_eq!(data_dir(Os::Mac, &set), PathBuf::from("/srv/hg"));
+  }
+
+  #[test]
+  fn data_dir_follows_an_installed_command_to_its_home() {
+    let root = std::env::temp_dir().join(format!("hg-desktop-home-{}", std::process::id()));
+    let (bin, home) = (root.join("bin"), root.join("elsewhere"));
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::create_dir_all(&home).unwrap();
+    let h = home.to_str().unwrap();
+    std::fs::write(bin.join("hildegard"), format!("#!/bin/sh\nexport HILDEGARD_HOME=\"{h}\"\nexec node\n")).unwrap();
+    std::fs::write(bin.join("hildegard.cmd"), format!("@echo off\r\nset \"HILDEGARD_HOME={h}\"\r\nnode %*\r\n"))
+      .unwrap();
+    let e = env_of(&[("HOME", "/home/ann"), ("XDG_BIN_HOME", bin.to_str().unwrap())]);
+    assert_eq!(data_dir(Os::Linux, &e), home);
+    let w = env_of(&[("LOCALAPPDATA", "L"), ("PATH", bin.to_str().unwrap())]);
+    assert_eq!(data_dir(Os::Windows, &w), home);
+    // A launcher whose folder is gone is ignored, and HILDEGARD_HOME still wins.
+    std::fs::remove_dir_all(&home).unwrap();
+    assert_eq!(data_dir(Os::Linux, &e), PathBuf::from("/home/ann/.local/share/hildegard"));
+    std::fs::remove_dir_all(&root).unwrap();
   }
 
   #[test]

@@ -9,8 +9,14 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, statSync } from '
 import { rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { type BuiltGraph, catalogFiles, EngineError, vetGraph } from '@hildegard/comfy';
-import type { Catalog, ModelState } from '@hildegard/presets';
+import { type BuiltGraph, catalogFiles, EngineError, graphSafety, vetGraph } from '@hildegard/comfy';
+import {
+  type Catalog,
+  loadSafety,
+  type ModelState,
+  REFUSAL_MESSAGE,
+  type SafetyCheck,
+} from '@hildegard/presets';
 import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { stream } from 'hono/streaming';
@@ -60,6 +66,8 @@ export interface NodeDeps {
   choir: Choir;
   scheduler: Scheduler;
   catalog: Catalog;
+  /** What may render here; presets/safety.toml unless a test says otherwise. */
+  safety?: SafetyCheck;
   dataDir: string;
   version: string;
   /** This computer's GPU, for the paired device to show. */
@@ -85,6 +93,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
   const dir = join(deps.dataDir, 'choir', 'renders');
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const files = catalogFiles(catalog.models);
+  const safety = graphSafety(catalog, deps.safety ?? loadSafety());
   const jobs = new Map<string, AbortController>();
   /** Finished videos not yet fetched. */
   const ready = new Set<string>();
@@ -151,7 +160,18 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       if (!parsed.success)
         return c.json({ error: 'That isn’t a take Hildegard sends.', code: 'invalid_graph' }, 400);
       const built = parsed.data.built as BuiltGraph;
-      const problems = vetGraph(built, files);
+      const problems = vetGraph(built, files, safety);
+      if (problems.some((p) => /sexual content/.test(p)))
+        return c.json({ error: REFUSAL_MESSAGE.sexual, code: 'content_blocked' }, 422);
+      if (problems.some((p) => /safety check|classifier|less strictly/.test(p)))
+        return c.json(
+          {
+            error: `${choir.sharingName()} renders only takes that pass its safety check. Update Hildegard on the device that sent this one.`,
+            code: 'invalid_graph',
+            problems: problems.slice(0, 10),
+          },
+          422,
+        );
       if (problems.length)
         return c.json(
           {

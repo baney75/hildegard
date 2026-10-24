@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
 import type { Catalog, ShotRequestInput, Snapshot, Take } from '@hildegard/presets';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
@@ -103,6 +104,12 @@ const shotShape = {
 };
 const ShotArgs = z.object(shotShape);
 type ShotArgs = z.infer<typeof ShotArgs>;
+
+/** Lint findings to append to a result, as advice for the next shot; empty when there are none. */
+const lintNote = (r: Lint): string =>
+  r.findings.length
+    ? `\n\nAbout the prompt (review_prompt explains): ${r.findings.map((f) => `${f.id}${f.match ? ` (${f.match.slice(0, 4).join(', ')})` : ''}`).join('; ')}. ${r.ok ? '' : 'These usually make a take look generated; fix them before the final render.'}`.trimEnd()
+    : '';
 
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
@@ -388,12 +395,15 @@ export function registerTools(
     },
     guard(async (a, extra) => {
       const { project, shot, takes } = await createShot(a, await filmFor(a.film));
+      const advice = lintNote(lintPrompt(a.prompt, 'video'));
       if (!a.wait)
         return text(
-          `Directed shot ${shot.id} "${shot.title}" in ${filmOf(project)}: ${takes.length} take${takes.length > 1 ? 's' : ''} queued (${takes.map((t) => t.id).join(', ')}). Check it with shot_status or get_shot; stop a take with cancel_take.`,
+          `Directed shot ${shot.id} "${shot.title}" in ${filmOf(project)}: ${takes.length} take${takes.length > 1 ? 's' : ''} queued (${takes.map((t) => t.id).join(', ')}). Check it with shot_status or get_shot; stop a take with cancel_take.${advice}`,
         );
       const [detail] = await waitFor([shot.id], 600, extra);
-      return withPosters(detail!);
+      const r = await withPosters(detail!);
+      if (advice) r.content.push({ type: 'text', text: advice.trim() });
+      return r;
     }),
   );
 
@@ -563,6 +573,75 @@ export function registerTools(
       return text(
         `Still exporting (${e.done} of ${e.total} takes joined). Export ${e.id}; call export_film again later.`,
       );
+    }),
+  );
+
+  server.registerTool(
+    'review_prompt',
+    {
+      title: 'Review a prompt before rendering',
+      description:
+        'Check a prompt for the habits that make generated work look generated (quality words like "8k" or "masterpiece", tag lists, camera words that belong in the camera fields, negations, too many actions for one shot) before spending GPU time on it. Returns each problem with what to write instead. Costs nothing; call it before direct_shot or make_sequence.',
+      inputSchema: {
+        prompt: z.string().min(1).max(4000),
+        medium: z
+          .enum(['video', 'image', 'music', 'voice', 'words'])
+          .optional()
+          .describe(
+            'What the prompt is for: video (default), image, music, voice, or words (titles, captions, lyrics, narration).',
+          ),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    guard(async (a) => {
+      const r = lintPrompt(a.prompt, a.medium ?? 'video');
+      if (!r.findings.length) return text('No problems found. Render a draft, then review_take it.');
+      return text(
+        [
+          r.ok ? 'Only judgment calls; render if each is on purpose:' : 'Fix these before rendering:',
+          ...r.findings.map(
+            (f) =>
+              `- ${f.severity === 'fail' ? 'FIX' : 'consider'} ${f.id}${f.match ? ` (${f.match.join(', ')})` : ''}: ${f.detail} ${f.fix}`,
+          ),
+        ].join('\n'),
+      );
+    }),
+  );
+
+  server.registerTool(
+    'review_take',
+    {
+      title: 'Review a finished take',
+      description:
+        "The quality gate for a finished take: technical checks (exposure, frozen or flickering frames, pushed colour, clipped or badly levelled sound, size and length against the shot) and a contact sheet of nine frames to look at, with the yes/no questions to answer about it. Use it on every take before you choose one or show it to your user; don't describe a take you haven't reviewed.",
+      inputSchema: {
+        take_id: z.string().describe('A finished take’s id, from direct_shot, get_shot or hildegard_status.'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    guard(async (a) => {
+      let r: Awaited<ReturnType<typeof client.review>>;
+      try {
+        r = await client.review(a.take_id);
+      } catch (e) {
+        if (e instanceof HildegardError && e.status === 409)
+          throw new HildegardError(
+            409,
+            `Take ${a.take_id} hasn't finished yet. Wait with get_shot, then review it.`,
+          );
+        throw e;
+      }
+      const sheet = r.sheet ? await client.image(r.sheet) : null;
+      return {
+        content: [
+          { type: 'text', text: `Take ${r.take}. ${r.summary}` },
+          ...(sheet ? [{ type: 'image' as const, data: sheet.data, mimeType: sheet.mimeType }] : []),
+          {
+            type: 'text',
+            text: `${sheet ? 'Look at the contact sheet above (nine frames, start to end), then a' : 'A'}nswer these about the take.\n${describeRubric('video')}`,
+          },
+        ],
+      };
     }),
   );
 

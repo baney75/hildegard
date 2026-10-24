@@ -55,6 +55,7 @@ export const ERROR_CODES: readonly EngineErrorCode[] = [
   'engine_offline',
   'invalid_graph',
   'node_failed',
+  'content_blocked',
   'canceled',
   'unknown',
 ];

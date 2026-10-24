@@ -8,7 +8,7 @@
  *   node packages/comfy/scripts/validate-on-comfy.ts <comfyui-dir> [comfyui-url]
  *
  * ComfyUI lists model files when it starts, so prepare first. The ComfyUI at the URL must run from <comfyui-dir>,
- * with the hildegard_look node in custom_nodes.
+ * with the hildegard_look and hildegard_guard nodes in custom_nodes.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -26,12 +26,14 @@ if (!comfyDir) {
 const { catalog } = loadCatalog();
 
 // Stand-ins for every model file, so loaders accept the names.
-for (const m of catalog.models)
-  for (const f of [...m.files, ...Object.values(m.loras)]) {
-    const dir = join(comfyDir, 'models', f.dir);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, basename(f.path)), '');
-  }
+for (const f of [
+  catalog.safety.classifier,
+  ...catalog.models.flatMap((m) => [...m.files, ...Object.values(m.loras)]),
+]) {
+  const dir = join(comfyDir, 'models', f.dir);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, basename(f.path)), '');
+}
 // A start frame: a 1×1 PNG.
 mkdirSync(join(comfyDir, 'input'), { recursive: true });
 writeFileSync(

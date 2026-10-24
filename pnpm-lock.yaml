@@ -26,6 +26,15 @@ importers:
 
   apps/cli:
     dependencies:
+      '@hildegard/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@hildegard/cloud':
+        specifier: workspace:*
+        version: link:../../packages/cloud
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../../packages/craft
       '@hildegard/mcp':
         specifier: workspace:*
         version: link:../../mcp
@@ -57,6 +66,9 @@ importers:
       '@hildegard/comfy':
         specifier: workspace:*
         version: link:../../packages/comfy
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../../packages/craft
       '@hildegard/mcp':
         specifier: workspace:*
         version: link:../../mcp
@@ -118,6 +130,9 @@ importers:
 
   mcp:
     dependencies:
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../packages/craft
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../packages/presets
@@ -128,6 +143,14 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
+  packages/agents:
+    dependencies:
+      '@hildegard/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
+  packages/cloud: {}
+
   packages/comfy:
     dependencies:
       '@comfyorg/sdk':
@@ -136,6 +159,8 @@ importers:
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../presets
+
+  packages/craft: {}
 
   packages/link: {}
 

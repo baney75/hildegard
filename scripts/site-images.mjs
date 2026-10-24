@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Renders the install page's share card (site/img/og.jpg) and its home-screen icon (site/img/apple-touch-icon.png)
-// with Playwright's Chromium, from the page's own fonts and logo files. Run after changing either:
+// Renders the install page's share card (site/img/og.jpg) with Playwright's Chromium, from the page's own fonts
+// and logo files; scripts/app-icons.mjs renders its icons. Run after changing the card:
 //   node scripts/site-images.mjs
 
 import { readFileSync } from 'node:fs';
@@ -39,18 +39,12 @@ p { position: absolute; left: 88px; bottom: 74px; margin: 0; font-size: 27px; li
 <p>Free and open source. Every shot renders on computers you own.</p>
 <span class="url">dbaney.com/hildegard</span>`;
 
-const ICON = `${base}<style>
-html, body { margin: 0; width: 180px; height: 180px; overflow: hidden; }
-body { display: grid; place-items: center; background: radial-gradient(75% 75% at 50% 35%, #2c7350, #12301f); }
-img { width: 100px; }
-</style><img src="img/mark-vellum.svg" alt="">`;
-
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {},
 );
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
 // The pages load the site's own files from a stand-in origin, served straight from site/.
-let html = CARD;
+const html = CARD;
 await page.route('http://site.local/**', (route) => {
   const path = new URL(route.request().url()).pathname;
   if (path === '/') return route.fulfill({ contentType: 'text/html', body: html });
@@ -64,9 +58,5 @@ await page.route('http://site.local/**', (route) => {
 await page.goto('http://site.local/', { waitUntil: 'load' });
 await page.evaluate(() => document.fonts.ready);
 await page.screenshot({ path: join(site, 'img', 'og.jpg'), type: 'jpeg', quality: 86 });
-await page.setViewportSize({ width: 180, height: 180 });
-html = ICON;
-await page.goto('http://site.local/', { waitUntil: 'load' });
-await page.screenshot({ path: join(site, 'img', 'apple-touch-icon.png') });
 await browser.close();
-console.log('Wrote site/img/og.jpg and site/img/apple-touch-icon.png');
+console.log('Wrote site/img/og.jpg');

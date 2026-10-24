@@ -9,8 +9,8 @@ import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
-import { type Config, portFile } from './config.ts';
-import { Exporter, makePoster } from './export.ts';
+import { type Config, homeId, portFile } from './config.ts';
+import { Exporter, makePoster, reviewer } from './export.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
@@ -78,6 +78,8 @@ export async function startServer(
     fetchMetadata?: FetchMetadata;
     /** How local model runtimes are reached: tests give stand-ins. */
     llm?: Partial<Omit<LocalModelsDeps, 'dataDir'>>;
+    /** The token file `hf auth login` writes; tests point it elsewhere. */
+    hubToken?: string;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -166,6 +168,7 @@ export async function startServer(
     store: secrets,
     clientId: config.hfClientId,
     onChange: (s) => store.emit({ type: 'hf', hf: s }),
+    hubToken: opts.hubToken,
   });
   const localGpu = config.fake ? null : detectGpu();
   const models = new ModelManager({
@@ -263,6 +266,7 @@ export async function startServer(
     mediaDir,
     onStop: opts.onStop,
     url: `http://127.0.0.1:${config.port}`,
+    home: homeId(config.dataDir),
     people,
     host,
     limits: opts.limits,
@@ -270,6 +274,7 @@ export async function startServer(
     signer,
     fetchMetadata: opts.fetchMetadata,
     llm,
+    review: reviewer(config.dataDir),
     choir,
     modelStates,
     node,
@@ -277,7 +282,7 @@ export async function startServer(
       const ts = tailnet();
       return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
     },
-    invite: async (url) => {
+    invite: async (url, key) => {
       const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);
       if (!target)
@@ -285,7 +290,7 @@ export async function startServer(
           409,
           'Tailscale isn’t running on this computer, so other devices can’t reach it. Start Tailscale, or give the address they reach it at: `hildegard choir invite --url http://<address>:<port>`.',
         );
-      const r = choir.invite(target, ts?.name ?? hostname());
+      const r = choir.invite(target, ts?.name ?? hostname(), key);
       await syncSharing();
       return r;
     },

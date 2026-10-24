@@ -78,14 +78,14 @@ await build({
 const copy = (from, to, filter) => cpSync(join(root, from), join(stage, to), { recursive: true, filter });
 copy('apps/studio/dist', 'studio');
 copy('presets', 'presets');
-copy(
-  'comfy-nodes/hildegard_look',
-  'comfy-nodes/hildegard_look',
-  (s) => !/__pycache__|\.pyc$|test_look\.py$/.test(s),
-);
+for (const node of ['hildegard_look', 'hildegard_guard'])
+  copy(`comfy-nodes/${node}`, `comfy-nodes/${node}`, (s) => !/__pycache__|\.pyc$|test_\w+\.py$/.test(s));
 copy('packages/comfy/fixtures', 'fixtures');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');
+copy('tools/review_media.py', 'tools/review_media.py');
+copy('skills', 'skills');
+copy('deploy/runpod/boot.sh', 'deploy/runpod/boot.sh');
 copy('licenses', 'licenses');
 for (const f of ['LICENSE', 'LICENSE-APACHE', 'LICENSING.md', 'THIRD_PARTY_NOTICES.md']) copy(f, f);
 writeFileSync(

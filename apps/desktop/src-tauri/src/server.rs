@@ -3,6 +3,7 @@
 //! loopback socket with no proxy, so the server treats them as this computer, as it does the CLI's.
 
 use std::fs::OpenOptions;
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -36,6 +37,52 @@ pub fn health(port: u16) -> Option<String> {
   } else {
     None
   }
+}
+
+/// What answers on a port, as far as one data folder is concerned.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Here {
+  /// This folder's server (or one from before 0.1.2, which doesn't say).
+  Ours,
+  /// Another home's Hildegard: never this app's to show or stop.
+  Theirs,
+  Nothing,
+}
+
+/// The same rule as `ours` in the CLI: only two ids that differ make a server another home's.
+pub fn here(answered: Option<Option<String>>, mine: Option<&str>) -> Here {
+  match answered {
+    None => Here::Nothing,
+    Some(Some(theirs)) if mine.is_some_and(|m| m != theirs) => Here::Theirs,
+    Some(_) => Here::Ours,
+  }
+}
+
+pub fn who(port: u16, data: &Path) -> Here {
+  let answered = (|| {
+    let mut res = agent(Duration::from_millis(1500)).get(format!("{}/api/health", base(port))).call().ok()?;
+    if res.status() != 200 {
+      return None;
+    }
+    let v: Value = res.body_mut().read_json().ok()?;
+    v.get("ok")?.as_bool()?.then(|| v.get("home").and_then(|h| h.as_str()).map(str::to_owned))
+  })();
+  here(answered, crate::paths::home_id(data).as_deref())
+}
+
+fn port_free(port: u16) -> bool {
+  std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
+/// The port to start this folder's server on: `port`, or when something else holds it, the next free one with the one
+/// above it free too (for hosting), in steps of two as `nextFreePort` in the CLI.
+pub fn free_port(port: u16, taken: bool) -> Option<u16> {
+  if !taken && port_free(port) {
+    return Some(port);
+  }
+  (1..=50u16)
+    .filter_map(|i| port.checked_add(i * 2))
+    .find(|p| p.checked_add(1).is_some_and(|q| port_free(*p) && port_free(q)))
 }
 
 fn answer(mut res: ureq::http::Response<ureq::Body>) -> Result<Value, String> {
@@ -134,4 +181,29 @@ pub fn stop(port: u16, child: Option<&mut Child>) {
 /// The log a person should look at when the server didn't start.
 pub fn server_log(layout: &Layout) -> String {
   layout.logs.join("server.log").display().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn only_two_ids_that_differ_make_a_server_another_homes() {
+    assert_eq!(here(None, Some("a")), Here::Nothing);
+    assert_eq!(here(Some(Some("a".into())), Some("a")), Here::Ours);
+    assert_eq!(here(Some(Some("b".into())), Some("a")), Here::Theirs);
+    // A server from before 0.1.2, or a folder that never started one.
+    assert_eq!(here(Some(None), Some("a")), Here::Ours);
+    assert_eq!(here(Some(Some("b".into())), None), Here::Ours);
+  }
+
+  #[test]
+  fn a_held_port_moves_to_the_next_free_pair() {
+    let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let port = held.local_addr().unwrap().port();
+    let moved = free_port(port, false).unwrap();
+    assert!(moved > port && (moved - port) % 2 == 0);
+    assert_eq!(free_port(moved, false), Some(moved));
+    assert_ne!(free_port(moved, true), Some(moved));
+  }
 }

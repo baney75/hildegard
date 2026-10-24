@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { basename } from 'node:path';
-import type { ComposedShot, Model } from '@hildegard/presets';
+import type { Catalog, ComposedShot, Model, SafetyCheck } from '@hildegard/presets';
 
 /** A link to another node's output: `[nodeId, outputIndex]`, as ComfyUI's API format writes it. */
 export type Link = [string, number];
@@ -134,6 +134,17 @@ function loadLtx2(g: GraphBuilder, m: Model, shot: ComposedShot): Loaded {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Hildegard's safety check: stops the render if a frame looks sexual, else passes the frames on untouched. */
+function guard(g: GraphBuilder, shot: ComposedShot, images: Link, what: 'take' | 'start frame'): Link {
+  return out(
+    g.add(
+      'HildegardGuard',
+      { images, classifier: shot.guard.classifier, threshold: shot.guard.threshold, what },
+      what === 'take' ? 'Safety check' : 'Safety check: start frame',
+    ),
+  );
+}
+
 /**
  * LTX video with joint audio, distilled sampling. Final quality renders at half size, upsamples the latent ×2 and
  * refines with three more steps (Lightricks' two-stage recipe); draft runs stage one only at full size.
@@ -158,7 +169,7 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
   if (startFrame) {
     startFrameNode = g.add('LoadImage', { image: startFrame }, 'Start frame');
     const scaled = g.add('ImageScale', {
-      image: out(startFrameNode),
+      image: guard(g, shot, out(startFrameNode), 'start frame'),
       upscale_method: 'lanczos',
       width: shot.width,
       height: shot.height,
@@ -231,7 +242,11 @@ export function buildLtxGraph({ shot, seed, prefix, startFrame }: GraphInput): B
     temporal_overlap: 8,
   });
   const sound = g.add('LTXVAudioVAEDecode', { samples: out(separated, 1), audio_vae: L.audio_vae });
-  const look = g.add('HildegardLook', { images: out(frames), seed, ...shot.post }, 'Film look');
+  const look = g.add(
+    'HildegardLook',
+    { images: guard(g, shot, out(frames), 'take'), seed, ...shot.post },
+    'Film look',
+  );
   const vid = g.add('CreateVideo', { images: out(look), fps: shot.fps, audio: out(sound) });
   const save = g.add('SaveVideo', { video: out(vid), filename_prefix: prefix, format: 'mp4' }, 'Save');
   return { graph: g.graph, outputNode: save, startFrameNode };
@@ -272,7 +287,7 @@ export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): B
     startFrameNode = g.add('LoadImage', { image: startFrame }, 'Start frame');
     latentInputs.start_image = out(
       g.add('ImageScale', {
-        image: out(startFrameNode),
+        image: guard(g, shot, out(startFrameNode), 'start frame'),
         upscale_method: 'lanczos',
         width: shot.width,
         height: shot.height,
@@ -298,7 +313,11 @@ export function buildWanGraph({ shot, seed, prefix, startFrame }: GraphInput): B
     'Sampler',
   );
   const frames = g.add('VAEDecode', { samples: out(sampled), vae: out(vae) });
-  const look = g.add('HildegardLook', { images: out(frames), seed, ...shot.post }, 'Film look');
+  const look = g.add(
+    'HildegardLook',
+    { images: guard(g, shot, out(frames), 'take'), seed, ...shot.post },
+    'Film look',
+  );
   const vid = g.add('CreateVideo', { images: out(look), fps: shot.fps });
   const save = g.add('SaveVideo', { video: out(vid), filename_prefix: prefix, format: 'mp4' }, 'Save');
   return { graph: g.graph, outputNode: save, startFrameNode };
@@ -333,6 +352,7 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'CheckpointLoaderSimple',
   'CreateVideo',
   'EmptyLTXVLatentVideo',
+  'HildegardGuard',
   'HildegardLook',
   'ImageScale',
   'KSampler',
@@ -381,12 +401,18 @@ const MAX_TEXT = 20_000;
  * one SaveVideo as the output, and a LoadImage only where the start frame is bound. Returns what is wrong; empty
  * means it may run.
  */
-export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>): string[] {
+export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, safety: GraphSafety): string[] {
   const problems: string[] = [];
   const graph = built.graph;
   if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return ['the graph is not an object'];
   const ids = Object.keys(graph);
   if (!ids.length || ids.length > MAX_NODES) return [`the graph has ${ids.length} nodes`];
+  const negatives = new Set(
+    Object.values(graph).flatMap((n) => {
+      const v = n?.inputs?.negative;
+      return Array.isArray(v) && typeof v[0] === 'string' ? [v[0]] : [];
+    }),
+  );
   for (const [id, node] of Object.entries(graph)) {
     if (!/^\d{1,4}$/.test(id)) problems.push(`node id ${JSON.stringify(id).slice(0, 40)} is not a number`);
     if (!node || typeof node !== 'object' || typeof node.class_type !== 'string') {
@@ -416,6 +442,21 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>): st
     }
     if (node.class_type === 'LoadImage' && id !== built.startFrameNode)
       problems.push(`node ${id} loads an image that is not the start frame`);
+    if (node.class_type === 'HildegardGuard') {
+      const { classifier, threshold } = node.inputs;
+      if (classifier !== safety.classifier) problems.push(`node ${id} checks frames with another classifier`);
+      if (typeof threshold !== 'number' || threshold > safety.threshold)
+        problems.push(`node ${id} checks frames less strictly than this device does`);
+    }
+    // The device rendering it checks the words too: a paired device's own checks may have been taken out. A
+    // negative prompt steers away from what it names, so only prompts that feed a `negative` input are let be.
+    if (
+      node.class_type === 'CLIPTextEncode' &&
+      typeof node.inputs.text === 'string' &&
+      !negatives.has(id) &&
+      !safety.text(node.inputs.text).ok
+    )
+      problems.push(`node ${id} asks for sexual content`);
   }
   const saves = Object.entries(graph).filter(([, n]) => n?.class_type === 'SaveVideo');
   if (saves.length !== 1 || saves[0]![0] !== built.outputNode)
@@ -423,7 +464,63 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>): st
   if (built.startFrameNode !== undefined && graph[built.startFrameNode]?.class_type !== 'LoadImage')
     problems.push('the start frame node is not a LoadImage');
   if (!problems.length) problems.push(...checkLinks(graph));
+  if (!problems.length) problems.push(...guarded(built));
   return problems;
+}
+
+/** Follow a link back through nodes of these classes, by their `images` input, to the node that made the frames. */
+function source(graph: ApiGraph, link: InputValue | undefined, through: ReadonlySet<string>): ApiNode[] {
+  const path: ApiNode[] = [];
+  let at = link;
+  for (let hops = 0; Array.isArray(at) && hops < MAX_NODES; hops++) {
+    const node = graph[at[0]];
+    if (!node) break;
+    path.push(node);
+    if (!through.has(node.class_type)) break;
+    at = node.inputs.images;
+  }
+  return path;
+}
+
+/**
+ * Every frame that reaches the video passes a HildegardGuard, and so does the start frame before anything uses it.
+ * Run after the other checks, so every link resolves.
+ */
+function guarded(built: BuiltGraph): string[] {
+  const graph = built.graph;
+  const problems: string[] = [];
+  const save = graph[built.outputNode]!;
+  const video = Array.isArray(save.inputs.video) ? graph[save.inputs.video[0]] : undefined;
+  if (video?.class_type !== 'CreateVideo') return ['the video is not made by CreateVideo'];
+  const path = source(graph, video.inputs.images, new Set(['HildegardLook', 'HildegardGuard']));
+  if (!path.some((n) => n.class_type === 'HildegardGuard'))
+    problems.push('the frames reach the video without the safety check');
+  if (built.startFrameNode !== undefined) {
+    const users = Object.values(graph).filter((n) =>
+      Object.values(n.inputs).some((v) => Array.isArray(v) && v[0] === built.startFrameNode),
+    );
+    if (
+      !users.length ||
+      users.some((n) => n.class_type !== 'HildegardGuard' || n.inputs.what !== 'start frame')
+    )
+      problems.push('the start frame is used before the safety check');
+  }
+  return problems;
+}
+
+/** What vetGraph needs to hold a graph to this device's safety rules. */
+export interface GraphSafety {
+  classifier: string;
+  threshold: number;
+  text: (t: string) => { ok: boolean };
+}
+
+export function graphSafety(catalog: Catalog, check: SafetyCheck): GraphSafety {
+  return {
+    classifier: fileName(catalog.safety.classifier.path),
+    threshold: catalog.safety.threshold,
+    text: (t) => check.text(t),
+  };
 }
 
 /** The file names a graph may load: every model file and camera LoRA in the catalog. */

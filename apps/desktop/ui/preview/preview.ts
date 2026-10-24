@@ -47,7 +47,11 @@ const LATER: Step[] = [
     'Install PyTorch and ComfyUI’s packages',
     'PyTorch for CUDA (cu128), ComfyUI’s packages and comfy-api-proxy 0.1.6.',
   ),
-  s('film-look', 'Add the film look', 'Installed Hildegard’s film-look node.'),
+  s(
+    'film-look',
+    'Add the film look and the safety check',
+    'Installed Hildegard’s film-look and safety-check nodes.',
+  ),
   s('check', 'Check the GPU works', 'PyTorch 2.10.0+cu128 uses the NVIDIA GeForce RTX 4090.'),
   s('start', 'Start Hildegard', 'Running at http://127.0.0.1:7341.'),
 ];

@@ -312,11 +312,16 @@ describe('rendering on another device', () => {
     const res = await post(mac, '/api/shots', { request: request('Rain on a tin roof, close up') });
     const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
     await until(() => gpu.scheduler.load() === 2);
+    const queuedAt = Date.now();
+    await new Promise((r) => setTimeout(r, 1200));
     gpu.scheduler.setPaused(false);
     await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
     expect(mac.store.takes.get(remote.id)?.status).not.toBe('done');
     await until(() => mac.store.takes.get(remote.id)?.status === 'done');
     expect(gpu.store.takes.get(ownTake.id)?.status).toBe('done');
+    // Its render time is the GPU's work on it, not its wait in the line.
+    const waitedAndRendered = Date.now() - queuedAt;
+    expect(mac.store.takes.get(remote.id)?.renderMs).toBeLessThan(waitedAndRendered - 1200);
   });
 
   it('shows a paired device’s render in the GPU computer’s own snapshot and events, by name, without its prompt', async () => {
@@ -469,6 +474,20 @@ describe('pairing', () => {
     const { error } = (await r.json()) as { error: string };
     expect(error).toMatch(/doesn’t accept that code\. On \S+, open Settings › Devices/);
     expect(mac.choir.state().devices).toEqual([]);
+  });
+
+  it('takes a key the other device made, so it can build the same code itself, and refuses one that isn’t a key', async () => {
+    const key = newToken();
+    const r = await post(gpu, '/api/choir/invite', { url: shareUrl, key });
+    expect(r.status).toBe(200);
+    const { code } = (await r.json()) as { code: string };
+    expect(parseJoinCode(code).token).toBe(key);
+    // The device that made the key builds the very same code without being sent it.
+    expect(encodeJoinCode({ ...parseJoinCode(code), token: key })).toBe(code);
+    const file = readFileSync(join(gpu.config.dataDir, 'choir', 'sharing.json'), 'utf8');
+    expect(file).not.toContain(key);
+    expect(file).toContain(hashToken(key));
+    expect((await post(gpu, '/api/choir/invite', { url: shareUrl, key: 'short' })).status).toBe(400);
   });
 
   it('refuses a computer’s own code, and addresses outside the tailnet', async () => {

@@ -105,6 +105,8 @@ export const ModelDir = z.enum([
   'vae',
   'latent_upscale_models',
   'upscale_models',
+  /** Hildegard's own: the classifier the HildegardGuard node checks frames with. */
+  'safety',
 ]);
 
 /** A file as written in `models.toml`. Its exact revision, hash and size come from `models.lock.json`. */
@@ -176,6 +178,17 @@ export const Model = z
   })
   .strict();
 
+/** The classifier every render passes through (see presets/safety.toml and docs/safety.md). */
+export const Safety = z
+  .object({
+    /** An image classifier whose second label is "nsfw"; downloaded with every model. */
+    classifier: ModelFile,
+    /** A frame scoring this or more is sexual. Lower is stricter. */
+    threshold: z.number().min(0.5).max(0.95),
+  })
+  .strict();
+export type Safety = z.infer<typeof Safety>;
+
 export const Catalog = z
   .object({
     version: z.number().int(),
@@ -190,6 +203,7 @@ export const Catalog = z
     aspects: z.array(Aspect).min(1),
     durations: z.array(z.number().positive()).min(1),
     models: z.array(Model).min(1),
+    safety: Safety,
   })
   .strict();
 

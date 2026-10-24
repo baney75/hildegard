@@ -9,8 +9,10 @@ it, and is safe to run again: a step that is already done comes back as `skipped
 | [A. The app on this computer](#a-the-app-on-this-computer) | The Studio at `http://127.0.0.1:7341`, and Hildegard's tools in their AI apps |
 | [B. Host it at a link](#b-host-it-at-a-link) | Their own Hildegard at an HTTPS link, for their phone, laptop and the people they invite, all signing in |
 | [C. Join a fleet](#c-join-a-fleet) | Their devices render on each other over Tailscale: a laptop without a GPU uses the desktop's |
-| [D. AI apps on other devices, and chatbots](#d-ai-apps-on-other-devices-and-chatbots) | Hildegard's tools in the AI apps on their laptop, and in claude.ai or ChatGPT |
-| [E. Their local models](#e-their-local-models) | The models they run (Ollama, LM Studio, llama.cpp, vLLM, MLX…) direct shots, and serve their other devices |
+| [D. Rent a GPU](#d-rent-a-gpu) | A Runpod GPU that joins their fleet and stops itself when idle |
+| [E. Skills and coding agents](#e-skills-and-coding-agents) | Hildegard's skills in Claude Code, Codex and OMP, and agent runs within each provider's terms |
+| [F. AI apps on other devices, and chatbots](#f-ai-apps-on-other-devices-and-chatbots) | Hildegard's tools in the AI apps on their laptop, and in claude.ai or ChatGPT |
+| [G. Their local models](#g-their-local-models) | The models they run (Ollama, LM Studio, llama.cpp, vLLM, MLX…) direct shots, and serve their other devices |
 
 B and C build on A: do A first on every computer involved.
 
@@ -227,7 +229,34 @@ in on each.
 A fleet and a link go together: the computer with the link (B) can render on the fleet's GPU (C), so people signing in
 at the link use it without knowing where it is.
 
-## D. AI apps on other devices, and chatbots
+## D. Rent a GPU
+
+For a user with no GPU, or who needs a bigger one for a while. Billed to their own Runpod account; say so first. Do A
+on this computer (no model needed), then:
+
+```sh
+printf %s "$RUNPOD_API_KEY" | hildegard cloud runpod key --key-stdin --json
+hildegard cloud runpod up --model wan-2-2-ti2v-5b --json
+```
+
+The second command returns the model's license as `needs-owner`; handle it as in the rules above, then run the step's
+`command`. The first start takes 10 to 30 minutes; if `up` says it is still setting up, run it again later. Verify
+with `hildegard cloud runpod status --json` (`device.online: true`). `hildegard cloud runpod down --json` stops it; it
+also stops itself after 30 idle minutes. Details: [cloud.md](cloud.md).
+
+## E. Skills and coding agents
+
+```sh
+hildegard skills install --json   # skills where Claude Code, Codex and OMP read them
+hildegard agents --json           # each coding agent here, how it's signed in, and what Hildegard may do with it
+```
+
+The skills hold Hildegard's quality bar ([craft.md](craft.md)): brief, lint the prompt, review every take, at most
+three rounds. Agent runs follow each provider's terms ([agent-terms.md](agent-terms.md)): a Claude or ChatGPT plan
+only in its own app, only when your user starts the run; API keys (piped with
+`hildegard agents key <provider> --key-stdin`) for everything else; never a plan's sign-in inside another tool.
+
+## F. AI apps on other devices, and chatbots
 
 Hildegard's MCP answers at `/mcp` (Streamable HTTP, stateless) as well as on stdio. On the computer Hildegard runs on
 it needs nothing. Anywhere else it needs a bearer token and acts as that token's person, with their role. Do B first.
@@ -270,7 +299,7 @@ them. It then acts as them, until they revoke it or change their passphrase.
 What a remote app gets differs in two ways: videos and stills come as links (signed, good for a day) instead of paths,
 and a start frame goes as `start_frame_data` (base64), since a path would be read on the wrong computer.
 
-## E. Their local models
+## G. Their local models
 
 Hildegard finds what runs on this computer: Ollama (11434, or `OLLAMA_HOST`'s port), LM Studio (1234), llama.cpp,
 MLX LM or llamafile (8080), vLLM (8000), SGLang (30000), Jan (1337), KoboldCpp (5001), TabbyAPI (5000), and Local AI's
@@ -312,6 +341,7 @@ Every local model here is also one OpenAI-compatible API at `http://127.0.0.1:73
 | Tailscale (`command`: `tailscale up`) | Install Tailscale and sign in |
 | The owner account (`command`: `hildegard host owner`) | Run it in a terminal here and choose a passphrase, or use Settings › Sharing |
 | Tailscale permission or a Tailscale admin page | Run the command, or open the page and turn the feature on |
+| A Runpod or provider API key (`key`, `needs-owner`) | Make the key on the provider's site and hand it to you to pipe in; it's billed to them |
 | A chatbot's sign-in (claude.ai, ChatGPT) | They add the connector and type their own name and passphrase on Hildegard's page |
 | The public internet (`hildegard host --funnel`) | Only when they asked for it: chatbots on the web need it, AI apps on their own devices don't |
 

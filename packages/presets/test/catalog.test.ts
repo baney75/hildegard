@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   composeShot,
+  defaultPresetsDir,
   frameCount,
   frameSize,
   loadCatalog,
+  loadSafety,
   mergePost,
   parseCatalog,
   ShotRequest,
@@ -37,7 +41,8 @@ palettes = [{ id = "a", name = "A", blurb = "a", prompt = "a", colors = ["#00000
 genres = [{ id = "a", name = "A", prompt = "a" }]
 eras = [{ id = "a", name = "A", prompt = "a" }]
 aspects = [{ id = "16:9", name = "W", width = 1280, height = 720 }]`;
-    const models = `[[models]]
+    const models = `${SAFETY}
+[[models]]
 id = "x"
 name = "X"
 family = "x"
@@ -56,7 +61,28 @@ final = { height = 1024, steps = 8, cfg = 1 }
 files = []`;
     expect(() => parseCatalog(bad, models, '{"version":1,"files":{}}')).toThrow(/needs LoRA "nope"/);
   });
+
+  it('refuses a sexual LoRA, however the presets folder was changed', () => {
+    const dir = defaultPresetsDir();
+    const cinema = readFileSync(join(dir, 'cinema.toml'), 'utf8');
+    const models = readFileSync(join(dir, 'models.toml'), 'utf8').replace(
+      '[models.loras]',
+      '[models.loras]\nbody = { repo = "someone/nsfw-body-lora", path = "nude_body.safetensors", dir = "loras", size = 100 }',
+    );
+    expect(() => parseCatalog(cinema, models, '{"version":1,"files":{}}', loadSafety(dir))).toThrow(
+      /nsfw-body-lora.*is refused/,
+    );
+  });
+
+  it('keeps every model downloading the trusted classifier into its own folder', () => {
+    expect(catalog.safety.classifier.dir).toBe('safety');
+    expect(loadSafety().trusted(catalog.safety.classifier.repo)).toBe(true);
+  });
 });
+
+const SAFETY = `[safety]
+threshold = 0.8
+classifier = { repo = "Falconsai/nsfw_image_detection", path = "model.safetensors", dir = "safety", size = 1 }`;
 
 describe('composeShot', () => {
   it('writes action, camera, rig and look in order', () => {
