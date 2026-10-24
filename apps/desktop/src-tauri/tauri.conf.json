@@ -39,7 +39,6 @@
     "longDescription": "Hildegard directs video models through ComfyUI with real camera language. Everything runs on your computer.",
     "copyright": "Hildegard contributors. AGPL-3.0-only.",
     "license": "AGPL-3.0-only",
-    "licenseFile": "../../../LICENSE",
     "homepage": "https://github.com/baney75/hildegard",
     "icon": [
       "icons/32x32.png",
@@ -56,7 +55,7 @@
         "recommends": ["gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"]
       }
     },
-    "macOS": { "minimumSystemVersion": "11.0" },
+    "macOS": { "minimumSystemVersion": "11.0", "signingIdentity": "-" },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
       "nsis": { "installMode": "currentUser" }

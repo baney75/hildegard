@@ -25,6 +25,25 @@ $NodeSha = @{ 'x64' = '@NODE_SHA_win32_x64@'; 'arm64' = '@NODE_SHA_win32_arm64@'
 
 $Root = if ($env:HILDEGARD_HOME) { $env:HILDEGARD_HOME } else { Join-Path $env:LOCALAPPDATA 'Hildegard' }
 $Bin = Join-Path $Root 'bin'
+
+# ComfyUI, PyTorch for the GPU and Python take about 8 GB, and the first model about 20 GB more. Say so before
+# downloading anything, rather than failing halfway with a full disk.
+$NeedGB = if ($env:HILDEGARD_SKIP_SETUP -eq '1') { 1 } else { 12 }
+$Drive = New-Object IO.DriveInfo ([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($Root)))
+$FreeGB = [math]::Floor($Drive.AvailableFreeSpace / 1GB)
+if ($FreeGB -lt $NeedGB) {
+  $other = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Free -gt 40GB -and "$($_.Name):\" -ne $Drive.Name } |
+    Sort-Object Free -Descending | Select-Object -First 1
+  $hint = if ($other) { "$($other.Name):\Hildegard, which has $([math]::Floor($other.Free / 1GB)) GB free" } else { 'a drive with more room' }
+  Write-Host "Hildegard needs at least $NeedGB GB free to install, plus about 20 GB for its first model, and $($Drive.Name) has $FreeGB GB."
+  Write-Host "To install on $hint, run:"
+  Write-Host ''
+  $dir = if ($other) { "$($other.Name):\Hildegard" } else { 'D:\Hildegard' }
+  Write-Host "  `$env:HILDEGARD_HOME = '$dir'; irm $Release/install.ps1 | iex"
+  Write-Host ''
+  # A throw, not exit: under `irm | iex`, exit would close the window.
+  throw "Not enough free space on $($Drive.Name). Nothing was installed."
+}
 $Tmp = Join-Path ([IO.Path]::GetTempPath()) ("hildegard-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $Root, $Bin, $Tmp | Out-Null
 
@@ -57,15 +76,24 @@ try {
   $app = Join-Path $Root "app-$Version"
   if (Test-Path $app) { Remove-Item -Recurse -Force $app }
   New-Item -ItemType Directory -Force -Path $app | Out-Null
-  & (Join-Path $env:SystemRoot 'System32\tar.exe') -xzf (Join-Path $Tmp $f) -C $app --strip-components 1
+  & (Join-Path $env:SystemRoot 'System32\tar.exe') -xmzf (Join-Path $Tmp $f) -C $app --strip-components 1
   if ($LASTEXITCODE -ne 0) { throw "Couldn't unpack $f." }
 
   # `app` is a junction to the current version (no admin rights needed), so paths given to AI apps survive upgrades.
-  # Keep this version and the one before it, for going back.
+  # Keep this version and the one before it, for going back. exFAT and FAT32 drives can't hold a junction, so there
+  # `app` is a copy of the current version instead.
   $link = Join-Path $Root 'app'
-  $prev = if (Test-Path $link) { Split-Path -Leaf (Get-Item $link).Target } else { '' }
-  if (Test-Path $link) { (Get-Item $link).Delete() }
-  New-Item -ItemType Junction -Path $link -Target $app | Out-Null
+  $prev = ''
+  if (Test-Path $link) {
+    $old = Get-Item $link
+    if ($old.LinkType -eq 'Junction') { $prev = Split-Path -Leaf $old.Target; $old.Delete() }
+    else { Remove-Item -Recurse -Force $link }
+  }
+  try { New-Item -ItemType Junction -Path $link -Target $app -ErrorAction Stop | Out-Null }
+  catch {
+    if (Test-Path $link) { Remove-Item -Recurse -Force $link }
+    Copy-Item -Recurse -Path $app -Destination $link
+  }
   Get-ChildItem -Directory -Path $Root -Filter 'app-*' | Where-Object { $_.Name -ne "app-$Version" -and $_.Name -ne $prev } | Remove-Item -Recurse -Force
 
   $launcher = Join-Path $Bin 'hildegard.cmd'

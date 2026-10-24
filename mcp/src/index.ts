@@ -14,7 +14,7 @@ Draft first, then re-render the take you like with quality "final" and the same 
 
 export function createMcpServer(client = new HildegardClient()) {
   const server = new McpServer(
-    { name: 'hildegard', title: 'Hildegard', version: '0.1.0' },
+    { name: 'hildegard', title: 'Hildegard', version: '0.1.1' },
     { instructions: INSTRUCTIONS },
   );
   // Takes are labelled with the agent that asked for them, as its client reports its own name.

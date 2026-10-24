@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { loadCatalog } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
-import { type Exec, fileStore, parseArgs, startServer } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -75,7 +75,7 @@ describe('hildegard', () => {
 
     const st = await hildegard(home, 'status', ...common);
     expect(st.running).toBe(true);
-    expect(st.version).toBe('0.1.0');
+    expect(st.version).toBe(VERSION);
     expect(st.engine).toMatchObject({ comfy: 'fake', online: true });
 
     const linked = await hildegard(home, 'connect', 'cursor', ...common);
@@ -500,5 +500,43 @@ describe('doctor’s ComfyUI step', () => {
       { up: true, fake: false, external: false },
     );
     expect(stuck).toMatchObject({ status: 'failed', command: 'hildegard restart --json' });
+  });
+});
+
+describe('doctor’s model steps', () => {
+  type Snap = Parameters<typeof import('../src/doctor.ts').modelSteps>[0];
+  const model = (id: string, fitWhy: 'memory' | 'apple-gpu' | null, gated = false) =>
+    ({ id, installed: false, downloading: null, gated, fitWhy }) as unknown as Snap['models'][number];
+  const hf = { linked: false } as Snap['hf'];
+
+  it('on a Mac no model renders on, points to pairing and asks for no Hugging Face account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({
+      models: [model('wan', 'apple-gpu'), model('ltx', 'apple-gpu', true)],
+      hf,
+    });
+    expect(models).toMatchObject({ status: 'skipped', command: 'hildegard choir join' });
+    expect(account).toMatchObject({ status: 'skipped', detail: 'Not linked; no model here needs it.' });
+  });
+
+  it('elsewhere, setup picks a model and a gated one needs the account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({ models: [model('wan', null), model('ltx', null, true)], hf });
+    expect(models).toMatchObject({ status: 'needs-owner', command: 'hildegard setup --json' });
+    expect(account).toMatchObject({ status: 'needs-owner', command: 'hildegard hf login' });
+  });
+});
+
+describe('starting from Windows ssh', () => {
+  it('hands WMI one cmd line that notes the entry, quotes every part and logs both streams', async () => {
+    const { wmiLine } = await import('../src/commands.ts');
+    const line = wmiLine(
+      'D:\\Hildegard\\app\\hildegard.mjs',
+      ['D:\\Hildegard\\app\\hildegard.mjs', 'start', '--foreground', '--port', '7341'],
+      'D:\\Hildegard\\logs\\server.log',
+    );
+    expect(line).toBe(
+      `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=D:\\Hildegard\\app\\hildegard.mjs" && "${process.execPath}" "D:\\Hildegard\\app\\hildegard.mjs" "start" "--foreground" "--port" "7341" >> "D:\\Hildegard\\logs\\server.log" 2>&1"`,
+    );
   });
 });

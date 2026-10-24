@@ -65,6 +65,22 @@ else
 fi
 bin="${XDG_BIN_HOME:-$HOME/.local/bin}"
 
+# ComfyUI, PyTorch for the GPU and Python take about 8 GB, and the first model about 20 GB more. Say so before
+# downloading anything, rather than failing halfway with a full disk.
+need_gb=12
+[ "${HILDEGARD_SKIP_SETUP:-}" = 1 ] && need_gb=1
+probe=$home
+while [ ! -d "$probe" ]; do probe=$(dirname "$probe"); done
+free_gb=$(df -Pk "$probe" | awk 'NR==2 {print int($4 / 1048576)}')
+if [ -n "$free_gb" ] && [ "$free_gb" -lt "$need_gb" ]; then
+  say "Hildegard needs at least $need_gb GB free to install, plus about 20 GB for its first model, and $probe has $free_gb GB."
+  say "To install somewhere with more room, run:"
+  say ""
+  say "  curl -fsSL $RELEASE/install.sh | HILDEGARD_HOME=/path/with/room/hildegard sh"
+  say ""
+  die "nothing was installed."
+fi
+
 fetch() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL --retry 3 -o "$2" "$1"
@@ -100,7 +116,7 @@ if [ "$("$home/node/bin/node" --version 2>/dev/null || true)" != "v$NODE" ]; the
   checked "https://nodejs.org/dist/v$NODE/$f" "$tmp/$f" "$(node_sha "$target")"
   rm -rf "$home/node.new"
   mkdir -p "$home/node.new"
-  tar -xzf "$tmp/$f" -C "$home/node.new" --strip-components 1
+  tar -xmzf "$tmp/$f" -C "$home/node.new" --strip-components 1
   rm -rf "$home/node"
   mv "$home/node.new" "$home/node"
 fi
@@ -110,7 +126,7 @@ f=hildegard-$VERSION-$target.tar.gz
 checked "$RELEASE/$f" "$tmp/$f" "$(app_sha "$target")"
 rm -rf "$home/app-$VERSION.new"
 mkdir -p "$home/app-$VERSION.new"
-tar -xzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
+tar -xmzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
 rm -rf "$home/app-$VERSION"
 mv "$home/app-$VERSION.new" "$home/app-$VERSION"
 # Keep this version and the one before it, for going back.
