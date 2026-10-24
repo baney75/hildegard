@@ -3,6 +3,8 @@ kokoro==0.9.4
 misaki[en,zh]==0.9.4
 faster-whisper==1.2.1
 resemble-perth==1.0.1
+# Perth finds its weights with pkg_resources, which setuptools 81 removed.
+setuptools<81
 librosa==0.11.0
 soundfile
 pyloudnorm

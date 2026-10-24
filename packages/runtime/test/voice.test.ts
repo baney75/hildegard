@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Gpu } from '../src/gpu.ts';
+import { resource } from '../src/install.ts';
 import { UV } from '../src/pins.ts';
 import {
   defaultVoiceEnvs,
@@ -53,6 +54,17 @@ describe('voice environments', () => {
       'torch==2.6.0',
     ].join('\n');
     expect(withoutGpuLibraries(lock)).toBe(['numpy==2.3.0', '    # via torch', 'torch==2.6.0'].join('\n'));
+  });
+});
+
+describe('voice locks', () => {
+  it('keep a setuptools with pkg_resources wherever the watermark is, since Perth finds its weights with it', () => {
+    for (const env of ['speech', 'chatterbox', 'qwen']) {
+      const lock = readFileSync(resource(`voice-engine/requirements/${env}.txt`), 'utf8');
+      expect(lock, env).toMatch(/^resemble-perth==/m);
+      const v = /^setuptools==(\d+)\./m.exec(lock)?.[1];
+      expect(Number(v), env).toBeLessThan(81);
+    }
   });
 });
 

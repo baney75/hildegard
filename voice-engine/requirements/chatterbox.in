@@ -1,5 +1,7 @@
 # Chatterbox pins its own torch and transformers, so it gets an environment of its own.
 chatterbox-tts==0.1.7
 resemble-perth==1.0.1
+# Perth finds its weights with pkg_resources, which setuptools 81 removed.
+setuptools<81
 soundfile
 pyloudnorm

@@ -341,8 +341,9 @@ scipy==1.18.1
     #   scikit-learn
 segments==2.4.0
     # via phonemizer-fork
-setuptools==84.2.1
+setuptools==80.10.2
     # via
+    #   -r speech.in
     #   spacy
     #   thinc
     #   torch

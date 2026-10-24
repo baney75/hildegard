@@ -270,8 +270,10 @@ scipy==1.18.1
     #   scikit-learn
 semantic-version==2.10.0
     # via gradio
-setuptools==84.2.1
-    # via torch
+setuptools==80.10.2
+    # via
+    #   -r qwen.in
+    #   torch
 shellingham==1.5.4
     # via typer
 six==1.17.0
