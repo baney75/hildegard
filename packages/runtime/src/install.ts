@@ -11,8 +11,10 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -373,12 +375,38 @@ export async function download(
 
 /**
  * uv's download cache and the Python it fetches live in Hildegard's own folder, not the user's profile: on a
- * Windows PC installed to D:, PyTorch's few GB would otherwise still land on a nearly full C:.
+ * Windows PC installed to D:, PyTorch's few GB would otherwise still land on a nearly full C:. uv links each Python
+ * version to its minor version, which an exFAT or FAT32 drive can't hold, so there the Python (about 100 MB) goes in
+ * the user's profile instead.
  */
 export const uvEnv = (L: Layout): NodeJS.ProcessEnv => ({
   UV_CACHE_DIR: join(L.dataDir, 'cache', 'uv'),
-  UV_PYTHON_INSTALL_DIR: join(L.tools, 'python'),
+  UV_PYTHON_INSTALL_DIR: holdsLinks(L.tools) ? join(L.tools, 'python') : profilePython(),
 });
+
+const profilePython = () =>
+  win
+    ? join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Hildegard-python')
+    : join(homedir(), '.local', 'share', 'hildegard-python');
+
+const linkChecks = new Map<string, boolean>();
+/** Whether this folder's drive can hold a link: a junction on Windows (no admin rights needed), a symlink elsewhere. */
+export function holdsLinks(dir: string): boolean {
+  const known = linkChecks.get(dir);
+  if (known !== undefined) return known;
+  mkdirSync(dir, { recursive: true });
+  const probe = mkdtempSync(join(dir, 'link-'));
+  let ok = true;
+  try {
+    mkdirSync(join(probe, 'to'));
+    symlinkSync(join(probe, 'to'), join(probe, 'from'), 'junction');
+  } catch {
+    ok = false;
+  }
+  rmSync(probe, { recursive: true, force: true });
+  linkChecks.set(dir, ok);
+  return ok;
+}
 
 /** Runs a program, logging its output; resolves with stdout and stderr, rejects with the tail of the output. */
 export function run(
