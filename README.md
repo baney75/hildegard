@@ -1,4 +1,4 @@
-# Hildegard
+<h1><picture><source media="(prefers-color-scheme: dark)" srcset="site/img/lockup-horizontal-vellum.svg"><img src="site/img/lockup-horizontal-green.svg" alt="Hildegard" height="44"></picture></h1>
 
 Your own film studio, on your own GPU. Hildegard directs video models (LTX-2.5, LTX-2 and Wan 2.2) through ComfyUI
 with real camera language: bodies, lenses, focal lengths, apertures, moves and film looks. Everything runs on your

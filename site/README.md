@@ -22,7 +22,8 @@ path is relative, so it works from any folder, such as `https://dbaney.com/hilde
   `index.html`. The Studio screenshots are `img/studio-board.webp` and `img/studio-inspector.webp`. Never caption a
   render that didn't happen.
 - Colours, type and spacing follow the Hildegard design system; the tokens are at the top of `styles.css`.
-- `node scripts/site-images.mjs` renders `img/og.jpg` (the link preview) and `img/apple-touch-icon.png`.
+- `node scripts/site-images.mjs` renders `img/og.jpg` (the link preview); `node scripts/app-icons.mjs` renders
+  `favicon.svg` and `img/apple-touch-icon.png` from `brand/app-icons/`, with the app's own icons.
 - `pnpm --filter @hildegard/studio e2e:site` checks it in both themes, on desktop and a 360 px phone: no sideways
   scroll, accessibility (axe), the OS tabs and the copy buttons. Set `SITE_SHOTS=<folder>` to save screenshots.
 
