@@ -56,16 +56,22 @@ describe('policy: what each provider allows', () => {
     );
   });
 
-  it('lets the owner’s own keys run anything for the owner, and for invited people only when turned on', () => {
+  it('lets the owner’s own keys run anything for the owner, and others’ runs only on non-Anthropic keys when turned on', () => {
     const key: Auth = { kind: 'api-key', provider: 'anthropic' };
     expect(allowedFor('claude-code', key)).toEqual(['owner-here', 'owner-remote', 'schedule']);
+    // Anthropic requires every user of Claude to bring their own credentials: sharing never covers it.
     expect(allowedFor('claude-code', key, { shareKeysWithDirectors: true })).toEqual([
       'owner-here',
       'owner-remote',
-      'director',
       'schedule',
     ]);
-    expect(decide('omp', key, 'director').fix).toMatch(/Never charge them/);
+    expect(allowedFor('omp', key, { shareKeysWithDirectors: true })).not.toContain('director');
+    expect(
+      allowedFor('claude-code', { kind: 'cloud', provider: 'bedrock' }, { shareKeysWithDirectors: true }),
+    ).not.toContain('director');
+    const openai: Auth = { kind: 'api-key', provider: 'openai' };
+    expect(allowedFor('codex', openai, { shareKeysWithDirectors: true })).toContain('director');
+    expect(decide('codex', openai, 'director').fix).toMatch(/Never charge them/);
     expect(allowedFor('claude-code', { kind: 'cloud', provider: 'bedrock' })).toEqual([
       'owner-here',
       'owner-remote',

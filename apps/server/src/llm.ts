@@ -151,9 +151,28 @@ export function endpointUrl(raw: string): string {
     throw new LlmError(400, 'Give an http:// or https:// address.');
   if (u.username || u.password)
     throw new LlmError(400, 'Leave names and keys out of the address; pass the key on its own.');
+  if (SUBSCRIPTION_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`)))
+    throw new LlmError(400, SUBSCRIPTION_ONLY);
   const path = u.pathname.replace(/\/+$/, '');
   return `${u.protocol}//${u.host}${path || '/v1'}`;
 }
+
+/**
+ * Hosts that serve a consumer plan (Claude, ChatGPT, GitHub Copilot) rather than an API. Those plans may only be used
+ * in their own apps, so an endpoint here never points at one: that's how accounts get banned. docs/agent-terms.md.
+ */
+const SUBSCRIPTION_HOSTS = [
+  'claude.ai',
+  'chatgpt.com',
+  'chat.openai.com',
+  'githubcopilot.com',
+  'copilot.microsoft.com',
+];
+const SUBSCRIPTION_ONLY =
+  'That address serves a Claude, ChatGPT or Copilot plan, which may only be used in its own app. Use an API key’s address (such as https://api.openai.com/v1) or a model on your own computer.';
+
+/** A plan's sign-in token, not an API key: Claude Code's OAuth tokens. Used anywhere else, it can get the account banned. */
+export const looksLikePlanToken = (key: string) => /^sk-ant-oat\d*-/.test(key.trim());
 
 export class LocalModels {
   private readonly file: string;
@@ -344,6 +363,7 @@ export class LocalModels {
     if (!/^[\p{L}\p{N}][\p{L}\p{N} ._()-]{0,39}$/u.test(name))
       throw new LlmError(400, 'Name it in up to 40 letters, digits, spaces or dots, such as “Desk vLLM”.');
     const url = endpointUrl(rawUrl);
+    if (key && looksLikePlanToken(key)) throw new LlmError(400, SUBSCRIPTION_ONLY);
     let id = `custom-${slug(name) || 'endpoint'}`;
     if (this.data.custom.some((c) => c.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
       throw new LlmError(

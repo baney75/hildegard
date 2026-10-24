@@ -199,7 +199,7 @@ function shareKeys(ctx: Ctx, value: string | undefined): Promise<Result> | Resul
           id: 'share-keys',
           title: 'Share keys',
           status: 'done',
-          detail: `People you invite ${settings(ctx).shareKeysWithDirectors ? 'may' : 'may not'} use your API keys. \`on\` or \`off\` changes it.`,
+          detail: `People you invite ${settings(ctx).shareKeysWithDirectors ? 'may' : 'may not'} use your API keys, never an Anthropic one (Anthropic requires their own). \`on\` or \`off\` changes it.`,
         },
       ],
       '',
