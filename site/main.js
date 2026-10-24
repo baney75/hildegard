@@ -1,16 +1,97 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// The install page: picks the visitor's computer, keeps every set of OS tabs in step, and copies commands.
+// The install page: shows the work, picks the visitor's computer, keeps every set of OS tabs in step, and copies
+// commands.
 
 // Where the release files live. The short dbaney.com/hildegard/install.sh and install.ps1 links redirect here.
 const RELEASE = 'https://github.com/baney75/hildegard/releases/latest/download/';
 
 // The desktop app's file for each computer. Fix the names here once the desktop build settles them.
 const DESKTOP = {
-  windows: 'Hildegard_x64.msi',
+  windows: 'Hildegard_x64-setup.exe',
   mac: 'Hildegard_aarch64.dmg',
   linux: 'Hildegard_amd64.AppImage',
   omarchy: 'Hildegard_amd64.AppImage',
 };
+
+// The stills on the page, each a frame from a real take. The file sits in img/work/. Every caption is what Hildegard
+// recorded for that take: the prompt word for word as the director wrote it, the rig, the model, the GPU and the
+// render time in seconds. Never write a caption for a render that didn't happen. The first one marked hero leads the
+// page (its file is also preloaded in index.html); the rest fill the gallery in this order.
+const WORK = [
+  {
+    file: 'illuminator-quill.webp',
+    hero: true,
+    film: 'The Illuminator',
+    shot: 2,
+    prompt:
+      'Close on the parchment: a quill pen paints deep blue and red ink into an ornate illuminated capital letter bordered with gold leaf',
+    rig: ['Full-frame cinema', 'Vintage anamorphic', '50mm', 'f/2.0'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 730,
+  },
+  {
+    file: 'lighthouse-headland.webp',
+    film: 'The Lighthouse Keeper',
+    shot: 1,
+    prompt:
+      'A weathered white lighthouse alone on an empty rocky headland at dusk, its great lamp glowing, waves breaking white on the rocks below, wide static landscape with no people',
+    rig: ['Vintage 16mm', 'Clean modern', '35mm', 'f/2.8'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 725,
+  },
+  {
+    file: 'lighthouse-keeper.webp',
+    width: 1440,
+    film: 'The Lighthouse Keeper',
+    shot: 4,
+    prompt:
+      'An old bearded lighthouse keeper in a wool sweater stands at the iron railing of the lighthouse balcony at dusk, looking out at the dark sea as the lamp beam sweeps overhead',
+    rig: ['Vintage 16mm', 'Clean modern', '35mm', 'f/2.8'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 727,
+  },
+  {
+    file: 'neon-raincoat.webp',
+    film: 'Neon Rain',
+    shot: 2,
+    prompt:
+      'A woman in a red raincoat walks past a glowing noodle shop window, steam rising from the kitchen, rain falling',
+    rig: ['DV camcorder', 'Clean modern', '24mm', 'f/2.8'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 735,
+  },
+  {
+    file: 'caravan-dune.webp',
+    film: 'Caravan',
+    shot: 1,
+    prompt:
+      'A camel caravan crosses tall rippled sand dunes in single file at sunset, long shadows stretching across the sand',
+    rig: ['Super 35', 'Clean modern', '35mm', 'f/4.0'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 739,
+  },
+  {
+    file: 'golden-hour-sea-stack.webp',
+    film: 'Golden Hour',
+    shot: 2,
+    prompt: 'A lone dark sea stack rises from the surf at golden hour, waves washing white around its base',
+    rig: ['Full-frame cinema', 'Clean modern', '35mm', 'f/2.8'],
+    model: 'Wan 2.2 5B',
+    gpu: 'RTX 4080 Laptop GPU',
+    take: '5 s at 24 fps',
+    seconds: 731,
+  },
+];
 
 const NAMES = { windows: 'Windows', mac: 'macOS', linux: 'Linux', omarchy: 'Omarchy' };
 const OSES = Object.keys(NAMES);
@@ -195,6 +276,132 @@ function sayDetected() {
     el.textContent = `We picked ${NAMES[detected]} from your browser.`;
 }
 
+// The work: captions, the gallery and the larger view.
+
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const slate = (w) => `${w.film}, shot ${ROMAN[w.shot] || w.shot}`;
+const minutes = (s) => `${Math.floor(s / 60)} min ${s % 60} s`;
+const el = (tag, className, text) => {
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+const dot = () => el('span', 'dot');
+/** Text pieces with a small dot between each, as the Studio prints settings. */
+function dotted(parts, className) {
+  const out = [];
+  parts.forEach((p, i) => {
+    if (i) out.push(dot());
+    out.push(typeof p === 'string' ? el('span', className, p) : p);
+  });
+  return out;
+}
+const time = (w) => el('span', 'num', minutes(w.seconds));
+const metaLine = (w) => dotted([w.model, w.gpu, Object.assign(time(w), { title: `${w.seconds} seconds` })]);
+const quoted = (text) => `\u201c${text}\u201d`;
+
+function fillHero() {
+  const w = WORK.find((x) => x.hero);
+  const fig = w && document.querySelector(`[data-work="${w.file}"]`);
+  if (!fig) return;
+  fig.querySelector('[data-w-img]').alt = `A frame from ${slate(w)}.`;
+  fig.querySelector('[data-w-slate]').textContent = slate(w);
+  fig.querySelector('[data-w-take]').textContent = w.take;
+  fig.querySelector('[data-w-rig]').replaceChildren(...w.rig.map((r) => el('span', '', r)));
+  fig.querySelector('[data-w-prompt]').textContent = quoted(w.prompt);
+  fig.querySelector('[data-w-meta]').replaceChildren(...metaLine(w));
+}
+
+function fillGallery() {
+  const box = document.querySelector('[data-gallery]');
+  if (!box) return;
+  for (const w of WORK.filter((x) => !x.hero)) {
+    const fig = el('figure', 'still reveal');
+    const open = el('button', 'still__open');
+    open.type = 'button';
+    open.dataset.openWork = w.file;
+    open.setAttribute('aria-label', `See ${slate(w)} larger`);
+    const img = Object.assign(document.createElement('img'), {
+      src: `img/work/${w.file}`,
+      alt: '',
+      width: w.width || 1600,
+      height: Math.round(((w.width || 1600) * 704) / 1248),
+      loading: 'lazy',
+      decoding: 'async',
+    });
+    const zoom = el('span', 'still__zoom');
+    zoom.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-expand"/></svg>';
+    open.append(img, zoom);
+    const cap = el('figcaption', 'still__cap');
+    cap.append(
+      el('p', 'still__slate', slate(w)),
+      el('p', 'still__prompt', quoted(w.prompt)),
+      el('p', 'still__rig'),
+      el('p', 'still__meta'),
+    );
+    cap.children[2].append(...dotted(w.rig));
+    cap.children[3].append(...metaLine(w));
+    fig.append(open, cap);
+    box.append(fig);
+  }
+}
+
+function wireLightbox() {
+  const box = document.querySelector('[data-lightbox]');
+  if (!box || typeof box.showModal !== 'function') return;
+  const img = box.querySelector('[data-lb-img]');
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-open-work]');
+    if (btn) {
+      const w = WORK.find((x) => x.file === btn.dataset.openWork);
+      if (!w) return;
+      img.src = `img/work/${w.file}`;
+      img.alt = `A frame from ${slate(w)}.`;
+      box.querySelector('[data-lb-title]').textContent = slate(w);
+      box.querySelector('[data-lb-prompt]').textContent = quoted(w.prompt);
+      box
+        .querySelector('[data-lb-meta]')
+        .replaceChildren(...dotted([...w.rig, w.model, w.gpu, w.take]), dot(), time(w));
+      box.showModal();
+      return;
+    }
+    // A click on the dark surround closes it.
+    if (e.target === box) box.close();
+  });
+}
+
+/** Sections rise in once as they come into view. Without motion, or without IntersectionObserver, they're just there. */
+function wireReveal() {
+  const items = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)) return;
+  document.documentElement.classList.add('motion');
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+  );
+  for (const i of items) io.observe(i);
+}
+
+function wireTop() {
+  const top = document.querySelector('[data-top]');
+  if (!top) return;
+  const on = () => top.toggleAttribute('data-scrolled', window.scrollY > 8);
+  on();
+  window.addEventListener('scroll', on, { passive: true });
+}
+
+fillHero();
+fillGallery();
+wireLightbox();
+wireReveal();
+wireTop();
 fillLinks();
 wireTabs();
 wireCopy();

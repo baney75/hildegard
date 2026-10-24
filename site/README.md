@@ -17,6 +17,10 @@ path is relative, so it works from any folder, such as `https://dbaney.com/hilde
 ## Changing it
 
 - Release URLs and the desktop app's file names are in `RELEASE` and `DESKTOP` at the top of `main.js`.
+- The stills are frames from real takes, in `img/work/`. Their captions (film, shot, prompt word for word, rig, model,
+  GPU, render time) are in `WORK` at the top of `main.js`; the one marked `hero` leads the page and is preloaded in
+  `index.html`. The Studio screenshots are `img/studio-board.webp` and `img/studio-inspector.webp`. Never caption a
+  render that didn't happen.
 - Colours, type and spacing follow the Hildegard design system; the tokens are at the top of `styles.css`.
 - `node scripts/site-images.mjs` renders `img/og.jpg` (the link preview) and `img/apple-touch-icon.png`.
 - `pnpm --filter @hildegard/studio e2e:site` checks it in both themes, on desktop and a 360 px phone: no sideways

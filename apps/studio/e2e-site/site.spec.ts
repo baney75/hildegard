@@ -21,7 +21,7 @@ async function noSidewaysScroll(page: Page) {
     return [...document.querySelectorAll('main *, header *, footer *')]
       .filter((el) => {
         if (!(el instanceof HTMLElement) || !el.checkVisibility()) return false;
-        if (el.closest('.hero__glow, .frame__shot, .sprite')) return false;
+        if (el.closest('.hero__glow, .reel__bloom, .sprite')) return false;
         const r = el.getBoundingClientRect();
         return r.width > 0 && (r.right > w + 0.5 || r.left < -0.5);
       })
@@ -66,7 +66,7 @@ test('the OS tabs switch the commands, by click and by keyboard, everywhere at o
   );
   await expect(page.locator('#panel-windows [data-desktop]')).toHaveAttribute(
     'href',
-    'https://github.com/baney75/hildegard/releases/latest/download/Hildegard_x64.msi',
+    'https://github.com/baney75/hildegard/releases/latest/download/Hildegard_x64-setup.exe',
   );
 
   await tabs.getByRole('tab', { name: 'macOS' }).click();
@@ -76,7 +76,9 @@ test('the OS tabs switch the commands, by click and by keyboard, everywhere at o
     'curl -fsSL https://dbaney.com/hildegard/install.sh | sh',
   );
   await expect(page.locator('#panel-mac [data-desktop]')).toHaveAttribute('href', /Hildegard_aarch64\.dmg$/);
-  // The checks and removal further down follow along.
+  // The checks and removal further down follow along, once their folds are open.
+  await page.locator('#verify summary').click();
+  await page.locator('#remove summary').click();
   await expect(page.locator('#vpanel-mac')).toBeVisible();
   await expect(page.locator('#rpanel-mac')).toBeVisible();
   // The hero leads with the desktop app for the computer picked; a phone is sent to the install section.
@@ -110,6 +112,7 @@ test('copy buttons are there and copy the command', async ({ page, context, brow
   await page.goto('/index.html#linux');
   const panel = page.locator('#panel-linux');
   const copies = page.locator('button.copy:visible');
+  // The checksum and removal commands sit in closed folds, so they don't count here.
   expect(await copies.count()).toBeGreaterThanOrEqual(10);
   await panel.getByRole('button', { name: 'Copy the terminal install line' }).click();
   await expect(panel.getByRole('button', { name: 'Copy the terminal install line' })).toContainText(
@@ -120,4 +123,30 @@ test('copy buttons are there and copy the command', async ({ page, context, brow
   );
   await page.getByRole('button', { name: 'Copy prompt for your agent' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('INSTALL-FOR-AGENTS.md');
+});
+
+test('the work shows real stills with their captions, and opens larger', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/index.html');
+  // The hero frame carries its caption: the prompt, the model, the GPU and the render time.
+  const hero = page.locator('.reel');
+  await expect(hero.locator('.reel__prompt')).toContainText('a quill pen paints');
+  await expect(hero.locator('.reel__meta')).toContainText('Wan 2.2 5B');
+  await expect(hero.locator('.reel__meta')).toContainText('12 min 10 s');
+  // The gallery holds the other five, each with its prompt, rig and render time.
+  const stills = page.locator('[data-gallery] .still');
+  await expect(stills).toHaveCount(5);
+  for (const s of await stills.all()) {
+    await expect(s.locator('.still__prompt')).not.toBeEmpty();
+    await expect(s.locator('.still__rig')).not.toBeEmpty();
+    await expect(s.locator('.still__meta')).toContainText('min');
+  }
+  await page.getByRole('button', { name: 'See Neon Rain, shot II larger' }).click();
+  const box = page.locator('[data-lightbox]');
+  await expect(box).toBeVisible();
+  await expect(box).toContainText('A woman in a red raincoat');
+  await expect(box.locator('img')).toHaveAttribute('src', 'img/work/neon-raincoat.webp');
+  await page.keyboard.press('Escape');
+  await expect(box).toBeHidden();
+  expect(errors).toEqual([]);
 });

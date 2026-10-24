@@ -25,8 +25,9 @@
 <meta name="twitter:image:alt" content="The Hildegard mark and the words: your own film studio, on your own GPU.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<link rel="preload" href="fonts/HildegardSans-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/CormorantGaramond-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/CormorantGaramond-500-Italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="img/work/illuminator-quill.webp" as="image" type="image/webp" fetchpriority="high">
 <link rel="stylesheet" href="styles.css">
 <script src="main.js" defer></script>
 </head>
@@ -38,7 +39,7 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-privacy" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2.1 2.1L15.25 10"/></symbol>
     <symbol id="i-costs" viewBox="0 0 24 24"><ellipse cx="12" cy="6.25" rx="7.25" ry="2.75"/><path d="M4.75 6.25v5.5c0 1.52 3.25 2.75 7.25 2.75s7.25-1.23 7.25-2.75v-5.5M4.75 11.75v5.5C4.75 18.77 8 20 12 20s7.25-1.23 7.25-2.75v-5.5"/></symbol>
-    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.25"/><path d="M16 10.5l5-3v9l-5-3"/></symbol>
+    <symbol id="i-own" viewBox="0 0 24 24"><path d="M5 4.75h9.5L19 9.25v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5.75a1 1 0 0 1 1-1z"/><path d="M14.5 4.75v4.5H19M8 14.5l2.5 2.5L16 11.5"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4.25"/><path d="M11 12.5l8.75-8.75M16.25 7.25l2.5 2.5M13.75 9.75l2 2"/></symbol>
     <symbol id="i-choir" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><circle cx="12" cy="12" r="2.25"/><circle cx="12" cy="3.75" r="1.75" fill="currentColor"/><circle cx="4.85" cy="16.1" r="1.75" fill="currentColor"/><circle cx="19.15" cy="16.1" r="1.75" fill="currentColor"/></symbol>
     <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="3.75" width="16" height="7" rx="1.5"/><rect x="4" y="13.25" width="16" height="7" rx="1.5"/><path d="M7.5 7.25h.01M7.5 16.75h.01"/></symbol>
@@ -49,18 +50,21 @@
     <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.25" width="18" height="15.5" rx="2.25"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5"/></symbol>
     <symbol id="i-agent" viewBox="0 0 24 24"><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.25 4.25 0 0 0 6 0l3-3a4.25 4.25 0 0 0-6-6l-1 1M14 10a4.25 4.25 0 0 0-6 0l-3 3a4.25 4.25 0 0 0 6 6l1-1"/></symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.75h15M9.5 6.75V4.5h5v2.25M6.5 6.75l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.1M10 10.5v6M14 10.5v6"/></symbol>
-    <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M8 20h8M5 7.5h14M5 7.5l-2.5 6a2.75 2.75 0 0 0 5 0zM19 7.5l-2.5 6a2.75 2.75 0 0 0 5 0z"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13.5M13 6.5l5.5 5.5-5.5 5.5"/></symbol>
-    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5l-8 8M17 14v4a1.75 1.75 0 0 1-1.75 1.75H6A1.75 1.75 0 0 1 4.25 18V8.75A1.75 1.75 0 0 1 6 7h4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6.5 9.5L12 15l5.5-5.5"/></symbol>
     <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.25 5l-2.5 14"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 15.5H3z"/><path d="M12 10v4.25M12 17v.25"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="2.75" y="7" width="13.5" height="10.5" rx="2"/><path d="M16.25 11l5-3v8.5l-5-3"/><circle cx="9.5" cy="12.25" r="2.5"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.25" y="4.25" width="17.5" height="15.5" rx="2"/><path d="M7.25 4.25v15.5M16.75 4.25v15.5M3.25 9h4M3.25 15h4M16.75 9h4M16.75 15h4"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14.5 4.5h5v5M19.5 4.5l-6 6M9.5 19.5h-5v-5M4.5 19.5l6-6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M12 8.5v4.25M12 15.5v.25"/></symbol>
   </defs>
 </svg>
 
 <a class="skip" href="#install">Skip to install</a>
 
-<header class="top">
+<header class="top" data-top>
   <div class="wrap top__in">
     <a class="top__brand" href="#top">
       <picture>
@@ -68,114 +72,113 @@
         <img src="img/lockup-horizontal-vellum.svg" alt="Hildegard" width="141" height="36">
       </picture>
     </a>
+    <span class="badge" title="An early release: expect rough edges.">Pre-alpha</span>
     <nav class="top__nav" aria-label="On this page">
-      <a href="#install">Install</a>
+      <a href="#work">Work</a>
+      <a href="#studio">Studio</a>
       <a href="#needs">What you need</a>
-      <a href="#devices">Devices</a>
+      <a href="#devices">Choir</a>
       <a href="#agents">Agents</a>
-      <a href="#verify">Verify</a>
     </nav>
     <a class="btn btn--ghost btn--sm top__src" href="https://github.com/baney75/hildegard">
       <svg class="ic" aria-hidden="true"><use href="#i-code"/></svg>
       <span>Source</span>
     </a>
+    <a class="btn btn--primary btn--sm top__get" href="#install">Install</a>
   </div>
 </header>
 
 <main id="top">
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero__glow" aria-hidden="true"></div>
-    <div class="wrap hero__in">
-      <div class="hero__copy">
-        <p class="overline">Open source <span class="dot" aria-hidden="true"></span> Runs on your own GPUs</p>
-        <h1 id="hero-title" class="display">Your own film studio, <em>on your own GPU.</em></h1>
-        <p class="lead">Hildegard directs video models with real camera language: bodies, lenses, apertures, moves and film looks. Every shot renders on computers you own. Nothing you make leaves them, and nothing costs money per shot.</p>
-        <div class="hero__cta">
-          <a class="btn btn--primary btn--lg" data-desktop href="https://github.com/baney75/hildegard/releases/latest">
-            <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
-            <span data-desktop-label>Download Hildegard</span>
-          </a>
-          <a class="btn btn--lg" href="#install">Other ways to install</a>
-        </div>
-        <p class="hero__meta" data-desktop-meta>Free for Windows, macOS and Linux.</p>
-        <ul class="promises">
-          <li><svg class="ic" aria-hidden="true"><use href="#i-privacy"/></svg>Stays on your devices</li>
-          <li><svg class="ic" aria-hidden="true"><use href="#i-costs"/></svg>Nothing spent per shot</li>
-          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>You own what you make</li>
-        </ul>
+    <div class="wrap hero__copy">
+      <p class="overline overline--center">Free and open source <span class="overline__more"><span class="dot" aria-hidden="true"></span> Windows, macOS and Linux</span></p>
+      <h1 id="hero-title" class="display">Your own film studio, <em>on your own GPU.</em></h1>
+      <p class="lead">Direct video models with real camera language: bodies, lenses, apertures, moves and film looks. Every shot renders on computers you own, and nothing costs money per shot.</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary btn--lg" data-desktop href="https://github.com/baney75/hildegard/releases/latest">
+          <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+          <span data-desktop-label>Download Hildegard</span>
+        </a>
+        <a class="btn btn--lg btn--quiet" href="#install">Other ways to install</a>
       </div>
+      <p class="hero__meta" data-desktop-meta>Free for Windows, macOS and Linux.</p>
+    </div>
 
-      <figure class="frame" aria-label="A shot rendering in Hildegard: Super 35, 40 millimetre lens at f/2.8, dolly in, golden hour. Rendering on parish1, 62 percent done, nothing spent.">
-        <div class="frame__shot">
-          <svg class="frame__art" viewBox="0 0 960 402" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#0d1838"/>
-                <stop offset=".45" stop-color="#2a3a78"/>
-                <stop offset=".72" stop-color="#c4602a"/>
-                <stop offset=".86" stop-color="#e6c473"/>
-              </linearGradient>
-              <radialGradient id="sun" cx=".5" cy=".5" r=".5">
-                <stop offset="0" stop-color="#fff3cf"/>
-                <stop offset=".35" stop-color="#f3d68a" stop-opacity=".9"/>
-                <stop offset="1" stop-color="#e6c473" stop-opacity="0"/>
-              </radialGradient>
-              <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#f3a46b" stop-opacity="0"/>
-                <stop offset=".5" stop-color="#f3d6a0" stop-opacity=".38"/>
-                <stop offset="1" stop-color="#f3a46b" stop-opacity="0"/>
-              </linearGradient>
-              <linearGradient id="vignette" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stop-color="#05080c" stop-opacity=".55"/>
-                <stop offset=".22" stop-color="#05080c" stop-opacity="0"/>
-                <stop offset=".78" stop-color="#05080c" stop-opacity="0"/>
-                <stop offset="1" stop-color="#05080c" stop-opacity=".55"/>
-              </linearGradient>
-              <filter id="grain" x="0" y="0" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/>
-                <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/>
-              </filter>
-            </defs>
-            <rect width="960" height="402" fill="url(#sky)"/>
-            <circle cx="612" cy="214" r="170" fill="url(#sun)"/>
-            <circle cx="612" cy="218" r="24" fill="#fff6dc"/>
-            <path d="M0 268 C120 232 210 250 300 236 C390 222 450 196 540 214 C640 234 720 206 820 222 C880 231 930 226 960 220 V402 H0Z" fill="#3a3f5c" opacity=".75"/>
-            <rect y="226" width="960" height="70" fill="url(#mist)"/>
-            <path d="M0 300 C90 280 170 286 250 270 C340 252 410 262 480 280 C560 300 650 268 760 276 C850 282 910 296 960 290 V402 H0Z" fill="#1d3a2e"/>
-            <path d="M0 336 C110 318 200 330 300 322 C420 312 520 334 640 326 C760 318 860 330 960 322 V402 H0Z" fill="#12301f"/>
-            <path d="M0 372 C160 360 330 370 480 364 C640 358 800 368 960 362 V402 H0Z" fill="#0a1a12"/>
-            <g fill="#0a1a12">
-              <path d="M214 330 l7 -46 l7 46z"/><path d="M232 332 l5 -30 l5 30z"/><path d="M752 328 l8 -54 l8 54z"/><path d="M772 330 l6 -36 l6 36z"/><path d="M736 332 l5 -26 l5 26z"/>
-            </g>
-            <g fill="#0a1a12">
-              <path d="M455 334 c0 -6 3 -10 5 -10 c2 0 5 4 5 10 l1 22 h-12z"/>
-              <circle cx="460" cy="318" r="5.5"/>
-            </g>
-            <rect width="960" height="402" fill="url(#vignette)"/>
-            <rect width="960" height="402" filter="url(#grain)"/>
-          </svg>
-          <div class="vf" aria-hidden="true">
+    <div class="wrap wrap--wide">
+      <figure class="reel" data-work="illuminator-quill.webp">
+        <div class="reel__frame">
+          <img class="reel__bloom" src="img/work/illuminator-quill.webp" alt="" aria-hidden="true" width="1600" height="903">
+          <button class="reel__shot" type="button" data-open-work="illuminator-quill.webp" aria-label="See this frame larger">
+            <img src="img/work/illuminator-quill.webp" width="1600" height="903" fetchpriority="high" decoding="async" alt="A frame from The Illuminator, shot II." data-w-img>
+            <span class="reel__zoom" aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="#i-expand"/></svg></span>
+          </button>
+          <span class="vf" aria-hidden="true">
             <span class="vf__c vf__c--tl"></span><span class="vf__c vf__c--tr"></span><span class="vf__c vf__c--bl"></span><span class="vf__c vf__c--br"></span>
-            <span class="vf__top"><span>A001 <span class="vf__sep"></span> Take 3</span><span>24 fps <span class="vf__sep"></span> 2.39:1</span></span>
-            <span class="vf__bottom"><span>Super 35</span><span>40mm</span><span>f/2.8</span><span>Dolly in</span><span class="vf__wide">Golden hour</span></span>
-          </div>
+            <span class="vf__top"><span data-w-slate></span><span data-w-take></span></span>
+            <span class="vf__bottom" data-w-rig></span>
+          </span>
         </div>
-        <figcaption class="frame__status" aria-hidden="true">
-          <span class="ring"><span class="ring__o"></span><span class="ring__i"></span></span>
-          <span class="frame__what"><b>Rendering</b> on parish1 <span class="dot"></span> <span class="muted">RTX 4080</span></span>
-          <span class="frame__cost"><span class="num">$0.00</span> spent</span>
-          <span class="bar"><span class="bar__fill"></span></span>
+        <figcaption class="reel__cap">
+          <p class="reel__prompt" data-w-prompt></p>
+          <p class="reel__meta">
+            <span class="ring" aria-hidden="true"><span class="ring__o"></span><span class="ring__i"></span></span>
+            <span data-w-meta></span>
+            <span class="saved"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Nothing spent</span>
+          </p>
         </figcaption>
       </figure>
+    </div>
+
+    <ul class="wrap promises" aria-label="What Hildegard promises">
+      <li><svg class="ic" aria-hidden="true"><use href="#i-privacy"/></svg><span><b>Stays on your devices.</b> Nothing you make leaves them.</span></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-costs"/></svg><span><b>Nothing spent per shot.</b> Your GPU, your electricity.</span></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-own"/></svg><span><b>You own what you make.</b> Every take exports.</span></li>
+    </ul>
+  </section>
+
+  <section id="work" class="section" aria-labelledby="work-title">
+    <div class="wrap">
+      <header class="head reveal">
+        <p class="folio"><span class="folio__n" aria-hidden="true">I</span>The work</p>
+        <h2 id="work-title" class="h1">Made with Hildegard</h2>
+        <p class="sub">Frames from real takes, with the prompt the director wrote and the settings they chose. Each take is 5 seconds at 24 fps, rendered on one 12 GB laptop GPU.</p>
+      </header>
+      <div class="gallery" data-gallery></div>
+    </div>
+  </section>
+
+  <section id="studio" class="section section--studio" aria-labelledby="studio-title">
+    <div class="wrap">
+      <header class="head head--center reveal">
+        <p class="folio"><span class="folio__n" aria-hidden="true">II</span>The Studio</p>
+        <h2 id="studio-title" class="h1">Direct it like a film</h2>
+        <p class="sub">Pick a camera, a lens, an aperture and a move. Hildegard turns them into words the model understands, then keeps every take on the board.</p>
+      </header>
+      <div class="desk reveal">
+        <figure class="desk__main">
+          <img src="img/studio-board.webp" width="1600" height="1000" loading="lazy" decoding="async" alt="The Hildegard Studio showing the Neon Rain film board, with four kept takes and their posters.">
+          <figcaption>The Neon Rain board, with four kept takes.</figcaption>
+        </figure>
+        <figure class="desk__side">
+          <img src="img/studio-inspector.webp" width="1600" height="1000" loading="lazy" decoding="async" alt="The Illuminator, shot III, open in the Studio’s Inspector with its camera rig settings.">
+          <figcaption>The Illuminator, shot III, in the Inspector.</figcaption>
+        </figure>
+      </div>
+      <ul class="points reveal">
+        <li><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg><h3>Camera language</h3><p>Bodies, lenses, apertures, moves and film looks, the way a cinematographer says them.</p></li>
+        <li><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg><h3>Shots become a film</h3><p>Keep the takes you like, put shots in order and export the film.</p></li>
+        <li><svg class="ic" aria-hidden="true"><use href="#i-models"/></svg><h3>Open models</h3><p>LTX and Wan, run through ComfyUI on your GPU. Each model’s license is shown before it downloads.</p></li>
+      </ul>
     </div>
   </section>
 
   <section id="install" class="section section--install" aria-labelledby="install-title">
     <div class="wrap">
-      <div class="install">
+      <div class="install reveal">
         <div class="install__head">
           <div>
-            <p class="overline">Install</p>
+            <p class="folio"><span class="folio__n" aria-hidden="true">III</span>Install</p>
             <h2 id="install-title" class="h1">Install Hildegard</h2>
             <p class="sub" data-detected>Pick your computer.</p>
           </div>
@@ -187,29 +190,32 @@
           </div>
         </div>
 
-        <div class="panel" role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" data-panel="windows">
+        <div class="panel" role="tabpanel" id="panel-windows" aria-labelledby="tab-windows">
           <div class="ways">
             <div class="way way--app">
               <h3 class="way__title"><svg class="ic" aria-hidden="true"><use href="#i-desktop"/></svg>The desktop app</h3>
-              <p>Download it, open it, and follow the steps.</p>
+              <p>Download it, open it, and follow the steps. No admin rights needed.</p>
               <a class="btn btn--primary btn--lg btn--block" data-desktop="windows" href="https://github.com/baney75/hildegard/releases/latest">
                 <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span>Download for Windows</span>
               </a>
-              <p class="file"><span class="mono" data-file="windows">Hildegard_x64.msi</span> <span class="dot" aria-hidden="true"></span> 64-bit</p>
+              <p class="file"><span class="mono" data-file="windows">Hildegard_x64-setup.exe</span> <span class="dot" aria-hidden="true"></span> 64-bit</p>
             </div>
             <div class="way">
               <h3 class="way__title"><svg class="ic" aria-hidden="true"><use href="#i-terminal"/></svg>Or one line in PowerShell</h3>
-              <p>No admin rights needed.</p>
+              <p>Also no admin rights. Installs in your home folder.</p>
               <div class="cmd">
                 <pre><code>irm https://dbaney.com/<wbr>hildegard/install.ps1 | iex</code></pre>
                 <button class="copy" type="button" aria-label="Copy the PowerShell install line"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
               </div>
             </div>
           </div>
-          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>On Windows, Hildegard renders on NVIDIA graphics cards. AMD support is coming.</p>
+          <ul class="notes">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>The app isn’t signed yet in this pre-alpha, so Windows asks you to confirm. Choose <b>More info</b>, then <b>Run anyway</b>.</span></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg><span>On Windows, Hildegard renders on NVIDIA graphics cards. AMD support is coming.</span></li>
+          </ul>
         </div>
 
-        <div class="panel" role="tabpanel" id="panel-mac" aria-labelledby="tab-mac" data-panel="mac" hidden>
+        <div class="panel" role="tabpanel" id="panel-mac" aria-labelledby="tab-mac" hidden>
           <div class="ways">
             <div class="way way--app">
               <h3 class="way__title"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>The desktop app</h3>
@@ -228,10 +234,13 @@
               </div>
             </div>
           </div>
-          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-choir"/></svg>On a Mac, takes <a href="#devices">render on another computer’s GPU</a>: the models don’t render well on Apple’s GPU yet.</p>
+          <ul class="notes">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-choir"/></svg><span>On a Mac, takes <a href="#devices">render on another computer’s GPU</a> with NVIDIA or AMD graphics. The models don’t render well on Apple’s GPU yet.</span></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>The app isn’t signed yet in this pre-alpha, so macOS asks you to confirm. Open <b>System Settings</b>, then <b>Privacy &amp; Security</b>, and choose <b>Open Anyway</b>.</span></li>
+          </ul>
         </div>
 
-        <div class="panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" data-panel="linux" hidden>
+        <div class="panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" hidden>
           <div class="ways">
             <div class="way way--app">
               <h3 class="way__title"><svg class="ic" aria-hidden="true"><use href="#i-desktop"/></svg>The desktop app</h3>
@@ -250,10 +259,12 @@
               </div>
             </div>
           </div>
-          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-models"/></svg>NVIDIA and AMD cards both work on Linux. On Omarchy? <a href="#install" data-go-os="omarchy">There’s a bar widget</a>.</p>
+          <ul class="notes">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-models"/></svg><span>NVIDIA and AMD cards both work on Linux. On Omarchy? <a href="#install" data-go-os="omarchy">There’s a bar widget</a>.</span></li>
+          </ul>
         </div>
 
-        <div class="panel" role="tabpanel" id="panel-omarchy" aria-labelledby="tab-omarchy" data-panel="omarchy" hidden>
+        <div class="panel" role="tabpanel" id="panel-omarchy" aria-labelledby="tab-omarchy" hidden>
           <div class="ways">
             <div class="way way--app">
               <h3 class="way__title"><svg class="ic" aria-hidden="true"><use href="#i-choir"/></svg>The bar widget</h3>
@@ -272,7 +283,9 @@
               </div>
             </div>
           </div>
-          <p class="note"><svg class="ic" aria-hidden="true"><use href="#i-privacy"/></svg>The widget runs no root commands and changes none of your config. Built for Omarchy 4.</p>
+          <ul class="notes">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-privacy"/></svg><span>The widget runs no root commands and changes none of your config. Built for Omarchy 4.</span></li>
+          </ul>
         </div>
 
         <div class="then">
@@ -309,39 +322,38 @@
 
   <section id="needs" class="section" aria-labelledby="needs-title">
     <div class="wrap">
-      <header class="section__head">
-        <p class="overline">What you need</p>
+      <header class="head reveal">
+        <p class="folio"><span class="folio__n" aria-hidden="true">IV</span>What you need</p>
         <h2 id="needs-title" class="h1">A graphics card does the rendering</h2>
-        <p class="sub">The more memory it has, the better the model Hildegard can run. <code>hildegard setup</code> checks yours and picks the best one that fits.</p>
+        <p class="sub">The more memory it has, the better the model it can run. <code>hildegard setup</code> checks yours and picks the best one that fits. Every frame above came from a 12 GB laptop GPU.</p>
       </header>
-      <div class="gpus">
-        <article class="gpu gpu--top">
-          <p class="gpu__mem"><span class="num">24</span><span class="gpu__u">GB</span><span class="gpu__rest"> or more</span></p>
-          <h3 class="gpu__title">NVIDIA, or AMD on Linux</h3>
-          <p class="model"><span class="model__name">LTX-2.5 distilled</span></p>
-          <p>Video with sound, up to 1088p.</p>
-        </article>
-        <article class="gpu">
-          <p class="gpu__mem"><span class="num">12</span><span class="gpu__u">GB</span><span class="gpu__rest"> to 23 GB</span></p>
-          <h3 class="gpu__title">NVIDIA, or AMD on Linux</h3>
-          <p class="model"><span class="model__name">Wan 2.2 5B</span></p>
-          <p>Silent video at 720p. With 9 to 11 GB it still runs, just slower.</p>
-        </article>
-        <article class="gpu">
-          <p class="gpu__mem">Any Mac</p>
-          <h3 class="gpu__title">A Mac with Apple silicon</h3>
-          <p class="model"><span class="model__name">Your other computer’s GPU</span></p>
-          <p>The Studio runs on the Mac. Takes render on a paired computer with an NVIDIA or AMD GPU, since the models don’t render well on Apple’s GPU yet.</p>
-          <a class="more" href="#devices">Pair it with another computer<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
-        <article class="gpu gpu--other">
-          <p class="gpu__mem">Anything else</p>
-          <h3 class="gpu__title">A laptop, or no GPU</h3>
-          <p>Install it anyway, and let it render on another computer’s GPU.</p>
-          <a class="more" href="#devices">Render on another device<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
-      </div>
-      <dl class="specs">
+      <ul class="tiers reveal">
+        <li class="tier tier--top">
+          <p class="tier__mem"><span class="num">24</span><span class="tier__u">GB</span><span class="tier__rest">or more</span></p>
+          <p class="tier__gpu">NVIDIA, or AMD on Linux</p>
+          <p class="tier__model"><span class="model">LTX-2.5 distilled</span></p>
+          <p class="tier__what">Video with sound, up to 1088p.</p>
+        </li>
+        <li class="tier">
+          <p class="tier__mem"><span class="num">12</span><span class="tier__u">GB</span><span class="tier__rest">to 23 GB</span></p>
+          <p class="tier__gpu">NVIDIA, or AMD on Linux</p>
+          <p class="tier__model"><span class="model">Wan 2.2 5B</span></p>
+          <p class="tier__what">Silent video at 720p. With 9 to 11 GB it still runs, just slower.</p>
+        </li>
+        <li class="tier">
+          <p class="tier__mem tier__mem--word">A Mac</p>
+          <p class="tier__gpu">Apple silicon</p>
+          <p class="tier__model"><span class="model model--plain">Your other computer’s GPU</span></p>
+          <p class="tier__what">The Studio runs on the Mac. Takes render on a paired computer with an NVIDIA or AMD GPU, since the models don’t render well on Apple’s GPU yet. <a href="#devices">Pair it with another computer</a>.</p>
+        </li>
+        <li class="tier">
+          <p class="tier__mem tier__mem--word">Anything else</p>
+          <p class="tier__gpu">A laptop, or no GPU</p>
+          <p class="tier__model"><span class="model model--plain">Another computer’s GPU</span></p>
+          <p class="tier__what">Install it anyway, and let it <a href="#devices">render on another device</a>.</p>
+        </li>
+      </ul>
+      <dl class="specs reveal">
         <div><dt>Disk</dt><dd><span class="num">18</span>&nbsp;GB for Wan 2.2, <span class="num">37</span>&nbsp;GB for LTX-2.5, plus room for PyTorch.</dd></div>
         <div><dt>Rights</dt><dd>No admin rights or sudo. It all stays in your home folder.</dd></div>
         <div><dt>Network</dt><dd>Only to download. After that, every shot renders offline.</dd></div>
@@ -349,54 +361,34 @@
     </div>
   </section>
 
-  <section id="huggingface" class="section section--alt" aria-labelledby="hf-title">
-    <div class="wrap split">
-      <header class="section__head">
-        <p class="overline">Hugging Face</p>
-        <h2 id="hf-title" class="h1">Link Hugging Face, safely</h2>
-        <p class="sub">Wan 2.2 downloads without an account. LTX asks you to accept its license on Hugging Face first, so Hildegard needs your account to fetch it.</p>
-        <div class="cmd">
-          <pre><code>hildegard hf login</code></pre>
-          <button class="copy" type="button" aria-label="Copy hildegard hf login"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-        </div>
-        <p class="small">It signs you in with Hugging Face, or asks for a <a href="https://huggingface.co/settings/tokens/new?tokenType=read">read token</a> at a prompt that doesn’t show what you type. In the Studio, Settings › Hugging Face does the same.</p>
-      </header>
-      <ul class="checks">
-        <li><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg><div><b>Kept in your keychain.</b> macOS Keychain, Windows Credential Manager, or the Secret Service on Linux. Without one, a file only you can read.</div></li>
-        <li><svg class="ic" aria-hidden="true"><use href="#i-terminal"/></svg><div><b>Never on a command line.</b> Never written to <code>~/.cache/huggingface</code> or shown in your shell history.</div></li>
-        <li><svg class="ic" aria-hidden="true"><use href="#i-agent"/></svg><div><b>Never shown to AI apps.</b> If an agent asks you to paste your token into a chat, don’t.</div></li>
-      </ul>
-    </div>
-  </section>
-
-  <section id="devices" class="section" aria-labelledby="devices-title">
+  <section id="devices" class="section section--sapphire" aria-labelledby="devices-title">
     <div class="wrap split split--media">
-      <div>
-        <header class="section__head">
-          <p class="overline">The Choir</p>
+      <div class="reveal">
+        <header class="head head--tight">
+          <p class="folio"><span class="folio__n" aria-hidden="true">V</span>The Choir</p>
           <h2 id="devices-title" class="h1">Render on another device</h2>
           <p class="sub">A Mac or laptop without a big GPU can render on one of your other computers. Put both on your <a href="https://tailscale.com">Tailscale</a> network and install Hildegard on both.</p>
         </header>
-        <ol class="steps">
+        <ol class="rows">
           <li>
-            <h3 class="step__title">On the computer with the GPU</h3>
+            <p class="rows__k">On the computer with the GPU</p>
             <div class="cmd"><pre><code>hildegard choir invite</code></pre><button class="copy" type="button" aria-label="Copy hildegard choir invite"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-            <p>Prints a one-line join code. Treat it like a password.</p>
+            <p class="rows__v">Prints a one-line join code. Treat it like a password.</p>
           </li>
           <li>
-            <h3 class="step__title">On the other computer</h3>
+            <p class="rows__k">On the other computer</p>
             <div class="cmd"><pre><code>hildegard choir join</code></pre><button class="copy" type="button" aria-label="Copy hildegard choir join"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-            <p>Paste the code when it asks. It won’t show on screen.</p>
+            <p class="rows__v">Paste the code when it asks. It won’t show on screen.</p>
           </li>
           <li>
-            <h3 class="step__title">See it work</h3>
+            <p class="rows__k">See it work</p>
             <div class="cmd"><pre><code>hildegard choir list</code></pre><button class="copy" type="button" aria-label="Copy hildegard choir list"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-            <p>Shots now render there, and the Studio says so. Models installed there count here, so nothing downloads twice.</p>
+            <p class="rows__v">Shots now render there, and the Studio says so. Models installed there count here, so nothing downloads twice.</p>
           </li>
         </ol>
-        <p class="small"><code>hildegard choir use local</code> renders here again. In the Studio, Settings › Devices does all of this with buttons.</p>
+        <p class="small"><code>hildegard choir use local</code> renders here again. In the Studio, Settings, then Devices, does all of this with buttons.</p>
       </div>
-      <figure class="choir" aria-label="Diagram: a laptop and a phone send their shots to parish1, the desktop with the GPU, over Tailscale.">
+      <figure class="choir reveal" aria-label="Diagram: a laptop and a phone send their shots to the desktop with the GPU, over Tailscale.">
         <svg viewBox="-34 40 468 300" aria-hidden="true" focusable="false">
           <circle class="choir__ring" cx="200" cy="190" r="150"/>
           <circle class="choir__ring choir__ring--in" cx="200" cy="190" r="92"/>
@@ -407,225 +399,228 @@
             <circle cx="200" cy="190" r="46"/>
             <use href="#i-desktop" x="181" y="171" width="38" height="38"/>
           </g>
-          <text class="choir__label" x="200" y="262" text-anchor="middle">parish1</text>
-          <text class="choir__meta" x="200" y="282" text-anchor="middle">RTX 4080 <tspan class="choir__live">Rendering</tspan></text>
+          <text class="choir__label" x="200" y="262" text-anchor="middle">Your desktop</text>
+          <text class="choir__meta" x="200" y="282" text-anchor="middle">The GPU <tspan class="choir__live">Rendering</tspan></text>
           <g class="choir__node">
             <circle cx="50" cy="190" r="32"/>
             <use href="#i-laptop" x="35" y="175" width="30" height="30"/>
           </g>
-          <text class="choir__label choir__label--sm" x="50" y="246" text-anchor="middle">MacBook Air</text>
+          <text class="choir__label choir__label--sm" x="50" y="246" text-anchor="middle">Your Mac</text>
           <g class="choir__node">
             <circle cx="350" cy="190" r="32"/>
             <use href="#i-phone" x="335" y="175" width="30" height="30"/>
           </g>
           <text class="choir__label choir__label--sm" x="350" y="246" text-anchor="middle">Your phone</text>
         </svg>
-        <figcaption>Your laptop and phone send shots to the GPU, over Tailscale.</figcaption>
+        <figcaption>Your Mac and phone send shots to the GPU, over Tailscale.</figcaption>
       </figure>
     </div>
   </section>
 
-  <section id="host" class="section section--alt" aria-labelledby="host-title">
-    <div class="wrap">
-      <header class="section__head">
-        <p class="overline">Host mode</p>
-        <h2 id="host-title" class="h1">Host your own at a link</h2>
-        <p class="sub">Your studio at an HTTPS link, for your phone, your laptop and the people you invite. Everyone signs in. It uses <a href="https://tailscale.com">Tailscale</a>, so install it and sign in first.</p>
-      </header>
-      <ol class="cards3">
-        <li class="card">
-          <span class="card__n num" aria-hidden="true">1</span>
-          <div class="cmd"><pre><code>hildegard host owner</code></pre><button class="copy" type="button" aria-label="Copy hildegard host owner"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-          <p>Choose your name and a passphrase for signing in from other devices.</p>
-        </li>
-        <li class="card">
-          <span class="card__n num" aria-hidden="true">2</span>
-          <div class="cmd"><pre><code>hildegard host</code></pre><button class="copy" type="button" aria-label="Copy hildegard host"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-          <p>Prints your link, like <span class="mono nowrap-soft">https://my-pc.tail1234.ts.net</span>. Open it anywhere on your tailnet.</p>
-        </li>
-        <li class="card">
-          <span class="card__n num" aria-hidden="true">3</span>
-          <div class="cmd"><pre><code>hildegard host invite</code></pre><button class="copy" type="button" aria-label="Copy hildegard host invite"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
-          <p>A one-time link for someone else to join as a director.</p>
-        </li>
-      </ol>
-      <div class="roles">
-        <div class="role"><h3 class="role__name">Directors</h3><p>Make films of their own, which only they and owners see.</p></div>
-        <div class="role"><h3 class="role__name">Owners</h3><p>Can do everything: models, devices, people and settings.</p></div>
-        <div class="role role--note"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg><p>The link stays inside your tailnet. <code>hildegard host --funnel</code> puts it on the public internet, so use a long passphrase. <code>hildegard host off</code> turns it off.</p></div>
-      </div>
-    </div>
-  </section>
-
   <section id="agents" class="section" aria-labelledby="agents-title">
-    <div class="wrap split">
-      <div>
-        <header class="section__head">
-          <p class="overline">Agents</p>
-          <h2 id="agents-title" class="h1">Set it up with an agent</h2>
-          <p class="sub">Claude Code, Codex, Cursor and other AI apps can install Hildegard for you. Paste this into one.</p>
-        </header>
-        <div class="prompt">
-          <p class="prompt__text" id="agent-prompt">Install Hildegard on this computer for me. Follow https://github.com/baney75/hildegard/blob/main/INSTALL-FOR-AGENTS.md step by step. Ask me before you accept any model license, and never ask me for a token or passphrase.</p>
-          <button class="btn btn--primary copy copy--prompt" type="button" data-copy-target="agent-prompt" aria-label="Copy prompt for your agent"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy prompt</span></button>
+    <div class="wrap">
+      <header class="head reveal">
+        <p class="folio"><span class="folio__n" aria-hidden="true">VI</span>Agents</p>
+        <h2 id="agents-title" class="h1">Let your AI apps help</h2>
+        <p class="sub">An agent can install Hildegard for you. Once it’s running, any AI app you link can direct shots on your GPU.</p>
+      </header>
+      <div class="split split--even">
+        <div class="reveal">
+          <h3 class="h3">Set it up with an agent</h3>
+          <p class="small small--tight">Claude Code, Codex, Cursor and other AI apps can do it. Paste this into one.</p>
+          <div class="prompt">
+            <p class="prompt__text" id="agent-prompt">Install Hildegard on this computer for me. Follow https://github.com/baney75/hildegard/blob/main/INSTALL-FOR-AGENTS.md step by step. Ask me before you accept any model license, and never ask me for a token or passphrase.</p>
+            <button class="btn btn--primary copy copy--prompt" type="button" data-copy-target="agent-prompt" aria-label="Copy prompt for your agent"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy prompt</span></button>
+          </div>
+          <p class="small">It shows you each model’s license word for word and asks first. For hosting and devices too, point it at <a href="https://github.com/baney75/hildegard/blob/main/docs/agents.md">the full guide for agents</a>.</p>
         </div>
-        <p class="small">It shows you each model’s license word for word and asks first. For hosting and devices too, point it at <a href="https://github.com/baney75/hildegard/blob/main/docs/agents.md">the full guide for agents</a>.</p>
-      </div>
-      <div>
-        <h3 class="h3">Then direct shots from your AI apps</h3>
-        <p class="small">Hildegard is an MCP server. Link an app, and it can direct shots on your GPU.</p>
-        <div class="cmd cmd--block">
-          <pre><code>hildegard connect --all     <span class="c c--side"># every app on this computer</span>
+        <div class="reveal">
+          <h3 class="h3">Then direct shots from them</h3>
+          <p class="small small--tight">Hildegard is an MCP server. Link an app, and it can direct shots on your GPU.</p>
+          <div class="cmd cmd--block">
+            <pre><code>hildegard connect --all     <span class="c c--side"># every app on this computer</span>
 hildegard connect cursor    <span class="c c--side"># or just one</span>
 hildegard connect --print   <span class="c c--side"># the config, for any other app</span></code></pre>
-          <button class="copy" type="button" data-copy="hildegard connect --all" aria-label="Copy hildegard connect --all"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+            <button class="copy" type="button" data-copy="hildegard connect --all" aria-label="Copy hildegard connect --all"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+          </div>
+          <p class="small">Works with Claude Code, Claude Desktop, Codex, Cursor, OpenCode, VS Code, Windsurf and LM Studio. Each app’s config is backed up before Hildegard adds itself.</p>
+          <ul class="tools" aria-label="Tools your AI apps get">
+            <li>direct_shot</li><li>shot_status</li><li>get_shot</li><li>cancel_take</li><li>make_sequence</li><li>export_film</li><li>list_presets</li><li>install_model</li><li>hildegard_status</li>
+          </ul>
         </div>
-        <p class="small">Works with Claude Code, Claude Desktop, Codex, Cursor, OpenCode, VS Code, Windsurf and LM Studio. Each app’s config is backed up before Hildegard adds itself.</p>
-        <ul class="tools" aria-label="Tools your AI apps get">
-          <li>direct_shot</li><li>shot_status</li><li>get_shot</li><li>cancel_take</li><li>make_sequence</li><li>export_film</li><li>list_presets</li><li>install_model</li><li>hildegard_status</li>
-        </ul>
       </div>
     </div>
   </section>
 
-  <section id="verify" class="section section--alt" aria-labelledby="verify-title">
-    <div class="wrap split">
-      <header class="section__head">
-        <p class="overline">Checksums</p>
-        <h2 id="verify-title" class="h1">Check what you download</h2>
-        <p class="sub">The installer checks every file it fetches against a SHA-256 written into it, and refuses any that don’t match. To check the installer itself first, fetch it with the release’s <span class="mono">SHA256SUMS</span>.</p>
-        <p class="small">Once it’s running, <code>hildegard doctor</code> checks every part and prints the command that fixes each problem.</p>
-      </header>
-      <div>
-        <div class="tabs tabs--sm" role="tablist" aria-label="Commands for" data-os-tabs>
-          <button class="tab" type="button" role="tab" id="vtab-windows" aria-controls="vpanel-windows" data-os="windows" aria-selected="true">Windows</button>
-          <button class="tab" type="button" role="tab" id="vtab-mac" aria-controls="vpanel-mac" data-os="mac" aria-selected="false" tabindex="-1">macOS</button>
-          <button class="tab" type="button" role="tab" id="vtab-linux" aria-controls="vpanel-linux" data-os="linux omarchy" aria-selected="false" tabindex="-1">Linux</button>
+  <section id="more" class="section section--panel" aria-label="Hosting and Hugging Face">
+    <div class="wrap duo">
+      <article id="host" class="leaf reveal" aria-labelledby="host-title">
+        <p class="folio"><span class="folio__n" aria-hidden="true">VII</span>Host mode</p>
+        <h2 id="host-title" class="h2">Host your own at a link</h2>
+        <p class="sub">Your studio at an HTTPS link, for your phone, your laptop and the people you invite. Everyone signs in. It uses <a href="https://tailscale.com">Tailscale</a>, so install it and sign in first.</p>
+        <ol class="rows rows--n">
+          <li>
+            <div class="cmd"><pre><code>hildegard host owner</code></pre><button class="copy" type="button" aria-label="Copy hildegard host owner"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
+            <p class="rows__v">Choose your name and a passphrase for signing in from other devices.</p>
+          </li>
+          <li>
+            <div class="cmd"><pre><code>hildegard host</code></pre><button class="copy" type="button" aria-label="Copy hildegard host"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
+            <p class="rows__v">Prints your link, like <span class="mono url">https://my-pc.tail1234.ts.net</span>. Open it anywhere on your tailnet.</p>
+          </li>
+          <li>
+            <div class="cmd"><pre><code>hildegard host invite</code></pre><button class="copy" type="button" aria-label="Copy hildegard host invite"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button></div>
+            <p class="rows__v">A one-time link for someone else to join as a director.</p>
+          </li>
+        </ol>
+        <dl class="roles">
+          <div><dt>Directors</dt><dd>Make films of their own, which only they and owners see.</dd></div>
+          <div><dt>Owners</dt><dd>Can do everything: models, devices, people and settings.</dd></div>
+        </dl>
+        <p class="small"><svg class="ic ic--inline" aria-hidden="true"><use href="#i-link"/></svg>The link stays inside your tailnet. <code>hildegard host --funnel</code> puts it on the public internet, so use a long passphrase. <code>hildegard host off</code> turns it off.</p>
+      </article>
+
+      <article id="huggingface" class="leaf reveal" aria-labelledby="hf-title">
+        <p class="folio"><span class="folio__n" aria-hidden="true">VIII</span>Hugging Face</p>
+        <h2 id="hf-title" class="h2">Link Hugging Face, safely</h2>
+        <p class="sub">Wan 2.2 downloads without an account. LTX asks you to accept its license on Hugging Face first, so Hildegard needs your account to fetch it.</p>
+        <div class="cmd cmd--gap">
+          <pre><code>hildegard hf login</code></pre>
+          <button class="copy" type="button" aria-label="Copy hildegard hf login"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
         </div>
-        <div class="panel panel--flat" role="tabpanel" id="vpanel-windows" aria-labelledby="vtab-windows" data-panel="windows">
-          <div class="cmd cmd--block">
-            <pre><code>$u = '<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>'
+        <p class="small">It signs you in with Hugging Face, or asks for a <a href="https://huggingface.co/settings/tokens/new?tokenType=read">read token</a> at a prompt that doesn’t show what you type. In the Studio, Settings, then Hugging Face, does the same.</p>
+        <ul class="checks">
+          <li><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg><div><b>Kept in your keychain.</b> macOS Keychain, Windows Credential Manager, or the Secret Service on Linux. Without one, a file only you can read.</div></li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-terminal"/></svg><div><b>Never on a command line.</b> Never written to <code>~/.cache/huggingface</code> or shown in your shell history.</div></li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-agent"/></svg><div><b>Never shown to AI apps.</b> If an agent asks you to paste your token into a chat, don’t.</div></li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section id="reference" class="section" aria-labelledby="reference-title">
+    <div class="wrap">
+      <header class="head reveal">
+        <p class="folio"><span class="folio__n" aria-hidden="true">IX</span>Reference</p>
+        <h2 id="reference-title" class="h1">The fine print</h2>
+      </header>
+      <div class="ref">
+        <details id="verify" class="fold">
+          <summary><span class="fold__t">Check what you download</span><span class="fold__s">Checksums for the installer</span><svg class="ic fold__ic" aria-hidden="true"><use href="#i-down"/></svg></summary>
+          <div class="fold__body">
+            <p class="sub">The installer checks every file it fetches against a SHA-256 written into it, and refuses any that don’t match. To check the installer itself first, fetch it with the release’s <span class="mono">SHA256SUMS</span>. Once it’s running, <code>hildegard doctor</code> checks every part and prints the command that fixes each problem.</p>
+            <div class="tabs tabs--sm" role="tablist" aria-label="Checks for" data-os-tabs>
+              <button class="tab" type="button" role="tab" id="vtab-windows" aria-controls="vpanel-windows" data-os="windows" aria-selected="true">Windows</button>
+              <button class="tab" type="button" role="tab" id="vtab-mac" aria-controls="vpanel-mac" data-os="mac" aria-selected="false" tabindex="-1">macOS</button>
+              <button class="tab" type="button" role="tab" id="vtab-linux" aria-controls="vpanel-linux" data-os="linux omarchy" aria-selected="false" tabindex="-1">Linux</button>
+            </div>
+            <div class="panel" role="tabpanel" id="vpanel-windows" aria-labelledby="vtab-windows">
+              <div class="cmd cmd--block">
+                <pre><code>$u = '<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>'
 iwr "$u/install.ps1" -OutFile install.ps1
 iwr "$u/SHA256SUMS" -OutFile SHA256SUMS
 (Get-FileHash install.ps1).Hash.ToLower()
 Select-String ' install.ps1$' SHA256SUMS
 <span class="c"># the two hashes match? then run it</span>
 Get-Content install.ps1 -Raw | iex</code></pre>
-            <button class="copy" type="button" aria-label="Copy the Windows check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-          </div>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="vpanel-mac" aria-labelledby="vtab-mac" data-panel="mac" hidden>
-          <div class="cmd cmd--block">
-            <pre><code>u=<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>
+                <button class="copy" type="button" aria-label="Copy the Windows check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
+            <div class="panel" role="tabpanel" id="vpanel-mac" aria-labelledby="vtab-mac" hidden>
+              <div class="cmd cmd--block">
+                <pre><code>u=<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>
 curl -fsSLO "$u/install.sh"
 curl -fsSLO "$u/SHA256SUMS"
 grep ' install.sh$' SHA256SUMS | shasum -a 256 -c
 <span class="c"># says OK? then run it</span>
 sh install.sh</code></pre>
-            <button class="copy" type="button" aria-label="Copy the macOS check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-          </div>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="vpanel-linux" aria-labelledby="vtab-linux" data-panel="linux omarchy" hidden>
-          <div class="cmd cmd--block">
-            <pre><code>u=<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>
+                <button class="copy" type="button" aria-label="Copy the macOS check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
+            <div class="panel" role="tabpanel" id="vpanel-linux" aria-labelledby="vtab-linux" hidden>
+              <div class="cmd cmd--block">
+                <pre><code>u=<span data-release-base>https://github.com/baney75/hildegard/releases/latest/download</span>
 curl -fsSLO "$u/install.sh"
 curl -fsSLO "$u/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
 <span class="c"># says OK? then run it</span>
 sh install.sh</code></pre>
-            <button class="copy" type="button" aria-label="Copy the Linux check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+                <button class="copy" type="button" aria-label="Copy the Linux check"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
+        </details>
 
-  <section id="remove" class="section" aria-labelledby="remove-title">
-    <div class="wrap split">
-      <header class="section__head">
-        <p class="overline">Uninstall</p>
-        <h2 id="remove-title" class="h1">Remove Hildegard</h2>
-        <p class="sub">Everything lives in one folder in your home, so removing it is quick. Your models and films are in that folder too: export any film you want to keep first.</p>
-        <p class="small">Remove the desktop app like any other app. <code>hildegard disconnect &lt;app&gt;</code> unlinks an AI app.</p>
-      </header>
-      <div>
-        <div class="tabs tabs--sm" role="tablist" aria-label="Commands for" data-os-tabs>
-          <button class="tab" type="button" role="tab" id="rtab-windows" aria-controls="rpanel-windows" data-os="windows" aria-selected="true">Windows</button>
-          <button class="tab" type="button" role="tab" id="rtab-mac" aria-controls="rpanel-mac" data-os="mac" aria-selected="false" tabindex="-1">macOS</button>
-          <button class="tab" type="button" role="tab" id="rtab-linux" aria-controls="rpanel-linux" data-os="linux" aria-selected="false" tabindex="-1">Linux</button>
-          <button class="tab" type="button" role="tab" id="rtab-omarchy" aria-controls="rpanel-omarchy" data-os="omarchy" aria-selected="false" tabindex="-1">Omarchy</button>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="rpanel-windows" aria-labelledby="rtab-windows" data-panel="windows">
-          <div class="cmd cmd--block">
-            <pre><code>hildegard hf logout
+        <details id="remove" class="fold">
+          <summary><span class="fold__t">Remove Hildegard</span><span class="fold__s">One folder, so it’s quick</span><svg class="ic fold__ic" aria-hidden="true"><use href="#i-down"/></svg></summary>
+          <div class="fold__body">
+            <p class="sub">Everything lives in one folder in your home. Your models and films are in that folder too: export any film you want to keep first. Remove the desktop app like any other app. <code>hildegard disconnect &lt;app&gt;</code> unlinks an AI app.</p>
+            <div class="tabs tabs--sm" role="tablist" aria-label="Removal for" data-os-tabs>
+              <button class="tab" type="button" role="tab" id="rtab-windows" aria-controls="rpanel-windows" data-os="windows" aria-selected="true">Windows</button>
+              <button class="tab" type="button" role="tab" id="rtab-mac" aria-controls="rpanel-mac" data-os="mac" aria-selected="false" tabindex="-1">macOS</button>
+              <button class="tab" type="button" role="tab" id="rtab-linux" aria-controls="rpanel-linux" data-os="linux" aria-selected="false" tabindex="-1">Linux</button>
+              <button class="tab" type="button" role="tab" id="rtab-omarchy" aria-controls="rpanel-omarchy" data-os="omarchy" aria-selected="false" tabindex="-1">Omarchy</button>
+            </div>
+            <div class="panel" role="tabpanel" id="rpanel-windows" aria-labelledby="rtab-windows">
+              <div class="cmd cmd--block">
+                <pre><code>hildegard hf logout
 hildegard stop
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Hildegard"</code></pre>
-            <button class="copy" type="button" aria-label="Copy the Windows removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-          </div>
-          <p class="small">Then take <span class="mono">Hildegard\bin</span> out of your PATH: search Windows for “environment variables for your account”.</p>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="rpanel-mac" aria-labelledby="rtab-mac" data-panel="mac" hidden>
-          <div class="cmd cmd--block">
-            <pre><code>hildegard hf logout
+                <button class="copy" type="button" aria-label="Copy the Windows removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+              <p class="small">Then take <span class="mono">Hildegard\bin</span> out of your PATH: search Windows for “environment variables for your account”.</p>
+            </div>
+            <div class="panel" role="tabpanel" id="rpanel-mac" aria-labelledby="rtab-mac" hidden>
+              <div class="cmd cmd--block">
+                <pre><code>hildegard hf logout
 hildegard stop
 rm -rf ~/Library/Application\ Support/Hildegard ~/.local/bin/hildegard</code></pre>
-            <button class="copy" type="button" aria-label="Copy the macOS removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-          </div>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="rpanel-linux" aria-labelledby="rtab-linux" data-panel="linux" hidden>
-          <div class="cmd cmd--block">
-            <pre><code>hildegard hf logout
+                <button class="copy" type="button" aria-label="Copy the macOS removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
+            <div class="panel" role="tabpanel" id="rpanel-linux" aria-labelledby="rtab-linux" hidden>
+              <div class="cmd cmd--block">
+                <pre><code>hildegard hf logout
 hildegard stop
 rm -rf ~/.local/share/hildegard ~/.local/bin/hildegard</code></pre>
-            <button class="copy" type="button" aria-label="Copy the Linux removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
-          </div>
-        </div>
-        <div class="panel panel--flat" role="tabpanel" id="rpanel-omarchy" aria-labelledby="rtab-omarchy" data-panel="omarchy" hidden>
-          <div class="cmd cmd--block">
-            <pre><code>omarchy plugin remove io.github.baney75.hildegard
+                <button class="copy" type="button" aria-label="Copy the Linux removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
+            <div class="panel" role="tabpanel" id="rpanel-omarchy" aria-labelledby="rtab-omarchy" hidden>
+              <div class="cmd cmd--block">
+                <pre><code>omarchy plugin remove io.github.baney75.hildegard
 rm -rf ~/.local/state/hildegard-omarchy
 hildegard hf logout
 hildegard stop
 rm -rf ~/.local/share/hildegard ~/.local/bin/hildegard</code></pre>
-            <button class="copy" type="button" aria-label="Copy the Omarchy removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+                <button class="copy" type="button" aria-label="Copy the Omarchy removal"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg><span class="copy__label">Copy</span></button>
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
+      </div>
+
+      <div id="licenses" class="licenses reveal">
+        <p class="licenses__lead">Open, and yours to keep. Model weights are never bundled: Hildegard fetches each one from its publisher, shows you its license and asks before the first download.</p>
+        <dl class="lics">
+          <div><dt><a href="https://github.com/baney75/hildegard/blob/main/LICENSE">The app</a></dt><dd class="mono">AGPL-3.0</dd><dd>Free to use, change and share. If you run a changed Hildegard for other people, offer them its source.</dd></div>
+          <div><dt><a href="https://github.com/baney75/hildegard/blob/main/LICENSING.md">The presets</a></dt><dd class="mono">Apache-2.0</dd><dd>Every camera, lens, move and look, plus the film-look node. Reuse them in your own tools.</dd></div>
+          <div><dt><a href="https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt">Wan 2.2</a></dt><dd class="mono">Apache-2.0</dd><dd>Free for anyone, for any use.</dd></div>
+          <div><dt><a href="https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x">LTX-2 and LTX-2.5</a></dt><dd class="mono">LTX Community</dd><dd>Their own license: free for people and companies under $10M in yearly revenue.</dd></div>
+        </dl>
       </div>
     </div>
   </section>
 
-  <section id="licenses" class="section section--alt" aria-labelledby="licenses-title">
-    <div class="wrap">
-      <header class="section__head">
-        <p class="overline">Licenses</p>
-        <h2 id="licenses-title" class="h1">Open, and yours to keep</h2>
-        <p class="sub">Model weights are never bundled. Hildegard fetches each one from its publisher, and shows you its license and asks before the first download.</p>
-      </header>
-      <div class="licenses">
-        <article class="lic">
-          <p class="lic__tag mono">AGPL-3.0</p>
-          <h3 class="lic__name">The app</h3>
-          <p>Free to use, change and share. If you run a changed Hildegard for other people, offer them its source.</p>
-          <a class="more" href="https://github.com/baney75/hildegard/blob/main/LICENSE">Read the license<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
-        <article class="lic">
-          <p class="lic__tag mono">Apache-2.0</p>
-          <h3 class="lic__name">The presets</h3>
-          <p>Every camera, lens, move and look, plus the film-look node. Reuse them in your own tools.</p>
-          <a class="more" href="https://github.com/baney75/hildegard/blob/main/LICENSING.md">What it covers<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
-        <article class="lic">
-          <p class="lic__tag mono">Apache-2.0</p>
-          <h3 class="lic__name">Wan 2.2</h3>
-          <p>Free for anyone, for any use.</p>
-          <a class="more" href="https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt">Wan 2.2 license<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
-        <article class="lic">
-          <p class="lic__tag mono">LTX Community</p>
-          <h3 class="lic__name">LTX-2 and LTX-2.5</h3>
-          <p>Their own license: free for people and companies under $10M in yearly revenue.</p>
-          <a class="more" href="https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x">LTX-2.x license<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        </article>
+  <section class="coda" aria-labelledby="coda-title">
+    <div class="wrap coda__in reveal">
+      <picture class="coda__mark">
+        <source srcset="img/mark-green.svg" media="(prefers-color-scheme: light)">
+        <img src="img/mark-vellum.svg" alt="" width="48" height="60" loading="lazy">
+      </picture>
+      <h2 id="coda-title" class="display display--sm">Every work begins <em>as a vision.</em></h2>
+      <div class="hero__cta">
+        <a class="btn btn--primary btn--lg" href="#install"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg><span>Install Hildegard</span></a>
+        <a class="btn btn--lg btn--quiet" href="https://github.com/baney75/hildegard"><svg class="ic" aria-hidden="true"><use href="#i-code"/></svg><span>Read the source</span></a>
       </div>
     </div>
   </section>
@@ -638,7 +633,7 @@ rm -rf ~/.local/share/hildegard ~/.local/bin/hildegard</code></pre>
         <source srcset="img/mark-green.svg" media="(prefers-color-scheme: light)">
         <img src="img/mark-vellum.svg" alt="" width="32" height="40">
       </picture>
-      <p>Named for Hildegard of Bingen: abbess, composer, visionary. Every work begins as a vision.</p>
+      <p>Named for Hildegard of Bingen: abbess, composer, visionary.</p>
     </div>
     <nav class="foot__links" aria-label="Project">
       <a href="https://github.com/baney75/hildegard">Source on GitHub</a>
@@ -648,6 +643,18 @@ rm -rf ~/.local/share/hildegard ~/.local/bin/hildegard</code></pre>
     </nav>
   </div>
 </footer>
+
+<dialog class="lightbox" aria-labelledby="lb-title" data-lightbox>
+  <div class="lightbox__in">
+    <img alt="" data-lb-img>
+    <div class="lightbox__cap">
+      <p class="lightbox__slate" id="lb-title" data-lb-title></p>
+      <p class="lightbox__prompt" data-lb-prompt></p>
+      <p class="lightbox__meta" data-lb-meta></p>
+    </div>
+    <form method="dialog"><button class="btn btn--sm lightbox__x" type="submit" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button></form>
+  </div>
+</dialog>
 <div class="sr-only" aria-live="polite" data-live></div>
 </body>
 </html>
