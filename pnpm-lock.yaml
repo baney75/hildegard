@@ -57,6 +57,9 @@ importers:
       '@hildegard/comfy':
         specifier: workspace:*
         version: link:../../packages/comfy
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../../packages/craft
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../../packages/presets
@@ -112,6 +115,9 @@ importers:
 
   mcp:
     dependencies:
+      '@hildegard/craft':
+        specifier: workspace:*
+        version: link:../packages/craft
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../packages/presets
@@ -134,6 +140,8 @@ importers:
       '@hildegard/presets':
         specifier: workspace:*
         version: link:../presets
+
+  packages/craft: {}
 
   packages/presets:
     dependencies:

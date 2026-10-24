@@ -10,7 +10,7 @@ import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, portFile } from './config.ts';
-import { Exporter, makePoster } from './export.ts';
+import { Exporter, makePoster, reviewer } from './export.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
 import { ModelManager } from './models.ts';
@@ -250,6 +250,7 @@ export async function startServer(
     people,
     host,
     limits: opts.limits,
+    review: reviewer(config.dataDir),
     choir,
     modelStates,
     node,

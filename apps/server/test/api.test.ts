@@ -248,6 +248,37 @@ describe('shots and takes', () => {
   });
 });
 
+describe('take review', () => {
+  it('checks a finished take against its shot, keeps the result, and serves a contact sheet', async () => {
+    const { takes } = (await (await post('/api/shots', { request: request() })).json()) as { takes: Take[] };
+    const id = takes[0]!.id;
+    // Not finished yet: nothing to check.
+    const early = await api(`/api/takes/${id}/review`);
+    if (take(id).status !== 'done') expect(early.status).toBe(409);
+    await until(() => take(id).status === 'done');
+    const res = await api(`/api/takes/${id}/review`);
+    expect(res.status).toBe(200);
+    const r = (await res.json()) as {
+      kind: string;
+      passed: boolean;
+      checks: Array<{ id: string; status: string }>;
+      summary: string;
+      sheet: string;
+    };
+    expect(r.kind).toBe('video');
+    expect(r.checks.map((c) => c.id)).toEqual(expect.arrayContaining(['size', 'length', 'colour', 'flicker']));
+    expect(r.summary).toMatch(/^Technical checks/);
+    expect(r.sheet).toBe(`/api/takes/${id}/sheet`);
+    const sheet = await api(r.sheet);
+    expect(sheet.status).toBe(200);
+    expect(sheet.headers.get('content-type')).toBe('image/jpeg');
+    // The second ask is the kept answer.
+    const again = (await (await api(`/api/takes/${id}/review`)).json()) as { checks: unknown[] };
+    expect(again.checks).toEqual(r.checks);
+    expect((await api('/api/takes/nope/review')).status).toBe(404);
+  }, 60_000);
+});
+
 describe('shot lookup', () => {
   it('returns a shot with its takes, its film and, once done, where each video is on disk', async () => {
     const { shot, takes } = (await (await post('/api/shots', { request: request() })).json()) as {

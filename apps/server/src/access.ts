@@ -69,7 +69,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/auth\//,
     /^\/api\/shots\/[^/]+$/,
     /^\/api\/exports\/[^/]+$/,
-    /^\/api\/takes\/[^/]+\/preview$/,
+    /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,
     /^\/media\//,
   ],
   POST: [

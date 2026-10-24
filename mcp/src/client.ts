@@ -20,6 +20,16 @@ export class HildegardError extends Error {
   }
 }
 
+export interface TakeReview {
+  take: string;
+  kind: 'video' | 'image' | 'audio';
+  passed: boolean;
+  checks: Array<{ id: string; status: 'pass' | 'warn' | 'fail'; value: unknown; limit: unknown; detail: string }>;
+  info: Record<string, unknown>;
+  summary: string;
+  sheet: string | null;
+}
+
 export interface ShotDetail {
   shot: Shot;
   takes: Take[];
@@ -80,6 +90,9 @@ export class HildegardClient {
     this.call<ExportState>('POST', `/api/projects/${encodeURIComponent(id)}/export`);
   exportState = (id: string) =>
     this.call<ExportState & { file: string | null }>('GET', `/api/exports/${encodeURIComponent(id)}`);
+  /** Technical checks on a finished take, and where its contact sheet is. */
+  review = (takeId: string) =>
+    this.call<TakeReview>('GET', `/api/takes/${encodeURIComponent(takeId)}/review`);
   installModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/models/${encodeURIComponent(id)}/install`, { acceptLicense });
 
@@ -91,9 +104,13 @@ export class HildegardClient {
   }
 
   /** A finished take's poster, for clients that can show images. */
-  async poster(take: Take): Promise<{ data: string; mimeType: string } | null> {
-    if (!take.poster) return null;
-    const res = await this.fetchFn(`${this.url}${take.poster}`).catch(() => null);
+  poster(take: Take): Promise<{ data: string; mimeType: string } | null> {
+    return take.poster ? this.image(take.poster) : Promise.resolve(null);
+  }
+
+  /** A JPEG the server serves, such as a poster or a contact sheet, as base64. */
+  async image(path: string): Promise<{ data: string; mimeType: string } | null> {
+    const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);
     if (!res?.ok) return null;
     return { data: Buffer.from(await res.arrayBuffer()).toString('base64'), mimeType: 'image/jpeg' };
   }

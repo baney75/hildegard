@@ -24,6 +24,7 @@ import {
   type Take,
   takeSeeds,
 } from '@hildegard/presets';
+import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import {
   connectAgent,
   disconnectAgent,
@@ -113,6 +114,8 @@ export interface AppDeps {
   host: Host;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
+  /** Technical checks on a finished file (tools/review_media.py); absent where that can't run. */
+  review?: (spec: ReviewSpec) => Promise<Review>;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -573,6 +576,7 @@ export function createApp(deps: AppDeps) {
   const deleteTakeFiles = async (t: Take) => {
     await rm(join(mediaDir, `${t.id}.mp4`), { force: true });
     await rm(join(mediaDir, `${t.id}.jpg`), { force: true });
+    await rm(join(mediaDir, `${t.id}.sheet.jpg`), { force: true });
   };
 
   app.delete('/api/shots/:id', async (c) => {
@@ -666,6 +670,54 @@ export function createApp(deps: AppDeps) {
     }
     c.header('cache-control', 'no-store');
     return c.body(Buffer.from(p.bytes), 200, { 'content-type': p.type });
+  });
+
+  /**
+   * The technical half of the quality gate for a finished take: exposure, frozen and flickering frames, pushed colour,
+   * clipped or badly levelled sound, held to the bar for its quality and checked against the length and sound its shot
+   * asked for. Writes a contact sheet to look at (`/api/takes/:id/sheet`). Results are kept, since a take never changes.
+   */
+  const reviews = new Map<string, Promise<Review>>();
+  app.get('/api/takes/:id/review', async (c) => {
+    const t = store.takes.get(c.req.param('id'));
+    if (!t || !sees(c, t.projectId)) return c.json({ error: 'No such take' }, 404);
+    if (t.status !== 'done' || !t.video)
+      return c.json({ error: 'This take hasn’t finished, so there is nothing to check yet', code: 'unfinished' }, 409);
+    if (!deps.review)
+      return c.json({ error: 'Media checks can’t run on this computer: it has no Python with PyAV' }, 501);
+    const file = join(mediaDir, `${t.id}.mp4`);
+    if (!existsSync(file)) return c.json({ error: 'This take’s video is missing from this computer' }, 410);
+    const model = catalog.models.find((m) => m.id === t.model);
+    let pending = reviews.get(t.id);
+    if (!pending) {
+      pending = deps.review({
+        path: file,
+        sheet: join(mediaDir, `${t.id}.sheet.jpg`),
+        final: t.quality === 'final',
+        seconds: t.seconds,
+        audio: model?.audio ?? false,
+      });
+      reviews.set(t.id, pending);
+      pending.catch(() => reviews.delete(t.id));
+    }
+    try {
+      const r = await pending;
+      return c.json({
+        take: t.id,
+        ...r,
+        summary: describeReview(r),
+        sheet: r.info.sheet ? `/api/takes/${t.id}/sheet` : null,
+      });
+    } catch (e) {
+      return c.json({ error: e instanceof ReviewError ? e.message : 'The media check failed' }, 500);
+    }
+  });
+  app.get('/api/takes/:id/sheet', (c) => {
+    const t = store.takes.get(c.req.param('id'));
+    if (!t || !sees(c, t.projectId)) return c.body(null, 404);
+    const file = join(mediaDir, `${t.id}.sheet.jpg`);
+    if (!/^\w+$/.test(t.id) || !existsSync(file)) return c.body(null, 404);
+    return sendFile(c, file, 'image/jpeg', 'private, max-age=31536000, immutable');
   });
 
   // ── Engine ──────────────────────────────────────────────────────────────────────────────────────────────────
