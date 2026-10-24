@@ -253,7 +253,7 @@ describe('launch plans', () => {
     );
     expect(local.verdict.allowed).toBe(true);
     expect(local.env).toMatchObject({
-      PI_CODING_AGENT_DIR: '/tmp/hg/agents/omp-profile',
+      PI_CODING_AGENT_DIR: join('/tmp/hg/agents', 'omp-profile'),
       ANTHROPIC_OAUTH_TOKEN: null,
       XAI_OAUTH_TOKEN: null,
       CLAUDE_CODE_OAUTH_TOKEN: null,
@@ -394,10 +394,14 @@ describe('skills', () => {
   });
 
   it('puts skills where each agent reads them', () => {
-    expect(skillRoots('claude-code', undefined, {}, '/home/d')).toEqual(['/home/d/.claude/skills']);
-    expect(skillRoots('codex', undefined, {}, '/home/d')).toEqual(['/home/d/.agents/skills']);
-    expect(skillRoots('omp', undefined, { CLAUDE_CONFIG_DIR: '/cfg' }, '/home/d')).toEqual(['/cfg/skills']);
-    expect(skillRoots('codex', '/p')).toEqual(['/p/.agents/skills']);
+    expect(skillRoots('claude-code', undefined, {}, '/home/d')).toEqual([
+      join('/home/d', '.claude', 'skills'),
+    ]);
+    expect(skillRoots('codex', undefined, {}, '/home/d')).toEqual([join('/home/d', '.agents', 'skills')]);
+    expect(skillRoots('omp', undefined, { CLAUDE_CONFIG_DIR: '/cfg' }, '/home/d')).toEqual([
+      join('/cfg', 'skills'),
+    ]);
+    expect(skillRoots('codex', '/p')).toEqual([join('/p', '.agents', 'skills')]);
   });
 });
 
