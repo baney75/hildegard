@@ -279,6 +279,9 @@ describe('host and doctor', () => {
       expect(on.ok).toBe(true);
       expect(on.url).toBe('https://studio.tail1234.ts.net');
       expect(on.steps.at(-1)).toMatchObject({ id: 'host', status: 'done' });
+      // AI apps on the owner's devices reach the MCP there with a key; chatbots on the web need Funnel.
+      expect(on.mcpUrl).toBe('https://studio.tail1234.ts.net/mcp');
+      expect(on.mcp).toMatch(/--funnel/);
       expect(calls).toContainEqual(['serve', '--bg', '--https=443', srv.hostedUrl()]);
       // Again: nothing changes, nothing breaks.
       expect((await hildegard(home, 'host', ...at)).url).toBe('https://studio.tail1234.ts.net');
@@ -308,11 +311,115 @@ describe('host and doctor', () => {
 
       const funnel = await hildegard(home, 'host', '--funnel', ...at);
       expect(funnel.warning).toMatch(/public internet/);
+      expect(funnel.mcp).toMatch(/claude\.ai/);
       expect(calls).toContainEqual(['funnel', '--bg', '--https=443', srv.hostedUrl()]);
       const off = await hildegard(home, 'host', 'off', ...at);
       expect(off.host).toMatchObject({ on: false });
       expect(calls).toContainEqual(['funnel', '--https=443', 'off']);
       expect((await hildegard(home, 'host', 'revoke', 'Donovan', ...at)).ok).toBe(false);
+    } finally {
+      await srv.close();
+    }
+  }, 90_000);
+
+  it('makes a key on one device and links an app on another to that Hildegard, key kept out of its config', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-key-'));
+    const hostPort = 7800 + Math.floor(Math.random() * 400);
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 'secret.json')),
+        exec: async () => ({ ok: false, out: 'Tailscale is stopped.' }),
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const laptop = mkdtempSync(join(tmpdir(), 'hg-cli-laptop-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    const link = srv.hostedUrl()!;
+    try {
+      // A key acts as someone: with nobody here yet, the owner comes first.
+      const none = await hildegard(home, 'host', 'key', 'Laptop', ...at);
+      expect(none.needsOwner).toBe(true);
+      expect(none.steps[0]).toMatchObject({ id: 'key', command: 'hildegard host owner' });
+      await srv.people.setOwner('Donovan', 'a long and private passphrase');
+      const made = await hildegard(home, 'host', 'key', 'Claude Desktop on the laptop', ...at);
+      expect(made.ok).toBe(true);
+      const key = made.key as string;
+      expect(key).toMatch(/^hgk_/);
+      expect((await hildegard(home, 'host', 'keys', ...at)).grants).toMatchObject([
+        { name: 'Claude Desktop on the laptop', kind: 'key', person: { name: 'Donovan' } },
+      ]);
+
+      // On the laptop: no key yet is the owner's step; a wrong one is refused; the right one links the app.
+      const laptopAt = ['--data', join(laptop, 'data')];
+      const waiting = await hildegardWithStdin(
+        laptop,
+        '',
+        'connect',
+        'claude-desktop',
+        '--remote',
+        link,
+        ...laptopAt,
+      );
+      expect(waiting.needsOwner).toBe(true);
+      const wrong = await hildegardWithStdin(
+        laptop,
+        `hgk_${'x'.repeat(43)}`,
+        'connect',
+        'claude-desktop',
+        '--remote',
+        link,
+        '--key-stdin',
+        ...laptopAt,
+      );
+      expect(wrong.ok).toBe(false);
+      const linked = await hildegardWithStdin(
+        laptop,
+        `${key}\n`,
+        'connect',
+        'claude-desktop',
+        '--remote',
+        link,
+        '--key-stdin',
+        ...laptopAt,
+      );
+      expect(linked.ok, linked.message).toBe(true);
+      const config = readFileSync(join(laptop, '.config', 'Claude', 'claude_desktop_config.json'), 'utf8');
+      expect(config).toContain('--remote');
+      expect(config).not.toContain(key);
+
+      // The app runs `hildegard mcp --remote`, which carries its messages to the other device.
+      const client = new Client({ name: 'Claude Desktop', version: '1.0.0' });
+      await client.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: [main, 'mcp', '--remote', link, ...laptopAt],
+          env: cliEnv(laptop) as Record<string, string>,
+          stderr: 'ignore',
+        }),
+      );
+      const r = (await client.callTool({ name: 'hildegard_status', arguments: {} })) as CallToolResult;
+      expect(r.isError).toBeFalsy();
+      expect(JSON.stringify(r.content)).toContain('stand-in GPU');
+      await client.close();
+
+      // Revoked on the GPU device: the laptop's app is turned away with a reason, not a hang.
+      expect(
+        (await hildegard(home, 'host', 'keys', 'revoke', 'Claude Desktop on the laptop', ...at)).ok,
+      ).toBe(true);
+      const after = new Client({ name: 'Claude Desktop', version: '1.0.0' });
+      await expect(
+        after.connect(
+          new StdioClientTransport({
+            command: process.execPath,
+            args: [main, 'mcp', '--remote', link, ...laptopAt],
+            env: cliEnv(laptop) as Record<string, string>,
+            stderr: 'ignore',
+          }),
+        ),
+      ).rejects.toThrow(/refused/);
+      await after.close();
     } finally {
       await srv.close();
     }

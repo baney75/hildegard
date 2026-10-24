@@ -20,8 +20,11 @@ export interface McpCommand {
  * How an app starts Hildegard's MCP server: this Node and the `hildegard` entry script, by absolute path, so it works
  * from apps that don't see the shell's PATH (Claude Desktop on macOS, anything on Windows).
  */
-export function mcpCommand(opts: { entry?: string; url?: string } = {}): McpCommand {
+export function mcpCommand(opts: { entry?: string; url?: string; remote?: string } = {}): McpCommand {
   const entry = opts.entry ?? process.env.HILDEGARD_ENTRY ?? resource(join('apps', 'cli', 'src', 'main.ts'));
+  // A Hildegard on another device: `hildegard mcp --remote` carries the app's messages there, with the key kept in
+  // this computer's keychain, never in the app's config.
+  if (opts.remote) return { command: process.execPath, args: [entry, 'mcp', '--remote', opts.remote] };
   const url = opts.url?.replace(/\/$/, '');
   return {
     command: process.execPath,

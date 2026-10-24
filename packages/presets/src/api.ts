@@ -254,6 +254,36 @@ export interface HostState {
   owner: boolean;
 }
 
+/**
+ * Something that lets an AI app use this Hildegard's MCP from another device, as one person: a key made for an app on
+ * the owner's own devices, or a chatbot (claude.ai, ChatGPT) someone approved on Hildegard's sign-in page.
+ */
+export interface AgentGrant {
+  id: string;
+  /** What the person called it, or the chatbot's own name. */
+  name: string;
+  kind: 'key' | 'chatbot';
+  person: { id: string; name: string };
+  createdAt: string;
+  lastUsedAt: string | null;
+  /** When it stops working on its own; null for a key that lasts until it is revoked. */
+  expiresAt: string | null;
+}
+
+/** GET /api/auth/grants */
+export interface GrantsResponse {
+  grants: AgentGrant[];
+  /** Where AI apps on other devices reach this Hildegard's MCP, once it is at a link. */
+  mcpUrl: string | null;
+}
+
+/** POST /api/auth/keys: the key itself, shown this once. */
+export interface NewKey {
+  grant: AgentGrant;
+  key: string;
+  mcpUrl: string | null;
+}
+
 /** GET /api/people */
 export interface PeopleResponse {
   people: Person[];

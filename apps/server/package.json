@@ -18,9 +18,11 @@
   },
   "dependencies": {
     "@hildegard/comfy": "workspace:*",
+    "@hildegard/mcp": "workspace:*",
     "@hildegard/presets": "workspace:*",
     "@hildegard/runtime": "workspace:*",
     "@hono/node-server": "2.1.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@napi-rs/keyring": "2.1.2",
     "hono": "4.13.13",
     "zod": "4.6.7"

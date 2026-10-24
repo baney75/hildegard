@@ -34,6 +34,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              Without questions, for agents: the license only when the owner said yes
   hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, cursor,')}
                              ${dim('opencode, vscode, windsurf, lm-studio')}. --all links every app found
+  hildegard connect <app> --remote <link> --key-stdin
+                             Let an app here use the Hildegard on another device, with a key from it
   hildegard disconnect <app>
   hildegard hf login         Link your Hugging Face account (hf status, hf logout). The token goes to
                              your system keychain; pipe one in with --token-stdin
@@ -45,7 +47,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet)
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
-  hildegard mcp              The MCP server, on stdio (AI apps run this)
+  hildegard host key <name>  A key for an AI app on another device (host keys: keys and chatbots;
+                             host keys revoke <id|name>). Chatbots sign in at the link's /mcp themselves
+  hildegard mcp              The MCP server, on stdio (AI apps run this). It's also at /mcp, over HTTP
 
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
@@ -73,6 +77,9 @@ const valued = new Set([
   'address',
   'host-port',
   'accept-license',
+  'remote',
+  'person',
+  'days',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -132,10 +139,15 @@ async function main(): Promise<Result | null> {
     case 'choir':
       return choir(ctx, rest);
     case 'connect':
+      if (opts.has('remote')) return (await import('./remote.ts')).connectRemote(ctx, rest);
       return connect(ctx, rest);
     case 'disconnect':
       return connect(ctx, rest, true);
     case 'mcp': {
+      if (opts.has('remote')) {
+        await (await import('./remote.ts')).runRemoteStdio(ctx, opts.get('remote')!);
+        return null;
+      }
       const { runStdio } = await import('./mcp.ts');
       await runStdio(`http://127.0.0.1:${config.port}`);
       return null;

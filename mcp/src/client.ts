@@ -87,6 +87,11 @@ export class HildegardClient {
     const bytes = await readFile(path).catch(() => {
       throw new HildegardError(0, `Cannot read ${path}`);
     });
+    return this.uploadBytes(bytes);
+  }
+
+  /** A start frame's bytes; the server checks it is a PNG, JPEG or WebP. */
+  async uploadBytes(bytes: Uint8Array): Promise<string> {
     return (await this.call<{ name: string }>('POST', '/api/uploads', undefined, bytes)).name;
   }
 

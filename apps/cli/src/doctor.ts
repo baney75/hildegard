@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { HostState, Snapshot } from '@hildegard/presets';
+import type { GrantsResponse, HostState, Snapshot } from '@hildegard/presets';
 import { detectGpu, listAgents, readRuntime, type Step } from '@hildegard/runtime';
 import { COMFY_STARTING, tailnetSelf } from '@hildegard/server';
 import { api, baseUrl, type Ctx, running } from './commands.ts';
@@ -154,6 +154,21 @@ export async function doctor(ctx: Ctx): Promise<Result> {
   }
   const h = up ? await api<HostState>(c, '/api/host').catch(() => null) : null;
   if (h) steps.push(hostStep(h));
+  // MCP from other devices: only once there is a link to reach it at.
+  const g = h?.on ? await api<GrantsResponse>(c, '/api/auth/grants').catch(() => null) : null;
+  if (h?.on && g) {
+    const keys = g.grants.filter((x) => x.kind === 'key').length;
+    const bots = g.grants.length - keys;
+    steps.push({
+      id: 'mcp',
+      title: 'MCP for AI apps elsewhere',
+      status: g.mcpUrl ? 'done' : 'skipped',
+      detail: g.mcpUrl
+        ? `${g.mcpUrl} · ${keys === 1 ? '1 key' : `${keys} keys`}, ${bots === 1 ? '1 chatbot' : `${bots} chatbots`}${h.via === 'funnel' ? '' : '. Chatbots on the web need `hildegard host --funnel`'}.`
+        : 'Waiting on the link.',
+      ...(g.mcpUrl && !g.grants.length ? { command: 'hildegard host key "<app and device>"' } : {}),
+    });
+  }
 
   const agents = listAgents().filter((a) => a.connected);
   steps.push({
