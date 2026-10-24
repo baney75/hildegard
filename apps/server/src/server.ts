@@ -180,6 +180,7 @@ export async function startServer(
     gpu: localGpu,
     onChange: () => store.emit({ type: 'models', models: modelStates() }),
   });
+  void models.completeSafety();
   /** Rendering on a joined device, its models are the ones that count, so nothing asks to download them here. */
   const modelStates = (): ModelState[] => {
     const d = choir.active();

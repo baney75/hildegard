@@ -30,6 +30,8 @@ function setup(
     safety?: SafetyCheck;
     /** The hash Hugging Face publishes, when it isn't the file's. */
     etag?: string;
+    /** The classifier is its own file, as in the real catalog, rather than the model's. */
+    ownGuard?: boolean;
   } = {},
 ) {
   const base = real.models[0]!;
@@ -44,7 +46,12 @@ function setup(
     ...real,
     models: [{ ...base, id: 'tiny', gated: !!opts.gated, loras: {}, files: [tiny] }],
     // The classifier downloads with every model; here it is the model's own file, so each test fetches one file.
-    safety: { ...real.safety, classifier: tiny },
+    safety: {
+      ...real.safety,
+      classifier: opts.ownGuard
+        ? { ...tiny, path: 'safety/guard.safetensors', dir: 'safety' as const }
+        : tiny,
+    },
   };
   const body = opts.body ?? BYTES;
   const at = opts.renamed ? '/org/tiny-new/resolve/' : '/org/tiny/resolve/';
@@ -282,6 +289,23 @@ describe('ModelManager', () => {
     for (const m of real.models)
       expect(mm.filesOf(m).map((f) => f.repo)).toContain('Falconsai/nsfw_image_detection');
     expect(mm.pathOf(real.safety.classifier)).toMatch(/models[/\\]safety[/\\]model\.safetensors$/);
+  });
+
+  it('after an upgrade, fetches only the safety classifier for a model that was already installed', async () => {
+    const { mm, dest, root } = setup({ ownGuard: true });
+    mkdirSync(join(root, 'comfy', 'models', 'vae'), { recursive: true });
+    writeFileSync(dest, BYTES);
+    expect(mm.states()[0]).toMatchObject({ installed: false, missingBytes: BYTES.length });
+    await mm.completeSafety();
+    expect(readFileSync(join(root, 'comfy', 'models', 'safety', 'guard.safetensors'))).toEqual(BYTES);
+    expect(mm.states()[0]).toMatchObject({ installed: true, missingBytes: 0 });
+  });
+
+  it('fetches nothing for the safety check while no model is installed', async () => {
+    const { mm, fetch, root } = setup({ ownGuard: true });
+    await mm.completeSafety();
+    expect(existsSync(join(root, 'comfy', 'models', 'safety'))).toBe(false);
+    expect(fetch.calls).toHaveLength(0);
   });
 
   it('checks free space before downloading anything', async () => {
