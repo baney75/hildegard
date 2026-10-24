@@ -47,6 +47,8 @@ export class VoiceModels {
   private readonly gpu: Gpu | null;
   private readonly envReady: (env: VoiceEnv) => boolean;
   private readonly onChange: (s: VoiceModelState[]) => void;
+  /** The stand-in GPU: every model counts as installed, as video models do there, since nothing real runs. */
+  private readonly standIn: boolean;
   private lastEmit = 0;
 
   constructor(opts: {
@@ -60,6 +62,7 @@ export class VoiceModels {
     onChange: (s: VoiceModelState[]) => void;
     fetch?: typeof fetch;
     endpoint?: string;
+    standIn?: boolean;
   }) {
     const L = voiceLayout(opts.dataDir);
     this.dir = L.models;
@@ -67,6 +70,7 @@ export class VoiceModels {
     this.gpu = opts.gpu ?? null;
     this.envReady = opts.envReady;
     this.onChange = opts.onChange;
+    this.standIn = opts.standIn ?? false;
     this.acceptFile = join(L.root, 'licenses.json');
     try {
       this.accepted = JSON.parse(readFileSync(this.acceptFile, 'utf8')) as Record<string, Acceptance>;
@@ -141,6 +145,7 @@ export class VoiceModels {
 
   installed(id: string): boolean {
     const m = this.catalog.models.find((x) => x.id === id);
+    if (m && this.standIn) return true;
     return !!m && this.filesOf(m).every(({ file, path }) => this.fetcher.isInstalled(file, path));
   }
 
@@ -152,7 +157,9 @@ export class VoiceModels {
 
   states(): VoiceModelState[] {
     return this.catalog.models.map((m) => {
-      const missing = this.filesOf(m).filter(({ file, path }) => !this.fetcher.isInstalled(file, path));
+      const missing = this.standIn
+        ? []
+        : this.filesOf(m).filter(({ file, path }) => !this.fetcher.isInstalled(file, path));
       const job = this.jobs.get(m.id);
       return {
         id: m.id,
@@ -192,7 +199,7 @@ export class VoiceModels {
         `Accept the ${m.license} in Hildegard before ${m.name} downloads.`,
       );
     for (const dep of this.needs(m)) if (!this.installed(dep.id)) await this.install(dep.id);
-    if (this.jobs.has(id)) return;
+    if (this.jobs.has(id) || this.standIn) return;
     const todo = this.filesOf(m).filter(({ file, path }) => !this.fetcher.isInstalled(file, path));
     if (!todo.length) return;
     const job: FetchJob = {

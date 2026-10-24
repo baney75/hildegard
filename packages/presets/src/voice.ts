@@ -530,11 +530,33 @@ export interface ConsentSessionView {
   /** Where the speaker can record on their own phone, when this Hildegard has an https link. */
   link: string | null;
   recording: { url: string; seconds: number; via: 'here' | 'link' } | null;
-  samples: Array<{ name: string; url: string; seconds: number }>;
+  samples: Array<{ name: string; url: string; seconds: number; quality: SampleQuality }>;
   checking: boolean;
   check: ConsentCheck | null;
   /** The voice made from it, once made. */
   voice: string | null;
+}
+
+/** How clean a sample is, from its levels. A tip says what to change when something isn’t right. */
+export interface SampleQuality {
+  level: 'ok' | 'quiet' | 'clipped';
+  noise: 'ok' | 'noisy';
+  tip: string | null;
+}
+
+/** Quality from the engine's analysis of a recording. */
+export function sampleQuality(a: { peakDb?: number; snrDb?: number; clipping?: number }): SampleQuality {
+  const level = (a.clipping ?? 0) > 0.001 ? 'clipped' : (a.peakDb ?? 0) < -24 ? 'quiet' : ('ok' as const);
+  const noise = (a.snrDb ?? 99) < 20 ? 'noisy' : ('ok' as const);
+  const tip =
+    level === 'clipped'
+      ? 'It’s too loud in places. Move back from the mic a little.'
+      : level === 'quiet'
+        ? 'It’s very quiet. Move closer to the mic.'
+        : noise === 'noisy'
+          ? 'There’s background noise. A quieter room, or a closet full of clothes, helps.'
+          : null;
+  return { level, noise, tip };
 }
 
 /** What “Is this ours?” found in a recording. */

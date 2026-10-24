@@ -12,10 +12,13 @@ import { Cinema } from './pages/Cinema.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
+import { Voice } from './pages/Voice.tsx';
+import { ConsentPhone } from './pages/voice/ConsentPhone.tsx';
 import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
+  { to: '/voice', match: /^\/voice/, label: 'Voice', icon: 'voice' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
@@ -49,6 +52,10 @@ export function App() {
   }, [catalog]);
 
   useEffect(() => {
+    if (/^\/consent\//.test(route)) {
+      document.title = 'Your consent · Hildegard';
+      return;
+    }
     const page =
       auth && !auth.local && /^\/invite\//.test(route)
         ? 'Your invite'
@@ -58,6 +65,9 @@ export function App() {
     document.title = busy ? `(${busy}) ${page} · Hildegard` : `${page} · Hildegard`;
   }, [route, busy, auth]);
 
+  // A consent link, opened on the speaker's own phone: it needs no account and shows nothing else.
+  const consent = /^\/consent\/([A-Za-z0-9_-]{20,64})$/.exec(route)?.[1];
+  if (consent) return <ConsentPhone token={consent} />;
   // An invite link, opened on another device: it signs up whoever opens it, so it comes before anything else.
   const invite = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
   if (invite && auth && !auth.local) return <AcceptInvite token={invite} go={go} />;
@@ -79,14 +89,15 @@ export function App() {
     projects.size === 0 &&
     !models.some((m) => m.installed || m.downloading) &&
     !engine?.fake;
-  // Linked AI apps run on the computer Hildegard runs on: the owner's.
-  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents');
+  // Linked AI apps and voices run on the computer Hildegard runs on: the owner's.
+  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents' && n.to !== '/voice');
   if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
 
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
+  else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;
   else

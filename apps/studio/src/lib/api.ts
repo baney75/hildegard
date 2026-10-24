@@ -6,9 +6,12 @@ import type {
   Catalog,
   ChoirDevice,
   ChoirState,
+  ConsentSessionView,
+  DesignRequest,
   ExportState,
   HfState,
   HostState,
+  MarkCheck,
   ModelState,
   NewInvite,
   PeopleResponse,
@@ -17,8 +20,14 @@ import type {
   SetupStep,
   Shot,
   Snapshot,
+  SpeakRequestInput,
   Take,
   UpdateState,
+  Voice,
+  VoiceJob,
+  VoiceModelState,
+  VoiceState,
+  VoiceUse,
 } from '@hildegard/presets';
 
 export class ApiError extends Error {
@@ -74,6 +83,28 @@ export interface UploadResult {
   name: string;
   url: string;
 }
+export interface AudioUpload {
+  name: string;
+  url: string;
+  seconds: number;
+}
+/** A new consent session also carries the token the speaker's phone link uses. */
+export type NewConsent = ConsentSessionView & { token: string | null };
+/** What the speaker's phone sees: their name and the line, nothing else. */
+export interface ConsentLink {
+  speaker: string;
+  line: string;
+  expiresAt: string;
+  recorded: boolean;
+}
+/** A license to accept before a voice model downloads, and those of the models it brings. */
+export interface VoiceLicense {
+  license: string;
+  licenseUrl: string;
+  terms: string[];
+  also: Array<{ id: string; name: string; license: string; licenseUrl: string }>;
+}
+
 export interface DeviceStart {
   userCode: string;
   verificationUri: string;
@@ -144,5 +175,53 @@ export const api = {
     call<{ step: SetupStep; agents: AgentInfo[] }>(
       'POST',
       `/api/agents/${id}/${link ? 'connect' : 'disconnect'}`,
+    ),
+  voice: () => call<VoiceState>('GET', '/api/voice'),
+  speak: (body: SpeakRequestInput) => call<VoiceJob>('POST', '/api/voice/speak', body),
+  designVoice: (body: Partial<DesignRequest>) => call<VoiceJob>('POST', '/api/voice/design', body),
+  keepDesign: (job: string, candidate: number, name: string) =>
+    call<Voice>('POST', `/api/voice/design/${job}/keep`, { candidate, name }),
+  convertVoice: (source: string, voice: string) =>
+    call<VoiceJob>('POST', '/api/voice/convert', { source, voice }),
+  transcribe: (source: string, language?: string) =>
+    call<VoiceJob>('POST', '/api/voice/transcribe', { source, language }),
+  dub: (source: string, language: string, voice: string) =>
+    call<VoiceJob>('POST', '/api/voice/dub', { source, language, voice }),
+  voiceJob: (id: string) => call<VoiceJob>('GET', `/api/voice/jobs/${id}`),
+  cancelVoiceJob: (id: string) => call<VoiceJob>('POST', `/api/voice/jobs/${id}/cancel`),
+  keepVoiceJob: (id: string, kept: boolean) => call<VoiceJob>('POST', `/api/voice/jobs/${id}/keep`, { kept }),
+  deleteVoiceJob: (id: string) => call<void>('DELETE', `/api/voice/jobs/${id}`),
+  previewVoice: (id: string) => call<VoiceJob | { audio: string }>('POST', `/api/voice/voices/${id}/preview`),
+  renameVoice: (id: string, name: string) => call<Voice>('PATCH', `/api/voice/voices/${id}`, { name }),
+  deleteVoice: (id: string) => call<void>('DELETE', `/api/voice/voices/${id}`),
+  revokeVoice: (id: string) => call<Voice>('POST', `/api/voice/voices/${id}/revoke`),
+  voiceUses: (id: string) => call<VoiceUse[]>('GET', `/api/voice/voices/${id}/uses`),
+  uploadAudio: (file: Blob) => call<AudioUpload>('POST', '/api/voice/uploads', undefined, file),
+  isOurs: (source: string) => call<MarkCheck>('POST', '/api/voice/check', { source }),
+  installVoiceModel: (id: string, acceptLicense = false) =>
+    call<VoiceModelState[]>('POST', `/api/voice/models/${id}/install`, { acceptLicense }),
+  cancelVoiceModel: (id: string) => call<VoiceModelState[]>('POST', `/api/voice/models/${id}/cancel`),
+  startConsent: (body: {
+    speaker: string;
+    relation: 'self' | 'agreed' | 'licensed';
+    language?: string;
+    until?: string | null;
+  }) => call<NewConsent>('POST', '/api/voice/consent', body),
+  consent: (id: string) => call<ConsentSessionView>('GET', `/api/voice/consent/${id}`),
+  recordConsent: (id: string, audio: Blob) =>
+    call<ConsentSessionView>('POST', `/api/voice/consent/${id}/recording`, undefined, audio),
+  addSamples: (id: string, names: string[]) =>
+    call<ConsentSessionView>('POST', `/api/voice/consent/${id}/samples`, { names }),
+  removeSample: (id: string, name: string) =>
+    call<ConsentSessionView>('DELETE', `/api/voice/consent/${id}/samples/${encodeURIComponent(name)}`),
+  checkConsent: (id: string) => call<VoiceJob>('POST', `/api/voice/consent/${id}/check`),
+  finishClone: (id: string, name: string) => call<Voice>('POST', `/api/voice/consent/${id}/finish`, { name }),
+  consentLink: (token: string) => call<ConsentLink>('GET', `/api/consent/${encodeURIComponent(token)}`),
+  recordByLink: (token: string, audio: Blob) =>
+    call<{ recorded: boolean }>(
+      'POST',
+      `/api/consent/${encodeURIComponent(token)}/recording`,
+      undefined,
+      audio,
     ),
 };

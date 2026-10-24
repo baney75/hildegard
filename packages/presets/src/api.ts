@@ -382,7 +382,7 @@ export type ServerEvent =
   | { type: 'take'; take: Take }
   | { type: 'shot'; shot: Shot }
   | { type: 'project'; project: Project }
-  | { type: 'removed'; kind: 'take' | 'shot' | 'project'; id: string }
+  | { type: 'removed'; kind: 'take' | 'shot' | 'project' | 'voice-job'; id: string }
   | { type: 'engine'; engine: EngineState }
   | { type: 'models'; models: ModelState[] }
   | { type: 'hf'; hf: HfState }

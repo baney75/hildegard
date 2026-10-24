@@ -8,6 +8,7 @@ import {
   type ConsentSessionView,
   loadVoiceCatalog,
   type MarkCheck,
+  type ServerEvent,
   type Voice,
   type VoiceCatalog,
   type VoiceJob,
@@ -278,6 +279,20 @@ describe('speaking', () => {
     expect((await finished(a.id)).status).toBe('done');
     engine.delayMs = 0;
   });
+
+  it('deleting a job removes it and its clip, and tells the Studio it’s gone', async () => {
+    const seen: ServerEvent[] = [];
+    const off = srv.store.on((e) => seen.push(e));
+    const j = (await (
+      await post('/api/voice/speak', { paragraphs: [{ text: 'gone soon' }], voice: 'kokoro-heart' })
+    ).json()) as VoiceJob;
+    const done = await finished(j.id);
+    expect((await api(`/api/voice/jobs/${j.id}`, { method: 'DELETE', headers: H })).status).toBe(200);
+    off();
+    expect((await api(done.audio[0]!)).status).toBe(404);
+    expect((await api(`/api/voice/jobs/${j.id}`)).status).toBe(404);
+    expect(seen.at(-1)).toEqual({ type: 'removed', kind: 'voice-job', id: j.id });
+  });
 });
 
 describe('voice over MCP', () => {
@@ -380,6 +395,7 @@ describe('living consent', () => {
       await post(`/api/voice/consent/${s.id}/samples`, { names: [sample.name] })
     ).json()) as ConsentSessionView;
     expect(added.samples).toHaveLength(1);
+    expect(added.samples[0]!.quality).toEqual({ level: 'ok', noise: 'ok', tip: null });
     const v = await check(s.id);
     expect(v.check).toMatchObject({
       ok: true,
@@ -615,5 +631,43 @@ describe('design, speech to speech, transcripts and dubbing', () => {
   it('refuses a file that isn’t audio', async () => {
     const r = await raw('/api/voice/uploads', new TextEncoder().encode('<html>not audio</html>'));
     expect(r.status).toBe(415);
+  });
+});
+
+describe('the stand-in GPU', () => {
+  it('counts every voice model as installed and speaks without downloading anything', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-voice-standin-'));
+    const fetched: string[] = [];
+    const s = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0, hfClientId: null },
+      {
+        fakeTickMs: 25,
+        secrets: memoryStore(),
+        hubToken: join(dir, 'no-hf-token'),
+        modelFetch: (async (u: string | URL | Request) => {
+          fetched.push(String(u));
+          throw new Error('offline');
+        }) as typeof fetch,
+      },
+    );
+    try {
+      const st = (await (await fetch(`${s.url}/api/voice`)).json()) as VoiceState;
+      expect(st.models.every((m) => m.installed && m.missingBytes === 0)).toBe(true);
+      const r = await fetch(`${s.url}/api/voice/speak`, {
+        method: 'POST',
+        headers: H,
+        body: JSON.stringify({ paragraphs: [{ text: 'Hello there.' }], voice: st.voices[0]!.id }),
+      });
+      expect(r.status).toBe(202);
+      const id = ((await r.json()) as VoiceJob).id;
+      let j: VoiceJob | null = null;
+      await until(async () => {
+        j = (await (await fetch(`${s.url}/api/voice/jobs/${id}`)).json()) as VoiceJob;
+        return j.status === 'done';
+      });
+      expect(fetched).toEqual([]);
+    } finally {
+      await s.close();
+    }
   });
 });

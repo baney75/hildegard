@@ -13,6 +13,7 @@ import {
   parseScript,
   parseVoiceCatalog,
   SpeakRequest,
+  sampleQuality,
   spokenText,
   VoiceSettings,
   voiceHue,
@@ -136,5 +137,28 @@ describe('requests and controls', () => {
   it('gives each voice a stable hue', () => {
     expect(voiceHue('kokoro-heart')).toBe(voiceHue('kokoro-heart'));
     expect(voiceHue('a')).not.toBe(voiceHue('b'));
+  });
+});
+
+describe('sample quality', () => {
+  it('says what to change, one thing at a time', () => {
+    expect(sampleQuality({ peakDb: -3, snrDb: 40, clipping: 0 })).toEqual({
+      level: 'ok',
+      noise: 'ok',
+      tip: null,
+    });
+    expect(sampleQuality({ peakDb: 0, snrDb: 40, clipping: 0.01 })).toMatchObject({
+      level: 'clipped',
+      tip: /back from the mic/,
+    });
+    expect(sampleQuality({ peakDb: -30, snrDb: 40, clipping: 0 })).toMatchObject({
+      level: 'quiet',
+      tip: /closer/,
+    });
+    expect(sampleQuality({ peakDb: -6, snrDb: 12, clipping: 0 })).toMatchObject({
+      level: 'ok',
+      noise: 'noisy',
+      tip: /quieter room/,
+    });
   });
 });

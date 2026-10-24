@@ -28,9 +28,11 @@ import {
   engineSettings,
   type MarkCheck,
   type SafetyCheck,
+  type SampleQuality,
   type Segment,
   type ServerEvent,
   SpeakRequest,
+  sampleQuality,
   spokenText,
   TranscribeRequest,
   type Transcript,
@@ -88,7 +90,7 @@ interface Session {
   line: ConsentLine;
   expiresAt: number;
   recording: { name: string; wav: string; seconds: number; via: 'here' | 'link'; at: string } | null;
-  samples: Array<{ name: string; wav: string; seconds: number }>;
+  samples: Array<{ name: string; wav: string; seconds: number; quality: SampleQuality }>;
   checking: boolean;
   check: ConsentCheck | null;
   /** The reference clip chosen during the check, and what it says. */
@@ -422,19 +424,31 @@ export class VoiceStudio {
   }
 
   /** An upload as a mono 24 kHz WAV, which every environment reads. Made once, then kept. */
-  private async decoded(name: string): Promise<{ wav: string; seconds: number; speech: number }> {
+  private async decoded(
+    name: string,
+  ): Promise<{ wav: string; seconds: number; speech: number; quality: SampleQuality }> {
     const src = this.uploadPath(name);
     const wav = join(this.mediaDir, `d-${name.replace(/\.[a-z0-9]+$/, '')}.wav`);
     const meta = `${wav}.json`;
-    if (existsSync(wav) && existsSync(meta)) return { wav, ...JSON.parse(readFileSync(meta, 'utf8')) };
+    if (existsSync(wav) && existsSync(meta)) {
+      const m = JSON.parse(readFileSync(meta, 'utf8')) as {
+        seconds: number;
+        speech: number;
+        quality?: SampleQuality;
+      };
+      return { wav, ...m, quality: m.quality ?? sampleQuality({}) };
+    }
     try {
-      const r = await this.engine.call<{ seconds: number; speech: number }>('speech', 'decode', {
-        path: src,
-        out: wav,
-        sampleRate: SR,
-      });
-      writeFileSync(meta, JSON.stringify({ seconds: r.seconds, speech: r.speech }));
-      return { wav, seconds: r.seconds, speech: r.speech };
+      const r = await this.engine.call<{
+        seconds: number;
+        speech: number;
+        peakDb?: number;
+        snrDb?: number;
+        clipping?: number;
+      }>('speech', 'decode', { path: src, out: wav, sampleRate: SR });
+      const quality = sampleQuality(r);
+      writeFileSync(meta, JSON.stringify({ seconds: r.seconds, speech: r.speech, quality }));
+      return { wav, seconds: r.seconds, speech: r.speech, quality };
     } catch (e) {
       throw e instanceof VoiceEngineError && e.code === 'audio_unreadable'
         ? new VoiceError(415, 'audio', 'That recording couldn’t be read. Try a WAV or MP3.')
@@ -545,7 +559,7 @@ export class VoiceStudio {
     for (const a of j.audio) rmSync(join(this.mediaDir, a.replace('/media/voice/', '')), { force: true });
     this.jobs.delete(jobId);
     this.saveJobs();
-    this.emit({ type: 'voice-job', job: { ...j, status: 'canceled', audio: [] } });
+    this.emit({ type: 'removed', kind: 'voice-job', id: j.id });
   }
 
   private pump() {
@@ -1164,7 +1178,12 @@ export class VoiceStudio {
       recording: s.recording
         ? { url: `/media/voice/${s.recording.name}`, seconds: s.recording.seconds, via: s.recording.via }
         : null,
-      samples: s.samples.map((x) => ({ name: x.name, url: `/media/voice/${x.name}`, seconds: x.seconds })),
+      samples: s.samples.map((x) => ({
+        name: x.name,
+        url: `/media/voice/${x.name}`,
+        seconds: x.seconds,
+        quality: x.quality,
+      })),
       checking: s.checking,
       check: s.check,
       voice: s.voice,
@@ -1281,7 +1300,7 @@ export class VoiceStudio {
     for (const name of names) {
       if (s.samples.some((x) => x.name === name)) continue;
       const d = await this.decoded(name);
-      s.samples.push({ name, wav: d.wav, seconds: d.speech || d.seconds });
+      s.samples.push({ name, wav: d.wav, seconds: d.speech || d.seconds, quality: d.quality });
     }
     s.check = null;
     this.changed(s);

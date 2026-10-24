@@ -278,6 +278,8 @@ export async function startServer(
     envReady: (env) => voiceEngine.ready(env),
     onChange: (models) => store.emit({ type: 'voice-models', models }),
     fetch: opts.modelFetch,
+    // With the stand-in GPU and its stand-in voice engine, there are no weights to fetch.
+    standIn: config.fake && !opts.voiceEngine,
   });
   const consentSigner = new ConsentSigner(config.dataDir);
   const voice = new VoiceStudio({
