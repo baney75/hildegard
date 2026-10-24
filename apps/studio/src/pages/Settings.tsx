@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, ChoirDevice } from '@hildegard/presets';
+import type { Catalog, ChoirDevice, UpdateState } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
 import { Button, Icon, RadioGroup, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
-import { getState, isOwner, useStore } from '../lib/store.ts';
+import { getState, isOwner, upsert, useStore } from '../lib/store.ts';
 import { setThemeMode, type ThemeMode, useTheme } from '../lib/theme.ts';
 import { Account, People, Sharing } from './Sharing.tsx';
 
@@ -500,7 +500,71 @@ function About() {
           accept before it downloads.
         </p>
       </div>
+      <Updates />
     </section>
+  );
+}
+
+function Updates() {
+  const u = useStore((s) => s.update);
+  const owner = isOwner(useStore((s) => s.auth));
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!u) return null;
+  const run = async (name: string, fn: () => Promise<UpdateState>) => {
+    setBusy(name);
+    try {
+      upsert({ type: 'update', update: await fn() });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), { tone: 'error' });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const said = u.applying
+    ? `Updating to ${u.available}. Hildegard starts again as the new version, and this page reconnects by itself.`
+    : u.available
+      ? `Hildegard ${u.available} is out. This is ${u.current}.`
+      : u.error
+        ? `Couldn’t check for updates: ${u.error}`
+        : `Hildegard ${u.current} is up to date.`;
+  return (
+    <div className="st-tile hg-hfway">
+      <b id="up-h">Updates</b>
+      <span className="body-sm muted" aria-live="polite">
+        {said}
+      </span>
+      {!u.updatable ? (
+        <span className="body-sm muted">
+          This Hildegard runs from its source code, so it updates with git.
+        </span>
+      ) : owner ? (
+        <>
+          {u.available && !u.applying ? (
+            <Button kind="primary" busy={busy === 'now'} onClick={() => run('now', api.updateNow)}>
+              Update to {u.available}
+            </Button>
+          ) : null}
+          {!u.available ? (
+            <Button kind="ghost" busy={busy === 'check'} onClick={() => run('check', api.updateCheck)}>
+              Check now
+            </Button>
+          ) : null}
+          <Segmented<'on' | 'off'>
+            label="When a release is out"
+            value={u.auto ? 'on' : 'off'}
+            onChange={(v) => run('auto', () => api.updateAuto(v === 'on'))}
+            options={[
+              { value: 'on', label: 'Update by itself' },
+              { value: 'off', label: 'Ask me first' },
+            ]}
+          />
+          <span className="body-sm muted">
+            Updates are signed, and Hildegard refuses any that aren’t. Updating by itself waits until nothing
+            is rendering or downloading.
+          </span>
+        </>
+      ) : null}
+    </div>
   );
 }
 

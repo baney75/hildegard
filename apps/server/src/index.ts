@@ -13,3 +13,4 @@ export * from './remote-mcp.ts';
 export * from './scheduler.ts';
 export * from './server.ts';
 export * from './store.ts';
+export * from './update.ts';

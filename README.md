@@ -39,6 +39,12 @@ Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Supp
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,
 added to your PATH). To remove Hildegard, run `hildegard stop` and delete that folder.
 
+**Updates.** Hildegard checks for a new release every six hours. When one is out and nothing is rendering or
+downloading, it updates itself and starts again as the new version; the version before stays in the folder. Each
+release's installer is signed, and Hildegard refuses one that isn't signed with Hildegard's key. To choose when
+instead: Settings › About › **Ask me first**, or `hildegard update auto off`, then `hildegard update` (or **Update** in
+Settings) when you want it. `hildegard update --check` only looks.
+
 On [Omarchy](https://omarchy.org), the [Hildegard bar widget](omarchy/README.md) shows renders in your bar and can do
 the install for you.
 
@@ -62,6 +68,9 @@ builds for two weeks under its **Artifacts**.
 - **The tray** has Open Studio, Pause sharing (turns off the link from Settings › Sharing, and Resume sharing turns it
   back on), and Quit Hildegard. Closing the window leaves Hildegard running in the tray; opening the app again brings
   the window back.
+- **Updates:** the app looks for a newer release when it opens and every six hours, downloads it in the background,
+  and adds **Restart to update** to the top of the tray. Nothing installs until you choose it. Updates are signed,
+  and the app refuses any that aren’t. The `.deb` doesn’t update itself: install the new one from the site.
 - The window shows the Studio from `127.0.0.1` and nothing else: links to other sites open in your browser, and
   downloads go to your Downloads folder. The Studio inside it can't reach the app or your files.
 
@@ -84,8 +93,8 @@ node apps/desktop/scripts/prepare-bundle.mjs     # the Hildegard and Node.js the
 pnpm --filter @hildegard/desktop tauri build     # or tauri dev
 ```
 
-Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), updates through Tauri's
-signed updater, a universal macOS build and Linux on arm64, and notices for the Rust crates inside the app.
+Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), a universal macOS build
+and Linux on arm64, and notices for the Rust crates inside the app.
 
 ## Hugging Face
 

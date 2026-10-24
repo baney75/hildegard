@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
@@ -22,6 +22,7 @@ import { People } from './people.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
+import { runUpdate, Updates } from './update.ts';
 
 type HttpServer = ReturnType<typeof serve>;
 
@@ -42,6 +43,7 @@ export interface Running {
   store: Store;
   scheduler: Scheduler;
   models: ModelManager;
+  updates: Updates;
   choir: Choir;
   hf: HfLink;
   people: People;
@@ -82,6 +84,8 @@ export async function startServer(
     hubToken?: string;
     /** How model files download: tests give a stand-in. */
     modelFetch?: typeof fetch;
+    /** Checking for and running updates: tests give stand-ins. */
+    updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -258,7 +262,33 @@ export async function startServer(
     credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
     onChange: (e) => store.emit({ type: 'export', export: e }),
   });
+  // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
+  // git. The port is the one this server listens on, known once it does.
+  const entry = process.env.HILDEGARD_ENTRY;
+  let listening = config.port;
+  const updates = new Updates({
+    dataDir: config.dataDir,
+    version: VERSION,
+    updatable: !!opts.updates?.run || !!entry,
+    busy: () =>
+      [...store.takes.values()].some((t) => t.status === 'queued' || t.status === 'running') ||
+      scheduler.guestTakes().length > 0 ||
+      models.states().some((m) => m.downloading) ||
+      exporter.list().some((e) => e.status === 'running'),
+    run:
+      opts.updates?.run ??
+      (() => {
+        const logs = join(config.dataDir, 'logs');
+        mkdirSync(logs, { recursive: true });
+        runUpdate(entry!, ['--data', config.dataDir, '--port', String(listening)], join(logs, 'update.log'));
+      }),
+    onChange: (update) => store.emit({ type: 'update', update }),
+    fetch: opts.updates?.fetch,
+    firstMs: opts.updates?.firstMs,
+    idleMs: opts.updates?.idleMs,
+  });
   const app = createApp({
+    updates,
     exporter,
     config,
     store,
@@ -303,6 +333,9 @@ export async function startServer(
   const port = typeof addr === 'object' && addr ? addr.port : config.port;
   const hostedPort = config.hostPort ?? port + 1;
   writeFileSync(portFile(config.dataDir), `${JSON.stringify({ port })}\n`);
+  listening = port;
+  // An update that restarted Hildegard is over once it answers again.
+  rmSync(join(config.dataDir, 'updating'), { force: true });
   const bracketed = config.host.includes(':') ? `[${config.host}]` : config.host;
   // Bound to one address (a Tailscale IP, say), it still answers on loopback: the CLI and linked AI apps use that.
   const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)
@@ -311,6 +344,7 @@ export async function startServer(
   // Only once everything it reports to exists and the server answers. A download that fails shows on the model and
   // never stops Hildegard.
   models.completeSafety().catch(() => {});
+  updates.start();
 
   // Sharing this GPU: listen on the address paired devices reach (the Tailscale IP) with /api/node/* only, unless
   // the main listener already covers it. Keep trying while that address isn't up yet, such as before Tailscale is.
@@ -449,9 +483,11 @@ export async function startServer(
     grants,
     llm,
     hostedUrl: () => (hosted ? `http://127.0.0.1:${hostedPort}` : null),
+    updates,
     runtime,
     async close() {
       closing = true;
+      updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
       scheduler.stop();

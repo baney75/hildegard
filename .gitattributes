@@ -1,0 +1,2 @@
+# Signed test files: Windows checkouts must not change their line endings, or the signatures stop matching.
+apps/server/test/fixtures/update/** -text

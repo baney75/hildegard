@@ -48,17 +48,40 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/hildegard-node"],
-    "resources": { "payload/": "hildegard/" },
+    "resources": {
+      "payload/": "hildegard/"
+    },
     "linux": {
-      "appimage": { "bundleMediaFramework": true },
+      "appimage": {
+        "bundleMediaFramework": true
+      },
       "deb": {
         "recommends": ["gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"]
       }
     },
-    "macOS": { "minimumSystemVersion": "11.0", "signingIdentity": "-" },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
+    },
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
-      "nsis": { "installMode": "currentUser" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM3MUY1NjVEODE4QjRFNkUKUldSdVRvdUJYVllmeCs0RytuWEdkeTFGSlo4N0o1YXZqdy9sSERBRVM2WW5tdW1Ya3BLN3kwRlYK",
+      "endpoints": ["https://github.com/baney75/hildegard/releases/latest/download/latest.json"],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

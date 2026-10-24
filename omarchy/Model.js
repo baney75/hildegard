@@ -20,6 +20,7 @@ function status(s) {
   if (!s) return ""
   if (!s.installed) return "Not set up on this computer yet"
   if (!s.running) return "Not running"
+  if (s.update && s.update.applying) return "Updating to " + s.update.available
   var e = s.engine || {}
   if (e.problem) return e.problem
   if (!e.online) return "Waiting for ComfyUI"
@@ -81,6 +82,8 @@ function actions(s) {
   var out = [{ id: "studio", label: "Open Studio", primary: true }]
   if (s.queue && (s.queue.running || s.queue.queued)) out.push({ id: "queue", label: "Queue", primary: false })
   out.push({ id: "agents", label: "AI apps", primary: false })
+  if (s.update && s.update.available && !s.update.applying)
+    out.push({ id: "update", label: "Update to " + s.update.available, primary: false })
   out.push({ id: "stop", label: "Stop", primary: false })
   return out
 }

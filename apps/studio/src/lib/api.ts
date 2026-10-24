@@ -18,6 +18,7 @@ import type {
   Shot,
   Snapshot,
   Take,
+  UpdateState,
 } from '@hildegard/presets';
 
 export class ApiError extends Error {
@@ -102,6 +103,9 @@ export const api = {
   cancelModel: (id: string) => call<ModelState[]>('POST', `/api/models/${id}/cancel`),
   hfToken: (token: string) => call<HfState>('POST', '/api/hf/token', { token }),
   hfUnlink: () => call<HfState>('POST', '/api/hf/unlink'),
+  updateCheck: () => call<UpdateState>('POST', '/api/update/check'),
+  updateNow: () => call<UpdateState>('POST', '/api/update'),
+  updateAuto: (auto: boolean) => call<UpdateState>('PUT', '/api/update', { auto }),
   hfImport: () => call<HfState>('POST', '/api/hf/import'),
   hfOAuth: () => call<{ url: string }>('POST', '/api/hf/oauth/start'),
   hfDevice: () => call<DeviceStart>('POST', '/api/hf/device'),

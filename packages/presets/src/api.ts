@@ -201,6 +201,24 @@ export interface Snapshot {
   choir: ChoirState;
   /** Renders paired devices sent here, waiting or rendering, in queue order. */
   guests: GuestTake[];
+  update: UpdateState;
+}
+
+/** Updates to Hildegard itself. */
+export interface UpdateState {
+  /** The version running. */
+  current: string;
+  /** A newer release, when there is one. */
+  available: string | null;
+  /** Update by itself once nothing is rendering. On unless the owner turned it off. */
+  auto: boolean;
+  /** An update is running: Hildegard restarts as the new version. */
+  applying: boolean;
+  /** A release install, which can update itself; a source checkout can't. */
+  updatable: boolean;
+  /** Why the last check failed, if it did. */
+  error: string | null;
+  checkedAt: string | null;
 }
 
 /** Owners may do everything; directors make films of their own and nothing else. */
@@ -370,7 +388,8 @@ export type ServerEvent =
   | { type: 'export'; export: ExportState }
   | { type: 'choir'; choir: ChoirState }
   | { type: 'guests'; guests: GuestTake[] }
-  | { type: 'host'; host: HostState };
+  | { type: 'host'; host: HostState }
+  | { type: 'update'; update: UpdateState };
 
 /** POST /api/shots */
 export interface CreateShotBody {
