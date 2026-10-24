@@ -400,6 +400,8 @@ torch==2.14.1
     #   curated-transformers
     #   kokoro
     #   spacy-curated-transformers
+torchaudio==2.11.0
+    # via -r speech.in
 tqdm==4.70.1
     # via
     #   faster-whisper

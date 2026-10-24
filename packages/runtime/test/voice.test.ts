@@ -58,12 +58,13 @@ describe('voice environments', () => {
 });
 
 describe('voice locks', () => {
-  it('keep a setuptools with pkg_resources wherever the watermark is, since Perth finds its weights with it', () => {
+  it('give the watermark everything it imports: pkg_resources from an older setuptools, and torchaudio', () => {
     for (const env of ['speech', 'chatterbox', 'qwen']) {
       const lock = readFileSync(resource(`voice-engine/requirements/${env}.txt`), 'utf8');
       expect(lock, env).toMatch(/^resemble-perth==/m);
       const v = /^setuptools==(\d+)\./m.exec(lock)?.[1];
       expect(Number(v), env).toBeLessThan(81);
+      expect(lock, env).toMatch(/^torchaudio==/m);
     }
   });
 });

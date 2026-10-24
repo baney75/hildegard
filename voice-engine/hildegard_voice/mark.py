@@ -24,7 +24,7 @@ def _perth():
         except Exception as e:
             raise VoiceError(
                 "no_watermark",
-                "The watermark isn’t installed, so Hildegard won’t make voices here. Run `hildegard install` again.",
+                "The watermark isn’t installed, so Hildegard won’t make voices here. Run `hildegard voice install` again.",
                 str(e),
             ) from e
     return _marker
