@@ -5,16 +5,17 @@ make and edit films, photos, art and sound. This page says which ways of running
 why, from each provider's own published terms. `packages/agents/src/policy.ts` enforces exactly this table before
 anything starts; `hildegard agents --json` shows the verdict for each agent on a computer.
 
-Read on 2026-10-24. Terms change: when a provider's page changes, update this page and `policy.ts` together, and where
+Read on 2026-10-24, and checked again the same evening. Terms change: when a provider's page changes, update this page and `policy.ts` together, and where
 a provider is silent the answer is no.
 
 ## The short version
 
 | How the agent is signed in | Owner, asked just now | Owner, on a schedule or unattended | People the owner invited | Another device in the fleet |
 | --- | --- | --- | --- | --- |
-| The owner's own **API key** (Anthropic, OpenAI, OpenRouter, Gemini, …) | Yes | Yes | Only if the owner turns on `share-keys`, billed to them, never resold | No |
-| The owner's own **cloud account** (Bedrock, Vertex, Foundry) | Yes | Yes | As API keys | No |
-| A **Claude plan** (Pro, Max) in **Claude Code** itself | Yes, paced like a person | No | No | No |
+| The owner's own **Anthropic API key** | Yes | Yes | No: Anthropic requires everyone to bring their own | No |
+| The owner's own **cloud account** for Claude (Bedrock, Vertex, Foundry) | Yes | Yes | No, as above | No |
+| The owner's own **other API key** (OpenAI, OpenRouter, Gemini, …) | Yes | Yes | Only if the owner turns on `share-keys`, billed to them, never resold | No |
+| A **Claude plan** (Pro, Max, Team, Enterprise) in **Claude Code** itself | Yes, paced like a person | No | No | No |
 | A **ChatGPT plan** (Plus, Pro, …) in **Codex** itself | Yes, paced like a person | No | No | No |
 | A Claude or ChatGPT plan's sign-in **inside another tool** (OMP, say) | No | No | No | No |
 | A **local model** (Ollama, llama.cpp, LM Studio, vLLM) | Yes | Yes | Yes | No |
@@ -30,14 +31,25 @@ for a password. It starts the vendor's own unmodified program, which uses its ow
 Source: [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance), and the
 [Consumer Terms](https://www.anthropic.com/legal/consumer-terms).
 
-- Sign-in with a Claude plan (OAuth for Free, Pro and Max) is "intended exclusively for ... ordinary use of Claude Code
-  and other native Anthropic applications."
-- Developers building products or services, including with the Agent SDK, must use an API key or a supported cloud
-  provider. Third-party products may not offer claude.ai sign-in, may not route requests through a plan's credentials
-  on behalf of their users, and may not collect or store those credentials.
-- It also says this "does not prevent an end user from signing in to the unmodified Claude Code binary with their own
-  Claude subscription", and that "Advertised usage limits ... assume ordinary, individual usage of Claude Code and the
-  Agent SDK."
+- Sign-in with a Claude plan (OAuth) "is intended exclusively for purchasers of Claude Free, Pro, Max, Team, and
+  Enterprise subscription plans and is designed to support ordinary use of Claude Code and other native Anthropic
+  applications."
+- Developers building products or services, including with the Agent SDK, "should use API key authentication through
+  Claude Console or a supported cloud provider." Anthropic "does not permit third-party developers to offer Claude.ai
+  login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of
+  their users," and developers "may not collect, store, or intermediate Claude.ai credentials or session tokens."
+- This "does not prevent an end user from signing in to the unmodified Claude Code binary with their own Claude
+  subscription." "Advertised usage limits for Pro and Max plans assume ordinary, individual usage of Claude Code and
+  the Agent SDK."
+- Products that run Claude Code: "The Claude Code binary must not be modified", nobody may "remove, disable, or
+  restrict any authentication method built into it", and "Customers may not pay for, resell, or intermediate Claude
+  usage on their end users' behalf. Each end user must authenticate with their own Anthropic API key, Claude
+  subscription plan credentials, or 3P inference provider credential."
+- An owner's own key may serve "the customer's own authorized users", "provided the resulting usage is billed to the
+  key owner ... and is not resold or intermediated." Because invited people aren't the owner, Hildegard reads this
+  strictly and never lets them run Claude on the owner's key or cloud account.
+- Names: you may say in plain text that a product runs Claude Code, but not use Anthropic's or Claude Code's names
+  or logos in a way that suggests Anthropic built or endorses it. Hildegard shows no Anthropic logos.
 
 So Hildegard runs the `claude` program the owner installed and signed in to, unmodified, for the owner, when the owner
 asks, and paces it. It never puts a Claude plan behind a schedule, a queue, or other people. For everything else it
@@ -54,12 +66,24 @@ Sources: [Codex authentication](https://learn.chatgpt.com/codex/auth),
 - `codex exec` reuses Codex's saved sign-in. OpenAI recommends API keys (`CODEX_API_KEY`) as the default for
   automation; ChatGPT-managed sign-in in automation is an advanced option for trusted private runners, never public
   repositories. `auth.json` is to be treated like a password.
-- Using a ChatGPT plan through Sign in with ChatGPT in third-party tools is allowed only for the partners OpenAI lists
-  (OpenCode, OpenClaw, Pi, T3 and others as of the 2026-09-29 announcement). OMP is not among them.
+- Codex's page: "Use API key authentication for programmatic Codex CLI workflows, such as CI/CD jobs", "Don't expose
+  Codex execution in untrusted or public environments", and treat `auth.json` "like a password ... Don't commit it,
+  paste it into tickets, or share it in chat."
+- A ChatGPT plan's usage reaches another app only through OpenAI's own Sign in with ChatGPT flow, where the app asks
+  separately "to use the OpenAI usage included in an eligible ChatGPT plan" and you can cap it. OpenAI names its
+  partners for this; OMP isn't one, and its ChatGPT login isn't that flow.
 - Accounts are for one person; sharing them is forbidden.
 
 So Hildegard runs `codex exec` with the owner's own Codex sign-in only when the owner asks, and uses
 `CODEX_API_KEY` for anything unattended or scheduled.
+
+## Models Hildegard calls itself
+
+The owner can add any OpenAI-compatible model endpoint (`/api/llm/endpoints`). Hildegard refuses addresses that serve a
+consumer plan (claude.ai, chatgpt.com, GitHub Copilot) and Claude Code's plan tokens (`sk-ant-oat…`) as keys, since
+those plans may only be used in their own apps. Proxies on your own computer that wrap a plan (Copilot or Claude
+"API" proxies) break the same rules; Hildegard can't always tell, so don't add one. The models here are shared at
+`/v1` only with the owner's own keys, never with invited people.
 
 ## OMP (oh-my-pi)
 

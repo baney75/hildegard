@@ -19,9 +19,10 @@ licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x"
 terms = [
   "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
   "You may not use it to build a product that competes with Lightricks’ own.",
-  "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
+  "Whenever you share what it makes, say plainly that it’s AI-generated (the license requires it), and keep its AI labels and provenance.",
   "No deepfakes of real people without their consent, and no sexual content.",
   "Hugging Face also asks you to accept the license on the model’s page before it can download.",
+  "Its text encoder is built on Google’s Gemma 4, which comes under Google’s own license for Gemma.",
 ]
 gated = true
 graph = "ltx-2.5-distilled"
@@ -80,7 +81,7 @@ licenseUrl = "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2"
 terms = [
   "Free for people and businesses under $10M in yearly revenue. Above that, Lightricks requires a paid license.",
   "You may not use it to build a product that competes with Lightricks’ own.",
-  "Say that what you make is AI-generated where the law asks you to, and keep its AI labels and provenance.",
+  "Whenever you share what it makes, say plainly that it’s AI-generated (the license requires it), and keep its AI labels and provenance.",
   "No deepfakes of real people without their consent, and no sexual content.",
   "Its text encoder, Gemma 3, comes under Google’s Gemma Terms of Use.",
 ]

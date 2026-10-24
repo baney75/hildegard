@@ -5,7 +5,8 @@
  *
  * In short:
  * - The owner's own API key or cloud account (Anthropic, OpenAI, OpenRouter, Bedrock, Vertex, Foundry) may run any
- *   agent, for the owner, on a schedule, or (only if the owner turns it on) for people they invited, never resold.
+ *   agent for the owner, also on a schedule. People they invited may use a non-Anthropic key only if the owner turns
+ *   that on, never resold; Claude never runs for anyone but the owner, as Anthropic requires.
  * - A subscription (Claude Pro/Max, ChatGPT Plus/Pro) runs only in that vendor's own unmodified app (Claude Code,
  *   Codex), only for the owner themselves, only when they asked for it just now, paced like a person working.
  * - A subscription's sign-in is never taken into another tool (OMP's Anthropic or ChatGPT login, say), never read
@@ -126,12 +127,26 @@ export function decide(agent: AgentId, auth: Auth, trigger: Trigger, opts: Polic
 
     case 'api-key':
     case 'cloud':
+      // Anthropic: "Each end user must authenticate with their own Anthropic API key, Claude subscription plan
+      // credentials, or 3P inference provider credential", and nobody may "pay for ... Claude usage on their end
+      // users' behalf". So nobody else ever runs Claude on the owner's key or cloud account, whatever the setting.
+      if (
+        trigger === 'director' &&
+        (agent === 'claude-code' || auth.kind === 'cloud' || auth.provider === 'anthropic')
+      )
+        return {
+          allowed: false,
+          reason:
+            'Anthropic requires everyone who uses Claude to sign in with their own key or plan, so people you invite can’t run Claude on yours.',
+          source: SOURCES.anthropic,
+          fix: 'They can use Claude Code on their own computer with their own account, or a local model here.',
+        };
       if (trigger === 'director' && !opts.shareKeysWithDirectors)
         return {
           allowed: false,
           reason:
             'People you invite can’t use your API keys unless you turn that on; their runs would be billed to you.',
-          fix: '`hildegard agents share-keys on` lets them, billed to you. Never charge them for it: reselling usage needs your own agreement with the provider.',
+          fix: '`hildegard agents share-keys on` lets them use your non-Anthropic keys, billed to you. Never charge them for it: reselling usage needs your own agreement with the provider.',
         };
       return {
         allowed: true,

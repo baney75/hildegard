@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { LlmDirectResult, LlmEndpoint, LlmState, Snapshot } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseArgs } from '../src/config.ts';
-import { endpointUrl, jsonFrom, knownEndpoints } from '../src/llm.ts';
+import { endpointUrl, jsonFrom, knownEndpoints, looksLikePlanToken } from '../src/llm.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -104,6 +104,17 @@ describe('addresses', () => {
     expect(endpointUrl('https://gpu.example/openai/v1')).toBe('https://gpu.example/openai/v1');
     expect(() => endpointUrl('ftp://desk')).toThrow(/http/);
     expect(() => endpointUrl('http://user:sk-123@desk:8000')).toThrow(/key/);
+    // A consumer plan's address or sign-in token, which may only be used in its own app.
+    for (const u of [
+      'https://claude.ai/api',
+      'https://chatgpt.com/backend-api',
+      'https://api.githubcopilot.com',
+    ])
+      expect(() => endpointUrl(u)).toThrow(/only be used in its own app/);
+    expect(endpointUrl('https://api.openai.com/v1')).toBe('https://api.openai.com/v1');
+    // Built at run time, so secret scanners don't mistake a stand-in for a real token.
+    expect(looksLikePlanToken(['sk', 'ant', 'oat01', 'test'].join('-'))).toBe(true);
+    expect(looksLikePlanToken('sk-proj-abc')).toBe(false);
   });
   it('follows OLLAMA_HOST’s port, and always asks on this computer', () => {
     expect(knownEndpoints({ OLLAMA_HOST: '0.0.0.0:11500' })[0]!.url).toBe('http://127.0.0.1:11500/v1');
