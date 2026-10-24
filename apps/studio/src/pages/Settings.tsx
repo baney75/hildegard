@@ -246,11 +246,39 @@ function HuggingFace({ catalog }: { catalog: Catalog }) {
         </p>
       ) : null}
 
+      {hf?.found ? (
+        <div className="st-tile hg-hfway">
+          <b>Use this computer’s Hugging Face sign-in</b>
+          <span className="body-sm muted">
+            You’re signed in with Hugging Face’s own tools here. Hildegard checks that sign-in with Hugging
+            Face, then keeps a copy in your keychain.
+          </span>
+          <Button
+            kind="primary"
+            icon="check"
+            onClick={() =>
+              run('import', async () => {
+                const s = await api.hfImport();
+                toast(`Linked as ${s.user ?? 'your account'}`);
+              })
+            }
+            busy={busy === 'import'}
+          >
+            Use it
+          </Button>
+        </div>
+      ) : null}
+
       {hf?.oauth ? (
         <div className="st-tile hg-hfway">
-          <b>Sign in with your browser</b>
+          <b>{hf.found ? 'Or sign in with your browser' : 'Sign in with your browser'}</b>
           <span className="body-sm muted">Opens Hugging Face in a new tab. Nothing to copy.</span>
-          <Button kind="primary" icon="link" onClick={browser} busy={busy === 'oauth'}>
+          <Button
+            kind={hf.found ? undefined : 'primary'}
+            icon="link"
+            onClick={browser}
+            busy={busy === 'oauth'}
+          >
             Sign in with Hugging Face
           </Button>
         </div>
@@ -336,7 +364,7 @@ function HuggingFace({ catalog }: { catalog: Catalog }) {
           />
         </label>
         <Button
-          kind={hf?.oauth ? undefined : 'primary'}
+          kind={hf?.oauth || hf?.found ? undefined : 'primary'}
           type="submit"
           busy={busy === 'token'}
           disabled={!token.trim()}

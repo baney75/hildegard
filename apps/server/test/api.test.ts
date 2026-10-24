@@ -33,9 +33,10 @@ const take = (id: string) => srv.store.takes.get(id)!;
 
 beforeAll(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hg-api-'));
+  // Sign in with Hugging Face is on by default; these tests cover the build where it's off, and the token path.
   srv = await startServer(
-    { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0 },
-    { fakeTickMs: 25, secrets: memoryStore() },
+    { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0, hfClientId: null },
+    { fakeTickMs: 25, secrets: memoryStore(), hubToken: join(dir, 'no-hf-token') },
   );
   await until(() => srv.scheduler.engineState().online);
 });
@@ -273,7 +274,7 @@ describe('shots and takes', () => {
     const s = (await (await api('/api/snapshot')).json()) as Snapshot;
     expect(s.engine).toMatchObject({ online: true, fake: true });
     expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled', 'wan-2-2-ti2v-5b']);
-    expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false });
+    expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false, found: false });
   });
 });
 

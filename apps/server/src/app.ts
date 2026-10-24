@@ -823,6 +823,15 @@ export function createApp(deps: AppDeps) {
     }
   });
   app.post('/api/hf/unlink', (c) => c.json(deps.hf.unlink()));
+  // Reads a file in the owner's home, so only from this computer.
+  app.post('/api/hf/import', async (c) => {
+    if (!local(c)) return c.json({ error: 'Link Hugging Face from the computer Hildegard runs on' }, 403);
+    try {
+      return c.json(await deps.hf.useHubToken());
+    } catch (e) {
+      return hfFail(c, e);
+    }
+  });
   app.post('/api/hf/oauth/start', (c) => {
     // Hugging Face accepts any port on a loopback redirect, so browser sign-in works only from this computer.
     const u = new URL(c.req.url);

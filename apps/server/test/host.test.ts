@@ -273,6 +273,7 @@ describe('invites and roles', () => {
       ['POST', '/api/choir/invite', {}],
       ['POST', '/api/hf/token', { token: 'hf_xxxxxxxxxxxxxxxxxxxxxxxx' }],
       ['POST', '/api/hf/unlink'],
+      ['POST', '/api/hf/import'],
       ['POST', '/api/engine/pause'],
       ['POST', '/api/people/invites', { role: 'owner' }],
       ['PATCH', `/api/people/${directorId}`, { role: 'owner' }],

@@ -66,6 +66,8 @@ export async function startServer(
     exec?: Exec;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
+    /** The token file `hf auth login` writes; tests point it elsewhere. */
+    hubToken?: string;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -153,6 +155,7 @@ export async function startServer(
     store: secrets,
     clientId: config.hfClientId,
     onChange: (s) => store.emit({ type: 'hf', hf: s }),
+    hubToken: opts.hubToken,
   });
   const localGpu = config.fake ? null : detectGpu();
   const models = new ModelManager({
