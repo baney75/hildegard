@@ -3,7 +3,7 @@ import type { Catalog, Model, ModelState } from '@hildegard/presets';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { type Draft, setDraft } from '../lib/draft.ts';
-import { bytes } from '../lib/format.ts';
+import { bytes, videoModels } from '../lib/format.ts';
 import { useStore } from '../lib/store.ts';
 import { Button, Icon, Modal, RadioGroup, Segmented, SheetHead, Slider, toastError } from './ui.tsx';
 
@@ -700,7 +700,7 @@ export function ModelSheet({
         onClose={onClose}
       />
       <div className="hg-sheet__body" style={{ gap: 10 }}>
-        {catalog.models.map((m) => {
+        {videoModels(catalog).map((m) => {
           const st = models.find((x) => x.id === m.id);
           const chosen = (draft.model ?? '') === m.id;
           return (

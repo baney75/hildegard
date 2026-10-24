@@ -1218,6 +1218,8 @@ export function createApp(deps: AppDeps) {
       )
         ch.cover = file;
       store.putCharacter(ch);
+      st.kept = file;
+      store.putStill(st);
       return c.json(ch);
     }),
   );
@@ -1273,7 +1275,7 @@ export function createApp(deps: AppDeps) {
     return c.json(
       {
         character: ch,
-        url: `${base ?? deps.url ?? ''}/#/consent/${token}`,
+        url: `${base ?? deps.url ?? ''}/#/likeness/${token}`,
         // Only this computer can open it until Hildegard is at a link.
         local: !host.state().url,
       },
@@ -1298,7 +1300,7 @@ export function createApp(deps: AppDeps) {
   });
 
   /** What the person is asked, for the page their link opens. Anyone holding the link may read it. */
-  app.get('/api/consent/:token', (c) => {
+  app.get('/api/likeness/:token', (c) => {
     const ask = deps.likeness.lookup(c.req.param('token'));
     c.header('cache-control', 'no-store');
     if (!ask) return c.json({ error: 'This link has expired or was already used.' }, 410);
@@ -1311,7 +1313,7 @@ export function createApp(deps: AppDeps) {
       statement: statement({ person: '…', maker: ask.maker, character: ask.character }),
     });
   });
-  app.post('/api/consent/:token/decline', (c) => {
+  app.post('/api/likeness/:token/decline', (c) => {
     try {
       const cid = deps.likeness.decline(c.req.param('token'));
       const ch = store.characters.get(cid);
@@ -1325,7 +1327,7 @@ export function createApp(deps: AppDeps) {
       throw e;
     }
   });
-  app.post('/api/consent/:token', async (c) => {
+  app.post('/api/likeness/:token', async (c) => {
     const token = c.req.param('token');
     const ask = deps.likeness.lookup(token);
     if (!ask) return c.json({ error: 'This link has expired or was already used.' }, 410);
@@ -1371,7 +1373,7 @@ export function createApp(deps: AppDeps) {
       const base = host.state().url ?? new URL(c.req.url).origin;
       c.header('cache-control', 'no-store');
       return c.json(
-        { ok: true, revokeUrl: `${base}/#/consent/revoke/${revokeToken}`, record: consent.record },
+        { ok: true, revokeUrl: `${base}/#/likeness/revoke/${revokeToken}`, record: consent.record },
         201,
       );
     } catch (e) {
@@ -1379,7 +1381,7 @@ export function createApp(deps: AppDeps) {
       throw e;
     }
   });
-  app.post('/api/consent/revoke/:token', async (c) => {
+  app.post('/api/likeness/revoke/:token', async (c) => {
     const cid = deps.likeness.revoke({ token: c.req.param('token') });
     if (!cid) return c.json({ error: 'That link doesn’t take anything back.' }, 404);
     const ch = store.characters.get(cid);

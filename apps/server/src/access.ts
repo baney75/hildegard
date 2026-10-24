@@ -130,7 +130,7 @@ export function open(method: string, path: string): boolean {
   if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
   // A real person giving (or taking back) consent for a character of them: the one-time link is their key.
-  if (path.startsWith('/api/consent/')) return true;
+  if (path.startsWith('/api/likeness/')) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))
     return true;
   return false;

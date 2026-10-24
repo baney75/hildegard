@@ -3,13 +3,14 @@ import type { Catalog } from '@hildegard/presets';
 import { type ClipboardEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api.ts';
 import { getDraft, setDraft, toRequest, useDraft } from '../lib/draft.ts';
-import { about, deviceLabel, estimateMs } from '../lib/format.ts';
+import { about, deviceLabel, estimateMs, videoModels } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, upsert, useStore } from '../lib/store.ts';
+import { addToCast, CastFaces, CastSheet, MentionPop, mentionAt } from './Cast.tsx';
 import { FormatSheet, LookSheet, lookSummary, ModelSheet, MotionSheet, RigSheet } from './sheets.tsx';
 import { Icon, toast, toastError } from './ui.tsx';
 
-type SheetName = 'rig' | 'motion' | 'look' | 'format' | 'model' | null;
+type SheetName = 'rig' | 'motion' | 'look' | 'format' | 'model' | 'cast' | null;
 
 export function Composer({
   catalog,
@@ -28,6 +29,8 @@ export function Composer({
   const models = useStore((s) => s.models);
   const engine = useStore((s) => s.engine);
   const takes = useStore((s) => s.takes);
+  const characters = useStore((s) => s.characters);
+  const [mention, setMention] = useState<{ start: number; query: string; active: number } | null>(null);
   const [sheet, setSheet] = useState<SheetName>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -36,14 +39,40 @@ export function Composer({
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
 
+  // Shots take video models; the stills model draws characters and a cast shot's start frame.
+  const videos = new Set(videoModels(catalog).map((m) => m.id));
   // A model Apple's GPU can't render well stays installed, but takes don't go to it.
-  const appleOnly = models.some((m) => m.installed && m.fitWhy === 'apple-gpu');
+  const appleOnly = models.some((m) => m.installed && m.fitWhy === 'apple-gpu' && videos.has(m.id));
   const installed = models.filter((m) => m.installed && m.fitWhy !== 'apple-gpu').map((m) => m.id);
   // The chosen model if it is installed, otherwise the first installed one. The stand-in GPU renders any model.
-  const usable = engine?.fake ? catalog.models.map((m) => m.id) : installed;
+  const usable = (engine?.fake ? catalog.models.map((m) => m.id) : installed).filter((id) => videos.has(id));
   const modelId = draft.model && usable.includes(draft.model) ? draft.model : (usable[0] ?? null);
   const model = catalog.models.find((m) => m.id === modelId) ?? null;
   const seconds = model ? Math.min(draft.format.seconds, model.maxSeconds) : draft.format.seconds;
+
+  const cast = draft.cast.map((id) => characters.get(id)).filter((c) => !!c);
+  const matches = useMemo(() => {
+    if (!mention) return [];
+    const q = mention.query.trim().toLowerCase();
+    return [...characters.values()]
+      .filter((c) => !draft.cast.includes(c.id) && c.name.toLowerCase().startsWith(q))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, 6);
+  }, [mention, characters, draft.cast]);
+  const mentioning = !!mention && matches.length > 0;
+  const pick = (c: (typeof matches)[number]) => {
+    const el = input.current;
+    if (!mention || !el) return;
+    const d = getDraft();
+    const end = mention.start + 1 + mention.query.length;
+    const next = `${d.prompt.slice(0, mention.start)}${c.name}${d.prompt.slice(end)}`;
+    const before = d.cast;
+    const after = addToCast(before, c);
+    setDraft({ prompt: next, cast: after, ...(after.length ? { startFrame: null } : {}) });
+    setMention(null);
+    const at = mention.start + c.name.length;
+    requestAnimationFrame(() => el.setSelectionRange(at, at));
+  };
 
   const body = catalog.bodies.find((b) => b.id === draft.rig.body);
   const lens = catalog.lenses.find((l) => l.id === draft.rig.lens);
@@ -121,7 +150,14 @@ export function Composer({
     try {
       const r = await api.createShot({
         projectId: projectId ?? undefined,
-        request: toRequest({ ...d, format: { ...d.format, seconds } }, modelId),
+        request: toRequest(
+          {
+            ...d,
+            cast: d.cast.filter((id) => getState().characters.has(id)),
+            format: { ...d.format, seconds },
+          },
+          modelId,
+        ),
       });
       upsert([
         { type: 'project', project: r.project },
@@ -140,6 +176,7 @@ export function Composer({
           look: 'look',
           format: 'format',
           model: 'model',
+          characters: 'cast',
         };
         const s = where[e.field.split('.')[0]!];
         if (s) setSheet(s);
@@ -196,7 +233,9 @@ export function Composer({
     >
       <div className={`cs-comp__box${dragging ? ' is-drop' : ''}`}>
         <div className="cs-comp__in">
-          {draft.startFrame ? (
+          {cast.length ? (
+            <CastFaces cast={cast} onOpen={() => setSheet('cast')} />
+          ) : draft.startFrame ? (
             <div className="hg-frame">
               <button
                 type="button"
@@ -250,16 +289,47 @@ export function Composer({
             placeholder={
               compact
                 ? 'Describe the shot'
-                : 'Describe the shot: who, what happens, where. ⌘/Ctrl-Enter to create.'
+                : characters.size
+                  ? 'Describe the shot: who, what happens, where. Type @ to cast a character.'
+                  : 'Describe the shot: who, what happens, where. ⌘/Ctrl-Enter to create.'
             }
             aria-invalid={error?.field === 'prompt' || undefined}
             aria-describedby={error ? 'hg-comp-err' : undefined}
             onChange={(e) => {
               setDraft({ prompt: e.target.value });
               if (error?.field === 'prompt') setError(null);
+              const m = characters.size ? mentionAt(e.target.value, e.target.selectionStart) : null;
+              setMention(m ? { ...m, active: 0 } : null);
             }}
+            onBlur={() => setMention(null)}
+            // Typing @ offers characters to cast, as a combobox does.
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={mentioning}
+            aria-controls={mentioning ? 'hg-mention' : undefined}
+            aria-activedescendant={mentioning ? `hg-mention-${mention!.active}` : undefined}
             onPaste={onPaste}
             onKeyDown={(e) => {
+              if (mentioning) {
+                const n = matches.length;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const step = e.key === 'ArrowDown' ? 1 : n - 1;
+                  setMention({ ...mention!, active: (mention!.active + step) % n });
+                  return;
+                }
+                if ((e.key === 'Enter' && !e.metaKey && !e.ctrlKey) || e.key === 'Tab') {
+                  e.preventDefault();
+                  pick(matches[mention!.active] ?? matches[0]!);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMention(null);
+                  return;
+                }
+              }
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 void create();
@@ -277,6 +347,16 @@ export function Composer({
             >
               <Icon name="video" size={16} />
               {model?.name ?? 'Choose a model'}
+            </button>
+            <button
+              type="button"
+              className={`cs-pill${cast.length ? ' lock' : ''}`}
+              onClick={() => setSheet('cast')}
+              aria-label={cast.length ? `Cast: ${cast.map((c) => c.name).join(', ')}` : 'Cast characters'}
+              title={cast.length ? undefined : 'Cast characters, or type @ in the prompt'}
+            >
+              <Icon name="person" size={16} />
+              {compact ? cast.length || null : cast.length ? cast.map((c) => c.name).join(', ') : null}
             </button>
             <button
               type="button"
@@ -356,6 +436,18 @@ export function Composer({
           Est. <span className="num">$0.00</span> · Stays on your devices
         </p>
       )}
+      {mentioning ? (
+        <MentionPop
+          query={mention!.query}
+          matches={matches}
+          active={mention!.active}
+          onPick={pick}
+          onHover={(i) => setMention({ ...mention!, active: i })}
+        />
+      ) : null}
+      {sheet === 'cast' ? (
+        <CastSheet cast={draft.cast} variant={variant} onClose={() => setSheet(null)} go={go} />
+      ) : null}
       {sheet === 'rig' ? (
         <RigSheet open onClose={() => setSheet(null)} catalog={catalog} draft={draft} variant={variant} />
       ) : null}

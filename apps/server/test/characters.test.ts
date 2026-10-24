@@ -111,6 +111,8 @@ describe('characters', () => {
     expect(kept.references).toEqual([expect.objectContaining({ view: 'portrait', source: 'still' })]);
     expect(kept.cover).toBe(kept.references[0]!.file);
     expect(existsSync(join(dir, 'media', 'uploads', kept.cover!))).toBe(true);
+    // The still remembers the reference it became, so the Studio can show it kept.
+    expect(still(done.id).kept).toBe(kept.cover);
     // Keeping the same still twice keeps one reference.
     expect((await json<Character>(post(`/api/stills/${done.id}/keep`))).references).toHaveLength(1);
   });
@@ -227,10 +229,10 @@ describe('a character based on a real person', () => {
       post(`/api/characters/${c.id}/consent`, { maker: 'Sam' }),
     );
     expect(link.local).toBe(true);
-    const token = /#\/consent\/([\w-]{43})$/.exec(link.url)![1]!;
+    const token = /#\/likeness\/([\w-]{43})$/.exec(link.url)![1]!;
     // What the person sees: who asks, for which character, and the words they agree to.
     const ask = await json<{ maker: string; character: string; photos: string[]; statement: string }>(
-      api(`/api/consent/${token}`),
+      api(`/api/likeness/${token}`),
     );
     expect(ask).toMatchObject({
       maker: 'Sam',
@@ -241,15 +243,15 @@ describe('a character based on a real person', () => {
 
     // Two photos, no agreement, or a file that isn't an image: refused.
     expect(
-      (await post(`/api/consent/${token}`, { person: 'Anna Weiss', agree: true, photos: photos().slice(1) }))
+      (await post(`/api/likeness/${token}`, { person: 'Anna Weiss', agree: true, photos: photos().slice(1) }))
         .status,
     ).toBe(422);
-    expect((await post(`/api/consent/${token}`, { person: 'Anna Weiss', photos: photos() })).status).toBe(
+    expect((await post(`/api/likeness/${token}`, { person: 'Anna Weiss', photos: photos() })).status).toBe(
       422,
     );
     expect(
       (
-        await post(`/api/consent/${token}`, {
+        await post(`/api/likeness/${token}`, {
           person: 'Anna Weiss',
           agree: true,
           photos: ['aGVsbG8=', ...photos().slice(1)],
@@ -257,17 +259,17 @@ describe('a character based on a real person', () => {
       ).status,
     ).toBe(422);
 
-    const given = await post(`/api/consent/${token}`, {
+    const given = await post(`/api/likeness/${token}`, {
       person: 'Anna Weiss',
       agree: true,
       photos: photos(),
     });
     expect(given.status).toBe(201);
     const { revokeUrl } = await json<{ revokeUrl: string }>(given);
-    expect(revokeUrl).toMatch(/#\/consent\/revoke\/[\w-]{43}$/);
+    expect(revokeUrl).toMatch(/#\/likeness\/revoke\/[\w-]{43}$/);
     // The link works once.
-    expect((await api(`/api/consent/${token}`)).status).toBe(410);
-    expect((await post(`/api/consent/${token}`, { person: 'X', agree: true, photos: photos() })).status).toBe(
+    expect((await api(`/api/likeness/${token}`)).status).toBe(410);
+    expect((await post(`/api/likeness/${token}`, { person: 'X', agree: true, photos: photos() })).status).toBe(
       410,
     );
 
@@ -301,7 +303,7 @@ describe('a character based on a real person', () => {
     // The person takes it back with their own link: the character stops and their photos go.
     const files = now.references.map((r) => join(dir, 'media', 'uploads', r.file));
     const revokeToken = revokeUrl.split('/').pop()!;
-    expect((await post(`/api/consent/revoke/${revokeToken}`)).status).toBe(200);
+    expect((await post(`/api/likeness/revoke/${revokeToken}`)).status).toBe(200);
     const after = character(c.id);
     expect(after.consent).toMatchObject({ status: 'revoked', person: 'Anna Weiss' });
     expect(after.references).toEqual([]);
@@ -316,12 +318,12 @@ describe('a character based on a real person', () => {
     const c = await newCharacter({ name: 'Ben', likeness: 'real' });
     const { url } = await json<{ url: string }>(post(`/api/characters/${c.id}/consent`, { maker: 'Sam' }));
     const token = url.split('/').pop()!;
-    expect((await post(`/api/consent/${token}/decline`)).status).toBe(200);
+    expect((await post(`/api/likeness/${token}/decline`)).status).toBe(200);
     expect(character(c.id).consent).toMatchObject({ status: 'declined' });
-    expect((await api(`/api/consent/${token}`)).status).toBe(410);
+    expect((await api(`/api/likeness/${token}`)).status).toBe(410);
 
     const again = await json<{ url: string }>(post(`/api/characters/${c.id}/consent`, { maker: 'Sam' }));
-    await post(`/api/consent/${again.url.split('/').pop()}`, {
+    await post(`/api/likeness/${again.url.split('/').pop()}`, {
       person: 'Ben',
       agree: true,
       photos: photos(),
@@ -335,8 +337,8 @@ describe('a character based on a real person', () => {
   it('refuses consent links for invented characters, and nonsense tokens', async () => {
     const c = await newCharacter();
     expect((await post(`/api/characters/${c.id}/consent`, { maker: 'Sam' })).status).toBe(409);
-    expect((await api('/api/consent/not-a-token')).status).toBe(410);
-    expect((await post('/api/consent/revoke/not-a-token')).status).toBe(404);
+    expect((await api('/api/likeness/not-a-token')).status).toBe(410);
+    expect((await post('/api/likeness/revoke/not-a-token')).status).toBe(404);
   });
 });
 
@@ -374,8 +376,8 @@ describe('who sees characters', () => {
   });
 
   it('lets anyone holding a consent link reach it before signing in, and nothing else of characters', () => {
-    expect(open('GET', '/api/consent/abc')).toBe(true);
-    expect(open('POST', '/api/consent/abc')).toBe(true);
+    expect(open('GET', '/api/likeness/abc')).toBe(true);
+    expect(open('POST', '/api/likeness/abc')).toBe(true);
     expect(open('GET', '/api/characters')).toBe(false);
     expect(open('POST', '/api/characters/x/consent')).toBe(false);
   });

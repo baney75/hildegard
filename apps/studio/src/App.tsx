@@ -8,7 +8,9 @@ import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/h
 import { allowedIn, isOwner, useStore } from './lib/store.ts';
 import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
+import { Characters } from './pages/Characters.tsx';
 import { Cinema } from './pages/Cinema.tsx';
+import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
@@ -16,6 +18,7 @@ import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
+  { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
@@ -49,6 +52,10 @@ export function App() {
   }, [catalog]);
 
   useEffect(() => {
+    if (/^\/likeness\//.test(route)) {
+      document.title = 'Your consent · Hildegard';
+      return;
+    }
     const page =
       auth && !auth.local && /^\/invite\//.test(route)
         ? 'Your invite'
@@ -57,6 +64,12 @@ export function App() {
           : (NAV.find((n) => n.match.test(route))?.label ?? 'Cinema');
     document.title = busy ? `(${busy}) ${page} · Hildegard` : `${page} · Hildegard`;
   }, [route, busy, auth]);
+
+  // A real person's consent link, opened on their own device: it needs no account and shows nothing else.
+  const revokeLikeness = /^\/likeness\/revoke\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
+  if (revokeLikeness) return <LikenessRevoke token={revokeLikeness} />;
+  const likeness = /^\/likeness\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
+  if (likeness) return <Likeness token={likeness} />;
 
   // An invite link, opened on another device: it signs up whoever opens it, so it comes before anything else.
   const invite = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
@@ -86,6 +99,7 @@ export function App() {
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
+  else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;

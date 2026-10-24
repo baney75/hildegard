@@ -157,3 +157,6 @@ export function comfyDown(engine: EngineState | null): { short: string; long: st
       };
   }
 }
+
+/** Models that make shots. The stills model draws characters and a cast shot's start frame, never a shot. */
+export const videoModels = (c: Catalog) => c.models.filter((m) => m.kind !== 'image');

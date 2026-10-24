@@ -152,6 +152,8 @@ export interface Still {
   error: TakeError | null;
   /** Set when done: `/media/stills/<id>.png`. */
   image: string | null;
+  /** The reference it became, once kept: a CharacterRef.file. */
+  kept?: string;
 }
 
 export interface EngineState {
