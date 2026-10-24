@@ -2,6 +2,13 @@
 # each file is fetched from its Hugging Face repo, at the commit and SHA-256 pinned in models.lock.json.
 # Sizes here are approximate and shown before a download starts; the lock holds the exact ones.
 
+# Every take passes this classifier before it is saved, and so does its start frame: a take with a sexual frame is
+# refused and deleted (docs/safety.md). It downloads with whichever model is installed first. ViT-base, Apache-2.0,
+# labels normal and nsfw. Its repo carries Hugging Face's not-for-all-audiences tag for what it detects.
+[safety]
+threshold = 0.8
+classifier = { repo = "Falconsai/nsfw_image_detection", path = "model.safetensors", dir = "safety", size = 343223968 }
+
 [[models]]
 id = "ltx-2-5-distilled"
 name = "LTX-2.5 distilled"

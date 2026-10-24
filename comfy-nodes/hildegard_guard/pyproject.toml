@@ -1,0 +1,15 @@
+[project]
+name = "hildegard-guard"
+version = "0.1.0"
+description = "Stops a ComfyUI render whose frames look sexual. Part of Hildegard."
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/baney75/hildegard"
+
+[tool.comfy]
+PublisherId = "baney75"
+DisplayName = "Hildegard Guard"

@@ -55,53 +55,7 @@ export async function doctor(ctx: Ctx): Promise<Result> {
   const e = snap?.engine;
 
   // Models.
-  if (snap) {
-    const installed = snap.models.filter((m) => m.installed);
-    const downloading = snap.models.filter((m) => m.downloading);
-    steps.push(
-      installed.length
-        ? {
-            id: 'models',
-            title: 'Models',
-            status: 'done',
-            detail: `Installed: ${installed.map((m) => m.id).join(', ')}.`,
-          }
-        : downloading.length
-          ? {
-              id: 'models',
-              title: 'Models',
-              status: 'skipped',
-              detail: `Downloading ${downloading.map((m) => `${m.id} (${Math.round(((m.downloading?.done ?? 0) / (m.downloading?.total || 1)) * 100)}%)`).join(', ')}.`,
-            }
-          : {
-              id: 'models',
-              title: 'Models',
-              status: 'needs-owner',
-              detail:
-                'No video model yet. Setup picks one that fits; the owner accepts its license first (show them its terms).',
-              command: 'hildegard setup --json',
-            },
-    );
-    const gated = snap.models.filter((m) => m.gated && !m.installed);
-    steps.push(
-      snap.hf.linked
-        ? {
-            id: 'huggingface',
-            title: 'Hugging Face',
-            status: 'done',
-            detail: `Linked${snap.hf.user ? ` as ${snap.hf.user}` : ''}.`,
-          }
-        : {
-            id: 'huggingface',
-            title: 'Hugging Face',
-            status: gated.length ? 'needs-owner' : 'skipped',
-            detail: gated.length
-              ? `Not linked. ${gated.map((m) => m.id).join(' and ')} download${gated.length === 1 ? 's' : ''} only with the owner’s account.`
-              : 'Not linked; no model here needs it.',
-            command: 'hildegard hf login',
-          },
-    );
-  }
+  if (snap) steps.push(...modelSteps(snap));
 
   // Tailscale, the Choir and the link.
   const ts = await tailnetSelf();
@@ -224,4 +178,69 @@ export function comfyStep(
     detail: e?.problem ?? (up ? 'Not answering.' : 'Starts with Hildegard.'),
     command: up ? 'hildegard restart --json' : 'hildegard start --json',
   };
+}
+
+/** The Models and Hugging Face steps, from what the server says about each model. */
+export function modelSteps(
+  snap: Pick<Snapshot, 'models' | 'hf'> & { choir?: Pick<Snapshot['choir'], 'use'> },
+): Step[] {
+  const out: Step[] = [];
+  const installed = snap.models.filter((m) => m.installed);
+  const downloading = snap.models.filter((m) => m.downloading);
+  out.push(
+    installed.length
+      ? {
+          id: 'models',
+          title: 'Models',
+          status: 'done',
+          detail: `Installed: ${installed.map((m) => m.id).join(', ')}.`,
+        }
+      : downloading.length
+        ? {
+            id: 'models',
+            title: 'Models',
+            status: 'skipped',
+            detail: `Downloading ${downloading.map((m) => `${m.id} (${Math.round(((m.downloading?.done ?? 0) / (m.downloading?.total || 1)) * 100)}%)`).join(', ')}.`,
+          }
+        : snap.models.length && snap.models.every((m) => m.fitWhy === 'apple-gpu')
+          ? {
+              id: 'models',
+              title: 'Models',
+              status: 'skipped',
+              detail:
+                'None of the video models render on this Mac yet. Pair a device with an NVIDIA or AMD GPU.',
+              command: 'hildegard choir join',
+            }
+          : {
+              id: 'models',
+              title: 'Models',
+              status: 'needs-owner',
+              detail:
+                'No video model yet. Setup picks one that fits; the owner accepts its license first (show them its terms).',
+              command: 'hildegard setup --json',
+            },
+  );
+  // A model this computer can't render doesn't need the account here, and while takes render on a paired device,
+  // that device downloads the models.
+  const paired = !!snap.choir && snap.choir.use !== 'local';
+  const gated = paired ? [] : snap.models.filter((m) => m.gated && !m.installed && m.fitWhy !== 'apple-gpu');
+  out.push(
+    snap.hf.linked
+      ? {
+          id: 'huggingface',
+          title: 'Hugging Face',
+          status: 'done',
+          detail: `Linked${snap.hf.user ? ` as ${snap.hf.user}` : ''}.`,
+        }
+      : {
+          id: 'huggingface',
+          title: 'Hugging Face',
+          status: gated.length ? 'needs-owner' : 'skipped',
+          detail: gated.length
+            ? `Not linked. ${gated.map((m) => m.id).join(' and ')} download${gated.length === 1 ? 's' : ''} only with the owner’s account.`
+            : 'Not linked; no model here needs it.',
+          command: 'hildegard hf login',
+        },
+  );
+  return out;
 }

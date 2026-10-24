@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { HfState } from '@hildegard/presets';
 
@@ -149,6 +150,16 @@ export function fileStore(path: string): SecretStore {
 }
 
 const b64url = (b: Buffer) => b.toString('base64url');
+const TOKEN_RE = /^hf_[A-Za-z0-9]{20,}$/;
+
+/** Where Hugging Face's own tools (`hf auth login`) keep this computer's token. */
+export function hubTokenPath(env = process.env): string {
+  if (env.HF_TOKEN_PATH) return env.HF_TOKEN_PATH;
+  const home = env.HF_HOME ?? join(env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'huggingface');
+  return join(home, 'token');
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface DeviceStart {
   userCode: string;
@@ -170,13 +181,21 @@ export class HfLink {
   private readonly clientId: string | null;
   private readonly store: SecretStore;
   private readonly fetchFn: typeof fetch;
+  private readonly hubToken: string;
+  /** Hugging Face may not have read a client metadata document yet the first time it sees it; it answers then. */
+  private readonly retryMs: number;
 
   constructor(opts: {
     store: SecretStore;
     clientId: string | null;
     onChange: (s: HfState) => void;
     fetch?: typeof fetch;
+    /** The token file `hf auth login` writes; tests point it elsewhere. */
+    hubToken?: string;
+    retryMs?: number;
   }) {
+    this.hubToken = opts.hubToken ?? hubTokenPath();
+    this.retryMs = opts.retryMs ?? 1500;
     this.store = opts.store;
     this.clientId = opts.clientId;
     this.onChange = opts.onChange;
@@ -209,7 +228,28 @@ export class HfLink {
       user: this.token?.user ?? null,
       storage: this.token ? this.store.kind : null,
       oauth: !!this.clientId,
+      ...(this.token ? {} : { found: this.hubTokenOnDisk() !== null }),
     };
+  }
+
+  /** The token `hf auth login` left on this computer, if there is one that looks right. */
+  private hubTokenOnDisk(): string | null {
+    try {
+      const t = readFileSync(this.hubToken, 'utf8').trim();
+      return TOKEN_RE.test(t) ? t : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Link the account this computer is already signed in to with Hugging Face's own tools: the owner clicks once
+   * instead of making a token. Checked with Hugging Face first, like a pasted one; the file is left as it is.
+   */
+  async useHubToken(): Promise<HfState> {
+    const t = this.hubTokenOnDisk();
+    if (!t) throw new Error('This computer isn’t signed in to Hugging Face. Sign in another way.');
+    return this.setToken(t);
   }
 
   private save(t: HfToken | null) {
@@ -234,7 +274,7 @@ export class HfLink {
   /** Paste a token: checked with Hugging Face before it is kept. */
   async setToken(raw: string): Promise<HfState> {
     const token = raw.trim();
-    if (!/^hf_[A-Za-z0-9]{20,}$/.test(token))
+    if (!TOKEN_RE.test(token))
       throw new Error('That does not look like a Hugging Face token (they start with hf_).');
     const user = await this.whoami(token);
     this.save({ access_token: token, user });
@@ -286,11 +326,17 @@ export class HfLink {
   async beginDevice(): Promise<DeviceStart> {
     if (!this.clientId)
       throw new Error('Sign in with Hugging Face is not set up in this build; paste a token instead.');
-    const res = await this.fetchFn(`${HF}/oauth/device`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: this.clientId, scope: HF_SCOPES }),
-    });
+    const ask = () =>
+      this.fetchFn(`${HF}/oauth/device`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: this.clientId!, scope: HF_SCOPES }),
+      });
+    let res = await ask();
+    if (await this.unknownClient(res)) {
+      await wait(this.retryMs);
+      res = await ask();
+    }
     if (!res.ok) throw new Error(`Hugging Face answered ${res.status}. Try again in a moment.`);
     const d = (await res.json()) as {
       device_code: string;
@@ -336,12 +382,28 @@ export class HfLink {
     dev.timer.unref?.();
   }
 
+  /** "Client not found": Hugging Face hasn't read Hildegard's client metadata document yet. */
+  private async unknownClient(res: Response): Promise<boolean> {
+    if (res.ok || res.status >= 500) return false;
+    const body = (await res
+      .clone()
+      .json()
+      .catch(() => ({}))) as { error?: string };
+    return body.error === 'invalid_client';
+  }
+
   private async tokenRequest(params: Record<string, string>): Promise<HfToken> {
-    const res = await this.fetchFn(`${HF}/oauth/token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: this.clientId!, ...params }),
-    });
+    const ask = () =>
+      this.fetchFn(`${HF}/oauth/token`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: this.clientId!, ...params }),
+      });
+    let res = await ask();
+    if (await this.unknownClient(res)) {
+      await wait(this.retryMs);
+      res = await ask();
+    }
     const body = (await res.json().catch(() => ({}))) as {
       access_token?: string;
       refresh_token?: string;

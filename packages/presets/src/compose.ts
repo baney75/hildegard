@@ -24,6 +24,8 @@ export interface ComposedShot {
   twoStage: boolean;
   motions: ResolvedMotion[];
   post: Post;
+  /** The classifier every frame passes before it is saved (HildegardGuard), by its file name in models/safety. */
+  guard: { classifier: string; threshold: number };
   /** Short human summary for cards, the slate and the Shot Card: "Full-frame cinema · Vintage anamorphic · 35mm · f/2.0". */
   summary: string;
 }
@@ -38,7 +40,7 @@ export class PresetError extends Error {
 }
 
 const NEGATIVE =
-  'blurry, low quality, still frame, frozen, watermark, text overlay, subtitles, logo, distorted faces, extra limbs, jitter, flicker';
+  'blurry, low quality, still frame, frozen, watermark, text overlay, subtitles, logo, distorted faces, extra limbs, jitter, flicker, nudity, nsfw, sexual content';
 
 export function apertureWords(f: number): string {
   if (f <= 2.0) return `shot wide open at f/${fmtF(f)}, very shallow depth of field, creamy background blur`;
@@ -193,6 +195,10 @@ export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
     twoStage,
     motions,
     post: mergePost(body.post, lens.post, lighting?.post, palette?.post),
+    guard: {
+      classifier: catalog.safety.classifier.path.split('/').pop()!,
+      threshold: catalog.safety.threshold,
+    },
     summary: [body.name, lens.name, `${focal.mm}mm`, `f/${fmtF(req.rig.aperture)}`].join(' · '),
   };
 }

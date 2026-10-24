@@ -102,6 +102,7 @@ export const api = {
   cancelModel: (id: string) => call<ModelState[]>('POST', `/api/models/${id}/cancel`),
   hfToken: (token: string) => call<HfState>('POST', '/api/hf/token', { token }),
   hfUnlink: () => call<HfState>('POST', '/api/hf/unlink'),
+  hfImport: () => call<HfState>('POST', '/api/hf/import'),
   hfOAuth: () => call<{ url: string }>('POST', '/api/hf/oauth/start'),
   hfDevice: () => call<DeviceStart>('POST', '/api/hf/device'),
   agents: () => call<AgentsResponse>('GET', '/api/agents'),

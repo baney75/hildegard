@@ -13,12 +13,14 @@ import {
   type Catalog,
   type CreateShotBody,
   composeShot,
+  loadSafety,
   type ModelState,
   type NewInvite,
   type PeopleResponse,
   PresetError,
   type Priority,
   type Project,
+  type SafetyCheck,
   type ServerEvent,
   ShotRequest,
   type Snapshot,
@@ -61,7 +63,7 @@ import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSIO
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -119,6 +121,8 @@ export interface AppDeps {
   limits?: { perName: number; perClient: number };
   /** Technical checks on a finished file (tools/review_media.py); absent where that can't run. */
   review?: (spec: ReviewSpec) => Promise<Review>;
+  /** What may render; presets/safety.toml unless a test says otherwise. */
+  safety?: SafetyCheck;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -157,6 +161,7 @@ const CreateShot = z.object({
 
 export function createApp(deps: AppDeps) {
   const { config, store, scheduler, catalog, mediaDir, people, host } = deps;
+  const safety = deps.safety ?? loadSafety();
   mkdirSync(join(mediaDir, 'uploads'), { recursive: true });
   const app = new Hono<HgEnv>();
   // The address it is bound to is allowed too (a Tailscale IP, say); names must be listed with --allow-host.
@@ -443,6 +448,14 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: issue.message, field: issue.path.join('.') }, 422);
     }
     const request = req.data;
+    // Refused before it queues, for people and agents alike; the queue and the GPU check it again.
+    for (const [field, text] of [
+      ['prompt', request.prompt],
+      ['title', body.title ?? ''],
+    ] as const) {
+      const v = safety.text(text);
+      if (!v.ok) return c.json({ error: v.message, field, code: 'content_blocked' }, 422);
+    }
     if (request.startFrame && !existsSync(join(mediaDir, 'uploads', request.startFrame)))
       return c.json({ error: 'That start frame is gone; add it again', field: 'startFrame' }, 422);
     let composed: ReturnType<typeof composeShot>;
@@ -628,6 +641,11 @@ export function createApp(deps: AppDeps) {
   app.post(
     '/api/takes/:id/retry',
     takeAction((t, c) => {
+      if (t.error?.code === 'content_blocked')
+        return c.json(
+          { error: 'Hildegard refused this take, so it can’t be retried.', code: 'content_blocked' },
+          409,
+        );
       if (t.status === 'failed' || t.status === 'canceled') {
         const refused = queueFull(c, 1);
         if (refused) return refused;
@@ -863,6 +881,15 @@ export function createApp(deps: AppDeps) {
     }
   });
   app.post('/api/hf/unlink', (c) => c.json(deps.hf.unlink()));
+  // Reads a file in the owner's home, so only from this computer.
+  app.post('/api/hf/import', async (c) => {
+    if (!local(c)) return c.json({ error: 'Link Hugging Face from the computer Hildegard runs on' }, 403);
+    try {
+      return c.json(await deps.hf.useHubToken());
+    } catch (e) {
+      return hfFail(c, e);
+    }
+  });
   app.post('/api/hf/oauth/start', (c) => {
     // Hugging Face accepts any port on a loopback redirect, so browser sign-in works only from this computer.
     const u = new URL(c.req.url);

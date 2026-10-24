@@ -15,6 +15,11 @@
       "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
       "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156",
       "size": 1409400960
+    },
+    "Falconsai/nsfw_image_detection/model.safetensors": {
+      "revision": "96cb0d0342c7afb80cab76ecc58b265fa44da256",
+      "sha256": "97b2ce64ec146884b37f98ee7944ca4891aa72f6827dc0cb10684a1cbecd5830",
+      "size": 343223968
     }
   }
 }

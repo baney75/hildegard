@@ -350,12 +350,17 @@ function fillGallery() {
 function wireLightbox() {
   const box = document.querySelector('[data-lightbox]');
   if (!box || typeof box.showModal !== 'function') return;
-  const img = box.querySelector('[data-lb-img]');
+  // Made on first open, so the closed dialog holds no image without a source.
+  let img = null;
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-open-work]');
     if (btn) {
       const w = WORK.find((x) => x.file === btn.dataset.openWork);
       if (!w) return;
+      if (!img) {
+        img = document.createElement('img');
+        box.querySelector('.lightbox__in').prepend(img);
+      }
       img.src = `img/work/${w.file}`;
       img.alt = `A frame from ${slate(w)}.`;
       box.querySelector('[data-lb-title]').textContent = slate(w);

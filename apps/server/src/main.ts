@@ -3,6 +3,7 @@
 
 import { VERSION } from './app.ts';
 import { parseArgs } from './config.ts';
+import { guardProcess } from './lifecycle.ts';
 import { startServer } from './server.ts';
 
 const config = parseArgs(process.argv.slice(2));
@@ -17,8 +18,7 @@ try {
     `Hildegard ${VERSION} is running at ${running.url}${config.fake ? ' (stand-in GPU: no real video)' : ''}`,
   );
 
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
+  guardProcess(stop);
 } catch (e) {
   const err = e as NodeJS.ErrnoException;
   if (err.code === 'EADDRINUSE')
