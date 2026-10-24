@@ -41,8 +41,8 @@ if ($FreeGB -lt $NeedGB) {
   $dir = if ($other) { "$($other.Name):\Hildegard" } else { 'D:\Hildegard' }
   Write-Host "  `$env:HILDEGARD_HOME = '$dir'; irm $Release/install.ps1 | iex"
   Write-Host ''
-  Write-Host 'Nothing was installed.'
-  return
+  # A throw, not exit: under `irm | iex`, exit would close the window.
+  throw "Not enough free space on $($Drive.Name). Nothing was installed."
 }
 $Tmp = Join-Path ([IO.Path]::GetTempPath()) ("hildegard-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $Root, $Bin, $Tmp | Out-Null
@@ -76,7 +76,7 @@ try {
   $app = Join-Path $Root "app-$Version"
   if (Test-Path $app) { Remove-Item -Recurse -Force $app }
   New-Item -ItemType Directory -Force -Path $app | Out-Null
-  & (Join-Path $env:SystemRoot 'System32\tar.exe') -xzf (Join-Path $Tmp $f) -C $app --strip-components 1
+  & (Join-Path $env:SystemRoot 'System32\tar.exe') -xmzf (Join-Path $Tmp $f) -C $app --strip-components 1
   if ($LASTEXITCODE -ne 0) { throw "Couldn't unpack $f." }
 
   # `app` is a junction to the current version (no admin rights needed), so paths given to AI apps survive upgrades.

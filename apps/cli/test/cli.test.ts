@@ -502,3 +502,27 @@ describe('doctor’s ComfyUI step', () => {
     expect(stuck).toMatchObject({ status: 'failed', command: 'hildegard restart --json' });
   });
 });
+
+describe('doctor’s model steps', () => {
+  type Snap = Parameters<typeof import('../src/doctor.ts').modelSteps>[0];
+  const model = (id: string, fitWhy: 'memory' | 'apple-gpu' | null, gated = false) =>
+    ({ id, installed: false, downloading: null, gated, fitWhy }) as unknown as Snap['models'][number];
+  const hf = { linked: false } as Snap['hf'];
+
+  it('on a Mac no model renders on, points to pairing and asks for no Hugging Face account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({
+      models: [model('wan', 'apple-gpu'), model('ltx', 'apple-gpu', true)],
+      hf,
+    });
+    expect(models).toMatchObject({ status: 'skipped', command: 'hildegard choir join' });
+    expect(account).toMatchObject({ status: 'skipped', detail: 'Not linked; no model here needs it.' });
+  });
+
+  it('elsewhere, setup picks a model and a gated one needs the account', async () => {
+    const { modelSteps } = await import('../src/doctor.ts');
+    const [models, account] = modelSteps({ models: [model('wan', null), model('ltx', null, true)], hf });
+    expect(models).toMatchObject({ status: 'needs-owner', command: 'hildegard setup --json' });
+    expect(account).toMatchObject({ status: 'needs-owner', command: 'hildegard hf login' });
+  });
+});

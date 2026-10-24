@@ -116,7 +116,7 @@ if [ "$("$home/node/bin/node" --version 2>/dev/null || true)" != "v$NODE" ]; the
   checked "https://nodejs.org/dist/v$NODE/$f" "$tmp/$f" "$(node_sha "$target")"
   rm -rf "$home/node.new"
   mkdir -p "$home/node.new"
-  tar -xzf "$tmp/$f" -C "$home/node.new" --strip-components 1
+  tar -xmzf "$tmp/$f" -C "$home/node.new" --strip-components 1
   rm -rf "$home/node"
   mv "$home/node.new" "$home/node"
 fi
@@ -126,7 +126,7 @@ f=hildegard-$VERSION-$target.tar.gz
 checked "$RELEASE/$f" "$tmp/$f" "$(app_sha "$target")"
 rm -rf "$home/app-$VERSION.new"
 mkdir -p "$home/app-$VERSION.new"
-tar -xzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
+tar -xmzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
 rm -rf "$home/app-$VERSION"
 mv "$home/app-$VERSION.new" "$home/app-$VERSION"
 # Keep this version and the one before it, for going back.

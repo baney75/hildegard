@@ -318,7 +318,7 @@ async function downloadUv(L: Layout, fetchFn: typeof fetch, log: (l: string) => 
   const archive = join(L.downloads, file);
   await download(UV.url(file), archive, sha, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'uv-'));
-  await run(tar, ['-xf', archive, '-C', tmp], { log });
+  await run(tar, ['-xmf', archive, '-C', tmp], { log });
   const name = win ? 'uv.exe' : 'uv';
   // The Unix archives hold a folder named after the target; the Windows zip holds the binaries at the top.
   const inner = win ? join(tmp, name) : join(tmp, file.replace(/\.tar\.gz$/, ''), name);
@@ -334,7 +334,7 @@ async function installComfy(L: Layout, fetchFn: typeof fetch, log: (l: string) =
   const archive = join(L.downloads, `ComfyUI-${COMFYUI.version}.tar.gz`);
   await download(COMFYUI.url, archive, COMFYUI.sha256, fetchFn, log);
   const tmp = mkdtempSync(join(L.downloads, 'comfyui-'));
-  await run(tar, ['-xzf', archive, '-C', tmp], { log });
+  await run(tar, ['-xmzf', archive, '-C', tmp], { log });
   // Over the top of any earlier version: models, custom nodes, inputs and outputs stay.
   cpSync(join(tmp, COMFYUI.root), L.comfyDir, { recursive: true, force: true });
   rmSync(tmp, { recursive: true, force: true });
