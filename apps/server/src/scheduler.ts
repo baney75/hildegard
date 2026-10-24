@@ -414,6 +414,7 @@ export class Scheduler {
     this.renumber();
 
     const started = Date.now();
+    let ranFrom: number | null = null;
     const dest = join(this.mediaDir, `${take.id}.mp4`);
     try {
       const shot = composeShot(this.catalog, take.request);
@@ -432,6 +433,10 @@ export class Scheduler {
           ? join(this.mediaDir, 'uploads', take.request.startFrame)
           : undefined,
         handlers: {
+          // Render time counts from when the GPU starts on it, not from a wait in another device's queue.
+          onRunning: () => {
+            ranFrom ??= Date.now();
+          },
           onProgress: (p) => {
             take.progress = { value: p.value, step: p.step, steps: p.steps };
             const now = Date.now();
@@ -478,7 +483,7 @@ export class Scheduler {
       if (!requeued) {
         take.queuePosition = null;
         take.finishedAt = new Date().toISOString();
-        take.renderMs = Date.now() - started;
+        take.renderMs = Date.now() - (ranFrom ?? started);
         // A stopped take keeps its last frame as a poster, so the card shows where it got to.
         const last = this.previews.get(take.id);
         if (last && !take.poster) {
