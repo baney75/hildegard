@@ -12,8 +12,15 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { composeShot, loadCatalog, ShotRequest } from '@hildegard/presets';
-import { buildGraph } from '../src/graph.ts';
+import {
+  type Character,
+  composeCharacterStill,
+  composeShot,
+  loadCatalog,
+  ShotRequest,
+  videoModels,
+} from '@hildegard/presets';
+import { type BuiltGraph, buildGraph, buildStillGraph, referenceName } from '../src/graph.ts';
 
 const args = process.argv.slice(2);
 const prepare = args[0] === '--prepare';
@@ -34,53 +41,88 @@ for (const f of [
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, basename(f.path)), '');
 }
-// A start frame: a 1×1 PNG.
+// A start frame and reference images: a 1×1 PNG under each name a graph loads.
 mkdirSync(join(comfyDir, 'input'), { recursive: true });
-writeFileSync(
-  join(comfyDir, 'input', 'hildegard-check.png'),
-  Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-    'base64',
-  ),
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64',
 );
+for (const name of ['hildegard-check.png', ...[0, 1, 2, 3].map(referenceName)])
+  writeFileSync(join(comfyDir, 'input', name), png);
 
 if (prepare) {
   console.log(`Stand-in model files and a start frame are in ${comfyDir}`);
   process.exit(0);
 }
 
-const cases = catalog.models.flatMap((m) =>
-  (['draft', 'final'] as const).flatMap((quality) => [false, true].map((frame) => ({ m, quality, frame }))),
-);
+const character = (id: string, refs: number): Character => ({
+  id,
+  name: 'Mara',
+  description: 'Early thirties, auburn side braid',
+  wardrobe: 'an undyed linen shirt',
+  references: Array.from({ length: refs }, (_, i) => ({
+    file: `${String(i).repeat(64)}.png`,
+    view: 'portrait' as const,
+    source: 'still' as const,
+    addedAt: '2026-10-24T00:00:00Z',
+  })),
+  cover: null,
+  voice: null,
+  likeness: 'invented',
+  consent: null,
+  createdAt: '2026-10-24T00:00:00Z',
+  updatedAt: '2026-10-24T00:00:00Z',
+});
+const cast = [character('a1b2c3d4e5f60718', 2), character('b1b2c3d4e5f60718', 2)];
+
+const cases: Array<{ name: string; graph: BuiltGraph['graph'] }> = [
+  ...videoModels(catalog).flatMap((m) =>
+    (['draft', 'final'] as const).flatMap((quality) =>
+      (['none', 'frame', 'cast'] as const).map((start) => {
+        const motion = Object.keys(m.loras).length
+          ? [{ id: catalog.motions.find((x) => x.impl[m.id]?.kind === 'lora')?.id ?? catalog.motions[0]!.id }]
+          : [{ id: catalog.motions[0]!.id }];
+        const shot = composeShot(
+          catalog,
+          ShotRequest.parse({
+            prompt: 'A lighthouse keeper climbs the spiral stairs at dusk',
+            rig: { body: catalog.bodies[0]!.id, lens: catalog.lenses[0]!.id, focal: 35, aperture: 2.8 },
+            motion,
+            format: { aspect: '16:9', seconds: 5, quality },
+            model: m.id,
+            characters: start === 'cast' ? cast.map((c) => c.id) : [],
+          }),
+          start === 'cast' ? cast : [],
+        );
+        const { graph } = buildGraph({
+          shot,
+          seed: 1,
+          prefix: 'hildegard-check/x',
+          startFrame: start === 'frame' ? 'hildegard-check.png' : undefined,
+        });
+        const name = `${m.id} · ${quality}${start === 'frame' ? ' · start frame' : start === 'cast' ? ' · characters' : ''}`;
+        return { name, graph };
+      }),
+    ),
+  ),
+  ...[character('c1b2c3d4e5f60718', 0), character('d1b2c3d4e5f60718', 3)].map((c) => ({
+    name: `stills · ${c.references.length} references`,
+    graph: buildStillGraph({
+      still: composeCharacterStill(catalog, c, 'portrait'),
+      seed: 1,
+      prefix: 'hildegard-check/s',
+    }).graph,
+  })),
+];
 
 let failed = 0;
-for (const { m, quality, frame } of cases) {
-  const motion = Object.keys(m.loras).length
-    ? [{ id: catalog.motions.find((x) => x.impl[m.id]?.kind === 'lora')?.id ?? catalog.motions[0]!.id }]
-    : [{ id: catalog.motions[0]!.id }];
-  const shot = composeShot(
-    catalog,
-    ShotRequest.parse({
-      prompt: 'A lighthouse keeper climbs the spiral stairs at dusk',
-      rig: { body: catalog.bodies[0]!.id, lens: catalog.lenses[0]!.id, focal: 35, aperture: 2.8 },
-      motion,
-      format: { aspect: '16:9', seconds: 5, quality },
-      model: m.id,
-    }),
-  );
-  const { graph } = buildGraph({
-    shot,
-    seed: 1,
-    prefix: 'hildegard-check/x',
-    startFrame: frame ? 'hildegard-check.png' : undefined,
-  });
+for (const { name, graph } of cases) {
   const res = await fetch(`${url}/prompt`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ prompt: graph, client_id: 'hildegard-check' }),
   });
   const body = (await res.json()) as { error?: { message: string }; node_errors?: Record<string, unknown> };
-  const name = `${m.id} · ${quality}${frame ? ' · start frame' : ''}`;
   if (res.ok) console.log(`ok    ${name}`);
   else {
     failed++;

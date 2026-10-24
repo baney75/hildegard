@@ -2,6 +2,7 @@
 import type {
   AuthState,
   Catalog,
+  Character,
   ChoirState,
   ConsentSessionView,
   EngineState,
@@ -14,6 +15,7 @@ import type {
   ServerEvent,
   Shot,
   Snapshot,
+  Still,
   Take,
   UpdateState,
   VoiceJob,
@@ -34,6 +36,9 @@ export interface State {
   projects: Map<string, Project>;
   shots: Map<string, Shot>;
   takes: Map<string, Take>;
+  /** Reusable people, and the stills drawn of them. */
+  characters: Map<string, Character>;
+  stills: Map<string, Still>;
   engine: EngineState | null;
   models: ModelState[];
   hf: HfState | null;
@@ -64,6 +69,8 @@ let state: State = {
   projects: new Map(),
   shots: new Map(),
   takes: new Map(),
+  characters: new Map(),
+  stills: new Map(),
   engine: null,
   models: [],
   hf: null,
@@ -102,6 +109,8 @@ function fromSnapshot(s: Snapshot): Partial<State> {
     projects: new Map(s.projects.map((p) => [p.id, p])),
     shots: new Map(s.shots.map((x) => [x.id, x])),
     takes: new Map(s.takes.map((t) => [t.id, t])),
+    characters: new Map((s.characters ?? []).map((c) => [c.id, c])),
+    stills: new Map((s.stills ?? []).map((x) => [x.id, x])),
     engine: s.engine,
     models: s.models,
     hf: s.hf,
@@ -117,7 +126,7 @@ const stage = (s: VoiceJob['status']) => (s === 'queued' ? 0 : s === 'running' ?
 
 /** Apply a batch of server events in one update, so a burst of progress costs one render. */
 export function apply(events: ServerEvent[]) {
-  let { projects, shots, takes } = state;
+  let { projects, shots, takes, characters, stills } = state;
   const next: Partial<State> = {};
   for (const e of events) {
     switch (e.type) {
@@ -128,6 +137,14 @@ export function apply(events: ServerEvent[]) {
       case 'shot':
         if (shots === state.shots) shots = new Map(shots);
         shots.set(e.shot.id, e.shot);
+        break;
+      case 'character':
+        if (characters === state.characters) characters = new Map(characters);
+        characters.set(e.character.id, e.character);
+        break;
+      case 'still':
+        if (stills === state.stills) stills = new Map(stills);
+        stills.set(e.still.id, e.still);
         break;
       case 'project':
         if (projects === state.projects) projects = new Map(projects);
@@ -140,6 +157,12 @@ export function apply(events: ServerEvent[]) {
         } else if (e.kind === 'take') {
           if (takes === state.takes) takes = new Map(takes);
           takes.delete(e.id);
+        } else if (e.kind === 'character') {
+          if (characters === state.characters) characters = new Map(characters);
+          characters.delete(e.id);
+        } else if (e.kind === 'still') {
+          if (stills === state.stills) stills = new Map(stills);
+          stills.delete(e.id);
         } else if (e.kind === 'shot') {
           if (shots === state.shots) shots = new Map(shots);
           shots.delete(e.id);
@@ -199,7 +222,7 @@ export function apply(events: ServerEvent[]) {
         break;
     }
   }
-  set({ ...next, projects, shots, takes });
+  set({ ...next, projects, shots, takes, characters, stills });
 }
 
 /** Optimistic local update for something the server just returned. */
@@ -226,6 +249,8 @@ function signedOut() {
     projects: new Map(),
     shots: new Map(),
     takes: new Map(),
+    characters: new Map(),
+    stills: new Map(),
     exports: new Map(),
     guests: [],
     host: null,

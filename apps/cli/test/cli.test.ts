@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { loadCatalog } from '@hildegard/presets';
+import { loadCatalog, videoModels } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
 import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -403,7 +403,10 @@ describe('hildegard', () => {
     // Wan 2.2 on a 24 GB M5 came out a blurred blob after 70 minutes; LTX needs int8 kernels Apple lacks.
     expect(starterModel(catalog, mac)).toBeNull();
     expect(starterModel(catalog, { ...mac, vramGb: 96 })).toBeNull();
-    for (const m of catalog.models) expect(fitWhy(mac, m)).toBe('apple-gpu');
+    for (const m of videoModels(catalog)) expect(fitWhy(mac, m)).toBe('apple-gpu');
+    // Stills are another matter: FLUX.2 [klein] draws characters on Apple’s GPU, though it starts no video.
+    const klein = catalog.models.find((m) => m.id === 'flux-2-klein-4b')!;
+    expect(fitWhy(mac, klein)).not.toBe('apple-gpu');
   });
 });
 

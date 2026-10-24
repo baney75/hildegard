@@ -164,3 +164,42 @@ repo = "Comfy-Org/Wan-2.2"
 path = "split_files/vae/wan2.2_vae.safetensors"
 dir = "vae"
 size = 1409400960
+
+# Stills: character portraits and sheets, and the start frame of a shot with characters in it. FLUX.2 [klein] reads up
+# to four reference images and keeps the people in them, which is what holds a character's face and clothes from shot
+# to shot. The distilled 4B is the open one: Apache-2.0, like its Qwen3-4B text encoder.
+[[models]]
+id = "flux-2-klein-4b"
+name = "FLUX.2 [klein] 4B"
+kind = "image"
+family = "flux-2-klein"
+blurb = "Black Forest Labs’ open image model. Characters: portraits, sheets, and start frames that keep faces and clothes."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Its text encoder, Qwen3-4B, is Apache-2.0 too.",
+  "You are responsible for what you make with it. Hildegard draws a real person only with their consent.",
+]
+graph = "flux-2-klein"
+minVramGb = 13
+draft = { height = 768, steps = 4, cfg = 1.0 }
+final = { height = 1024, steps = 4, cfg = 1.0 }
+
+[[models.files]]
+repo = "Comfy-Org/Flux-2-Klein-4B"
+path = "split_files/diffusion_models/flux-2-klein-4b.safetensors"
+dir = "diffusion_models"
+size = 7751105712
+
+[[models.files]]
+repo = "Comfy-Org/Flux-2-Klein-4B"
+path = "split_files/text_encoders/qwen_3_4b.safetensors"
+dir = "text_encoders"
+size = 8044982048
+
+[[models.files]]
+repo = "Comfy-Org/Flux-2-Klein-4B"
+path = "split_files/vae/flux2-vae.safetensors"
+dir = "vae"
+size = 336211292

@@ -3,12 +3,21 @@ import { mkdtempSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composeShot, loadCatalog, loadSafety, ShotRequest } from '@hildegard/presets';
+import {
+  type Character,
+  composeCharacterStill,
+  composeShot,
+  loadCatalog,
+  loadSafety,
+  ShotRequest,
+  videoModels,
+} from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type FakeProxy, startFakeProxy } from '../src/fake-proxy.ts';
 import {
   buildGraph,
   buildLtxGraph,
+  buildStillGraph,
   ComfySdkEngine,
   catalogFiles,
   checkLinks,
@@ -21,14 +30,41 @@ import {
 } from '../src/index.ts';
 
 const { catalog } = loadCatalog();
-const shot = (over: Record<string, unknown> = {}) =>
+const character = (id: string, refs: number, over: Partial<Character> = {}): Character => ({
+  id,
+  name: 'Mara',
+  description: 'Early thirties, auburn side braid, light freckles',
+  wardrobe: 'an undyed linen shirt and canvas apron',
+  references: Array.from({ length: refs }, (_, i) => ({
+    file: `${String(i).repeat(64).slice(0, 64)}.png`,
+    view: (['portrait', 'full-body', 'three-quarter', 'profile'] as const)[i % 4]!,
+    source: 'still' as const,
+    addedAt: '2026-10-24T00:00:00Z',
+  })),
+  cover: null,
+  voice: null,
+  likeness: 'invented',
+  consent: null,
+  createdAt: '2026-10-24T00:00:00Z',
+  updatedAt: '2026-10-24T00:00:00Z',
+  ...over,
+});
+const mara = character('a1b2c3d4e5f60718', 3);
+const konrad = character('b1b2c3d4e5f60718', 2, {
+  name: 'Brother Konrad',
+  description: 'A tall monk',
+  wardrobe: '',
+});
+const shot = (over: Record<string, unknown> = {}, cast: Character[] = []) =>
   composeShot(
     catalog,
     ShotRequest.parse({
       prompt: 'A lighthouse keeper climbs the spiral stairs',
       rig: { body: 'vintage-16mm', lens: 'clean', focal: 35, aperture: 2.8 },
       ...over,
+      ...(cast.length ? { characters: cast.map((c) => c.id) } : {}),
     }),
+    cast,
   );
 const classes = (g: Record<string, { class_type: string }>) => Object.values(g).map((n) => n.class_type);
 
@@ -144,6 +180,85 @@ describe('buildLtxGraph', () => {
   });
 });
 
+describe('characters', () => {
+  const byClass = (g: Record<string, { class_type: string; inputs: Record<string, unknown> }>, cls: string) =>
+    Object.entries(g).filter(([, n]) => n.class_type === cls);
+
+  it('draws a portrait with FLUX.2 [klein]: four steps, no references for a new character, saved as a PNG', () => {
+    const still = composeCharacterStill(catalog, character('c1b2c3d4e5f60718', 0), 'portrait');
+    expect(still.model.id).toBe('flux-2-klein-4b');
+    expect(still).toMatchObject({ width: 1024, height: 1024, steps: 4, cfg: 1, references: [] });
+    expect(still.prompt).toMatch(/^Character reference photograph of Mara, Early thirties/);
+    expect(still.prompt).toMatch(/wearing an undyed linen shirt/);
+    const b = buildStillGraph({ still, seed: 7, prefix: 'hildegard/s1' });
+    expect(checkLinks(b.graph)).toEqual([]);
+    expect(b.output).toBe('image');
+    expect(b.referenceNodes).toEqual([]);
+    expect(b.graph[b.outputNode]).toMatchObject({
+      class_type: 'SaveImage',
+      inputs: { filename_prefix: 'hildegard/s1' },
+    });
+    expect(byClass(b.graph, 'CLIPLoader')[0]![1]).toMatchObject({ inputs: { type: 'flux2' } });
+    expect(byClass(b.graph, 'Flux2Scheduler')[0]![1]).toMatchObject({
+      inputs: { steps: 4, width: 1024, height: 1024 },
+    });
+    expect(byClass(b.graph, 'RandomNoise')[0]![1]).toMatchObject({ inputs: { noise_seed: 7 } });
+    expect(byClass(b.graph, 'ReferenceLatent')).toHaveLength(0);
+  });
+
+  it('keeps a sheet to the character’s references: each one checked, encoded, and given to both conditionings', () => {
+    const still = composeCharacterStill(catalog, mara, 'full-body');
+    expect(still.prompt).toMatch(/same person as in reference images 1, 2 and 3/);
+    expect(still.height).toBeGreaterThan(still.width);
+    const b = buildStillGraph({ still, seed: 7, prefix: 's' });
+    expect(b.referenceNodes).toHaveLength(3);
+    expect(byClass(b.graph, 'ReferenceLatent')).toHaveLength(6);
+    expect(
+      byClass(b.graph, 'HildegardGuard')
+        .map(([, n]) => n.inputs.what)
+        .sort(),
+    ).toEqual(['reference', 'reference', 'reference', 'still']);
+  });
+
+  it('draws a cast shot’s start frame from both characters’ references, then animates it', () => {
+    const s = shot({ model: 'wan-2-2-ti2v-5b' }, [mara, konrad]);
+    expect(s.cast!.characters.map((c) => c.name)).toEqual(['Mara', 'Brother Konrad']);
+    // Four references in all: two each.
+    expect(s.cast!.keyframe.references).toHaveLength(4);
+    expect(s.cast!.keyframe.prompt).toMatch(/Mara, .*\(the person in reference images 1 and 2\)/);
+    expect(s.cast!.keyframe.prompt).toMatch(
+      /Brother Konrad, A tall monk \(the person in reference images 3 and 4\)/,
+    );
+    expect(s.prompt).toMatch(/Featuring Mara, Early thirties.*; Brother Konrad, A tall monk\./);
+    const b = buildGraph({ shot: s, seed: 5, prefix: 'p' });
+    expect(checkLinks(b.graph)).toEqual([]);
+    expect(b.startFrameNode).toBeUndefined();
+    expect(b.referenceNodes).toHaveLength(4);
+    const latent = byClass(b.graph, 'Wan22ImageToVideoLatent')[0]![1];
+    const scale = b.graph[(latent.inputs.start_image as [string, number])[0]]!;
+    expect(b.graph[(scale.inputs.image as [string, number])[0]]!.class_type).toBe('VAEDecode');
+    const ltx = buildGraph({ shot: shot({}, [mara]), seed: 5, prefix: 'p' });
+    expect(ltx.referenceNodes).toHaveLength(3);
+    expect(byClass(ltx.graph, 'LTXVImgToVideoInplace').length).toBeGreaterThan(0);
+  });
+
+  it('refuses a start frame and characters together, and a stills model for a take', () => {
+    expect(() => shot({ startFrame: `${'a'.repeat(64)}.png` }, [mara])).toThrow(/start frame or characters/);
+    expect(() => shot({ model: 'flux-2-klein-4b' })).toThrow(/makes stills, not video/);
+    expect(() =>
+      composeShot(
+        catalog,
+        ShotRequest.parse({
+          prompt: 'x',
+          rig: { body: 'vintage-16mm', lens: 'clean', focal: 35, aperture: 2.8 },
+          characters: [mara.id],
+        }),
+        [konrad],
+      ),
+    ).toThrow(/Unknown character/);
+  });
+});
+
 describe('classifyFailure', () => {
   it('recognises out of memory and missing models', () => {
     expect(classifyFailure('execution_error', 'torch.OutOfMemoryError: CUDA out of memory').code).toBe(
@@ -210,6 +325,25 @@ describe('ComfySdkEngine against the fake proxy', () => {
     expect(JSON.stringify(last.workflow[built.startFrameNode!]!.inputs.image)).toContain('core/ASSET');
   });
 
+  it('renders a still and binds each reference image', async () => {
+    const engine = new ComfySdkEngine(proxy.url);
+    const built = buildStillGraph({
+      still: composeCharacterStill(catalog, mara, 'profile'),
+      seed: 2,
+      prefix: 's',
+    });
+    const ref = fileURLToPath(new URL('../fixtures/still.png', import.meta.url));
+    const dest = join(dir, 'still.png');
+    await expect(engine.render(built, { dest, references: [ref] })).rejects.toMatchObject({
+      code: 'invalid_graph',
+    });
+    await engine.render(built, { dest, references: [ref, ref, ref] });
+    expect(readFileSync(dest).subarray(1, 4).toString()).toBe('PNG');
+    const last = [...proxy.jobs.values()].at(-1)!;
+    for (const n of built.referenceNodes!)
+      expect(JSON.stringify(last.workflow[n]!.inputs.image)).toContain('core/ASSET');
+  });
+
   it('reports out of memory as such', async () => {
     const engine = new ComfySdkEngine(proxy.url);
     const built = buildLtxGraph({ shot: shot({ prompt: 'too big [fail:oom]' }), seed: 1, prefix: 'p' });
@@ -244,22 +378,32 @@ describe('ComfySdkEngine against the fake proxy', () => {
 describe('vetGraph', () => {
   const files = catalogFiles(catalog.models);
   const safety = graphSafety(catalog, loadSafety());
-  const variants = catalog.models.flatMap((m) =>
-    (['draft', 'final'] as const).flatMap((quality) =>
-      [undefined, 'start.png'].map((startFrame) =>
-        buildGraph({
-          shot: shot({
-            model: m.id,
-            format: { aspect: '16:9', seconds: 3, quality },
-            motion: [{ id: 'dolly-in', strength: 0.5 }],
+  const variants = [
+    ...videoModels(catalog).flatMap((m) =>
+      (['draft', 'final'] as const).flatMap((quality) =>
+        [undefined, 'start.png', 'cast'].map((start) =>
+          buildGraph({
+            shot: shot(
+              {
+                model: m.id,
+                format: { aspect: '16:9', seconds: 3, quality },
+                motion: [{ id: 'dolly-in', strength: 0.5 }],
+              },
+              start === 'cast' ? [mara, konrad] : [],
+            ),
+            seed: 3,
+            prefix: 'p',
+            startFrame: start === 'start.png' ? start : undefined,
           }),
-          seed: 3,
-          prefix: 'p',
-          startFrame,
-        }),
+        ),
       ),
     ),
-  );
+    ...(['portrait', 'full-body'] as const).flatMap((view) =>
+      [character('c1b2c3d4e5f60718', 0), mara].map((c) =>
+        buildStillGraph({ still: composeCharacterStill(catalog, c, view), seed: 4, prefix: 's' }),
+      ),
+    ),
+  ];
 
   it('accepts every graph the builders make, and the allowlist names only classes they use', () => {
     const used = new Set<string>();
@@ -285,7 +429,7 @@ describe('vetGraph', () => {
     ).toMatch(/not in the catalog/);
     expect(
       vetGraph(withNode({ class_type: 'LoadImage', inputs: { image: 'secret.png' } }), files, safety).join(),
-    ).toMatch(/not the start frame/);
+    ).toMatch(/neither the start frame nor a reference/);
     expect(
       vetGraph(withNode({ class_type: 'SaveVideo', inputs: { video: ['1', 0] } }), files, safety).join(),
     ).toMatch(/one video/);
@@ -302,11 +446,56 @@ describe('vetGraph', () => {
   it('refuses a graph whose frames skip the safety check', () => {
     for (const b of variants) {
       const g = clone(b);
+      if (g.output === 'image') {
+        const [, check] = find(g, 'HildegardGuard', 'still');
+        g.graph[g.outputNode]!.inputs.images = check.inputs.images!;
+        expect(vetGraph(g, files, safety).join()).toMatch(/saved without the safety check/);
+        continue;
+      }
       const [, look] = find(g, 'HildegardLook');
       const [, check] = find(g, 'HildegardGuard', 'take');
       look.inputs.images = check.inputs.images!;
       expect(vetGraph(g, files, safety).join()).toMatch(/without the safety check/);
     }
+  });
+
+  it('checks every reference image before the stills model reads it', () => {
+    const cast = variants.filter((v) => v.referenceNodes?.length);
+    // Two characters' references in every cast shot, and the still that keeps to Mara's.
+    expect(cast.length).toBe(videoModels(catalog).length * 2 + 2);
+    for (const b of cast) {
+      expect(b.referenceNodes!.length).toBeLessThanOrEqual(4);
+      const g = clone(b);
+      const [id, check] = find(g, 'HildegardGuard', 'reference');
+      const scale = Object.values(g.graph).find(
+        (n) => n.class_type === 'ImageScaleToTotalPixels' && (n.inputs.image as [string, number])[0] === id,
+      )!;
+      scale.inputs.image = check.inputs.images!;
+      expect(vetGraph(g, files, safety).join()).toMatch(/reference image is used before the safety check/);
+    }
+    // A reference image that isn't bound as one is a stray load.
+    const stray = clone(cast[0]!);
+    stray.referenceNodes = stray.referenceNodes!.slice(1);
+    expect(vetGraph(stray, files, safety).join()).toMatch(/neither the start frame nor a reference/);
+    // More than four, or a reference that is the start frame, is not a graph Hildegard makes.
+    expect(vetGraph({ ...cast[0]!, referenceNodes: ['1', '2', '3', '4', '5'] }, files, safety)).toEqual([
+      'the reference images are not ones Hildegard binds',
+    ]);
+  });
+
+  it('refuses a still that saves a video, or a take that saves an image', () => {
+    const still = variants.find((v) => v.output === 'image')!;
+    expect(vetGraph({ ...still, output: 'video' }, files, safety).join()).toMatch(/save one video/);
+    const take = variants.find((v) => !v.output)!;
+    expect(vetGraph({ ...take, output: 'image' }, files, safety).join()).toMatch(/save one image/);
+    expect(vetGraph({ ...take, output: 'gif' as never }, files, safety).join()).toMatch(/never makes/);
+  });
+
+  it('checks the words of a still prompt too', () => {
+    const g = clone(variants.find((v) => v.output === 'image')!);
+    const [, text] = Object.entries(g.graph).find(([, n]) => n.class_type === 'CLIPTextEncode')!;
+    text.inputs.text = 'a nude portrait';
+    expect(vetGraph(g, files, safety).join()).toMatch(/sexual content/);
   });
 
   it('refuses a start frame used before its check, a weaker check or another classifier', () => {

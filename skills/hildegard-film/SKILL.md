@@ -29,9 +29,24 @@ Write the brief from hildegard-craft. Then a shot list, one line per shot:
 - Each shot has one action and a reason to exist. Vary size between consecutive shots (wide, medium, close).
 - Keep `lighting`, `palette`, `camera_body` and `era` the same across a scene unless the story changes.
 - Write a continuity list (people, places, light) and paste it into every prompt word for word.
+- People who appear in more than one shot should be characters (step 2a), not just words.
 - Length: as short as the idea allows. Three good shots beat ten average ones.
 
 For more than one shot, show your user the brief and shot list before rendering, unless they told you to go ahead.
+
+## 2a. Characters, for anyone seen twice
+
+`list_characters` first: your user may already have them. Otherwise, for each person in more than one shot:
+
+1. `create_character` with a concrete description (age, build, face, hair, marks) and the outfit they wear throughout,
+   `wait_seconds: 120`. It draws four portraits.
+2. Look at each portrait. `keep_still` the one that best fits the description: it becomes their face.
+3. `make_character_stills` with `view: "sheet"`, `wait_seconds: 180`, then keep the angles that match the face.
+4. In `direct_shot`, pass `characters` (ids or names) and still name them in the prompt. Not with a start frame: the
+   characters draw it.
+
+Only invented people. A character of a real person needs that person's own consent, which they give themselves on a
+link from the Studio; you can't make one or give it for them.
 
 ## 3. Prompts (Gate 2)
 
@@ -59,7 +74,8 @@ Common fixes:
 | Flicker or morphing | Another seed; shorter `seconds`; less motion; a start frame |
 | Looks generic | Add one specific detail to the prompt |
 | Oversaturated | Remove quality words; palette `faded-print` or `silver`; grade later |
-| Continuity breaks | Paste the continuity lines word for word; same presets; start frame from the previous shot |
+| Continuity breaks | Paste the continuity lines word for word; same presets; cast the same characters; start frame from the previous shot |
+| A character drifts | Keep a clearer face and a full-body reference; shorter shot; less motion |
 
 ## 6. Finals and export (Gate 4)
 

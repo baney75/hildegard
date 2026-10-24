@@ -6,6 +6,8 @@ import { useSyncExternalStore } from 'react';
 export interface Draft {
   prompt: string;
   startFrame: { name: string; url: string } | null;
+  /** Characters cast in the shot, by id: their references draw its start frame. */
+  cast: string[];
   rig: { body: string; lens: string; focal: number; aperture: number };
   motion: Array<{ id: string; strength: number }>;
   look: { lighting?: string; palette?: string; genre?: string; era?: string };
@@ -20,6 +22,7 @@ const KEY = 'hildegard.draft';
 export const DEFAULT_DRAFT: Draft = {
   prompt: '',
   startFrame: null,
+  cast: [],
   rig: { body: 'full-frame', lens: 'clean', focal: 35, aperture: 2.8 },
   motion: [],
   look: {},
@@ -95,7 +98,9 @@ export function toRequest(d: Draft, model: string | null): ShotRequest {
     model: model ?? undefined,
     seed: d.seed ?? undefined,
     takes: d.takes,
-    startFrame: d.startFrame?.name,
+    // A cast draws the start frame, so it takes the place of one.
+    startFrame: d.cast.length ? undefined : d.startFrame?.name,
+    characters: d.cast,
   } as ShotRequest;
 }
 
@@ -111,5 +116,6 @@ export function fromRequest(r: ShotRequest, seed?: number): Partial<Draft> {
     seed: seed ?? r.seed ?? null,
     takes: r.takes,
     startFrame: r.startFrame ? { name: r.startFrame, url: `/media/uploads/${r.startFrame}` } : null,
+    cast: r.characters ?? [],
   };
 }

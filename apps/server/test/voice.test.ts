@@ -507,8 +507,22 @@ describe('living consent', () => {
   });
 
   it('revoking deletes the reference audio, so the voice can’t speak again; the record stays', async () => {
+    // A character may carry the voice while its consent stands, and not after.
+    const ch = (await (
+      await post('/api/characters', { name: 'Ada', description: 'Forties, short grey hair, round glasses' })
+    ).json()) as { id: string };
+    const give = () =>
+      api(`/api/characters/${ch.id}`, {
+        method: 'PATCH',
+        headers: H,
+        body: JSON.stringify({ voice: voiceId }),
+      });
+    expect((await give()).status).toBe(200);
     const r = await post(`/api/voice/voices/${voiceId}/revoke`);
     expect(((await r.json()) as Voice).consent!.status).toBe('revoked');
+    const refused = await give();
+    expect(refused.status).toBe(422);
+    expect(((await refused.json()) as { error: string }).error).toMatch(/consent was taken back/);
     const again = await post('/api/voice/speak', { paragraphs: [{ text: 'Once more.' }], voice: voiceId });
     expect(again.status).toBe(410);
     expect(((await again.json()) as { error: string }).error).toMatch(/revoked/);

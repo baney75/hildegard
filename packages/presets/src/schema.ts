@@ -148,9 +148,11 @@ export const Quality = z
   })
   .strict();
 
-export const Model = z
+const ModelObject = z
   .object({
     id: Id,
+    /** What it makes: video takes, or stills (character portraits and sheets, a shot's start frame). */
+    kind: z.enum(['video', 'image']).default('video'),
     name: Text,
     family: z.string(),
     blurb: Text,
@@ -160,7 +162,7 @@ export const Model = z
     /** The license's main conditions in plain words, shown before the first download. */
     terms: z.array(Text).min(1),
     /** Which graph builder in @hildegard/comfy renders this model. */
-    graph: z.enum(['ltx-2.5-distilled', 'ltx-2-distilled', 'wan-2.2-ti2v']),
+    graph: z.enum(['ltx-2.5-distilled', 'ltx-2-distilled', 'wan-2.2-ti2v', 'flux-2-klein']),
     /** Final quality renders at half size and upsamples the latent (LTX's two-stage recipe). */
     twoStageFinal: z.boolean().default(true),
     minVramGb: z.number().positive(),
@@ -177,6 +179,13 @@ export const Model = z
     loras: z.record(Id, ModelFile).default({}),
   })
   .strict();
+
+/** A still is one frame with no sound, so a stills model leaves the video fields out of models.toml. */
+const STILL = { fps: 1, frameMultiple: 1, maxSeconds: 1, audio: false, twoStageFinal: false };
+export const Model = z.preprocess(
+  (v) => (v && typeof v === 'object' && (v as { kind?: unknown }).kind === 'image' ? { ...STILL, ...v } : v),
+  ModelObject,
+);
 
 /** The classifier every render passes through (see presets/safety.toml and docs/safety.md). */
 export const Safety = z
@@ -220,6 +229,9 @@ export type Aspect = z.infer<typeof Aspect>;
 export type Model = z.infer<typeof Model>;
 export type ModelFile = z.infer<typeof ModelFile>;
 
+/** Most characters one shot can cast: the stills model reads at most four reference images in all. */
+export const MAX_CAST = 3;
+
 /** What a person (or an agent) asks for: one shot, any number of takes. */
 export const ShotRequest = z
   .object({
@@ -261,7 +273,21 @@ export const ShotRequest = z
       .string()
       .regex(/^[a-f0-9]{64}\.(png|jpg|webp)$/)
       .optional(),
+    /**
+     * Characters in the shot, by id. Hildegard draws the start frame from their references with a stills model, so
+     * their faces and clothes hold from shot to shot, then animates it.
+     */
+    characters: z
+      .array(z.string().regex(/^[a-f0-9]{16}$/, 'Unknown character'))
+      .max(MAX_CAST, `Cast up to ${MAX_CAST} characters in a shot`)
+      .refine((ids) => new Set(ids).size === ids.length, 'Each character once')
+      .default([]),
   })
-  .strict();
+  .strict()
+  .refine((r) => !(r.startFrame && r.characters.length), {
+    message:
+      'Use a start frame or characters, not both: Hildegard draws the start frame from the characters.',
+    path: ['characters'],
+  });
 export type ShotRequest = z.infer<typeof ShotRequest>;
 export type ShotRequestInput = z.input<typeof ShotRequest>;

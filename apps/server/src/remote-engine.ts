@@ -213,6 +213,9 @@ export class RemoteEngine implements Engine {
     const { signal, handlers = {} } = opts;
     if (signal?.aborted) throw new EngineError('canceled', 'Canceled.');
     const startFrame = opts.startFrame ? (await readFile(opts.startFrame)).toString('base64') : undefined;
+    const references = opts.references?.length
+      ? await Promise.all(opts.references.map(async (f) => (await readFile(f)).toString('base64')))
+      : undefined;
     const ac = new AbortController();
     let job: string | null = null;
     const onAbort = () => {
@@ -235,6 +238,7 @@ export class RemoteEngine implements Engine {
           body: JSON.stringify({
             built,
             startFrame,
+            references,
             from: this.from() ?? undefined,
             quality: opts.quality,
           }),
@@ -249,7 +253,12 @@ export class RemoteEngine implements Engine {
       if (!res.ok || !res.body) {
         const body = (await res.json().catch(() => ({}))) as { error?: string; code?: EngineErrorCode };
         const code = body.code && ERROR_CODES.includes(body.code) ? body.code : 'node_failed';
-        throw new EngineError(code, clip(body.error, 300) || `${this.name} refused the take.`);
+        throw new EngineError(
+          code,
+          clip(body.error, 300) || `${this.name} refused the take.`,
+          '',
+          this.hint(code),
+        );
       }
 
       let media: string | null = null;
@@ -311,7 +320,7 @@ export class RemoteEngine implements Engine {
         throw this.offline((e as Error).message);
       }
       if (!video.ok || !video.body)
-        throw new EngineError('node_failed', `${this.name} finished the take but couldn’t send it.`);
+        throw new EngineError('node_failed', `${this.name} finished the render but couldn’t send it.`);
       try {
         await pipeline(Readable.fromWeb(video.body as never), createWriteStream(opts.dest), {
           signal: ac.signal,
@@ -319,7 +328,7 @@ export class RemoteEngine implements Engine {
       } catch (e) {
         await rm(opts.dest, { force: true });
         if (signal?.aborted) throw new EngineError('canceled', 'Canceled.');
-        throw this.offline(`The video stopped halfway: ${(e as Error).message}`);
+        throw this.offline(`The file stopped halfway: ${(e as Error).message}`);
       }
     } finally {
       signal?.removeEventListener('abort', onAbort);

@@ -106,11 +106,29 @@ describe('draft', () => {
       seed: 7,
       takes: 2,
       startFrame: null,
+      cast: ['0123456789abcdef'],
     };
     const r = toRequest(d as never, 'm');
     expect(r.prompt).toBe('Mara walks the rows');
     expect(fromRequest(r)).toMatchObject({ ...d, prompt: 'Mara walks the rows' });
     expect(fromRequest(r, 9).seed).toBe(9);
+  });
+
+  it('sends a cast in place of a start frame: the cast draws it', () => {
+    const d = {
+      prompt: 'Mara walks the rows',
+      rig: { body: 'vintage-16mm', lens: 'anamorphic', focal: 50, aperture: 2.8 },
+      motion: [],
+      look: {},
+      format: { aspect: '16:9', seconds: 5, quality: 'draft' as const },
+      model: null,
+      seed: null,
+      takes: 1,
+      startFrame: { name: 'a.png', url: '/media/uploads/a.png' },
+      cast: ['0123456789abcdef'],
+    };
+    expect(toRequest(d, 'm')).toMatchObject({ characters: ['0123456789abcdef'], startFrame: undefined });
+    expect(toRequest({ ...d, cast: [] }, 'm')).toMatchObject({ characters: [], startFrame: 'a.png' });
   });
 });
 

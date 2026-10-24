@@ -7,6 +7,7 @@ import wordmarkGreen from '../assets/wordmark-green.svg';
 import wordmarkVellum from '../assets/wordmark-vellum.svg';
 import { ModelRow } from '../components/sheets.tsx';
 import { Button } from '../components/ui.tsx';
+import { videoModels } from '../lib/format.ts';
 import { useStore } from '../lib/store.ts';
 import { useTheme } from '../lib/theme.ts';
 
@@ -97,7 +98,7 @@ export function Welcome({
               It downloads in the background from Hugging Face. You can start directing while it does.
             </p>
             <div style={{ display: 'grid', gap: 12 }}>
-              {catalog.models.map((m) => (
+              {videoModels(catalog).map((m) => (
                 <ModelRow
                   key={m.id}
                   model={m}

@@ -75,6 +75,88 @@ export interface Project {
   owner?: string;
 }
 
+/** The angle a character reference shows. */
+export type CharacterView = 'portrait' | 'three-quarter' | 'profile' | 'full-body';
+
+/** One image of a character that stills and shots draw them from. */
+export interface CharacterRef {
+  /** The image in the uploads folder, named by its SHA-256: `/media/uploads/<file>`. */
+  file: string;
+  view: CharacterView | null;
+  /** Where it came from: a still Hildegard made, an image someone added, or the person's own consent photos. */
+  source: 'still' | 'upload' | 'consent';
+  addedAt: string;
+}
+
+/**
+ * Consent from the real person a character is based on. They give it on their own device through a one-time link,
+ * taking their reference photos live as they agree; Hildegard signs the record and they can revoke it.
+ */
+export interface LikenessConsent {
+  /** Waiting for the person, given, or taken back (the character stops rendering at once). */
+  status: 'waiting' | 'active' | 'revoked' | 'declined';
+  /** The name they gave. */
+  person: string | null;
+  /** When the consent link stops working, while it waits. */
+  expiresAt: string | null;
+  givenAt: string | null;
+  revokedAt: string | null;
+  /** The signed record's id, once given; `GET /api/characters/:id/consent` returns the record itself. */
+  certificate: string | null;
+}
+
+/** A reusable character: who they are in words, the images that fix their face and clothes, and their voice. */
+export interface Character {
+  id: string;
+  name: string;
+  /** Face, hair, age, build: what stays the same in every shot. */
+  description: string;
+  /** What they wear unless a shot says otherwise. */
+  wardrobe: string;
+  references: CharacterRef[];
+  /** The reference shown on their card; the first portrait unless someone picked another. */
+  cover: string | null;
+  /** A voice from the Voice studio, by id. */
+  voice: string | null;
+  /** Invented (nobody real), or based on a real person, who must consent. */
+  likeness: 'invented' | 'real';
+  consent: LikenessConsent | null;
+  /** The person, signed in from another device, whose character it is; absent for the owner's own. */
+  owner?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A still Hildegard renders: a character's portrait or one view of their sheet. */
+export interface Still {
+  id: string;
+  characterId: string;
+  view: CharacterView;
+  status: TakeStatus;
+  priority: Priority;
+  source: { kind: 'studio' } | { kind: 'agent'; name: string };
+  by?: { id: string; name: string };
+  seed: number;
+  model: string;
+  prompt: string;
+  /** Reference images it was drawn from, as CharacterRef.file names. */
+  references: string[];
+  width: number;
+  height: number;
+  queuePosition: number | null;
+  progress: { value: number; step: number | null; steps: number | null } | null;
+  previewVersion: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  renderMs: number | null;
+  error: TakeError | null;
+  /** Set when done: `/media/stills/<id>.png`. */
+  image: string | null;
+  /** The reference it became, once kept: a CharacterRef.file. */
+  kept?: string;
+}
+
 export interface EngineState {
   /** Whether ComfyUI answers. */
   online: boolean;
@@ -203,6 +285,8 @@ export interface Snapshot {
   /** Renders paired devices sent here, waiting or rendering, in queue order. */
   guests: GuestTake[];
   update: UpdateState;
+  characters: Character[];
+  stills: Still[];
 }
 
 /** Updates to Hildegard itself. */
@@ -382,7 +466,9 @@ export type ServerEvent =
   | { type: 'take'; take: Take }
   | { type: 'shot'; shot: Shot }
   | { type: 'project'; project: Project }
-  | { type: 'removed'; kind: 'take' | 'shot' | 'project' | 'voice-job'; id: string }
+  | { type: 'removed'; kind: 'take' | 'shot' | 'project' | 'voice-job' | 'character' | 'still'; id: string }
+  | { type: 'character'; character: Character }
+  | { type: 'still'; still: Still }
   | { type: 'engine'; engine: EngineState }
   | { type: 'models'; models: ModelState[] }
   | { type: 'hf'; hf: HfState }

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { Character } from './api.ts';
+import { type ComposedStill, composeKeyframe, describe } from './characters.ts';
 import type { Catalog, Model, MotionImpl, Post, ShotRequest } from './schema.ts';
 import { Post as PostSchema } from './schema.ts';
 
@@ -28,6 +30,8 @@ export interface ComposedShot {
   guard: { classifier: string; threshold: number };
   /** Short human summary for cards, the slate and the Shot Card: "Full-frame cinema · Vintage anamorphic · 35mm · f/2.0". */
   summary: string;
+  /** The characters in it, and the start frame the stills model draws of them; null for a shot with none. */
+  cast: { characters: Array<{ id: string; name: string }>; keyframe: ComposedStill } | null;
 }
 
 export class PresetError extends Error {
@@ -89,17 +93,34 @@ export function frameCount(fps: number, seconds: number, multiple: number): numb
   return 1 + Math.max(1, Math.round((fps * seconds) / multiple)) * multiple;
 }
 
+/** The models that make video, in catalog order. */
+export const videoModels = (catalog: Catalog): Model[] => catalog.models.filter((m) => m.kind === 'video');
+
 export function pickModel(catalog: Catalog, id?: string): Model {
-  if (id)
-    return need(
-      catalog.models.find((m) => m.id === id),
+  if (id) {
+    const m = need(
+      catalog.models.find((x) => x.id === id),
       'model',
       'model',
     );
-  return catalog.models[0]!;
+    if (m.kind !== 'video')
+      throw new PresetError(`${m.name} makes stills, not video. Pick a video model.`, 'model');
+    return m;
+  }
+  return videoModels(catalog)[0]!;
 }
 
-export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
+/**
+ * Everything a graph needs for one shot. `cast` holds the characters `req.characters` names, in that order; the
+ * server looks them up and checks each may be drawn.
+ */
+export function composeShot(
+  catalog: Catalog,
+  req: ShotRequest,
+  cast: readonly Character[] = [],
+): ComposedShot {
+  if (cast.length !== req.characters.length || cast.some((c, i) => c.id !== req.characters[i]))
+    throw new PresetError('Unknown character', 'characters');
   const model = pickModel(catalog, req.model);
   const body = need(
     catalog.bodies.find((b) => b.id === req.rig.body),
@@ -173,13 +194,19 @@ export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
   const quality = model[req.format.quality];
   const { width, height } = frameSize(aspect, quality.height, twoStage);
 
-  // LTX follows long, literal, chronological prompts: action first, then camera, then the look.
-  const sentences = [
-    req.prompt.trim().replace(/[.\s]+$/, ''),
-    motionText ? cap(motionText) : 'The camera holds steady',
+  // LTX follows long, literal, chronological prompts: action first, then who is in it, then camera, then the look.
+  const action = req.prompt.trim().replace(/[.\s]+$/, '');
+  const castText = cast.map(describe).join('; ');
+  const lookText = [
     `${cap(body.prompt)}, ${lens.prompt}, ${focal.prompt}, ${apertureWords(req.rig.aperture)}`,
     [lighting?.prompt, palette?.prompt].filter(Boolean).join(', '),
     [genre?.prompt, era?.prompt].filter(Boolean).join(', '),
+  ].filter((s) => s.length > 0);
+  const sentences = [
+    action,
+    castText ? `Featuring ${castText}` : '',
+    motionText ? cap(motionText) : 'The camera holds steady',
+    ...lookText,
   ].filter((s) => s.length > 0);
 
   return {
@@ -200,6 +227,12 @@ export function composeShot(catalog: Catalog, req: ShotRequest): ComposedShot {
       threshold: catalog.safety.threshold,
     },
     summary: [body.name, lens.name, `${focal.mm}mm`, `f/${fmtF(req.rig.aperture)}`].join(' · '),
+    cast: cast.length
+      ? {
+          characters: cast.map((c) => ({ id: c.id, name: c.name })),
+          keyframe: composeKeyframe(catalog, { action, look: lookText.map(cap).join('. '), aspect }, cast),
+        }
+      : null,
   };
 }
 

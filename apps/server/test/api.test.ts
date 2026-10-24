@@ -283,7 +283,12 @@ describe('shots and takes', () => {
   it('returns everything in one snapshot', async () => {
     const s = (await (await api('/api/snapshot')).json()) as Snapshot;
     expect(s.engine).toMatchObject({ online: true, fake: true });
-    expect(s.models.map((m) => m.id)).toEqual(['ltx-2-5-distilled', 'ltx-2-distilled', 'wan-2-2-ti2v-5b']);
+    expect(s.models.map((m) => m.id)).toEqual([
+      'ltx-2-5-distilled',
+      'ltx-2-distilled',
+      'wan-2-2-ti2v-5b',
+      'flux-2-klein-4b',
+    ]);
     expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false, found: false });
   });
 });

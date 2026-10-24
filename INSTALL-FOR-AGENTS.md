@@ -85,7 +85,8 @@ hildegard open              # the Studio, in the browser
 ```
 
 Once linked and restarted, an app has these tools: `hildegard_status`, `list_presets`, `direct_shot`, `shot_status`,
-`get_shot`, `make_sequence`, `export_film`, `install_model`. If your app isn't in the list, `hildegard connect --print --json` gives
+`get_shot`, `make_sequence`, `export_film`, `install_model`, `list_characters`, `create_character`,
+`make_character_stills`, `keep_still`. If your app isn't in the list, `hildegard connect --print --json` gives
 the MCP server config to add by hand: it runs `hildegard mcp` on stdio.
 
 ## If something fails

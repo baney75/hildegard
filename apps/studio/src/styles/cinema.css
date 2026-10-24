@@ -243,3 +243,95 @@
 .cs-halo { position: absolute; left: 50%; top: 44%; width: 980px; height: 980px; margin: -490px 0 0 -490px; pointer-events: none; opacity: .5; }
 
 button.cs-play { border: 0; padding: 0; color: inherit; cursor: pointer; font: inherit; }
+
+/* ── Characters (from the Elements and @ picker designs) ─────────────────────────────────────────────────────── */
+.cs-elgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.cs-el { display: grid; gap: 10px; padding: 10px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.cs-el:hover { border-color: var(--border-control); }
+.cs-el[aria-current="true"] { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.cs-el .cover { position: relative; display: block; aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden; background: var(--raised); }
+.cs-el .cover img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+.cs-el__ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-muted); }
+.cs-el .refs { display: flex; gap: 4px; }
+.cs-el .refs img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; display: block; background: var(--raised); border: 1px solid var(--hairline); }
+.cs-el h4 { margin: 0; font: 600 18px/22px var(--font-display); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-el .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.cs-kind { display: inline-flex; flex: none; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--canvas); border: 1px solid var(--hairline); font: 600 11px/1 var(--font-sans); color: var(--text-secondary); }
+.cs-voice { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--brand-text); }
+.cs-orb { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--brand-text), var(--brand)); display: inline-block; }
+.cs-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: var(--radius-pill); font: 600 10px/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); border: 1px solid color-mix(in oklab, var(--brand-text), transparent 55%); background: var(--canvas); }
+.cs-pick { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; text-align: left; cursor: pointer; background: var(--raised); border: 1px solid var(--border-control); border-radius: var(--radius-md); }
+.cs-pick .v { flex: 1; min-width: 0; }
+.cs-pick .v b { display: block; font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-pick .v small { display: block; font: 400 11px/15px var(--font-mono); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-pick > .i:last-child { color: var(--text-muted); }
+/* The native select covers the whole row, so the row is one control for keyboards, screen readers and touch. */
+.cs-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.cs-pick:focus-within { outline: var(--stroke-focus) solid var(--focus-ring); outline-offset: 1px; }
+.cs-refs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cs-ref { position: relative; margin: 0; }
+.cs-ref img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: 50% 30%; border-radius: 10px; display: block; background: var(--raised); }
+.cs-ref .cs-tag { position: absolute; left: 6px; bottom: 6px; }
+.cs-ref__acts { position: absolute; top: 2px; right: 2px; opacity: 0; transition: opacity .12s; }
+.cs-ref:hover .cs-ref__acts, .cs-ref:focus-within .cs-ref__acts { opacity: 1; }
+.cs-ref__acts .hg-btn { background: color-mix(in oklab, var(--canvas), transparent 20%); }
+@media (hover: none) { .cs-ref__acts { opacity: 1; } }
+.cs-refs__add { aspect-ratio: 1; border-radius: 10px; border: 1.5px dashed var(--border-control); background: transparent; color: var(--text-muted); display: grid; place-items: center; cursor: pointer; }
+.cs-refs__add:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.cs-ref__preview { width: 100%; max-height: 260px; object-fit: contain; border-radius: var(--radius-md); background: var(--raised); }
+.cs-stills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cs-still { margin: 0; display: grid; gap: 6px; }
+.cs-still.dim .cs-still__img { opacity: .5; }
+.cs-still__img { position: relative; display: block; border-radius: 10px; overflow: hidden; background: var(--raised); max-height: 280px; }
+.cs-still__img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-still__img .cs-live { position: absolute; inset: 0; display: grid; place-items: center; }
+.cs-still figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 32px; }
+.cs-still figcaption .hg-err { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cs-area { width: 100%; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-control); background: var(--canvas); color: var(--text-primary); font: 400 15px/22px var(--font-sans); resize: vertical; min-height: 64px; }
+.cs-area:focus { outline: var(--stroke-focus) solid var(--focus-ring); outline-offset: 1px; }
+.cs-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 20px; color: var(--text-secondary); cursor: pointer; }
+.cs-check input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--brand); }
+.cs-consent { display: flex; gap: 10px; padding: 14px; border-radius: var(--radius-lg); background: color-mix(in oklab, var(--gold), transparent 88%); border: 1px solid color-mix(in oklab, var(--gold), transparent 55%); }
+.cs-consent > .i { color: var(--gold-text); flex: none; margin-top: 1px; }
+.cs-consent.ok { background: color-mix(in oklab, var(--brand), transparent 86%); border-color: color-mix(in oklab, var(--brand-text), transparent 60%); }
+.cs-consent.ok > .i { color: var(--brand-text); }
+.cs-consent > div { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.cs-consent__ask { display: grid; gap: 8px; justify-items: start; }
+.cs-consent__ask .hg-field { justify-self: stretch; }
+.cs-castfaces { display: flex; place-items: initial; align-items: center; justify-content: center; gap: 0; padding: 0 6px; }
+.cs-castfaces img, .cs-castfaces .ph { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; object-position: 50% 30%; border: 2px solid var(--panel); margin-left: -8px; flex: none; display: grid; place-items: center; background: var(--raised); }
+.cs-castfaces img:first-child, .cs-castfaces .ph:first-child { margin-left: 0; }
+.cs-pop { position: absolute; background: var(--raised); border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); overflow: hidden; }
+.cs-menuh { padding: 10px 12px 6px; gap: 12px; }
+.cs-mi { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 14px; color: inherit; cursor: pointer; }
+.cs-mi.on { background: color-mix(in oklab, var(--brand), transparent 82%); }
+.cs-mi img, .cs-castrow__ph { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; object-position: 50% 30%; flex: none; display: grid; place-items: center; background: var(--canvas); color: var(--text-muted); }
+.cs-mi b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-mi small { display: block; font-size: 12px; color: var(--text-muted); line-height: 16px; }
+.cs-mi .kbd { margin-left: auto; font: 400 11px/1 var(--font-mono); color: var(--text-muted); padding: 4px 6px; border: 1px solid var(--hairline); border-radius: 5px; }
+.cs-mi[aria-disabled="true"] b { color: var(--text-muted); }
+.cs-castrow { width: 100%; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: transparent; font: inherit; }
+.cs-castrow:disabled { cursor: not-allowed; opacity: .6; }
+.cs-castrow[aria-checked="true"] { border-color: color-mix(in oklab, var(--brand-text), transparent 50%); }
+.cs-castrow > .i:last-child { color: var(--brand-text); }
+.cs-mention { left: 96px; bottom: calc(100% + 6px); width: min(460px, calc(100% - 112px)); z-index: 5; }
+.hg-app[data-wc="compact"] .cs-mention { left: 0; width: 100%; }
+
+/* The page a real person opens to consent: a phone first, then anything wider. */
+.cs-likeness { min-height: 100dvh; max-width: 520px; margin: 0 auto; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 16px; background: var(--canvas); color: var(--text-primary); }
+.cs-likeness__brand { display: flex; align-items: center; gap: 8px; }
+.cs-likeness__h { margin: 0; font: 600 30px/34px var(--font-display); }
+.cs-likeness__words { margin: 0; padding: 14px 16px; border-left: 3px solid var(--brand-text); background: var(--panel); border-radius: 0 var(--radius-md) var(--radius-md) 0; font: 500 19px/27px var(--font-display); }
+.cs-likeness__acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.ph-card { display: grid; gap: 6px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hairline); }
+.st-kv2 { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 4px 0; color: var(--text-secondary); }
+.st-kv2 b { color: var(--text-primary); text-align: right; }
+.cs-cam { display: grid; gap: 10px; }
+.cs-cam__shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cs-cam__shots figure { margin: 0; display: grid; gap: 4px; justify-items: center; font-size: 12px; color: var(--text-muted); }
+.cs-cam__shots figure > img, .cs-cam__shots figure > span { width: 100%; aspect-ratio: 3 / 4; border-radius: 10px; object-fit: cover; display: grid; place-items: center; background: var(--panel); border: 1px dashed var(--border-control); }
+.cs-cam__shots figure.on > span { border: 1.5px solid var(--brand-text); color: var(--brand-text); }
+.cs-cam__live { display: grid; gap: 10px; justify-items: center; text-align: center; }
+.cs-cam__live video { width: 100%; max-height: 52vh; border-radius: var(--radius-lg); background: #000; transform: scaleX(-1); object-fit: cover; }
+.cs-cam__live p { margin: 0; }
+.cs-cam__start { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 18px 12px; border-radius: var(--radius-lg); border: 1px dashed var(--border-control); }
