@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { blocker, PLAN, progress, report, type Step, shortLine } from '../ui/model.ts';
+import {
+  blocker,
+  cause,
+  clock,
+  nowLine,
+  PLAN,
+  progress,
+  report,
+  type Step,
+  shortLine,
+  splitLog,
+} from '../ui/model.ts';
 
 const step = (id: string, status: Step['status'], extra: Partial<Step> = {}): Step => ({
   id,
@@ -21,6 +32,7 @@ describe('install progress', () => {
     const later = progress([step('app', 'done'), step('gpu', 'done'), step('uv', 'skipped')]);
     expect(later.current).toBe('comfyui');
     expect(later.fraction).toBeCloseTo(3 / PLAN.length);
+    expect([later.done, later.total]).toEqual([3, PLAN.length]);
   });
 
   it('puts steps it didn’t plan for after the one reported before them', () => {
@@ -61,5 +73,47 @@ describe('install progress', () => {
   it('keeps log lines to one short line', () => {
     expect(shortLine('  Downloading\n torch  ')).toBe('Downloading torch');
     expect(shortLine('x'.repeat(300), 20)).toHaveLength(20);
+  });
+
+  it('says what the install is doing now, in words', () => {
+    expect(
+      nowLine('download https://github.com/comfyanonymous/ComfyUI/archive/refs/tags/v0.42.1.tar.gz'),
+    ).toBe('Downloading ComfyUI');
+    expect(
+      nowLine('download https://github.com/astral-sh/uv/releases/download/0.13.2/uv-x86_64.tar.gz'),
+    ).toBe('Downloading uv');
+    expect(nowLine('download https://example.com/files/thing.zip')).toBe('Downloading thing.zip');
+    expect(nowLine('Downloading torch (846.3MiB)')).toBe('Downloading torch, 846.3 MiB');
+    expect(nowLine('Resolved 61 packages in 1.82s')).toBe('Resolved 61 packages in 1.82s');
+    // The install's record of a step is already in the list.
+    expect(nowLine('[done] Get uv: Installed uv 0.13.2.')).toBeNull();
+    expect(nowLine('   ')).toBeNull();
+  });
+
+  it('recognises a lost connection, a full disk and permissions', () => {
+    expect(cause('fetch failed: getaddrinfo ENOTFOUND github.com')).toBe('offline');
+    expect(cause('error sending request for url (https://pypi.org/simple/torch/)')).toBe('offline');
+    expect(cause('No space left on device (os error 28)')).toBe('disk');
+    expect(cause("EACCES: permission denied, mkdir '/opt/x'")).toBe('permission');
+    expect(cause('PyTorch can’t use the GPU.')).toBeNull();
+  });
+
+  it('takes the log’s path out of a step’s detail', () => {
+    expect(splitLog('It broke. The full log is in /home/ann/logs/install.log.')).toEqual({
+      text: 'It broke.',
+      log: '/home/ann/logs/install.log',
+    });
+    expect(splitLog('It didn’t start. The log is C:\\Users\\ann\\server.log.')).toEqual({
+      text: 'It didn’t start.',
+      log: 'C:\\Users\\ann\\server.log',
+    });
+    expect(splitLog('Nothing about logs.')).toEqual({ text: 'Nothing about logs.', log: null });
+  });
+
+  it('shows time passed as a clock', () => {
+    expect(clock(7_400)).toBe('0:07');
+    expect(clock(252_000)).toBe('4:12');
+    expect(clock(3_729_000)).toBe('1:02:09');
+    expect(clock(-5)).toBe('0:00');
   });
 });

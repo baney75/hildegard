@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <title>Hildegard</title>
     <link rel="stylesheet" href="./main.css" />
     <script type="module" src="./main.js"></script>
@@ -11,10 +11,19 @@
   <body class="hg-root">
     <div class="hd">
       <aside class="hd-side">
+        <!-- The Choir's orbits, from the onboarding boards. A gold voice turns on the third while the install works. -->
+        <svg class="hd-orbits" viewBox="0 0 400 820" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+          <circle cx="200" cy="610" r="110" />
+          <circle cx="200" cy="610" r="180" />
+          <circle cx="200" cy="610" r="250" />
+          <circle cx="200" cy="610" r="320" />
+          <g class="hd-orbits__voice"><circle cx="200" cy="360" r="4" /></g>
+        </svg>
         <div class="hd-brand">
           <img data-mark alt="" height="34" />
           <img data-wordmark alt="Hildegard" height="26" />
         </div>
+        <ol class="hd-stages" id="stages" aria-label="Setting up" hidden></ol>
         <p class="hd-quote">
           “A feather on the breath of God.”
           <br />

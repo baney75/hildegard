@@ -48,6 +48,9 @@ export interface Progress {
   current: string | null;
   /** 0 to 1. */
   fraction: number;
+  /** Steps done (or already here), of all the rows. */
+  done: number;
+  total: number;
 }
 
 /** The install so far, from the steps reported until now. */
@@ -70,6 +73,8 @@ export function progress(reported: Step[]): Progress {
     rows,
     current: stopped ? null : (rows.find((r) => r.status === null)?.id ?? null),
     fraction: rows.length ? done / rows.length : 0,
+    done,
+    total: rows.length,
   };
 }
 
@@ -93,4 +98,56 @@ export function blocker(o: Outcome): Step | null {
 export function shortLine(line: string, max = 140): string {
   const flat = line.replace(/\s+/g, ' ').trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/**
+ * What the install is doing now, in words, from one line of its output: a download by name and size, or uv's own
+ * line. Null for a line that says nothing new (the install's record of a step, which the list already shows).
+ */
+export function nowLine(line: string): string | null {
+  const flat = line.replace(/\s+/g, ' ').trim();
+  if (!flat || /^\[(done|skipped|failed|needs-owner)\] /.test(flat)) return null;
+  const url = flat.match(/^download (\S+)$/);
+  if (url) {
+    const u = url[1]!;
+    const what = /comfyui/i.test(u)
+      ? 'ComfyUI'
+      : /astral-sh\/uv|\/uv-/i.test(u)
+        ? 'uv'
+        : (u.split('/').pop() ?? u);
+    return `Downloading ${what}`;
+  }
+  const dl = flat.match(/^Downloading (\S+) \(([\d.]+)\s*([KMG]i?B)\)$/);
+  if (dl) return `Downloading ${dl[1]}, ${dl[2]} ${dl[3]}`;
+  return shortLine(flat);
+}
+
+/** Why a step stopped, when it's something a person can recognise and fix: no connection, a full disk, permissions. */
+export type Cause = 'offline' | 'disk' | 'permission' | null;
+
+export function cause(text: string): Cause {
+  if (
+    /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENETUNREACH|getaddrinfo|dns error|Failed to fetch|network is unreachable|error sending request|Could not connect|tcp connect error/i.test(
+      text,
+    )
+  )
+    return 'offline';
+  if (/ENOSPC|No space left|os error 28|disk (is )?full|not enough space/i.test(text)) return 'disk';
+  if (/EACCES|EPERM|Permission denied|Access is denied|os error 13/i.test(text)) return 'permission';
+  return null;
+}
+
+/** A step's detail without its last sentence about the log, and that log's path, so each can be shown on its own. */
+export function splitLog(detail: string): { text: string; log: string | null } {
+  const m = detail.match(/^(.*?)\s*The (?:full )?log is(?: in)? (.+?)\.?$/s);
+  return m ? { text: m[1]!.trim(), log: m[2]!.trim() } : { text: detail.trim(), log: null };
+}
+
+/** Time passed, as a clock: 0:07, 4:12, 1:02:09. */
+export function clock(ms: number): string {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = String(t % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
