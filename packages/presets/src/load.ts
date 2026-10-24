@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'smol-toml';
+import { loadSafety, type SafetyCheck } from './safety.ts';
 import { Catalog, lockKey, ModelLock } from './schema.ts';
 
 /** The repo's `presets/` folder. Overridable so packaged builds can ship it elsewhere. */
@@ -15,11 +16,16 @@ export interface LoadedCatalog {
 }
 
 /** Parse and cross-check the catalog. Throws one error listing every problem, so a bad preset never half-loads. */
-export function parseCatalog(cinemaToml: string, modelsToml: string, lockJson: string): LoadedCatalog {
+export function parseCatalog(
+  cinemaToml: string,
+  modelsToml: string,
+  lockJson: string,
+  safety?: SafetyCheck,
+): LoadedCatalog {
   const raw = { ...parse(cinemaToml), ...parse(modelsToml) };
   const catalog = Catalog.parse(raw);
   const lock = ModelLock.parse(JSON.parse(lockJson));
-  const problems = checkCatalog(catalog, lock);
+  const problems = checkCatalog(catalog, lock, safety);
   if (problems.length)
     throw new Error(`Preset catalog has ${problems.length} problem(s):\n- ${problems.join('\n- ')}`);
   return { catalog, lock };
@@ -27,10 +33,10 @@ export function parseCatalog(cinemaToml: string, modelsToml: string, lockJson: s
 
 export function loadCatalog(dir = defaultPresetsDir()): LoadedCatalog {
   const read = (f: string) => readFileSync(join(dir, f), 'utf8');
-  return parseCatalog(read('cinema.toml'), read('models.toml'), read('models.lock.json'));
+  return parseCatalog(read('cinema.toml'), read('models.toml'), read('models.lock.json'), loadSafety(dir));
 }
 
-export function checkCatalog(c: Catalog, lock: ModelLock): string[] {
+export function checkCatalog(c: Catalog, lock: ModelLock, safety?: SafetyCheck): string[] {
   const problems: string[] = [];
   const unique = (what: string, ids: Array<string | number>) => {
     const seen = new Set<string | number>();
@@ -98,7 +104,21 @@ export function checkCatalog(c: Catalog, lock: ModelLock): string[] {
       const pin = lock.files[lockKey(f)];
       if (pin && Math.abs(pin.size - f.size) / pin.size > 0.25)
         problems.push(`${lockKey(f)}: size in models.toml is far from the locked size; update it`);
+      // Nothing sexual gets into the catalog, by name, card or hash, however the presets folder was changed.
+      const why = safety?.model({
+        repo: f.repo,
+        name: m.name,
+        description: m.blurb,
+        files: [{ name: f.path, sha256: pin?.sha256 }],
+      });
+      if (why?.length) problems.push(`${lockKey(f)} is refused: ${why.join('; ')}`);
     }
   }
+  const guard = c.safety.classifier;
+  if (guard.dir !== 'safety') problems.push('the safety classifier belongs in the safety folder');
+  if (safety && !safety.trusted(guard.repo))
+    problems.push(`the safety classifier ${guard.repo} isn’t one of safety.toml’s trusted repos`);
+  if (safety?.blockedHash(lock.files[lockKey(guard)]?.sha256))
+    problems.push('the safety classifier’s file is on the blocklist');
   return problems;
 }

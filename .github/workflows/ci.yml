@@ -73,7 +73,7 @@ jobs:
             apps/studio/playwright-report
           retention-days: 7
 
-  # The film-look node, on CPU.
+  # The film-look and safety-check nodes, on CPU.
   node:
     runs-on: ubuntu-latest
     steps:
@@ -81,9 +81,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install pytest
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install pytest numpy
       - run: python -m pytest -q
         working-directory: comfy-nodes/hildegard_look
+      - run: python -m pytest -q
+        working-directory: comfy-nodes/hildegard_guard
 
   # Every graph Hildegard builds, validated by the ComfyUI version the installer pins. No GPU or weights needed.
   comfyui:
@@ -101,7 +103,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio && pip install -r .comfyui/requirements.txt comfy-api-proxy==0.1.6
-      - run: cp -r comfy-nodes/hildegard_look .comfyui/custom_nodes/
+      - run: cp -r comfy-nodes/hildegard_look comfy-nodes/hildegard_guard .comfyui/custom_nodes/
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -121,8 +123,11 @@ jobs:
           nohup comfy-api-proxy run --comfyui http://127.0.0.1:8188 --port 8189 --comfyui-base-dir .comfyui > proxy.log 2>&1 &
           for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8189/api/v2/jobs/x && break; sleep 1; done
           node packages/comfy/scripts/smoke-on-comfy.ts http://127.0.0.1:8189 || { cat proxy.log; exit 1; }
-      - name: Check the film-look node loaded
-        run: grep -q "hildegard_look" comfyui.log && ! grep -q "IMPORT FAILED.*hildegard_look" comfyui.log
+      - name: Check Hildegard's nodes loaded
+        run: |
+          for n in hildegard_look hildegard_guard; do
+            grep -q "$n" comfyui.log && ! grep -q "IMPORT FAILED.*$n" comfyui.log || { echo "$n did not load"; exit 1; }
+          done
       - if: failure()
         run: cat comfyui.log
 

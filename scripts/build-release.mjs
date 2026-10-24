@@ -78,11 +78,8 @@ await build({
 const copy = (from, to, filter) => cpSync(join(root, from), join(stage, to), { recursive: true, filter });
 copy('apps/studio/dist', 'studio');
 copy('presets', 'presets');
-copy(
-  'comfy-nodes/hildegard_look',
-  'comfy-nodes/hildegard_look',
-  (s) => !/__pycache__|\.pyc$|test_look\.py$/.test(s),
-);
+for (const node of ['hildegard_look', 'hildegard_guard'])
+  copy(`comfy-nodes/${node}`, `comfy-nodes/${node}`, (s) => !/__pycache__|\.pyc$|test_\w+\.py$/.test(s));
 copy('packages/comfy/fixtures', 'fixtures');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');

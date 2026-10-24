@@ -36,7 +36,7 @@ export const PLAN: { id: string; title: string }[] = [
   { id: 'comfyui', title: 'Get ComfyUI' },
   { id: 'python', title: 'Set up Python' },
   { id: 'packages', title: 'Install PyTorch and ComfyUI’s packages' },
-  { id: 'film-look', title: 'Add the film look' },
+  { id: 'film-look', title: 'Add the film look and the safety check' },
   { id: 'check', title: 'Check the GPU works' },
   { id: 'start', title: 'Start Hildegard' },
 ];

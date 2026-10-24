@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type Catalog, loadCatalog, type ModelLock } from '@hildegard/presets';
+import { type Catalog, loadCatalog, loadSafety, type ModelLock, SafetyCheck } from '@hildegard/presets';
 import type { Gpu } from '@hildegard/runtime';
 import { describe, expect, it } from 'vitest';
 import { ModelManager } from '../src/models.ts';
@@ -25,31 +25,30 @@ function setup(
     token?: string | null;
     /** The repo was renamed: Hugging Face answers 307 to org/tiny-new. */
     renamed?: boolean;
+    /** What Hugging Face's model page says about org/tiny. */
+    tags?: string[];
+    safety?: SafetyCheck;
+    /** The hash Hugging Face publishes, when it isn't the file's. */
+    etag?: string;
   } = {},
 ) {
   const base = real.models[0]!;
+  const tiny = {
+    repo: 'org/tiny',
+    path: 'vae/tiny.safetensors',
+    dir: 'vae' as const,
+    size: opts.size ?? BYTES.length,
+    gated: !!opts.gated,
+  };
   const catalog: Catalog = {
     ...real,
-    models: [
-      {
-        ...base,
-        id: 'tiny',
-        gated: !!opts.gated,
-        loras: {},
-        files: [
-          {
-            repo: 'org/tiny',
-            path: 'vae/tiny.safetensors',
-            dir: 'vae',
-            size: opts.size ?? BYTES.length,
-            gated: !!opts.gated,
-          },
-        ],
-      },
-    ],
+    models: [{ ...base, id: 'tiny', gated: !!opts.gated, loras: {}, files: [tiny] }],
+    // The classifier downloads with every model; here it is the model's own file, so each test fetches one file.
+    safety: { ...real.safety, classifier: tiny },
   };
   const body = opts.body ?? BYTES;
   const at = opts.renamed ? '/org/tiny-new/resolve/' : '/org/tiny/resolve/';
+  type Route = Parameters<typeof fakeFetch>[0][number];
   const rename: Parameters<typeof fakeFetch>[0] = opts.renamed
     ? [
         [
@@ -64,6 +63,14 @@ function setup(
     : [];
   const fetch = fakeFetch([
     ...rename,
+    ...(opts.tags
+      ? [
+          [
+            'GET /api/models/org/tiny/',
+            () => Response.json({ id: 'org/tiny', tags: opts.tags }),
+          ] satisfies Route,
+        ]
+      : []),
     [
       `HEAD ${at}`,
       () =>
@@ -73,7 +80,7 @@ function setup(
               status: 302,
               headers: {
                 'x-repo-commit': COMMIT,
-                'x-linked-etag': `"${SHA}"`,
+                'x-linked-etag': `"${opts.etag ?? SHA}"`,
                 'x-linked-size': String(BYTES.length),
               },
             }),
@@ -98,6 +105,7 @@ function setup(
     tokens: { accessToken: async () => (opts.token === undefined ? 'hf_token' : opts.token) },
     onChange: (s) => events.push(s),
     fetch,
+    safety: opts.safety,
   });
   const dest = join(root, 'comfy', 'models', 'vae', 'tiny.safetensors');
   mm.acceptLicense('tiny');
@@ -204,7 +212,7 @@ describe('ModelManager', () => {
     mkdirSync(join(dest, '..'), { recursive: true });
     writeFileSync(`${dest}.part`, BYTES.subarray(0, 10_000));
     await mm.install('tiny');
-    const get = fetch.calls.find((c) => c.method === 'GET')!;
+    const get = fetch.calls.find((c) => c.method === 'GET' && c.url.includes('/resolve/'))!;
     expect((get.init.headers as Record<string, string>).range).toBe('bytes=10000-');
     expect(readFileSync(dest)).toEqual(BYTES);
   });
@@ -237,6 +245,43 @@ describe('ModelManager', () => {
     const { mm } = setup({ gated: true, status: 403 });
     await mm.install('tiny');
     expect(mm.states()[0]!.error).toMatch(/Accept the license on huggingface.co\/org\/tiny/);
+  });
+
+  it('refuses a repo Hugging Face tags as not for all audiences, before downloading it', async () => {
+    const { mm, fetch, dest } = setup({ tags: ['lora', 'not-for-all-audiences'] });
+    await mm.install('tiny');
+    expect(mm.states()[0]!.error).toMatch(/won’t install tiny\.safetensors.*not-for-all-audiences/);
+    expect(fetch.calls.some((c) => c.method === 'GET' && c.url.includes('/resolve/'))).toBe(false);
+    expect(existsSync(dest)).toBe(false);
+  });
+
+  it('refuses a file whose hash is on the blocklist, before and after it downloads', async () => {
+    const policy = loadSafety().policy;
+    const blocked = new SafetyCheck({ ...policy, models: { ...policy.models, blockedSha256: [SHA] } });
+    const a = setup({ safety: blocked });
+    await a.mm.install('tiny');
+    expect(a.mm.states()[0]!.error).toMatch(/known sexual model file/);
+    expect(a.fetch.calls.some((c) => c.method === 'GET' && c.url.includes('/resolve/'))).toBe(false);
+    // Hugging Face published another hash, but the bytes that came are a blocked file: deleted, never installed.
+    const b = setup({ safety: blocked, etag: 'c'.repeat(64) });
+    await b.mm.install('tiny');
+    expect(b.mm.states()[0]!.error).toMatch(/known sexual model file/);
+    expect(existsSync(b.dest)).toBe(false);
+    expect(existsSync(`${b.dest}.part`)).toBe(false);
+  });
+
+  it('downloads the safety classifier with the first model', () => {
+    const mm = new ModelManager({
+      comfyDir: mkdtempSync(join(tmpdir(), 'hg-models-guard-')),
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-models-guard-')),
+      catalog: real,
+      lock: { version: 1, files: {} },
+      tokens: { accessToken: async () => null },
+      onChange: () => {},
+    });
+    for (const m of real.models)
+      expect(mm.filesOf(m).map((f) => f.repo)).toContain('Falconsai/nsfw_image_detection');
+    expect(mm.pathOf(real.safety.classifier)).toMatch(/models[/\\]safety[/\\]model\.safetensors$/);
   });
 
   it('checks free space before downloading anything', async () => {

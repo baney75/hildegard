@@ -16,11 +16,13 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
   type Catalog,
+  loadSafety,
   lockKey,
   type Model,
   type ModelFile,
   type ModelLock,
   type ModelState,
+  type SafetyCheck,
 } from '@hildegard/presets';
 import { fit, fitWhy, type Gpu } from '@hildegard/runtime';
 
@@ -39,7 +41,8 @@ export class ModelError extends Error {
     | 'disk-full'
     | 'corrupt'
     | 'network'
-    | 'canceled';
+    | 'canceled'
+    | 'blocked';
   constructor(code: ModelError['code'], message: string) {
     super(message);
     this.name = 'ModelError';
@@ -90,6 +93,7 @@ export class ModelManager {
   private readonly fetchFn: typeof fetch;
   private readonly endpoint: string;
   private readonly gpu: Gpu | null;
+  private readonly safety: SafetyCheck;
 
   constructor(opts: {
     comfyDir: string;
@@ -102,8 +106,11 @@ export class ModelManager {
     endpoint?: string;
     /** This computer's GPU, to say which models fit it. */
     gpu?: Gpu | null;
+    /** What may be installed; presets/safety.toml unless a test says otherwise. */
+    safety?: SafetyCheck;
   }) {
     this.gpu = opts.gpu ?? null;
+    this.safety = opts.safety ?? loadSafety();
     this.modelsDir = join(opts.comfyDir, 'models');
     this.recordFile = join(opts.dataDir, 'models.json');
     this.acceptFile = join(opts.dataDir, 'licenses.json');
@@ -152,9 +159,10 @@ export class ModelManager {
     return m;
   }
 
-  /** Every file a model needs, its camera LoRAs included. */
+  /** Every file a model needs: its own, its camera LoRAs, and the safety classifier every render passes through. */
   filesOf(m: Model): ModelFile[] {
-    return [...m.files, ...Object.values(m.loras)];
+    const all = [...m.files, ...Object.values(m.loras), this.catalog.safety.classifier];
+    return all.filter((f, i) => all.findIndex((g) => lockKey(g) === lockKey(f)) === i);
   }
 
   pathOf(f: ModelFile): string {
@@ -329,6 +337,31 @@ export class ModelManager {
     };
   }
 
+  /**
+   * What Hugging Face's model page says against a repo: its tags (not-for-all-audiences and the like) and its card.
+   * A page that can't be read refuses nothing here, since every catalog file passed the same check when it was added.
+   */
+  private async hubVerdict(f: ModelFile, revision: string, token: string | null, signal: AbortSignal) {
+    try {
+      const res = await this.fetchFn(`${this.endpoint}/api/models/${f.repo}/revision/${revision}`, {
+        headers: this.headers(token),
+        signal,
+      });
+      if (!res.ok) return [];
+      const m = (await res.json()) as { tags?: unknown; cardData?: { tags?: unknown; base_model?: unknown } };
+      const strings = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+      return this.safety.model({
+        repo: f.repo,
+        tags: [...strings(m.tags), ...strings(m.cardData?.tags)],
+        files: [{ name: f.path }],
+      });
+    } catch (e) {
+      if (signal.aborted) throw e;
+      return [];
+    }
+  }
+
   private async download(f: ModelFile, job: Job): Promise<void> {
     const signal = job.abort.signal;
     const pin = this.lock.files[lockKey(f)];
@@ -349,6 +382,18 @@ export class ModelManager {
         'corrupt',
         `Hugging Face gave no checksum for ${basename(f.path)}, so it cannot be verified.`,
       );
+    const refused = (why: string) =>
+      new ModelError(
+        'blocked',
+        `Hildegard won’t install ${basename(f.path)}: ${why}. It doesn’t load sexual models.`,
+      );
+    if (this.safety.blockedHash(want.sha256) || this.safety.blockedHash(info.sha256))
+      throw refused('it’s a known sexual model file');
+    // A file not pinned in models.lock.json: ask what Hugging Face says about its repo now, too.
+    if (!pin) {
+      const why = await this.hubVerdict(f, want.revision, token, signal);
+      if (why.length) throw refused(why.join('; '));
+    }
 
     const dest = this.pathOf(f);
     const part = `${dest}.part`;
@@ -410,6 +455,10 @@ export class ModelManager {
 
     const size = statSync(part).size;
     const sha256 = hash.digest('hex');
+    if (this.safety.blockedHash(sha256)) {
+      await rm(part, { force: true });
+      throw refused('it’s a known sexual model file');
+    }
     if (size !== want.size || sha256 !== want.sha256) {
       await rm(part, { force: true });
       throw new ModelError(

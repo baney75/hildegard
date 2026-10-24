@@ -4,7 +4,7 @@
  * It walks each job through queued → running (progress and preview frames) → succeeded, and serves a small sample
  * clip as the output. Tests and UI development run against it; a real render never does.
  *
- * Put `[fail:oom]` or `[fail:node]` in a prompt to make that job fail the way a real one would.
+ * Put `[fail:oom]`, `[fail:node]` or `[fail:guard]` in a prompt to make that job fail the way a real one would.
  */
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -249,6 +249,14 @@ export async function startFakeProxy(opts: FakeProxyOptions = {}): Promise<FakeP
             step: 2,
             code: 'out_of_memory',
             message: 'Allocation on device failed: CUDA out of memory.',
+          };
+        if (text.includes('[fail:guard]'))
+          j.failAt = {
+            step: 3,
+            code: 'execution_error',
+            message:
+              "HildegardGuard: Hildegard refused this take because a frame looks sexual (score 0.97). Hildegard doesn't make sexual content.",
+            node: '30',
           };
         if (text.includes('[fail:node]'))
           j.failAt = { step: 1, code: 'execution_error', message: 'Error while running node', node: '5' };

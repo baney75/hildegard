@@ -18,7 +18,10 @@ export interface Config {
   fake: boolean;
   /** Built Studio UI to serve; null in development, where Vite serves it. */
   uiDir: string | null;
-  /** Hugging Face OAuth app (public client, no secret). */
+  /**
+   * Hugging Face OAuth client (public, no secret). By default Hildegard's client metadata document, which Hugging Face
+   * reads in place of a registered app; HILDEGARD_HF_CLIENT_ID names another, and an empty value turns sign-in off.
+   */
   hfClientId: string | null;
   /** Extra host names this server answers to (for example a Tailscale name). */
   allowedHosts: string[];
@@ -28,6 +31,12 @@ export interface Config {
    */
   hostPort: number | null;
 }
+
+/**
+ * Hildegard's Hugging Face client: a Client ID Metadata Document (https://huggingface.co/docs/hub/oauth), served from
+ * the install page's site. It names Hildegard, its icon, the scopes, and the loopback callbacks `/api/hf/callback`.
+ */
+export const HF_CLIENT_ID = 'https://dbaney.com/hildegard/oauth/hf-client.json';
 
 export function defaultDataDir(env = process.env): string {
   if (env.HILDEGARD_HOME) return env.HILDEGARD_HOME;
@@ -72,7 +81,7 @@ export function parseArgs(argv: string[], env = process.env): Config {
     comfyDir: opt('comfy-dir') ?? env.HILDEGARD_COMFY_DIR ?? join(dataDir, 'comfyui'),
     fake: flag('fake-gpu') || env.HILDEGARD_FAKE_GPU === '1',
     uiDir: opt('ui') ?? env.HILDEGARD_UI_DIR ?? null,
-    hfClientId: env.HILDEGARD_HF_CLIENT_ID ?? null,
+    hfClientId: (env.HILDEGARD_HF_CLIENT_ID ?? HF_CLIENT_ID) || null,
     allowedHosts: (opt('allow-host') ?? env.HILDEGARD_ALLOWED_HOSTS ?? '').split(',').filter(Boolean),
     hostPort:
       opt('host-port') || env.HILDEGARD_HOST_PORT

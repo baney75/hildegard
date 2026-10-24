@@ -16,6 +16,8 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
 | `comfy-nodes/hildegard_look` | The film-look ComfyUI node (Python): grain, halation, gate weave |
+| `comfy-nodes/hildegard_guard` | The safety ComfyUI node (Python): refuses frames an image classifier scores as sexual. See [docs/safety.md](docs/safety.md) |
+| `brand/app-icons` | The design system's app icons, the source for every icon file: `node scripts/app-icons.mjs` renders them |
 | `omarchy/` | The Omarchy bar widget (QML, a bash backend, `Model.js` for what it shows). Its own README, tests and rules: `node scripts/check-omarchy.mjs` |
 | `install/` | `install.sh` and `install.ps1`; `scripts/build-release.mjs` fills in versions and hashes |
 | `presets/` | Apache-2.0 preset data. `models.lock.json` pins every model file by revision and SHA-256 |
@@ -64,6 +66,12 @@ release; and runs the real installer from it on all three, then renders through 
   `install.sh` is the exception: ASCII only, since macOS's `/bin/sh` misreads UTF-8 after a `$VARIABLE`.
 - **Licenses in files.** Each code file starts with its `SPDX-License-Identifier: AGPL-3.0-only` line; `presets/` is
   Apache-2.0. After changing dependencies, run `node scripts/notices.mjs` to regenerate the notices (CI checks them).
+- **No sexual content.** Prompts go through `SafetyCheck.text()`, every model or LoRA through `SafetyCheck.model()`
+  and the SHA-256 blocklist before it downloads, and every graph that makes frames passes them through
+  `HildegardGuard` (`vetGraph` refuses one that doesn't). A new way in (an import, a new model kind, a new graph)
+  gets the same checks and a test that a sexual one is refused. [docs/safety.md](docs/safety.md) has the layers.
+- **Brand files come from the design system.** Never hand-draw an icon or edit a rendered PNG; change
+  `brand/app-icons/` and run `node scripts/app-icons.mjs`.
 
 ## Choir: rendering on another device
 

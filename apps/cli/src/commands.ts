@@ -650,6 +650,21 @@ export function askSecret(question: string): Promise<string> {
   });
 }
 
+/** Opens a URL in the default browser. Windows' `start` would cut a URL at its first `&`, so it gets rundll32. */
+function openInBrowser(url: string) {
+  const [cmd, args] =
+    process.platform === 'darwin'
+      ? ['open', [url]]
+      : process.platform === 'win32'
+        ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
+        : ['xdg-open', [url]];
+  try {
+    spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true })
+      .on('error', () => {})
+      .unref();
+  } catch {}
+}
+
 export async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const c of process.stdin) chunks.push(c as Buffer);
@@ -739,13 +754,50 @@ export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
           id: 'huggingface',
           title: 'Link Hugging Face',
           status: 'needs-owner',
-          detail: `The owner signs in to their own Hugging Face account; an agent never handles the token. In a terminal on this computer, run the command below${state.oauth ? ' and approve Hildegard on huggingface.co' : `, and paste a read token from ${TOKEN_PAGE}`}. Or use Settings › Hugging Face in the Studio.`,
+          detail: `The owner signs in to their own Hugging Face account; an agent never handles the token. In a terminal on this computer, run the command below${state.found ? ' and press Enter to use the Hugging Face sign-in already on this computer' : state.oauth ? ' and approve Hildegard on huggingface.co' : `, and paste a read token from ${TOKEN_PAGE}`}. Or use Settings › Hugging Face in the Studio.`,
           command: 'hildegard hf login',
         },
       ],
       'Waiting on the owner to link Hugging Face.',
       { hf: state },
     );
+
+  const waitLinked = async (ms: number): Promise<HfState | null> => {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const s = await api<HfState>(c, '/api/hf');
+      if (s.linked) return s;
+    }
+    return null;
+  };
+
+  // Signed in already with Hugging Face's own tools: one keypress.
+  if (state.found) {
+    if (await ask('This computer is signed in to Hugging Face already. Use that sign-in?')) {
+      try {
+        return done(await api<HfState>(c, '/api/hf/import', { method: 'POST' }));
+      } catch (e) {
+        console.log(`${(e as Error).message} Signing in another way.`);
+      }
+    }
+  }
+
+  // At the computer itself: the browser, nothing to copy. Over SSH there's no browser here, so a code instead.
+  if (state.oauth && !process.env.SSH_CONNECTION && !process.env.SSH_TTY) {
+    try {
+      const { url } = await api<{ url: string }>(c, '/api/hf/oauth/start', { method: 'POST' });
+      openInBrowser(url);
+      console.log(
+        `Approve Hildegard on huggingface.co in your browser. If no browser opened, go to:\n${url}`,
+      );
+      const s = await waitLinked(5 * 60_000);
+      if (s) return done(s);
+      console.log('No answer from the browser. Trying a code instead.');
+    } catch {
+      // No browser sign-in from here: a code works just as well.
+    }
+  }
 
   if (state.oauth) {
     try {
@@ -757,12 +809,8 @@ export async function hf(ctx: Ctx, args: string[]): Promise<Result> {
         },
       );
       console.log(`Open ${d.verificationUri}\nand enter the code ${d.userCode}. Waiting for Hugging Face…`);
-      const until = Date.now() + d.expiresIn * 1000;
-      while (Date.now() < until) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const s = await api<HfState>(c, '/api/hf');
-        if (s.linked) return done(s);
-      }
+      const s = await waitLinked(d.expiresIn * 1000);
+      if (s) return done(s);
       return fail('The code expired before it was approved. Run `hildegard hf login` again.');
     } catch {
       // Hugging Face's sign-in isn't reachable: a token works just as well.
