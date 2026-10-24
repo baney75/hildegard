@@ -179,7 +179,7 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
         detail: 'The Python environment is here.',
       });
     else {
-      await run(uv, ['venv', '--managed-python', '--python', PYTHON, L.venv], { log });
+      await run(uv, ['venv', '--managed-python', '--python', PYTHON, L.venv], { log, env: uvEnv(L) });
       record({
         id: 'python',
         title: 'Set up Python',
@@ -209,7 +209,7 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
       ...(gpu.torchBackend ? ['--torch-backend', gpu.torchBackend] : []),
       ...(rebuild ? TORCH.flatMap((p) => ['--reinstall-package', p]) : []),
     ];
-    const out = await run(uv, pkgArgs, { log });
+    const out = await run(uv, pkgArgs, { log, env: uvEnv(L) });
     record({
       id: 'packages',
       title: 'Install PyTorch and ComfyUI’s packages',
@@ -370,6 +370,15 @@ export async function download(
   }
   renameSync(part, dest);
 }
+
+/**
+ * uv's download cache and the Python it fetches live in Hildegard's own folder, not the user's profile: on a
+ * Windows PC installed to D:, PyTorch's few GB would otherwise still land on a nearly full C:.
+ */
+export const uvEnv = (L: Layout): NodeJS.ProcessEnv => ({
+  UV_CACHE_DIR: join(L.dataDir, 'cache', 'uv'),
+  UV_PYTHON_INSTALL_DIR: join(L.tools, 'python'),
+});
 
 /** Runs a program, logging its output; resolves with stdout and stderr, rejects with the tail of the output. */
 export function run(

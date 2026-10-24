@@ -65,6 +65,22 @@ else
 fi
 bin="${XDG_BIN_HOME:-$HOME/.local/bin}"
 
+# ComfyUI, PyTorch for the GPU and Python take about 8 GB, and the first model about 20 GB more. Say so before
+# downloading anything, rather than failing halfway with a full disk.
+need_gb=12
+[ "${HILDEGARD_SKIP_SETUP:-}" = 1 ] && need_gb=1
+probe=$home
+while [ ! -d "$probe" ]; do probe=$(dirname "$probe"); done
+free_gb=$(df -Pk "$probe" | awk 'NR==2 {print int($4 / 1048576)}')
+if [ -n "$free_gb" ] && [ "$free_gb" -lt "$need_gb" ]; then
+  say "Hildegard needs at least $need_gb GB free to install, plus about 20 GB for its first model, and $probe has $free_gb GB."
+  say "To install somewhere with more room, run:"
+  say ""
+  say "  curl -fsSL $RELEASE/install.sh | HILDEGARD_HOME=/path/with/room/hildegard sh"
+  say ""
+  die "nothing was installed."
+fi
+
 fetch() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL --retry 3 -o "$2" "$1"

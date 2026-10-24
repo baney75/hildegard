@@ -23,7 +23,7 @@ import {
   type Step,
   snippet,
 } from '@hildegard/runtime';
-import { type Config, startServer, VERSION } from '@hildegard/server';
+import { type Config, guardProcess, startServer, VERSION } from '@hildegard/server';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
 
@@ -87,10 +87,17 @@ export async function serveForeground(c: Config): Promise<never> {
     await srv.close();
     process.exit(0);
   };
-  const srv = await startServer({ ...c, uiDir }, { onStop: () => void stop() });
+  const srv = await startServer(
+    { ...c, uiDir },
+    {
+      onStop: () => {
+        console.error(`${new Date().toISOString()} Stopping: asked to from this computer.`);
+        void stop();
+      },
+    },
+  );
   console.log(`Hildegard ${VERSION} is running at ${srv.url}`);
-  process.once('SIGINT', () => void stop());
-  process.once('SIGTERM', () => void stop());
+  guardProcess(stop);
   return new Promise<never>(() => {});
 }
 

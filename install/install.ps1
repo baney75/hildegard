@@ -25,6 +25,25 @@ $NodeSha = @{ 'x64' = '@NODE_SHA_win32_x64@'; 'arm64' = '@NODE_SHA_win32_arm64@'
 
 $Root = if ($env:HILDEGARD_HOME) { $env:HILDEGARD_HOME } else { Join-Path $env:LOCALAPPDATA 'Hildegard' }
 $Bin = Join-Path $Root 'bin'
+
+# ComfyUI, PyTorch for the GPU and Python take about 8 GB, and the first model about 20 GB more. Say so before
+# downloading anything, rather than failing halfway with a full disk.
+$NeedGB = if ($env:HILDEGARD_SKIP_SETUP -eq '1') { 1 } else { 12 }
+$Drive = New-Object IO.DriveInfo ([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($Root)))
+$FreeGB = [math]::Floor($Drive.AvailableFreeSpace / 1GB)
+if ($FreeGB -lt $NeedGB) {
+  $other = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Free -gt 40GB -and "$($_.Name):\" -ne $Drive.Name } |
+    Sort-Object Free -Descending | Select-Object -First 1
+  $hint = if ($other) { "$($other.Name):\Hildegard, which has $([math]::Floor($other.Free / 1GB)) GB free" } else { 'a drive with more room' }
+  Write-Host "Hildegard needs at least $NeedGB GB free to install, plus about 20 GB for its first model, and $($Drive.Name) has $FreeGB GB."
+  Write-Host "To install on $hint, run:"
+  Write-Host ''
+  $dir = if ($other) { "$($other.Name):\Hildegard" } else { 'D:\Hildegard' }
+  Write-Host "  `$env:HILDEGARD_HOME = '$dir'; irm $Release/install.ps1 | iex"
+  Write-Host ''
+  Write-Host 'Nothing was installed.'
+  return
+}
 $Tmp = Join-Path ([IO.Path]::GetTempPath()) ("hildegard-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $Root, $Bin, $Tmp | Out-Null
 
