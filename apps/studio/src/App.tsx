@@ -14,10 +14,13 @@ import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
+import { Voice } from './pages/Voice.tsx';
+import { ConsentPhone } from './pages/voice/ConsentPhone.tsx';
 import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
+  { to: '/voice', match: /^\/voice/, label: 'Voice', icon: 'voice' },
   { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
@@ -52,7 +55,7 @@ export function App() {
   }, [catalog]);
 
   useEffect(() => {
-    if (/^\/likeness\//.test(route)) {
+    if (/^\/(consent|likeness)\//.test(route)) {
       document.title = 'Your consent · Hildegard';
       return;
     }
@@ -65,6 +68,9 @@ export function App() {
     document.title = busy ? `(${busy}) ${page} · Hildegard` : `${page} · Hildegard`;
   }, [route, busy, auth]);
 
+  // A consent link, opened on the speaker's own phone: it needs no account and shows nothing else.
+  const consent = /^\/consent\/([A-Za-z0-9_-]{20,64})$/.exec(route)?.[1];
+  if (consent) return <ConsentPhone token={consent} />;
   // A real person's consent link, opened on their own device: it needs no account and shows nothing else.
   const revokeLikeness = /^\/likeness\/revoke\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
   if (revokeLikeness) return <LikenessRevoke token={revokeLikeness} />;
@@ -92,8 +98,8 @@ export function App() {
     projects.size === 0 &&
     !models.some((m) => m.installed || m.downloading) &&
     !engine?.fake;
-  // Linked AI apps run on the computer Hildegard runs on: the owner's.
-  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents');
+  // Linked AI apps and voices run on the computer Hildegard runs on: the owner's.
+  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents' && n.to !== '/voice');
   if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
 
   const parts = route.split('/').filter(Boolean);
@@ -101,6 +107,7 @@ export function App() {
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
+  else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;
   else

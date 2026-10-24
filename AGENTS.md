@@ -19,6 +19,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
 | `skills/` | Agent skills (Claude Code, Codex, OMP) for film, video and photo editing, art, sound, setup and cloud, with Hildegard's quality gates |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
+| `voice-engine/` | The voice engine (Python, Apache-2.0): speech, voice design, consented cloning, speech to speech and transcription, one worker per environment. See [docs/voice.md](docs/voice.md) |
 | `comfy-nodes/hildegard_look` | The film-look ComfyUI node (Python): grain, halation, gate weave |
 | `comfy-nodes/hildegard_guard` | The safety ComfyUI node (Python): refuses frames an image classifier scores as sexual. See [docs/safety.md](docs/safety.md) |
 | `brand/app-icons` | The design system's app icons, the source for every icon file: `node scripts/app-icons.mjs` renders them |
@@ -74,6 +75,9 @@ release; and runs the real installer from it on all three, then renders through 
   and the SHA-256 blocklist before it downloads, and every graph that makes frames passes them through
   `HildegardGuard` (`vetGraph` refuses one that doesn't). A new way in (an import, a new model kind, a new graph)
   gets the same checks and a test that a sexual one is refused. [docs/safety.md](docs/safety.md) has the layers.
+- **Voices are cloned only with living consent.** Never add a way to clone a voice that skips the consent session
+  (a fresh line read aloud, heard by Whisper, unmarked, and the same speaker as every sample), and never let an agent
+  start one over MCP. `voice-engine/` is Apache-2.0. [docs/voice.md](docs/voice.md) has the method and the installer.
 - **Brand files come from the design system.** Never hand-draw an icon or edit a rendered PNG; change
   `brand/app-icons/` and run `node scripts/app-icons.mjs`.
 

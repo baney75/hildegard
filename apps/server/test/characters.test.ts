@@ -193,7 +193,7 @@ describe('characters', () => {
     expect((await json<Character>(gone)).references).toEqual([]);
   });
 
-  it('edits a character, keeps the cover to its references, and refuses a voice where there’s no Voice studio', async () => {
+  it('edits a character, keeps the cover to its references, and gives them only a voice the Voice studio has', async () => {
     const c = await withFace(await newCharacter());
     const edited = await json<Character>(
       send('PATCH', `/api/characters/${c.id}`, { wardrobe: 'a grey wool cloak' }),
@@ -203,7 +203,9 @@ describe('characters', () => {
       422,
     );
     expect((await send('PATCH', `/api/characters/${c.id}`, { description: 'topless' })).status).toBe(422);
-    expect((await send('PATCH', `/api/characters/${c.id}`, { voice: 'kokoro-fable' })).status).toBe(422);
+    expect((await send('PATCH', `/api/characters/${c.id}`, { voice: 'no-such-voice' })).status).toBe(422);
+    const voiced = await json<Character>(send('PATCH', `/api/characters/${c.id}`, { voice: 'kokoro-fable' }));
+    expect(voiced.voice).toBe('kokoro-fable');
   });
 });
 

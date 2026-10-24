@@ -313,7 +313,11 @@ export function findUv(L: Layout, probe: Pick<Probe, 'run'> = systemProbe): stri
   return null;
 }
 
-async function downloadUv(L: Layout, fetchFn: typeof fetch, log: (l: string) => void): Promise<string> {
+export async function downloadUv(
+  L: Layout,
+  fetchFn: typeof fetch,
+  log: (l: string) => void,
+): Promise<string> {
   const key = `${process.platform}-${process.arch}`;
   const asset = UV.assets[key];
   if (!asset)

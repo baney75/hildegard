@@ -15,6 +15,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type ShotDetail } from './client.ts';
+import { registerVoiceTools } from './voice-tools.ts';
 
 const DONE: Take['status'][] = ['done', 'failed', 'canceled'];
 
@@ -750,6 +751,8 @@ export function registerTools(
       }
     }),
   );
+
+  registerVoiceTools(server, client, agentName, remote);
 
   // ── Characters ─────────────────────────────────────────────────────────────────────────────────────────────────
   /** Stills drawn, with each finished one as an image, after waiting up to `seconds` for them. */

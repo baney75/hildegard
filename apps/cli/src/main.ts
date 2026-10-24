@@ -34,6 +34,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard open             Open the Studio in your browser
   hildegard models           Models, and whether they fit this GPU
   hildegard models install <id> [--accept-license]
+  hildegard voice install    Set up speech, cloning and voice design for this GPU (--env speech,chatterbox,qwen;
+                             hildegard voice: what's set up)
   hildegard setup --model <id> --accept-license <id> [--hf-token-stdin] --yes --json
                              Without questions, for agents: the license only when the owner said yes
   hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, cursor,')}
@@ -111,6 +113,7 @@ const valued = new Set([
   'sheet',
   'seconds',
   'gpu',
+  'env',
   'idle-minutes',
   'disk',
   'volume',
@@ -175,6 +178,8 @@ async function main(): Promise<Result | null> {
       return open(ctx);
     case 'models':
       return models(ctx, rest);
+    case 'voice':
+      return (await import('./voice.ts')).voice(ctx, rest);
     case 'hf':
       return hf(ctx, rest);
     case 'choir':

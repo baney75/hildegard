@@ -5,12 +5,16 @@ import type {
   Character,
   CharacterView,
   ExportState,
+  MarkCheck,
   Project,
   Shot,
   ShotRequestInput,
   Snapshot,
   Still,
   Take,
+  Voice,
+  VoiceJob,
+  VoiceState,
 } from '@hildegard/presets';
 
 export class HildegardError extends Error {
@@ -47,6 +51,9 @@ export interface ShotDetail {
   /** The film the shot is in. */
   project: { id: string; title: string };
 }
+
+/** A voice job, and where its clips are on the computer Hildegard runs on. */
+export type VoiceJobDetail = VoiceJob & { files: string[] };
 
 /** Talks to the Hildegard server on this computer, as the Studio does. */
 export class HildegardClient {
@@ -113,6 +120,30 @@ export class HildegardClient {
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   installModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/models/${encodeURIComponent(id)}/install`, { acceptLicense });
+
+  // ── Voice ──
+  voice = () => this.call<VoiceState>('GET', '/api/voice');
+  voiceJob = (id: string) => this.call<VoiceJobDetail>('GET', `/api/voice/jobs/${encodeURIComponent(id)}`);
+  /** speak, design, convert, transcribe or dub: queues a voice job. */
+  voiceRun = (kind: 'speak' | 'design' | 'convert' | 'transcribe' | 'dub', body: Record<string, unknown>) =>
+    this.call<VoiceJob>('POST', `/api/voice/${kind}`, body);
+  keepDesign = (job: string, candidate: number, name: string) =>
+    this.call<Voice>('POST', `/api/voice/design/${encodeURIComponent(job)}/keep`, { candidate, name });
+  cancelVoiceJob = (id: string) =>
+    this.call<VoiceJob>('POST', `/api/voice/jobs/${encodeURIComponent(id)}/cancel`);
+  isOurs = (source: string) => this.call<MarkCheck>('POST', '/api/voice/check', { source });
+  installVoiceModel = (id: string, acceptLicense: boolean) =>
+    this.call<unknown>('POST', `/api/voice/models/${encodeURIComponent(id)}/install`, { acceptLicense });
+  /** A recording's bytes; the server checks it is audio. */
+  async uploadAudio(bytes: Uint8Array): Promise<string> {
+    return (await this.call<{ name: string }>('POST', '/api/voice/uploads', undefined, bytes)).name;
+  }
+  /** A clip the server serves, as base64. */
+  async audio(path: string): Promise<{ data: string; mimeType: string } | null> {
+    const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);
+    if (!res?.ok) return null;
+    return { data: Buffer.from(await res.arrayBuffer()).toString('base64'), mimeType: 'audio/wav' };
+  }
 
   async upload(path: string): Promise<string> {
     const bytes = await readFile(path).catch(() => {

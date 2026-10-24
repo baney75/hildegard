@@ -4,6 +4,7 @@ import type {
   Catalog,
   Character,
   ChoirState,
+  ConsentSessionView,
   EngineState,
   ExportState,
   GuestTake,
@@ -17,6 +18,8 @@ import type {
   Still,
   Take,
   UpdateState,
+  VoiceJob,
+  VoiceState,
 } from '@hildegard/presets';
 import { useSyncExternalStore } from 'react';
 import { api, SIGNED_OUT } from './api.ts';
@@ -50,6 +53,10 @@ export interface State {
   host: HostState | null;
   /** Newer releases, and whether Hildegard updates itself. */
   update: UpdateState | null;
+  /** Voice, for the owner: loaded when the Voice page first opens, then kept live. */
+  voice: VoiceState | null;
+  /** Clones being made, by session. */
+  consents: Map<string, ConsentSessionView>;
 }
 
 let state: State = {
@@ -73,6 +80,8 @@ let state: State = {
   auth: null,
   host: null,
   update: null,
+  voice: null,
+  consents: new Map(),
 };
 const listeners = new Set<() => void>();
 
@@ -112,6 +121,9 @@ function fromSnapshot(s: Snapshot): Partial<State> {
   };
 }
 
+/** How far along a voice job is: it only ever moves forward. */
+const stage = (s: VoiceJob['status']) => (s === 'queued' ? 0 : s === 'running' ? 1 : 2);
+
 /** Apply a batch of server events in one update, so a burst of progress costs one render. */
 export function apply(events: ServerEvent[]) {
   let { projects, shots, takes, characters, stills } = state;
@@ -139,7 +151,10 @@ export function apply(events: ServerEvent[]) {
         projects.set(e.project.id, e.project);
         break;
       case 'removed': {
-        if (e.kind === 'take') {
+        if (e.kind === 'voice-job') {
+          const v = next.voice ?? state.voice;
+          if (v) next.voice = { ...v, jobs: v.jobs.filter((j) => j.id !== e.id) };
+        } else if (e.kind === 'take') {
           if (takes === state.takes) takes = new Map(takes);
           takes.delete(e.id);
         } else if (e.kind === 'character') {
@@ -181,6 +196,30 @@ export function apply(events: ServerEvent[]) {
       case 'update':
         next.update = e.update;
         break;
+      case 'voice-job': {
+        const v = next.voice ?? state.voice;
+        if (!v) break;
+        // A reply to the request can land after the event saying the job already finished: keep the later state.
+        const old = v.jobs.find((j) => j.id === e.job.id);
+        if (old && stage(old.status) > stage(e.job.status)) break;
+        const jobs = [...v.jobs.filter((j) => j.id !== e.job.id), e.job];
+        jobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        next.voice = { ...v, jobs };
+        break;
+      }
+      case 'voices': {
+        const v = next.voice ?? state.voice;
+        if (v) next.voice = { ...v, voices: e.voices };
+        break;
+      }
+      case 'voice-models': {
+        const v = next.voice ?? state.voice;
+        if (v) next.voice = { ...v, models: e.models };
+        break;
+      }
+      case 'consent':
+        next.consents = new Map(next.consents ?? state.consents).set(e.session.id, e.session);
+        break;
     }
   }
   set({ ...next, projects, shots, takes, characters, stills });
@@ -215,6 +254,8 @@ function signedOut() {
     exports: new Map(),
     guests: [],
     host: null,
+    voice: null,
+    consents: new Map(),
   });
 }
 if (typeof window !== 'undefined')
@@ -224,6 +265,29 @@ if (typeof window !== 'undefined')
 
 export function setHost(host: HostState) {
   set({ host });
+}
+
+export function setVoice(voice: VoiceState) {
+  set({ voice });
+}
+
+/** Resolves once a voice job has finished, however it finished. */
+export function whenVoiceJob(id: string): Promise<VoiceJob> {
+  return new Promise((resolve) => {
+    const check = () => {
+      const j = state.voice?.jobs.find((x) => x.id === id);
+      if (j && j.status !== 'queued' && j.status !== 'running') {
+        listeners.delete(check);
+        resolve(j);
+      }
+    };
+    listeners.add(check);
+    check();
+  });
+}
+
+export function setConsent(c: ConsentSessionView) {
+  set({ consents: new Map(state.consents).set(c.id, c) });
 }
 
 export async function signOut() {

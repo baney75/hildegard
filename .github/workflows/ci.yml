@@ -43,11 +43,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Export film and posters run on PyAV and Pillow, which ComfyUI's own requirements bring in an install.
+      # Export film and posters run on PyAV and Pillow, which ComfyUI's own requirements bring in an install; the
+      # voice worker's bridge test runs its stand-in model on numpy and soundfile.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0
+      - run: python -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0 soundfile==0.13.1
       - run: pnpm typecheck
       - run: pnpm test
       # The Omarchy bar widget: Omarchy is Linux only.
@@ -86,6 +87,27 @@ jobs:
         working-directory: comfy-nodes/hildegard_look
       - run: python -m pytest -q
         working-directory: comfy-nodes/hildegard_guard
+
+  # The voice installer for real, on CPU: every environment's pinned packages resolve and import, then the engine's
+  # own tests (the watermark included) and the server's bridge to it run in the speech environment.
+  voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node apps/cli/src/main.ts voice install --cpu --env speech,chatterbox,qwen --data "$RUNNER_TEMP/hg" --verbose
+      - run: node apps/cli/src/main.ts voice --data "$RUNNER_TEMP/hg" --json | tee voice.json && node -e "const r=require('./voice.json'); if (r.steps.some((s) => s.status !== 'done')) process.exit(1)"
+      - run: '"$RUNNER_TEMP/hg/tools/uv" pip install --python "$RUNNER_TEMP/hg/voice/envs/speech/bin/python" pytest==8.4.2'
+      - run: '"$RUNNER_TEMP/hg/voice/envs/speech/bin/python" -m pytest -q'
+        working-directory: voice-engine
+      - run: pnpm --filter @hildegard/server exec vitest run test/voice-worker.test.ts
+        env:
+          HILDEGARD_TEST_PYTHON: ${{ runner.temp }}/hg/voice/envs/speech/bin/python
 
   # Every graph Hildegard builds, validated by the ComfyUI version the installer pins. No GPU or weights needed.
   comfyui:

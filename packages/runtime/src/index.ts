@@ -4,3 +4,4 @@ export * from './gpu.ts';
 export * from './install.ts';
 export * from './pins.ts';
 export * from './supervisor.ts';
+export * from './voice.ts';

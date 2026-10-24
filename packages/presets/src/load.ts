@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'smol-toml';
 import { loadSafety, type SafetyCheck } from './safety.ts';
 import { Catalog, lockKey, ModelLock } from './schema.ts';
+import { parseVoiceCatalog, type VoiceCatalog } from './voice.ts';
 
 /** The repo's `presets/` folder. Overridable so packaged builds can ship it elsewhere. */
 export const defaultPresetsDir = (): string =>
@@ -121,4 +122,9 @@ export function checkCatalog(c: Catalog, lock: ModelLock, safety?: SafetyCheck):
   if (safety?.blockedHash(lock.files[lockKey(guard)]?.sha256))
     problems.push('the safety classifier’s file is on the blocklist');
   return problems;
+}
+
+/** presets/voices.toml, cross-checked against the lock and the safety lists like the video catalog. */
+export function loadVoiceCatalog(dir = defaultPresetsDir(), lock?: ModelLock): VoiceCatalog {
+  return parseVoiceCatalog(readFileSync(join(dir, 'voices.toml'), 'utf8'), lock, loadSafety(dir));
 }

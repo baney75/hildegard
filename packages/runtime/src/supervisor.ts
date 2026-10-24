@@ -46,6 +46,11 @@ export class ComfyRuntime {
     this.onChange = opts.onChange ?? (() => {});
   }
 
+  /** ComfyUI's own address (not the proxy's), while it runs: for asking it to free GPU memory. */
+  comfyUrl(): string | null {
+    return this.ports && this.state.status !== 'stopped' ? `http://127.0.0.1:${this.ports[0]}` : null;
+  }
+
   /** Whether `hildegard install` has finished here. */
   static installed(dataDir: string): boolean {
     return readRuntime(dataDir) !== null;

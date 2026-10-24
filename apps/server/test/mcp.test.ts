@@ -43,20 +43,31 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cancel_take',
+      'check_watermark',
+      'clone_voice',
+      'convert_voice',
       'create_character',
+      'design_voice',
       'direct_shot',
+      'dub',
       'export_film',
       'get_shot',
       'hildegard_status',
       'install_model',
+      'install_voice_model',
+      'keep_designed_voice',
       'keep_still',
       'list_characters',
       'list_presets',
+      'list_voices',
       'make_character_stills',
       'make_sequence',
       'review_prompt',
       'review_take',
       'shot_status',
+      'speak',
+      'transcribe',
+      'voice_job_status',
     ]);
     expect(client.getInstructions()).toContain('hildegard_status');
   });

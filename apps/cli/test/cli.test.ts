@@ -371,6 +371,22 @@ describe('hildegard', () => {
     expect(r.steps[0]).toMatchObject({ id: 'install', status: 'needs-owner' });
   });
 
+  it('says which voice environments are set up, and the command for each one that isn’t', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-data-'));
+    const r = await hildegard(home, 'voice', '--data', data);
+    expect(r.steps.map((s) => [s.id, s.status])).toEqual([
+      ['speech', 'skipped'],
+      ['chatterbox', 'skipped'],
+      ['qwen', 'skipped'],
+    ]);
+    expect(r.steps[1]!.command).toBe('hildegard voice install --env chatterbox --json');
+    expect(r.message).toMatch(/hildegard voice install/);
+    const bad = await hildegard(home, 'voice', 'install', '--env', 'speech,bark', '--data', data);
+    expect(bad).toMatchObject({ ok: false, steps: [] });
+    expect(bad.message).toMatch(/no voice environment called “bark”/);
+  });
+
   it('starts people on the best model that fits their GPU', () => {
     const { catalog } = loadCatalog();
     const gpu = (vramGb: number) => ({ backend: 'cuda' as const, name: 'x', vramGb, torchBackend: 'cu130' });
