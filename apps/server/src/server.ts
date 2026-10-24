@@ -80,6 +80,8 @@ export async function startServer(
     llm?: Partial<Omit<LocalModelsDeps, 'dataDir'>>;
     /** The token file `hf auth login` writes; tests point it elsewhere. */
     hubToken?: string;
+    /** How model files download: tests give a stand-in. */
+    modelFetch?: typeof fetch;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -179,8 +181,8 @@ export async function startServer(
     tokens: hf,
     gpu: localGpu,
     onChange: () => store.emit({ type: 'models', models: modelStates() }),
+    fetch: opts.modelFetch,
   });
-  void models.completeSafety();
   /** Rendering on a joined device, its models are the ones that count, so nothing asks to download them here. */
   const modelStates = (): ModelState[] => {
     const d = choir.active();
@@ -306,6 +308,9 @@ export async function startServer(
   const loopback = ['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(config.host)
     ? null
     : await listen(app.fetch, '127.0.0.1', port);
+  // Only once everything it reports to exists and the server answers. A download that fails shows on the model and
+  // never stops Hildegard.
+  models.completeSafety().catch(() => {});
 
   // Sharing this GPU: listen on the address paired devices reach (the Tailscale IP) with /api/node/* only, unless
   // the main listener already covers it. Keep trying while that address isn't up yet, such as before Tailscale is.
