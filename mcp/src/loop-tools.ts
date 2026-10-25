@@ -10,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type LoopDetail, type LoopRound } from './client.ts';
+import { PackError, zipFolder } from './zip.ts';
 
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
@@ -52,9 +53,9 @@ export function registerLoopTools(
     {
       title: 'Start a loop',
       description:
-        'Start a generate → render → critique → refine loop for a 3D model (kind "model"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (for a model: in Blender, OpenSCAD, trimesh, signed-distance code or by hand, exported as GLB, STL, OBJ or PLY) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model, a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the hildegard-3d skill (read_skill) before modeling.',
+        'Start a generate → render → critique → refine loop for a 3D model or printable part (kind "model"), a web page or site (kind "web"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (a model in Blender, OpenSCAD, build123d, trimesh or signed-distance code, exported as GLB, STL, OBJ or PLY; a page as HTML and CSS, or a folder or ZIP of the site) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model; every page at phone, tablet and desktop width, light and dark, with problems outlined, for the web; a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the skill first (read_skill): hildegard-3d for a model, hildegard-print for a part to print, hildegard-web for a page.',
       inputSchema: {
-        kind: z.enum(['model', 'image', 'video', 'audio']).describe('What the loop makes.'),
+        kind: z.enum(['model', 'web', 'image', 'video', 'audio']).describe('What the loop makes.'),
         title: z.string().min(1).max(120).describe('A short name, such as "Heron finial".'),
         for: z
           .string()
@@ -98,13 +99,25 @@ export function registerLoopTools(
         final: z.boolean().optional().describe('Image, video, sound: hold it to the final bar.'),
         seconds: z.number().positive().max(3600).optional().describe('Video, sound: the length asked for.'),
         audio: z.boolean().optional().describe('Video: whether it should have sound.'),
+        pages: z
+          .array(z.string().max(200))
+          .min(1)
+          .max(5)
+          .optional()
+          .describe(
+            'Web: the pages to check, as paths inside the site, such as ["index.html", "pricing.html"]. Default index.html.',
+          ),
+        dark: z
+          .boolean()
+          .optional()
+          .describe('Web: the brief asks for a dark theme that follows the visitor’s setting.'),
         max_rounds: z
           .number()
           .int()
           .min(1)
           .max(12)
           .optional()
-          .describe('Rounds at most. Default 6 for a model, 3 otherwise.'),
+          .describe('Rounds at most. Default 6 for a model, 5 for a web page, 3 otherwise.'),
       },
     },
     guard(async (a) => {
@@ -129,6 +142,8 @@ export function registerLoopTools(
           final: a.final,
           seconds: a.seconds,
           audio: a.audio,
+          pages: a.pages,
+          dark: a.dark,
         },
       });
       const how =
@@ -136,11 +151,15 @@ export function registerLoopTools(
           ? remote
             ? 'Send each round with loop_submit as text (OBJ, ASCII STL or glTF JSON) or data (base64 GLB, STL or PLY).'
             : 'Send each round with loop_submit: file_path to the GLB, STL, OBJ or PLY you exported, or text or data.'
-          : a.kind === 'video'
-            ? 'Send each round with loop_submit: take_id for a take Hildegard rendered, or the file.'
-            : a.kind === 'image'
-              ? 'Send each round with loop_submit: still_id for a still Hildegard drew, or the file.'
-              : 'Send each round with loop_submit: the file.';
+          : a.kind === 'web'
+            ? remote
+              ? 'Send each round with loop_submit: text (one HTML page with its CSS inline) or data (base64 ZIP of the site, with its images and fonts).'
+              : 'Send each round with loop_submit: file_path to the HTML page or to the site’s folder (or a ZIP of it), or text for one page.'
+            : a.kind === 'video'
+              ? 'Send each round with loop_submit: take_id for a take Hildegard rendered, or the file.'
+              : a.kind === 'image'
+                ? 'Send each round with loop_submit: still_id for a still Hildegard drew, or the file.'
+                : 'Send each round with loop_submit: the file.';
       return text(
         `Loop ${l.id} started: “${l.title}”, ${l.kind}, at most ${l.maxRounds} rounds. ${how}\nAfter each round, look at what comes back and answer these with loop_critique:\n${l.questions}`,
       );
@@ -151,7 +170,7 @@ export function registerLoopTools(
     'loop_submit',
     {
       title: 'Send a round',
-      description: `Send the next version to a loop. Hildegard reads it as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id or still_id' : 'file_path, text, data, take_id or still_id'}. The previous round must be critiqued first.`,
+      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id or still_id' : 'file_path, text, data, take_id or still_id'}. The previous round must be critiqued first.`,
       inputSchema: {
         loop_id: z.string().describe('The loop, from loop_start or loop_status.'),
         note: z
@@ -166,14 +185,16 @@ export function registerLoopTools(
                 .string()
                 .optional()
                 .describe(
-                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG.',
+                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, HTML, ZIP, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG; or, for a web loop, the site’s folder.',
                 ),
             }),
         text: z
           .string()
           .max(60_000_000)
           .optional()
-          .describe('The model as text: an OBJ, an ASCII STL, or glTF JSON with embedded buffers.'),
+          .describe(
+            'The round as text: a model as OBJ, ASCII STL or glTF JSON with embedded buffers; a web page as one HTML document.',
+          ),
         data: z
           .string()
           .max(140_000_000)
@@ -204,9 +225,17 @@ export function registerLoopTools(
               'Hildegard runs on another computer, so it can’t read a path on yours. Send the file as text or data.',
             );
           const s = await stat(a.file_path).catch(() => null);
-          if (!s?.isFile()) throw new HildegardError(422, `There’s no file at ${a.file_path}.`);
-          if (s.size > MAX_FILE) throw new HildegardError(413, 'Files up to 512 MB.');
-          bytes = await readFile(a.file_path);
+          if (s?.isDirectory()) {
+            try {
+              bytes = zipFolder(a.file_path);
+            } catch (e) {
+              throw new HildegardError(422, e instanceof PackError ? e.message : (e as Error).message);
+            }
+          } else {
+            if (!s?.isFile()) throw new HildegardError(422, `There’s no file at ${a.file_path}.`);
+            if (s.size > MAX_FILE) throw new HildegardError(413, 'Files up to 512 MB.');
+            bytes = await readFile(a.file_path);
+          }
         } else if (a.text !== undefined) bytes = new TextEncoder().encode(a.text);
         else if (a.data !== undefined) {
           bytes = Buffer.from(a.data.replace(/^data:[\w/+.-]+;base64,/, ''), 'base64');

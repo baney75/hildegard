@@ -28,6 +28,9 @@ const TYPES: Record<string, string> = {
   flac: 'audio/flac',
   mp3: 'audio/mpeg',
   ogg: 'audio/ogg',
+  // A page an agent made is shown as its source, never run on Hildegard's own address.
+  html: 'text/plain; charset=utf-8',
+  zip: 'application/zip',
 };
 
 /** A round as an API answer: links to its file and sheet instead of names in a folder. */

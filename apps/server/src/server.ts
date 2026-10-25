@@ -37,6 +37,7 @@ import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, VoiceStudio } from './voice.ts';
 import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
 import { VoiceModels } from './voice-models.ts';
+import { webReviewer } from './web-review.ts';
 
 type HttpServer = ReturnType<typeof serve>;
 
@@ -385,6 +386,7 @@ export async function startServer(
       dir: join(mediaDir, 'loops'),
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
+      reviewWeb: webReviewer(),
     }),
     choir,
     modelStates,

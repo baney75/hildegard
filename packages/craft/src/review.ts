@@ -17,7 +17,7 @@ export interface Check {
 }
 
 export interface Review {
-  kind: 'video' | 'image' | 'audio' | 'mesh';
+  kind: 'video' | 'image' | 'audio' | 'mesh' | 'web';
   info: Record<string, unknown>;
   checks: Check[];
   /** No check failed. */
