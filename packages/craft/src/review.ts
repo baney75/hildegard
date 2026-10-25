@@ -55,6 +55,16 @@ export interface MeshSpec {
   max_triangles?: number;
   /** Which axis is up in the file. By default y for GLB and glTF (as their specification says), z for STL and PLY, and for OBJ z when printing, y otherwise. */
   up?: 'y' | 'z';
+  /** A print: this printer's clearance per side for each fit, in millimetres. */
+  clearance?: Partial<Record<'press' | 'snug' | 'slide' | 'free', number>>;
+  /** A print: how named parts mate. */
+  fits?: { a: string; b: string; kind: 'press' | 'snug' | 'slide' | 'free' }[];
+  /** A print: the object's outline in photographed views, in millimetres, for the likeness check. */
+  views?: { name: string; look: string; up: string; outline: [number, number][]; tolerance_mm?: number }[];
+  /** A print: degrees from the assembled pose to the pose each named part prints in. */
+  print_pose?: Record<string, [number, number, number]>;
+  /** A print: a folder to write each part into as STL, standing on the bed, when the checks pass. */
+  export_dir?: string;
 }
 
 export class ReviewError extends Error {}

@@ -81,6 +81,7 @@ import { loopRoutes } from './loop-routes.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
+import { findSlicer, PrinterError, PrinterInput, type PrinterProfile } from './printer.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
@@ -167,6 +168,8 @@ export interface AppDeps {
   likeness: Likeness;
   /** Generate, render, critique, refine: agents iterating on 3D models and other media. */
   loops?: Loops;
+  /** The owner's 3D printer, which print loops check and slice against. */
+  printer?: PrinterProfile;
 }
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
@@ -2006,6 +2009,41 @@ export function createApp(deps: AppDeps) {
         sendFile: (c, file, type) => sendFile(c, file, type, 'private, max-age=31536000, immutable'),
       }),
     );
+
+  // ── The printer ─────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.printer) {
+    const printer = deps.printer;
+    const view = () => {
+      const p = printer.get();
+      const s = findSlicer(p);
+      return {
+        ...p,
+        slicerFound: s
+          ? { name: s.name, path: s.path, ready: s.kind === 'prusa' || p.profiles.length > 0 }
+          : null,
+      };
+    };
+    app.get('/api/printer', (c) => ownerOnly(c) ?? c.json(view()));
+    app.put('/api/printer', async (c) => {
+      const refused = ownerOnly(c);
+      if (refused) return refused;
+      const body = PrinterInput.safeParse(await c.req.json().catch(() => null));
+      if (!body.success) return zodFail(c, body.error);
+      // Paths to programs and profiles are this computer's; only someone at it may point Hildegard at them.
+      if ((body.data.slicer || body.data.profiles?.length) && !local(c))
+        return c.json(
+          { error: 'Choose the slicer and its profiles on the computer Hildegard runs on.' },
+          403,
+        );
+      try {
+        printer.set(body.data);
+        return c.json(view());
+      } catch (e) {
+        if (e instanceof PrinterError) return c.json({ error: e.message }, e.status);
+        throw e;
+      }
+    });
+  }
 
   // ── Uploads (start frames) ─────────────────────────────────────────────────────────────────────────────────
   app.post('/api/uploads', async (c) => {

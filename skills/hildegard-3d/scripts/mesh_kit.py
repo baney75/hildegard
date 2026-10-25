@@ -15,6 +15,15 @@ chatbot's code tool included. Signed-distance modeling (`mesh_sdf`) also needs s
     # then: loop_submit with file_path="…/heron.stl", or data=base64 of the file
 
 A mesh is (vertices: float array N×3, faces: int array M×3), faces wound counter-clockwise seen from outside.
+
+Several parts (a box and its lid, a pin and its hole) go as one file with each part named, modelled where it sits
+when assembled, so Hildegard can measure how they fit:
+
+    c = 0.20                                             # this printer's slide clearance per side (printer_profile)
+    sleeve = tube(r_in=5.0, r_out=9.0, h=20)
+    pin = cylinder(r=5.0 - c, h=24, base=(0, 0, -2))
+    write_parts_glb("pin.glb", {"sleeve": sleeve, "pin": pin})   # or parts_obj_text({...}) for a chatbot
+    # loop_start with print: true and fits: [{"a": "pin", "b": "sleeve", "kind": "slide"}]
 """
 
 import json
@@ -66,6 +75,26 @@ def cylinder(r=1.0, h=1.0, base=(0.0, 0.0, 0.0), segments=64):
         k = (j + 1) % segments
         f += [[j, k, segments + k], [j, segments + k, segments + j]]
         f += [[bottom, k, j], [top, segments + j, segments + k]]
+    return np.array(v, dtype=float) + base, np.array(f)
+
+
+def tube(r_in=1.0, r_out=2.0, h=1.0, base=(0.0, 0.0, 0.0), segments=64):
+    """A tube (a ring with height) standing on `base`, axis along +Z: the simplest hole to fit a pin into."""
+    if not 0 < r_in < r_out:
+        raise ValueError("A tube needs 0 < r_in < r_out.")
+    ang = [2 * math.pi * j / segments for j in range(segments)]
+    v = []
+    for z in (0.0, h):
+        v += [[r_out * math.cos(a), r_out * math.sin(a), z] for a in ang]
+        v += [[r_in * math.cos(a), r_in * math.sin(a), z] for a in ang]
+    ob, ib, ot, it = 0, segments, 2 * segments, 3 * segments
+    f = []
+    for j in range(segments):
+        k = (j + 1) % segments
+        f += [[ob + j, ob + k, ot + k], [ob + j, ot + k, ot + j]]  # outer wall, facing out
+        f += [[ib + j, it + k, ib + k], [ib + j, it + j, it + k]]  # inner wall, facing the axis
+        f += [[ot + j, ot + k, it + k], [ot + j, it + k, it + j]]  # top
+        f += [[ob + j, ib + k, ob + k], [ob + j, ib + j, ib + k]]  # bottom
     return np.array(v, dtype=float) + base, np.array(f)
 
 
@@ -213,6 +242,50 @@ def write_stl(path, v, f):
     rec["n"], rec["v"] = n, t
     with open(path, "wb") as out:
         out.write(b"mesh_kit".ljust(80, b" ") + struct.pack("<I", len(f)) + rec.tobytes())
+
+
+def parts_obj_text(parts):
+    """Named parts ({name: (v, f)}) as one OBJ, each an `o name` object, to send as a loop round's `text`."""
+    out, base = [], 0
+    for name, (v, f) in parts.items():
+        out.append(f"o {name}\n")
+        out += [f"v {x:.6g} {y:.6g} {z:.6g}\n" for x, y, z in v]
+        out += [f"f {a + base + 1} {b + base + 1} {c + base + 1}\n" for a, b, c in f]
+        base += len(v)
+    return "".join(out)
+
+
+def write_parts_glb(path, parts, y_up=True):
+    """Named parts ({name: (v, f)}) as one GLB, a node per part, so Hildegard measures how they fit."""
+    blobs, views, accessors, meshes, nodes = [], [], [], [], []
+    at = 0
+    for i, (name, (v, f)) in enumerate(parts.items()):
+        p = np.asarray(v, dtype=np.float32)
+        if y_up:
+            p = np.stack([p[:, 0], p[:, 2], -p[:, 1]], axis=1)
+        pos, idx = p.astype("<f4").tobytes(), np.asarray(f, dtype="<u4").tobytes()
+        for data, target in ((pos, 34962), (idx, 34963)):
+            views.append({"buffer": 0, "byteOffset": at, "byteLength": len(data), "target": target})
+            blobs.append(data)
+            at += len(data)
+        accessors += [
+            {"bufferView": 2 * i, "componentType": 5126, "count": len(p), "type": "VEC3",
+             "min": p.min(0).tolist(), "max": p.max(0).tolist()},
+            {"bufferView": 2 * i + 1, "componentType": 5125, "count": int(np.size(f)), "type": "SCALAR"},
+        ]
+        meshes.append({"name": name, "primitives": [{"attributes": {"POSITION": 2 * i}, "indices": 2 * i + 1}]})
+        nodes.append({"name": name, "mesh": i})
+    doc = {"asset": {"version": "2.0", "generator": "Hildegard mesh_kit"}, "scene": 0,
+           "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
+           "buffers": [{"byteLength": at}], "bufferViews": views, "accessors": accessors}
+    j = json.dumps(doc).encode()
+    j += b" " * (-len(j) % 4)
+    b = b"".join(blobs)
+    b += b"\0" * (-len(b) % 4)
+    with open(path, "wb") as out:
+        out.write(struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(j) + 8 + len(b)))
+        out.write(struct.pack("<I4s", len(j), b"JSON") + j)
+        out.write(struct.pack("<I4s", len(b), b"BIN\0") + b)
 
 
 def write_glb(path, v, f, y_up=True):

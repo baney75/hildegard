@@ -80,6 +80,7 @@ describe('sniff', () => {
   it('reads what a file is from its bytes, not its name', () => {
     const enc = (s: string) => new TextEncoder().encode(s);
     expect(sniff(enc(box(1, 1, 1)))).toBe('obj');
+    expect(sniff(enc(`o lid\n${box(1, 1, 1)}`))).toBe('obj');
     expect(sniff(enc('solid x\n facet normal 0 0 1\n'))).toBe('stl');
     expect(sniff(enc('glTF\x02\0\0\0'))).toBe('glb');
     expect(sniff(enc('{"asset":{"version":"2.0"}}'))).toBe('gltf');

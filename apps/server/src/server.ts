@@ -30,6 +30,7 @@ import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
 import { People } from './people.ts';
+import { findSlicer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
@@ -107,6 +108,8 @@ export async function startServer(
     voiceEngine?: VoiceEngine;
     /** Checking for and running updates: tests give stand-ins. */
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
+    /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
+    slicer?: Slicer | null;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -359,6 +362,7 @@ export async function startServer(
     firstMs: opts.updates?.firstMs,
     idleMs: opts.updates?.idleMs,
   });
+  const printer = new PrinterProfile(config.dataDir);
   const app = createApp({
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
@@ -387,7 +391,14 @@ export async function startServer(
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
       reviewWeb: webReviewer(),
+      printer: () => printer.get(),
+      slice: (files, keep) => {
+        const p = printer.get();
+        const slicer = opts.slicer === undefined ? findSlicer(p) : opts.slicer;
+        return slicer ? slice(slicer, p, files, keep) : Promise.resolve(null);
+      },
     }),
+    printer,
     choir,
     modelStates,
     node,

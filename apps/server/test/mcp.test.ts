@@ -68,6 +68,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'loop_submit',
       'make_character_stills',
       'make_sequence',
+      'printer_profile',
       'read_skill',
       'review_prompt',
       'review_take',
