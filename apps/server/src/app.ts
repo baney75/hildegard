@@ -81,7 +81,14 @@ import { loopRoutes } from './loop-routes.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
-import { findSlicer, PrinterError, PrinterInput, type PrinterProfile } from './printer.ts';
+import {
+  findSlicer,
+  type Printer,
+  PrinterError,
+  PrinterInput,
+  type PrinterProfile,
+  type Slicer,
+} from './printer.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
@@ -170,6 +177,8 @@ export interface AppDeps {
   loops?: Loops;
   /** The owner's 3D printer, which print loops check and slice against. */
   printer?: PrinterProfile;
+  /** The slicer for this printer; Hildegard looks for one when left out. */
+  slicer?: (p: Printer) => Slicer | null;
 }
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
@@ -2015,7 +2024,7 @@ export function createApp(deps: AppDeps) {
     const printer = deps.printer;
     const view = () => {
       const p = printer.get();
-      const s = findSlicer(p);
+      const s = (deps.slicer ?? findSlicer)(p);
       return {
         ...p,
         slicerFound: s
