@@ -996,7 +996,8 @@ export function webReviewer(
     audit = readFileSync(resource(join('tools', 'review_web.js')), 'utf8')
       .replace(/^\/\/.*$/gm, '')
       .replace(/\/\*\*[\s\S]*?\*\//, '')
-      .trim();
+      .trim()
+      .replace(/;$/, '');
   } catch {
     return undefined;
   }

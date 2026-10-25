@@ -146,8 +146,8 @@ describe.runIf(findChrome() || process.env.CI)('a web page loop over MCP', { tim
     expect(start).toContain('file_path to the HTML page or to the site’s folder');
 
     const r1 = await call('loop_submit', { loop_id: id, note: 'First draft from a template', text: BAD });
-    expect(r1.isError).toBeFalsy();
     const t1 = textOf(r1);
+    expect(r1.isError, t1).toBeFalsy();
     for (const fault of [
       'overflow',
       'contrast',
