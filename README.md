@@ -148,8 +148,9 @@ Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `di
 `get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`, and for characters `list_characters`,
 `create_character`, `make_character_stills` and `keep_still`. `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
-`loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, still, take or sound until it
-passes, and `hildegard loop run codex "<idea>" --kind model` hands a whole loop to a coding agent.
+`loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
+still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
+--kind model` hands a whole loop to a coding agent.
 
 The same tools answer over HTTP at `http://127.0.0.1:7341/mcp` (Streamable HTTP), for apps that take an MCP address
 instead of a command: Open WebUI, Jan, LM Studio and the like. On this computer it needs nothing.

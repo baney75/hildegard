@@ -155,6 +155,16 @@ describe('the skill packs', () => {
     expect(files).toHaveLength(skillNames().length + 1);
     const z = unzip(readFileSync(join(out, 'skill-hildegard-3d.zip')));
     expect([...z.keys()].sort()).toEqual(['hildegard-3d/SKILL.md', 'hildegard-3d/scripts/mesh_kit.py']);
+    expect([...unzip(readFileSync(join(out, 'skill-hildegard-print.zip'))).keys()].sort()).toEqual([
+      'hildegard-print/SKILL.md',
+      'hildegard-print/references/measuring.md',
+      'hildegard-print/references/parts-and-fits.md',
+      'hildegard-print/scripts/print_kit.py',
+    ]);
+    expect([...unzip(readFileSync(join(out, 'skill-hildegard-web.zip'))).keys()].sort()).toEqual([
+      'hildegard-web/SKILL.md',
+      'hildegard-web/references/tokens.css',
+    ]);
   });
 
   it('writes the same bytes for the same files', () => {

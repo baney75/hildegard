@@ -190,6 +190,12 @@ describe('skills over MCP', () => {
     expect(three).toContain('loop_start');
     const ref = await call('read_skill', { name: 'hildegard', file: 'references/sculpture-3d.md' });
     expect(ref.isError).toBeFalsy();
+    const web = textOf(await call('read_skill', { name: 'hildegard-web' }));
+    expect(web).toContain('references/tokens.css');
+    expect(
+      textOf(await call('read_skill', { name: 'hildegard-web', file: 'references/tokens.css' })),
+    ).toContain('prefers-color-scheme: dark');
+    expect(textOf(await call('read_skill', { name: 'hildegard-print' }))).toContain('scripts/print_kit.py');
     for (const file of ['../hildegard-craft/SKILL.md', '../../package.json', '/etc/hosts'])
       expect((await call('read_skill', { name: 'hildegard', file })).isError).toBe(true);
     const { prompts } = await client.listPrompts();

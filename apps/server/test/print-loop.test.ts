@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -257,6 +258,108 @@ describe('a print loop over MCP', { timeout: 240_000 }, () => {
     const r = textOf(await call('loop_submit', { loop_id: id, note: 'From the photo', text: bracket() }));
     expect(r).toMatch(/FAIL likeness/);
     expect(r).toContain('look=-y');
+  });
+
+  it('measures a photo with print_kit.py, and holds the model to it', async () => {
+    const work = mkdtempSync(join(tmpdir(), 'hg-print-kit-'));
+    const python = process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+    const kit = fileURLToPath(
+      new URL('../../../skills/hildegard-print/scripts/print_kit.py', import.meta.url),
+    );
+    const run = (...args: string[]) =>
+      JSON.parse(
+        execFileSync(python, ['-I', kit, '--job', join(work, 'job'), ...args], { encoding: 'utf8' }),
+      );
+    // A photo at 10 px a millimetre: a bank card, and the L bracket beside it, upright on the left; and its cut-out.
+    execFileSync(python, [
+      '-I',
+      '-c',
+      `import sys
+from PIL import Image, ImageDraw
+L = [(1000, 1300), (1600, 1300), (1600, 1220), (1080, 1220), (1080, 900), (1000, 900)]
+photo = Image.new('RGB', (2000, 1500), 'white')
+d = ImageDraw.Draw(photo)
+d.rectangle([100, 1000, 956, 1300], outline='black', width=3)
+d.polygon(L, fill='gray')
+photo.save(sys.argv[1])
+mask = Image.new('L', photo.size, 0)
+ImageDraw.Draw(mask).polygon(L, fill=255)
+mask.save(sys.argv[2])`,
+      join(work, 'photo.png'),
+      join(work, 'mask.png'),
+    ]);
+    expect(run('grid', join(work, 'photo.png'), '--crop', '900,850,1700,1350').step_px).toBe(50);
+    run('scale', 'front', join(work, 'photo.png'), 'card', '100,1000,956,1000');
+    expect(run('dim', 'width', 'front', '1000,1300,1600,1300')).toMatchObject({ mm: 60, source: 'measured' });
+    expect(run('outline', 'front', '--mask', join(work, 'mask.png')).size_mm).toEqual([60, 40]);
+    run('give', 'depth', '20', '--source', 'assumed', '--why', 'the back isn’t photographed');
+    run(
+      'listing',
+      'https://shop.example/bracket',
+      '--title',
+      'Bracket',
+      '--price',
+      '3.5',
+      '--currency',
+      'eur',
+    );
+    run('unknown', 'how thick the upright is');
+    const { views, evidence } = run('loop');
+    expect(evidence.listing).toEqual({
+      title: 'Bracket',
+      url: 'https://shop.example/bracket',
+      price: 3.5,
+      currency: 'EUR',
+    });
+    expect(evidence.dims.map((d: { name: string }) => d.name)).toEqual(['width', 'depth']);
+    expect(views[0]).toMatchObject({ name: 'front', look: '+y', up: '+z' });
+
+    const id = loopId(
+      textOf(
+        await call('loop_start', {
+          kind: 'model',
+          title: 'Bracket from its photo',
+          for: 'a copy of a bracket from its photo',
+          what: 'an L bracket',
+          specifics: ['the upright on the left'],
+          print: true,
+          views,
+          evidence,
+        }),
+      ),
+    );
+    const r = textOf(await call('loop_submit', { loop_id: id, note: 'From the photo', text: bracket() }));
+    // The test's bracket is two overlapping boxes, which the mesh checks fail; the likeness is what's held here.
+    expect(r, r).not.toMatch(/(FAIL|warn) likeness/);
+  });
+
+  it('makes a fit coupon that passes as a print', async () => {
+    const work = mkdtempSync(join(tmpdir(), 'hg-coupon-'));
+    const python = process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+    const kit = fileURLToPath(
+      new URL('../../../skills/hildegard-print/scripts/print_kit.py', import.meta.url),
+    );
+    const out = JSON.parse(
+      execFileSync(python, ['-I', kit, 'coupon', join(work, 'coupon.obj')], { encoding: 'utf8' }),
+    );
+    expect(out.holes_mm_per_side).toEqual([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4]);
+    const id = loopId(
+      textOf(
+        await call('loop_start', {
+          kind: 'model',
+          title: 'Fit coupon',
+          for: 'calibrating this printer’s fits',
+          what: 'a strip of holes and a pin',
+          specifics: ['eight clearances'],
+          print: true,
+        }),
+      ),
+    );
+    const r = textOf(
+      await call('loop_submit', { loop_id: id, note: 'print_kit coupon', file_path: out.file }),
+    );
+    expect(r, r).not.toMatch(/FAIL|warn (watertight|manifold|winding)/);
+    expect(r).toContain('parts holes, pin');
   });
 
   it('fails a round the slicer refuses, and says why', async () => {

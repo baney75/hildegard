@@ -486,7 +486,9 @@ export function registerLoopTools(
           .string()
           .max(500)
           .optional()
-          .describe('The slicer program’s path, if Hildegard didn’t find it. Only from the computer Hildegard runs on.'),
+          .describe(
+            'The slicer program’s path, if Hildegard didn’t find it. Only from the computer Hildegard runs on.',
+          ),
         profiles: z
           .array(z.string().max(500))
           .max(3)

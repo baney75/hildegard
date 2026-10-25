@@ -1,0 +1,115 @@
+/* SPDX-License-Identifier: Apache-2.0
+ *
+ * A skeleton for a site's design tokens, light and dark. Fill every value from the brand (its colours, its type),
+ * check each text colour against the grounds it sits on (4.5:1, or 3:1 for text 24 px and up), then use only these
+ * names in the rest of the CSS. The values here are Hildegard's own (vellum, ink, viriditas green), as an example
+ * of a system that passes; replace them.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Colour, by role */
+  --ground: #f4eedd; /* the page */
+  --panel: #faf5e8; /* cards and bands on the page */
+  --ink: #1a1914; /* body text and headings */
+  --ink-muted: #5d574c; /* secondary text: still 4.5:1 on ground and panel */
+  --hairline: #2a241824; /* decorative rules; carries no meaning alone */
+  --control: #6f6a5c; /* borders of inputs and buttons: 3:1 */
+  --accent: #1f6b4f; /* one accent, used sparingly: the main action, links */
+  --on-accent: #ffffff; /* text on the accent */
+  --focus: #1f6b4f; /* the focus ring */
+  --error: #a8431c;
+  --success: #1f6b4f;
+
+  /* Type */
+  --font-text: "Source Sans 3", system-ui, sans-serif; /* self-hosted, subset */
+  --font-display: "Cormorant Garamond", Georgia, serif; /* at most one display family */
+  --step--1: 0.8rem;
+  --step-0: 1rem; /* 16 px body, never less */
+  --step-1: 1.25rem;
+  --step-2: 1.5625rem;
+  --step-3: clamp(1.6rem, 1.3rem + 1.5vw, 1.95rem);
+  --step-4: clamp(1.9rem, 1.4rem + 2.5vw, 2.45rem);
+  --step-5: clamp(2.2rem, 1.4rem + 4vw, 3.05rem);
+  --leading: 1.5;
+  --leading-tight: 1.1;
+  --measure: 65ch;
+
+  /* Space: one scale, and every margin and gap is a step of it */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+  --gutter: clamp(1rem, 4vw, 2rem);
+  --content: 72rem;
+
+  /* Shape and motion */
+  --radius: 8px;
+  --duration: 180ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Dark is designed, not inverted: a ground lifted off black, a calmer accent, the same contrast. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0a0e13;
+    --panel: #0f151c;
+    --ink: #f2ecdd;
+    --ink-muted: #b4ad9c;
+    --hairline: #e9dfc61f;
+    --control: #7f8794;
+    --accent: #5fbf8f;
+    --on-accent: #0a0e13;
+    --focus: #5fbf8f;
+    --error: #f08a5d;
+    --success: #5fbf8f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0ms;
+  }
+}
+
+/* The base every page starts from */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: var(--step-0) / var(--leading) var(--font-text);
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+p,
+li {
+  max-width: var(--measure);
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+a {
+  color: var(--accent);
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}

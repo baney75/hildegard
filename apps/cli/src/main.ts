@@ -74,7 +74,7 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              --audio, --film, --sheet out.jpg for a contact sheet)
   hildegard loop run <codex|claude-code|omp> "<what to make>"
                              A coding agent makes it in rounds: generate, render, critique, refine
-                             (--kind model|image|video|audio, --print, --size 40x40x120, --rounds N)
+                             (--kind model|web|image|video|audio, --print, --size 40x40x120, --rounds N)
   hildegard loop             Loops and their rounds (loop show <id>; loop submit <id> <file> --note;
                              loop critique <id> <round> --stdin; loop finish <id> <round> --note)
 

@@ -1,11 +1,15 @@
 Hildegard's craft skills, and its loop, for the Claude app, Cowork and Claude Code.
 
 [Hildegard](https://dbaney.com/hildegard/) is an open-source studio that runs on your own computers: image, film,
-voice, music and 3D work on your own GPUs, with nothing sent anywhere else. This plugin brings its skills:
+voice, music, 3D, print and web work on your own GPUs, with nothing sent anywhere else. This plugin brings its skills:
 
 - **hildegard**: the midwife's method for serious creative work in any form, from a short interview to research,
   drafts, contact sheets, blind critique and checks.
 - **hildegard-3d**: 3D models for screens and for printing, built in code and checked by Hildegard view by view.
+- **hildegard-print**: working parts to 3D print, measured from a photo or a shop listing, sized from your printer's
+  fits, sliced, and handed over with a print sheet.
+- **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
+  light and dark, and audited until they pass.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.
