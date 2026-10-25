@@ -482,6 +482,18 @@ export function registerLoopTools(
           })
           .optional()
           .describe('Measured clearances per side, from the fit coupon your user printed and tried.'),
+        slicer: z
+          .string()
+          .max(500)
+          .optional()
+          .describe('The slicer program’s path, if Hildegard didn’t find it. Only from the computer Hildegard runs on.'),
+        profiles: z
+          .array(z.string().max(500))
+          .max(3)
+          .optional()
+          .describe(
+            'OrcaSlicer or Bambu Studio: the machine, process and filament presets exported as .json (or one .ini for PrusaSlicer). Only from the computer Hildegard runs on.',
+          ),
       },
     },
     guard(async (a) => {
@@ -494,6 +506,8 @@ export function registerLoopTools(
         pricePerKg: a.price_per_kg,
         currency: a.currency?.toUpperCase(),
         clearanceMm: a.clearance_mm,
+        slicer: a.slicer,
+        profiles: a.profiles,
       };
       const any = Object.values(change).some((v) => v !== undefined);
       const p = any
@@ -509,7 +523,7 @@ export function registerLoopTools(
           p.slicerFound
             ? p.slicerFound.ready
               ? `Slices with ${p.slicerFound.name} on this computer.`
-              : `${p.slicerFound.name} is here but needs this printer’s profiles; your user sets them in Hildegard on that computer.`
+              : `${p.slicerFound.name} is here but needs this printer’s profiles: export them from it and set them with profiles.`
             : 'No slicer on this computer: install PrusaSlicer (free) for print time, grams and cost on every round.',
         ].join('\n'),
       );
