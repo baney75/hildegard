@@ -10,19 +10,27 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type LoopDetail, type LoopRound } from './client.ts';
+import { PackError, zipFolder } from './zip.ts';
 
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
 const MAX_FILE = 512 * 1024 * 1024;
 
 const mm = z.array(z.number().positive().max(10_000)).length(3);
+const axis = z.enum(['+x', '-x', '+y', '-y', '+z', '-z']);
+const fitKind = z.enum(['press', 'snug', 'slide', 'free']);
 
 /** One round, as an agent should read it: what was measured, then what is left. */
 function describeRound(l: Pick<LoopDetail, 'id' | 'maxRounds'>, r: LoopRound, link?: (p: string) => string) {
   const info = r.review.info;
   const facts = Object.entries(info)
-    .filter(([k]) => k !== 'sheet')
-    .map(([k, v]) => `${k} ${Array.isArray(v) ? v.join(' × ') : String(v)}`)
+    .filter(([k, v]) => k !== 'sheet' && k !== 'print_files' && v !== null)
+    // Fits and likeness are lists of measurements; the checks' lines say what they found.
+    .filter(([, v]) => typeof v !== 'object' || (Array.isArray(v) && v.every((x) => typeof x !== 'object')))
+    .map(
+      ([k, v]) =>
+        `${k} ${Array.isArray(v) ? v.join(v.every((x) => typeof x === 'number') ? ' × ' : ', ') : String(v)}`,
+    )
     .join(', ');
   return [
     `Loop ${l.id}, round ${r.n} of at most ${l.maxRounds} (${r.format}). ${facts}.`,
@@ -52,9 +60,9 @@ export function registerLoopTools(
     {
       title: 'Start a loop',
       description:
-        'Start a generate → render → critique → refine loop for a 3D model (kind "model"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (for a model: in Blender, OpenSCAD, trimesh, signed-distance code or by hand, exported as GLB, STL, OBJ or PLY) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model, a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the hildegard-3d skill (read_skill) before modeling.',
+        'Start a generate → render → critique → refine loop for a 3D model or printable part (kind "model"), a web page or site (kind "web"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (a model in Blender, OpenSCAD, build123d, trimesh or signed-distance code, exported as GLB, STL, OBJ or PLY; a page as HTML and CSS, or a folder or ZIP of the site) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model; every page at phone, tablet and desktop width, light and dark, with problems outlined, for the web; a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the skill first (read_skill): hildegard-3d for a model, hildegard-print for a part to print, hildegard-web for a page.',
       inputSchema: {
-        kind: z.enum(['model', 'image', 'video', 'audio']).describe('What the loop makes.'),
+        kind: z.enum(['model', 'web', 'image', 'video', 'audio']).describe('What the loop makes.'),
         title: z.string().min(1).max(120).describe('A short name, such as "Heron finial".'),
         for: z
           .string()
@@ -98,13 +106,85 @@ export function registerLoopTools(
         final: z.boolean().optional().describe('Image, video, sound: hold it to the final bar.'),
         seconds: z.number().positive().max(3600).optional().describe('Video, sound: the length asked for.'),
         audio: z.boolean().optional().describe('Video: whether it should have sound.'),
+        pages: z
+          .array(z.string().max(200))
+          .min(1)
+          .max(5)
+          .optional()
+          .describe(
+            'Web: the pages to check, as paths inside the site, such as ["index.html", "pricing.html"]. Default index.html.',
+          ),
+        dark: z
+          .boolean()
+          .optional()
+          .describe('Web: the brief asks for a dark theme that follows the visitor’s setting.'),
+        fits: z
+          .array(z.object({ a: z.string(), b: z.string(), kind: fitKind }))
+          .max(40)
+          .optional()
+          .describe(
+            'Print with parts: how named parts mate, such as [{"a": "lid", "b": "box", "kind": "slide"}]. Model the parts assembled, each named (a GLB node, or `o name` in OBJ); Hildegard measures the gap per side against this printer’s clearance for that fit, and fails parts that overlap.',
+          ),
+        views: z
+          .array(
+            z.object({
+              name: z.string().describe('front, side, top…'),
+              look: axis.describe(
+                'The direction the camera looks, in the printed part’s frame (z up off the bed).',
+              ),
+              up: axis.describe('Up in the photo.'),
+              outline: z
+                .array(z.array(z.number()).length(2))
+                .min(3)
+                .describe('The object’s outline traced on the photo, in millimetres (u right, v up).'),
+              tolerance_mm: z.number().positive().optional(),
+            }),
+          )
+          .max(6)
+          .optional()
+          .describe(
+            'Print from a photo: the object’s outline in each photographed view, scaled to millimetres (the hildegard-print skill’s print_kit.py measures them). Each round is held to it: shape, size and pose.',
+          ),
+        print_pose: z
+          .record(z.string(), z.array(z.number()).length(3))
+          .optional()
+          .describe(
+            'Print with parts: degrees about x, y and z from the assembled pose to the pose each part prints in, such as {"lid": [180, 0, 0]}.',
+          ),
+        evidence: z
+          .object({
+            dims: z
+              .array(
+                z.object({
+                  name: z.string(),
+                  mm: z.number().positive(),
+                  source: z.enum(['measured', 'user', 'listing', 'assumed']),
+                  tolerance_mm: z.number().min(0).optional(),
+                  how: z.string().max(300).optional(),
+                }),
+              )
+              .optional(),
+            unknowns: z.array(z.string()).optional(),
+            listing: z
+              .object({
+                title: z.string().optional(),
+                url: z.string().optional(),
+                price: z.number().min(0),
+                currency: z.string().describe('USD, EUR…'),
+              })
+              .optional(),
+          })
+          .optional()
+          .describe(
+            'Print: where every dimension came from (measured off a photo, given by your user, quoted from a listing, or assumed and why), what no photo shows, and the listing of what it replaces. It goes on the print sheet, and the price is weighed against the print’s.',
+          ),
         max_rounds: z
           .number()
           .int()
           .min(1)
           .max(12)
           .optional()
-          .describe('Rounds at most. Default 6 for a model, 3 otherwise.'),
+          .describe('Rounds at most. Default 6 for a model, 5 for a web page, 3 otherwise.'),
       },
     },
     guard(async (a) => {
@@ -129,6 +209,21 @@ export function registerLoopTools(
           final: a.final,
           seconds: a.seconds,
           audio: a.audio,
+          pages: a.pages,
+          dark: a.dark,
+          fits: a.fits,
+          views: a.views?.map((v) => ({
+            name: v.name,
+            look: v.look,
+            up: v.up,
+            outline: v.outline,
+            toleranceMm: v.tolerance_mm,
+          })),
+          printPose: a.print_pose,
+          evidence: a.evidence && {
+            ...a.evidence,
+            dims: a.evidence.dims?.map(({ tolerance_mm, ...d }) => ({ ...d, toleranceMm: tolerance_mm })),
+          },
         },
       });
       const how =
@@ -136,11 +231,15 @@ export function registerLoopTools(
           ? remote
             ? 'Send each round with loop_submit as text (OBJ, ASCII STL or glTF JSON) or data (base64 GLB, STL or PLY).'
             : 'Send each round with loop_submit: file_path to the GLB, STL, OBJ or PLY you exported, or text or data.'
-          : a.kind === 'video'
-            ? 'Send each round with loop_submit: take_id for a take Hildegard rendered, or the file.'
-            : a.kind === 'image'
-              ? 'Send each round with loop_submit: still_id for a still Hildegard drew, or the file.'
-              : 'Send each round with loop_submit: the file.';
+          : a.kind === 'web'
+            ? remote
+              ? 'Send each round with loop_submit: text (one HTML page with its CSS inline) or data (base64 ZIP of the site, with its images and fonts).'
+              : 'Send each round with loop_submit: file_path to the HTML page or to the site’s folder (or a ZIP of it), or text for one page.'
+            : a.kind === 'video'
+              ? 'Send each round with loop_submit: take_id for a take Hildegard rendered, or the file.'
+              : a.kind === 'image'
+                ? 'Send each round with loop_submit: still_id for a still Hildegard drew, or the file.'
+                : 'Send each round with loop_submit: the file.';
       return text(
         `Loop ${l.id} started: “${l.title}”, ${l.kind}, at most ${l.maxRounds} rounds. ${how}\nAfter each round, look at what comes back and answer these with loop_critique:\n${l.questions}`,
       );
@@ -151,7 +250,7 @@ export function registerLoopTools(
     'loop_submit',
     {
       title: 'Send a round',
-      description: `Send the next version to a loop. Hildegard reads it as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id or still_id' : 'file_path, text, data, take_id or still_id'}. The previous round must be critiqued first.`,
+      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id or still_id' : 'file_path, text, data, take_id or still_id'}. The previous round must be critiqued first.`,
       inputSchema: {
         loop_id: z.string().describe('The loop, from loop_start or loop_status.'),
         note: z
@@ -166,14 +265,16 @@ export function registerLoopTools(
                 .string()
                 .optional()
                 .describe(
-                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG.',
+                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, HTML, ZIP, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG; or, for a web loop, the site’s folder.',
                 ),
             }),
         text: z
           .string()
           .max(60_000_000)
           .optional()
-          .describe('The model as text: an OBJ, an ASCII STL, or glTF JSON with embedded buffers.'),
+          .describe(
+            'The round as text: a model as OBJ, ASCII STL or glTF JSON with embedded buffers; a web page as one HTML document.',
+          ),
         data: z
           .string()
           .max(140_000_000)
@@ -204,9 +305,17 @@ export function registerLoopTools(
               'Hildegard runs on another computer, so it can’t read a path on yours. Send the file as text or data.',
             );
           const s = await stat(a.file_path).catch(() => null);
-          if (!s?.isFile()) throw new HildegardError(422, `There’s no file at ${a.file_path}.`);
-          if (s.size > MAX_FILE) throw new HildegardError(413, 'Files up to 512 MB.');
-          bytes = await readFile(a.file_path);
+          if (s?.isDirectory()) {
+            try {
+              bytes = zipFolder(a.file_path);
+            } catch (e) {
+              throw new HildegardError(422, e instanceof PackError ? e.message : (e as Error).message);
+            }
+          } else {
+            if (!s?.isFile()) throw new HildegardError(422, `There’s no file at ${a.file_path}.`);
+            if (s.size > MAX_FILE) throw new HildegardError(413, 'Files up to 512 MB.');
+            bytes = await readFile(a.file_path);
+          }
         } else if (a.text !== undefined) bytes = new TextEncoder().encode(a.text);
         else if (a.data !== undefined) {
           bytes = Buffer.from(a.data.replace(/^data:[\w/+.-]+;base64,/, ''), 'base64');
@@ -292,9 +401,21 @@ export function registerLoopTools(
     guard(async (a) => {
       const l = await client.finishLoop(a.loop_id, a.round, a.note);
       const r = l.rounds.find((x) => x.n === a.round)!;
-      const where = remote ? remote.link(r.file) : `${client.url}${r.file}`;
+      const link = (p: string) => (remote ? remote.link(p) : `${client.url}${p}`);
+      const extra = [
+        r.handoff
+          ? `The print sheet to hand on (time, filament, cost, fits, every dimension and its source): ${link(r.handoff)}`
+          : null,
+        r.slice?.gcode
+          ? `The sliced G-code (${r.slice.slicer}): ${link(r.slice.gcode)}. Check it in the slicer’s preview before printing.`
+          : null,
+      ].filter(Boolean);
       return text(
-        `Loop ${l.id} finished with round ${r.n} (${r.format}): ${where}\nTell your user what you made and what still fails, as your note says.`,
+        [
+          `Loop ${l.id} finished with round ${r.n} (${r.format}): ${link(r.file)}`,
+          ...extra,
+          'Tell your user what you made and what still fails, as your note says.',
+        ].join('\n'),
       );
     }),
   );
@@ -333,6 +454,79 @@ export function registerLoopTools(
           ),
           ...(l.note ? [`Closing note: ${l.note}`] : []),
           `Questions:\n${l.questions}`,
+        ].join('\n'),
+      );
+    }),
+  );
+
+  server.registerTool(
+    'printer_profile',
+    {
+      title: 'Your 3D printer',
+      description:
+        'Read or change the owner’s 3D printer as Hildegard knows it: build volume, nozzle, layer height, filament and its price, and the clearance per side each fit needs (press, snug, slide, free; the defaults until it’s calibrated with the fit coupon). Print loops check against it and slice with the slicer on this computer. Read it before modeling anything that fits together, and size every mating feature from its clearances. Change it only with what your user tells you or measured.',
+      inputSchema: {
+        name: z.string().max(80).optional().describe('Such as "Prusa MK4" or "Bambu X1C".'),
+        bed_mm: mm.optional().describe('Build volume, x y z in millimetres.'),
+        nozzle_mm: z.number().min(0.1).max(2).optional(),
+        layer_mm: z.number().min(0.04).max(1).optional(),
+        material: z.string().max(20).optional().describe('PLA, PETG, ABS, ASA, TPU…'),
+        price_per_kg: z.number().min(0).optional().describe('What a kilogram of filament costs.'),
+        currency: z.string().optional().describe('USD, EUR, GBP…'),
+        clearance_mm: z
+          .object({
+            press: z.number().min(0).max(1).optional(),
+            snug: z.number().min(0).max(1).optional(),
+            slide: z.number().min(0).max(1).optional(),
+            free: z.number().min(0).max(1).optional(),
+          })
+          .optional()
+          .describe('Measured clearances per side, from the fit coupon your user printed and tried.'),
+        slicer: z
+          .string()
+          .max(500)
+          .optional()
+          .describe(
+            'The slicer program’s path, if Hildegard didn’t find it. Only from the computer Hildegard runs on.',
+          ),
+        profiles: z
+          .array(z.string().max(500))
+          .max(3)
+          .optional()
+          .describe(
+            'OrcaSlicer or Bambu Studio: the machine, process and filament presets exported as .json (or one .ini for PrusaSlicer). Only from the computer Hildegard runs on.',
+          ),
+      },
+    },
+    guard(async (a) => {
+      const change = {
+        name: a.name,
+        bedMm: a.bed_mm,
+        nozzleMm: a.nozzle_mm,
+        layerMm: a.layer_mm,
+        material: a.material,
+        pricePerKg: a.price_per_kg,
+        currency: a.currency?.toUpperCase(),
+        clearanceMm: a.clearance_mm,
+        slicer: a.slicer,
+        profiles: a.profiles,
+      };
+      const any = Object.values(change).some((v) => v !== undefined);
+      const p = any
+        ? await client.setPrinter(
+            Object.fromEntries(Object.entries(change).filter(([, v]) => v !== undefined)),
+          )
+        : await client.printer();
+      const c = p.clearanceMm;
+      return text(
+        [
+          `${p.name}: ${p.bedMm.join(' × ')} mm bed, ${p.nozzleMm} mm nozzle, ${p.layerMm} mm layers, ${p.material} at ${p.pricePerKg} ${p.currency} a kilogram.`,
+          `Clearance per side: press ${c.press}, snug ${c.snug}, slide ${c.slide}, free ${c.free} mm (${p.calibrated.length ? `${p.calibrated.join(', ')} calibrated ${p.calibratedAt}` : 'the usual starting points; print the fit coupon to calibrate (hildegard-print skill)'}).`,
+          p.slicerFound
+            ? p.slicerFound.ready
+              ? `Slices with ${p.slicerFound.name} on this computer.`
+              : `${p.slicerFound.name} is here but needs this printer’s profiles: export them from it and set them with profiles.`
+            : 'No slicer on this computer: install PrusaSlicer (free) for print time, grams and cost on every round.',
         ].join('\n'),
       );
     }),

@@ -71,6 +71,32 @@ export interface LoopRound {
   sheet: string | null;
   review: { passed: boolean; summary: string; info: Record<string, unknown>; checks: LoopCheck[] };
   critique: { verdict: 'ready' | 'revise' | 'stop'; change?: string } | null;
+  /** A print's slice, with a link to its G-code. */
+  slice?: {
+    slicer: string;
+    time: string | null;
+    grams: number | null;
+    cost: number | null;
+    gcode: string | null;
+  } | null;
+  /** A delivered print's sheet to hand on. */
+  handoff?: string | null;
+}
+export interface PrinterInfo {
+  name: string;
+  bedMm: [number, number, number];
+  nozzleMm: number;
+  layerMm: number;
+  material: string;
+  filamentMm: number;
+  pricePerKg: number;
+  currency: string;
+  clearanceMm: Record<'press' | 'snug' | 'slide' | 'free', number>;
+  calibrated: string[];
+  calibratedAt: string | null;
+  slicer: string | null;
+  profiles: string[];
+  slicerFound: { name: string; path: string; ready: boolean } | null;
 }
 export interface LoopSummary {
   id: string;
@@ -197,6 +223,9 @@ export class HildegardClient {
     this.call<CritiqueResult>('POST', `/api/loops/${encodeURIComponent(id)}/rounds/${n}/critique`, body);
   finishLoop = (id: string, round: number, note: string) =>
     this.call<LoopDetail>('POST', `/api/loops/${encodeURIComponent(id)}/finish`, { round, note });
+  // ── The printer ──
+  printer = () => this.call<PrinterInfo>('GET', '/api/printer');
+  setPrinter = (body: Record<string, unknown>) => this.call<PrinterInfo>('PUT', '/api/printer', body);
   /** Any file the server serves (a take's video, a still), as bytes; null if it isn't there. */
   async bytes(path: string): Promise<Uint8Array | null> {
     const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);

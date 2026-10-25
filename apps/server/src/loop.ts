@@ -8,16 +8,28 @@
  * The loop is what keeps an agent honest: it can't send round two before it has answered the rubric about round one,
  * and every answer must point at a view or a check. Hildegard keeps every round, so the owner can see how the work got
  * where it is and pick another. It only ever reads bytes it was sent (never a path an agent names), and only reads
- * them as data: models as geometry, never as scripts.
+ * them as data: models as geometry, never as scripts. A web page is the one kind that runs: Hildegard opens it in a
+ * browser shut off from the network and from every file but the round's own (web-review.ts).
  */
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { describeReview, describeRubric, type Judged, type Review, rubric } from '@hildegard/craft';
+import { join, posix } from 'node:path';
+import {
+  describeReview,
+  describeRubric,
+  type Judged,
+  type MeshSpec,
+  type Review,
+  rubric,
+} from '@hildegard/craft';
 import { z } from 'zod';
+import { writeHandoff } from './handoff.ts';
+import type { Printer, SliceResult } from './printer.ts';
+import type { WebSpec } from './web-review.ts';
+import { unzipTo, ZipError } from './zip.ts';
 
-export type LoopKind = 'model' | 'image' | 'video' | 'audio';
-export const LOOP_KINDS: LoopKind[] = ['model', 'image', 'video', 'audio'];
+export type LoopKind = 'model' | 'image' | 'video' | 'audio' | 'web';
+export const LOOP_KINDS: LoopKind[] = ['model', 'image', 'video', 'audio', 'web'];
 
 /** The file formats each kind takes, by extension. */
 export const FORMATS: Record<LoopKind, string[]> = {
@@ -25,9 +37,10 @@ export const FORMATS: Record<LoopKind, string[]> = {
   image: ['png', 'jpg', 'webp'],
   video: ['mp4'],
   audio: ['wav', 'flac', 'mp3', 'ogg'],
+  web: ['html', 'zip'],
 };
 
-const SAY: Record<string, string> = { gltf: 'glTF', jpg: 'JPEG', webp: 'WebP' };
+const SAY: Record<string, string> = { gltf: 'glTF', jpg: 'JPEG', webp: 'WebP', zip: 'a ZIP of the site' };
 /** "GLB, glTF, STL, OBJ or PLY". */
 const formatList = (k: LoopKind) => {
   const n = FORMATS[k].map((f) => SAY[f] ?? f.toUpperCase());
@@ -63,6 +76,52 @@ const Mm = z.tuple([
   z.number().positive().max(10_000),
   z.number().positive().max(10_000),
 ]);
+const Axis = z.enum(['+x', '-x', '+y', '-y', '+z', '-z']);
+const Part = z.string().trim().min(1).max(60);
+/** How two named parts mate, which sets the clearance between them. */
+export const Fit = z.object({ a: Part, b: Part, kind: z.enum(['press', 'snug', 'slide', 'free']) });
+/** The object's outline in one photographed view, in millimetres, for the likeness check. */
+export const View = z.object({
+  name: z.string().trim().min(1).max(40),
+  look: Axis,
+  up: Axis,
+  outline: z
+    .array(z.tuple([z.number().min(-10_000).max(10_000), z.number().min(-10_000).max(10_000)]))
+    .min(3)
+    .max(2000),
+  toleranceMm: z.number().positive().max(100).optional(),
+});
+/** Where each number the model is built from came from: print3d's spec.json, kept with the loop. */
+export const Evidence = z.object({
+  dims: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(60),
+        mm: z.number().positive().max(10_000),
+        source: z.enum(['measured', 'user', 'listing', 'assumed']),
+        toleranceMm: z.number().min(0).max(100).optional(),
+        /** How it was measured, the listing's own words, or why it was assumed. */
+        how: z.string().trim().max(300).optional(),
+      }),
+    )
+    .max(60)
+    .optional(),
+  unknowns: z.array(z.string().trim().min(2).max(300)).max(30).optional(),
+  /** What it replaces, when it stands in for something you'd buy. */
+  listing: z
+    .object({
+      title: z.string().trim().max(200).optional(),
+      url: z.string().trim().url().max(500).optional(),
+      price: z.number().min(0).max(1_000_000),
+      currency: z
+        .string()
+        .trim()
+        .regex(/^[A-Z]{3}$/),
+    })
+    .optional(),
+});
+export type Evidence = z.infer<typeof Evidence>;
+
 export const Target = z.object({
   /** A model meant for a 3D printer: millimetres, watertight, a base, fits the bed. */
   print: z.boolean().optional(),
@@ -77,6 +136,30 @@ export const Target = z.object({
   seconds: z.number().positive().max(3600).optional(),
   /** Video: whether it should have sound. */
   audio: z.boolean().optional(),
+  /** Web: the pages to check, as paths inside the site (index.html by default), the first leading the sheet. */
+  pages: z
+    .array(
+      z
+        .string()
+        .trim()
+        .regex(
+          /^(?!\/)(?!.*(^|\/)\.\.(\/|$))[\w./ -]{1,200}\.html?$/,
+          'A page is a path to an .html file inside the site.',
+        ),
+    )
+    .min(1)
+    .max(5)
+    .optional(),
+  /** Web: the brief asks for a dark theme that follows the visitor's setting. */
+  dark: z.boolean().optional(),
+  /** Print: how named parts mate. */
+  fits: z.array(Fit).max(40).optional(),
+  /** Print: the object's outline in photographed views. */
+  views: z.array(View).max(6).optional(),
+  /** Print: degrees about x, y and z from the assembled pose to the pose each named part prints in. */
+  printPose: z.record(Part, z.tuple([z.number(), z.number(), z.number()])).optional(),
+  /** Print: the evidence behind the dimensions, and what the part replaces. */
+  evidence: Evidence.optional(),
 });
 export type Target = z.infer<typeof Target>;
 
@@ -119,6 +202,10 @@ export interface Round {
   /** The turntable or contact sheet, in this loop's folder, if one was drawn. */
   sheet: string | null;
   critique: (Critique & { at: string; verdict: Verdict }) | null;
+  /** A print's slice: what it takes in time, filament and money, and the G-code (in this loop's folder). */
+  slice?: SliceResult | null;
+  /** The print sheet to hand on, written when the round is delivered. */
+  handoff?: string | null;
 }
 
 export type Verdict = 'ready' | 'revise' | 'stop';
@@ -142,13 +229,14 @@ export interface Loop {
 }
 
 /** A model of a sculpture takes more rounds to get right than a shot, which is re-rendered rather than rebuilt. */
-export const DEFAULT_ROUNDS: Record<LoopKind, number> = { model: 6, image: 3, video: 3, audio: 3 };
+export const DEFAULT_ROUNDS: Record<LoopKind, number> = { model: 6, image: 3, video: 3, audio: 3, web: 5 };
 
 const MAX_BYTES: Record<LoopKind, number> = {
   model: 256 * 1024 * 1024,
   image: 40 * 1024 * 1024,
   video: 512 * 1024 * 1024,
   audio: 200 * 1024 * 1024,
+  web: 100 * 1024 * 1024,
 };
 
 export const JUDGED: Record<LoopKind, Judged> = {
@@ -156,6 +244,7 @@ export const JUDGED: Record<LoopKind, Judged> = {
   image: 'image',
   video: 'video',
   audio: 'music',
+  web: 'web',
 };
 
 /** Reads what a file is from its first bytes, so a name or a claimed format never decides how it is parsed. */
@@ -163,6 +252,7 @@ export function sniff(b: Uint8Array): string | null {
   const ascii = (from: number, to: number) => String.fromCharCode(...b.subarray(from, to));
   if (b.length < 4) return null;
   if (ascii(0, 4) === 'glTF') return 'glb';
+  if (ascii(0, 4) === 'PK\x03\x04' || ascii(0, 4) === 'PK\x05\x06') return 'zip';
   if (b[0] === 0x89 && ascii(1, 4) === 'PNG') return 'png';
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
   if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'webp';
@@ -177,9 +267,11 @@ export function sniff(b: Uint8Array): string | null {
     if (84 + n * 50 === b.length) return 'stl';
   }
   const head = new TextDecoder('utf-8', { fatal: false }).decode(b.subarray(0, 4096)).trimStart();
+  if (/^(\ufeff)?\s*(<!--[\s\S]*?-->\s*)*<(!doctype html|html|head|body)[\s>]/i.test(head)) return 'html';
   if (/^solid[\s\S]*facet/i.test(head)) return 'stl';
   if (/^\{[\s\S]*"asset"/.test(head)) return 'gltf';
-  if (/^(#[^\n]*\n|\s|o |g |mtllib [^\n]*\n|s [^\n]*\n)*v\s+-?[\d.]/.test(head)) return 'obj';
+  // Comments, groups and named objects (`o lid`), materials and smoothing may come before the first vertex.
+  if (/^(#[^\n]*\n|\s|[og] [^\n]*\n|mtllib [^\n]*\n|s [^\n]*\n)*v\s+-?[\d.]/.test(head)) return 'obj';
   return null;
 }
 
@@ -187,15 +279,13 @@ export interface LoopDeps {
   /** Where loops keep their rounds: one folder each. */
   dir: string;
   /** Checks a 3D model; absent when Python can't run here. */
-  reviewModel?: (spec: {
-    path: string;
-    sheet: string;
-    print?: boolean;
-    size_mm?: [number, number, number];
-    bed_mm?: [number, number, number];
-    max_triangles?: number;
-    up?: 'y' | 'z';
-  }) => Promise<Review>;
+  reviewModel?: (spec: MeshSpec) => Promise<Review>;
+  /** The owner's printer: build volume, clearances, filament and price. */
+  printer?: () => Printer;
+  /** Slices print files into G-code at `keep`; null when this computer has no slicer. */
+  slice?: (files: string[], keep: string) => Promise<SliceResult | null>;
+  /** Renders and checks a web page; absent when this computer has no Chromium-family browser. */
+  reviewWeb?: (spec: WebSpec) => Promise<Review>;
   /** Checks an image, video or sound; absent when Python can't run here. */
   reviewMedia?: (spec: {
     path: string;
@@ -247,18 +337,30 @@ export class Loops {
   file(id: string, name: string): string | null {
     const l = this.loops.get(id);
     if (!l) return null;
-    if (!l.rounds.some((r) => r.file === name || r.sheet === name)) return null;
+    if (
+      !l.rounds.some(
+        (r) => r.file === name || r.sheet === name || r.handoff === name || r.slice?.gcode === name,
+      )
+    )
+      return null;
     const path = join(this.deps.dir, l.id, name);
     return existsSync(path) ? path : null;
   }
 
   start(input: z.infer<typeof StartLoop>): Loop {
-    const ready = input.kind === 'model' ? this.deps.reviewModel : this.deps.reviewMedia;
+    const ready =
+      input.kind === 'model'
+        ? this.deps.reviewModel
+        : input.kind === 'web'
+          ? this.deps.reviewWeb
+          : this.deps.reviewMedia;
     if (!ready)
       throw new LoopError(
         501,
         'no_checks',
-        'Checks can’t run on this computer: Hildegard has no Python with numpy here.',
+        input.kind === 'web'
+          ? 'Pages can’t be checked on this computer: Hildegard needs Chrome, Chromium, Edge or Brave to open them. Install one, or set HILDEGARD_CHROME to its path.'
+          : 'Checks can’t run on this computer: Hildegard has no Python with numpy here.',
       );
     const at = this.now().toISOString();
     const l: Loop = {
@@ -307,7 +409,7 @@ export class Loops {
       throw new LoopError(
         415,
         'format',
-        `Send ${l.kind === 'model' ? 'a 3D model' : l.kind === 'video' ? 'a video' : `an ${l.kind} file`} as ${formatList(l.kind)}.`,
+        `Send ${l.kind === 'model' ? 'a 3D model' : l.kind === 'video' ? 'a video' : l.kind === 'web' ? 'a web page' : `an ${l.kind} file`} as ${formatList(l.kind)}.`,
       );
     if (this.busy.has(l.id))
       throw new LoopError(409, 'busy', 'A round of this loop is being checked. Wait for it.');
@@ -321,27 +423,47 @@ export class Loops {
       let review: Review;
       try {
         review =
-          l.kind === 'model'
-            ? await this.deps.reviewModel!({
-                path: join(dir, file),
-                sheet: join(dir, sheet),
-                print: l.target.print,
-                size_mm: l.target.sizeMm,
-                bed_mm: l.target.bedMm,
-                max_triangles: l.target.maxTriangles,
-                up: l.target.up,
-              })
-            : await this.deps.reviewMedia!({
-                path: join(dir, file),
-                sheet: join(dir, sheet),
-                final: l.target.final,
-                seconds: l.target.seconds,
-                audio: l.kind === 'audio' ? true : l.target.audio,
-              });
+          l.kind === 'web'
+            ? await this.deps.reviewWeb!(this.site(l, n, format, bytes, join(dir, sheet)))
+            : l.kind === 'model'
+              ? await this.deps.reviewModel!({
+                  path: join(dir, file),
+                  sheet: join(dir, sheet),
+                  print: l.target.print,
+                  size_mm: l.target.sizeMm,
+                  bed_mm: l.target.bedMm ?? (l.target.print ? this.deps.printer?.().bedMm : undefined),
+                  max_triangles: l.target.maxTriangles,
+                  up: l.target.up,
+                  ...(l.target.print
+                    ? {
+                        clearance: this.deps.printer?.().clearanceMm,
+                        fits: l.target.fits,
+                        views: l.target.views?.map((v) => ({
+                          name: v.name,
+                          look: v.look,
+                          up: v.up,
+                          outline: v.outline,
+                          tolerance_mm: v.toleranceMm,
+                        })),
+                        print_pose: l.target.printPose,
+                        export_dir: join(dir, `round-${n}.print`),
+                      }
+                    : {}),
+                })
+              : await this.deps.reviewMedia!({
+                  path: join(dir, file),
+                  sheet: join(dir, sheet),
+                  final: l.target.final,
+                  seconds: l.target.seconds,
+                  audio: l.kind === 'audio' ? true : l.target.audio,
+                });
       } catch (e) {
         rmSync(join(dir, file), { force: true });
+        rmSync(join(dir, `round-${n}`), { recursive: true, force: true });
+        if (e instanceof LoopError) throw e;
         throw new LoopError(422, 'unreadable', `Hildegard couldn’t read that file: ${(e as Error).message}`);
       }
+      const printed = await this.slice(l, n, review);
       const round: Round = {
         n,
         at: this.now().toISOString(),
@@ -352,6 +474,7 @@ export class Loops {
         review: { ...review, summary: describeReview(review) },
         sheet: existsSync(join(dir, sheet)) ? sheet : null,
         critique: null,
+        ...(l.kind === 'model' && l.target.print ? { slice: printed } : {}),
       };
       l.rounds.push(round);
       this.save(l);
@@ -359,6 +482,102 @@ export class Loops {
     } finally {
       this.busy.delete(l.id);
     }
+  }
+
+  /**
+   * A print that passes its checks is sliced with the slicer on this computer: time, filament and cost go into the
+   * review, and a slicer's refusal is a failed check like any other. No slicer here is said, not failed.
+   */
+  private async slice(l: Loop, n: number, review: Review): Promise<SliceResult | null> {
+    if (l.kind !== 'model' || !l.target.print) return null;
+    const files = review.info.print_files as string[] | undefined;
+    const folder = join(this.deps.dir, l.id, `round-${n}.print`);
+    const none = 'none on this computer: install PrusaSlicer (or OrcaSlicer) for time, grams and cost';
+    if (!this.deps.slice) {
+      review.info.slicer = none;
+      return null;
+    }
+    if (!files?.length) {
+      review.info.slicer = 'not sliced: fix the failing checks first';
+      return null;
+    }
+    const gcode = `round-${n}.gcode`;
+    try {
+      const r = await this.deps.slice(
+        files.map((f) => join(folder, f)),
+        join(this.deps.dir, l.id, gcode),
+      );
+      if (!r) {
+        review.info.slicer = none;
+        return null;
+      }
+      const out = { ...r, gcode: existsSync(join(this.deps.dir, l.id, gcode)) ? gcode : null };
+      const price = l.target.evidence?.listing;
+      const vs =
+        price && out.cost !== null && price.currency === out.currency
+          ? `, against ${price.price.toFixed(2)} ${price.currency} to buy`
+          : '';
+      review.info.print = [
+        out.time ? `${out.time}` : null,
+        out.grams !== null ? `${out.grams} g` : null,
+        out.layers !== null ? `${out.layers} layers` : null,
+        out.cost !== null ? `${out.cost.toFixed(2)} ${out.currency} of filament${vs}` : null,
+      ]
+        .filter(Boolean)
+        .join(', ');
+      review.checks.push({
+        id: 'slice',
+        status: 'pass',
+        value: review.info.print,
+        limit: null,
+        detail: `Sliced with ${out.slicer} on this computer, with your printer’s profile.`,
+      });
+      return out;
+    } catch (e) {
+      review.checks.push({
+        id: 'slice',
+        status: 'fail',
+        value: (e as Error).message.slice(0, 300),
+        limit: null,
+        detail: 'The slicer refused it. Read why, change the model, and send it again.',
+      });
+      review.passed = false;
+      return null;
+    }
+  }
+
+  /** Lays a web round out as a site in its own folder (a page, or a ZIP unpacked) and names the pages to check. */
+  private site(l: Loop, n: number, format: string, bytes: Uint8Array, sheet: string): WebSpec {
+    const site = join(this.deps.dir, l.id, `round-${n}`);
+    rmSync(site, { recursive: true, force: true });
+    mkdirSync(site, { recursive: true });
+    let files: string[];
+    if (format === 'zip') {
+      try {
+        files = unzipTo(bytes, site);
+      } catch (e) {
+        if (e instanceof ZipError) throw new LoopError(422, 'zip', e.message);
+        throw e;
+      }
+    } else {
+      writeFileSync(join(site, 'index.html'), bytes);
+      files = ['index.html'];
+    }
+    const html = files.filter((f) => /\.html?$/i.test(f));
+    const pages = l.target.pages?.map((p) => posix.normalize(p)) ?? [
+      html.includes('index.html')
+        ? 'index.html'
+        : (html.sort((a, b) => a.split('/').length - b.split('/').length)[0] ?? ''),
+    ];
+    const missing = pages.filter((p) => !html.includes(p));
+    if (!html.length) throw new LoopError(422, 'no_page', 'That ZIP has no HTML page in it.');
+    if (missing.length)
+      throw new LoopError(
+        422,
+        'no_page',
+        `The site has no ${missing.join(' or ')}. Its pages: ${html.slice(0, 10).join(', ')}.`,
+      );
+    return { dir: site, pages, sheet, final: l.target.final, dark: l.target.dark };
   }
 
   /**
@@ -410,6 +629,13 @@ export class Loops {
     l.status = 'done';
     l.chosen = n;
     l.note = note.trim().slice(0, 2000);
+    if (l.kind === 'model' && l.target.print) {
+      const name = `round-${n}.handoff.html`;
+      try {
+        writeHandoff(join(this.deps.dir, l.id, name), l, round, this.deps.printer?.());
+        round.handoff = name;
+      } catch {}
+    }
     this.save(l);
     return l;
   }

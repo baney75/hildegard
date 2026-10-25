@@ -80,6 +80,7 @@ describe('sniff', () => {
   it('reads what a file is from its bytes, not its name', () => {
     const enc = (s: string) => new TextEncoder().encode(s);
     expect(sniff(enc(box(1, 1, 1)))).toBe('obj');
+    expect(sniff(enc(`o lid\n${box(1, 1, 1)}`))).toBe('obj');
     expect(sniff(enc('solid x\n facet normal 0 0 1\n'))).toBe('stl');
     expect(sniff(enc('glTF\x02\0\0\0'))).toBe('glb');
     expect(sniff(enc('{"asset":{"version":"2.0"}}'))).toBe('gltf');
@@ -189,6 +190,12 @@ describe('skills over MCP', () => {
     expect(three).toContain('loop_start');
     const ref = await call('read_skill', { name: 'hildegard', file: 'references/sculpture-3d.md' });
     expect(ref.isError).toBeFalsy();
+    const web = textOf(await call('read_skill', { name: 'hildegard-web' }));
+    expect(web).toContain('references/tokens.css');
+    expect(
+      textOf(await call('read_skill', { name: 'hildegard-web', file: 'references/tokens.css' })),
+    ).toContain('prefers-color-scheme: dark');
+    expect(textOf(await call('read_skill', { name: 'hildegard-print' }))).toContain('scripts/print_kit.py');
     for (const file of ['../hildegard-craft/SKILL.md', '../../package.json', '/etc/hosts'])
       expect((await call('read_skill', { name: 'hildegard', file })).isError).toBe(true);
     const { prompts } = await client.listPrompts();

@@ -53,11 +53,13 @@ export function loopTask(o: {
   return [
     `Make this for me with Hildegard's loop: ${o.idea}`,
     '',
-    `1. Read the skills first: hildegard-loop, ${o.kind === 'model' ? 'hildegard-3d, ' : ''}and hildegard for the craft (read_skill, or the skills folder in this workspace).`,
-    `2. Write the brief, then loop_start with ${targets}.`,
+    `1. Read the skills first: hildegard-loop, ${o.kind === 'model' ? `hildegard-3d, ${o.print ? 'hildegard-print, ' : ''}` : o.kind === 'web' ? 'hildegard-web, ' : ''}and hildegard for the craft (read_skill, or the skills folder in this workspace).`,
+    `2. Write the brief, then loop_start with ${targets}.${o.print ? ' Read printer_profile first, and size every part that fits another from its clearances.' : ''}`,
     o.kind === 'model'
-      ? `3. Build it in this workspace with what is installed here (Python with numpy, Blender, OpenSCAD). Keep the build in one script with named parameters.${o.skills ? ` mesh_kit.py is in ${join(o.skills, 'hildegard-3d', 'scripts')}.` : ''} Export GLB or STL and send it with loop_submit and its absolute file_path.`
-      : '3. Make it with Hildegard’s tools (direct_shot, make_character_stills, speak) and send each result with loop_submit (take_id, still_id or file_path).',
+      ? `3. Build it in this workspace with what is installed here (Python with numpy, Blender, OpenSCAD). Keep the build in one script with named parameters.${o.skills ? ` mesh_kit.py is in ${join(o.skills, 'hildegard-3d', 'scripts')}.${o.print ? ` print_kit.py, to measure photos and keep the evidence, is in ${join(o.skills, 'hildegard-print', 'scripts')}.` : ''}` : ''} Export GLB or STL and send it with loop_submit and its absolute file_path.`
+      : o.kind === 'web'
+        ? '3. Build it in this workspace as plain HTML and CSS in a folder of its own, with every font, image and script inside that folder. Send the folder with loop_submit and its absolute file_path.'
+        : '3. Make it with Hildegard’s tools (direct_shot, make_character_stills, speak) and send each result with loop_submit (take_id, still_id or file_path).',
     '4. Look at the sheet that comes back, view by view. Answer every question with loop_critique, honestly, pointing at the view or check. Change one thing, and send the next round.',
     '5. When a round passes, or the rounds run out, loop_finish with the best round and an honest note.',
     '6. Your last message: the loop id, the round you delivered, and what still fails. Don’t ask me questions; decide, and say what you decided.',
@@ -197,11 +199,11 @@ async function run(ctx: Ctx, args: string[]): Promise<Result> {
   const idea = ctx.flags.has('task-stdin') ? await readStdin() : args.slice(1).join(' ').trim();
   if (!agent || !idea)
     return failed(
-      '`hildegard loop run <codex|claude-code|omp> "<what to make>" [--kind model] [--print] [--size 40x40x120]`.',
+      '`hildegard loop run <codex|claude-code|omp> "<what to make>" [--kind model|web|image|video|audio] [--print] [--size 40x40x120]`.',
     );
   const kind = ctx.opts.get('kind') ?? 'model';
-  if (!['model', 'image', 'video', 'audio'].includes(kind))
-    return failed('--kind is model, image, video or audio.');
+  if (!['model', 'web', 'image', 'video', 'audio'].includes(kind))
+    return failed('--kind is model, web, image, video or audio.');
   const size = parseSize(ctx.opts.get('size'));
   if (ctx.opts.get('size') && !size)
     return failed('--size is three numbers in millimetres, such as 40x40x120.');

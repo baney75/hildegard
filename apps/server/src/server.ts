@@ -30,6 +30,7 @@ import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
 import { People } from './people.ts';
+import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
@@ -37,6 +38,7 @@ import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, VoiceStudio } from './voice.ts';
 import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
 import { VoiceModels } from './voice-models.ts';
+import { webReviewer } from './web-review.ts';
 
 type HttpServer = ReturnType<typeof serve>;
 
@@ -106,6 +108,8 @@ export async function startServer(
     voiceEngine?: VoiceEngine;
     /** Checking for and running updates: tests give stand-ins. */
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
+    /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
+    slicer?: Slicer | null;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -358,6 +362,8 @@ export async function startServer(
     firstMs: opts.updates?.firstMs,
     idleMs: opts.updates?.idleMs,
   });
+  const printer = new PrinterProfile(config.dataDir);
+  const pickSlicer = (p: Printer) => (opts.slicer === undefined ? findSlicer(p) : opts.slicer);
   const app = createApp({
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
@@ -385,7 +391,16 @@ export async function startServer(
       dir: join(mediaDir, 'loops'),
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
+      reviewWeb: webReviewer(),
+      printer: () => printer.get(),
+      slice: (files, keep) => {
+        const p = printer.get();
+        const slicer = pickSlicer(p);
+        return slicer ? slice(slicer, p, files, keep) : Promise.resolve(null);
+      },
     }),
+    printer,
+    slicer: pickSlicer,
     choir,
     modelStates,
     node,

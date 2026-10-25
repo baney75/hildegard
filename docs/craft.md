@@ -70,6 +70,8 @@ three rounds with an honest note.
 | hildegard-cloud | Renting a GPU on Runpod |
 | hildegard-3d | 3D models for screens and printing, built in code (`scripts/mesh_kit.py`) and checked view by view |
 | hildegard-loop | Generate, render, critique, refine: the loop, by hand or as a coding-agent run |
+| hildegard-print | Working parts to print: measured from photos and listings, sized from your printer's fits, sliced, with a print sheet (`scripts/print_kit.py`) |
+| hildegard-web | Websites and web app screens as real HTML and CSS, rendered at three widths in light and dark and audited |
 
 `hildegard skills install --json` puts them where Claude Code, Codex and OMP read them, from any model provider. Every
 app linked to Hildegard also reads them over MCP (`list_skills`, `read_skill`), and [chatbots.md](chatbots.md) has the
@@ -78,8 +80,11 @@ uploads for the Claude app, claude.ai and ChatGPT.
 ## The loop
 
 A piece that needs several tries goes through Hildegard's loop (`apps/server/src/loop.ts`): `loop_start` takes the
-brief and targets, `loop_submit` takes a version (a 3D model, an image, a take or a sound) and returns Hildegard's
+brief and targets, `loop_submit` takes a version (a 3D model, a web page or site, an image, a take or a sound) and returns Hildegard's
 checks and a contact sheet, and `loop_critique` must answer every rubric question with evidence before the next round
 is taken. 3D models are measured and drawn by `tools/review_mesh.py`: watertight, manifold, winding, volume, bodies,
 debris and size, and for prints units, bed, base, overhang and balance, on a sheet of eight views, a top or bottom
-view and silhouettes. `hildegard loop run codex "<idea>"` hands a whole loop to a coding agent, within its terms.
+view and silhouettes; print loops also measure fits between parts, likeness to a photographed outline, and slice
+every passing round (`apps/server/src/printer.ts`). Web pages are opened in a browser cut off from the network and
+audited at phone, tablet and desktop width, light and dark (`apps/server/src/web-review.ts`, `tools/review_web.js`).
+Making parts and sites: [make.md](make.md). `hildegard loop run codex "<idea>"` hands a whole loop to a coding agent, within its terms.

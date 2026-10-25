@@ -183,6 +183,64 @@ const MODEL: Question[] = [
   },
 ];
 
+const WEB: Question[] = [
+  {
+    id: 'intent',
+    ask: 'Can you say in one sentence who this page is for and what they should do or know after it, and does the first screen, at phone and desktop width, serve that sentence?',
+    fix: 'Write that sentence first. Then make the first screen say it: one headline in the reader’s words, one action, nothing competing.',
+  },
+  {
+    id: 'hierarchy',
+    ask: 'On the first screen at each width, is there one clear first read, then a second, then a third, made by size, weight, space and position rather than by colour alone?',
+    fix: 'Pick the order. Make the first thing much bigger or bolder, cut or demote whatever competes, and give the groups room.',
+  },
+  {
+    id: 'content',
+    ask: 'Is every word real (the product’s own names, numbers, prices, places) and does every section earn its place, with no filler section that only fills the template?',
+    fix: 'Write the real words, or ask your user for them. Cut any section you can’t say the purpose of.',
+  },
+  {
+    id: 'type',
+    ask: 'Is the type chosen: at most two families, a clear scale, body text 16 px or more at a comfortable line length and line height, and headings that look like they belong together?',
+    fix: 'Set a scale (for example 16, 20, 25, 31, 39), one family for text and at most one for display, max-width about 65ch for paragraphs, line-height about 1.5.',
+  },
+  {
+    id: 'space',
+    ask: 'Do spacing and alignment follow a system (a few steps of one scale, edges that line up), so nothing looks cramped, floating or nudged by eye?',
+    fix: 'Pick a spacing scale (4, 8, 12, 16, 24, 32, 48, 64) and an underlying grid; snap every margin and gap to it.',
+  },
+  {
+    id: 'colour',
+    ask: 'Is the palette restrained and chosen (from the brand or the design system’s tokens), with contrast that passes, rather than the default gradient-and-glow look?',
+    fix: 'Take colours from tokens: a ground, an ink, one accent used sparingly. Remove decorative gradients and glows that carry no meaning.',
+  },
+  {
+    id: 'specific',
+    ask: 'Is there a particular, ownable idea in the design (a layout, an image, a detail of type or motion) that belongs to this product, not the template of a centred hero, three icon cards and a testimonial strip?',
+    fix: 'Find the one thing only this product has (its material, its place, its numbers, its people) and build a section around showing it.',
+  },
+  {
+    id: 'responsive',
+    ask: 'Is the phone layout designed (order, sizes and spacing chosen for a thumb and a narrow screen), not the desktop page squeezed?',
+    fix: 'Lay out the phone first: one column, the action within reach, images cropped for portrait, navigation that fits.',
+  },
+  {
+    id: 'images',
+    ask: 'Are the images made or chosen for this page (subject, crop and light that serve the words), at the size they are shown, with alt text that says what they show?',
+    fix: 'Make them with Hildegard (stills) from the brief at the exact aspect ratio, crop them for each width, export WebP at twice the shown size, write the alt text.',
+  },
+  {
+    id: 'states',
+    ask: 'Does everything you can click look clickable, with a visible keyboard focus and hover and pressed states, and does every form say what went wrong in words?',
+    fix: 'Style :hover, :active and :focus-visible for every control; give errors words beside the field, not only a red border.',
+  },
+  {
+    id: 'themes',
+    ask: 'If the brief asks for a dark theme, does the dark view hold up as well as the light one (contrast, images, borders)? If it doesn’t ask, is the page consistent in both?',
+    fix: 'Define colours as tokens and redefine them under prefers-color-scheme: dark; check images and shadows in the dark view.',
+  },
+];
+
 /** Questions everything must pass, whatever the medium. */
 const ALWAYS: Question[] = [
   {
@@ -197,13 +255,15 @@ const ALWAYS: Question[] = [
   },
 ];
 
-/** What can be judged: a prompt's medium, a whole film, or a 3D model. */
-export type Judged = Medium | 'sequence' | 'model';
+/** What can be judged: a prompt's medium, a whole film, a 3D model, or a web page. */
+export type Judged = Medium | 'sequence' | 'model' | 'web';
 
 export function rubric(medium: Judged): Question[] {
   switch (medium) {
     case 'model':
       return [...MODEL, ...ALWAYS];
+    case 'web':
+      return [...WEB, ...WORDS, ...ALWAYS];
     case 'image':
       return [...PICTURE, ...ALWAYS];
     case 'video':
@@ -222,9 +282,11 @@ export function rubric(medium: Judged): Question[] {
 /** The rubric as a numbered list, to answer one line each: `id: yes|no, evidence`. */
 export function describeRubric(medium: Judged): string {
   return [
-    medium === 'model'
-      ? 'Answer each, one line each, as `id: yes|no, the view or check that shows it`. Any “no” means change one thing and send the model again, or tell your user plainly what is still wrong.'
-      : 'Answer each, one line each, as `id: yes|no, the frame, time or line that shows it`. Any “no” means change one thing and render again (at most three rounds), or tell your user plainly what is still wrong.',
+    medium === 'web'
+      ? 'Answer each, one line each, as `id: yes|no, the view (page, width, light or dark) or check that shows it`. Any “no” means change one thing and send the page again, or tell your user plainly what is still wrong.'
+      : medium === 'model'
+        ? 'Answer each, one line each, as `id: yes|no, the view or check that shows it`. Any “no” means change one thing and send the model again, or tell your user plainly what is still wrong.'
+        : 'Answer each, one line each, as `id: yes|no, the frame, time or line that shows it`. Any “no” means change one thing and render again (at most three rounds), or tell your user plainly what is still wrong.',
     ...rubric(medium).map((q, i) => `${i + 1}. ${q.id}: ${q.ask} If no: ${q.fix}`),
   ].join('\n');
 }

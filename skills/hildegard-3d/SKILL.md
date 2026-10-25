@@ -81,7 +81,9 @@ Six rounds is the default for a model. If a check still fails at the end, say so
 ## 4. Getting a print right
 
 - **Walls:** FDM at least 1.2 mm, resin 0.8 mm; details at least 0.4 mm; engraved text 0.6 mm deep and 5 mm tall.
-- **Parts that fit together:** 0.2 to 0.3 mm clearance per side for FDM.
+- **Parts that fit together:** size them from `printer_profile`'s clearance for the fit, never a guessed number.
+  A part that has to work (a replacement, a bracket, a clip, anything measured off a photo or a listing) follows
+  **hildegard-print**: evidence for every dimension, fits measured, every round sliced, a print sheet at the end.
 - **Overhangs:** at most 45° from vertical, or plan supports, or chamfer the undersides. Reorient before redesigning.
 - **The base** is part of the work: a plinth, real contact, the centre of mass over it (`balance`).
 - **Hollow parts** (resin): drain holes.

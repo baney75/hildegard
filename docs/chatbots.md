@@ -99,7 +99,8 @@ device's keychain).
 Ask for a piece that needs several tries ("a heron finial for my printer, 120 mm"), and the app runs Hildegard's loop:
 `loop_start` with the brief and targets, `loop_submit` for each version (Hildegard measures it and draws a contact
 sheet), `loop_critique` with every question answered from the sheet, and `loop_finish` with the best round. The
-**hildegard-loop** and **hildegard-3d** skills say how. A whole loop can also go to a coding agent on your computer,
+**hildegard-loop** and **hildegard-3d** skills say how; **hildegard-print** for a part to print (measured, fitted,
+sliced, with a print sheet) and **hildegard-web** for a website ([make.md](make.md)). A whole loop can also go to a coding agent on your computer,
 within each provider's terms ([agent-terms.md](agent-terms.md)):
 
 ```sh

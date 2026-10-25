@@ -61,6 +61,12 @@ const vendored = [
     'Chatterbox’s speaker encoder, and so voice-engine/hildegard_voice/speaker.py, is adapted from it.',
     'Real-Time-Voice-Cloning-MIT.txt',
   ],
+  [
+    'print3d',
+    'https://github.com/mfranzon/print3d',
+    'Print loops follow its method: tools/review_mesh.py (parts, fits and likeness to a photo), apps/server/src/handoff.ts (the print sheet), apps/server/src/printer.ts (fit clearances), and skills/hildegard-print (print_kit.py, from its photo and evidence tools and fit coupon, and the references, from its guides).',
+    'print3d-MIT.txt',
+  ],
 ];
 
 let out = `# Third-party notices

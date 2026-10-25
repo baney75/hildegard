@@ -28,6 +28,10 @@ const TYPES: Record<string, string> = {
   flac: 'audio/flac',
   mp3: 'audio/mpeg',
   ogg: 'audio/ogg',
+  // A page an agent made is shown as its source, never run on Hildegard's own address.
+  html: 'text/plain; charset=utf-8',
+  zip: 'application/zip',
+  gcode: 'text/plain; charset=utf-8',
 };
 
 /** A round as an API answer: links to its file and sheet instead of names in a folder. */
@@ -35,6 +39,10 @@ export const roundView = (l: Loop, r: Round) => ({
   ...r,
   file: `/api/loops/${l.id}/files/${r.file}`,
   sheet: r.sheet ? `/api/loops/${l.id}/files/${r.sheet}` : null,
+  handoff: r.handoff ? `/api/loops/${l.id}/files/${r.handoff}` : null,
+  slice: r.slice
+    ? { ...r.slice, gcode: r.slice.gcode ? `/api/loops/${l.id}/files/${r.slice.gcode}` : null }
+    : (r.slice ?? null),
 });
 export const loopView = (l: Loop) => ({
   ...l,
@@ -138,9 +146,18 @@ export function loopRoutes(d: LoopRouteDeps) {
   );
   app.get('/:id/files/:name', (c) => {
     const name = c.req.param('name');
-    if (!/^round-\d{1,2}(\.sheet)?\.[a-z0-9]{2,5}$/.test(name)) return c.body(null, 404);
+    if (!/^round-\d{1,2}(\.sheet|\.handoff)?\.[a-z0-9]{2,5}$/.test(name)) return c.body(null, 404);
     const file = loops.file(c.req.param('id'), name);
     if (!file) return c.body(null, 404);
+    if (name.endsWith('.handoff.html')) {
+      // Hildegard's own print sheet: escaped text and one embedded image, shown as a page that may run nothing.
+      const res = d.sendFile(c, file, 'text/html; charset=utf-8');
+      res.headers.set(
+        'content-security-policy',
+        "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; sandbox allow-same-origin",
+      );
+      return res;
+    }
     const ext = name.split('.').at(-1)!;
     return d.sendFile(c, file, TYPES[ext] ?? 'application/octet-stream');
   });

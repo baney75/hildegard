@@ -7,18 +7,19 @@ description: Iterate any piece with Hildegard's loop - generate, render, critiqu
 
 Most generated work fails because nobody looked at it before the next attempt. The loop makes looking the price of
 the next attempt: Hildegard takes round two only after round one has been critiqued, and every answer must point at
-the view, frame or check that shows it. Read **hildegard-craft** first; for 3D, **hildegard-3d**.
+the view, frame or check that shows it. Read **hildegard-craft** first; for 3D, **hildegard-3d**; for a part to
+print, **hildegard-print**; for a website, **hildegard-web**.
 
 ## The four tools
 
 | Step | Tool | What happens |
 | --- | --- | --- |
-| Start | `loop_start` | The brief (for, what, specifics) and the targets: `kind` model, image, video or audio; for a model `print`, `size_mm`, `bed_mm`, `max_triangles`; for media `final`, `seconds`, `audio`. Returns the questions you'll answer each round |
-| Render | `loop_submit` | Send a version: `file_path` (an agent on the same computer), `text` or `data` (any app), `take_id` (a take Hildegard rendered) or `still_id` (a still it drew). Hildegard measures it and draws it, and returns the checks and the sheet |
+| Start | `loop_start` | The brief (for, what, specifics) and the targets: `kind` model, web, image, video or audio; for a model `print`, `size_mm`, `bed_mm`, `max_triangles`, and for a print `fits`, `views`, `print_pose`, `evidence`; for the web `pages`, `dark`; for media `final`, `seconds`, `audio`. Returns the questions you'll answer each round |
+| Render | `loop_submit` | Send a version: `file_path` (an agent on the same computer; a site's folder is packed), `text` or `data` (any app), `take_id` (a take Hildegard rendered) or `still_id` (a still it drew). Hildegard measures it and draws it, and returns the checks and the sheet |
 | Critique | `loop_critique` | Every question, `yes` or `no`, each with its evidence, and the one change for the next round. The answer is `ready`, `revise` (with the fixes) or `stop` (no rounds left) |
-| Deliver | `loop_finish` | The round to deliver (the best, not always the last) and an honest note |
+| Deliver | `loop_finish` | The round to deliver (the best, not always the last) and an honest note. A print loop also writes the print sheet |
 
-`loop_status` shows a loop's rounds, critiques and changes. Rounds: 6 for a model, 3 otherwise (`max_rounds` up to
+`loop_status` shows a loop's rounds, critiques and changes. Rounds: 6 for a model, 5 for the web, 3 otherwise (`max_rounds` up to
 12). Every round stays in Hildegard, so your user can go back to an earlier one.
 
 ## How to critique
@@ -69,10 +70,11 @@ The loop is a renderer and a rubric per kind, and each kind's checks are the mea
 
 | Kind | Hildegard measures | The sheet |
 | --- | --- | --- |
-| model | watertight, manifold, winding, volume, bodies, debris, size; for prints units, bed, base, overhang, balance | eight views, a top or bottom view, silhouettes |
+| model | watertight, manifold, winding, volume, bodies, debris, size; for prints units, bed, base, overhang, balance, slender, interference and fits between parts, likeness to the photo, and slicing (time, grams, cost) | eight views, a top or bottom view, silhouettes, and the photo's outline against the model |
+| web | loads, errors, overflow, contrast, alt, images, names, labels, tap targets, text size, line length, fonts, headings, head, stand-in and stock copy, emoji icons, offline, weight, image size, dark, motion, focus | every page's first screen and whole page at phone, tablet and desktop width, light and dark, with problems outlined |
 | image | size, highlights, shadows, contrast, colour | the image |
 | video | size, length, highlights, colour, black frames, frozen, flicker, sound clipping and loudness | nine frames, start to end |
 | audio | clipping and loudness | none: you can't hear it, so say what was measured and ask your user to listen |
 
-When a piece isn't one of these (a poster as SVG, a page, a song's lyrics), loop by hand the same way: render it
-(a PNG of the SVG, a screenshot of the page), send the render as an image round, and critique that.
+When a piece isn't one of these (a poster as SVG, a song's lyrics), loop by hand the same way: render it (a PNG of
+the SVG), send the render as an image round, and critique that.
