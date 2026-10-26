@@ -14,46 +14,35 @@ const site = join(root, 'site');
 const { chromium } = createRequire(join(root, 'apps', 'studio', 'package.json'))('@playwright/test');
 const base = '<!doctype html><meta charset="utf-8">';
 
-// The card: a real take fills the right and fades into the ground under the headline; a strip of four more takes sits
-// bottom right, clear of the corner where X lays the site's name over a card. `w` and `h` set its size, so one design
-// makes both the page's link preview (1200 by 630) and the GitHub repository's social preview (1280 by 640). Every
-// frame is a real render from the page's gallery (see WORK in site/main.js), all on one laptop GPU.
+// The card: the headline on the left, three real frames from the work on the right. `w` and `h` set its size, so one
+// design makes both the page's link preview (1200 by 630) and the GitHub repository's social preview (1280 by 640).
 const card = (w, h) => `${base}<style>
 @font-face { font-family: "Cormorant Garamond"; src: url("fonts/CormorantGaramond-500.woff2"); font-weight: 500; }
 @font-face { font-family: "Cormorant Garamond"; src: url("fonts/CormorantGaramond-500-Italic.woff2"); font-weight: 500; font-style: italic; }
 @font-face { font-family: "Hildegard Sans"; src: url("fonts/HildegardSans-Variable.woff2"); font-weight: 200 900; }
 @font-face { font-family: "DM Mono"; src: url("fonts/DMMono-400.woff2"); font-weight: 400; }
 html, body { margin: 0; width: ${w}px; height: ${h}px; overflow: hidden; }
-body { position: relative; background: #0a0e13; color: #f2ecdd; font-family: "Hildegard Sans", sans-serif; }
-.still { position: absolute; right: 0; top: 0; width: ${w - 380}px; height: ${h}px; object-fit: cover; object-position: 62% 50%; }
-.fade { position: absolute; inset: 0; background:
-  linear-gradient(90deg, #0a0e13 0 34%, #0a0e13e6 46%, #0a0e1366 66%, #0a0e1300 82%),
-  linear-gradient(0deg, #0a0e13cc 0, #0a0e1300 34%),
-  radial-gradient(40% 60% at 0% 0%, #12301f99, transparent 70%); }
-.words { position: absolute; left: 80px; top: 64px; width: 760px; display: flex; flex-direction: column; align-items: flex-start; }
-.lock { height: 44px; margin-bottom: 44px; }
-h1 { margin: 0 0 0 -4px; font: 500 82px/84px "Cormorant Garamond", serif; letter-spacing: -.01em; white-space: nowrap; text-shadow: 0 2px 24px #0a0e13; }
+body {
+  position: relative; background: #0a0e13; color: #f2ecdd; font-family: "Hildegard Sans", sans-serif;
+  background-image: radial-gradient(50% 70% at 86% 42%, #15265acc, transparent 70%),
+    radial-gradient(40% 60% at 4% 0%, #12301fcc, transparent 70%);
+}
+.lock { position: absolute; left: 80px; top: 70px; height: 44px; }
+h1 { position: absolute; left: 76px; top: 150px; margin: 0; width: 700px; font: 500 78px/82px "Cormorant Garamond", serif; letter-spacing: -.01em; }
 h1 em { display: block; color: #e6c473; font-style: italic; }
-.what { margin: 26px 0 0; width: 540px; font-size: 26px; line-height: 35px; color: #d6d0c0; text-shadow: 0 1px 12px #0a0e13; }
-.free { margin-top: 26px; display: flex; gap: 10px; }
-.free span { padding: 7px 14px; border: 1px solid #e6c47366; border-radius: 999px; font-size: 19px; color: #e6c473; background: #0a0e13b3; }
-.strip { position: absolute; right: 56px; bottom: 48px; display: flex; gap: 10px; }
-.strip img { width: 132px; height: 74px; object-fit: cover; border-radius: 6px; outline: 1px solid #f2ecdd33; box-shadow: 0 6px 20px #0008; }
-.cap { position: absolute; right: 56px; bottom: 134px; font: 400 17px "DM Mono", monospace; color: #e8e2d2; text-shadow: 0 1px 8px #000; }
+p { position: absolute; left: 80px; top: ${h - 196}px; margin: 0; width: 560px; font-size: 26px; line-height: 34px; color: #bcb6a6; }
+.url { position: absolute; left: 80px; bottom: 50px; font: 400 20px "DM Mono", monospace; color: #97968c; }
+.reel { position: absolute; right: 36px; top: -70px; width: ${w - 790}px; display: grid; gap: 14px; transform: rotate(-3deg); }
+.reel img { display: block; width: 100%; aspect-ratio: 1248 / 704; object-fit: cover; border-radius: 10px; box-shadow: 0 0 0 1px #e9dfc624, 0 24px 60px -20px #000; }
+.reel img:nth-child(2) { margin-left: -48px; }
+.fade { position: absolute; inset: 0; background: linear-gradient(90deg, #0a0e13 0, #0a0e13 600px, transparent 720px); pointer-events: none; }
 </style>
-<img class="still" src="img/work/illuminator-quill.webp" alt="">
+<div class="reel"><img src="img/work/illuminator-quill.webp" alt=""><img src="img/work/neon-raincoat.webp" alt=""><img src="img/work/caravan-dune.webp" alt=""></div>
 <div class="fade"></div>
-<div class="words">
-  <img class="lock" src="img/lockup-horizontal-vellum.svg" alt="">
-  <h1>Your own AI studio,<em>on your own GPU.</em></h1>
-  <p class="what">Films, voices, characters, 3D and websites, made on computers you own. Your AI apps direct it.</p>
-  <div class="free"><span>Free</span><span>Open source</span><span>No credits</span></div>
-</div>
-<span class="cap">Every frame: one laptop GPU</span>
-<div class="strip">
-  <img src="img/work/lighthouse-keeper.webp" alt=""><img src="img/work/neon-raincoat.webp" alt="">
-  <img src="img/work/caravan-dune.webp" alt=""><img src="img/work/golden-hour-sea-stack.webp" alt="">
-</div>`;
+<img class="lock" src="img/lockup-horizontal-vellum.svg" alt="">
+<h1>Your own AI studio, <em>on your own GPU.</em></h1>
+<p>Films, voices, characters and 3D, made on computers you own. Free and open source.</p>
+<span class="url">dbaney.com/hildegard</span>`;
 
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {},
@@ -68,9 +57,7 @@ await page.route('http://site.local/**', (route) => {
     ? 'image/svg+xml'
     : path.endsWith('.woff2')
       ? 'font/woff2'
-      : path.endsWith('.webp')
-        ? 'image/webp'
-        : undefined;
+      : undefined;
   return route.fulfill({ contentType, body: readFileSync(join(site, decodeURIComponent(path))) });
 });
 for (const [w, h, out] of [
