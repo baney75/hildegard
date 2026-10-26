@@ -186,6 +186,34 @@ describe('sites', { timeout: 60_000 }, () => {
     // The API never serves a site's page as a page.
     const raw = await fetch(`${srv.url}/api/sites/${site}/files/index.html`);
     expect(raw.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    // The templates are served the same way, for the gallery; nothing outside them.
+    const tpl = await fetch(`${srv.url}/preview/template/hearth/index.html`);
+    expect(tpl.status).toBe(200);
+    expect(tpl.headers.get('content-security-policy')).toMatch(/^sandbox allow-scripts/);
+    expect(
+      (await fetch(`${srv.url}/preview/template/hearth/styles.css`)).headers.get('content-type'),
+    ).toMatch(/css/);
+    for (const bad of [
+      'template/hearth/template.json',
+      'template/nope/index.html',
+      'template/..%2f..%2fpackage.json/x',
+    ])
+      expect((await fetch(`${srv.url}/preview/${bad}`)).status, bad).toBe(404);
+  });
+
+  it('changes words without reading the new ones as a pattern', async () => {
+    await api(`/api/sites/${site}/files/words.html`, {
+      method: 'PUT',
+      body: '<!doctype html><title>Words</title><h1>Fresh bread</h1>',
+    });
+    const r = await api(`/api/sites/${site}/text`, {
+      method: 'POST',
+      body: JSON.stringify({ page: 'words.html', from: 'Fresh bread', to: 'Costs $& and $1 & <more>' }),
+    });
+    expect(r.status).toBe(200);
+    const html = await (await api(`/api/sites/${site}/files/words.html`)).text();
+    expect(html).toContain('<h1>Costs $&amp; and $1 &amp; &lt;more&gt;</h1>');
+    await api(`/api/sites/${site}/files/words.html`, { method: 'DELETE' });
   });
 
   it('imports a Figma file with its design image, sending the token only to Figma', async () => {
