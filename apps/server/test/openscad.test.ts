@@ -125,7 +125,7 @@ describe('reading OpenSCAD source before it runs', () => {
       '/opt/x/openscad',
     ]);
     expect(openScadCandidates({ PATH: '' }, 'darwin')[0]).toBe(
-      '/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD',
+      join('/Applications', 'OpenSCAD.app', 'Contents', 'MacOS', 'OpenSCAD'),
     );
     expect(openScadCandidates({ PATH: '', PROGRAMFILES: 'C:\\Program Files' }, 'win32')[0]).toContain(
       'openscad.com',
