@@ -110,7 +110,7 @@ describe('Updates', () => {
   it('offers nothing for the same or an older release, and says why a check failed', async () => {
     expect(await watcher({ latest: '0.1.5' }).u.check()).toMatchObject({ available: null, error: null });
     expect(await watcher({ latest: '0.1.4' }).u.check()).toMatchObject({ available: null });
-    expect(await watcher().u.check()).toMatchObject({ available: null, error: /404/ });
+    expect(await watcher().u.check()).toMatchObject({ available: null, error: /doesn’t offer updates yet/ });
   });
 
   it('never runs an update from a source checkout', async () => {

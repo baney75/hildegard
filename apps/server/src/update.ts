@@ -32,7 +32,9 @@ export async function latestVersion(fetchFn: typeof fetch = fetch): Promise<stri
   const res = await fetchFn(`${RELEASES}/latest/download/latest.json`, {
     signal: AbortSignal.timeout(20_000),
   });
-  if (!res.ok) throw new Error(`GitHub answered ${res.status} for the latest release.`);
+  // A release without the update key's signatures publishes no latest.json, so it offers no update.
+  if (res.status === 404) throw new Error('The newest release doesn’t offer updates yet.');
+  if (!res.ok) throw new Error(`GitHub answered ${res.status} for the newest release.`);
   const { version } = (await res.json()) as { version?: unknown };
   if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version))
     throw new Error('The latest release names no version.');

@@ -56,7 +56,7 @@ export async function update(ctx: Ctx): Promise<Result> {
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     return result(
-      [{ id: 'update', title, status: 'failed', detail: `Couldn’t reach GitHub: ${why}` }],
+      [{ id: 'update', title, status: 'failed', detail: why }],
       'Hildegard couldn’t check for an update.',
     );
   }
