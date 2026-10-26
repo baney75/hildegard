@@ -13,7 +13,20 @@ const DESKTOP = {
   omarchy: 'Hildegard_amd64.AppImage',
 };
 
-// The stills on the page, each a frame from a real take. The file sits in img/work/. Every caption is what Hildegard
+// The reel that plays in the hero, video/reel.mp4: 2.5 seconds of each of these takes, in this order. Its captions follow
+// along. Remake it from the films with the steps in README.md if the order changes.
+const REEL = [
+  'illuminator-quill.webp',
+  'neon-raincoat.webp',
+  'caravan-dune.webp',
+  'lighthouse-keeper.webp',
+  'golden-hour-sea-stack.webp',
+  'lighthouse-headland.webp',
+];
+const REEL_SECONDS = 2.5;
+
+// The stills on the page, each a frame from a real take. Each take also plays from video/work/, under the same name
+// as its still. The file sits in img/work/. Every caption is what Hildegard
 // recorded for that take: the prompt word for word as the director wrote it, the rig, the model, the GPU and the
 // render time in seconds. Never write a caption for a render that didn't happen. The first one marked hero leads the
 // page (its file is also preloaded in index.html); the rest fill the gallery in this order.
@@ -301,16 +314,101 @@ const time = (w) => el('span', 'num', minutes(w.seconds));
 const metaLine = (w) => dotted([w.model, w.gpu, Object.assign(time(w), { title: `${w.seconds} seconds` })]);
 const quoted = (text) => `\u201c${text}\u201d`;
 
-function fillHero() {
-  const w = WORK.find((x) => x.hero);
-  const fig = w && document.querySelector(`[data-work="${w.file}"]`);
-  if (!fig) return;
+const clip = (w) => `video/work/${w.file.replace(/\.webp$/, '.mp4')}`;
+
+/** Moving pictures only for visitors who haven't asked for less motion or less data. */
+const moving = () =>
+  !matchMedia('(prefers-reduced-motion: reduce)').matches &&
+  !navigator.connection?.saveData &&
+  'IntersectionObserver' in window;
+
+/** Plays a muted loop while it's on screen, and pauses it when it's not, unless the visitor paused it. */
+function playWhileSeen(video, threshold = 0.35) {
+  const io = new IntersectionObserver(
+    ([e]) => {
+      if (e.isIntersecting && !video.dataset.held) video.play().catch(() => {});
+      else video.pause();
+    },
+    { threshold },
+  );
+  io.observe(video);
+}
+
+function muted(src, className, poster) {
+  const v = Object.assign(document.createElement('video'), {
+    muted: true,
+    loop: true,
+    playsInline: true,
+    preload: 'none',
+  });
+  v.className = className;
+  v.setAttribute('muted', '');
+  v.setAttribute('aria-hidden', 'true');
+  v.poster = poster;
+  v.src = src;
+  v.addEventListener('playing', () => v.setAttribute('data-playing', ''));
+  return v;
+}
+
+function captionHero(fig, w) {
   fig.querySelector('[data-w-img]').alt = `A frame from ${slate(w)}.`;
   fig.querySelector('[data-w-slate]').textContent = slate(w);
   fig.querySelector('[data-w-take]').textContent = w.take;
   fig.querySelector('[data-w-rig]').replaceChildren(...w.rig.map((r) => el('span', '', r)));
   fig.querySelector('[data-w-prompt]').textContent = quoted(w.prompt);
   fig.querySelector('[data-w-meta]').replaceChildren(...metaLine(w));
+  fig.querySelector('[data-open-work]').dataset.openWork = w.file;
+  fig.querySelector('[data-open-work]').setAttribute('aria-label', `See ${slate(w)} larger`);
+}
+
+/** The hero reel: the takes play in turn over the first still, and the caption keeps up with the take on screen. */
+function playReel(fig) {
+  const shot = fig.querySelector('.reel__shot');
+  const toggle = fig.querySelector('[data-reel-toggle]');
+  const cap = fig.querySelector('.reel__cap');
+  const video = muted(
+    'video/reel.mp4',
+    'reel__video',
+    shot.querySelector('img').currentSrc || shot.querySelector('img').src,
+  );
+  video.preload = 'auto';
+  shot.append(video);
+  let at = 0;
+  video.addEventListener('timeupdate', () => {
+    const i = Math.min(REEL.length - 1, Math.floor(video.currentTime / REEL_SECONDS));
+    if (i === at) return;
+    at = i;
+    const w = WORK.find((x) => x.file === REEL[i]);
+    if (!w) return;
+    cap.setAttribute('data-changing', '');
+    setTimeout(() => {
+      captionHero(fig, w);
+      cap.removeAttribute('data-changing');
+    }, 200);
+  });
+  // Moving pictures that last longer than five seconds get a pause button.
+  toggle.hidden = false;
+  toggle.addEventListener('click', () => {
+    const held = !video.dataset.held;
+    if (held) {
+      video.dataset.held = '1';
+      video.pause();
+    } else {
+      delete video.dataset.held;
+      video.play().catch(() => {});
+    }
+    toggle.setAttribute('aria-label', held ? 'Play the reel' : 'Pause the reel');
+    toggle.querySelector('use').setAttribute('href', held ? '#i-play' : '#i-pause');
+  });
+  playWhileSeen(video, 0.2);
+}
+
+function fillHero() {
+  const w = WORK.find((x) => x.hero);
+  const fig = w && document.querySelector(`[data-work="${w.file}"]`);
+  if (!fig) return;
+  captionHero(fig, w);
+  if (moving()) playReel(fig);
 }
 
 function fillGallery() {
@@ -332,7 +430,13 @@ function fillGallery() {
     });
     const zoom = el('span', 'still__zoom');
     zoom.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-expand"/></svg>';
-    open.append(img, zoom);
+    open.append(img);
+    if (moving()) {
+      const v = muted(clip(w), 'still__video', img.src);
+      open.append(v);
+      playWhileSeen(v, 0.5);
+    }
+    open.append(zoom);
     const cap = el('figcaption', 'still__cap');
     cap.append(
       el('p', 'still__slate', slate(w)),
@@ -357,12 +461,22 @@ function wireLightbox() {
     if (btn) {
       const w = WORK.find((x) => x.file === btn.dataset.openWork);
       if (!w) return;
-      if (!img) {
-        img = document.createElement('img');
+      // The take itself where motion is welcome, with its controls; otherwise the still.
+      const want = moving() ? 'video' : 'img';
+      if (img?.tagName.toLowerCase() !== want) {
+        img?.remove();
+        img = document.createElement(want);
         box.querySelector('.lightbox__in').prepend(img);
       }
-      img.src = `img/work/${w.file}`;
-      img.alt = `A frame from ${slate(w)}.`;
+      if (want === 'video') {
+        Object.assign(img, { controls: true, loop: true, muted: true, playsInline: true, autoplay: true });
+        img.poster = `img/work/${w.file}`;
+        img.src = clip(w);
+        img.setAttribute('aria-label', `${slate(w)}, the take`);
+      } else {
+        img.src = `img/work/${w.file}`;
+        img.alt = `A frame from ${slate(w)}.`;
+      }
       box.querySelector('[data-lb-title]').textContent = slate(w);
       box.querySelector('[data-lb-prompt]').textContent = quoted(w.prompt);
       box
@@ -374,6 +488,7 @@ function wireLightbox() {
     // A click on the dark surround closes it.
     if (e.target === box) box.close();
   });
+  box.addEventListener('close', () => img?.pause?.());
 }
 
 /** Sections rise in once as they come into view. Without motion, or without IntersectionObserver, they're just there. */

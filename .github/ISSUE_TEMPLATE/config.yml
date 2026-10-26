@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/baney75/hildegard/security/advisories/new
+    about: Privately, please. See SECURITY.md.
+  - name: Install help
+    url: https://dbaney.com/hildegard/#faq
+    about: Common questions, and what each GPU can run.

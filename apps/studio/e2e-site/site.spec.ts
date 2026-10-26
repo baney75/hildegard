@@ -39,7 +39,7 @@ for (const scheme of ['dark', 'light'] as const) {
       const errors = watchErrors(page);
       await page.goto('/index.html');
       await page.evaluate(() => document.fonts.ready);
-      await expect(page.getByRole('heading', { level: 1 })).toContainText('Your own film studio');
+      await expect(page.getByRole('heading', { level: 1 })).toContainText('Your own AI studio');
       await noSidewaysScroll(page);
       await expectCurlyQuotes(page, scheme);
       await expectAccessible(page, `${scheme} ${info.project.name}`);
@@ -145,8 +145,46 @@ test('the work shows real stills with their captions, and opens larger', async (
   const box = page.locator('[data-lightbox]');
   await expect(box).toBeVisible();
   await expect(box).toContainText('A woman in a red raincoat');
-  await expect(box.locator('img')).toHaveAttribute('src', 'img/work/neon-raincoat.webp');
+  // The take itself plays there, with its controls and the still as its poster.
+  await expect(box.locator('video')).toHaveAttribute('src', 'video/work/neon-raincoat.mp4');
+  await expect(box.locator('video')).toHaveAttribute('poster', 'img/work/neon-raincoat.webp');
   await page.keyboard.press('Escape');
   await expect(box).toBeHidden();
   expect(errors).toEqual([]);
+});
+
+test('the takes move only for visitors who welcome motion, and the reel can be paused', async ({ page }) => {
+  await page.goto('/index.html');
+  const toggle = page.getByRole('button', { name: 'Pause the reel' });
+  await expect(toggle).toBeVisible();
+  await expect(page.locator('.reel video')).toHaveAttribute('src', 'video/reel.mp4');
+  await expect(page.locator('[data-gallery] video')).toHaveCount(5);
+  await toggle.click();
+  await expect(page.getByRole('button', { name: 'Play the reel' })).toBeVisible();
+  expect(await page.locator('.reel video').evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(page.locator('video')).toHaveCount(0);
+  await expect(page.locator('[data-reel-toggle]')).toBeHidden();
+});
+
+test('search engines read the same answers people do', async ({ page }) => {
+  await page.goto('/index.html');
+  const graph = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '')[
+    '@graph'
+  ];
+  const app = graph.find((n: { '@type': string }) => n['@type'] === 'SoftwareApplication');
+  expect(app.offers.price).toBe('0');
+  const faq = graph.find((n: { '@type': string }) => n['@type'] === 'FAQPage');
+  const asked = await page.locator('#faq summary .fold__t').allTextContents();
+  expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(asked);
+  const answers = await page.locator('#faq .fold__body').allTextContents();
+  expect(faq.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text)).toEqual(
+    answers.map((a) => a.trim()),
+  );
+  // Six rooms, each saying plainly whether it's ready.
+  await expect(page.locator('.room')).toHaveCount(6);
+  for (const state of await page.locator('.room__state').allTextContents())
+    expect(['Ready', 'With your AI app', 'Coming']).toContain(state);
 });
