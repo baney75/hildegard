@@ -1,0 +1,148 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 · Hildegard template "Manual". Replace every word with the project's own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started · Tern documentation</title>
+<meta name="description" content="Install Tern, sync your first folder between two machines, and learn the options you'll reach for most.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<header class="top">
+  <div class="top__row">
+    <a class="brand" href="#content"><svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M3 20c6-1 10-5 13-12 2 6 6 9 13 9-7 2-11 6-13 12-1-5-6-8-13-9z" fill="currentColor"/></svg>Tern <span>docs</span></a>
+    <form class="search" role="search" action="#content">
+      <label class="sr" for="q">Search the docs</label>
+      <input id="q" name="q" type="search" placeholder="Search the docs" autocomplete="off">
+    </form>
+    <span class="version">v2.4</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="chapters" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <h2 class="chapters__head">Start here</h2>
+      <ul>
+        <li><a href="#content" aria-current="page">Getting started</a></li>
+        <li><a href="#content">How Tern thinks</a></li>
+        <li><a href="#install">Installing on servers</a></li>
+      </ul>
+      <h2 class="chapters__head">Guides</h2>
+      <ul>
+        <li><a href="#first-run">Sync two laptops</a></li>
+        <li><a href="#options">Ignore files</a></li>
+        <li><a href="#options">Schedules and bandwidth</a></li>
+        <li><a href="#notes">Resolve a conflict</a></li>
+      </ul>
+      <h2 class="chapters__head">Reference</h2>
+      <ul>
+        <li><a href="#options">Command line</a></li>
+        <li><a href="#options">tern.toml</a></li>
+        <li><a href="#notes">Exit codes</a></li>
+      </ul>
+    </details>
+  </nav>
+
+  <main id="content" class="page">
+    <p class="crumbs">Start here</p>
+    <h1>Getting started</h1>
+    <p class="lede">Tern keeps a folder the same on every machine you own, over your own network, with no account and no server in the middle. This page takes about ten minutes: install it, pair two machines, and sync your first folder.</p>
+
+    <aside class="toc" aria-labelledby="toc-title">
+      <h2 id="toc-title">On this page</h2>
+      <ol>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#first-run">Pair and sync</a></li>
+        <li><a href="#options">Options you'll use</a></li>
+        <li><a href="#notes">Before you rely on it</a></li>
+      </ol>
+    </aside>
+
+    <section id="install" aria-labelledby="install-title">
+      <h2 id="install-title">Install</h2>
+      <p>Tern is one file with nothing else to install. On macOS and Linux, run this in a terminal on each machine:</p>
+      <figure class="code">
+        <figcaption>Terminal</figcaption>
+        <pre><code><span class="p">$</span> curl -fsSL https://tern.example/install.sh | sh
+<span class="out">Downloading tern 2.4.1 for linux-x86_64…
+Checked the signature: good (key 7F3A 91C2).
+Installed to ~/.local/bin/tern</span></code></pre>
+      </figure>
+      <p>On Windows, run <code>winget install Tern.Tern</code> in PowerShell. Check it worked with <code>tern --version</code>.</p>
+      <div class="note" role="note">
+        <p class="note__label">Note</p>
+        <p>The script only writes to <code>~/.local/bin</code> and never asks for your password. Read it first if you like: it's 80 lines.</p>
+      </div>
+    </section>
+
+    <section id="first-run" aria-labelledby="run-title">
+      <h2 id="run-title">Pair and sync</h2>
+      <p>On the first machine, share the folder. Tern prints a short code that's good for ten minutes.</p>
+      <figure class="code">
+        <figcaption>On the first machine</figcaption>
+        <pre><code><span class="p">$</span> tern share ~/Projects
+<span class="out">Sharing ~/Projects (1,204 files, 3.1 GB)
+Pair code: <b>ORBIT-TALLOW-42</b>  (expires in 10:00)</span></code></pre>
+      </figure>
+      <p>On the second machine, join with that code and choose where the folder goes:</p>
+      <figure class="code">
+        <figcaption>On the second machine</figcaption>
+        <pre><code><span class="p">$</span> tern join ORBIT-TALLOW-42 ~/Projects
+<span class="out">Paired with "studio-mac". Syncing 1,204 files…
+Done in 41s. Watching for changes.</span></code></pre>
+      </figure>
+      <p>That's it. Change a file on either machine and the other has it within a second or two while both are awake. Run <code>tern status</code> to see what's in flight.</p>
+    </section>
+
+    <section id="options" aria-labelledby="options-title">
+      <h2 id="options-title">Options you'll use</h2>
+      <p>Every option works on the command line or in <code>tern.toml</code> at the top of the shared folder.</p>
+      <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: the table scrolls sideways on a phone, so keyboards must reach it. -->
+      <div class="table" role="region" aria-labelledby="options-title" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Option</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><code>--ignore</code></th><td><code>.git, node_modules</code></td><td>Patterns to leave out, as in a <code>.gitignore</code>.</td></tr>
+            <tr><th scope="row"><code>--one-way</code></th><td>off</td><td>Only send from this machine; never take changes back.</td></tr>
+            <tr><th scope="row"><code>--limit</code></th><td>none</td><td>Most bandwidth to use, such as <code>5MB/s</code>.</td></tr>
+            <tr><th scope="row"><code>--quiet-hours</code></th><td>none</td><td>Hours to pause, such as <code>09:00-17:00</code>.</td></tr>
+            <tr><th scope="row"><code>--keep</code></th><td><code>30d</code></td><td>How long replaced versions stay in <code>.tern/history</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="notes" aria-labelledby="notes-title">
+      <h2 id="notes-title">Before you rely on it</h2>
+      <div class="note note--warn" role="note">
+        <p class="note__label">Warning</p>
+        <p>Sync is not a backup. Delete a file on one machine and it's deleted on all of them. Tern keeps old versions for 30 days, but keep a real backup too.</p>
+      </div>
+      <div class="note note--tip" role="note">
+        <p class="note__label">Tip</p>
+        <p>If both machines change the same file while apart, Tern keeps both and names the other one <code>report (from studio-mac).md</code>. Nothing is ever silently overwritten.</p>
+      </div>
+    </section>
+
+    <nav class="pager" aria-label="Previous and next page">
+      <a class="pager__prev" href="#content"><span>Previous</span>Introduction</a>
+      <a class="pager__next" href="#content"><span>Next</span>How Tern thinks</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="foot">
+  <p>Tern is free software under the MPL-2.0. <a href="#content">Edit this page</a> · <a href="#content">Report a problem</a></p>
+</footer>
+<script>
+  // On a phone the chapters start folded so the page comes first; without scripts they stay open.
+  if (!matchMedia('(min-width: 60rem)').matches) document.querySelector('.chapters details').open = false;
+</script>
+</body>
+</html>

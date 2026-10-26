@@ -123,7 +123,69 @@ export interface LikenessAsk {
   statement: string;
 }
 
+/** A website made here: imported, from a template, or written by an AI app. */
+export interface SiteSummary {
+  id: string;
+  title: string;
+  source: { kind: 'template' | 'figma' | 'pen' | 'url' | 'files' | 'empty'; from: string | null };
+  createdAt: string;
+  updatedAt: string;
+  reference: { file: string; width: number } | null;
+  notes: string[];
+  pages: string[];
+  files: number;
+  bytes: number;
+  /** Where its pages are served, framed only by the Studio. */
+  preview: string;
+}
+export interface SiteDetail extends SiteSummary {
+  fileList: Array<{ path: string; bytes: number }>;
+}
+export interface SiteTemplate {
+  id: string;
+  name: string;
+  for: string;
+  description: string;
+  sections: string[];
+  images: Array<{ file: string; aspect: string; prompt: string }>;
+  type: { display: string; text: string };
+  pages: string[];
+}
+export interface SiteToken {
+  name: string;
+  value: string;
+  dark: boolean;
+  file: string;
+}
+export type NewSite =
+  | { from: 'empty'; title: string }
+  | { from: 'template'; template: string; title?: string }
+  | { from: 'figma'; url: string; title?: string }
+  | { from: 'pen'; pen: string; images?: Record<string, string>; title?: string }
+  | { from: 'url'; url: string; title?: string }
+  | { from: 'zip'; data: string; title: string };
+
 export const api = {
+  sites: () =>
+    call<{
+      sites: SiteSummary[];
+      templates: SiteTemplate[];
+      figma: { linked: boolean };
+      urlImport: boolean;
+    }>('GET', '/api/sites'),
+  site: (id: string) => call<SiteDetail>('GET', `/api/sites/${id}`),
+  createSite: (body: NewSite) => call<SiteDetail>('POST', '/api/sites', body),
+  renameSite: (id: string, title: string) => call<SiteDetail>('PATCH', `/api/sites/${id}`, { title }),
+  deleteSite: (id: string) => call<{ ok: true }>('DELETE', `/api/sites/${id}`),
+  figmaToken: (token: string) =>
+    call<{ linked: boolean; as: string | null }>('PUT', '/api/sites/figma-token', { token }),
+  figmaUnlink: () => call<{ linked: boolean }>('DELETE', '/api/sites/figma-token'),
+  siteTokens: (id: string) => call<{ tokens: SiteToken[] }>('GET', `/api/sites/${id}/tokens`),
+  setSiteToken: (id: string, t: { name: string; value: string; dark: boolean; file: string }) =>
+    call<{ tokens: SiteToken[] }>('POST', `/api/sites/${id}/tokens`, t),
+  siteText: (id: string, page: string, from: string, to: string) =>
+    call<SiteDetail>('POST', `/api/sites/${id}/text`, { page, from, to }),
+
   snapshot: () => call<Snapshot>('GET', '/api/snapshot'),
   catalog: () => call<Catalog>('GET', '/api/catalog'),
   createProject: (title?: string) => call<Project>('POST', '/api/projects', { title }),

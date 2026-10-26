@@ -1,0 +1,19 @@
+{
+  "name": "Practice",
+  "for": "a clinic, dental or physio practice, vet, therapist or any appointment-led service",
+  "description": "Calm, large and easy to act on: how to book (phone first) and today's hours in the first screen, what the practice treats, what a first visit is like step by step, insurance taken and the fees for those without, and what to do out of hours. Built for older eyes and shaky thumbs.",
+  "sections": [
+    "Header with the phone number",
+    "Book, with today's hours",
+    "What we treat",
+    "Your first visit",
+    "Insurance and fees",
+    "Out of hours",
+    "Footer"
+  ],
+  "images": [],
+  "type": {
+    "display": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+  }
+}

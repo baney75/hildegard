@@ -14,6 +14,7 @@ import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
+import { Sites } from './pages/Sites.tsx';
 import { Voice } from './pages/Voice.tsx';
 import { ConsentPhone } from './pages/voice/ConsentPhone.tsx';
 import { Welcome } from './pages/Welcome.tsx';
@@ -22,6 +23,7 @@ const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
   { to: '/voice', match: /^\/voice/, label: 'Voice', icon: 'voice' },
   { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
+  { to: '/sites', match: /^\/sites/, label: 'Sites', icon: 'desktop' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
@@ -98,8 +100,8 @@ export function App() {
     projects.size === 0 &&
     !models.some((m) => m.installed || m.downloading) &&
     !engine?.fake;
-  // Linked AI apps and voices run on the computer Hildegard runs on: the owner's.
-  const nav = isOwner(auth) ? NAV : NAV.filter((n) => n.to !== '/agents' && n.to !== '/voice');
+  // Linked AI apps, voices and sites live on the computer Hildegard runs on: the owner's.
+  const nav = isOwner(auth) ? NAV : NAV.filter((n) => !['/agents', '/voice', '/sites'].includes(n.to));
   if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
 
   const parts = route.split('/').filter(Boolean);
@@ -107,6 +109,8 @@ export function App() {
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
+  else if (parts[0] === 'sites' && isOwner(auth))
+    page = <Sites wc={wc} go={go} siteParam={parts[1] ?? null} />;
   else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;

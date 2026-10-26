@@ -53,23 +53,48 @@ has, the phone layout, images, states, themes) from the sheet, one change a roun
 Send a single page as text, or a site as a folder or a ZIP (up to five pages are checked per round). When it passes,
 port it to your framework and send the built site once more, so the port can't change what you approved.
 
+### Sites: imports, templates and the canvas
+
+A site is a folder of HTML, CSS and pictures that Hildegard keeps for you, so the Studio, the CLI and every linked AI
+app work on the same files. Start one from **Sites** in the Studio, `hildegard sites new`, or the `site_new` tool:
+
+- **A template.** Eight finished sites to start from: Hearth (a bakery or café), Atelier (an architecture or design
+  studio), Ledger (a software product with pricing), Practice (a clinic or appointment-led service), Gathering (a
+  conference or festival), Parish (a parish or congregation), Manual (documentation) and Journal (a long-form essay or
+  newsletter). Each passes every web check, in light and dark, at every width, and is tested to keep passing. Each
+  names its pictures with a prompt and an aspect, so your GPU can render real ones. The templates are Apache-2.0.
+- **Figma.** Paste a link to a file or a frame. Frames become pages, auto layout becomes flex, colour and text styles
+  become tokens (light and dark), vectors become SVG, and a render of each frame is kept as the design to hold the
+  site to. Link Figma once with a personal access token (`hildegard figma token`, or the Studio); it stays in the
+  keychain and only ever goes to api.figma.com.
+- **pen.dev.** A `.pen` file comes in the same way: frames, components and their instances, variables and themes.
+- **A web page.** Hildegard opens a public address in its own browser, keeps the words, styles and pictures, drops
+  the scripts, and keeps a screenshot to rebuild against. Private and tailnet addresses are refused.
+- **A ZIP or a folder**, or nothing at all.
+
+The **canvas** shows a site's pages live at phone, tablet and desktop width side by side. Click anything to see what
+it is and how it's styled; change its words in place; change a design token (a colour, a size) and every frame
+changes at once while the stylesheet is saved. When an AI app writes to the site, the frames reload. A web loop
+started with `site_id` is checked against the imported design as well as the web checks, so "make it match the
+Figma" is something Hildegard measures, not something an app claims.
+
 ### Against pen.dev
 
-[pen.dev](https://pen.dev) is a good agentic design canvas: designs in an open JSON format (`.pen`) that
-agents edit over MCP, with Figma import and export to HTML and React. As of October 2026 it's closed source, the free
-tier has a monthly allowance of agent days and image generations, the paid plans are monthly subscriptions, and the
-design and the code it exports are two things that can drift apart.
+[pen.dev](https://pen.dev) is a good agentic design canvas: designs in an open JSON format (`.pen`) that agents edit
+over MCP, with Figma import and export to HTML and React. As of October 2026 it's closed source, free during early
+access, and the design and the code it exports are two things that can drift apart.
 
 Hildegard takes the other road:
 
 | | Hildegard | pen.dev |
 | --- | --- | --- |
-| What you design in | the real HTML and CSS that ships | a canvas file, exported to code |
-| How it's checked | every page rendered at three widths, light and dark, and audited (accessibility, layout, copy, weight, offline) each round | by eye on the canvas |
-| Images | made on your own GPUs, as many as you like | a monthly allowance |
+| What you design in | the real HTML and CSS that ships, on a live canvas at three widths | a canvas file, exported to code |
+| Imports | Figma, `.pen` files, live web pages, ZIPs and folders | Figma |
+| How it's checked | every page rendered at three widths, light and dark, and audited (accessibility, layout, copy, weight, offline) each round, and held to the imported design | by eye on the canvas |
+| Images | made on your own GPUs, as many as you like | through its own service |
 | Where it runs | your own computers; any AI app or model, local ones included | its desktop app and services |
-| Cost | free | free tier, then monthly plans |
-| Source | AGPL-3.0, yours to read and change | closed |
+| Cost | free | free during early access |
+| Source | AGPL-3.0 (templates Apache-2.0), yours to read and change | closed |
 
-What pen.dev has that Hildegard doesn't yet: a visual canvas you can drag things around on, and Figma import. If you
-work visually, use both: design there, export, and send the export through Hildegard's loop before it ships.
+What pen.dev still has that Hildegard doesn't: dragging boxes around freely on the canvas. On Hildegard's canvas you
+pick, read and retune; layout changes go through an AI app, and every one of them is checked.

@@ -1,0 +1,21 @@
+{
+  "name": "Manual",
+  "for": "documentation for a tool, library, API, product or house handbook",
+  "description": "A docs page people can actually work from: a sidebar of chapters (a disclosure on a phone), the page's own contents, an install step in a code block with its output, callouts for notes and warnings, an options table that scrolls inside itself on a phone, and previous and next links. Plain sans for reading, a monospace for code; dark mode is the terminal at night.",
+  "sections": [
+    "Header with search",
+    "Chapters sidebar",
+    "Title and summary",
+    "Install",
+    "First run",
+    "Options table",
+    "Callouts",
+    "Previous and next",
+    "Footer"
+  ],
+  "images": [],
+  "type": {
+    "display": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+  }
+}
