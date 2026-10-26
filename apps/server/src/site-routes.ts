@@ -452,7 +452,7 @@ export function siteRoutes(d: SiteRouteDeps) {
           'many',
           'Those words are in the page more than once. Change them in the file.',
         );
-      sites.write(id, b.page, html.replace(hit[0]!.f, esc(b.to)));
+      sites.write(id, b.page, html.replace(hit[0]!.f, () => esc(b.to)));
       return view(id);
     }),
   );
@@ -466,6 +466,25 @@ export const PREVIEW_CSP =
 /** /preview/<id>/<key>/<path>: a site's file, for the canvas and for opening a page in a browser tab. */
 export function previewRoutes(sites: Sites) {
   const app = new Hono<HgEnv>();
+  const send = (data: Uint8Array, rel: string) =>
+    new Response(new Uint8Array(data), {
+      headers: {
+        'content-type': TYPES[`.${rel.split('.').pop()!.toLowerCase()}`] ?? 'application/octet-stream',
+        'cache-control': 'no-store',
+        'content-security-policy': PREVIEW_CSP,
+      },
+    });
+  // The templates, for the Studio's gallery to show them live. They're the same files the skill ships, so no secret.
+  app.get('/template/:tid/*', (c) => {
+    let rel = decodeURIComponent(c.req.path.split('/').slice(4).join('/'));
+    if (rel === '' || rel.endsWith('/')) rel += 'index.html';
+    try {
+      const data = templateFiles(c.req.param('tid')).get(rel);
+      return data ? send(data, rel) : c.body(null, 404);
+    } catch {
+      return c.body(null, 404);
+    }
+  });
   app.get('/:id/:key/*', (c) => {
     const id = c.req.param('id');
     const key = c.req.param('key');
@@ -490,22 +509,14 @@ export function previewRoutes(sites: Sites) {
     } catch {
       return c.body(null, 404);
     }
-    const ext = rel.split('.').pop()!.toLowerCase();
-    const type = TYPES[`.${ext}`] ?? 'application/octet-stream';
-    if (ext === 'html' && c.req.query('canvas') === '1') {
+    if (/\.html?$/i.test(rel) && c.req.query('canvas') === '1') {
       const tag = `<script src="/preview/${id}/${key}/.hildegard/canvas.js"></script>`;
       const html = data.toString('utf8');
       data = Buffer.from(
         /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${tag}</body>`) : html + tag,
       );
     }
-    return new Response(new Uint8Array(data), {
-      headers: {
-        'content-type': type,
-        'cache-control': 'no-store',
-        'content-security-policy': PREVIEW_CSP,
-      },
-    });
+    return send(data, rel);
   });
   return app;
 }
