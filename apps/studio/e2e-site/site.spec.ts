@@ -188,3 +188,30 @@ test('search engines read the same answers people do', async ({ page }) => {
   for (const state of await page.locator('.room__state').allTextContents())
     expect(['Ready', 'With your AI app', 'Coming']).toContain(state);
 });
+
+// A broken link preview fails silently on X and everywhere else, so the share tags are checked here.
+test('has a full link preview for X and Open Graph', async ({ page }) => {
+  await page.goto('/index.html');
+  const meta = (key: string) =>
+    page.locator(`meta[property="${key}"], meta[name="${key}"]`).first().getAttribute('content');
+  expect(await meta('twitter:card')).toBe('summary_large_image');
+  const image = (await meta('og:image'))!;
+  expect(await meta('twitter:image')).toBe(image);
+  expect(image).toMatch(/^https:\/\/dbaney\.com\/hildegard\/img\/og\.jpg\?v=\d+$/);
+  for (const key of ['og:title', 'og:description', 'og:image:alt', 'twitter:title', 'twitter:description'])
+    expect((await meta(key))?.length, key).toBeGreaterThan(20);
+  expect((await meta('twitter:title'))!.length).toBeLessThanOrEqual(70);
+  expect((await meta('twitter:description'))!.length).toBeLessThanOrEqual(200);
+  // The card itself: the size the tags promise, and small enough for every site that fetches it.
+  const res = await page.request.get('/img/og.jpg');
+  expect(res.headers()['content-type']).toContain('image/jpeg');
+  const body = await res.body();
+  expect(body.length).toBeLessThan(300_000);
+  const size = await page.evaluate(async () => {
+    const img = new Image();
+    img.src = 'img/og.jpg';
+    await img.decode();
+    return [img.naturalWidth, img.naturalHeight];
+  });
+  expect(size).toEqual([Number(await meta('og:image:width')), Number(await meta('og:image:height'))]);
+});

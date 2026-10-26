@@ -36,6 +36,10 @@ path is relative, so it works from any folder, such as `https://dbaney.com/hilde
 - `node scripts/site-images.mjs` renders `img/og.jpg` (the link preview) and `brand/social-preview.jpg` (the GitHub
   repository's, uploaded by hand in Settings › Social preview); `node scripts/app-icons.mjs` renders
   `favicon.svg` and `img/apple-touch-icon.png` from `brand/app-icons/`, with the app's own icons.
+- X keeps a link's card for days by its image address, so after re-rendering `img/og.jpg` raise the `?v=` on
+  `og:image`, `og:image:secure_url` and `twitter:image` in `index.html`. X shows the image alone with the site's name
+  over its bottom-left corner, so the card carries the whole message and keeps that corner clear. Check it with
+  [opengraph.xyz](https://www.opengraph.xyz/) after it deploys.
 - `pnpm --filter @hildegard/studio e2e:site` checks it in both themes, on desktop and a 360 px phone: no sideways
   scroll, accessibility (axe), the OS tabs and the copy buttons. Set `SITE_SHOTS=<folder>` to save screenshots.
 

@@ -14,8 +14,19 @@ const site = join(root, 'site');
 const { chromium } = createRequire(join(root, 'apps', 'studio', 'package.json'))('@playwright/test');
 const base = '<!doctype html><meta charset="utf-8">';
 
-// The card: the headline on the left, three real frames from the work on the right. `w` and `h` set its size, so one
-// design makes both the page's link preview (1200 by 630) and the GitHub repository's social preview (1280 by 640).
+// The card: the headline on the left, six real frames from the work on the right, like a contact sheet. X shows the
+// image alone with the site's name over its bottom-left corner, so the image carries the whole message, keeps that
+// corner clear, and keeps its words 48 px from the top and bottom edges, which X and others may crop. `w` and `h` set
+// its size, so one design makes both the page's link preview (1200 by 630) and the GitHub repository's social preview
+// (1280 by 640).
+const FRAMES = [
+  'illuminator-quill',
+  'neon-raincoat',
+  'lighthouse-keeper',
+  'caravan-dune',
+  'golden-hour-sea-stack',
+  'lighthouse-headland',
+];
 const card = (w, h) => `${base}<style>
 @font-face { font-family: "Cormorant Garamond"; src: url("fonts/CormorantGaramond-500.woff2"); font-weight: 500; }
 @font-face { font-family: "Cormorant Garamond"; src: url("fonts/CormorantGaramond-500-Italic.woff2"); font-weight: 500; font-style: italic; }
@@ -24,25 +35,31 @@ const card = (w, h) => `${base}<style>
 html, body { margin: 0; width: ${w}px; height: ${h}px; overflow: hidden; }
 body {
   position: relative; background: #0a0e13; color: #f2ecdd; font-family: "Hildegard Sans", sans-serif;
-  background-image: radial-gradient(50% 70% at 86% 42%, #15265acc, transparent 70%),
-    radial-gradient(40% 60% at 4% 0%, #12301fcc, transparent 70%);
+  background-image: radial-gradient(55% 80% at 84% 50%, #1a2c63bb, transparent 70%),
+    radial-gradient(45% 60% at 0% 0%, #12301fcc, transparent 70%);
 }
-.lock { position: absolute; left: 80px; top: 70px; height: 44px; }
-h1 { position: absolute; left: 76px; top: 150px; margin: 0; width: 700px; font: 500 78px/82px "Cormorant Garamond", serif; letter-spacing: -.01em; }
+.text { position: absolute; left: 72px; top: 0; bottom: 0; width: 600px; display: flex; flex-direction: column; justify-content: center; padding-bottom: 40px; }
+.lock { height: 42px; align-self: flex-start; margin-bottom: 30px; }
+h1 { margin: 0; white-space: nowrap; font: 500 76px/80px "Cormorant Garamond", serif; letter-spacing: -.015em; }
 h1 em { display: block; color: #e6c473; font-style: italic; }
-p { position: absolute; left: 80px; top: ${h - 196}px; margin: 0; width: 560px; font-size: 26px; line-height: 34px; color: #bcb6a6; }
-.url { position: absolute; left: 80px; bottom: 50px; font: 400 20px "DM Mono", monospace; color: #97968c; }
-.reel { position: absolute; right: 36px; top: -70px; width: ${w - 790}px; display: grid; gap: 14px; transform: rotate(-3deg); }
-.reel img { display: block; width: 100%; aspect-ratio: 1248 / 704; object-fit: cover; border-radius: 10px; box-shadow: 0 0 0 1px #e9dfc624, 0 24px 60px -20px #000; }
-.reel img:nth-child(2) { margin-left: -48px; }
-.fade { position: absolute; inset: 0; background: linear-gradient(90deg, #0a0e13 0, #0a0e13 600px, transparent 720px); pointer-events: none; }
+p { margin: 24px 0 0; font-size: 28px; line-height: 36px; color: #c9c3b2; width: 520px; }
+ul { display: flex; gap: 10px; margin: 30px 0 0; padding: 0; list-style: none; }
+li { font: 400 18px "DM Mono", monospace; color: #e9e2cf; padding: 9px 14px; border-radius: 999px; background: #f2ecdd12; box-shadow: inset 0 0 0 1px #e9dfc633; }
+li b { color: #e6c473; font-weight: 400; }
+.sheet { position: absolute; right: 40px; top: 50%; width: ${w - 752}px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; transform: translateY(-54%) rotate(-4deg); }
+.sheet img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; box-shadow: 0 0 0 1px #e9dfc62e, 0 22px 50px -22px #000; }
+.sheet img:nth-child(even) { transform: translateY(26px); }
+.note { position: absolute; right: 56px; bottom: 48px; font: 400 17px "DM Mono", monospace; color: #a7a596; }
+.note b { color: #f2ecdd; font-weight: 400; }
 </style>
-<div class="reel"><img src="img/work/illuminator-quill.webp" alt=""><img src="img/work/neon-raincoat.webp" alt=""><img src="img/work/caravan-dune.webp" alt=""></div>
-<div class="fade"></div>
+<div class="sheet">${FRAMES.map((f) => `<img src="img/work/${f}.webp" alt="">`).join('')}</div>
+<div class="text">
 <img class="lock" src="img/lockup-horizontal-vellum.svg" alt="">
 <h1>Your own AI studio, <em>on your own GPU.</em></h1>
-<p>Films, voices, characters and 3D, made on computers you own. Free and open source.</p>
-<span class="url">dbaney.com/hildegard</span>`;
+<p>Films, voices, characters and 3D, made on computers you own.</p>
+<ul><li><b>$0</b> per shot</li><li>Private</li><li>Open source</li></ul>
+</div>
+<span class="note">Real takes · <b>one 12 GB laptop GPU</b></span>`;
 
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {},
