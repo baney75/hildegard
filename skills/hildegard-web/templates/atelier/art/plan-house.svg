@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-labelledby="t"><title id="t">Plan drawing of the Hollin House</title>
+<rect width="400" height="300" fill="#ebe8e1"/>
+<g fill="none" stroke="#1a1a1a" stroke-width="3"><path d="M60 70h280v160H60z"/><path d="M60 150h120M180 70v160M260 150v80M260 150h80"/></g>
+<g fill="none" stroke="#1a1a1a" stroke-width="1"><path d="M90 70v-8M120 70v-8M150 70v-8M210 230v8M240 230v8"/><path d="M200 230a30 30 0 0 1 30-30"/><circle cx="120" cy="110" r="18"/><path d="M200 100h40v30h-40z"/></g>
+<path d="M300 70l40 -30" stroke="#d1301e" stroke-width="2"/><text x="20" y="285" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a1a">HOLLIN HOUSE · GROUND FLOOR · 1:200</text>
+</svg>
