@@ -13,6 +13,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { buildOmarchy } from './build-omarchy.mjs';
 import { packSkills } from './pack-skills.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -179,7 +180,10 @@ cpSync(join(root, 'site'), join(out, 'site'), { recursive: true, filter: (s) => 
 // ChatGPT).
 const packed = packSkills(out, version).map((f) => basename(f));
 
+// The Omarchy plugin, carrying this release's install.sh, for baney75/omarchy-hildegard to follow.
+const omarchy = basename(buildOmarchy(join(out, 'install.sh'), out).archive);
+
 const lines = Object.entries(sums).map(([t, s]) => `${s}  hildegard-${version}-${t}.tar.gz`);
-for (const s of ['install.sh', 'install.ps1', ...packed]) lines.push(`${sha(join(out, s))}  ${s}`);
+for (const s of ['install.sh', 'install.ps1', omarchy, ...packed]) lines.push(`${sha(join(out, s))}  ${s}`);
 writeFileSync(join(out, 'SHA256SUMS'), `${lines.join('\n')}\n`);
 console.log(`Hildegard ${version} release in ${out}:\n${lines.join('\n')}`);
