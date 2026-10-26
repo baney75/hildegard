@@ -116,6 +116,18 @@ export function loopRoutes(d: LoopRouteDeps) {
       };
     }, 201),
   );
+  app.put(
+    '/:id/reference',
+    go(async (c) => {
+      const l = loops.get(c.req.param('id') ?? '');
+      if (Number(c.req.header('content-length') ?? 0) > 40 * 1024 * 1024)
+        throw new LoopError(413, 'size', 'The design’s image up to 40 MB.');
+      const bytes = new Uint8Array(await c.req.arrayBuffer());
+      return loopView(
+        loops.setReference(l.id, bytes, Number(c.req.query('width')), c.req.query('page') || undefined),
+      );
+    }),
+  );
   app.post(
     '/:id/rounds/:n/critique',
     go(async (c) => {
@@ -146,7 +158,8 @@ export function loopRoutes(d: LoopRouteDeps) {
   );
   app.get('/:id/files/:name', (c) => {
     const name = c.req.param('name');
-    if (!/^round-\d{1,2}(\.sheet|\.handoff)?\.[a-z0-9]{2,5}$/.test(name)) return c.body(null, 404);
+    if (!/^(round-\d{1,2}(\.sheet|\.handoff)?\.[a-z0-9]{2,5}|reference\.(png|jpg))$/.test(name))
+      return c.body(null, 404);
     const file = loops.file(c.req.param('id'), name);
     if (!file) return c.body(null, 404);
     if (name.endsWith('.handoff.html')) {

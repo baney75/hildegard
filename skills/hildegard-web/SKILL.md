@@ -13,6 +13,27 @@ design and what ships.
 
 Read **hildegard-craft** first (the brief and the gates), and **hildegard-loop** for the rounds.
 
+## 0. Start from something good
+
+Work in a **site** (`site_new`), so your user sees it live on the Studio's canvas at three widths while you write,
+and can retune its words and tokens themselves. Start it from:
+
+- **A template** when one fits (`site_templates` lists them; each is in `templates/` beside this skill): Hearth
+  (bakery, café, shop), Atelier (architecture or design studio), Ledger (software product with pricing), Practice
+  (clinic, appointment-led service), Gathering (conference, festival), Parish (parish, congregation), Manual
+  (documentation), Journal (long-form essay, newsletter). Each already passes every check. Replace every word with
+  the real ones first; its `template.json` gives each picture's aspect and a prompt to render it on your user's GPUs.
+  Keep the system (the tokens) unless the brand says otherwise, and keep what makes it pass.
+- **Their Figma** (`from: "figma"`, a file or frame link) or **pen.dev file** (`from: "pen"`): the import writes
+  semantic HTML and CSS with the styles as tokens and keeps a render of each frame. Read the site's notes: they say
+  what the import couldn't carry over. Then improve the markup (real headings, real buttons, real copy) without
+  changing the look.
+- **Their current site** (`from: "url"`): a redesign starts from what's there, with a screenshot of it kept.
+
+Read files with `site_files` and `site_read`; write with `site_write`. Start the loop with `site_id` (and no
+`file_path`): each round checks the site as it stands, and an imported site is held to its design image too, so
+"matches the Figma" is measured, not claimed. `site_tokens` lists and sets the system; `site_export` hands over a ZIP.
+
 ## 1. Brief and words before layout
 
 Ask, then write it down:

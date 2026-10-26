@@ -1,0 +1,71 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Sites: the gallery of sites and templates, and the canvas of live frames. */
+
+.sc-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.sc-card { display: grid; align-content: start; gap: 10px; padding: 10px 10px 14px; border-radius: 16px; background: var(--panel); border: 1px solid var(--hairline); color: inherit; text-decoration: none; }
+a.sc-card:hover, .sc-card--tpl:hover { border-color: var(--border-control); }
+a.sc-card:focus-visible { outline: var(--stroke-focus) solid var(--focus-ring); outline-offset: 2px; }
+.sc-card__t { display: grid; gap: 2px; padding-inline: 4px; }
+.sc-card__t b { font-weight: 600; }
+.sc-card > p { margin: 0; padding-inline: 4px; }
+.sc-card__acts { display: flex; gap: 8px; padding-inline: 4px; }
+.sc-thumb { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 10px; background: var(--canvas); border: 1px solid var(--hairline); }
+.sc-thumb iframe { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
+
+.sc-stage { overflow: auto; background: color-mix(in oklab, var(--canvas), var(--text-primary) 4%); }
+.sc-frames { display: flex; align-items: flex-start; gap: 28px; padding: 24px 28px 40px; width: max-content; min-width: 100%; }
+.sc-frame { margin: 0; display: grid; gap: 8px; }
+.sc-frame figcaption { display: flex; align-items: center; gap: 6px; font: 600 12px/16px var(--font-sans); color: var(--text-secondary); }
+.sc-frame__box { position: relative; overflow: hidden; border-radius: 10px; background: #fff; box-shadow: var(--shadow-1); outline: 1px solid var(--hairline); }
+.sc-frame[data-picked] .sc-frame__box { outline: 2px solid var(--brand-text); }
+.sc-frame iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: #fff; }
+.hg-app[data-wc="compact"] .sc-frames, .hg-app[data-wc="medium"] .sc-frames { justify-content: center; padding: 16px; }
+
+.sc-pagepick select { height: 36px; max-width: 180px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--border-control); background: var(--panel); color: var(--text-primary); font: inherit; font-size: 14px; }
+
+.sc-panel .cs-insp__body { display: grid; align-content: start; gap: 16px; padding: 16px 18px 28px; }
+.sc-panel__h { display: flex; align-items: center; gap: 8px; }
+.sc-panel__h .hg-seg { flex: 1; }
+.sc-hint { margin: 0; }
+.sc-el { display: grid; gap: 12px; }
+.sc-el__tag { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.sc-el__tag code { font: 500 14px/20px var(--font-mono); color: var(--brand-text); overflow-wrap: anywhere; }
+.sc-el__path { margin: 0; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.sc-el textarea { width: 100%; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-control); background: var(--canvas); color: var(--text-primary); font: 400 15px/1.5 var(--font-sans); resize: vertical; }
+.sc-el textarea:focus { outline: var(--stroke-focus) solid var(--focus-ring); outline-offset: 1px; }
+.sc-el__acts { display: flex; justify-content: flex-end; }
+.sc-styles { margin: 0; display: grid; gap: 0; font-size: 13px; }
+.sc-styles > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--hairline); }
+.sc-styles dt { color: var(--text-secondary); }
+.sc-styles dd { margin: 0; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sc-styles code { font: 12px/18px var(--font-mono); overflow-wrap: anywhere; }
+.sc-swatch { flex: none; width: 18px; height: 18px; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text-primary), transparent 80%); }
+.sc-swatch--none { background: repeating-linear-gradient(45deg, var(--hairline) 0 3px, transparent 3px 6px); }
+
+.sc-tokens { display: grid; gap: 16px; }
+.sc-tokens section { display: grid; gap: 6px; }
+.sc-tokens h3 { margin: 0; }
+.sc-tokens ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.sc-token { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--hairline); }
+.sc-token input[type="color"] { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; }
+.sc-token input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.sc-token input[type="color"]::-webkit-color-swatch { border: 1px solid var(--hairline); border-radius: 8px; }
+.sc-token .sc-swatch { width: 32px; height: 32px; border-radius: 8px; }
+.sc-token label { display: grid; gap: 2px; min-width: 0; }
+.sc-token__n { font: 500 12px/16px var(--font-mono); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-token label input { width: 100%; height: 32px; padding: 0 8px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--text-primary); font: 13px/1 var(--font-mono); }
+.sc-token label input:hover { border-color: var(--hairline); }
+.sc-token label input:focus { border-color: var(--border-control); background: var(--canvas); outline: var(--stroke-focus) solid var(--focus-ring); outline-offset: 1px; }
+
+.sc-about { display: grid; gap: 18px; }
+.sc-about section { display: grid; gap: 8px; justify-items: start; }
+.sc-about h3 { margin: 0; }
+.sc-ref { margin: 0; display: grid; gap: 6px; }
+.sc-ref img { width: 100%; height: auto; max-height: 420px; object-fit: cover; object-position: top; border-radius: 10px; border: 1px solid var(--hairline); }
+.sc-notes { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; color: var(--text-secondary); }
+.sc-ask { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--hairline); }
+
+.sc-new { width: min(560px, calc(100vw - 32px)); }
+.sc-new .hg-seg { justify-self: start; max-width: 100%; overflow-x: auto; }
+.sc-panel code { padding: 0; border: 0; border-radius: 0; background: none; }
+.sc-panel h3 { font: 600 12px/16px var(--font-sans); letter-spacing: 0; color: var(--text-secondary); }

@@ -118,6 +118,40 @@ export function registerLoopTools(
           .boolean()
           .optional()
           .describe('Web: the brief asks for a dark theme that follows the visitor’s setting.'),
+        site_id: z
+          .string()
+          .max(40)
+          .optional()
+          .describe(
+            'Web: a site Hildegard keeps (site_new). If it came with an image of its design (a Figma import, a live site’s screenshot), every round is compared with it.',
+          ),
+        ...(remote
+          ? {}
+          : {
+              reference_path: z
+                .string()
+                .optional()
+                .describe('Web: a PNG or JPEG of the design on this computer, to hold every round to.'),
+            }),
+        reference_data: z
+          .string()
+          .max(60_000_000)
+          .optional()
+          .describe('Web: a PNG or JPEG of the design, as base64, to hold every round to.'),
+        reference_width: z
+          .number()
+          .int()
+          .min(320)
+          .max(3840)
+          .optional()
+          .describe(
+            'Web: the width the design image was drawn at, such as 1440. Needed with reference_path or reference_data.',
+          ),
+        reference_page: z
+          .string()
+          .max(200)
+          .optional()
+          .describe('Web: the page the design is of. Default the first page checked.'),
         fits: z
           .array(z.object({ a: z.string(), b: z.string(), kind: fitKind }))
           .max(40)
@@ -226,22 +260,42 @@ export function registerLoopTools(
           },
         },
       });
+      let held = '';
+      const refPath = (a as { reference_path?: string }).reference_path;
+      if (a.kind === 'web' && (refPath || a.reference_data)) {
+        if (!a.reference_width)
+          throw new HildegardError(422, 'Give reference_width: the width the design image was drawn at.');
+        const bytes = refPath
+          ? await readFile(refPath)
+          : Buffer.from(a.reference_data!.replace(/^data:[\w/+.-]+;base64,/, ''), 'base64');
+        await client.setLoopReference(l.id, bytes, a.reference_width, a.reference_page);
+        held = ` Every round is compared with the design image at ${a.reference_width} px.`;
+      } else if (a.kind === 'web' && a.site_id) {
+        const site = await client.site(a.site_id);
+        const bytes = site.reference ? await client.siteReference(site.id) : null;
+        if (bytes && site.reference) {
+          await client.setLoopReference(l.id, bytes, site.reference.width, a.reference_page);
+          held = ` Every round is compared with the site’s design image at ${site.reference.width} px.`;
+        }
+      }
       const how =
         a.kind === 'model'
           ? remote
             ? 'Send each round with loop_submit as text (OBJ, ASCII STL or glTF JSON) or data (base64 GLB, STL or PLY).'
             : 'Send each round with loop_submit: file_path to the GLB, STL, OBJ or PLY you exported, or text or data.'
           : a.kind === 'web'
-            ? remote
-              ? 'Send each round with loop_submit: text (one HTML page with its CSS inline) or data (base64 ZIP of the site, with its images and fonts).'
-              : 'Send each round with loop_submit: file_path to the HTML page or to the site’s folder (or a ZIP of it), or text for one page.'
+            ? a.site_id
+              ? `Send each round with loop_submit site_id "${a.site_id}" after changing its files with site_write.`
+              : remote
+                ? 'Send each round with loop_submit: text (one HTML page with its CSS inline) or data (base64 ZIP of the site, with its images and fonts).'
+                : 'Send each round with loop_submit: file_path to the HTML page or to the site’s folder (or a ZIP of it), or text for one page.'
             : a.kind === 'video'
               ? 'Send each round with loop_submit: take_id for a take Hildegard rendered, or the file.'
               : a.kind === 'image'
                 ? 'Send each round with loop_submit: still_id for a still Hildegard drew, or the file.'
                 : 'Send each round with loop_submit: the file.';
       return text(
-        `Loop ${l.id} started: “${l.title}”, ${l.kind}, at most ${l.maxRounds} rounds. ${how}\nAfter each round, look at what comes back and answer these with loop_critique:\n${l.questions}`,
+        `Loop ${l.id} started: “${l.title}”, ${l.kind}, at most ${l.maxRounds} rounds.${held} ${how}\nAfter each round, look at what comes back and answer these with loop_critique:\n${l.questions}`,
       );
     }),
   );
@@ -250,7 +304,7 @@ export function registerLoopTools(
     'loop_submit',
     {
       title: 'Send a round',
-      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id or still_id' : 'file_path, text, data, take_id or still_id'}. The previous round must be critiqued first.`,
+      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id, still_id or site_id' : 'file_path, text, data, take_id, still_id or site_id'}. The previous round must be critiqued first.`,
       inputSchema: {
         loop_id: z.string().describe('The loop, from loop_start or loop_status.'),
         note: z
@@ -282,6 +336,11 @@ export function registerLoopTools(
           .describe('The file itself, as base64 (up to 100 MB this way).'),
         take_id: z.string().optional().describe('Video loop: a finished take Hildegard rendered.'),
         still_id: z.string().optional().describe('Image loop: a still Hildegard drew.'),
+        site_id: z
+          .string()
+          .max(40)
+          .optional()
+          .describe('Web loop: a site Hildegard keeps, as its files stand now.'),
       },
     },
     guard(
@@ -293,10 +352,16 @@ export function registerLoopTools(
         data?: string;
         take_id?: string;
         still_id?: string;
+        site_id?: string;
       }) => {
-        const given = [a.file_path, a.text, a.data, a.take_id, a.still_id].filter((x) => x !== undefined);
+        const given = [a.file_path, a.text, a.data, a.take_id, a.still_id, a.site_id].filter(
+          (x) => x !== undefined,
+        );
         if (given.length !== 1)
-          throw new HildegardError(422, 'Give exactly one of file_path, text, data, take_id or still_id.');
+          throw new HildegardError(
+            422,
+            'Give exactly one of file_path, text, data, take_id, still_id or site_id.',
+          );
         let bytes: Uint8Array | null = null;
         if (a.file_path) {
           if (remote)
@@ -324,6 +389,9 @@ export function registerLoopTools(
           if (!/^\w+$/.test(a.take_id)) throw new HildegardError(422, 'That isn’t a take id.');
           bytes = await client.bytes(`/media/${a.take_id}.mp4`);
           if (!bytes) throw new HildegardError(404, `Take ${a.take_id} has no finished video.`);
+        } else if (a.site_id) {
+          bytes = await client.siteZip(a.site_id);
+          if (!bytes) throw new HildegardError(404, `There’s no site ${a.site_id}.`);
         } else if (a.still_id) {
           if (!/^\w+$/.test(a.still_id)) throw new HildegardError(422, 'That isn’t a still id.');
           bytes = await client.bytes(`/media/stills/${a.still_id}.png`);

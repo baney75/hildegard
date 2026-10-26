@@ -73,7 +73,7 @@ import { type Choir, ChoirError } from './choir.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
-import type { HfLink } from './hf.ts';
+import type { HfLink, SecretStore } from './hf.ts';
 import { type Host, HostError } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
@@ -93,13 +93,15 @@ import {
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
+import { previewRoutes, type SiteRouteDeps, siteRoutes } from './site-routes.ts';
+import type { Sites } from './sites.ts';
 import type { Store } from './store.ts';
 import type { Updates } from './update.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
-export const VERSION = '0.1.7';
+export const VERSION = '0.1.8';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -185,6 +187,13 @@ export interface AppDeps {
   reports?: Reports;
   /** This computer's GPU, as people name it, for reports. */
   gpu?: string | null;
+  /** The owner's websites: templates, imports, files and previews. */
+  sites?: {
+    store: Sites;
+    secrets: (account: string) => SecretStore;
+    importUrl?: SiteRouteDeps['importUrl'];
+    figmaFetch?: SiteRouteDeps['figmaFetch'];
+  };
 }
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
@@ -282,9 +291,11 @@ export function createApp(deps: AppDeps) {
     await next();
     c.header('x-content-type-options', 'nosniff');
     c.header('referrer-policy', 'no-referrer');
-    c.header('x-frame-options', 'DENY');
+    // A site's preview is framed by the Studio's canvas, and its page (sandboxed, so of no origin) loads its own files.
+    const preview = c.req.path.startsWith('/preview/');
+    c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
-    c.header('cross-origin-resource-policy', 'same-origin');
+    c.header('cross-origin-resource-policy', preview ? 'cross-origin' : 'same-origin');
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
@@ -2119,6 +2130,21 @@ export function createApp(deps: AppDeps) {
         sendFile: (c, file, type) => sendFile(c, file, type, 'private, max-age=31536000, immutable'),
       }),
     );
+
+  // ── Sites ───────────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.sites) {
+    app.route(
+      '/api/sites',
+      siteRoutes({
+        sites: deps.sites.store,
+        ownerOnly,
+        secrets: deps.sites.secrets,
+        importUrl: deps.sites.importUrl,
+        figmaFetch: deps.sites.figmaFetch,
+      }),
+    );
+    app.route('/preview', previewRoutes(deps.sites.store));
+  }
 
   // ── The printer ─────────────────────────────────────────────────────────────────────────────────────────────
   if (deps.printer) {

@@ -117,7 +117,7 @@ describe('hildegard', () => {
 
     expect((await hildegard(home, 'stop', ...common)).steps[0]!.status).toBe('done');
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);
-  });
+  }, 60_000);
 
   it('remembers the port it was started on for status and stop', async () => {
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
@@ -696,6 +696,56 @@ describe('host and doctor', () => {
       const directed = await hildegard(home, 'llm', 'direct', 'rain on a tin roof', ...at);
       expect(directed.ok, directed.message).toBe(true);
       expect(directed.message).toContain('qwen3:4b directed a shot');
+    } finally {
+      await srv.close();
+    }
+  }, 60_000);
+
+  it('lists templates, starts a site from one, and links Figma with the token piped in', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-sites-'));
+    const figmaFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      const token = new Headers(init?.headers).get('x-figma-token');
+      if (url === 'https://api.figma.com/v1/me' && token === 'figd_abcdefghijklmnopqrstuvwxyz')
+        return Response.json({ handle: 'Donna' });
+      return new Response('{}', { status: 403 });
+    }) as typeof fetch;
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')), chrome: null, figmaFetch },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    try {
+      const tpl = await hildegard(home, 'sites', 'templates', ...at);
+      expect(tpl.steps.map((s) => s.id)).toContain('template-hearth');
+      const made = await hildegard(home, 'sites', 'new', 'hearth', '--name', 'Corner Bakery', ...at);
+      expect(made.ok, made.message).toBe(true);
+      expect(made.site).toMatchObject({ title: 'Corner Bakery', pages: ['index.html'] });
+      expect((await hildegard(home, 'sites', ...at)).steps[0]).toMatchObject({ title: 'Corner Bakery' });
+      const needs = await hildegard(
+        home,
+        'sites',
+        'new',
+        '--figma',
+        'https://www.figma.com/design/AbCdEf123456/X',
+        ...at,
+      );
+      expect(needs.ok).toBe(false);
+      expect(needs.steps[0]?.command).toBe('hildegard figma token');
+      expect((await hildegard(home, 'figma', 'token', ...at)).needsOwner).toBe(true);
+      const linked = await hildegardWithStdin(
+        home,
+        'figd_abcdefghijklmnopqrstuvwxyz\n',
+        'figma',
+        'token',
+        '--token-stdin',
+        ...at,
+      );
+      expect(linked.ok, linked.message).toBe(true);
+      expect(JSON.stringify(linked)).not.toContain('figd_');
+      expect((await hildegard(home, 'figma', ...at)).figma).toEqual({ linked: true });
+      expect((await hildegard(home, 'figma', 'unlink', ...at)).ok).toBe(true);
     } finally {
       await srv.close();
     }

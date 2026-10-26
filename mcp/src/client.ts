@@ -129,6 +129,41 @@ export interface CritiqueResult {
   next: string;
 }
 
+export interface SiteSummary {
+  id: string;
+  title: string;
+  source: { kind: string; from: string | null };
+  createdAt: string;
+  updatedAt: string;
+  pages: string[];
+  files: number;
+  bytes: number;
+  notes: string[];
+  reference: { file: string; width: number } | null;
+  /** The preview's path on the server: /preview/<id>/<key>/. */
+  preview: string;
+}
+export interface SiteDetail extends SiteSummary {
+  fileList: { path: string; bytes: number }[];
+}
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  for: string;
+  description: string;
+  sections: string[];
+  images: { file: string; aspect: string; prompt: string }[];
+  pages: string[];
+}
+export interface SiteToken {
+  name: string;
+  value: string;
+  dark: boolean;
+  file: string;
+}
+
+const filePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
+
 /** Talks to the Hildegard server on this computer, as the Studio does. */
 export class HildegardClient {
   readonly url: string;
@@ -230,6 +265,51 @@ export class HildegardClient {
     this.call<{ draft: Draft; filer: string | null }>('POST', '/api/report/draft', body);
   reportFile = (id: string, on?: number) =>
     this.call<{ draft: Draft }>('POST', '/api/report/file', { id, confirm: true, ...(on ? { on } : {}) });
+  /** Web: the image of the design every round is held to, drawn `width` pixels wide. */
+  setLoopReference = (id: string, bytes: Uint8Array, width: number, page?: string) =>
+    this.call<LoopDetail>(
+      'PUT',
+      `/api/loops/${encodeURIComponent(id)}/reference?width=${width}${page ? `&page=${encodeURIComponent(page)}` : ''}`,
+      undefined,
+      bytes,
+    );
+  // ── Sites ──
+  sites = () =>
+    this.call<{
+      sites: SiteSummary[];
+      templates: TemplateInfo[];
+      figma: { linked: boolean };
+      urlImport: boolean;
+    }>('GET', '/api/sites');
+  site = (id: string) => this.call<SiteDetail>('GET', `/api/sites/${encodeURIComponent(id)}`);
+  createSite = (body: Record<string, unknown>) => this.call<SiteDetail>('POST', '/api/sites', body);
+  writeSiteFile = (id: string, path: string, bytes: Uint8Array) =>
+    this.call<SiteSummary>(
+      'PUT',
+      `/api/sites/${encodeURIComponent(id)}/files/${filePath(path)}`,
+      undefined,
+      bytes,
+    );
+  deleteSiteFile = (id: string, path: string) =>
+    this.call<SiteSummary>('DELETE', `/api/sites/${encodeURIComponent(id)}/files/${filePath(path)}`);
+  siteTokens = (id: string) =>
+    this.call<{ tokens: SiteToken[] }>('GET', `/api/sites/${encodeURIComponent(id)}/tokens`);
+  setSiteToken = (id: string, body: { name: string; value: string; dark?: boolean }) =>
+    this.call<{ tokens: SiteToken[] }>('POST', `/api/sites/${encodeURIComponent(id)}/tokens`, body);
+  /** A file of a site's, as bytes. */
+  async siteFile(id: string, path: string): Promise<Uint8Array> {
+    const res = await this.fetchFn(
+      `${this.url}/api/sites/${encodeURIComponent(id)}/files/${filePath(path)}`,
+    ).catch(() => null);
+    if (!res) throw new HildegardError(0, `Hildegard is not running at ${this.url}.`);
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new HildegardError(res.status, data.error ?? `Hildegard answered ${res.status}`);
+    }
+    return new Uint8Array(await res.arrayBuffer());
+  }
+  siteZip = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/zip`);
+  siteReference = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/reference`);
   // ── The printer ──
   printer = () => this.call<PrinterInfo>('GET', '/api/printer');
   setPrinter = (body: Record<string, unknown>) => this.call<PrinterInfo>('PUT', '/api/printer', body);

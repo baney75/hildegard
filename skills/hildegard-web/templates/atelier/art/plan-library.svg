@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-labelledby="t">
+<!-- SPDX-License-Identifier: Apache-2.0 · Hildegard template "Atelier" placeholder art --><title id="t">Section drawing of the Wrenfield Library</title>
+<rect width="400" height="300" fill="#ebe8e1"/>
+<g fill="none" stroke="#1a1a1a" stroke-width="3"><path d="M40 240h320M60 240V110l80-50 80 50 80-50 40 25v155"/></g>
+<g fill="none" stroke="#1a1a1a" stroke-width="1"><path d="M80 240v-90h40v90M150 240v-110M170 240v-110M190 240v-110M240 240v-90h40v90"/><path d="M140 60v-20M300 60v-20"/></g>
+<g stroke="#d1301e" stroke-width="1.5"><path d="M110 40l30 20M270 40l30 20"/></g>
+<text x="20" y="285" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a1a">WRENFIELD LIBRARY · SECTION A–A · 1:100</text>
+</svg>

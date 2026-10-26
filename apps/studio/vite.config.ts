@@ -45,6 +45,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: server, headers: { host: '127.0.0.1' } },
       '/media': { target: server, headers: { host: '127.0.0.1' } },
+      '/preview': { target: server, headers: { host: '127.0.0.1' } },
     },
   },
 });

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Draft } from '@hildegard/mcp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { VERSION } from '../src/app.ts';
 import { parseArgs } from '../src/config.ts';
 import { FILE_LIMIT, type GhRunner, logTail, Reports } from '../src/report.ts';
 import { type Running, startServer } from '../src/server.ts';
@@ -127,7 +128,7 @@ describe('the report routes', () => {
     expect(res.status).toBe(200);
     const { draft, filer } = (await res.json()) as { draft: Draft; filer: string };
     expect(filer).toBe('baney75');
-    expect(draft.body).toContain('Hildegard: 0.1.7');
+    expect(draft.body).toContain(`Hildegard: ${VERSION}`);
     expect(draft.body).toContain('Engine: fake');
     expect(draft.body).toContain('Drafted by Claude Code');
     expect((await post('/api/report/file', { id: draft.id })).status).toBe(400);

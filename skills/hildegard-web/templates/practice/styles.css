@@ -1,0 +1,361 @@
+/* SPDX-License-Identifier: Apache-2.0 · Hildegard template "Practice" */
+
+:root {
+  color-scheme: light dark;
+  --ground: #f4f8f7;
+  --panel: #ffffff;
+  --tint: #e3efec;
+  --ink: #102624;
+  --ink-muted: #46605c;
+  --line: #10262422;
+  --accent: #0c6b5e;
+  --accent-ink: #0a5c51;
+  --on-accent: #ffffff;
+  --warn-ground: #fff3e0;
+  --warn-edge: #b35c00;
+  --focus: #0c6b5e;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --s0: 1.125rem;
+  --s1: 1.3rem;
+  --s2: clamp(1.6rem, 1.3rem + 1.2vw, 2.1rem);
+  --s3: clamp(2.1rem, 1.4rem + 3vw, 3.4rem);
+  --gutter: clamp(1.1rem, 4vw, 2.5rem);
+  --radius: 18px;
+  --duration: 160ms;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0c1514;
+    --panel: #12201e;
+    --tint: #152825;
+    --ink: #e6f2ef;
+    --ink-muted: #a6c0bb;
+    --line: #e6f2ef24;
+    --accent: #5cd0b9;
+    --accent-ink: #74dcc6;
+    --on-accent: #06201b;
+    --warn-ground: #2a1d0c;
+    --warn-edge: #f0a24a;
+    --focus: #74dcc6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0ms;
+  }
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: var(--s0) / 1.6 var(--font);
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: var(--s3);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+h2 {
+  font-size: var(--s2);
+  line-height: 1.15;
+}
+h3 {
+  font-size: var(--s1);
+  line-height: 1.25;
+}
+a {
+  color: var(--accent-ink);
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.wrap {
+  max-width: 70rem;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.top {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.top__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding-block: 0.75rem;
+}
+.name {
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+  text-decoration: none;
+}
+.name span {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+.call {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.book {
+  padding-block: clamp(2.5rem, 6vw, 5rem);
+}
+.book__grid {
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+}
+@media (min-width: 58rem) {
+  .book__grid {
+    grid-template-columns: 1.4fr 1fr;
+    gap: 3.5rem;
+  }
+}
+.book__words {
+  display: grid;
+  gap: 1.5rem;
+}
+.lede {
+  font-size: var(--s1);
+  color: var(--ink-muted);
+  max-width: 36rem;
+}
+.book__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform var(--duration) ease;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn--soft {
+  background: var(--tint);
+  color: var(--ink);
+}
+.today {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+.today h2 {
+  font-size: var(--s1);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-weight: 600;
+  padding-right: 1rem;
+}
+td {
+  font-variant-numeric: tabular-nums;
+}
+.today__note,
+.small {
+  color: var(--ink-muted);
+  font-size: 1rem;
+}
+
+.treat {
+  padding-block: 2rem clamp(3rem, 7vw, 5rem);
+  display: grid;
+  gap: 1.5rem;
+}
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+}
+.cards li {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+.cards p {
+  color: var(--ink-muted);
+}
+
+.first {
+  background: var(--tint);
+  padding-block: clamp(3rem, 7vw, 5rem);
+}
+.first h2 {
+  margin-bottom: 2rem;
+}
+.visit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: v;
+  display: grid;
+  gap: 1.5rem;
+}
+.visit li {
+  counter-increment: v;
+  position: relative;
+  padding-left: 3.5rem;
+  display: grid;
+  gap: 0.35rem;
+}
+.visit li::before {
+  content: counter(v);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.visit p {
+  color: var(--ink-muted);
+  max-width: 34rem;
+}
+@media (min-width: 58rem) {
+  .visit {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem 3rem;
+  }
+}
+
+.fees {
+  padding-block: clamp(3rem, 7vw, 5rem);
+  display: grid;
+  gap: 1.5rem;
+}
+.fees__grid {
+  display: grid;
+  gap: 2rem;
+}
+.fees__grid > div {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+@media (min-width: 58rem) {
+  .fees__grid {
+    grid-template-columns: 1fr 1.3fr;
+    gap: 4rem;
+  }
+}
+.plain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plain li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.price td {
+  text-align: right;
+  font-weight: 700;
+}
+
+.urgent {
+  padding-bottom: clamp(3rem, 7vw, 5rem);
+}
+.urgent__box {
+  display: grid;
+  gap: 0.75rem;
+}
+.urgent__box > * {
+  max-width: 48rem;
+}
+.urgent__box p {
+  background: var(--warn-ground);
+  border-left: 6px solid var(--warn-edge);
+  border-radius: 0 12px 12px 0;
+  padding: 1.25rem 1.5rem;
+}
+
+.foot {
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.foot__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 2rem;
+}
+address {
+  font-style: normal;
+}
+.foot a {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+}

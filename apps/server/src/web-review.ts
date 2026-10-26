@@ -10,14 +10,13 @@
  * computer that answers only for the round's own folder, with every other request refused (and reported, since a page
  * that needs the web isn't private and breaks offline). The browser is driven over a pipe, never a network port.
  */
-import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
-import { homedir, platform, tmpdir } from 'node:os';
-import { delimiter, extname, join, normalize, resolve, sep } from 'node:path';
-import type { Readable, Writable } from 'node:stream';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Check, Review } from '@hildegard/craft';
 import { resource } from '@hildegard/runtime';
+import { Browser, findChrome, serveFolder, Tab } from './browser.ts';
+
+export { findChrome };
 
 export interface WebSpec {
   /** The site's folder: the round's files, with the pages in it. */
@@ -30,7 +29,84 @@ export interface WebSpec {
   final?: boolean;
   /** The brief asked for a dark theme that follows the visitor's setting. */
   dark?: boolean;
+  /**
+   * The design to match: an image of the page as designed (a Figma frame, a pen.dev board, a screenshot of the old
+   * site), the width it was designed at, and the page it is of. The page is rendered at that width and compared.
+   */
+  reference?: { path: string; width: number; page?: string };
 }
+
+/** A PNG's or JPEG's size in pixels, or null for anything else. */
+export function imageSize(b: Uint8Array): { w: number; h: number } | null {
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (b.length > 24 && v.getUint32(0) === 0x89504e47) return { w: v.getUint32(16), h: v.getUint32(20) };
+  if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let at = 2;
+    while (at + 9 < b.length) {
+      if (b[at] !== 0xff) return null;
+      const marker = b[at + 1]!;
+      const len = v.getUint16(at + 2);
+      // Start of frame: baseline, extended, progressive, lossless (not DHT, JPG or DAC).
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker))
+        return { w: v.getUint16(at + 7), h: v.getUint16(at + 5) };
+      at += 2 + len;
+    }
+  }
+  return null;
+}
+
+/** What the page looks like against its design: structural similarity, and the three pictures for the sheet. */
+export interface Likeness {
+  page: string;
+  width: number;
+  /** Mean structural similarity (SSIM) of the two, in grey, at a quarter scale: 1 is the same picture. */
+  score: number;
+  /** Where they differ most, as fractions of the page height from the top. */
+  worst: number[];
+  reference: string;
+  render: string;
+  diff: string;
+}
+
+/**
+ * Runs in the browser: loads both pictures, scales them to a quarter of the width, and compares 8×8 windows of grey
+ * by SSIM. Returns the score, the worst bands, and a heat map of the difference over the render.
+ */
+const COMPARE = `async (refUrl, renderUrl) => {
+  const load = (src) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('image')); i.src = src; });
+  const [a, b] = await Promise.all([load(refUrl), load(renderUrl)]);
+  const W = Math.max(64, Math.round(b.naturalWidth / 4)), H = Math.max(64, Math.round(W * a.naturalHeight / a.naturalWidth));
+  const grey = (img) => { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H); const d = x.getImageData(0, 0, W, H).data; const g = new Float32Array(W * H); for (let i = 0; i < W * H; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; return g; };
+  const ga = grey(a), gb = grey(b);
+  const C1 = (0.01 * 255) ** 2, C2 = (0.03 * 255) ** 2, N = 8;
+  let sum = 0, n = 0; const rows = new Float32Array(Math.ceil(H / N)), rowN = new Float32Array(Math.ceil(H / N));
+  const heat = document.createElement('canvas'); heat.width = W; heat.height = H; const hx = heat.getContext('2d'); hx.drawImage(b, 0, 0, W, H);
+  hx.fillStyle = 'rgba(255,255,255,0.55)'; hx.fillRect(0, 0, W, H);
+  const ssim = (x, y, ox, oy) => {
+    let ma = 0, mb = 0; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { ma += ga[(y + j) * W + x + i]; mb += gb[(y + oy + j) * W + x + ox + i]; }
+    ma /= N * N; mb /= N * N; let va = 0, vb = 0, cov = 0;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const da = ga[(y + j) * W + x + i] - ma, db = gb[(y + oy + j) * W + x + ox + i] - mb; va += da * da; vb += db * db; cov += da * db; }
+    va /= N * N - 1; vb /= N * N - 1; cov /= N * N - 1;
+    return { s: ((2 * ma * mb + C1) * (2 * cov + C2)) / ((ma * ma + mb * mb + C1) * (va + vb + C2)), flat: va + vb < 4 && Math.abs(ma - mb) < 8 };
+  };
+  // A window may sit up to S pixels (16 at full size) off where the design has it and still count as matching:
+  // a layout nudged by a few pixels is the same layout, and shouldn't read as a different one.
+  const S = 4;
+  for (let y = 0; y + N <= H; y += N) for (let x = 0; x + N <= W; x += N) {
+    const here = ssim(x, y, 0, 0);
+    // Flat in both and the same shade says nothing about the layout; leave it out, or empty space would carry the score.
+    if (here.flat) continue;
+    let s = here.s;
+    for (let oy = -S; oy <= S && s < 0.98; oy++) for (let ox = -S; ox <= S; ox++) {
+      if ((!ox && !oy) || x + ox < 0 || y + oy < 0 || x + ox + N > W || y + oy + N > H) continue;
+      const t = ssim(x, y, ox, oy).s; if (t > s) s = t;
+    }
+    sum += s; n++; rows[y / N] += s; rowN[y / N]++;
+    if (s < 0.7) { hx.fillStyle = 'rgba(224,36,154,' + Math.min(0.85, (0.7 - s) * 1.6 + 0.2).toFixed(2) + ')'; hx.fillRect(x, y, N, N); }
+  }
+  const bands = Array.from(rows, (r, i) => ({ at: (i * N) / H, s: rowN[i] ? r / rowN[i] : 1 })).sort((p, q) => p.s - q.s);
+  return { score: n ? sum / n : 1, worst: bands.slice(0, 3).filter((x) => x.s < 0.8).map((x) => Math.round(x.at * 100) / 100), diff: heat.toDataURL('image/jpeg', 0.8).split(',')[1] };
+}`;
 
 interface Viewport {
   name: 'phone' | 'tablet' | 'desktop';
@@ -45,386 +121,6 @@ const VIEWPORTS: Viewport[] = [
 ];
 /** Longest page photographed, in CSS pixels; past it the sheet says the page goes on. */
 const MAX_PAGE = 9000;
-
-// ── Finding a browser ────────────────────────────────────────────────────────────────────────────────────────────
-
-const MAC_APPS = [
-  'Google Chrome.app/Contents/MacOS/Google Chrome',
-  'Chromium.app/Contents/MacOS/Chromium',
-  'Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  'Brave Browser.app/Contents/MacOS/Brave Browser',
-];
-const WIN_APPS = [
-  'Google\\Chrome\\Application\\chrome.exe',
-  'Microsoft\\Edge\\Application\\msedge.exe',
-  'BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-  'Chromium\\Application\\chrome.exe',
-];
-const LINUX_NAMES = [
-  'google-chrome-stable',
-  'google-chrome',
-  'chromium',
-  'chromium-browser',
-  'microsoft-edge-stable',
-  'microsoft-edge',
-  'brave-browser',
-  'brave',
-];
-
-/** The newest Chromium that Playwright downloaded, if any (people who build for the web often have one). */
-function playwrightChromium(env: NodeJS.ProcessEnv, os: NodeJS.Platform): string | null {
-  const roots = [
-    env.PLAYWRIGHT_BROWSERS_PATH,
-    '/opt/pw-browsers',
-    os === 'darwin'
-      ? join(homedir(), 'Library', 'Caches', 'ms-playwright')
-      : os === 'win32'
-        ? join(env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'ms-playwright')
-        : join(homedir(), '.cache', 'ms-playwright'),
-  ].filter((r): r is string => !!r && r !== '0');
-  const inside =
-    os === 'darwin'
-      ? [
-          'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium',
-          'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
-        ]
-      : os === 'win32'
-        ? ['chrome-win64\\chrome.exe', 'chrome-win\\chrome.exe']
-        : ['chrome-linux64/chrome', 'chrome-linux/chrome'];
-  for (const root of roots) {
-    let dirs: string[];
-    try {
-      dirs = readdirSync(root)
-        .filter((d) => /^chromium-\d+$/.test(d))
-        .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]));
-    } catch {
-      continue;
-    }
-    for (const d of dirs)
-      for (const rel of inside) {
-        const p = join(root, d, rel);
-        if (existsSync(p)) return p;
-      }
-  }
-  return null;
-}
-
-/** A Chromium-family browser on this computer: HILDEGARD_CHROME, then the usual places, then Playwright's. */
-export function findChrome(
-  env: NodeJS.ProcessEnv = process.env,
-  os: NodeJS.Platform = platform(),
-): string | null {
-  if (env.HILDEGARD_CHROME) return existsSync(env.HILDEGARD_CHROME) ? env.HILDEGARD_CHROME : null;
-  const candidates: string[] = [];
-  if (os === 'darwin') {
-    for (const root of ['/Applications', join(homedir(), 'Applications')])
-      candidates.push(...MAC_APPS.map((a) => join(root, a)));
-  } else if (os === 'win32') {
-    for (const root of [env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA].filter(Boolean))
-      candidates.push(...WIN_APPS.map((a) => join(root!, a)));
-  } else {
-    for (const dir of (env.PATH ?? '').split(delimiter).filter(Boolean))
-      candidates.push(...LINUX_NAMES.map((n) => join(dir, n)));
-  }
-  return candidates.find((c) => existsSync(c)) ?? playwrightChromium(env, os);
-}
-
-// ── The browser, over a pipe ─────────────────────────────────────────────────────────────────────────────────────
-
-type Json = Record<string, unknown>;
-interface Pending {
-  resolve: (v: Json) => void;
-  reject: (e: Error) => void;
-}
-
-/** Chrome DevTools Protocol over --remote-debugging-pipe: messages are JSON, each ended by a NUL byte. */
-class Browser {
-  private readonly child: ChildProcess;
-  private readonly out: Writable;
-  private readonly profile: string;
-  private next = 1;
-  private readonly pending = new Map<number, Pending>();
-  private readonly listeners = new Set<(method: string, params: Json, session?: string) => void>();
-  private buffer = '';
-  private closed = false;
-
-  constructor(chrome: string) {
-    this.profile = mkdtempSync(join(tmpdir(), 'hg-web-'));
-    const args = [
-      '--headless=new',
-      '--remote-debugging-pipe',
-      `--user-data-dir=${this.profile}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-component-update',
-      '--disable-sync',
-      '--disable-default-apps',
-      '--disable-features=Translate,MediaRouter,OptimizationHints',
-      '--mute-audio',
-      '--hide-scrollbars',
-      '--force-color-profile=srgb',
-      // Nothing leaves this computer: every request but loopback goes to a closed port, and names don't resolve.
-      '--proxy-server=http://127.0.0.1:9',
-      '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
-      '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
-      // Chrome's sandbox won't start as root (containers, CI); the page is still shut in by everything above.
-      ...(process.getuid?.() === 0 || process.env.HILDEGARD_CHROME_NO_SANDBOX ? ['--no-sandbox'] : []),
-      'about:blank',
-    ];
-    this.child = spawn(chrome, args, {
-      stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'],
-      windowsHide: true,
-    });
-    this.out = this.child.stdio[3] as Writable;
-    const input = this.child.stdio[4] as Readable;
-    let err = '';
-    this.child.stderr?.on('data', (d: Buffer) => {
-      err = (err + d.toString()).slice(-2000);
-    });
-    input.on('data', (d: Buffer) => this.read(d.toString('utf8')));
-    const fail = (why: string) => {
-      this.closed = true;
-      for (const p of this.pending.values()) p.reject(new Error(why));
-      this.pending.clear();
-    };
-    this.child.once('error', (e) => fail(`Could not start the browser (${chrome}): ${e.message}`));
-    this.child.once('exit', () => fail(`The browser stopped. ${err.trim().split('\n').at(-1) ?? ''}`.trim()));
-    this.out.on('error', () => {});
-  }
-
-  private read(chunk: string) {
-    this.buffer += chunk;
-    for (let at = this.buffer.indexOf('\0'); at >= 0; at = this.buffer.indexOf('\0')) {
-      const msg = JSON.parse(this.buffer.slice(0, at)) as {
-        id?: number;
-        result?: Json;
-        error?: { message: string };
-        method?: string;
-        params?: Json;
-        sessionId?: string;
-      };
-      this.buffer = this.buffer.slice(at + 1);
-      if (msg.id !== undefined) {
-        const p = this.pending.get(msg.id);
-        this.pending.delete(msg.id);
-        if (msg.error) p?.reject(new Error(msg.error.message));
-        else p?.resolve(msg.result ?? {});
-      } else if (msg.method) {
-        for (const l of this.listeners) l(msg.method, msg.params ?? {}, msg.sessionId);
-      }
-    }
-  }
-
-  send(method: string, params: Json = {}, sessionId?: string): Promise<Json> {
-    if (this.closed) return Promise.reject(new Error('The browser has stopped.'));
-    const id = this.next++;
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.out.write(`${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`);
-    });
-  }
-
-  on(l: (method: string, params: Json, session?: string) => void) {
-    this.listeners.add(l);
-    return () => this.listeners.delete(l);
-  }
-
-  close() {
-    if (!this.closed) this.send('Browser.close').catch(() => {});
-    setTimeout(() => this.child.kill(), 2000).unref();
-    this.child.once('exit', () => rmSync(this.profile, { recursive: true, force: true }));
-    if (this.child.exitCode !== null) rmSync(this.profile, { recursive: true, force: true });
-  }
-}
-
-/** A tab, attached in flat mode so its commands carry its session. */
-class Tab {
-  readonly blocked = new Set<string>();
-  readonly errors: string[] = [];
-  bytes = 0;
-  requests = 0;
-  private readonly off: () => void;
-  private loaded: (() => void) | null = null;
-
-  readonly browser: Browser;
-  readonly session: string;
-
-  private constructor(browser: Browser, session: string, origin: string) {
-    this.browser = browser;
-    this.session = session;
-    this.off = browser.on((method, p, s) => {
-      if (s !== session) return;
-      if (method === 'Fetch.requestPaused') {
-        const url = String((p.request as Json).url);
-        const ok = url.startsWith(`${origin}/`) || url === origin;
-        if (ok) {
-          this.requests++;
-          void browser.send('Fetch.continueRequest', { requestId: p.requestId }, session).catch(() => {});
-        } else {
-          this.blocked.add(url.length > 120 ? `${url.slice(0, 117)}…` : url);
-          void browser
-            .send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' }, session)
-            .catch(() => {});
-        }
-      } else if (method === 'Network.loadingFinished') {
-        this.bytes += Number(p.encodedDataLength ?? 0);
-      } else if (method === 'Runtime.exceptionThrown') {
-        const d = p.exceptionDetails as Json;
-        const ex = d.exception as Json | undefined;
-        this.errors.push(
-          String(ex?.description ?? d.text ?? 'An error')
-            .split('\n')[0]!
-            .slice(0, 200),
-        );
-      } else if (method === 'Runtime.consoleAPICalled' && p.type === 'error') {
-        const args = (p.args as Json[]) ?? [];
-        this.errors.push(
-          args
-            .map((a) => String(a.value ?? a.description ?? ''))
-            .join(' ')
-            .slice(0, 200),
-        );
-      } else if (method === 'Page.loadEventFired') {
-        this.loaded?.();
-      }
-    });
-  }
-
-  static async open(browser: Browser, origin: string): Promise<Tab> {
-    const { targetId } = (await browser.send('Target.createTarget', { url: 'about:blank' })) as {
-      targetId: string;
-    };
-    const { sessionId } = (await browser.send('Target.attachToTarget', { targetId, flatten: true })) as {
-      sessionId: string;
-    };
-    const tab = new Tab(browser, sessionId, origin);
-    await Promise.all(
-      ['Page.enable', 'Runtime.enable', 'Network.enable'].map((m) => browser.send(m, {}, sessionId)),
-    );
-    await browser.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] }, sessionId);
-    return tab;
-  }
-
-  cmd(method: string, params: Json = {}) {
-    return this.browser.send(method, params, this.session);
-  }
-
-  async go(url: string, timeoutMs = 20_000) {
-    const loaded = new Promise<void>((r) => {
-      this.loaded = r;
-    });
-    const nav = (await this.cmd('Page.navigate', { url })) as { errorText?: string };
-    if (nav.errorText) throw new Error(`The page didn’t open: ${nav.errorText}.`);
-    const timer = new Promise<'late'>((r) => setTimeout(() => r('late'), timeoutMs));
-    const late = (await Promise.race([loaded, timer])) === 'late';
-    // Fonts and a frame or two of layout, so the photograph is of the page as it settles.
-    await this.cmd('Runtime.evaluate', {
-      expression:
-        'document.fonts ? document.fonts.ready.then(() => new Promise(r => setTimeout(r, 250))) : 0',
-      awaitPromise: true,
-    }).catch(() => {});
-    return !late;
-  }
-
-  async eval<T>(expression: string): Promise<T> {
-    const r = (await this.cmd('Runtime.evaluate', {
-      expression,
-      returnByValue: true,
-      awaitPromise: true,
-    })) as {
-      result: { value: T };
-      exceptionDetails?: { text: string; exception?: { description?: string } };
-    };
-    if (r.exceptionDetails)
-      throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
-    return r.result.value;
-  }
-
-  async shoot(width: number, height: number, format: 'png' | 'jpeg' = 'png') {
-    const r = (await this.cmd('Page.captureScreenshot', {
-      format,
-      ...(format === 'jpeg' ? { quality: 86 } : {}),
-      captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width, height, scale: 1 },
-    })) as { data: string };
-    return r.data;
-  }
-
-  close() {
-    this.off();
-  }
-}
-
-// ── Serving the round ────────────────────────────────────────────────────────────────────────────────────────────
-
-const TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.htm': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.gif': 'image/gif',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg',
-  '.txt': 'text/plain; charset=utf-8',
-};
-
-/** Serves one folder, read only, on a one-off loopback port. Nothing outside the folder answers. */
-function serveFolder(dir: string): Promise<{ origin: string; server: Server }> {
-  const root = resolve(dir);
-  const server = createServer((req, res) => {
-    let path: string;
-    try {
-      path = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
-    } catch {
-      res.writeHead(400).end();
-      return;
-    }
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(405).end();
-      return;
-    }
-    let file = resolve(root, normalize(`.${path}`));
-    if (file !== root && !file.startsWith(root + sep)) {
-      res.writeHead(404).end();
-      return;
-    }
-    try {
-      if (statSync(file).isDirectory()) file = join(file, 'index.html');
-      const body = readFileSync(file);
-      res.writeHead(200, {
-        'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
-        'cache-control': 'no-store',
-        'x-content-type-options': 'nosniff',
-      });
-      res.end(req.method === 'HEAD' ? undefined : body);
-    } catch {
-      res.writeHead(404).end();
-    }
-  });
-  return new Promise((ok, fail) => {
-    server.once('error', fail);
-    server.listen(0, '127.0.0.1', () => {
-      const a = server.address();
-      ok({ origin: `http://127.0.0.1:${typeof a === 'object' && a ? a.port : 0}`, server });
-    });
-  });
-}
 
 // ── What a page is checked for ───────────────────────────────────────────────────────────────────────────────────
 
@@ -793,6 +489,7 @@ export function sheetHtml(
   shots: PageShot[],
   checks: Check[],
   title: string,
+  likeness: Likeness | null = null,
 ): { html: string; width: number } {
   const width = 1720;
   const bad = checks.filter((c) => c.status !== 'pass');
@@ -841,6 +538,15 @@ export function sheetHtml(
       return `<figure><div class="cols">${parts}</div><figcaption>${label(s)} · whole page${cols > 1 ? `, in ${cols} columns` : ''}</figcaption></figure>`;
     })
     .join('');
+  // Row three: the design it was made from, the page at that width, and where they part.
+  const refRow = likeness
+    ? (() => {
+        const w = 420;
+        const pic = (src: string, cap: string) =>
+          `<figure><div class="shot" style="width:${w}px"><img src="${src}" style="width:${w}px"></div><figcaption>${cap}</figcaption></figure>`;
+        return `<div class="row">${pic(likeness.reference, `the design · ${likeness.width}px`)}${pic(`data:image/png;base64,${likeness.render}`, `${esc(likeness.page)} · ${likeness.width}px`)}${pic(`data:image/jpeg;base64,${likeness.diff}`, `where they part (magenta) · ${Math.round(likeness.score * 100)}% alike`)}</div>`;
+      })()
+    : '';
   const notes = bad
     .map((c) => `<li class="${c.status}"><b>${c.status === 'fail' ? 'FAIL' : 'warn'} ${esc(c.id)}</b></li>`)
     .join('');
@@ -857,13 +563,45 @@ figure{display:flex;flex-direction:column;gap:5px}
 figcaption{color:#b8b5aa;font-size:12px}
 ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:12px;padding:0}
 li.fail b{color:#ff6b9a}li.warn b{color:#e8c46a}
-</style></head><body><h1>${esc(title)}</h1><ul>${notes || '<li>Every check passes. Now look hard.</li>'}</ul><div class="row">${fold}</div><div class="row">${whole}</div></body></html>`;
+</style></head><body><h1>${esc(title)}</h1><ul>${notes || '<li>Every check passes. Now look hard.</li>'}</ul><div class="row">${fold}</div><div class="row">${whole}</div>${refRow}</body></html>`;
   return { html, width };
 }
 
 // ── The review ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 export class WebReviewError extends Error {}
+
+/** Renders `page` at the reference's width, as tall as the reference is there, and compares the two in the browser. */
+async function compare(
+  tab: Tab,
+  origin: string,
+  ref: NonNullable<WebSpec['reference']>,
+  fallback: string,
+): Promise<Likeness> {
+  const bytes = readFileSync(ref.path);
+  const size = imageSize(bytes);
+  if (!size) throw new WebReviewError('The reference is not a PNG or JPEG.');
+  const page = ref.page ?? fallback;
+  const width = Math.round(Math.min(3840, Math.max(320, ref.width)));
+  const height = Math.min(MAX_PAGE, Math.max(200, Math.round((size.h * width) / size.w)));
+  await tab.cmd('Emulation.setDeviceMetricsOverride', {
+    width,
+    height: Math.min(height, 1200),
+    deviceScaleFactor: 1,
+    mobile: width < 700,
+  });
+  await tab.cmd('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-color-scheme', value: 'light' }],
+  });
+  await tab.go(`${origin}/${page.split('/').map(encodeURIComponent).join('/')}`);
+  const render = await tab.shoot(width, height);
+  const mime = bytes[0] === 0x89 ? 'image/png' : 'image/jpeg';
+  const reference = bytes.toString('base64');
+  const r = await tab.eval<{ score: number; worst: number[]; diff: string }>(
+    `(${COMPARE})(${JSON.stringify(`data:${mime};base64,${reference}`)}, ${JSON.stringify(`data:image/png;base64,${render}`)})`,
+  );
+  return { page, width, ...r, reference: `data:${mime};base64,${reference}`, render, diff: r.diff };
+}
 
 /** Renders and checks the pages; writes the sheet. `chrome` is the browser, `audit` the source of review_web.js. */
 export async function reviewWeb(
@@ -933,9 +671,28 @@ export async function reviewWeb(
       { blocked: [...tab.blocked], errors: [...new Set(tab.errors)], bytes: firstBytes, late },
       spec,
     );
+    let likeness: Likeness | null = null;
+    if (spec.reference) {
+      likeness = await compare(tab, origin, spec.reference, spec.pages[0]!);
+      const s = likeness.score;
+      checks.push(
+        check(
+          'reference',
+          s >= 0.85 ? 'pass' : s >= 0.65 ? 'warn' : 'fail',
+          Math.round(s * 100) / 100,
+          0.85,
+          `How closely the page at ${likeness.width}px matches the design it was made from (structural similarity, 1 is the same).${likeness.worst.length ? ` They part most ${likeness.worst.map((w) => `${Math.round(w * 100)}%`).join(', ')} of the way down; magenta on the sheet's reference row.` : ''} Match the layout, sizes and spacing first; text and pictures that are meant to differ will keep it under 1.`,
+        ),
+      );
+    }
     const lead = shots[0]!.audit;
     if (spec.sheet) {
-      const { html, width } = sheetHtml(shots, checks, `${spec.pages[0]} — ${lead.title || 'untitled'}`);
+      const { html, width } = sheetHtml(
+        shots,
+        checks,
+        `${spec.pages[0]} — ${lead.title || 'untitled'}`,
+        likeness,
+      );
       await tab.cmd('Fetch.disable');
       await tab.cmd('Emulation.setDeviceMetricsOverride', {
         width,
@@ -967,6 +724,8 @@ export async function reviewWeb(
       weight: `${(Math.max(0, firstBytes) / 1024).toFixed(0)} KB`,
     };
     if (spec.sheet) info.sheet = spec.sheet;
+    if (likeness)
+      info.reference = `${likeness.page} at ${likeness.width}px: ${Math.round(likeness.score * 100)}% alike`;
     return { kind: 'web' as const, info, checks, passed: !checks.some((c) => c.status === 'fail') };
   })();
   try {

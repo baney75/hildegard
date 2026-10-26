@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-labelledby="t">
+<!-- SPDX-License-Identifier: Apache-2.0 · Hildegard template "Atelier" placeholder art --><title id="t">Site plan of the Tanner Yard housing</title>
+<rect width="400" height="300" fill="#ebe8e1"/>
+<g fill="#1a1a1a"><path d="M60 50h280v40H60zM60 210h280v40H60zM60 90h40v120H60zM300 90h40v120h-40z"/></g>
+<g fill="none" stroke="#1a1a1a" stroke-width="1"><circle cx="160" cy="150" r="16"/><circle cx="240" cy="150" r="22"/><path d="M110 120h180M110 180h180" stroke-dasharray="4 4"/></g>
+<circle cx="200" cy="150" r="5" fill="#d1301e"/>
+<text x="20" y="285" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a1a">TANNER YARD · SITE PLAN · 1:500</text>
+</svg>

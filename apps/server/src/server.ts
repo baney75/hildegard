@@ -16,10 +16,12 @@ import {
 import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
+import { findChrome } from './browser.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
+import type { FigmaFetch } from './figma.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
 import { type Exec, Host } from './host.ts';
@@ -34,6 +36,8 @@ import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
 import { Scheduler } from './scheduler.ts';
+import { importUrl } from './site-import.ts';
+import { Sites } from './sites.ts';
 import { Store } from './store.ts';
 import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, VoiceStudio } from './voice.ts';
@@ -113,6 +117,10 @@ export async function startServer(
     slicer?: Slicer | null;
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
+    /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
+    chrome?: string | null;
+    /** Figma's API, for the tests. */
+    figmaFetch?: FigmaFetch;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -367,6 +375,8 @@ export async function startServer(
   });
   const printer = new PrinterProfile(config.dataDir);
   const pickSlicer = (p: Printer) => (opts.slicer === undefined ? findSlicer(p) : opts.slicer);
+  // The browser that checks web pages and imports sites; tests can say there is none.
+  const chrome = opts.chrome === undefined ? findChrome() : opts.chrome;
   const app = createApp({
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
@@ -394,7 +404,7 @@ export async function startServer(
       dir: join(mediaDir, 'loops'),
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
-      reviewWeb: webReviewer(),
+      reviewWeb: webReviewer(chrome),
       printer: () => printer.get(),
       slice: (files, keep) => {
         const p = printer.get();
@@ -406,6 +416,12 @@ export async function startServer(
     slicer: pickSlicer,
     reports: opts.reports,
     gpu: localGpu ? `${localGpu.name}${localGpu.vramGb ? `, ${localGpu.vramGb} GB` : ''}` : null,
+    sites: {
+      store: new Sites(join(config.dataDir, 'sites')),
+      secrets: secretsFor,
+      importUrl: chrome ? (url: string) => importUrl(url, chrome) : undefined,
+      figmaFetch: opts.figmaFetch,
+    },
     choir,
     modelStates,
     node,

@@ -1,0 +1,139 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 · Hildegard template "Ledger". Replace every word with the product's own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fairbill · Invoices for freelancers paid in more than one currency</title>
+<meta name="description" content="Fairbill writes your invoices in your client's currency, shows what you'll receive after fees in yours, and reminds late payers for you. Free for three clients.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="wrap bar__row">
+    <a class="logo" href="#top"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 3h10l4 4v14H5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2"/></svg>Fairbill</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#plans">Plans</a></li>
+        <li><a href="#questions">Questions</a></li>
+        <li><a href="#changes">Changes</a></li>
+        <li><a class="pill" href="#plans">Start free</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <div class="hero__copy">
+      <h1 id="hero-title">Bill in their currency. Know what lands in yours.</h1>
+      <p class="lede">Fairbill writes each invoice in your client’s currency, shows what you’ll actually receive after the bank’s cut, and chases late payers politely so you don’t have to.</p>
+      <p class="cta"><a class="btn" href="#plans">Start free, up to three clients</a> <span class="note">No card. Export everything any time.</span></p>
+    </div>
+    <figure class="invoice" aria-labelledby="inv-cap">
+      <figcaption id="inv-cap" class="sr">An invoice in Fairbill, showing the amount in euros and what arrives in dollars</figcaption>
+      <div class="invoice__head">
+        <div><p class="k">Invoice</p><p class="v">FB-2026-041</p></div>
+        <p class="status">Sent · due 30 Oct</p>
+      </div>
+      <dl class="invoice__who">
+        <div><dt>From</dt><dd>Amara Osei, translation</dd></div>
+        <div><dt>To</dt><dd>Verlag Kranich GmbH, Leipzig</dd></div>
+      </dl>
+      <table class="invoice__lines">
+        <caption class="sr">Lines</caption>
+        <thead><tr><th scope="col">Work</th><th scope="col" class="num">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Novel translation, chapters 9–12<br><span class="sub">18,400 words at €0.11</span></td><td class="num">€2,024.00</td></tr>
+          <tr><td>Proof review, two rounds</td><td class="num">€260.00</td></tr>
+        </tbody>
+        <tfoot><tr><th scope="row">Total</th><td class="num">€2,284.00</td></tr></tfoot>
+      </table>
+      <div class="invoice__lands">
+        <p>What lands in your account</p>
+        <p class="big">$2,431.60</p>
+        <p class="sub">at today’s rate 1.0712, after a 0.6% transfer fee</p>
+      </div>
+    </figure>
+  </section>
+
+  <section class="facts wrap" aria-labelledby="facts-title">
+    <h2 id="facts-title" class="sr">What it does</h2>
+    <div class="fact">
+      <h3>31 currencies, one ledger</h3>
+      <p>Invoice in euros, pounds or yen; your books stay in your own currency, at the rate on the day you were paid.</p>
+    </div>
+    <div class="fact">
+      <h3>Reminders you’d send yourself</h3>
+      <p>Three days after the due date, then ten, in your words and from your address. Stop them with one click.</p>
+    </div>
+    <div class="fact">
+      <h3>Tax time in an afternoon</h3>
+      <p>A year of invoices as one spreadsheet, income by client and by quarter, with the exchange rate beside every line.</p>
+    </div>
+  </section>
+
+  <section id="plans" class="plans" aria-labelledby="plans-title">
+    <div class="wrap">
+      <h2 id="plans-title">Plans</h2>
+      <p class="muted">Prices in US dollars a month, billed monthly. Cancel from settings; your data stays exportable for a year.</p>
+      <div class="plans__grid">
+        <article class="plan">
+          <h3>Solo</h3>
+          <p class="price">$0</p>
+          <ul><li>Up to 3 clients</li><li>Unlimited invoices</li><li>Reminders by email</li></ul>
+          <a class="btn btn--line" href="#top">Start free</a>
+        </article>
+        <article class="plan plan--main">
+          <h3>Working</h3>
+          <p class="price">$9</p>
+          <ul><li>Unlimited clients</li><li>31 currencies and live rates</li><li>Your own domain for sending</li><li>Year-end export for your accountant</li></ul>
+          <a class="btn" href="#top">Try Working for 30 days</a>
+        </article>
+        <article class="plan">
+          <h3>Studio</h3>
+          <p class="price">$24</p>
+          <ul><li>Up to 5 people</li><li>Shared clients and rates</li><li>Approval before sending</li></ul>
+          <a class="btn btn--line" href="#top">Try Studio</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="questions" class="wrap faq" aria-labelledby="q-title">
+    <h2 id="q-title">Questions</h2>
+    <details>
+      <summary>Do you hold my money?</summary>
+      <p>No. Clients pay into your own bank account or your own payment provider. Fairbill only reads the rate and records the payment.</p>
+    </details>
+    <details>
+      <summary>Which rate do you use?</summary>
+      <p>The European Central Bank’s reference rate on the day the payment arrives, or the rate your bank actually gave you if you type it in.</p>
+    </details>
+    <details>
+      <summary>Can my accountant get in?</summary>
+      <p>Yes, with a read-only link that you can switch off. They see invoices and exports, never your settings.</p>
+    </details>
+    <details>
+      <summary>What happens if I stop paying?</summary>
+      <p>Your account drops to Solo. Every invoice stays, readable and exportable; you just can’t add a fourth client.</p>
+    </details>
+  </section>
+
+  <section id="changes" class="changes" aria-labelledby="c-title">
+    <div class="wrap">
+      <h2 id="c-title">What changed lately</h2>
+      <ol class="log">
+        <li><time datetime="2026-10-08">8 Oct</time><p><strong>Partial payments.</strong> Record a deposit and the rest; reminders follow the balance.</p></li>
+        <li><time datetime="2026-09-22">22 Sep</time><p><strong>Swiss francs and Polish złoty</strong> are in, with QR bills for Swiss clients.</p></li>
+        <li><time datetime="2026-09-03">3 Sep</time><p><strong>Faster exports.</strong> A year of invoices now exports in under two seconds.</p></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap">
+  <p>Fairbill is made by two people in Porto and Accra. <a href="mailto:help@fairbill.app">help@fairbill.app</a></p>
+</footer>
+</body>
+</html>
