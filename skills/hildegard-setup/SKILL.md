@@ -77,3 +77,8 @@ Installs before 0.1.9 can't be updated from another device: run `hildegard updat
 
 `hildegard doctor --json` checks every part and gives each problem the command that fixes it. Logs are in the data
 folder's `logs/`.
+
+If Hildegard itself is at fault, or your user wants something it can't do, offer to tell its makers: `report_draft`
+over MCP (or `hildegard report bug|idea "<title>" --what "<...>" --json`) writes the report with diagnostics, private
+things taken out. Show your user the exact text and the matching issues; only on their yes, `report_file` (or
+`hildegard report file <id>`). Add to a matching issue instead of opening a new one. `docs/agents.md` has the details.

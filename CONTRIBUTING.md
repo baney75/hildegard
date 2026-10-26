@@ -5,7 +5,7 @@ fixes, and models or presets that render well.
 
 ## Before you start
 
-- **Bugs and ideas:** open an issue with the form that fits. For a bug, paste `hildegard doctor --json`.
+- **Bugs and ideas:** open an issue with the form that fits. For a bug, paste `hildegard doctor --json`, or run `hildegard report bug "<what broke>" --what "<what happened>"`, which fills it in for you with private things taken out. AI agents can draft and, with your yes, file one the same way (`report_draft` over MCP; see [docs/agents.md](docs/agents.md)).
 - **A bigger change:** open an issue first and say what you want to make, so the work fits where Hildegard is going.
 - **Security problems:** never in a public issue. See [SECURITY.md](SECURITY.md).
 

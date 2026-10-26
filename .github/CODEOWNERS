@@ -1,0 +1,11 @@
+# Skills are instructions agents follow on people's own computers, with their files and keys at hand: every change to
+# them, to the check that guards them, or to what ships them is the owner's to review, like code. See
+# docs/skill-suggestions.md.
+/skills/ @baney75
+/mcp/src/skill-scan.ts @baney75
+/mcp/src/skill-tools.ts @baney75
+/scripts/check-skills.mjs @baney75
+/scripts/pack-skills.mjs @baney75
+/.claude-plugin/ @baney75
+/plugin/ @baney75
+/.github/ @baney75

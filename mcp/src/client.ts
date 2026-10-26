@@ -19,6 +19,7 @@ import type {
   VoiceJob,
   VoiceState,
 } from '@hildegard/presets';
+import type { Draft } from './report.ts';
 
 export class HildegardError extends Error {
   readonly status: number;
@@ -169,7 +170,8 @@ const filePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
 /** Talks to the Hildegard server on this computer, as the Studio does. */
 export class HildegardClient {
   readonly url: string;
-  private readonly fetchFn: typeof fetch;
+  /** How it reaches the server; a stand-in in tests, which reports also search GitHub with. */
+  readonly fetchFn: typeof fetch;
 
   constructor(url = process.env.HILDEGARD_URL ?? 'http://127.0.0.1:7341', fetchFn: typeof fetch = fetch) {
     this.url = url.replace(/\/$/, '');
@@ -266,6 +268,11 @@ export class HildegardClient {
     this.call<CritiqueResult>('POST', `/api/loops/${encodeURIComponent(id)}/rounds/${n}/critique`, body);
   finishLoop = (id: string, round: number, note: string) =>
     this.call<LoopDetail>('POST', `/api/loops/${encodeURIComponent(id)}/finish`, { round, note });
+  // ── Reports to Hildegard's makers ──
+  reportDraft = (body: Record<string, unknown>) =>
+    this.call<{ draft: Draft; filer: string | null }>('POST', '/api/report/draft', body);
+  reportFile = (id: string, on?: number) =>
+    this.call<{ draft: Draft }>('POST', '/api/report/file', { id, confirm: true, ...(on ? { on } : {}) });
   /** Web: the image of the design every round is held to, drawn `width` pixels wide. */
   setLoopReference = (id: string, bytes: Uint8Array, width: number, page?: string) =>
     this.call<LoopDetail>(

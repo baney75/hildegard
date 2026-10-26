@@ -34,6 +34,7 @@ import type { FetchMetadata } from './oauth.ts';
 import { People } from './people.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
+import type { Reports } from './report.ts';
 import { Scheduler } from './scheduler.ts';
 import { importUrl } from './site-import.ts';
 import { Sites } from './sites.ts';
@@ -114,6 +115,8 @@ export async function startServer(
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
     /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
     slicer?: Slicer | null;
+    /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
+    reports?: Reports;
     /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
     chrome?: string | null;
     /** Figma's API, for the tests. */
@@ -413,6 +416,8 @@ export async function startServer(
     }),
     printer,
     slicer: pickSlicer,
+    reports: opts.reports,
+    gpu: localGpu ? `${localGpu.name}${localGpu.vramGb ? `, ${localGpu.vramGb} GB` : ''}` : null,
     sites: {
       store: new Sites(join(config.dataDir, 'sites')),
       secrets: secretsFor,

@@ -17,6 +17,8 @@ Please don't open a public issue, and don't test against computers that aren't y
 - Hildegard at a link (`hildegard host`): sign-in, invites, keys, the MCP endpoint and OAuth for chatbots.
 - Choir pairing between computers, and the update path (signatures, checksums).
 - The safety layers in [docs/safety.md](docs/safety.md), and voice consent in [docs/voice.md](docs/voice.md).
+- The skills, and the way suggestions to them are checked and shipped ([docs/skill-suggestions.md](docs/skill-suggestions.md)):
+  a way to get a hostile instruction into a skill people install is a vulnerability.
 
 Models, ComfyUI and other projects Hildegard runs have their own maintainers; report problems in them there too.
 

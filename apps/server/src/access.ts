@@ -107,6 +107,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/characters$/,
     /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
     /^\/api\/stills\/[^/]+\/(cancel|force|retry|keep)$/,
+    /^\/api\/report\/(draft|file)$/,
   ],
   PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/, /^\/api\/characters\/[^/]+$/],
   DELETE: [
