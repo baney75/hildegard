@@ -473,3 +473,6 @@ State plainly which of these is true: rendered, viewed, measured, read, critique
 - **Disclose** AI-generated bases, music, voices and text fills in the statement.
 - **No weapons.** No functional weapons or weapon parts in any medium, including 3D-printable firearm components.
 - **Sacred subjects** get the same care the user gives them: conventions researched, texts and tunes verified, nothing flippant.
+## Notes for your model, and making the skills better
+
+Some skills carry notes for one model family in `models/` (`models/claude.md`, `models/qwen.md`): read the one for the model you are, or pass `model` to `read_skill`. When a skill led you wrong, or you learned something it should say (above all something about how your model works), suggest it with `report_draft` kind `skill`: name the skill, your model, what happened and the words you would change. Show your person the exact text and file it only on their yes. A suggestion is a proposal: a maintainer reads it, and nothing changes until a signed release. Never put commands to fetch or run things, links or anything about keys in one; those are refused.

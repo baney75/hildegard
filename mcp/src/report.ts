@@ -5,7 +5,10 @@
  * looks for issues already open that sound the same. Filing is the server's, and only after the person said yes.
  */
 
-export type ReportKind = 'bug' | 'idea';
+import { describeScan, type ScanFinding, scanSkillText } from './skill-scan.ts';
+
+/** A bug, an idea, or a change to one of Hildegard's skills. */
+export type ReportKind = 'bug' | 'idea' | 'skill';
 
 export interface ReportInput {
   kind: ReportKind;
@@ -21,6 +24,23 @@ export interface ReportInput {
   how?: (typeof HOW)[number];
   /** The agent drafting it, as it names itself. */
   agent?: string;
+  /** A skill suggestion: which skill. */
+  skill?: string;
+  /** A skill suggestion: the model it is for ("claude-opus-5-5", "qwen3:8b"), or none when it's for every model. */
+  model?: string;
+  /** A skill suggestion: the words to add or change in the skill, as plain text. */
+  change?: string;
+}
+
+/** A suggested skill change that reads like an attack: never drafted, never filed. */
+export class SkillScanError extends Error {
+  readonly findings: ScanFinding[];
+  constructor(findings: ScanFinding[]) {
+    super(
+      `This skill suggestion can’t be sent: it reads like an attack on the agents that would follow it.\n${describeScan(findings.filter((f) => f.severity === 'block'))}\nTake those lines out, or say in words what should change without them.`,
+    );
+    this.findings = findings;
+  }
 }
 
 /** What the computer says about itself: a few facts, the doctor's checks, and the end of the server's log. */
@@ -54,6 +74,8 @@ export interface Draft {
   /** What was taken out, by kind: the person sees the count and the text, never what was removed. */
   removed: Record<string, number>;
   similar: Similar[] | null;
+  /** A skill suggestion's safety scan: what a maintainer must look at. */
+  scan?: ScanFinding[];
   filed?: { url: string; at: string; on?: number };
 }
 
@@ -133,8 +155,10 @@ export function redact(text: string, known: Known = {}): { text: string; removed
   return { text: out, removed };
 }
 
+/** A code block no text inside can close: a fence one backtick longer than the longest run in it. */
 const fence = (lang: string, s: string) => {
-  const ticks = s.includes('```') ? '````' : '```';
+  const longest = Math.max(2, ...(s.match(/`+/g) ?? []).map((r) => r.length));
+  const ticks = '`'.repeat(longest + 1);
   return `${ticks}${lang}\n${s}\n${ticks}`;
 };
 
@@ -158,6 +182,22 @@ export function reportBody(input: ReportInput, diag: Diagnostics): string {
       ? `<details><summary>The end of Hildegard’s log</summary>\n\n${fence('text', diag.log.join('\n'))}\n\n</details>`
       : '';
     section('Anything else', [input.more?.trim(), log].filter(Boolean).join('\n\n'));
+  } else if (input.kind === 'skill') {
+    section('Skill', input.skill);
+    section('Model', input.model?.trim() || 'Every model');
+    section('What happened, and what would be better', input.what);
+    // Plain text in a code block, so nothing in it renders: no links to click, no HTML, nothing hidden.
+    section('Suggested change', input.change?.trim() ? fence('text', input.change) : undefined);
+    section(
+      'Anything else',
+      [input.more?.trim(), facts ? fence('text', facts) : ''].filter(Boolean).join('\n\n'),
+    );
+    section(
+      'Safety scan',
+      describeScan(
+        scanSkillText([input.what, input.change, input.now, input.more].filter(Boolean).join('\n')),
+      ),
+    );
   } else {
     section('What you want to make or do', input.what);
     section('How you do it today', input.now);
@@ -191,6 +231,12 @@ export function issueUrl(repo: string, input: ReportInput, diag: Diagnostics, ti
         .filter(Boolean)
         .join('\n\n');
       if (more) q.set('more', clip(more)!);
+    } else if (input.kind === 'skill') {
+      q.set('template', 'skill.yml');
+      if (input.skill) q.set('skill', input.skill);
+      if (input.model) q.set('model', input.model);
+      q.set('what', clip(input.what)!);
+      if (input.change) q.set('change', clip(input.change)!);
     } else {
       q.set('template', 'idea.yml');
       q.set('want', clip(input.what)!);
@@ -213,6 +259,14 @@ export function draftReport(
   known: Known,
   repo = ISSUES_REPO,
 ): Omit<Draft, 'id' | 'at' | 'similar'> {
+  // A skill change is checked as written, before anything is taken out of it.
+  const scan =
+    input.kind === 'skill'
+      ? scanSkillText(
+          [input.title, input.what, input.change, input.now, input.more].filter(Boolean).join('\n'),
+        )
+      : undefined;
+  if (scan?.some((f) => f.severity === 'block')) throw new SkillScanError(scan);
   const removed: Record<string, number> = {};
   const clean = (s: string | undefined) => {
     if (s === undefined) return undefined;
@@ -226,6 +280,9 @@ export function draftReport(
     what: clean(input.what)!,
     now: clean(input.now),
     more: clean(input.more),
+    change: clean(input.change),
+    skill: input.skill?.replace(/[^\w.-]/g, '').slice(0, 60),
+    model: clean(input.model?.replace(/[^\w.:/@+-]/g, '').slice(0, 80)),
   };
   const d: Diagnostics = {
     os: diag.os,
@@ -241,6 +298,7 @@ export function draftReport(
     labels: [input.kind],
     url: issueUrl(repo, safe, d, safe.title),
     removed,
+    ...(scan ? { scan } : {}),
   };
 }
 
@@ -331,7 +389,7 @@ export function describeDraft(d: Draft, canFile: string | null): string {
         ? `Issues that may be the same:\n${d.similar.map((s) => `- #${s.number} (${s.state}) ${s.title}: ${s.url}`).join('\n')}\nIf one of them is this, add to it instead: report_file with on set to its number.`
         : 'No issue like it is open yet.';
   return [
-    `Draft ${d.id}, a ${d.kind === 'bug' ? 'bug report' : 'feature idea'} for ${d.repo}. Nothing has been sent.`,
+    `Draft ${d.id}, a ${{ bug: 'bug report', idea: 'feature idea', skill: 'skill suggestion' }[d.kind]} for ${d.repo}. Nothing has been sent.${d.kind === 'skill' ? ' A suggestion is never applied by itself: a maintainer reads it, and any change ships only in a signed release.' : ''}`,
     `Title: ${d.title}`,
     `--- the exact text ---\n${d.body}\n--- end ---`,
     describeRemoved(d.removed),

@@ -18,6 +18,7 @@ import {
   type Known,
   type OS,
   type ReportInput,
+  scanSkillText,
   similarIssues,
 } from '@hildegard/mcp';
 
@@ -139,6 +140,9 @@ export class Reports {
     const d = this.get(id);
     if (!d) throw new ReportError(404, `No draft "${id}". Make one with report_draft first.`);
     if (d.filed) throw new ReportError(409, `Draft ${id} was filed already: ${d.filed.url}`, d.filed.url);
+    // Checked again here, so a draft changed on disk after it was shown can't carry an attack through.
+    if (d.kind === 'skill' && scanSkillText(d.body).some((f) => f.severity === 'block'))
+      throw new ReportError(422, 'This skill suggestion reads like an attack, so it can’t be filed.');
     const today = this.all().filter((x) => x.filed && this.now() - Date.parse(x.filed.at) < DAY);
     if (today.length >= FILE_LIMIT)
       throw new ReportError(

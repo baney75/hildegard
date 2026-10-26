@@ -1,0 +1,3 @@
+# Lines in skills that scripts/check-skills.mjs flags, read by the owner and kept on purpose. One per line:
+# <path in skills/> <rule> <line hash>  # why it is fine. Only the owner may change this file (CODEOWNERS).
+hildegard-web/templates/manual/index.html fetch-and-run 184d899df3e484b5  # sample text on a made-up product's docs page (tern.example)

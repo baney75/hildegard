@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { type Draft, describeRemoved, HOW, type ReportKind } from '@hildegard/mcp';
+import {
+  type Draft,
+  describeRemoved,
+  findSkills,
+  HOW,
+  type ReportKind,
+  readSkills,
+  SkillScanError,
+} from '@hildegard/mcp';
 import { layout } from '@hildegard/runtime';
 import {
   baseFacts,
@@ -99,7 +109,7 @@ export async function report(ctx: Ctx, args: string[]): Promise<Result> {
       );
     }
   }
-  if (sub !== 'bug' && sub !== 'idea')
+  if (sub !== 'bug' && sub !== 'idea' && sub !== 'skill')
     return result(
       [
         {
@@ -107,7 +117,7 @@ export async function report(ctx: Ctx, args: string[]): Promise<Result> {
           title: 'Report',
           status: 'failed',
           detail:
-            'Say what kind: hildegard report bug "<what broke>" --what "<what happened>", or hildegard report idea "<what you want>" --what "<the work>". Then hildegard report file sends it.',
+            'Say what kind: hildegard report bug "<what broke>" --what "<what happened>", or hildegard report idea "<what you want>" --what "<the work>", or hildegard report skill "<what to change>" --skill <name> --model <model> --what "<what happened>" --change-file <file>. Then hildegard report file sends it.',
         },
       ],
       'Nothing drafted.',
@@ -136,32 +146,69 @@ export async function report(ctx: Ctx, args: string[]): Promise<Result> {
       'Nothing drafted.',
     );
 
-  // The doctor's checks are the diagnostics a maintainer asks for first.
-  const d = await doctor({ ...ctx, json: true });
+  let change = ctx.opts.get('change');
+  if (ctx.opts.has('change-file')) change = readFileSync(ctx.opts.get('change-file')!, 'utf8');
+  const skill = ctx.opts.get('skill');
+  if (kind === 'skill') {
+    const names = readSkills(findSkills()).map((x) => x.name);
+    if (!skill || !names.includes(skill))
+      return result(
+        [
+          {
+            id: 'report',
+            title: 'Report',
+            status: 'failed',
+            detail: `--skill is one of: ${names.join(', ')}.`,
+          },
+        ],
+        'Nothing drafted.',
+      );
+  }
+
+  // The doctor's checks are the diagnostics a maintainer asks for first; a skill suggestion needs only the version.
+  const d = kind === 'skill' ? { steps: [], gpu: undefined } : await doctor({ ...ctx, json: true });
   const gpu = d.gpu as { name?: string; vramGb?: number | null } | undefined;
   const facts: Record<string, string> = baseFacts(VERSION, SOURCE.commit);
   if (gpu?.name) facts.GPU = `${gpu.name}${gpu.vramGb ? `, ${gpu.vramGb} GB` : ''}`;
   const withLog = kind === 'bug' && !ctx.flags.has('no-log');
-  const draft = await reports.draft(
-    {
-      kind,
-      title,
-      what,
-      now: ctx.opts.get('now'),
-      more: ctx.opts.get('more'),
-      how: how as (typeof HOW)[number] | undefined,
-      agent:
-        ctx.opts.get('agent') ??
-        (process.stdin.isTTY ? 'the hildegard command' : 'an agent using the hildegard command'),
-    },
-    {
-      os: osLabel(),
-      facts,
-      checks: kind === 'bug' ? d.steps.map((s) => `${MARK[s.status]} ${s.title}: ${s.detail}`) : undefined,
-      log: withLog ? logTail(layout(ctx.config.dataDir).logs) : undefined,
-    },
-    knownHere(),
-  );
+  let draft: Draft;
+  try {
+    draft = await reports.draft(
+      {
+        kind,
+        skill,
+        model: ctx.opts.get('model'),
+        change,
+        title,
+        what,
+        now: ctx.opts.get('now'),
+        more: ctx.opts.get('more'),
+        how: how as (typeof HOW)[number] | undefined,
+        agent:
+          ctx.opts.get('agent') ??
+          (process.stdin.isTTY ? 'the hildegard command' : 'an agent using the hildegard command'),
+      },
+      kind === 'skill'
+        ? { facts: { Hildegard: facts.Hildegard! } }
+        : {
+            os: osLabel(),
+            facts,
+            checks:
+              kind === 'bug' ? d.steps.map((s) => `${MARK[s.status]} ${s.title}: ${s.detail}`) : undefined,
+            log: withLog ? logTail(layout(ctx.config.dataDir).logs) : undefined,
+          },
+      knownHere(),
+    );
+  } catch (e) {
+    if (!(e instanceof SkillScanError)) throw e;
+    return result(
+      [{ id: 'report', title: 'Skill suggestion', status: 'failed', detail: e.message }],
+      'Nothing drafted.',
+      {
+        findings: e.findings,
+      },
+    );
+  }
   const filer = await reports.filer();
   if (!ctx.json) show(draft);
   // A person at a terminal answers here; an agent shows its person the draft and runs `report file` on their yes.

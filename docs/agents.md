@@ -394,3 +394,9 @@ file without your user's yes: an issue is public, under their name.
 A draft files once; the same title from the same computer goes on the first issue; at most five go from one computer in
 a day. Security problems never go in an issue: see `SECURITY.md`.
 
+**Skill suggestions.** When one of Hildegard's skills led you wrong, or missed something (especially about the model you
+are), use kind `skill`: `report_draft` with `skill`, `model` and `change` (the words you would add or change), or
+`hildegard report skill "<what to change>" --skill <name> --model <model> --what "<what happened>" --change-file <file>`.
+It is checked for anything that reads like an attack first, and refused if so; a maintainer reads every word before a
+change ships in a signed release. [docs/skill-suggestions.md](skill-suggestions.md) has the whole path.
+

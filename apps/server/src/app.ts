@@ -8,7 +8,7 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import type { Diagnostics } from '@hildegard/mcp';
-import { HildegardClient } from '@hildegard/mcp';
+import { findSkills, HildegardClient, readSkills, SkillScanError } from '@hildegard/mcp';
 import {
   type AgentsResponse,
   type AuthState,
@@ -1899,8 +1899,11 @@ export function createApp(deps: AppDeps) {
   // ── Reports: bugs and ideas for Hildegard's makers, drafted by agents and filed only once the person said yes ──
   const reports = deps.reports ?? new Reports({ dir: join(deps.config.dataDir, 'reports') });
   const ReportBody = z.object({
-    kind: z.enum(['bug', 'idea']),
+    kind: z.enum(['bug', 'idea', 'skill']),
     title: z.string().trim().min(4).max(120),
+    skill: z.string().max(60).optional(),
+    model: z.string().max(80).optional(),
+    change: z.string().max(8000).optional(),
     what: z.string().trim().min(1).max(6000),
     now: z.string().max(4000).optional(),
     more: z.string().max(4000).optional(),
@@ -1927,35 +1930,55 @@ export function createApp(deps: AppDeps) {
         400,
       );
     const { logs, ...input } = body.data;
+    if (input.kind === 'skill') {
+      const names = readSkills(findSkills()).map((s) => s.name);
+      if (!input.skill || !names.includes(input.skill))
+        return c.json(
+          {
+            error: `Name the skill: one of ${names.join(', ') || 'the skills list_skills gives'}.`,
+            field: 'skill',
+          },
+          400,
+        );
+    }
     const owner = isOwner(c);
     const snap = snapshot();
     const facts = baseFacts(VERSION, SOURCE.commit);
-    // A director sees only what Hildegard shows them anyway: the version. This computer's insides are the owner's.
-    const diag: Diagnostics = owner
-      ? {
-          os: osLabel(),
-          facts: {
-            ...facts,
-            ...(deps.gpu ? { GPU: deps.gpu } : {}),
-            Engine: `${snap.engine.comfy}${snap.engine.online ? ', online' : ', offline'}${snap.engine.paused ? ', paused' : ''}${snap.engine.problem ? `: ${snap.engine.problem}` : ''}`,
-            Models:
-              snap.models
-                .filter((m) => m.installed)
-                .map((m) => m.id)
-                .join(', ') || 'none installed',
-            Devices: `${snap.choir.devices.length} paired${snap.choir.use !== 'local' ? ', rendering on another' : ''}`,
-            Takes: `${snap.takes.filter((t) => t.status === 'failed').length} failed of ${snap.takes.length}`,
-          },
-          log: logs === false ? [] : logTail(join(deps.config.dataDir, 'logs')),
-        }
-      : { facts: { Hildegard: facts.Hildegard! } };
+    // A director sees only what Hildegard shows them anyway: the version. This computer's insides are the owner's,
+    // and a skill suggestion needs only the version it was read in.
+    const diag: Diagnostics =
+      input.kind === 'skill'
+        ? { facts: { Hildegard: facts.Hildegard } }
+        : owner
+          ? {
+              os: osLabel(),
+              facts: {
+                ...facts,
+                ...(deps.gpu ? { GPU: deps.gpu } : {}),
+                Engine: `${snap.engine.comfy}${snap.engine.online ? ', online' : ', offline'}${snap.engine.paused ? ', paused' : ''}${snap.engine.problem ? `: ${snap.engine.problem}` : ''}`,
+                Models:
+                  snap.models
+                    .filter((m) => m.installed)
+                    .map((m) => m.id)
+                    .join(', ') || 'none installed',
+                Devices: `${snap.choir.devices.length} paired${snap.choir.use !== 'local' ? ', rendering on another' : ''}`,
+                Takes: `${snap.takes.filter((t) => t.status === 'failed').length} failed of ${snap.takes.length}`,
+              },
+              log: logs === false ? [] : logTail(join(deps.config.dataDir, 'logs')),
+            }
+          : { facts: { Hildegard: facts.Hildegard! } };
     const names = [
       ...snap.choir.devices.map((d) => d.name),
       ...(owner ? people.list().map((p) => p.name) : []),
       ...(personOf(c) ? [personOf(c)!.name] : []),
     ];
-    const draft = await reports.draft({ ...input, agent: input.agent }, diag, knownHere(names));
-    return c.json({ draft, filer: owner ? await reports.filer() : null });
+    try {
+      const draft = await reports.draft(input, diag, knownHere(names));
+      return c.json({ draft, filer: owner ? await reports.filer() : null });
+    } catch (e) {
+      if (e instanceof SkillScanError) return c.json({ error: e.message, findings: e.findings }, 422);
+      throw e;
+    }
   });
   app.post('/api/report/file', async (c) => {
     const body = (await c.req.json().catch(() => null)) as {

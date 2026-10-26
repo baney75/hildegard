@@ -9,7 +9,8 @@ import { registerTools } from './tools.ts';
 
 export { HildegardClient, HildegardError, type VoiceJobDetail } from './client.ts';
 export * from './report.ts';
-export { findSkills, readSkills, type SkillInfo } from './skill-tools.ts';
+export * from './skill-scan.ts';
+export { findSkills, modelNotes, readSkills, type SkillInfo } from './skill-tools.ts';
 export { registerTools, toRequest } from './tools.ts';
 export { zip, zipFolder } from './zip.ts';
 

@@ -84,6 +84,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
 
   hildegard report bug "<what broke>" --what "<what you did, expected, got>"
   hildegard report idea "<what you want>" --what "<the work you want to make>"
+  hildegard report skill "<what to change>" --skill <name> [--model <model>] --what "<what happened>"
+                             [--change-file <file>]: suggest a change to a skill, checked for attacks first"
                              Draft a report for Hildegard's makers, with doctor and the log, keys, paths and names
                              taken out, and the issues like it. Nothing is sent until report file [<id>] [--on <issue>]
                              (files through the GitHub CLI, as you); report show [<id>] prints a draft again
@@ -143,6 +145,9 @@ const valued = new Set([
   'more',
   'on',
   'how',
+  'skill',
+  'change',
+  'change-file',
   'figma',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */

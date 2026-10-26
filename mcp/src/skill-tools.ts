@@ -79,6 +79,26 @@ export function skillFile(skill: SkillInfo, file: string): string | null {
   return real;
 }
 
+/**
+ * A skill's notes for one model, from its models/ folder: models/claude.md for every Claude, models/claude-opus.md
+ * for Opus too, most general first. Names are lower case letters, digits and dashes, matched from the model's start up to a word's end, so qwen.md is
+ * for qwen3 too.
+ */
+export function modelNotes(skill: SkillInfo, model: string): Array<{ family: string; text: string }> {
+  const dir = join(skill.dir, 'models');
+  if (!existsSync(dir)) return [];
+  const want = model.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return readdirSync(dir)
+    .filter((f) => /^[a-z0-9-]+\.md$/.test(f))
+    .map((f) => f.slice(0, -3))
+    .filter((family) => want.startsWith(family) && !/[a-z]/.test(want[family.length] ?? ''))
+    .sort((a, b) => a.length - b.length)
+    .flatMap((family) => {
+      const path = skillFile(skill, `models/${family}.md`);
+      return path ? [{ family, text: readFileSync(path, 'utf8').trim() }] : [];
+    });
+}
+
 export function registerSkillTools(server: McpServer, root: string | null = findSkills()) {
   const skills = readSkills(root);
   if (!skills.length) return;
@@ -107,7 +127,7 @@ export function registerSkillTools(server: McpServer, root: string | null = find
     {
       title: 'Read a skill',
       description:
-        'Read one of Hildegard’s skills (its SKILL.md), or a file it names, such as references/sculpture-3d.md or scripts/contact_sheet.py. Follow it as instructions for the work your user asked for.',
+        'Read one of Hildegard’s skills (its SKILL.md), or a file it names, such as references/sculpture-3d.md or scripts/contact_sheet.py. Pass model to add the skill’s notes for the model you are. Follow it as instructions for the work your user asked for. If it led you wrong, report_draft with kind skill suggests a fix.',
       inputSchema: {
         name: z
           .string()
@@ -119,6 +139,13 @@ export function registerSkillTools(server: McpServer, root: string | null = find
           .max(200)
           .optional()
           .describe('A file inside the skill, as the skill names it. Default SKILL.md.'),
+        model: z
+          .string()
+          .max(80)
+          .optional()
+          .describe(
+            'The model you are ("claude-opus-5-5", "gpt-6.1", "qwen3:8b"). Hildegard adds the skill’s notes for your model, when it has some.',
+          ),
       },
       annotations: { readOnlyHint: true },
     },
@@ -128,8 +155,14 @@ export function registerSkillTools(server: McpServer, root: string | null = find
       const want = a.file?.replace(/^\.?\//, '') || 'SKILL.md';
       const path = skillFile(s, want);
       if (!path) return fail(`${s.name} has no file "${want}". It has: ${files(s.dir).join(', ')}.`);
-      const body = readFileSync(path, 'utf8');
-      const more = want === 'SKILL.md' ? files(s.dir).filter((f) => f !== 'SKILL.md') : [];
+      const notes = want === 'SKILL.md' && a.model ? modelNotes(s, a.model) : [];
+      const body =
+        readFileSync(path, 'utf8') +
+        notes
+          .map((n) => `\n\n---\nNotes for ${n.family} models (models/${n.family}.md):\n\n${n.text}`)
+          .join('');
+      const more =
+        want === 'SKILL.md' ? files(s.dir).filter((f) => f !== 'SKILL.md' && !f.startsWith('models/')) : [];
       return text(
         `${body.length > MAX_READ ? `${body.slice(0, MAX_READ)}\n\n[cut at ${MAX_READ / 1024} KB]` : body}${more.length ? `\n\n---\nFiles in this skill (read_skill with file): ${more.join(', ')}` : ''}`,
       );

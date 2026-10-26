@@ -32,13 +32,15 @@ export function registerReportTools(
   server.registerTool(
     'report_draft',
     {
-      title: 'Draft a bug report or an idea for Hildegard',
+      title: 'Draft a bug report, an idea or a skill suggestion for Hildegard',
       description:
-        'Tell the people who make Hildegard about a bug (Hildegard itself failed or did the wrong thing, not a bad request) or an idea (something your user wants to make that Hildegard can’t do yet). Nothing is sent: this writes the report, adds what the computer says about itself (version, system, GPU, the end of the log) with keys, paths, names and addresses taken out, and finds issues already open that sound the same. Then show your user the exact text and the matches, and file it with report_file only if they say yes.',
+        'Tell the people who make Hildegard about a bug (Hildegard itself failed or did the wrong thing, not a bad request), an idea (something your user wants to make that Hildegard can’t do yet), or a skill suggestion (one of Hildegard’s skills led you wrong, or missed something, especially for the model you are: name the skill, your model, what happened, and the words you would change). A suggestion is only ever a proposal: it is checked for anything that reads like an attack (refused outright), and a maintainer reads every word before a change ships in a signed release. Nothing is sent: this writes the report, adds what the computer says about itself (version, system, GPU, the end of the log) with keys, paths, names and addresses taken out, and finds issues already open that sound the same. Then show your user the exact text and the matches, and file it with report_file only if they say yes.',
       inputSchema: {
         kind: z
-          .enum(['bug', 'idea'])
-          .describe('bug: something is broken. idea: something to add or make easier.'),
+          .enum(['bug', 'idea', 'skill'])
+          .describe(
+            'bug: something is broken. idea: something to add or make easier. skill: a change to one of Hildegard’s skills.',
+          ),
         title: z
           .string()
           .min(4)
@@ -64,6 +66,25 @@ export function registerReportTools(
           .optional()
           .describe('Anything else that helps: the tool call, the model, the prompt. Nothing private.'),
         how: z.enum(HOW).optional().describe('How Hildegard runs here. Default: An AI app over MCP.'),
+        skill: z
+          .string()
+          .max(60)
+          .optional()
+          .describe('skill: which skill, from list_skills, such as hildegard-3d.'),
+        model: z
+          .string()
+          .max(80)
+          .optional()
+          .describe(
+            'skill: the model the change is for, as you know yourself ("claude-opus-5-5", "gpt-6.1", "qwen3:8b"). Leave out when it is for every model.',
+          ),
+        change: z
+          .string()
+          .max(8000)
+          .optional()
+          .describe(
+            'skill: the words to add or change in the skill, as plain text, with where they go. Instructions for the work only: no commands to fetch or run things, no links, nothing about keys.',
+          ),
         include_log: z
           .boolean()
           .optional()
@@ -78,9 +99,14 @@ export function registerReportTools(
         what: a.what,
         now: a.now,
         more: a.more,
-        how: a.how ?? (remote ? 'Hildegard at a link' : 'An AI app over MCP'),
+        how:
+          a.kind === 'skill' ? undefined : (a.how ?? (remote ? 'Hildegard at a link' : 'An AI app over MCP')),
         agent: agentName(),
+        skill: a.skill,
+        model: a.model,
+        change: a.change,
       } as const;
+      if (a.kind === 'skill' && !a.skill) return fail('Name the skill, from list_skills.');
       try {
         const { draft, filer } = await client.reportDraft({
           ...input,
@@ -91,17 +117,22 @@ export function registerReportTools(
         if (!(e instanceof HildegardError) || e.status !== 0) return fail((e as Error).message);
         // Hildegard isn't running, which may be the bug: draft it here, with what this process knows.
         const known = knownHere();
-        const d = draftReport(
-          input,
-          {
-            facts: {
-              Hildegard: `${version} (the server isn’t running)`,
-              System: `${platform()} ${release()} · ${arch()}`,
-              Node: process.versions.node,
+        let d: ReturnType<typeof draftReport>;
+        try {
+          d = draftReport(
+            input,
+            {
+              facts: {
+                Hildegard: `${version} (the server isn’t running)`,
+                System: `${platform()} ${release()} · ${arch()}`,
+                Node: process.versions.node,
+              },
             },
-          },
-          known,
-        );
+            known,
+          );
+        } catch (scanned) {
+          return fail((scanned as Error).message);
+        }
         const draft: Draft = {
           ...d,
           id: 'unsaved',
