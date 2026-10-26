@@ -2,6 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HildegardClient } from './client.ts';
 import { registerLoopTools } from './loop-tools.ts';
+import { registerSiteTools } from './site-tools.ts';
 import { findSkills, registerSkillTools } from './skill-tools.ts';
 import { registerTools } from './tools.ts';
 
@@ -17,6 +18,7 @@ Use list_presets for the ids of camera bodies, lenses, moves and looks. Write pr
 To put shots in a film, pass its id or its title as film to direct_shot. To stop a take, cancel_take with its id; hildegard_status lists recent takes.
 Draft first, then re-render the take you like with quality "final" and the same seed.
 Voice: list_voices, then speak a script in any voice there; design_voice makes a new one from words. You can't clone a voice: clone_voice says how the person does it themselves, with their consent.
+Sites: for a website, start from site_templates, a Figma link, a pen.dev file or the live site (site_new), edit it with site_read and site_write, and run it through the web loop with site_id.
 Loops: to make a 3D model or a part to print, to design a web page or site, or to iterate on any image, video or sound until it is right, loop_start, then loop_submit each version, look at what comes back, and loop_critique it honestly before the next round; loop_finish delivers the best round.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
@@ -53,6 +55,7 @@ export function createMcpServer(client = new HildegardClient(), opts: McpOptions
     () => opts.agentName ?? (server.server.getClientVersion()?.name?.slice(0, 60) || 'agent'),
     opts.remote,
   );
+  registerSiteTools(server, client, opts.remote);
   registerSkillTools(server, opts.skillsDir === undefined ? findSkills() : opts.skillsDir);
   return server;
 }

@@ -225,25 +225,39 @@ export class Tab {
   readonly browser: Browser;
   readonly session: string;
 
-  /** `origin`: the only site the tab may load from; null lets it load any http(s) address. */
-  private constructor(browser: Browser, session: string, origin: string | null) {
+  /**
+   * `origin`: the only site the tab may load from; null lets it load any http(s) address; a function decides each
+   * address itself (it may look the name up first).
+   */
+  private constructor(
+    browser: Browser,
+    session: string,
+    origin: string | null | ((url: string) => Promise<boolean>),
+  ) {
     this.browser = browser;
     this.session = session;
     this.off = browser.on((method, p, s) => {
       if (s !== session) return;
       if (method === 'Fetch.requestPaused') {
         const url = String((p.request as Json).url);
-        const ok =
-          origin === null ? /^(https?|data|blob):/.test(url) : url.startsWith(`${origin}/`) || url === origin;
-        if (ok) {
-          this.requests++;
-          void browser.send('Fetch.continueRequest', { requestId: p.requestId }, session).catch(() => {});
-        } else {
-          this.blocked.add(url.length > 120 ? `${url.slice(0, 117)}…` : url);
-          void browser
-            .send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' }, session)
-            .catch(() => {});
-        }
+        const decide = (ok: boolean) => {
+          if (ok) {
+            this.requests++;
+            void browser.send('Fetch.continueRequest', { requestId: p.requestId }, session).catch(() => {});
+          } else {
+            this.blocked.add(url.length > 120 ? `${url.slice(0, 117)}…` : url);
+            void browser
+              .send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' }, session)
+              .catch(() => {});
+          }
+        };
+        if (typeof origin === 'function') origin(url).then(decide, () => decide(false));
+        else
+          decide(
+            origin === null
+              ? /^(https?|data|blob):/.test(url)
+              : url.startsWith(`${origin}/`) || url === origin,
+          );
       } else if (method === 'Network.responseReceived') {
         const r = p.response as Json;
         this.responses.set(String(p.requestId), {
@@ -276,7 +290,10 @@ export class Tab {
     });
   }
 
-  static async open(browser: Browser, origin: string | null): Promise<Tab> {
+  static async open(
+    browser: Browser,
+    origin: string | null | ((url: string) => Promise<boolean>),
+  ): Promise<Tab> {
     const { targetId } = (await browser.send('Target.createTarget', { url: 'about:blank' })) as {
       targetId: string;
     };

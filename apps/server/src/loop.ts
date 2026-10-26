@@ -226,6 +226,8 @@ export interface Loop {
   chosen: number | null;
   /** The honest closing note: what it is, and what still fails. */
   note: string | null;
+  /** Web: an image of the design every round is held to (a Figma frame, a screenshot), in this loop's folder. */
+  reference?: { file: string; width: number; page?: string } | null;
 }
 
 /** A model of a sculpture takes more rounds to get right than a shot, which is re-rendered rather than rebuilt. */
@@ -340,7 +342,8 @@ export class Loops {
     if (
       !l.rounds.some(
         (r) => r.file === name || r.sheet === name || r.handoff === name || r.slice?.gcode === name,
-      )
+      ) &&
+      l.reference?.file !== name
     )
       return null;
     const path = join(this.deps.dir, l.id, name);
@@ -546,6 +549,31 @@ export class Loops {
     }
   }
 
+  /**
+   * Web: the design to hold every round to, as a PNG or JPEG drawn `width` pixels wide (a Figma frame, a pen.dev
+   * board, a screenshot of the site before), compared with the page (`page`, or the first) at that width.
+   */
+  setReference(id: string, bytes: Uint8Array, width: number, page?: string): Loop {
+    const l = this.get(id);
+    if (l.kind !== 'web')
+      throw new LoopError(422, 'kind', 'Only a web loop is held to an image of its design.');
+    if (l.status !== 'open') throw new LoopError(409, 'closed', 'This loop is finished.');
+    const b = Buffer.from(bytes);
+    const png = b.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'));
+    const jpg = b[0] === 0xff && b[1] === 0xd8;
+    if (!png && !jpg) throw new LoopError(415, 'format', 'The design’s image has to be a PNG or a JPEG.');
+    if (b.length > 40 * 1024 * 1024) throw new LoopError(413, 'size', 'The design’s image up to 40 MB.');
+    if (!(width >= 320 && width <= 3840))
+      throw new LoopError(422, 'width', 'Say the width the design was drawn at, 320 to 3840 pixels.');
+    const file = png ? 'reference.png' : 'reference.jpg';
+    for (const old of ['reference.png', 'reference.jpg'])
+      rmSync(join(this.deps.dir, l.id, old), { force: true });
+    writeFileSync(join(this.deps.dir, l.id, file), b);
+    l.reference = { file, width: Math.round(width), ...(page ? { page: posix.normalize(page) } : {}) };
+    this.save(l);
+    return l;
+  }
+
   /** Lays a web round out as a site in its own folder (a page, or a ZIP unpacked) and names the pages to check. */
   private site(l: Loop, n: number, format: string, bytes: Uint8Array, sheet: string): WebSpec {
     const site = join(this.deps.dir, l.id, `round-${n}`);
@@ -577,7 +605,17 @@ export class Loops {
         'no_page',
         `The site has no ${missing.join(' or ')}. Its pages: ${html.slice(0, 10).join(', ')}.`,
       );
-    return { dir: site, pages, sheet, final: l.target.final, dark: l.target.dark };
+    const ref = l.reference;
+    return {
+      dir: site,
+      pages,
+      sheet,
+      final: l.target.final,
+      dark: l.target.dark,
+      ...(ref
+        ? { reference: { path: join(this.deps.dir, l.id, ref.file), width: ref.width, page: ref.page } }
+        : {}),
+    };
   }
 
   /**

@@ -14,7 +14,7 @@ import { z } from 'zod';
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
 /** What a skill holds that an app may read: words, and scripts to run itself. */
-const READABLE = /\.(md|txt|py|json|toml|ya?ml|css)$/;
+const READABLE = /\.(md|txt|py|json|toml|ya?ml|css|html|svg|js)$/;
 const MAX_READ = 400 * 1024;
 
 export interface SkillInfo {

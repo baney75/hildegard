@@ -407,7 +407,7 @@ export interface FigmaImport {
   reference?: { data: Buffer; width: number };
 }
 
-type Fetch = (
+export type FigmaFetch = (
   url: string,
   init?: { headers?: Record<string, string>; signal?: AbortSignal },
 ) => Promise<Response>;
@@ -438,14 +438,14 @@ async function readCapped(res: Response, max: number): Promise<Buffer> {
 export async function importFigma(
   source: string,
   token: string,
-  opts: { fetch?: Fetch; maxPages?: number; signal?: AbortSignal } = {},
+  opts: { fetch?: FigmaFetch; maxPages?: number; signal?: AbortSignal } = {},
 ): Promise<FigmaImport> {
   const at = parseFigmaUrl(source);
   if (!at)
     throw new FigmaError(
       'That isn’t a Figma link. Copy the link to the file or a frame from Figma’s Share menu.',
     );
-  const f: Fetch = opts.fetch ?? ((u, i) => fetch(u, i));
+  const f: FigmaFetch = opts.fetch ?? ((u, i) => fetch(u, i));
   const api = async (path: string): Promise<FNode> => {
     const res = await f(`${API}${path}`, { headers: { 'X-Figma-Token': token }, signal: opts.signal });
     if (res.status === 403 || res.status === 401)

@@ -4,7 +4,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cleanSvg, type Design, designSite, slug } from '../src/design.ts';
-import { FigmaError, figmaDesign, figmaFrames, figmaNeeds, importFigma, parseFigmaUrl } from '../src/figma.ts';
+import {
+  FigmaError,
+  figmaDesign,
+  figmaFrames,
+  figmaNeeds,
+  importFigma,
+  parseFigmaUrl,
+} from '../src/figma.ts';
 import { PenError, parseJsonc, penDesign, penImages } from '../src/pen.ts';
 
 const fixture = (name: string) => readFileSync(join(import.meta.dirname, 'fixtures', 'design', name), 'utf8');
@@ -64,7 +71,11 @@ describe('the design writer', () => {
                 wSize: 'hug',
                 hSize: 'hug',
                 fills: [],
-                text: { content: '<script>alert(1)</script>', style: { size: 16 }, href: 'javascript:alert(1)' },
+                text: {
+                  content: '<script>alert(1)</script>',
+                  style: { size: 16 },
+                  href: 'javascript:alert(1)',
+                },
                 children: [],
               },
             ],
@@ -87,7 +98,9 @@ describe('Figma import', () => {
       key: 'AbCdEf1234567890',
       nodeId: '12:34',
     });
-    expect(parseFigmaUrl('https://figma.com/file/AbCdEf1234567890/Bakery')).toEqual({ key: 'AbCdEf1234567890' });
+    expect(parseFigmaUrl('https://figma.com/file/AbCdEf1234567890/Bakery')).toEqual({
+      key: 'AbCdEf1234567890',
+    });
     expect(parseFigmaUrl('AbCdEf1234567890')).toEqual({ key: 'AbCdEf1234567890' });
     expect(parseFigmaUrl('https://figma.com.evil.test/design/AbCdEf1234567890/x')).toBeNull();
     expect(parseFigmaUrl('http://www.figma.com/design/AbCdEf1234567890/x')).toBeNull();
@@ -150,9 +163,13 @@ describe('Figma import', () => {
           }),
         );
       if (u.pathname.startsWith('/v1/images/') && u.searchParams.get('format') === 'svg')
-        return res(JSON.stringify({ images: { '1:2': 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/svg' } }));
+        return res(
+          JSON.stringify({ images: { '1:2': 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/svg' } }),
+        );
       if (u.pathname.startsWith('/v1/images/'))
-        return res(JSON.stringify({ images: { '1:1': 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/png' } }));
+        return res(
+          JSON.stringify({ images: { '1:1': 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/png' } }),
+        );
       if (u.hostname.endsWith('amazonaws.com') && u.pathname === '/svg')
         return res('<svg viewBox="0 0 2 2"><path d="M0 0h2v2z"/></svg>', 'image/svg+xml');
       return res(png, 'image/png');
@@ -198,7 +215,9 @@ describe('.pen import', () => {
     const html = site.files.get('index.html')!;
     expect(html).toContain('<h1 class="title">Kitchens drawn around how you cook.</h1>');
     expect(html).toMatch(/<p class="lede">Studio Ostra designs/);
-    expect(html).toMatch(/<a class="button" href="#">[\s\S]*<span class="label">Book a kitchen visit<\/span>/);
+    expect(html).toMatch(
+      /<a class="button" href="#">[\s\S]*<span class="label">Book a kitchen visit<\/span>/,
+    );
     expect(html).toContain('data-icon="lucide:arrow-right"');
     expect(html).toContain('<path d="M12 2 L22 12 L12 22 L2 12 Z" style="fill:var(--color-accent)"/>');
     expect(html).toContain('alt="Galley kitchen in oak"');
@@ -217,7 +236,9 @@ describe('.pen import', () => {
         {
           type: 'frame',
           id: 'f',
-          children: [{ type: 'path', id: 'p', geometry: 'M0 0"/><script>alert(1)</script>', fill: '#000000' }],
+          children: [
+            { type: 'path', id: 'p', geometry: 'M0 0"/><script>alert(1)</script>', fill: '#000000' },
+          ],
         },
       ],
     };
