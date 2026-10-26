@@ -1,0 +1,244 @@
+/* SPDX-License-Identifier: Apache-2.0 · Hildegard template "Journal" */
+
+:root {
+  color-scheme: light dark;
+  --ground: #f7f3ec;
+  --ink: #1f1b16;
+  --ink-muted: #5f574c;
+  --line: #1f1b1624;
+  --accent: #8a3b1e;
+  --accent-ink: #7f3519;
+  --tint: #efe7da;
+  --focus: #8a3b1e;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --text: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  --s0: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
+  --s1: clamp(1.3rem, 1.15rem + 0.6vw, 1.55rem);
+  --s2: clamp(1.5rem, 1.3rem + 0.9vw, 1.9rem);
+  --s3: clamp(2.6rem, 1.8rem + 4vw, 5rem);
+  --measure: 38rem;
+  --gutter: clamp(1.1rem, 5vw, 3rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #15120f;
+    --ink: #ece2d0;
+    --ink-muted: #b3a690;
+    --line: #ece2d024;
+    --accent: #e39a72;
+    --accent-ink: #eaa883;
+    --tint: #1f1a15;
+    --focus: #eaa883;
+  }
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: var(--s0) / 1.7 var(--text);
+  font-kerning: normal;
+  hanging-punctuation: first;
+}
+h1,
+h2,
+p,
+ol,
+figure,
+blockquote {
+  margin: 0;
+}
+a {
+  color: var(--accent-ink);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.mast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding: 1.25rem var(--gutter);
+  border-bottom: 1px solid var(--line);
+}
+.mast__name {
+  font: italic 700 1.5rem / 1.2 var(--display);
+  color: var(--ink);
+  text-decoration: none;
+  padding-block: 0.4rem;
+}
+.mast__issue {
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+}
+
+.story {
+  display: grid;
+  grid-template-columns: [full-start] minmax(var(--gutter), 1fr) [text-start] min(var(--measure), 100% - 2 * var(--gutter)) [text-end] minmax(var(--gutter), 1fr) [full-end];
+  row-gap: 2.5rem;
+  padding-block: clamp(2.5rem, 7vw, 5.5rem) 4rem;
+}
+.story > * {
+  grid-column: text;
+}
+.story__head {
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+}
+.kicker {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.12em;
+  color: var(--accent-ink);
+}
+h1 {
+  font: 400 var(--s3) / 1.02 var(--display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.standfirst {
+  font: italic var(--s1) / 1.45 var(--display);
+  color: var(--ink-muted);
+  text-wrap: balance;
+}
+.byline {
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+}
+
+.prose {
+  display: grid;
+  gap: 1.15em;
+}
+.prose p {
+  text-wrap: pretty;
+  hyphens: auto;
+}
+.prose h2 {
+  font: 400 var(--s2) / 1.2 var(--display);
+  margin-top: 0.5em;
+}
+.drop::first-letter {
+  float: left;
+  font: 400 4.6em / 0.82 var(--display);
+  margin: 0.06em 0.09em 0 0;
+  color: var(--accent);
+}
+.fn {
+  display: inline-block;
+  margin-left: -0.3rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  text-align: center;
+  font-size: 0.75em;
+  line-height: 1.5rem;
+  vertical-align: super;
+  text-decoration: none;
+  font-variant-numeric: lining-nums;
+}
+
+.wide {
+  grid-column: full;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 64rem;
+  width: 100%;
+  margin-inline: auto;
+}
+.wide img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wide figcaption {
+  padding-inline: var(--gutter);
+  font-size: 0.9375rem;
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+.pull {
+  margin-block: 0.75em;
+  padding-block: 1em;
+  border-block: 1px solid var(--line);
+  text-align: center;
+}
+.pull p {
+  font: italic var(--s2) / 1.3 var(--display);
+  color: var(--accent-ink);
+  text-wrap: balance;
+}
+
+.break {
+  width: 100%;
+  height: 1.5em;
+  margin: 1em 0;
+  border: 0;
+  background: none;
+  text-align: center;
+}
+.break::before {
+  content: "⁂";
+  color: var(--ink-muted);
+  font-size: 1.4rem;
+}
+
+.notes {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+}
+.notes h2 {
+  font-size: 0.9375rem;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+.notes ol {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.4rem;
+}
+.notes li:target {
+  background: var(--tint);
+  outline: 0.4rem solid var(--tint);
+}
+.notes a {
+  display: inline-block;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.author {
+  padding: 1.25rem 1.5rem;
+  background: var(--tint);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.foot {
+  padding: 2rem var(--gutter) 2.5rem;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+}
