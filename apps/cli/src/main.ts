@@ -60,6 +60,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard llm              Local models running here (Ollama, LM Studio, llama.cpp, vLLM, MLX, Jan, Local AI),
                              and yours: llm add <name> <address> [--key-stdin] | remove | use <endpoint> [<model>]
   hildegard llm direct "<idea>"  Let a local model direct shots with Hildegard's tools (--film, --model, --plan)
+  hildegard sites            Websites made here (sites templates; sites new [<template>] [--figma <link> |
+                             --url <address>] [--name <name>]). Open them on the Studio's canvas
+  hildegard figma token      Link Figma for imports (--token-stdin; figma status | unlink)
   hildegard mcp              The MCP server, on stdio (AI apps run this). It's also at /mcp, over HTTP
   hildegard skills install   Put Hildegard's skills where Claude Code, Codex, OMP, Pi, Gemini CLI and OpenCode look
                              (--agent claude-code|codex|omp|pi|gemini|opencode, --project DIR; skills list | remove)
@@ -129,6 +132,7 @@ const valued = new Set([
   'size',
   'rounds',
   'note',
+  'figma',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -208,6 +212,11 @@ async function main(): Promise<Result | null> {
       return loop(ctx, rest);
     case 'cloud':
       return cloud(ctx, rest);
+    case 'sites':
+    case 'site':
+      return (await import('./sites.ts')).sites(ctx, rest);
+    case 'figma':
+      return (await import('./sites.ts')).figma(ctx, rest);
     case 'disconnect':
       return connect(ctx, rest, true);
     case 'mcp': {

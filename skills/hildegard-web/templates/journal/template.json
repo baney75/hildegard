@@ -1,0 +1,27 @@
+{
+  "name": "Journal",
+  "for": "a long-form essay, magazine feature, newsletter issue, research write-up or personal blog post",
+  "description": "Made for reading for twenty minutes: a measure of about 66 characters, a serif with real italics, a drop cap, a wide figure with its caption, a pull quote, a section break, footnotes that link both ways, and the author's note at the end. Dark mode is sepia ink on a night page.",
+  "sections": [
+    "Masthead",
+    "Title, standfirst and byline",
+    "Body with drop cap",
+    "Wide figure",
+    "Pull quote",
+    "Section break",
+    "Footnotes",
+    "About the author",
+    "Footer"
+  ],
+  "images": [
+    {
+      "file": "art/tide.svg",
+      "aspect": "16:9",
+      "prompt": "A wide photograph of a grey northern sea at low tide under a pale moon, mudflats and channels, soft overcast light, quiet, no people"
+    }
+  ],
+  "type": {
+    "display": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif",
+    "text": "Charter, \"Bitstream Charter\", \"Sitka Text\", Cambria, Georgia, serif"
+  }
+}

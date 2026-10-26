@@ -161,10 +161,12 @@ describe('the skill packs', () => {
       'hildegard-print/references/parts-and-fits.md',
       'hildegard-print/scripts/print_kit.py',
     ]);
-    expect([...unzip(readFileSync(join(out, 'skill-hildegard-web.zip'))).keys()].sort()).toEqual([
-      'hildegard-web/SKILL.md',
-      'hildegard-web/references/tokens.css',
-    ]);
+    // The web skill carries its templates, so an app with only the skill can start from one.
+    const web = [...unzip(readFileSync(join(out, 'skill-hildegard-web.zip'))).keys()].sort();
+    expect(web.slice(0, 2)).toEqual(['hildegard-web/SKILL.md', 'hildegard-web/references/tokens.css']);
+    for (const t of ['atelier', 'gathering', 'hearth', 'journal', 'ledger', 'manual', 'parish', 'practice'])
+      for (const f of ['index.html', 'styles.css', 'template.json'])
+        expect(web).toContain(`hildegard-web/templates/${t}/${f}`);
   });
 
   it('writes the same bytes for the same files', () => {

@@ -25,6 +25,8 @@
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
+    // Inside a closed <details> (or any content-visibility: hidden) nothing is drawn, though boxes can linger.
+    if (el.checkVisibility && !el.checkVisibility()) return false;
     for (let e = el; e && e !== doc; e = e.parentElement) {
       const s = getComputedStyle(e);
       if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;

@@ -1,0 +1,156 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 · Hildegard template "Hearth". Replace every word with the shop's own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Rivers Bakehouse · Bread from the wood oven on Mill Lane</title>
+<meta name="description" content="Today's bread at Two Rivers Bakehouse on Mill Lane, with prices, hours, and orders for pickup by 7 p.m. the night before.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap masthead__row">
+    <a class="brand" href="#top">Two Rivers <span>Bakehouse</span></a>
+    <nav aria-label="Sections">
+      <ul class="nav">
+        <li><a href="#today">Today</a></li>
+        <li><a href="#order">Order</a></li>
+        <li><a href="#visit">Visit</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <div class="hero__words">
+      <p class="eyebrow">Open today, 7 to 2 · the oven was lit at 3:40</p>
+      <h1 id="hero-title">Bread from a wood oven, gone by early afternoon.</h1>
+      <p class="lede">We bake six kinds a day on Mill Lane, from grain milled forty miles upriver. Order by 7 p.m. and your loaf waits on the shelf by the door.</p>
+      <p class="actions">
+        <a class="button" href="#order">Order for pickup</a>
+        <a class="button button--quiet" href="#today">See today’s bake</a>
+      </p>
+    </div>
+    <figure class="hero__art">
+      <img src="art/loaf.svg" alt="A scored sourdough loaf on a wooden board" width="480" height="360">
+    </figure>
+  </section>
+
+  <section id="today" class="band" aria-labelledby="today-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="today-title">On the counter today</h2>
+        <p class="muted">Tuesday 14 October · prices per loaf</p>
+      </div>
+      <ul class="board">
+        <li>
+          <h3>Mill Lane sourdough</h3>
+          <p class="price"><span class="sr">Price: </span>$9</p>
+          <p>Three-day ferment, dark blistered crust, an open crumb that holds butter.</p>
+        </li>
+        <li>
+          <h3>Seeded rye</h3>
+          <p class="price"><span class="sr">Price: </span>$11</p>
+          <p>Forty percent rye with sunflower and flax. Slice it thin; it keeps a week.</p>
+        </li>
+        <li>
+          <h3>Spelt and honey</h3>
+          <p class="price"><span class="sr">Price: </span>$10</p>
+          <p>Soft, a little sweet, from the Okafor farm’s spelt and our neighbour’s hives.</p>
+        </li>
+        <li>
+          <h3>Olive fougasse</h3>
+          <p class="price"><span class="sr">Price: </span>$7</p>
+          <p>Torn, not sliced. Kalamata olives, rosemary, a lot of good oil.</p>
+        </li>
+        <li>
+          <h3>Morning buns</h3>
+          <p class="price"><span class="sr">Price: </span>$4.50</p>
+          <p>Laminated dough rolled with orange zest and cardamom sugar. Out at 7, gone by 9.</p>
+        </li>
+        <li class="board__sold">
+          <h3>Country baguette</h3>
+          <p class="price">Sold out</p>
+          <p>Back tomorrow at 7. Order tonight to be sure of one.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="wrap how" aria-labelledby="how-title">
+    <h2 id="how-title">How ordering works</h2>
+    <ol class="steps">
+      <li><p><strong>Order by 7 p.m.</strong> Tell us which loaves and which morning. Nothing to pay yet.</p></li>
+      <li><p><strong>We bake it for you.</strong> Your loaf goes on the pickup shelf with your name, still warm at 7.</p></li>
+      <li><p><strong>Pay at the counter.</strong> Card or cash. Not coming? Tell us by 7 a.m. and nothing is owed.</p></li>
+    </ol>
+  </section>
+
+  <section id="order" class="band band--accent" aria-labelledby="order-title">
+    <div class="wrap order">
+      <div>
+        <h2 id="order-title">Order for pickup</h2>
+        <p>We confirm every order by text before we light the oven. Questions? Call <a href="tel:+15550134722">(555) 013-4722</a>.</p>
+      </div>
+      <form class="form" action="#order" method="post">
+        <p class="field">
+          <label for="name">Your name</label>
+          <input id="name" name="name" autocomplete="name" required>
+        </p>
+        <p class="field">
+          <label for="phone">Mobile number, for the text</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" required>
+        </p>
+        <p class="field">
+          <label for="loaf">Loaf</label>
+          <select id="loaf" name="loaf">
+            <option>Mill Lane sourdough · $9</option>
+            <option>Seeded rye · $11</option>
+            <option>Spelt and honey · $10</option>
+            <option>Olive fougasse · $7</option>
+            <option>Country baguette · $5</option>
+          </select>
+        </p>
+        <fieldset class="field">
+          <legend>Pickup morning</legend>
+          <div class="choices">
+            <label><input type="radio" name="day" value="wed" checked> Wednesday</label>
+            <label><input type="radio" name="day" value="thu"> Thursday</label>
+            <label><input type="radio" name="day" value="fri"> Friday</label>
+          </div>
+        </fieldset>
+        <p><button class="button" type="submit">Send the order</button></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="visit" class="wrap visit" aria-labelledby="visit-title">
+    <h2 id="visit-title">Hours and the way in</h2>
+    <div class="visit__grid">
+      <table class="hours">
+        <caption class="sr">Opening hours</caption>
+        <tbody>
+          <tr><th scope="row">Tuesday to Friday</th><td>7 a.m. to 2 p.m.</td></tr>
+          <tr><th scope="row">Saturday</th><td>7 a.m. to 1 p.m.</td></tr>
+          <tr><th scope="row">Sunday and Monday</th><td>Closed: the oven rests</td></tr>
+        </tbody>
+      </table>
+      <address>
+        <strong>Two Rivers Bakehouse</strong><br>
+        18 Mill Lane, Harrow Bridge<br>
+        The green door beside the old weir. Bike rack out front, step-free entrance on the side.
+      </address>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__row">
+    <p>Two Rivers Bakehouse · baking on Mill Lane since 2016</p>
+    <p><a href="mailto:hello@tworivers.bakery">hello@tworivers.bakery</a></p>
+  </div>
+</footer>
+</body>
+</html>

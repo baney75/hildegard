@@ -1,0 +1,52 @@
+// A small studio page, written the way pen.dev writes .pen files (schema 2.21).
+{
+  "version": "2.21",
+  "themes": { "mode": ["light", "dark"] },
+  "variables": {
+    "color.ground": { "type": "color", "value": [{ "value": "#f7f5f0" }, { "value": "#141311", "theme": { "mode": "dark" } }] },
+    "color.ink": { "type": "color", "value": [{ "value": "#191714" }, { "value": "#f1ede4", "theme": { "mode": "dark" } }] },
+    "color.accent": { "type": "color", "value": [{ "value": "#1f5f4a" }, { "value": "#7fd1b0", "theme": { "mode": "dark" } }] },
+    "color.on-accent": { "type": "color", "value": [{ "value": "#ffffff" }, { "value": "#0b2119", "theme": { "mode": "dark" } }] },
+    "space.section": { "type": "number", "value": 72 }
+  },
+  "children": [
+    {
+      "id": "btn", "type": "frame", "name": "Button", "reusable": true, "x": 2000, "y": 0,
+      "layout": "horizontal", "gap": 8, "padding": [14, 24], "alignItems": "center", "cornerRadius": 999,
+      "fill": "$color.accent",
+      "children": [
+        { "id": "icon", "type": "icon", "library": "lucide", "icon": "arrow-right", "width": 18, "height": 18, "fill": "$color.on-accent" },
+        { "id": "label", "type": "text", "content": "Button", "fontSize": 17, "fontWeight": "600", "fill": "$color.on-accent" }
+      ]
+    },
+    {
+      "id": "home", "type": "frame", "name": "Studio Ostra", "x": 0, "y": 0, "width": 1280, "height": "fit_content(900)",
+      "layout": "vertical", "fill": "$color.ground",
+      "children": [
+        {
+          "id": "hero", "type": "frame", "name": "Hero", "width": "fill_container", "layout": "vertical", "gap": 20,
+          "padding": ["$space.section", 64],
+          "children": [
+            { "id": "mark", "type": "path", "name": "Mark", "width": 40, "height": 40, "viewBox": [0, 0, 24, 24],
+              "geometry": "M12 2 L22 12 L12 22 L2 12 Z", "fill": "$color.accent" },
+            { "id": "title", "type": "text", "content": "Kitchens drawn around how you cook.", "fontSize": 60, "fontWeight": 700,
+              "lineHeight": 1.05, "letterSpacing": -1, "fill": "$color.ink", "width": "fill_container", "textGrowth": "fixed-width" },
+            { "id": "lede", "type": "text", "content": "Studio Ostra designs and builds kitchens in Portland. We start with a week of your meals, not a catalogue.",
+              "fontSize": 19, "lineHeight": 1.5, "fill": "$color.ink", "width": 620, "textGrowth": "fixed-width" },
+            { "id": "cta", "type": "ref", "ref": "btn", "descendants": { "label": { "content": "Book a kitchen visit" } } }
+          ]
+        },
+        {
+          "id": "work", "type": "frame", "name": "Work", "width": "fill_container", "layout": "horizontal", "gap": 24, "padding": [0, 64, 72, 64],
+          "children": [
+            { "id": "p1", "type": "rectangle", "name": "Galley kitchen in oak", "width": "fill_container", "height": 360, "cornerRadius": 12,
+              "fill": [{ "type": "image", "url": "images/galley.png", "mode": "cover" }] },
+            { "id": "p2", "type": "rectangle", "name": "Rectangle 4", "width": "fill_container", "height": 360, "cornerRadius": 12,
+              "fill": [{ "type": "image", "url": "images/missing.png" }] },
+            { "id": "n1", "type": "note", "content": "Swap for the Alder Street photo" }
+          ]
+        }
+      ]
+    }
+  ]
+}

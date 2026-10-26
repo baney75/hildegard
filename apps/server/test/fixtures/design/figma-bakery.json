@@ -1,0 +1,1073 @@
+{
+  "name": "Hearth Bakery",
+  "document": {
+    "id": "0:0",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "type": "CANVAS",
+        "name": "Page 1",
+        "children": [
+          {
+            "id": "1:1",
+            "name": "Home",
+            "type": "FRAME",
+            "absoluteBoundingBox": {
+              "x": 0,
+              "y": 0,
+              "width": 1440,
+              "height": 1400
+            },
+            "layoutMode": "VERTICAL",
+            "primaryAxisSizingMode": "AUTO",
+            "fills": [
+              {
+                "type": "SOLID",
+                "color": {
+                  "r": 0.984313725490196,
+                  "g": 0.9725490196078431,
+                  "b": 0.9490196078431372,
+                  "a": 1
+                }
+              }
+            ],
+            "children": [
+              {
+                "id": "1:1",
+                "name": "Nav",
+                "type": "FRAME",
+                "absoluteBoundingBox": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 1440,
+                  "height": 80
+                },
+                "layoutMode": "HORIZONTAL",
+                "itemSpacing": 32,
+                "paddingLeft": 64,
+                "paddingRight": 64,
+                "paddingTop": 20,
+                "paddingBottom": 20,
+                "primaryAxisAlignItems": "SPACE_BETWEEN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "fills": [],
+                "children": [
+                  {
+                    "id": "1:2",
+                    "name": "Logo",
+                    "type": "GROUP",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 24,
+                      "width": 32,
+                      "height": 32
+                    },
+                    "children": [
+                      {
+                        "id": "1:3",
+                        "name": "Vector",
+                        "type": "VECTOR",
+                        "absoluteBoundingBox": {
+                          "x": 64,
+                          "y": 24,
+                          "width": 32,
+                          "height": 32
+                        },
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 0.5411764705882353,
+                              "g": 0.23137254901960785,
+                              "b": 0.07058823529411765,
+                              "a": 1
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "1:4",
+                    "name": "Order link",
+                    "type": "TEXT",
+                    "characters": "Order for pickup",
+                    "absoluteBoundingBox": {
+                      "x": 1200,
+                      "y": 28,
+                      "width": 176,
+                      "height": 24
+                    },
+                    "style": {
+                      "fontFamily": "Inter",
+                      "fontWeight": 600,
+                      "fontSize": 18,
+                      "lineHeightPx": 23.400000000000002,
+                      "textAlignHorizontal": "LEFT",
+                      "letterSpacing": 0,
+                      "hyperlink": {
+                        "type": "URL",
+                        "url": "#order"
+                      }
+                    },
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.5411764705882353,
+                          "g": 0.23137254901960785,
+                          "b": 0.07058823529411765,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "HUG",
+                    "layoutSizingVertical": "HUG"
+                  }
+                ]
+              },
+              {
+                "id": "1:5",
+                "name": "Hero",
+                "type": "FRAME",
+                "absoluteBoundingBox": {
+                  "x": 0,
+                  "y": 80,
+                  "width": 1440,
+                  "height": 520
+                },
+                "layoutMode": "VERTICAL",
+                "itemSpacing": 24,
+                "paddingLeft": 64,
+                "paddingRight": 64,
+                "paddingTop": 96,
+                "paddingBottom": 96,
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0.9647058823529412,
+                      "g": 0.9450980392156862,
+                      "b": 0.9058823529411765,
+                      "a": 1
+                    }
+                  }
+                ],
+                "styles": {
+                  "fill": "S:ground"
+                },
+                "children": [
+                  {
+                    "id": "1:6",
+                    "name": "Title",
+                    "type": "TEXT",
+                    "characters": "Bread baked at four, sold by seven.",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 176,
+                      "width": 900,
+                      "height": 140
+                    },
+                    "style": {
+                      "fontFamily": "Fraunces",
+                      "fontWeight": 700,
+                      "fontSize": 64,
+                      "lineHeightPx": 83.2,
+                      "textAlignHorizontal": "LEFT",
+                      "letterSpacing": 0
+                    },
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.11372549019607843,
+                          "g": 0.10196078431372549,
+                          "b": 0.08627450980392157,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "styles": {
+                      "fill": "S:ink"
+                    }
+                  },
+                  {
+                    "id": "1:7",
+                    "name": "Lede",
+                    "type": "TEXT",
+                    "characters": "Hearth Bakery on Elm Street bakes six loaves a day in a wood-fired oven. Reserve yours by nine the night before.",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 340,
+                      "width": 640,
+                      "height": 60
+                    },
+                    "style": {
+                      "fontFamily": "Inter",
+                      "fontWeight": 400,
+                      "fontSize": 20,
+                      "lineHeightPx": 26.0,
+                      "textAlignHorizontal": "LEFT",
+                      "letterSpacing": 0
+                    },
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.2901960784313726,
+                          "g": 0.25098039215686274,
+                          "b": 0.2196078431372549,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG"
+                  },
+                  {
+                    "id": "1:8",
+                    "name": "Button",
+                    "type": "FRAME",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 430,
+                      "width": 220,
+                      "height": 56
+                    },
+                    "layoutMode": "HORIZONTAL",
+                    "paddingLeft": 28,
+                    "paddingRight": 28,
+                    "paddingTop": 16,
+                    "paddingBottom": 16,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "CENTER",
+                    "layoutSizingHorizontal": "HUG",
+                    "layoutSizingVertical": "HUG",
+                    "cornerRadius": 28,
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.5411764705882353,
+                          "g": 0.23137254901960785,
+                          "b": 0.07058823529411765,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "styles": {
+                      "fill": "S:accent"
+                    },
+                    "effects": [
+                      {
+                        "type": "DROP_SHADOW",
+                        "visible": true,
+                        "color": {
+                          "r": 0.0,
+                          "g": 0.0,
+                          "b": 0.0,
+                          "a": 0.2
+                        },
+                        "offset": {
+                          "x": 0,
+                          "y": 4
+                        },
+                        "radius": 12,
+                        "spread": 0
+                      }
+                    ],
+                    "children": [
+                      {
+                        "id": "1:9",
+                        "name": "Label",
+                        "type": "TEXT",
+                        "characters": "See today\u2019s bread",
+                        "absoluteBoundingBox": {
+                          "x": 92,
+                          "y": 446,
+                          "width": 164,
+                          "height": 24
+                        },
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontWeight": 600,
+                          "fontSize": 18,
+                          "lineHeightPx": 23.400000000000002,
+                          "textAlignHorizontal": "LEFT",
+                          "letterSpacing": 0
+                        },
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 1.0,
+                              "g": 1.0,
+                              "b": 1.0,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "HUG",
+                        "layoutSizingVertical": "HUG"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "1:10",
+                "name": "Today",
+                "type": "FRAME",
+                "absoluteBoundingBox": {
+                  "x": 0,
+                  "y": 600,
+                  "width": 1440,
+                  "height": 680
+                },
+                "layoutMode": "VERTICAL",
+                "itemSpacing": 32,
+                "paddingLeft": 64,
+                "paddingRight": 64,
+                "paddingTop": 80,
+                "paddingBottom": 80,
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "fills": [],
+                "children": [
+                  {
+                    "id": "1:11",
+                    "name": "Heading",
+                    "type": "TEXT",
+                    "characters": "Today\u2019s bread",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 680,
+                      "width": 600,
+                      "height": 48
+                    },
+                    "style": {
+                      "fontFamily": "Fraunces",
+                      "fontWeight": 700,
+                      "fontSize": 40,
+                      "lineHeightPx": 52.0,
+                      "textAlignHorizontal": "LEFT",
+                      "letterSpacing": 0
+                    },
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.11372549019607843,
+                          "g": 0.10196078431372549,
+                          "b": 0.08627450980392157,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG"
+                  },
+                  {
+                    "id": "1:12",
+                    "name": "Row",
+                    "type": "FRAME",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 760,
+                      "width": 1312,
+                      "height": 480
+                    },
+                    "layoutMode": "HORIZONTAL",
+                    "itemSpacing": 32,
+                    "layoutWrap": "WRAP",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "children": [
+                      {
+                        "id": "1:13",
+                        "name": "Card",
+                        "type": "FRAME",
+                        "absoluteBoundingBox": {
+                          "x": 64,
+                          "y": 700,
+                          "width": 416,
+                          "height": 480
+                        },
+                        "layoutMode": "VERTICAL",
+                        "itemSpacing": 12,
+                        "paddingBottom": 24,
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "cornerRadius": 16,
+                        "clipsContent": true,
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 1.0,
+                              "g": 1.0,
+                              "b": 1.0,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokes": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 0.8941176470588236,
+                              "g": 0.8627450980392157,
+                              "b": 0.803921568627451,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokeWeight": 1,
+                        "children": [
+                          {
+                            "id": "1:14",
+                            "name": "Country sourdough loaf",
+                            "type": "RECTANGLE",
+                            "absoluteBoundingBox": {
+                              "x": 64,
+                              "y": 700,
+                              "width": 416,
+                              "height": 280
+                            },
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "FIXED",
+                            "fills": [
+                              {
+                                "type": "IMAGE",
+                                "imageRef": "ref0abcdef",
+                                "scaleMode": "FILL"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "1:15",
+                            "name": "Body",
+                            "type": "FRAME",
+                            "absoluteBoundingBox": {
+                              "x": 64,
+                              "y": 992,
+                              "width": 416,
+                              "height": 160
+                            },
+                            "layoutMode": "VERTICAL",
+                            "itemSpacing": 8,
+                            "paddingLeft": 24,
+                            "paddingRight": 24,
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "HUG",
+                            "fills": [],
+                            "children": [
+                              {
+                                "id": "1:16",
+                                "name": "Name",
+                                "type": "TEXT",
+                                "characters": "Country sourdough",
+                                "absoluteBoundingBox": {
+                                  "x": 88,
+                                  "y": 992,
+                                  "width": 368,
+                                  "height": 32
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 24,
+                                  "lineHeightPx": 31.200000000000003,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.11372549019607843,
+                                      "g": 0.10196078431372549,
+                                      "b": 0.08627450980392157,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:17",
+                                "name": "Price",
+                                "type": "TEXT",
+                                "characters": "$9",
+                                "absoluteBoundingBox": {
+                                  "x": 88,
+                                  "y": 1030,
+                                  "width": 368,
+                                  "height": 24
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 18,
+                                  "lineHeightPx": 23.400000000000002,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.5411764705882353,
+                                      "g": 0.23137254901960785,
+                                      "b": 0.07058823529411765,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:18",
+                                "name": "Desc",
+                                "type": "TEXT",
+                                "characters": "Three-day ferment, dark crust, an open crumb.",
+                                "absoluteBoundingBox": {
+                                  "x": 88,
+                                  "y": 1060,
+                                  "width": 368,
+                                  "height": 60
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 400,
+                                  "fontSize": 17,
+                                  "lineHeightPx": 22.1,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.2901960784313726,
+                                      "g": 0.25098039215686274,
+                                      "b": 0.2196078431372549,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "1:19",
+                        "name": "Card",
+                        "type": "FRAME",
+                        "absoluteBoundingBox": {
+                          "x": 512,
+                          "y": 700,
+                          "width": 416,
+                          "height": 480
+                        },
+                        "layoutMode": "VERTICAL",
+                        "itemSpacing": 12,
+                        "paddingBottom": 24,
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "cornerRadius": 16,
+                        "clipsContent": true,
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 1.0,
+                              "g": 1.0,
+                              "b": 1.0,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokes": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 0.8941176470588236,
+                              "g": 0.8627450980392157,
+                              "b": 0.803921568627451,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokeWeight": 1,
+                        "children": [
+                          {
+                            "id": "1:20",
+                            "name": "Seeded rye loaf",
+                            "type": "RECTANGLE",
+                            "absoluteBoundingBox": {
+                              "x": 512,
+                              "y": 700,
+                              "width": 416,
+                              "height": 280
+                            },
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "FIXED",
+                            "fills": [
+                              {
+                                "type": "IMAGE",
+                                "imageRef": "ref1abcdef",
+                                "scaleMode": "FILL"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "1:21",
+                            "name": "Body",
+                            "type": "FRAME",
+                            "absoluteBoundingBox": {
+                              "x": 512,
+                              "y": 992,
+                              "width": 416,
+                              "height": 160
+                            },
+                            "layoutMode": "VERTICAL",
+                            "itemSpacing": 8,
+                            "paddingLeft": 24,
+                            "paddingRight": 24,
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "HUG",
+                            "fills": [],
+                            "children": [
+                              {
+                                "id": "1:22",
+                                "name": "Name",
+                                "type": "TEXT",
+                                "characters": "Seeded rye",
+                                "absoluteBoundingBox": {
+                                  "x": 536,
+                                  "y": 992,
+                                  "width": 368,
+                                  "height": 32
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 24,
+                                  "lineHeightPx": 31.200000000000003,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.11372549019607843,
+                                      "g": 0.10196078431372549,
+                                      "b": 0.08627450980392157,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:23",
+                                "name": "Price",
+                                "type": "TEXT",
+                                "characters": "$11",
+                                "absoluteBoundingBox": {
+                                  "x": 536,
+                                  "y": 1030,
+                                  "width": 368,
+                                  "height": 24
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 18,
+                                  "lineHeightPx": 23.400000000000002,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.5411764705882353,
+                                      "g": 0.23137254901960785,
+                                      "b": 0.07058823529411765,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:24",
+                                "name": "Desc",
+                                "type": "TEXT",
+                                "characters": "Dense, sour, and better on the second day.",
+                                "absoluteBoundingBox": {
+                                  "x": 536,
+                                  "y": 1060,
+                                  "width": 368,
+                                  "height": 60
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 400,
+                                  "fontSize": 17,
+                                  "lineHeightPx": 22.1,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.2901960784313726,
+                                      "g": 0.25098039215686274,
+                                      "b": 0.2196078431372549,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "1:25",
+                        "name": "Card",
+                        "type": "FRAME",
+                        "absoluteBoundingBox": {
+                          "x": 960,
+                          "y": 700,
+                          "width": 416,
+                          "height": 480
+                        },
+                        "layoutMode": "VERTICAL",
+                        "itemSpacing": 12,
+                        "paddingBottom": 24,
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "cornerRadius": 16,
+                        "clipsContent": true,
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 1.0,
+                              "g": 1.0,
+                              "b": 1.0,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokes": [
+                          {
+                            "type": "SOLID",
+                            "color": {
+                              "r": 0.8941176470588236,
+                              "g": 0.8627450980392157,
+                              "b": 0.803921568627451,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "strokeWeight": 1,
+                        "children": [
+                          {
+                            "id": "1:26",
+                            "name": "Milk loaf loaf",
+                            "type": "RECTANGLE",
+                            "absoluteBoundingBox": {
+                              "x": 960,
+                              "y": 700,
+                              "width": 416,
+                              "height": 280
+                            },
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "FIXED",
+                            "fills": [
+                              {
+                                "type": "IMAGE",
+                                "imageRef": "ref2abcdef",
+                                "scaleMode": "FILL"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "1:27",
+                            "name": "Body",
+                            "type": "FRAME",
+                            "absoluteBoundingBox": {
+                              "x": 960,
+                              "y": 992,
+                              "width": 416,
+                              "height": 160
+                            },
+                            "layoutMode": "VERTICAL",
+                            "itemSpacing": 8,
+                            "paddingLeft": 24,
+                            "paddingRight": 24,
+                            "layoutSizingHorizontal": "FILL",
+                            "layoutSizingVertical": "HUG",
+                            "fills": [],
+                            "children": [
+                              {
+                                "id": "1:28",
+                                "name": "Name",
+                                "type": "TEXT",
+                                "characters": "Milk loaf",
+                                "absoluteBoundingBox": {
+                                  "x": 984,
+                                  "y": 992,
+                                  "width": 368,
+                                  "height": 32
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 24,
+                                  "lineHeightPx": 31.200000000000003,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.11372549019607843,
+                                      "g": 0.10196078431372549,
+                                      "b": 0.08627450980392157,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:29",
+                                "name": "Price",
+                                "type": "TEXT",
+                                "characters": "$7",
+                                "absoluteBoundingBox": {
+                                  "x": 984,
+                                  "y": 1030,
+                                  "width": 368,
+                                  "height": 24
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 600,
+                                  "fontSize": 18,
+                                  "lineHeightPx": 23.400000000000002,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.5411764705882353,
+                                      "g": 0.23137254901960785,
+                                      "b": 0.07058823529411765,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              },
+                              {
+                                "id": "1:30",
+                                "name": "Desc",
+                                "type": "TEXT",
+                                "characters": "Soft enough for children, rich enough for toast.",
+                                "absoluteBoundingBox": {
+                                  "x": 984,
+                                  "y": 1060,
+                                  "width": 368,
+                                  "height": 60
+                                },
+                                "style": {
+                                  "fontFamily": "Inter",
+                                  "fontWeight": 400,
+                                  "fontSize": 17,
+                                  "lineHeightPx": 22.1,
+                                  "textAlignHorizontal": "LEFT",
+                                  "letterSpacing": 0
+                                },
+                                "fills": [
+                                  {
+                                    "type": "SOLID",
+                                    "color": {
+                                      "r": 0.2901960784313726,
+                                      "g": 0.25098039215686274,
+                                      "b": 0.2196078431372549,
+                                      "a": 1
+                                    }
+                                  }
+                                ],
+                                "layoutSizingHorizontal": "FILL",
+                                "layoutSizingVertical": "HUG"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "1:31",
+                "name": "Footer",
+                "type": "FRAME",
+                "absoluteBoundingBox": {
+                  "x": 0,
+                  "y": 1280,
+                  "width": 1440,
+                  "height": 120
+                },
+                "layoutMode": "HORIZONTAL",
+                "paddingLeft": 64,
+                "paddingRight": 64,
+                "paddingTop": 40,
+                "paddingBottom": 40,
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0.11372549019607843,
+                      "g": 0.10196078431372549,
+                      "b": 0.08627450980392157,
+                      "a": 1
+                    }
+                  }
+                ],
+                "children": [
+                  {
+                    "id": "1:32",
+                    "name": "Address",
+                    "type": "TEXT",
+                    "characters": "14 Elm Street \u00b7 open Tuesday to Sunday, 7 to 1",
+                    "absoluteBoundingBox": {
+                      "x": 64,
+                      "y": 1320,
+                      "width": 700,
+                      "height": 24
+                    },
+                    "style": {
+                      "fontFamily": "Inter",
+                      "fontWeight": 400,
+                      "fontSize": 17,
+                      "lineHeightPx": 22.1,
+                      "textAlignHorizontal": "LEFT",
+                      "letterSpacing": 0
+                    },
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.9647058823529412,
+                          "g": 0.9450980392156862,
+                          "b": 0.9058823529411765,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG"
+                  },
+                  {
+                    "id": "1:33",
+                    "name": "Swatch",
+                    "type": "RECTANGLE",
+                    "visible": true,
+                    "absoluteBoundingBox": {
+                      "x": 1300,
+                      "y": 1320,
+                      "width": 24,
+                      "height": 24
+                    },
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0.12549019607843137,
+                          "g": 0.10980392156862745,
+                          "b": 0.09411764705882353,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "styles": {
+                      "fill": "S:dark"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "9:9",
+            "name": "Old",
+            "type": "FRAME",
+            "visible": false,
+            "absoluteBoundingBox": {
+              "x": 2000,
+              "y": 0,
+              "width": 1440,
+              "height": 900
+            },
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "styles": {
+    "S:ground": {
+      "name": "Light/Ground",
+      "styleType": "FILL"
+    },
+    "S:ink": {
+      "name": "Ink",
+      "styleType": "FILL"
+    },
+    "S:accent": {
+      "name": "Brand/Accent",
+      "styleType": "FILL"
+    },
+    "S:dark": {
+      "name": "Dark/Ground",
+      "styleType": "FILL"
+    }
+  }
+}
