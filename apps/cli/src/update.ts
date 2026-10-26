@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { ChoirDevice, ChoirState, UpdateState } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
-import { latestVersion, newer, RELEASES, VERSION, verifySigned } from '@hildegard/server';
+import { latestVersion, newer, RELEASES, VERSION, verifySigned, withoutBundleEnv } from '@hildegard/server';
 import { api, type Ctx, running, stop } from './commands.ts';
 import { type Result, result } from './output.ts';
 
@@ -102,8 +102,8 @@ export async function update(ctx: Ctx): Promise<Result> {
   const file = join(dir, windows ? 'install.ps1' : 'install.sh');
   writeFileSync(file, script);
   writeFileSync(updatingFile(c.dataDir), `${latest}\n`);
-  const env: NodeJS.ProcessEnv = { ...process.env, HILDEGARD_HOME: home };
-  delete env.HILDEGARD_ENTRY;
+  // Without this version's own paths: the new one finds its files where it is.
+  const env: NodeJS.ProcessEnv = { ...withoutBundleEnv(process.env), HILDEGARD_HOME: home };
 
   if (windows) {
     // Windows won't replace a program that's running, Node.js included, so Hildegard stops first and the installer

@@ -102,7 +102,7 @@ import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
-export const VERSION = '0.1.9';
+export const VERSION = '0.1.10';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -427,9 +427,9 @@ export function createApp(deps: AppDeps) {
     if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
     return c.json(await deps.updates.check());
   });
-  app.post('/api/update', (c) => {
+  app.post('/api/update', async (c) => {
     if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
-    const why = deps.updates.apply();
+    const why = await deps.updates.now();
     return why ? c.json({ error: why }, 409) : c.json(deps.updates.state());
   });
   app.put('/api/update', async (c) => {

@@ -15,6 +15,11 @@
 # HILDEGARD_INSTALL_ARGS (for example "--json") to pass options to step 3.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# When an older Hildegard runs this to update itself, its own paths are in the environment. They name the version being
+# replaced, and the new one must find its files where it is, so drop them; hildegard.cmd sets what it needs.
+foreach ($v in 'HILDEGARD_ENTRY', 'HILDEGARD_RESOURCES', 'HILDEGARD_PRESETS_DIR', 'HILDEGARD_COMMIT') {
+  Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+}
 
 $Version = '@VERSION@'
 $Node = '@NODE@'
@@ -129,6 +134,17 @@ finally {
 if ($env:HILDEGARD_SKIP_SETUP -ne '1') {
   $extra = if ($env:HILDEGARD_INSTALL_ARGS) { $env:HILDEGARD_INSTALL_ARGS -split '\s+' | Where-Object { $_ } } else { @() }
   & $launcher install --yes @extra
-  # A throw, not exit: under `irm | iex`, exit would close the window.
-  if ($LASTEXITCODE -ne 0) { throw "hildegard install didn't finish. Run it again with: hildegard install" }
+  if ($LASTEXITCODE -ne 0) {
+    # An update that won't start goes back to the version it replaced, and starts that one again.
+    $back = if ($prev -and $prev -ne "app-$Version") { Join-Path $Root $prev } else { $null }
+    if ($back -and (Test-Path $back)) {
+      Write-Host "Going back to Hildegard $($prev -replace '^app-', '')..."
+      (Get-Item $link).Delete()
+      New-Item -ItemType Junction -Path $link -Target $back | Out-Null
+      & $launcher start *> $null
+      if ($LASTEXITCODE -eq 0) { Write-Host "Hildegard $($prev -replace '^app-', '') is running again." }
+    }
+    # A throw, not exit: under `irm | iex`, exit would close the window.
+    throw "hildegard install didn't finish. Run it again with: hildegard install"
+  }
 }

@@ -165,6 +165,14 @@ export class Updates {
     this.maybeApply();
   }
 
+  /** Update now, looking for the newest release first when the last check found none. Returns why not. */
+  async now(): Promise<string | null> {
+    if (this.opts.updatable && !this.available && !this.applying) await this.check();
+    if (this.applying) return null;
+    if (!this.available && this.error) return this.error;
+    return this.apply();
+  }
+
   /** Update now. Returns why not, when it can't. */
   apply(): string | null {
     if (!this.opts.updatable) return 'This Hildegard runs from its source code. Update it with git.';
@@ -217,6 +225,14 @@ export class Updates {
   }
 }
 
+/** The environment without what this version's bundle set about its own files, which a newer version must not use. */
+export function withoutBundleEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const v of ['HILDEGARD_ENTRY', 'HILDEGARD_RESOURCES', 'HILDEGARD_PRESETS_DIR', 'HILDEGARD_COMMIT'])
+    delete out[v];
+  return out;
+}
+
 /** Starts `hildegard update` on its own, so it carries on when it stops this server. Its output goes to the log. */
 export function runUpdate(
   entry: string,
@@ -229,7 +245,8 @@ export function runUpdate(
     detached: true,
     stdio: ['ignore', fd, fd],
     windowsHide: true,
-    env: { ...env, HILDEGARD_ENTRY: entry },
+    // The update command runs from this version's bundle, which sets the rest itself.
+    env: { ...withoutBundleEnv(env), HILDEGARD_ENTRY: entry },
   });
   closeSync(fd);
   child.unref();

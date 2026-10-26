@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { newer, UPDATE_KEY, Updates, verifySigned } from '../src/update.ts';
+import { newer, UPDATE_KEY, Updates, verifySigned, withoutBundleEnv } from '../src/update.ts';
 
 // Signed by `tauri signer sign` with a throwaway key, as releases sign theirs with the real one.
 const dir = fileURLToPath(new URL('./fixtures/update/', import.meta.url));
@@ -125,6 +125,29 @@ describe('Updates', () => {
     expect(w.runs).toHaveLength(1);
   });
 
+  it('updates now even before its first check, looking for the release itself', async () => {
+    const w = watcher({ latest: '0.1.6' });
+    w.u.setAuto(false);
+    expect(w.u.state().available).toBeNull();
+    expect(await w.u.now()).toBeNull();
+    expect(w.u.state()).toMatchObject({ available: '0.1.6', applying: true });
+    expect(w.runs).toHaveLength(1);
+    expect(await watcher({ latest: '0.1.5' }).u.now()).toMatch(/up to date/);
+    expect(await watcher().u.now()).toMatch(/doesn’t offer updates/);
+  });
+
+  it('keeps this version’s own paths away from the update it starts', () => {
+    const env = withoutBundleEnv({
+      PATH: '/bin',
+      HILDEGARD_HOME: '/h',
+      HILDEGARD_ENTRY: '/h/app-0.1.5/hildegard.mjs',
+      HILDEGARD_RESOURCES: '/h/app-0.1.5',
+      HILDEGARD_PRESETS_DIR: '/h/app-0.1.5/presets',
+      HILDEGARD_COMMIT: 'abc',
+    });
+    expect(env).toEqual({ PATH: '/bin', HILDEGARD_HOME: '/h' });
+  });
+
   it('says why another device can’t update it', async () => {
     expect(await watcher({ latest: '0.1.5' }).u.request()).toMatch(/up to date/);
     expect(await watcher().u.request()).toMatch(/doesn’t offer updates|404/);
@@ -166,7 +189,6 @@ describe('the update routes', () => {
     try {
       const snap = (await (await fetch(`${s.url}/api/snapshot`)).json()) as { update: unknown };
       expect(snap.update).toMatchObject({ available: null, auto: true, updatable: true });
-      expect((await call('POST', '/api/update')).status).toBe(409);
       expect(await (await call('PUT', '/api/update', { auto: false })).json()).toMatchObject({ auto: false });
       expect((await call('PUT', '/api/update', { auto: 'yes' })).status).toBe(400);
       expect(await (await call('POST', '/api/update/check')).json()).toMatchObject({ available: '99.0.0' });

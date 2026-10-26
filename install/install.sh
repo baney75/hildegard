@@ -22,6 +22,9 @@ NODE=@NODE@
 RELEASE=${HILDEGARD_RELEASE_URL:-https://github.com/baney75/hildegard/releases/download/v$VERSION}
 
 say() { printf '%s\n' "$*" >&2; }
+# When an older Hildegard runs this to update itself, its own paths are in the environment. They name the version being
+# replaced, and the new one must find its files where it is, so drop them; the hildegard command sets what it needs.
+unset HILDEGARD_ENTRY HILDEGARD_RESOURCES HILDEGARD_PRESETS_DIR HILDEGARD_COMMIT
 die() {
   say "hildegard: $*"
   exit 1
@@ -155,5 +158,17 @@ case ":$PATH:" in
 esac
 
 if [ "${HILDEGARD_SKIP_SETUP:-}" != 1 ]; then
-  exec "$bin/hildegard" install --yes "$@"
+  "$bin/hildegard" install --yes "$@" && exit 0
+  status=$?
+  # An update that won't start goes back to the version it replaced, and starts that one again.
+  if [ -n "$prev" ] && [ "$prev" != "app-$VERSION" ] && [ -d "$home/$prev" ]; then
+    say "Going back to Hildegard ${prev#app-}..."
+    ln -sfn "$prev" "$home/app"
+    if "$bin/hildegard" start >/dev/null 2>&1; then
+      say "Hildegard ${prev#app-} is running again."
+    else
+      say "Hildegard ${prev#app-} didn't start either. Run: hildegard doctor"
+    fi
+  fi
+  exit $status
 fi
