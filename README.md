@@ -1,10 +1,44 @@
-<h1><picture><source media="(prefers-color-scheme: dark)" srcset="site/img/lockup-horizontal-vellum.svg"><img src="site/img/lockup-horizontal-green.svg" alt="Hildegard" height="44"></picture></h1>
+<div align="center">
 
-Your own film studio, on your own GPU. Hildegard directs video models (LTX-2.5, LTX-2 and Wan 2.2) through ComfyUI
-with real camera language: bodies, lenses, focal lengths, apertures, moves and film looks. Everything runs on your
-computer. Nothing you make leaves it, and nothing costs money per shot.
+<picture><source media="(prefers-color-scheme: dark)" srcset="site/img/lockup-horizontal-vellum.svg"><img src="site/img/lockup-horizontal-green.svg" alt="Hildegard" height="52"></picture>
 
-Cinema Studio is the first room. Voice, music, images and 3D come next, all on the GPUs you already own.
+### Your own AI studio, on your own GPU.
+
+Films, voices, characters and 3D, made on computers you own. A free, open source alternative to Higgsfield and
+ElevenLabs that runs locally on Windows, macOS and Linux, with music on the way.
+
+[![Latest release](https://img.shields.io/github/v/release/baney75/hildegard?include_prereleases&label=release&color=2c7350)](https://github.com/baney75/hildegard/releases/latest)
+[![CI](https://github.com/baney75/hildegard/actions/workflows/ci.yml/badge.svg)](https://github.com/baney75/hildegard/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-3451b2)](LICENSE)
+[![Windows, macOS, Linux](https://img.shields.io/badge/runs_on-Windows_·_macOS_·_Linux-d9b45c)](#install)
+[![MCP server](https://img.shields.io/badge/MCP-server-15265a)](#use-it-from-your-ai-apps)
+
+[**Website**](https://dbaney.com/hildegard/) · [**Install**](#install) · [**For AI agents**](INSTALL-FOR-AGENTS.md) ·
+[**Releases**](https://github.com/baney75/hildegard/releases) · [**Contributing**](CONTRIBUTING.md)
+
+<a href="https://dbaney.com/hildegard/"><img src="brand/social-preview.jpg" alt="Three frames rendered with Hildegard beside the words: your own AI studio, on your own GPU." width="880"></a>
+
+</div>
+
+Hildegard directs open video models (LTX-2.5, LTX-2 and Wan 2.2) through ComfyUI with real camera language: bodies,
+lenses, focal lengths, apertures, moves and film looks. Everything runs on your computer. Nothing you make leaves it,
+and nothing costs money per shot.
+
+| What you make | Status |
+| --- | --- |
+| **Film:** shots, takes and whole films with camera, lens, move and look presets | Ready |
+| **[Voice](docs/voice.md):** speech, voice design, consented cloning, dubbing and transcription, watermarked | Ready |
+| **[Characters](docs/characters.md):** the same face and clothes in every shot | Ready |
+| **[3D and parts to print](docs/make.md):** modelled by your AI app, checked, sliced | With your AI app |
+| **[Websites](docs/make.md):** rendered at every size in both themes and critiqued until they pass | With your AI app |
+| **Music** on open models | Coming |
+
+- **Private.** Prompts, takes and voices stay on your devices; every shot renders offline.
+- **No credits.** Your GPU and your electricity. One 12 GB laptop GPU made every film on the website.
+- **Yours.** Every take exports. The app is AGPL-3.0 and the presets Apache-2.0.
+- **All your computers.** Pair them into a [Choir](#render-on-another-device) over Tailscale, or
+  [host a studio at a link](#at-a-link-for-your-other-devices-and-the-people-you-invite) for your phone and friends.
+- **Your AI apps.** Claude, ChatGPT, Codex, Cursor and other MCP clients can direct shots and run loops on your GPU.
 
 ## Install
 

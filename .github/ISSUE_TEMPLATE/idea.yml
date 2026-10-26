@@ -1,0 +1,21 @@
+name: An idea
+description: Something Hildegard should make, or make easier.
+labels: [idea]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What you want to make or do
+      description: The work, not the feature. "I want to cut a trailer from my takes" beats "add a timeline".
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: How you do it today
+      description: With Hildegard, another tool, or not at all.
+  - type: input
+    id: gpu
+    attributes:
+      label: Your GPU
+      placeholder: RTX 4080 Laptop, 12 GB

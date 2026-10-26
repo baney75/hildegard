@@ -1,0 +1,34 @@
+name: Something's wrong
+description: Hildegard did something it shouldn't, or didn't do something it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: hildegard doctor
+      description: Paste the output of `hildegard doctor --json`. It names your GPU and versions, and never prints tokens or passphrases.
+      render: json
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options: [Windows, macOS, Linux, Omarchy, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How you run it
+      options: [The desktop app, The one-line installer, Hildegard at a link, An AI app over MCP, Built from source]
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, the prompt, the model. Leave out anything private.
