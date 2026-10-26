@@ -74,7 +74,19 @@ interface AgentDef {
   cli?: { cmd: string; add(m: McpCommand): string[]; remove: string[] };
   /** Said after linking: what the owner does so the app picks it up. */
   after: string;
+  /**
+   * How this app may sign in to a model without breaking anyone's terms (docs/agent-terms.md). A Claude or ChatGPT
+   * plan belongs only in its own app; every other app needs an API key or a local model.
+   */
+  signIn: string;
 }
+
+const PLAN_OWN = (plan: string) =>
+  `Your ${plan} plan is fine here: this is its own app. Hildegard’s tools add nothing to what it bills.`;
+const KEY_ONLY =
+  'Sign it in with an API key or point it at a local model. A Claude or ChatGPT plan’s login in this app breaks those plans’ terms and can get the account banned.';
+const OWN_ACCOUNT = (who: string) =>
+  `It uses your own ${who} account, under its terms. Hildegard’s tools add nothing to what it bills.`;
 
 const appData = (e: AgentEnv) => e.env.APPDATA ?? join(e.home, 'AppData', 'Roaming');
 const xdgConfig = (e: AgentEnv) => e.env.XDG_CONFIG_HOME ?? join(e.home, '.config');
@@ -109,6 +121,7 @@ export const AGENTS: AgentDef[] = [
       remove: ['mcp', 'remove', '--scope', 'user', 'hildegard'],
     },
     after: 'Start a new Claude Code session to use it.',
+    signIn: PLAN_OWN('Claude'),
   },
   {
     id: 'claude-desktop',
@@ -117,6 +130,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => appConfig(e, 'Claude', 'claude_desktop_config.json'),
     present: (e) => existsSync(appConfig(e, 'Claude')),
     after: 'Quit and reopen Claude Desktop to use it.',
+    signIn: PLAN_OWN('Claude'),
   },
   {
     id: 'codex',
@@ -125,6 +139,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => join(e.env.CODEX_HOME ?? join(e.home, '.codex'), 'config.toml'),
     present: (e) => e.has('codex') || existsSync(e.env.CODEX_HOME ?? join(e.home, '.codex')),
     after: 'Start a new Codex session to use it.',
+    signIn: PLAN_OWN('ChatGPT'),
   },
   {
     id: 'cursor',
@@ -133,6 +148,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => join(e.home, '.cursor', 'mcp.json'),
     present: (e) => existsSync(join(e.home, '.cursor')),
     after: 'Cursor picks it up on its own; check Settings, MCP if it doesn’t.',
+    signIn: OWN_ACCOUNT('Cursor'),
   },
   {
     id: 'opencode',
@@ -141,6 +157,35 @@ export const AGENTS: AgentDef[] = [
     file: (e) => join(xdgConfig(e), 'opencode', 'opencode.json'),
     present: (e) => e.has('opencode') || existsSync(join(xdgConfig(e), 'opencode')),
     after: 'Start a new OpenCode session to use it.',
+    signIn: KEY_ONLY,
+  },
+  {
+    id: 'omp',
+    name: 'OMP',
+    format: 'mcpServers',
+    file: (e) => join(e.home, '.omp', 'agent', 'mcp.json'),
+    present: (e) => e.has('omp') || existsSync(join(e.home, '.omp')),
+    after: 'Start a new OMP session, or run /mcp reload in one.',
+    signIn: KEY_ONLY,
+  },
+  {
+    id: 'pi',
+    name: 'Pi',
+    format: 'mcpServers',
+    // Pi 0.99 and later read MCP servers from here natively, as does pi-mcp-adapter.
+    file: (e) => join(e.env.PI_CODING_AGENT_DIR ?? join(e.home, '.pi', 'agent'), 'mcp.json'),
+    present: (e) => e.has('pi') || existsSync(e.env.PI_CODING_AGENT_DIR ?? join(e.home, '.pi', 'agent')),
+    after: 'Start a new Pi session to use it (Pi 0.99 or later, or with pi-mcp-adapter).',
+    signIn: KEY_ONLY,
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini CLI',
+    format: 'mcpServers',
+    file: (e) => join(e.home, '.gemini', 'settings.json'),
+    present: (e) => e.has('gemini') || existsSync(join(e.home, '.gemini')),
+    after: 'Start a new Gemini CLI session; /mcp lists Hildegard’s tools.',
+    signIn: OWN_ACCOUNT('Google'),
   },
   {
     id: 'vscode',
@@ -149,6 +194,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => appConfig(e, 'Code', 'User', 'mcp.json'),
     present: (e) => existsSync(appConfig(e, 'Code', 'User')),
     after: 'In VS Code, start it from the MCP Servers list or the chat’s tools menu.',
+    signIn: OWN_ACCOUNT('GitHub Copilot'),
   },
   {
     id: 'windsurf',
@@ -157,6 +203,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => join(e.home, '.codeium', 'windsurf', 'mcp_config.json'),
     present: (e) => existsSync(join(e.home, '.codeium', 'windsurf')),
     after: 'Refresh the MCP list in Windsurf’s Cascade panel to use it.',
+    signIn: OWN_ACCOUNT('Windsurf'),
   },
   {
     id: 'lm-studio',
@@ -165,6 +212,7 @@ export const AGENTS: AgentDef[] = [
     file: (e) => join(e.home, '.lmstudio', 'mcp.json'),
     present: (e) => existsSync(join(e.home, '.lmstudio')),
     after: 'LM Studio loads it on its own; local models can then use Hildegard’s tools.',
+    signIn: 'Local models, on your own computer: no account and no terms to break.',
   },
 ];
 
@@ -174,6 +222,7 @@ export interface AgentStatus {
   installed: boolean;
   connected: boolean;
   file: string;
+  signIn: string;
 }
 
 export function listAgents(e: AgentEnv = systemAgentEnv()): AgentStatus[] {
@@ -183,12 +232,18 @@ export function listAgents(e: AgentEnv = systemAgentEnv()): AgentStatus[] {
     installed: a.present(e),
     connected: isConnected(a, e),
     file: a.file(e),
+    signIn: a.signIn,
   }));
 }
 
 export function findAgent(id: string): AgentDef | undefined {
   const k = id.toLowerCase().replace(/[\s_]+/g, '-');
-  return AGENTS.find((a) => a.id === k || a.name.toLowerCase() === id.toLowerCase());
+  const alias: Record<string, string> = {
+    'oh-my-pi': 'omp',
+    'gemini-cli': 'gemini',
+    'pi-coding-agent': 'pi',
+  };
+  return AGENTS.find((a) => a.id === (alias[k] ?? k) || a.name.toLowerCase() === id.toLowerCase());
 }
 
 function isConnected(a: AgentDef, e: AgentEnv): boolean {

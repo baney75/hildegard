@@ -12,7 +12,8 @@ critique, refine, until the piece passes. This page is every app's steps, fewest
 | ChatGPT | Developer-mode app (public link) | Over MCP, or Skills upload | A link, a sign-in |
 | Grok (grok.com) | Custom connector (public link) | Over MCP | A link, a sign-in |
 | Grok Bot | Custom MCP server (public link) | Over MCP, or a private skill | One message, a sign-in |
-| Codex, Cursor, VS Code, Gemini CLI, OpenCode, Windsurf, Zed, OMP | `hildegard connect` | `hildegard skills install` | One command |
+| Codex, OMP, Pi, Gemini CLI, OpenCode, Cursor, VS Code, Windsurf, LM Studio | `hildegard connect --all` | The same command | One command |
+| Zed, Goose and any other MCP app | `hildegard connect --print`, pasted into its config | Over MCP | One paste |
 
 **Skills over MCP.** Every app that links Hildegard can read its skills with the `list_skills` and `read_skill` tools,
 and apps that show MCP prompts list each skill as one (`/hildegard`, `/hildegard-3d`). So in ChatGPT, Grok and Grok Bot
@@ -87,9 +88,39 @@ skill.
 ## Coding agents and other apps on this computer
 
 ```sh
-hildegard connect --all        # every app Hildegard finds: Codex, Cursor, VS Code, Gemini CLI, OpenCode, …
-hildegard skills install       # the skills, where Claude Code, Codex and OMP read them
+hildegard connect --all
 ```
+
+That one command finds every coding agent and AI app on this computer, links Hildegard's tools into each, puts the
+craft skills where each one reads them, and says how to sign each in without breaking its provider's terms. Run it
+again any time; it leaves linked apps as they are. `--no-skills` skips the skills, `hildegard disconnect <app>`
+undoes one, and every config is backed up once before Hildegard touches it.
+
+| App | Linked in | Skills in | Sign it in with |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude.json` (or the plugin) | `~/.claude/skills` | Your Claude plan or an API key: it's Claude's own app |
+| Codex | `~/.codex/config.toml` | `~/.agents/skills` | Your ChatGPT plan or an API key: it's OpenAI's own app |
+| OMP | `~/.omp/agent/mcp.json` | `~/.claude/skills` | **An API key or a local model only** |
+| Pi | `~/.pi/agent/mcp.json` | `~/.pi/agent/skills` | **An API key or a local model only** |
+| OpenCode | `~/.config/opencode/opencode.json` | `~/.agents/skills` | **An API key or a local model only** |
+| Gemini CLI | `~/.gemini/settings.json` | `~/.agents/skills` | Your own Google account or key |
+| Cursor, VS Code, Windsurf | their MCP files | over MCP | Their own accounts |
+| LM Studio | `~/.lmstudio/mcp.json` | over MCP | Nothing: your local models |
+
+**Why OMP, Pi and OpenCode need a key.** They can log in to a Claude or ChatGPT plan, but Anthropic keeps its plans
+for its own apps and OpenAI shares ChatGPT plans only with partners it names, so a plan's login in them can get the
+account banned. An API key (or a model on your own GPU) is allowed everywhere. Hildegard never reads, copies or moves
+any app's sign-in; [agent-terms.md](agent-terms.md) has the sources.
+
+Then start a new session in any of them and ask for something real:
+
+```text
+Cut my clips in ~/Videos/trip into a 30-second teaser: best moments first, a title card, music under it, and a
+contact sheet so I can check it before you export.
+```
+
+The agent briefs it with you, cuts, reviews every take on a contact sheet, and refines until it passes
+(**hildegard-video-edit**; photos, art, sound and 3D have their own skills).
 
 An app on another of your devices: `docs/agents.md`, section F (a key from `hildegard host key`, kept in that
 device's keychain).

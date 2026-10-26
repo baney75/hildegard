@@ -199,6 +199,7 @@ function LinkDialog({
                       ? 'Found on this computer'
                       : 'Not found on this computer'}
                 </small>
+                {a.installed || a.connected ? <small className="body-sm muted">{a.signIn}</small> : null}
               </span>
               <Button
                 kind={a.connected || !a.installed ? 'ghost' : 'primary'}

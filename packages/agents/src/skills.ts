@@ -38,21 +38,28 @@ export function listSkills(skillsDir: string): Skill[] {
     });
 }
 
-export type SkillTarget = 'claude-code' | 'codex' | 'omp';
+export type SkillTarget = 'claude-code' | 'codex' | 'omp' | 'pi' | 'gemini' | 'opencode';
 
-/** Where an agent reads user-wide skills, or a project's own when `project` is given. */
+/**
+ * Where an agent reads user-wide skills, or a project's own when `project` is given. Two folders cover most apps:
+ * `~/.claude/skills` (Claude Code, OMP, OpenCode) and `~/.agents/skills` (Codex, Gemini CLI, OpenCode). Pi keeps
+ * its own.
+ */
 export function skillRoots(
   target: SkillTarget,
   project?: string,
   env = process.env,
   home = homedir(),
 ): string[] {
-  if (project)
-    return target === 'codex' ? [join(project, '.agents', 'skills')] : [join(project, '.claude', 'skills')];
+  const usesAgents = target === 'codex' || target === 'gemini' || target === 'opencode';
+  if (project) {
+    if (target === 'pi') return [join(project, '.pi', 'skills')];
+    return usesAgents ? [join(project, '.agents', 'skills')] : [join(project, '.claude', 'skills')];
+  }
+  if (target === 'pi') return [join(env.PI_CODING_AGENT_DIR ?? join(home, '.pi', 'agent'), 'skills')];
   const claude = join(env.CLAUDE_CONFIG_DIR ?? join(home, '.claude'), 'skills');
   const agents = join(home, '.agents', 'skills');
-  // OMP picks up both, so the Claude Code folder covers it without a third copy.
-  return target === 'codex' ? [agents] : [claude];
+  return usesAgents ? [agents] : [claude];
 }
 
 export interface InstallOutcome {

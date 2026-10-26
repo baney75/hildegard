@@ -501,6 +501,8 @@ export interface AgentInfo {
   connected: boolean;
   /** Its MCP config file. */
   file: string;
+  /** How to sign the app in so its provider's terms allow it. */
+  signIn: string;
 }
 
 /** GET /api/agents */

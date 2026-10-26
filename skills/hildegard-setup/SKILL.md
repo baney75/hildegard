@@ -28,11 +28,12 @@ word for word. Only on a clear yes, run that step's `command` (it carries `--acc
 ## Your AI apps and these skills
 
 ```sh
-hildegard connect --all --json      # Hildegard's MCP tools in Claude Code, Claude Desktop, Codex, Cursor, …
-hildegard skills install --json     # these skills, where Claude Code, Codex and OMP read them
+hildegard connect --all --json      # tools + skills in Claude Code, Codex, OMP, Pi, Gemini CLI, OpenCode, Cursor, …
+hildegard skills install --json     # only these skills, for apps linked another way
 ```
 
-Start a new session of the agent afterwards. `hildegard skills install --project <dir>` puts them in one project
+Each linked app gets a `sign-in-<app>` step: pass its `detail` to your user as written, since it says how that app
+may be signed in without breaking its provider's terms. Start a new session of the agent afterwards. `hildegard skills install --project <dir>` puts them in one project
 instead. In Claude Code the plugin does both: `/plugin marketplace add baney75/hildegard`, then
 `/plugin install hildegard@hildegard`.
 
@@ -52,7 +53,7 @@ that can get your user's account banned:
   `printf %s "$KEY" | hildegard agents key anthropic --key-stdin --json` (or `openai`, `openrouter`, …). Keys go to
   the system keychain. Never put a key on a command line or in a file.
 - **OMP** runs only with an API key or a local model (`--use local --model ollama/<model>`), never with a Claude or
-  ChatGPT login.
+  ChatGPT login. The same holds for **Pi** and **OpenCode** when your user links them.
 - Never read, copy or move any agent's sign-in files, and never sign in for your user.
 
 `hildegard agents run claude-code "<task>"` runs one; add `--use key` to bill their key, `--unattended` for a run
