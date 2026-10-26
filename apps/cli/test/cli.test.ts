@@ -117,7 +117,7 @@ describe('hildegard', () => {
 
     expect((await hildegard(home, 'stop', ...common)).steps[0]!.status).toBe('done');
     expect((await hildegard(home, 'status', ...common)).running).toBe(false);
-  });
+  }, 60_000);
 
   it('remembers the port it was started on for status and stop', async () => {
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));

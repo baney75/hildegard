@@ -9,7 +9,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-print**: working parts to 3D print, measured from a photo or a shop listing, sized from your printer's
   fits, sliced, and handed over with a print sheet.
 - **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
-  light and dark, and audited until they pass.
+  light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
+  file or a live page; your user watches the site on Hildegard's canvas while you build it.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.

@@ -2,9 +2,24 @@
   "name": "Parish",
   "for": "a parish, congregation, chapel, community hall or any place people gather at set times",
   "description": "Mass and service times first and large, because that's what nearly everyone comes for, then confession and the sacraments with who to ask, this week's notices, giving, and how to find the door. A quiet serif with a rose-window drawing; dark mode is evening vespers.",
-  "sections": ["Header", "Welcome and the times of Mass", "Confession and sacraments", "This week", "Giving", "Find us", "Footer"],
-  "images": [
-    { "file": "art/rose.svg", "aspect": "1:1", "prompt": "A photograph of a small parish church's rose window from inside at late afternoon, coloured light falling on stone, calm, centred, no people" }
+  "sections": [
+    "Header",
+    "Welcome and the times of Mass",
+    "Confession and sacraments",
+    "This week",
+    "Giving",
+    "Find us",
+    "Footer"
   ],
-  "type": { "display": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, \"Book Antiqua\", Georgia, serif", "text": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif" }
+  "images": [
+    {
+      "file": "art/rose.svg",
+      "aspect": "1:1",
+      "prompt": "A photograph of a small parish church's rose window from inside at late afternoon, coloured light falling on stone, calm, centred, no people"
+    }
+  ],
+  "type": {
+    "display": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, \"Book Antiqua\", Georgia, serif",
+    "text": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif"
+  }
 }

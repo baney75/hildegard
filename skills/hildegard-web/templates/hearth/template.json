@@ -2,7 +2,14 @@
   "name": "Hearth",
   "for": "a bakery, café, deli or any shop people visit on their way somewhere",
   "description": "Warm and editorial: today's bake as a priced board in the first screen, an order-for-pickup form that works without JavaScript, hours and the way in. Serif display over a cream ground; dark mode is a lamp-lit counter.",
-  "sections": ["Header with the day's opening", "Today's bake, priced", "How ordering works", "Order for pickup", "Hours and address", "Footer"],
+  "sections": [
+    "Header with the day's opening",
+    "Today's bake, priced",
+    "How ordering works",
+    "Order for pickup",
+    "Hours and address",
+    "Footer"
+  ],
   "images": [
     {
       "file": "art/loaf.svg",
@@ -10,5 +17,8 @@
       "prompt": "A photograph of the morning's bread on a floured wooden counter, a split sourdough boule in front, raking window light from the left, warm and quiet, no people, shallow depth of field"
     }
   ],
-  "type": { "display": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif", "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif" }
+  "type": {
+    "display": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif",
+    "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+  }
 }

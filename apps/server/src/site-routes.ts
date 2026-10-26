@@ -452,7 +452,11 @@ export function siteRoutes(d: SiteRouteDeps) {
           'many',
           'Those words are in the page more than once. Change them in the file.',
         );
-      sites.write(id, b.page, html.replace(hit[0]!.f, () => esc(b.to)));
+      sites.write(
+        id,
+        b.page,
+        html.replace(hit[0]!.f, () => esc(b.to)),
+      );
       return view(id);
     }),
   );

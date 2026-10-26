@@ -2,7 +2,18 @@
   "name": "Ledger",
   "for": "a software product, an app or a tool with plans and prices",
   "description": "A product page that shows the product instead of describing it: a working invoice drawn in HTML in the first screen, what it does as plain facts, plans with real limits and prices, questions answered with details and summary, and the latest changes. Ink and violet; dark mode is the app's own.",
-  "sections": ["Header", "What it is, with the product in view", "Three facts", "Plans", "Questions", "What changed lately", "Footer"],
+  "sections": [
+    "Header",
+    "What it is, with the product in view",
+    "Three facts",
+    "Plans",
+    "Questions",
+    "What changed lately",
+    "Footer"
+  ],
   "images": [],
-  "type": { "display": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif", "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif" }
+  "type": {
+    "display": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+  }
 }

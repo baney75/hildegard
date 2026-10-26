@@ -2,11 +2,33 @@
   "name": "Atelier",
   "for": "an architecture, interiors, landscape or design studio showing its work",
   "description": "A strict grid and big numerals: the practice in one sentence, an index of projects with place, year and status, three featured projects drawn as plans, how the studio works, and a contact block. Black on paper with one signal red; dark mode is a lightbox.",
-  "sections": ["Header", "The practice in a sentence", "Featured projects", "Project index", "How we work", "Studio and contact"],
-  "images": [
-    { "file": "art/plan-house.svg", "aspect": "4:3", "prompt": "An architectural photograph of a low timber house on a sloping meadow at dusk, interior lights on, wide lens, calm and precise, no people" },
-    { "file": "art/plan-library.svg", "aspect": "4:3", "prompt": "Interior photograph of a small public library reading room with tall north light, oak shelving and a concrete floor, empty, symmetrical" },
-    { "file": "art/plan-courtyard.svg", "aspect": "4:3", "prompt": "Photograph of a brick courtyard housing block with planted terraces, overcast light, seen from the courtyard corner" }
+  "sections": [
+    "Header",
+    "The practice in a sentence",
+    "Featured projects",
+    "Project index",
+    "How we work",
+    "Studio and contact"
   ],
-  "type": { "display": "\"Helvetica Neue\", Helvetica, Arial, sans-serif", "text": "\"Helvetica Neue\", Helvetica, Arial, sans-serif" }
+  "images": [
+    {
+      "file": "art/plan-house.svg",
+      "aspect": "4:3",
+      "prompt": "An architectural photograph of a low timber house on a sloping meadow at dusk, interior lights on, wide lens, calm and precise, no people"
+    },
+    {
+      "file": "art/plan-library.svg",
+      "aspect": "4:3",
+      "prompt": "Interior photograph of a small public library reading room with tall north light, oak shelving and a concrete floor, empty, symmetrical"
+    },
+    {
+      "file": "art/plan-courtyard.svg",
+      "aspect": "4:3",
+      "prompt": "Photograph of a brick courtyard housing block with planted terraces, overcast light, seen from the courtyard corner"
+    }
+  ],
+  "type": {
+    "display": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "text": "\"Helvetica Neue\", Helvetica, Arial, sans-serif"
+  }
 }
