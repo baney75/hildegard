@@ -26,7 +26,7 @@ import {
   type Trigger,
 } from '@hildegard/agents';
 import { describeReview, reviewMedia } from '@hildegard/craft';
-import { mcpCommand, resource, type Step } from '@hildegard/runtime';
+import { listAgents, mcpCommand, resource, type Step } from '@hildegard/runtime';
 import { secretStores, VERSION } from '@hildegard/server';
 import type { Ctx } from './commands.ts';
 import { readStdin } from './commands.ts';
@@ -363,7 +363,13 @@ export function skills(ctx: Ctx, args: string[]): Result {
     );
   const which = ctx.opts.get('agent') ?? 'all';
   const targets: SkillTarget[] =
-    which === 'all' ? ['claude-code', 'codex'] : [ALIASES[which] ?? (which as SkillTarget)];
+    which === 'all'
+      ? [
+          'claude-code',
+          'codex',
+          ...(listAgents().find((a) => a.id === 'pi')?.installed ? (['pi'] as const) : []),
+        ]
+      : [ALIASES[which] ?? (which as SkillTarget)];
   const project = ctx.opts.get('project') ? resolve(ctx.opts.get('project')!) : undefined;
   const roots = [...new Set(targets.flatMap((t) => skillRoots(t, project)))];
   const outcomes = action === 'remove' ? removeSkills(dir, roots) : installSkills(dir, roots, VERSION);
@@ -382,6 +388,33 @@ export function skills(ctx: Ctx, args: string[]): Result {
       ? 'Removed Hildegard’s skills.'
       : 'Start a new session of your agent to pick them up.',
   );
+}
+
+/** The skills folder each linked app reads; apps not listed read the skills over MCP (list_skills, read_skill). */
+const SKILL_FOLDER: Record<string, SkillTarget> = {
+  'claude-code': 'claude-code',
+  codex: 'codex',
+  opencode: 'opencode',
+  omp: 'omp',
+  pi: 'pi',
+  gemini: 'gemini',
+};
+
+/** After `hildegard connect`: Hildegard's skills where the apps just linked look for them. One step, or none. */
+export function installSkillsFor(appIds: string[]): Step | null {
+  const dir = skillsDir();
+  const targets = [...new Set(appIds.map((id) => SKILL_FOLDER[id]).filter((t): t is SkillTarget => !!t))];
+  if (!dir || !targets.length) return null;
+  const roots = [...new Set(targets.flatMap((t) => skillRoots(t)))];
+  const outcomes = installSkills(dir, roots, VERSION);
+  const names = [...new Set(outcomes.filter((o) => o.status !== 'kept-yours').map((o) => o.skill))];
+  const kept = [...new Set(outcomes.filter((o) => o.status === 'kept-yours').map((o) => o.skill))];
+  return {
+    id: 'skills',
+    title: `Teach them Hildegard’s ${names.length} skills`,
+    status: 'done',
+    detail: `${names.join(', ')}, in ${roots.join(' and ')}.${kept.length ? ` Kept your own ${kept.join(', ')}.` : ''} Every other app reads them over MCP.`,
+  };
 }
 
 /** `hildegard review <file> [--final] [--seconds N] [--audio] [--film] [--sheet out.jpg]`: the media checks. */

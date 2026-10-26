@@ -96,6 +96,22 @@ say those plans belong to their own apps (and OpenAI's listed partners), so Hild
 `ANTHROPIC_OAUTH_TOKEN`, `XAI_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` and `OMP_AUTH_BROKER_URL`, so a plan's sign-in
 can't leak in by accident.
 
+## Other coding agents linked to Hildegard
+
+`hildegard connect` only adds Hildegard's MCP server to an app's config and its skills to the app's skill folder; the
+app signs in as it always does, and its maker's terms decide how. Each linked app's `sign-in-<app>` step says this:
+
+| App | Sign-in that keeps you within the terms |
+| --- | --- |
+| Claude Code, Claude Desktop | Your Claude plan or an Anthropic API key: these are Anthropic's own apps |
+| Codex | Your ChatGPT plan or an OpenAI API key: this is OpenAI's own app |
+| OMP, Pi, OpenCode | An API key or a local model, never a Claude or ChatGPT plan's login (as for OMP above) |
+| Gemini CLI | Your own Google account or Gemini API key, under Google's terms |
+| Cursor, VS Code (Copilot), Windsurf | Their own accounts, under their makers' terms |
+| LM Studio | Local models: nothing to sign in to |
+
+Hildegard's tools run on the owner's own GPUs, so they add nothing to what any of these apps bill.
+
 ## Rented and borrowed GPUs
 
 | Provider | Allowed use | Why |

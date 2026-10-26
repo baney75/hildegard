@@ -247,13 +247,14 @@ also stops itself after 30 idle minutes. Details: [cloud.md](cloud.md).
 ## E. Skills and coding agents
 
 ```sh
-hildegard skills install --json   # skills where Claude Code, Codex and OMP read them
+hildegard connect --all --json    # tools and skills in every coding agent here, with a sign-in step for each
+hildegard skills install --json   # only the skills, where Claude Code, Codex, OMP, Pi, Gemini CLI and OpenCode read them
 hildegard agents --json           # each coding agent here, how it's signed in, and what Hildegard may do with it
 ```
 
 The skills hold Hildegard's quality bar ([craft.md](craft.md)): brief, lint the prompt, review every take, at most
 three rounds. Agent runs follow each provider's terms ([agent-terms.md](agent-terms.md)): a Claude or ChatGPT plan
-only in its own app, only when your user starts the run; API keys (piped with
+only in its own app, only when your user starts the run; OMP, Pi and OpenCode only with an API key or a local model; API keys (piped with
 `hildegard agents key <provider> --key-stdin`) for everything else; never a plan's sign-in inside another tool.
 
 A whole loop (generate, render, critique, refine) can go to a coding agent, started by your user:

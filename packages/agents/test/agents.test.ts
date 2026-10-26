@@ -408,6 +408,13 @@ describe('skills', () => {
       join('/cfg', 'skills'),
     ]);
     expect(skillRoots('codex', '/p')).toEqual([join('/p', '.agents', 'skills')]);
+    expect(skillRoots('gemini', undefined, {}, '/home/d')).toEqual([join('/home/d', '.agents', 'skills')]);
+    expect(skillRoots('opencode', undefined, {}, '/home/d')).toEqual([join('/home/d', '.agents', 'skills')]);
+    expect(skillRoots('pi', undefined, {}, '/home/d')).toEqual([join('/home/d', '.pi', 'agent', 'skills')]);
+    expect(skillRoots('pi', undefined, { PI_CODING_AGENT_DIR: '/pi' }, '/home/d')).toEqual([
+      join('/pi', 'skills'),
+    ]);
+    expect(skillRoots('pi', '/p')).toEqual([join('/p', '.pi', 'skills')]);
   });
 });
 

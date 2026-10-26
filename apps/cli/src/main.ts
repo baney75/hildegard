@@ -39,8 +39,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              hildegard voice: what's set up)
   hildegard setup --model <id> --accept-license <id> [--hf-token-stdin] --yes --json
                              Without questions, for agents: the license only when the owner said yes
-  hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, cursor,')}
-                             ${dim('opencode, vscode, windsurf, lm-studio')}. --all links every app found
+  hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, omp, pi,')}
+                             ${dim('gemini, opencode, cursor, vscode, windsurf, lm-studio')}. --all links every app
+                             found, with its skills (--no-skills to skip) and how to sign it in within its terms
   hildegard connect <app> --remote <link> --key-stdin
                              Let an app here use the Hildegard on another device, with a key from it
   hildegard disconnect <app>
@@ -60,8 +61,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              and yours: llm add <name> <address> [--key-stdin] | remove | use <endpoint> [<model>]
   hildegard llm direct "<idea>"  Let a local model direct shots with Hildegard's tools (--film, --model, --plan)
   hildegard mcp              The MCP server, on stdio (AI apps run this). It's also at /mcp, over HTTP
-  hildegard skills install   Put Hildegard's skills where Claude Code, Codex and OMP look
-                             (--agent claude-code|codex|omp, --project DIR; skills list | remove)
+  hildegard skills install   Put Hildegard's skills where Claude Code, Codex, OMP, Pi, Gemini CLI and OpenCode look
+                             (--agent claude-code|codex|omp|pi|gemini|opencode, --project DIR; skills list | remove)
   hildegard agents           Which coding agents are here, and how Hildegard may run each under
                              its provider's terms (agents key <provider> --key-stdin, share-keys on|off)
   hildegard agents run <claude-code|codex|omp> "<task>"

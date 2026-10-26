@@ -94,6 +94,15 @@ describe('hildegard', () => {
     expect(cfg.mcpServers.hildegard.args).toEqual([main, 'mcp']);
     expect(cfg.mcpServers.hildegard.env).toEqual({ HILDEGARD_URL: `http://127.0.0.1:${port}` });
 
+    // A coding agent gets its skills and a sign-in step its provider's terms allow, in the same command.
+    const omp = await hildegard(home, 'connect', 'omp', ...common);
+    expect(omp.steps.map((s: { id: string }) => s.id)).toEqual(['connect-omp', 'skills', 'sign-in-omp']);
+    expect(omp.steps[2]!.detail).toMatch(/API key/);
+    expect(omp.message).toMatch(/^Hildegard is in Cursor and OMP\. /);
+    expect(readFileSync(join(home, '.claude', 'skills', 'hildegard-video-edit', 'SKILL.md'), 'utf8')).toMatch(
+      /name:/,
+    );
+
     const lic = await hildegard(home, 'models', 'install', 'wan-2-2-ti2v-5b', ...common);
     expect(lic.needsOwner).toBe(true);
     expect(lic.steps[0]!.detail).toContain('Apache-2.0');

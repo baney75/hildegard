@@ -26,6 +26,7 @@ import {
   snippet,
 } from '@hildegard/runtime';
 import { type Config, guardProcess, homeId, startServer, VERSION } from '@hildegard/server';
+import { installSkillsFor } from './agents.ts';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
 
@@ -583,7 +584,22 @@ export async function connect(ctx: Ctx, ids: string[], undo = false): Promise<Re
     );
   }
   const steps = targets.map((id) => (undo ? disconnectAgent(id) : connectAgent(id, cmd)));
-  return result(steps, '', { agents: listAgents() });
+  const agents = listAgents();
+  if (undo) return result(steps, '', { agents });
+  const linked = agents.filter((a) => a.connected || (a.id === 'claude-code' && targets.includes(a.id)));
+  const fresh = linked.filter((a) => targets.includes(a.id));
+  if (!ctx.flags.has('no-skills')) {
+    const s = installSkillsFor(fresh.map((a) => a.id));
+    if (s) steps.push(s);
+  }
+  // How each app may sign in, so linking Hildegard never leads anyone into breaking a plan's terms.
+  for (const a of fresh)
+    steps.push({ id: `sign-in-${a.id}`, title: `${a.name}: signing in`, status: 'done', detail: a.signIn });
+  const names = linked.map((a) => a.name);
+  const message = names.length
+    ? `Hildegard is in ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`}. Start a new session and ask: “Cut my clips in ~/Videos into a 30-second teaser with a title card.”`
+    : '';
+  return result(steps, message, { agents });
 }
 
 // ── status ───────────────────────────────────────────────────────────────────────────────────────────────────────

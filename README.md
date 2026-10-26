@@ -166,11 +166,11 @@ Hildegard is how your AI apps reach your own computers. In Claude Code, it's a p
 ChatGPT, claude.ai, the Claude app, Grok and Grok Bot each have their steps in [docs/chatbots.md](docs/chatbots.md).
 Every linked app gets the tools, the craft skills (`list_skills`, `read_skill`) and the loop.
 
-Hildegard is an MCP server. Linked apps (Claude Code, Claude Desktop, Codex, Cursor, OpenCode, VS Code, Windsurf, LM
+Hildegard is an MCP server. Linked apps (Claude Code, Claude Desktop, Codex, OMP, Pi, Gemini CLI, OpenCode, Cursor, VS Code, Windsurf, LM
 Studio) can direct shots on your GPU as tools:
 
 ```sh
-hildegard connect --all     # every app found on this computer
+hildegard connect --all     # every app found on this computer, with its skills
 hildegard connect cursor    # or one
 hildegard connect --print   # the config, for any other app that takes an MCP server
 ```

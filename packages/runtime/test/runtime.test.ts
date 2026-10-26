@@ -176,6 +176,30 @@ describe('linking agents', () => {
   };
   const m = { command: '/opt/node', args: ['/opt/hildegard.mjs', 'mcp'] };
 
+  it('links OMP, Pi and Gemini CLI, and says which sign-ins their terms allow', () => {
+    const { home, env } = setup('linux', ['omp', 'pi', 'gemini']);
+    const byId = (id: string) => listAgents(env).find((a) => a.id === id)!;
+    for (const [id, file] of [
+      ['omp', join(home, '.omp', 'agent', 'mcp.json')],
+      ['oh-my-pi', join(home, '.omp', 'agent', 'mcp.json')],
+      ['pi', join(home, '.pi', 'agent', 'mcp.json')],
+      ['gemini-cli', join(home, '.gemini', 'settings.json')],
+    ] as const) {
+      expect(connectAgent(id, m, env).status).not.toBe('failed');
+      expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers.hildegard).toEqual({
+        command: '/opt/node',
+        args: ['/opt/hildegard.mjs', 'mcp'],
+      });
+    }
+    expect(byId('omp')).toMatchObject({ installed: true, connected: true });
+    expect(byId('omp').signIn).toMatch(/API key or point it at a local model/);
+    expect(byId('pi').signIn).toBe(byId('omp').signIn);
+    expect(byId('opencode').signIn).toBe(byId('omp').signIn);
+    expect(byId('claude-code').signIn).toMatch(/Claude plan is fine here/);
+    expect(byId('codex').signIn).toMatch(/ChatGPT plan is fine here/);
+    expect(byId('gemini').signIn).toMatch(/your own Google account/);
+  });
+
   it('adds itself to Claude Desktop without touching other servers, and backs the file up once', () => {
     const { home, env } = setup('darwin');
     const file = join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
