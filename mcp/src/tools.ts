@@ -9,6 +9,7 @@ import type {
   Snapshot,
   Still,
   Take,
+  UpdateState,
 } from '@hildegard/presets';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
@@ -749,6 +750,77 @@ export function registerTools(
           );
         throw e;
       }
+    }),
+  );
+
+  server.registerTool(
+    'update_hildegard',
+    {
+      title: 'Update Hildegard',
+      description:
+        "Update Hildegard to the newest release, on this computer or on another of your user's devices paired with it (Settings › Devices). Releases are signed, and each device checks the signature before it installs anything, then starts again by itself; a device that is rendering updates once its render finishes. With check true, only reports what each device runs and whether an update is out. Updating is safe to do whenever your user asks for it, or agrees after you tell them an update is out.",
+      inputSchema: {
+        device: z
+          .string()
+          .max(63)
+          .optional()
+          .describe(
+            'A paired device by name, "all" for every paired device and then this computer, or leave it out for this computer.',
+          ),
+        check: z.boolean().optional().describe('Only look: report versions and updates, change nothing.'),
+      },
+      annotations: { openWorldHint: true },
+    },
+    guard(async (a) => {
+      const describe = (name: string, u: UpdateState | null, version: string | null) =>
+        !u
+          ? `- ${name}: Hildegard ${version ?? '(version unknown)'}; it's from before 0.1.9, so update it there once with \`hildegard update\`.`
+          : `- ${name}: Hildegard ${u.current}. ${u.applying ? `Updating to ${u.available}.` : u.waiting ? `Updates to ${u.available} after its render.` : u.available ? `${u.available} is out.` : u.error ? `Couldn't check: ${u.error}` : 'Up to date.'}${u.updatable ? '' : ' It runs from source code, so it updates with git.'}`;
+      if (a.check) {
+        const here = await client.updateCheck();
+        const choir = await client.choir();
+        return text(
+          [
+            'This computer and its paired devices:',
+            describe('this computer', here, here.current),
+            ...choir.devices.map((d) =>
+              d.online
+                ? describe(d.name, d.update, d.version)
+                : `- ${d.name}: not answering. ${d.problem ?? ''}`,
+            ),
+          ].join('\n'),
+        );
+      }
+      const lines: string[] = [];
+      const targets =
+        a.device === 'all'
+          ? (await client.choir()).devices.map((d) => d.name)
+          : a.device && a.device !== 'this computer'
+            ? [a.device]
+            : [];
+      for (const name of targets) {
+        try {
+          const r = await client.updateDevice(name);
+          lines.push(describe(name, r.device.update, r.device.version));
+        } catch (e) {
+          lines.push(`- ${name}: ${(e as Error).message}`);
+        }
+      }
+      if (!a.device || a.device === 'all' || a.device === 'this computer') {
+        const before = await client.updateCheck();
+        if (!before.available) lines.push(describe('this computer', before, before.current));
+        else {
+          try {
+            const u = await client.updateNow();
+            lines.push(
+              `- this computer: updating from ${u.current} to ${u.available}. Hildegard restarts, so tools may fail for a minute; call hildegard_status to see it back.`,
+            );
+          } catch (e) {
+            lines.push(`- this computer: ${(e as Error).message}`);
+          }
+        }
+      }
+      return text(lines.join('\n'));
     }),
   );
 

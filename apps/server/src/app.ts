@@ -99,7 +99,7 @@ import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
-export const VERSION = '0.1.8';
+export const VERSION = '0.1.9';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -1487,6 +1487,16 @@ export function createApp(deps: AppDeps) {
     try {
       deps.choir.leave(body.data.name);
       return c.json(deps.choir.state());
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
+  app.post('/api/choir/update', async (c) => {
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which device.' }, 400);
+    try {
+      return c.json({ device: await deps.choir.update(body.data.name), choir: deps.choir.state() });
     } catch (e) {
       return choirFail(c, e);
     }

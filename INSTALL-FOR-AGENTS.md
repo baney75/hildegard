@@ -86,8 +86,26 @@ hildegard open              # the Studio, in the browser
 
 Once linked and restarted, an app has these tools: `hildegard_status`, `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `make_sequence`, `export_film`, `install_model`, `list_characters`, `create_character`,
-`make_character_stills`, `keep_still`. If your app isn't in the list, `hildegard connect --print --json` gives
-the MCP server config to add by hand: it runs `hildegard mcp` on stdio.
+`make_character_stills`, `keep_still`, `update_hildegard`. If your app isn't in the list,
+`hildegard connect --print --json` gives the MCP server config to add by hand: it runs `hildegard mcp` on stdio.
+
+## Keeping it up to date
+
+Hildegard updates itself: it looks for a release every six hours and installs it once nothing is rendering. Every
+release is signed, and each device checks the signature before it runs anything, so updating is safe to do whenever
+your user asks or agrees.
+
+```sh
+hildegard update --check --json   # this computer: what it runs, and whether a release is out
+hildegard update --json           # update this computer now; it starts again by itself
+hildegard update <device> --json  # update another of your user's paired devices (Settings › Devices) from here
+hildegard update all --json       # every paired device, then this computer
+hildegard update auto off         # only say when a release is out; `auto on` turns it back on
+```
+
+A device that is rendering updates once its render finishes. Over MCP, `update_hildegard` does the same (`check: true`
+only looks; `device` names a paired device, or `all`). The Studio shows the same in Settings › About and, for each
+device, in Settings › Devices.
 
 ## If something fails
 
