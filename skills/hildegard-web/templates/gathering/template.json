@@ -1,0 +1,8 @@
+{
+  "name": "Gathering",
+  "for": "a conference, festival, meetup, workshop series or any event with a programme and tickets",
+  "description": "Poster type at full width: the name, the dates and the city before anything else, then the programme day by day as real tables, the speakers with what each will say, tickets with what they include and how many are left, and the venue. Paper and black with one loud yellow-green.",
+  "sections": ["Header", "The poster: name, dates, place", "Why come, in three lines", "Programme by day", "Speakers", "Tickets", "Venue and travel", "Footer"],
+  "images": [],
+  "type": { "display": "\"Avenir Next Condensed\", \"Arial Narrow\", \"Roboto Condensed\", system-ui, sans-serif", "text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif" }
+}
