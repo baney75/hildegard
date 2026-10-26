@@ -16,7 +16,7 @@ ElevenLabs that runs locally on Windows, macOS and Linux, with music on the way.
 [**Website**](https://dbaney.com/hildegard/) · [**Install**](#install) · [**For AI agents**](INSTALL-FOR-AGENTS.md) ·
 [**Releases**](https://github.com/baney75/hildegard/releases) · [**Contributing**](CONTRIBUTING.md)
 
-<a href="https://dbaney.com/hildegard/"><img src="brand/social-preview.jpg" alt="Three frames rendered with Hildegard beside the words: your own AI studio, on your own GPU." width="880"></a>
+<a href="https://dbaney.com/hildegard/"><img src="brand/social-preview.jpg" alt="Golden Hour, shot II: a sea stack at sunset rendered by Hildegard, beside the words Your own AI studio, on your own GPU." width="880"></a>
 
 </div>
 

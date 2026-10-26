@@ -188,3 +188,33 @@ test('search engines read the same answers people do', async ({ page }) => {
   for (const state of await page.locator('.room__state').allTextContents())
     expect(['Ready', 'With your AI app', 'Coming']).toContain(state);
 });
+
+test('the link preview is complete for X, Messages, Slack and the rest', async ({ page, request }) => {
+  await page.goto('/index.html');
+  const meta = async (attr: 'name' | 'property', key: string) =>
+    page.locator(`meta[${attr}="${key}"]`).getAttribute('content');
+  expect(await meta('name', 'twitter:card')).toBe('summary_large_image');
+  expect(await meta('name', 'twitter:site')).toBe('@baney75');
+  for (const key of ['og:title', 'og:description', 'og:image:alt'])
+    expect((await meta('property', key))?.length).toBeGreaterThan(20);
+  // X cuts titles at 70 characters and descriptions at 200.
+  expect((await meta('name', 'twitter:title'))?.length).toBeLessThanOrEqual(70);
+  expect((await meta('name', 'twitter:description'))?.length).toBeLessThanOrEqual(200);
+  const image = await meta('property', 'og:image');
+  expect(image).toMatch(/^https:\/\/dbaney\.com\/hildegard\/img\/og\.jpg/);
+  expect(await meta('name', 'twitter:image')).toBe(image);
+  // The file it names: a JPEG at 1200 by 630, well under X's 5 MB.
+  const file = await request.get(`/${new URL(image ?? '').pathname.replace('/hildegard/', '')}`);
+  const body = await file.body();
+  expect(body.length).toBeLessThan(1_000_000);
+  expect([...body.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+  const size = await page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    return [img.naturalWidth, img.naturalHeight];
+  }, '/img/og.jpg');
+  expect(size).toEqual([1200, 630]);
+  expect(await meta('property', 'og:image:width')).toBe('1200');
+  expect(await meta('property', 'og:image:height')).toBe('630');
+});
