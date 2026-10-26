@@ -75,6 +75,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'shot_status',
       'speak',
       'transcribe',
+      'update_hildegard',
       'voice_job_status',
     ]);
     expect(client.getInstructions()).toContain('hildegard_status');

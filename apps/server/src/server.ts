@@ -261,6 +261,8 @@ export async function startServer(
     gpu,
     models: () => models.states(),
     fake: config.fake,
+    // Made further down, and only asked once requests arrive.
+    updates: () => updates,
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.

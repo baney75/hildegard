@@ -4,7 +4,7 @@ import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
 import {
@@ -182,6 +182,8 @@ const freePort = () =>
 
 let gpu: Running;
 let mac: Running;
+/** Updates the GPU device started: a newer release is always out for it. */
+let gpuUpdates = 0;
 let shareUrl: string;
 let token: string;
 const post = (srv: Running, path: string, body?: unknown) =>
@@ -199,7 +201,17 @@ const request = (prompt: string) => ({
 beforeAll(async () => {
   gpu = await startServer(
     { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-node-'))]), port: 0 },
-    { fakeTickMs: 30, secrets: memoryStore(), choirSecrets: memorySecrets() },
+    {
+      fakeTickMs: 30,
+      secrets: memoryStore(),
+      choirSecrets: memorySecrets(),
+      updates: {
+        fetch: (async () => Response.json({ version: '9.9.9' })) as typeof fetch,
+        run: () => gpuUpdates++,
+        firstMs: 3_600_000,
+        idleMs: 3_600_000,
+      },
+    },
   );
   // The Mac: no GPU, no ComfyUI installed.
   mac = await startServer(
@@ -373,6 +385,33 @@ describe('rendering on another device', () => {
   });
 });
 
+describe('updating another of your devices', () => {
+  it('shows its version, and updates it from here to the newest release, once', async () => {
+    const choir = (await (await fetch(`${mac.url}/api/choir`, { headers: H })).json()) as ChoirState;
+    const name = choir.devices[0]!.name;
+    expect(choir.devices[0]!.update).toMatchObject({ applying: false, updatable: true, waiting: false });
+    const res = await post(mac, '/api/choir/update', { name });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { device: ChoirDevice }).device.update).toMatchObject({
+      available: '9.9.9',
+      applying: true,
+    });
+    expect(gpuUpdates).toBe(1);
+    // Asking again while it updates starts nothing more.
+    expect((await post(mac, '/api/choir/update', { name })).status).toBe(200);
+    expect(gpuUpdates).toBe(1);
+    expect((await post(mac, '/api/choir/update', { name: 'nope' })).status).toBe(404);
+  });
+
+  it('takes the request only with a paired device’s key', async () => {
+    const res = await fetch(`${shareUrl}/api/node/update`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${newToken()}` },
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('the sharing device’s door', () => {
   const node = (path: string, init: RequestInit = {}, key = token) =>
     fetch(shareUrl + path, { ...init, headers: { authorization: `Bearer ${key}`, ...(init.headers ?? {}) } });
@@ -504,3 +543,4 @@ describe('pairing', () => {
     expect(t.url === null || /^http:\/\/100\./.test(t.url)).toBe(true);
   });
 });
+

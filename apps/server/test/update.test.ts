@@ -113,6 +113,24 @@ describe('Updates', () => {
     expect(await watcher().u.check()).toMatchObject({ available: null, error: /404/ });
   });
 
+  it('updates when another device asks, waiting for a render to finish even with automatic updates off', async () => {
+    const w = watcher({ latest: '0.1.6', busy: true });
+    w.u.setAuto(false);
+    expect(await w.u.request()).toBeNull();
+    expect(w.u.state()).toMatchObject({ available: '0.1.6', waiting: true, applying: false });
+    expect(w.runs).toHaveLength(0);
+    w.setBusy(false);
+    await w.u.check();
+    expect(w.u.state()).toMatchObject({ waiting: false, applying: true });
+    expect(w.runs).toHaveLength(1);
+  });
+
+  it('says why another device can’t update it', async () => {
+    expect(await watcher({ latest: '0.1.5' }).u.request()).toMatch(/up to date/);
+    expect(await watcher().u.request()).toMatch(/doesn’t offer updates|404/);
+    expect(await watcher({ latest: '0.1.6', updatable: false }).u.request()).toMatch(/source code/);
+  });
+
   it('never runs an update from a source checkout', async () => {
     const w = watcher({ latest: '0.1.6', updatable: false });
     expect(await w.u.check()).toMatchObject({ available: '0.1.6', applying: false, updatable: false });

@@ -1480,6 +1480,16 @@ export function createApp(deps: AppDeps) {
       return choirFail(c, e);
     }
   });
+  app.post('/api/choir/update', async (c) => {
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which device.' }, 400);
+    try {
+      return c.json({ device: await deps.choir.update(body.data.name), choir: deps.choir.state() });
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
   app.post('/api/choir/use', async (c) => {
     const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Say which device, or “local”.' }, 400);
