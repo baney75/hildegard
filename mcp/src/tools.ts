@@ -774,7 +774,7 @@ export function registerTools(
     guard(async (a) => {
       const describe = (name: string, u: UpdateState | null, version: string | null) =>
         !u
-          ? `- ${name}: Hildegard ${version ?? '(version unknown)'}; it's from before 0.1.8, so update it there once with \`hildegard update\`.`
+          ? `- ${name}: Hildegard ${version ?? '(version unknown)'}; it's from before 0.1.9, so update it there once with \`hildegard update\`.`
           : `- ${name}: Hildegard ${u.current}. ${u.applying ? `Updating to ${u.available}.` : u.waiting ? `Updates to ${u.available} after its render.` : u.available ? `${u.available} is out.` : u.error ? `Couldn't check: ${u.error}` : 'Up to date.'}${u.updatable ? '' : ' It runs from source code, so it updates with git.'}`;
       if (a.check) {
         const here = await client.updateCheck();

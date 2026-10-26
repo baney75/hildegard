@@ -543,4 +543,3 @@ describe('pairing', () => {
     expect(t.url === null || /^http:\/\/100\./.test(t.url)).toBe(true);
   });
 });
-

@@ -234,7 +234,7 @@ export interface ChoirDevice {
   fitWhy: Record<string, 'memory' | 'apple-gpu' | null>;
   /** Why it is not answering, in a sentence. */
   problem: string | null;
-  /** Its updates, as it last said; null from versions before 0.1.8, which can't be updated from here. */
+  /** Its updates, as it last said; null from versions before 0.1.9, which can't be updated from here. */
   update: UpdateState | null;
 }
 

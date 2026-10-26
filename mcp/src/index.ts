@@ -39,7 +39,7 @@ export interface McpOptions {
 
 export function createMcpServer(client = new HildegardClient(), opts: McpOptions = {}) {
   const server = new McpServer(
-    { name: 'hildegard', title: 'Hildegard', version: '0.1.8' },
+    { name: 'hildegard', title: 'Hildegard', version: '0.1.9' },
     { instructions: INSTRUCTIONS },
   );
   // Takes are labelled with the agent that asked for them, as its client reports its own name.

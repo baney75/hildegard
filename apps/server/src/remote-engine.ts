@@ -36,7 +36,7 @@ export interface NodeInfo {
   queue: number;
   /** False while it renders on yet another device itself, so it takes no work. */
   accepting: boolean;
-  /** Its updates; missing from versions before 0.1.8. */
+  /** Its updates; missing from versions before 0.1.9. */
   update?: UpdateState;
 }
 
@@ -212,7 +212,7 @@ export class RemoteEngine implements Engine {
     if (res.status === 404)
       throw new EngineError(
         'unknown',
-        `${this.name} runs a Hildegard from before 0.1.8, which can’t be updated from here.`,
+        `${this.name} runs a Hildegard from before 0.1.9, which can’t be updated from here.`,
         '',
         `On ${this.name}, run \`hildegard update\` once. After that, update it from any of your devices.`,
       );

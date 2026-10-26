@@ -71,7 +71,7 @@ nobody is watching (needs a key).
 Hildegard updates itself once nothing renders, and every release is signed and checked before it installs. To update
 on request: `hildegard update --json` here, `hildegard update <device> --json` for another paired device, or
 `hildegard update all --json` for every one (this computer last); `--check` only looks. Over MCP, `update_hildegard`.
-Installs before 0.1.8 can't be updated from another device: run `hildegard update` on them once.
+Installs before 0.1.9 can't be updated from another device: run `hildegard update` on them once.
 
 ## When something's wrong
 
