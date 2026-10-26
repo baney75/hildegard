@@ -79,8 +79,12 @@ release's installer is signed, and Hildegard refuses one that isn't signed with 
 instead: Settings › About › **Ask me first**, or `hildegard update auto off`, then `hildegard update` (or **Update** in
 Settings) when you want it. `hildegard update --check` only looks.
 
-On [Omarchy](https://omarchy.org), the [Hildegard bar widget](omarchy/README.md) shows renders in your bar and can do
-the install for you.
+On [Omarchy](https://omarchy.org), add the [Hildegard bar widget](omarchy/README.md) and click **Set up Hildegard**: it
+installs Hildegard with the checked installer it carries, then shows renders in your bar.
+
+```sh
+omarchy plugin add https://github.com/baney75/omarchy-hildegard --enable
+```
 
 ## The Hildegard app
 
