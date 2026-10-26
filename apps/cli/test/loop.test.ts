@@ -9,7 +9,7 @@ describe('loopTask', () => {
 
   it('sends a print to the print skill, the printer and the measuring kit', () => {
     const t = loopTask({ idea: 'a shelf clip', kind: 'model', print: true, skills });
-    expect(t).toContain('hildegard-loop, hildegard-3d, hildegard-print, and hildegard');
+    expect(t).toContain('hildegard-loop, hildegard-3d, hildegard-print, hildegard-openscad, and hildegard');
     expect(t).toContain('kind "model", print true');
     expect(t).toContain('Read printer_profile first');
     expect(t).toContain(join(skills, 'hildegard-print', 'scripts'));

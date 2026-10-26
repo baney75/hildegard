@@ -53,10 +53,10 @@ export function loopTask(o: {
   return [
     `Make this for me with Hildegard's loop: ${o.idea}`,
     '',
-    `1. Read the skills first: hildegard-loop, ${o.kind === 'model' ? `hildegard-3d, ${o.print ? 'hildegard-print, ' : ''}` : o.kind === 'web' ? 'hildegard-web, ' : ''}and hildegard for the craft (read_skill, or the skills folder in this workspace).`,
+    `1. Read the skills first: hildegard-loop, ${o.kind === 'model' ? `hildegard-3d, ${o.print ? 'hildegard-print, hildegard-openscad, ' : ''}` : o.kind === 'web' ? 'hildegard-web, ' : ''}and hildegard for the craft (read_skill, or the skills folder in this workspace).`,
     `2. Write the brief, then loop_start with ${targets}.${o.print ? ' Read printer_profile first, and size every part that fits another from its clearances.' : ''}`,
     o.kind === 'model'
-      ? `3. Build it in this workspace with what is installed here (Python with numpy, Blender, OpenSCAD). Keep the build in one script with named parameters.${o.skills ? ` mesh_kit.py is in ${join(o.skills, 'hildegard-3d', 'scripts')}.${o.print ? ` print_kit.py, to measure photos and keep the evidence, is in ${join(o.skills, 'hildegard-print', 'scripts')}.` : ''}` : ''} Export GLB or STL and send it with loop_submit and its absolute file_path.`
+      ? `3. Build it in this workspace with what is installed here (Python with numpy, Blender, OpenSCAD). Keep the build in one script with named parameters.${o.skills ? ` mesh_kit.py is in ${join(o.skills, 'hildegard-3d', 'scripts')}.${o.print ? ` print_kit.py, to measure photos and keep the evidence, is in ${join(o.skills, 'hildegard-print', 'scripts')}.` : ''}` : ''} For a part with exact dimensions, write it in OpenSCAD (hildegard-openscad) and send the .scad (or its folder) itself; otherwise export GLB or STL. Send it with loop_submit and its absolute file_path.`
       : o.kind === 'web'
         ? '3. Build it in this workspace as plain HTML and CSS in a folder of its own, with every font, image and script inside that folder. Send the folder with loop_submit and its absolute file_path.'
         : '3. Make it with Hildegard’s tools (direct_shot, make_character_stills, speak) and send each result with loop_submit (take_id, still_id or file_path).',

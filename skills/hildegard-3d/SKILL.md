@@ -49,7 +49,7 @@ parameters** (`build.py`, `model.scad`), seeded, so each round is a small edit y
 | --- | --- | --- |
 | Organic: figures, animals, drapery, rocks | Signed-distance fields + smooth union, meshed with marching cubes | `scripts/mesh_kit.py` has the primitives, `smin`, and the mesher (needs scikit-image) |
 | Organic, with Blender here | Blender headless: `blender -b -P build.py` | primitives, Subdivision, Remesh, Sculpt by script, Geometry Nodes; export with `bpy.ops.export_scene.gltf` or `wm.stl_export` |
-| Hard-surface, functional, printable parts | OpenSCAD (`openscad -o part.stl part.scad`), or build123d / CadQuery | exact dimensions, fillets, clearances |
+| Hard-surface, functional, printable parts | OpenSCAD: send the `.scad` itself and Hildegard renders it (**hildegard-openscad**); or build123d / CadQuery | exact dimensions, fillets, clearances, parts that fit |
 | Booleans and extrusions in Python | trimesh + manifold3d | `manifold3d` keeps booleans watertight |
 | Reliefs, coins, lithophanes | A heightmap image turned into a mesh | lithophanes 0.6 mm (light) to 3 mm (dark) thick |
 | No code here (a chatbot) | Write a blockout as OBJ text and send it as `text`; or run Python in the app's code tool and send the file as base64 `data` | keep text models to a few thousand faces |
@@ -62,7 +62,7 @@ model can be made and sent from any Python, including a chatbot's.
 
 1. **Blockout.** Primary masses only (spheres, capsules, boxes), at low resolution. Get proportion, gesture and the
    silhouette right from all eight views. Send it: `loop_submit` with `file_path` (a coding agent) or `text`/`data`
-   (a chatbot), and a `note` on how you built it.
+   (a chatbot), and a `note` on how you built it. OpenSCAD source goes in as it is; Hildegard renders it.
 2. **Look at the sheet.** Eight views at 45° steps, one above (or below, for a print, where the base is), and a row of
    black silhouettes. Grey clay is the surface; **magenta is a back face showing**: a hole, or faces turned inside
    out. Read the checks: `watertight`, `manifold`, `winding`, `volume`, `bodies`, `debris`, `size`, and for prints

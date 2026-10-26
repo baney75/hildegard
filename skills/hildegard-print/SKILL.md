@@ -11,7 +11,8 @@ nobody sliced until it was too late. So every number gets a source, every mating
 clearance, every round is sliced, and the part goes out with a sheet that says what is known and what isn't.
 
 This method follows print3d by mfranzon (MIT; see THIRD_PARTY_NOTICES.md), built on Hildegard's loop. Read
-**hildegard-3d** for modeling and the sheet, and **hildegard-loop** for the rounds.
+**hildegard-3d** for modeling and the sheet, **hildegard-openscad** to build the part as parametric code (the
+strongest route for a part that has to fit), and **hildegard-loop** for the rounds.
 
 ## 1. The brief, and the printer
 
