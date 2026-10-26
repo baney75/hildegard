@@ -66,6 +66,13 @@ nobody is watching (needs a key).
 - **A fleet** (a laptop rendering on the desktop's GPU): `docs/agents.md`, section C.
 - **Rented GPUs** (Runpod, Hugging Face, Colab): the **hildegard-cloud** skill.
 
+## Updates
+
+Hildegard updates itself once nothing renders, and every release is signed and checked before it installs. To update
+on request: `hildegard update --json` here, `hildegard update <device> --json` for another paired device, or
+`hildegard update all --json` for every one (this computer last); `--check` only looks. Over MCP, `update_hildegard`.
+Installs before 0.1.9 can't be updated from another device: run `hildegard update` on them once.
+
 ## When something's wrong
 
 `hildegard doctor --json` checks every part and gives each problem the command that fixes it. Logs are in the data

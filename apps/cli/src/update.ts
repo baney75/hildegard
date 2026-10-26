@@ -6,7 +6,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import type { UpdateState } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, UpdateState } from '@hildegard/presets';
+import type { Step } from '@hildegard/runtime';
 import { latestVersion, newer, RELEASES, VERSION, verifySigned } from '@hildegard/server';
 import { api, type Ctx, running, stop } from './commands.ts';
 import { type Result, result } from './output.ts';
@@ -56,7 +57,7 @@ export async function update(ctx: Ctx): Promise<Result> {
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     return result(
-      [{ id: 'update', title, status: 'failed', detail: `Couldn’t reach GitHub: ${why}` }],
+      [{ id: 'update', title, status: 'failed', detail: why }],
       'Hildegard couldn’t check for an update.',
     );
   }
@@ -183,5 +184,84 @@ export async function autoUpdate(ctx: Ctx, value: string | undefined): Promise<R
     s.auto
       ? 'Hildegard updates itself when a release is out and nothing is rendering.'
       : 'Hildegard tells you when a release is out, and updates when you run `hildegard update`.',
+  );
+}
+
+/**
+ * `hildegard update <device>` and `hildegard update all`: the owner's other devices, through the Hildegard here, which
+ * holds their keys. Each one updates to the newest signed release by itself, after anything rendering there finishes.
+ * `all` updates this computer last, since its update restarts the Hildegard that asks the others.
+ */
+export async function updateDevices(ctx: Ctx, which: string): Promise<Result> {
+  if (!(await running(ctx.config)))
+    return result(
+      [
+        {
+          id: 'update',
+          title,
+          status: 'failed',
+          detail:
+            'Hildegard isn’t running here, and it’s what reaches your other devices. Start it with `hildegard start`.',
+        },
+      ],
+      'Nothing was updated.',
+    );
+  const choir = await api<ChoirState>(ctx.config, '/api/choir', { timeoutMs: 15_000 });
+  const all = which === 'all';
+  const devices = all ? choir.devices : choir.devices.filter((d) => d.name === which);
+  if (!all && !devices.length)
+    return result(
+      [
+        {
+          id: 'update',
+          title,
+          status: 'failed',
+          detail: choir.devices.length
+            ? `No device called ${which}. Your devices: ${choir.devices.map((d) => d.name).join(', ')}.`
+            : `No device called ${which}. Add devices in Settings › Devices, or with \`hildegard choir join\`.`,
+        },
+      ],
+      'Nothing was updated.',
+    );
+  const steps: Step[] = [];
+  for (const d of devices) {
+    const t = `Update ${d.name}`;
+    try {
+      const r = await api<{ device: ChoirDevice }>(ctx.config, '/api/choir/update', {
+        method: 'POST',
+        body: { name: d.name },
+        timeoutMs: 40_000,
+      });
+      const u = r.device.update;
+      steps.push({
+        id: `update-${d.name}`,
+        title: t,
+        status: 'done',
+        detail: u?.waiting
+          ? `Updates to ${u.available} once its render finishes.`
+          : `Updating to ${u?.available ?? 'the newest release'}; it starts again by itself.`,
+      });
+    } catch (e) {
+      const why = (e as Error).message;
+      steps.push({
+        id: `update-${d.name}`,
+        title: t,
+        status: /up to date/.test(why) ? 'skipped' : 'failed',
+        detail: why,
+      });
+    }
+  }
+  if (all) {
+    const here = await update(ctx);
+    steps.push(...here.steps.map((s) => ({ ...s, id: 'update-here', title: 'Update this computer' })));
+  }
+  const failed = steps.filter((s) => s.status === 'failed').length;
+  return result(
+    steps,
+    failed
+      ? `${failed === 1 ? 'One device' : `${failed} devices`} couldn’t update; each says why.`
+      : steps.every((s) => s.status === 'skipped')
+        ? 'Everything is up to date.'
+        : 'Your devices are updating, and each starts again by itself. `hildegard choir list` shows their versions.',
   );
 }

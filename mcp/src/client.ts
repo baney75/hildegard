@@ -4,6 +4,8 @@ import type {
   Catalog,
   Character,
   CharacterView,
+  ChoirDevice,
+  ChoirState,
   ExportState,
   MarkCheck,
   Project,
@@ -12,6 +14,7 @@ import type {
   Snapshot,
   Still,
   Take,
+  UpdateState,
   Voice,
   VoiceJob,
   VoiceState,
@@ -228,6 +231,11 @@ export class HildegardClient {
       body,
     );
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
+  updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
+  updateNow = () => this.call<UpdateState>('POST', '/api/update');
+  choir = () => this.call<ChoirState>('GET', '/api/choir');
+  updateDevice = (name: string) =>
+    this.call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/update', { name });
   installModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/models/${encodeURIComponent(id)}/install`, { acceptLicense });
 

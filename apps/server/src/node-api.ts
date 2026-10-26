@@ -26,6 +26,7 @@ import { type Choir, TOKEN_RE } from './choir.ts';
 import type { NodeEvent, NodeInfo } from './remote-engine.ts';
 import type { Scheduler } from './scheduler.ts';
 import { explain } from './scheduler.ts';
+import type { Updates } from './update.ts';
 
 /** A start frame is up to 20 MB and each of four reference images up to 10 MB: their base64 and the graph fit in this. */
 export const MAX_RENDER_BODY = 88 * 1024 * 1024;
@@ -77,6 +78,8 @@ export interface NodeDeps {
   gpu: () => { name: string; vramGb: number | null } | null;
   models: () => ModelState[];
   fake: boolean;
+  /** This computer's updates, which the owner's other devices may see and start. */
+  updates?: () => Pick<Updates, 'state' | 'request'>;
 }
 
 /** Bearer auth with a paired device's key. Wrong, missing or revoked keys all get the same 401. */
@@ -134,9 +137,20 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       fitWhy: Object.fromEntries(states.map((s) => [s.id, s.fitWhy])),
       queue: scheduler.load(),
       accepting: choir.state().use === 'local',
+      update: deps.updates?.().state(),
     };
     c.header('cache-control', 'no-store');
     return c.json(info);
+  });
+
+  // Paired devices are the owner's own (Choir pairs your devices, not other people's), so any of them may update this
+  // one: only to the newest release, signed with the update key, and only once nothing renders here.
+  app.post('/update', async (c) => {
+    const updates = deps.updates?.();
+    if (!updates) return c.json({ error: 'This Hildegard can’t update itself.' }, 501);
+    const why = await updates.request();
+    if (why) return c.json({ error: why, update: updates.state() }, 409);
+    return c.json(updates.state());
   });
 
   app.post(
