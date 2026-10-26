@@ -4,50 +4,70 @@
 # omarchy:hidden=true
 #
 # Runs in a terminal the bar widget opens. Installs Hildegard for this user only (no root, nothing outside your home
-# folder) from the release pinned in ../release.env, refusing an installer whose SHA-256 doesn't match, then runs
-# `hildegard setup`, which asks you before accepting any model license or linking any app.
+# folder) with the installer that ships inside this plugin, share/install.sh, refusing it unless it matches the
+# SHA-256 pinned in ../release.env. No script is downloaded and run: the installer is part of the plugin you added, and
+# it checks Node.js and Hildegard against SHA-256s written into it. Then it runs `hildegard setup`, which asks you
+# before accepting any model license or linking any app.
+#
+# For agents and scripts: `hildegard-omarchy-setup --yes --json` asks nothing. It links the AI apps it finds, accepts no
+# license, and its last line is `hildegard setup`'s JSON (see INSTALL-FOR-AGENTS.md in the Hildegard repo).
 set -euo pipefail
 umask 077
 
 HERE=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+PLUGIN=$(dirname -- "$HERE")
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/hildegard-omarchy
 mkdir -p "$STATE"
 exec 9>"$STATE/setup.lock"
 flock -n 9 || {
-  echo "Hildegard setup is already open."
+  say "Hildegard setup is already open."
   exit 1
 }
-trap 'rc=$?; if [[ -t 0 ]]; then echo; read -rp "Press Enter to close. " _; fi; exit $rc' EXIT
+agent=()
+for arg in "$@"; do
+  case $arg in
+  --yes | --json) agent+=("$arg") ;;
+  *)
+    echo "usage: hildegard-omarchy-setup [--yes] [--json]" >&2
+    exit 2
+    ;;
+  esac
+done
+# Say things on stderr, so that with --json the only thing on stdout is JSON.
+say() { printf '%s\n' "$*" >&2; }
+pause() { if [[ ${#agent[@]} -eq 0 && -t 0 ]]; then echo; read -rp "Press Enter to close. " _; fi; }
+trap 'rc=$?; pause; exit $rc' EXIT
 
 # shellcheck source=../release.env
-. "$HERE/../release.env"
+. "$PLUGIN/release.env"
 BIN=${XDG_BIN_HOME:-$HOME/.local/bin}
+INSTALLER=$PLUGIN/share/install.sh
 
 if command -v hildegard >/dev/null 2>&1 || [[ -x $BIN/hildegard ]]; then
-  echo "Hildegard is installed."
+  say "Hildegard is installed."
 else
-  if [[ -z $HILDEGARD_VERSION || -z $INSTALL_SH_SHA256 ]]; then
-    echo "This version of the plugin doesn't name a Hildegard release yet."
-    echo "Install Hildegard from https://github.com/baney75/hildegard, then run Set up again."
+  if [[ -z $HILDEGARD_VERSION || -z $INSTALL_SH_SHA256 || ! -f $INSTALLER ]]; then
+    # A copy of the omarchy folder from a Hildegard checkout: its installer is built with each release.
+    say "This copy of the plugin carries no Hildegard installer. Add the plugin with"
+    say "  omarchy plugin add https://github.com/baney75/omarchy-hildegard --enable"
+    say "or install Hildegard from https://github.com/baney75/hildegard#install, then run Set up again."
     exit 1
   fi
-  echo "Installing Hildegard $HILDEGARD_VERSION for you alone: no root, nothing outside your home folder."
-  dl=$(mktemp -d)
-  trap 'rc=$?; rm -rf "$dl"; if [[ -t 0 ]]; then echo; read -rp "Press Enter to close. " _; fi; exit $rc' EXIT
-  # HILDEGARD_RELEASE_URL (also read by install.sh) points at a mirror of the release, for testing.
-  export HILDEGARD_RELEASE_URL=${HILDEGARD_RELEASE_URL:-https://github.com/baney75/hildegard/releases/download/v$HILDEGARD_VERSION}
-  curl -fsSL --retry 3 -o "$dl/install.sh" "$HILDEGARD_RELEASE_URL/install.sh"
-  got=$(sha256sum "$dl/install.sh" | cut -d' ' -f1)
+  got=$(sha256sum "$INSTALLER" | cut -d' ' -f1)
   if [[ $got != "$INSTALL_SH_SHA256" ]]; then
-    echo "The installer didn't match its checksum (expected $INSTALL_SH_SHA256, got $got). Nothing was installed."
+    say "The plugin's installer didn't match its checksum (expected $INSTALL_SH_SHA256, got $got). Nothing was installed."
+    say "Update the plugin with: omarchy plugin update io.github.baney75.hildegard"
     exit 1
   fi
-  # Verified above. It checks Node.js and Hildegard against hashes written into it the same way.
-  HILDEGARD_SKIP_SETUP=1 bash "$dl/install.sh"
-  "$BIN/hildegard" install
+  say "Installing Hildegard $HILDEGARD_VERSION for you alone: no root, nothing outside your home folder."
+  HILDEGARD_SKIP_SETUP=1 sh "$INSTALLER" >&2
+  "$BIN/hildegard" install "${agent[@]}" >&2
 fi
 
 hildegard_bin=$(command -v hildegard || echo "$BIN/hildegard")
+if [[ ${#agent[@]} -gt 0 ]]; then
+  exec "$hildegard_bin" setup "${agent[@]}"
+fi
 "$hildegard_bin" setup
 echo
 "$hildegard_bin" hf status

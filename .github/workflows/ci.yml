@@ -28,6 +28,16 @@ jobs:
       - run: node scripts/notices.mjs --check
       - run: node scripts/check-omarchy.mjs
       - run: node scripts/check-skills.mjs
+      # The Omarchy plugin marketplace's own security baseline, at a fixed commit of it: a finding there would cost
+      # the listing its "Snapshot verified" and its one-command install.
+      - name: Omarchy marketplace baseline
+        run: |
+          git init -q "$RUNNER_TEMP/omarchy-marketplace"
+          cd "$RUNNER_TEMP/omarchy-marketplace"
+          git fetch -q --depth 1 https://github.com/omacom/omarchy-plugin-marketplace e5f3cbc0fe81b84785d776bae045eaa5e6533ddb
+          git checkout -q FETCH_HEAD
+          cd "$GITHUB_WORKSPACE"
+          node scripts/scan-omarchy.mjs "$RUNNER_TEMP/omarchy-marketplace"
 
   # Typecheck, unit tests, the UI build and the browser tests, on each desktop OS Hildegard runs on.
   test:

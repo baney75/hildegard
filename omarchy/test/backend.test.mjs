@@ -282,40 +282,34 @@ test('anything else is a usage error', async () => {
   assert.match(r.stderr, /^hildegard: usage: /);
 });
 
-// Set up, from a copy of the plugin pinned to a release served on loopback.
-async function setup(installer, pinnedSha) {
+// Set up, from a copy of the plugin built the way scripts/build-omarchy.mjs builds it: carrying an installer in
+// share/install.sh, pinned in release.env. `installer` null leaves it out, like a checkout of the Hildegard repo.
+async function setup(installer, pinnedSha, args = []) {
   const { cpSync, mkdirSync } = await import('node:fs');
   const { createHash } = await import('node:crypto');
-  const { createServer: http } = await import('node:http');
   const plugin = join(tmp, `plugin-${Math.random().toString(36).slice(2)}`);
   cpSync(join(root, 'omarchy'), plugin, { recursive: true });
-  const sha = pinnedSha ?? createHash('sha256').update(installer).digest('hex');
-  writeFileSync(join(plugin, 'release.env'), `HILDEGARD_VERSION=0.1.0\nINSTALL_SH_SHA256=${sha}\n`);
-  const site = http((req, res) => {
-    if (req.url === '/install.sh') res.end(installer);
-    else res.writeHead(404).end();
-  });
-  await new Promise((r) => site.listen(0, '127.0.0.1', r));
+  if (installer !== null) {
+    mkdirSync(join(plugin, 'share'));
+    writeFileSync(join(plugin, 'share/install.sh'), installer);
+    const sha = pinnedSha ?? createHash('sha256').update(installer).digest('hex');
+    writeFileSync(join(plugin, 'release.env'), `HILDEGARD_VERSION=0.1.0\nINSTALL_SH_SHA256=${sha}\n`);
+  }
   const home = join(tmp, `home-${Math.random().toString(36).slice(2)}`);
   mkdirSync(home);
   try {
-    const { stdout } = await promisify(execFile)(join(plugin, 'bin/hildegard-omarchy-setup'), [], {
+    const { stdout, stderr } = await promisify(execFile)(join(plugin, 'bin/hildegard-omarchy-setup'), args, {
       env: {
         ...env(),
         PATH: '/usr/bin:/bin',
         HOME: home,
         XDG_BIN_HOME: join(home, 'bin'),
         XDG_STATE_HOME: join(home, 'state'),
-        HILDEGARD_RELEASE_URL: `http://127.0.0.1:${site.address().port}`,
-        NO_PROXY: '127.0.0.1',
-        no_proxy: '127.0.0.1',
       },
     });
-    return { code: 0, stdout, home };
+    return { code: 0, stdout, stderr, home };
   } catch (e) {
-    return { code: e.code, stdout: e.stdout, home };
-  } finally {
-    site.close();
+    return { code: e.code, stdout: e.stdout, stderr: e.stderr, home };
   }
 }
 
@@ -326,24 +320,38 @@ set -e
 mkdir -p "$XDG_BIN_HOME"
 printf '#!/bin/sh\\necho "hildegard $*" >>"$HOME/ran"\\n' >"$XDG_BIN_HOME/hildegard"
 chmod +x "$XDG_BIN_HOME/hildegard"
-echo "install.sh from $HILDEGARD_RELEASE_URL" >>"$HOME/ran"
+echo "install.sh" >>"$HOME/ran"
 `;
 
-test('setup installs the pinned release, then runs hildegard install, setup and hf status', async () => {
+test('setup runs the installer the plugin carries, then hildegard install, setup and hf status', async () => {
   const r = await setup(installer);
   assert.equal(r.code, 0, r.stdout);
   const ran = readFileSync(join(r.home, 'ran'), 'utf8').split('\n').filter(Boolean);
-  assert.match(ran[0], /^install\.sh from http:\/\/127\.0\.0\.1:\d+$/);
-  assert.deepEqual(ran.slice(1), ['hildegard install', 'hildegard setup', 'hildegard hf status']);
-  assert.match(r.stdout, /Installing Hildegard 0\.1\.0 for you alone/);
+  assert.deepEqual(ran, ['install.sh', 'hildegard install', 'hildegard setup', 'hildegard hf status']);
+  assert.match(r.stderr, /Installing Hildegard 0\.1\.0 for you alone/);
+});
+
+test("setup --yes --json asks nothing and leaves only setup's JSON on stdout", async () => {
+  const r = await setup(installer, undefined, ['--yes', '--json']);
+  assert.equal(r.code, 0, r.stdout);
+  const ran = readFileSync(join(r.home, 'ran'), 'utf8').split('\n').filter(Boolean);
+  assert.deepEqual(ran, ['install.sh', 'hildegard install --yes --json', 'hildegard setup --yes --json']);
+  assert.equal(r.stdout, '');
 });
 
 test('setup refuses an installer that does not match its checksum', async () => {
   const r = await setup(installer, '0'.repeat(64));
   assert.equal(r.code, 1);
-  assert.match(r.stdout, /didn't match its checksum .* Nothing was installed\./);
+  assert.match(r.stderr, /didn't match its checksum .* Nothing was installed\./);
   assert.equal(existsSync(join(r.home, 'ran')), false);
   assert.equal(existsSync(join(r.home, 'bin/hildegard')), false);
+});
+
+test('setup from a checkout, with no installer, says where to get the plugin', async () => {
+  const r = await setup(null);
+  assert.equal(r.code, 1);
+  assert.match(r.stderr, /omarchy plugin add https:\/\/github\.com\/baney75\/omarchy-hildegard --enable/);
+  assert.equal(existsSync(join(r.home, 'ran')), false);
 });
 
 test('finds the port Hildegard last started on when HILDEGARD_PORT isn’t set', async () => {

@@ -29,6 +29,19 @@ only fetches what changed.
 The `hildegard` command is then in `~/.local/bin` (Windows: `%LOCALAPPDATA%\Hildegard\bin`). If it isn't on PATH yet
 in your shell, call it by that full path.
 
+### On Omarchy
+
+Add the bar widget too, and install through it: the plugin carries the same installer, checked against a pinned
+SHA-256, and its setup asks nothing with `--yes --json` (stdout is only `hildegard setup`'s JSON, so you can skip step 2):
+
+```sh
+omarchy plugin add https://github.com/baney75/omarchy-hildegard --enable --yes
+~/.config/omarchy/plugins/io.github.baney75.hildegard/bin/hildegard-omarchy-setup --yes --json
+```
+
+If Hildegard is already installed, the second line only runs `hildegard setup --yes --json`. The widget then shows
+renders in the bar and has **Open Studio**, **AI apps**, **Update** and **Stop** for your user.
+
 ## 2. Set up
 
 ```sh
