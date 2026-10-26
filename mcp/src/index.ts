@@ -2,10 +2,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HildegardClient } from './client.ts';
 import { registerLoopTools } from './loop-tools.ts';
+import { registerReportTools } from './report-tools.ts';
 import { findSkills, registerSkillTools } from './skill-tools.ts';
 import { registerTools } from './tools.ts';
 
 export { HildegardClient, HildegardError, type VoiceJobDetail } from './client.ts';
+export * from './report.ts';
 export { findSkills, readSkills, type SkillInfo } from './skill-tools.ts';
 export { registerTools, toRequest } from './tools.ts';
 export { zip, zipFolder } from './zip.ts';
@@ -18,6 +20,7 @@ To put shots in a film, pass its id or its title as film to direct_shot. To stop
 Draft first, then re-render the take you like with quality "final" and the same seed.
 Voice: list_voices, then speak a script in any voice there; design_voice makes a new one from words. You can't clone a voice: clone_voice says how the person does it themselves, with their consent.
 Loops: to make a 3D model or a part to print, to design a web page or site, or to iterate on any image, video or sound until it is right, loop_start, then loop_submit each version, look at what comes back, and loop_critique it honestly before the next round; loop_finish delivers the best round.
+Reports: when Hildegard itself fails (a tool errors, or a take fails, in a way no change to the request fixes), or your user wants something it can't do yet, offer to tell its makers. report_draft writes it with the computer's details, private things taken out; show your user the exact text and any matching issues, and call report_file only after they say yes. Never file without asking, and add to a matching issue rather than open a new one.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
 export interface McpOptions {
@@ -35,9 +38,12 @@ export interface McpOptions {
   skillsDir?: string | null;
 }
 
+/** The version this MCP server reports, as the release sets it. */
+export const MCP_VERSION = '0.1.7';
+
 export function createMcpServer(client = new HildegardClient(), opts: McpOptions = {}) {
   const server = new McpServer(
-    { name: 'hildegard', title: 'Hildegard', version: '0.1.7' },
+    { name: 'hildegard', title: 'Hildegard', version: MCP_VERSION },
     { instructions: INSTRUCTIONS },
   );
   // Takes are labelled with the agent that asked for them, as its client reports its own name.
@@ -52,6 +58,13 @@ export function createMcpServer(client = new HildegardClient(), opts: McpOptions
     client,
     () => opts.agentName ?? (server.server.getClientVersion()?.name?.slice(0, 60) || 'agent'),
     opts.remote,
+  );
+  registerReportTools(
+    server,
+    client,
+    () => opts.agentName ?? (server.server.getClientVersion()?.name?.slice(0, 60) || 'agent'),
+    MCP_VERSION,
+    !!opts.remote,
   );
   registerSkillTools(server, opts.skillsDir === undefined ? findSkills() : opts.skillsDir);
   return server;

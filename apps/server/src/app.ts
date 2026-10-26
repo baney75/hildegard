@@ -7,6 +7,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
+import type { Diagnostics } from '@hildegard/mcp';
 import { HildegardClient } from '@hildegard/mcp';
 import {
   type AgentsResponse,
@@ -90,6 +91,7 @@ import {
   type Slicer,
 } from './printer.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
+import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
 import type { Store } from './store.ts';
 import type { Updates } from './update.ts';
@@ -179,6 +181,10 @@ export interface AppDeps {
   printer?: PrinterProfile;
   /** The slicer for this printer; Hildegard looks for one when left out. */
   slicer?: (p: Printer) => Slicer | null;
+  /** Bug reports and ideas agents draft for Hildegard's makers; in the data folder unless a test says otherwise. */
+  reports?: Reports;
+  /** This computer's GPU, as people name it, for reports. */
+  gpu?: string | null;
 }
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
@@ -1876,6 +1882,101 @@ export function createApp(deps: AppDeps) {
       return c.json({ grants: grants.list(isOwner(c) ? null : (personOf(c)?.id ?? null)), mcpUrl: mcpUrl() });
     } catch (e) {
       return grantFail(c, e);
+    }
+  });
+
+  // ── Reports: bugs and ideas for Hildegard's makers, drafted by agents and filed only once the person said yes ──
+  const reports = deps.reports ?? new Reports({ dir: join(deps.config.dataDir, 'reports') });
+  const ReportBody = z.object({
+    kind: z.enum(['bug', 'idea']),
+    title: z.string().trim().min(4).max(120),
+    what: z.string().trim().min(1).max(6000),
+    now: z.string().max(4000).optional(),
+    more: z.string().max(4000).optional(),
+    how: z
+      .enum([
+        'The desktop app',
+        'The one-line installer',
+        'Hildegard at a link',
+        'An AI app over MCP',
+        'Built from source',
+      ])
+      .optional(),
+    logs: z.boolean().optional(),
+    agent: z.string().max(60).optional(),
+  });
+  app.post('/api/report/draft', async (c) => {
+    const body = ReportBody.safeParse(await c.req.json().catch(() => null));
+    if (!body.success)
+      return c.json(
+        {
+          error: body.error.issues[0]?.message ?? 'Bad report.',
+          field: body.error.issues[0]?.path.join('.'),
+        },
+        400,
+      );
+    const { logs, ...input } = body.data;
+    const owner = isOwner(c);
+    const snap = snapshot();
+    const facts = baseFacts(VERSION, SOURCE.commit);
+    // A director sees only what Hildegard shows them anyway: the version. This computer's insides are the owner's.
+    const diag: Diagnostics = owner
+      ? {
+          os: osLabel(),
+          facts: {
+            ...facts,
+            ...(deps.gpu ? { GPU: deps.gpu } : {}),
+            Engine: `${snap.engine.comfy}${snap.engine.online ? ', online' : ', offline'}${snap.engine.paused ? ', paused' : ''}${snap.engine.problem ? `: ${snap.engine.problem}` : ''}`,
+            Models:
+              snap.models
+                .filter((m) => m.installed)
+                .map((m) => m.id)
+                .join(', ') || 'none installed',
+            Devices: `${snap.choir.devices.length} paired${snap.choir.use !== 'local' ? ', rendering on another' : ''}`,
+            Takes: `${snap.takes.filter((t) => t.status === 'failed').length} failed of ${snap.takes.length}`,
+          },
+          log: logs === false ? [] : logTail(join(deps.config.dataDir, 'logs')),
+        }
+      : { facts: { Hildegard: facts.Hildegard! } };
+    const names = [
+      ...snap.choir.devices.map((d) => d.name),
+      ...(owner ? people.list().map((p) => p.name) : []),
+      ...(personOf(c) ? [personOf(c)!.name] : []),
+    ];
+    const draft = await reports.draft({ ...input, agent: input.agent }, diag, knownHere(names));
+    return c.json({ draft, filer: owner ? await reports.filer() : null });
+  });
+  app.post('/api/report/file', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as {
+      id?: unknown;
+      confirm?: unknown;
+      on?: unknown;
+    } | null;
+    if (typeof body?.id !== 'string')
+      return c.json({ error: 'Send { "id": "<draft>", "confirm": true }.' }, 400);
+    const draft = reports.get(body.id);
+    if (!isOwner(c))
+      return c.json(
+        {
+          error: 'Only the owner’s GitHub account files from here. Send it yourself from the form.',
+          code: 'owner',
+          url: draft?.url,
+        },
+        403,
+      );
+    if (body.confirm !== true)
+      return c.json(
+        { error: 'Show the person the draft and ask first; then send confirm: true.', url: draft?.url },
+        400,
+      );
+    const on = body.on === undefined ? undefined : Number(body.on);
+    if (on !== undefined && !(Number.isInteger(on) && on > 0))
+      return c.json({ error: 'on is an issue number.' }, 400);
+    try {
+      return c.json({ draft: await reports.file(body.id, on) });
+    } catch (e) {
+      if (e instanceof ReportError) return c.json({ error: e.message, url: e.url ?? null }, e.status as 400);
+      throw e;
     }
   });
 

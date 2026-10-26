@@ -10,6 +10,7 @@ export * from './models.ts';
 export * from './oauth.ts';
 export * from './people.ts';
 export * from './remote-mcp.ts';
+export * from './report.ts';
 export * from './scheduler.ts';
 export * from './server.ts';
 export * from './store.ts';

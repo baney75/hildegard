@@ -79,6 +79,12 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard loop             Loops and their rounds (loop show <id>; loop submit <id> <file> --note;
                              loop critique <id> <round> --stdin; loop finish <id> <round> --note)
 
+  hildegard report bug "<what broke>" --what "<what you did, expected, got>"
+  hildegard report idea "<what you want>" --what "<the work you want to make>"
+                             Draft a report for Hildegard's makers, with doctor and the log, keys, paths and names
+                             taken out, and the issues like it. Nothing is sent until report file [<id>] [--on <issue>]
+                             (files through the GitHub CLI, as you); report show [<id>] prints a draft again
+
   --json      Machine-readable output, for agents: { ok, needsOwner, steps[], message }
   --yes       Don't ask; say yes to linking apps (never to licenses: pass --accept-license)
   --port N    Hildegard's port (last used, or 7341)    --data DIR   Where Hildegard keeps everything
@@ -129,6 +135,11 @@ const valued = new Set([
   'size',
   'rounds',
   'note',
+  'what',
+  'now',
+  'more',
+  'on',
+  'how',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -208,6 +219,8 @@ async function main(): Promise<Result | null> {
       return loop(ctx, rest);
     case 'cloud':
       return cloud(ctx, rest);
+    case 'report':
+      return (await import('./report.ts')).report(ctx, rest);
     case 'disconnect':
       return connect(ctx, rest, true);
     case 'mcp': {

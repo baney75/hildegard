@@ -280,6 +280,8 @@ describe('invites and roles', () => {
       ['POST', '/api/host', {}],
       ['POST', '/api/system/stop'],
       ['POST', '/api/agents/cursor/connect'],
+      // A director reports from their own GitHub account, never the owner's.
+      ['POST', '/api/report/file', { id: 'r0123456789ab', confirm: true }],
     ];
     for (const [method, path, body] of tries)
       expect((await send(path, method, body, director)).status, `${method} ${path}`).toBe(403);

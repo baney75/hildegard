@@ -32,6 +32,7 @@ import type { FetchMetadata } from './oauth.ts';
 import { People } from './people.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
+import type { Reports } from './report.ts';
 import { Scheduler } from './scheduler.ts';
 import { Store } from './store.ts';
 import { runUpdate, Updates } from './update.ts';
@@ -110,6 +111,8 @@ export async function startServer(
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
     /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
     slicer?: Slicer | null;
+    /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
+    reports?: Reports;
   } = {},
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
@@ -401,6 +404,8 @@ export async function startServer(
     }),
     printer,
     slicer: pickSlicer,
+    reports: opts.reports,
+    gpu: localGpu ? `${localGpu.name}${localGpu.vramGb ? `, ${localGpu.vramGb} GB` : ''}` : null,
     choir,
     modelStates,
     node,

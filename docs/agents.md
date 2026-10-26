@@ -366,3 +366,31 @@ The step's `detail` says what happened, and `hildegard doctor --json` says what 
 `logs/` (`install.log`, `comfyui.log`, `comfy-api-proxy.log`, `server.log`); the data folder is
 `~/.local/share/hildegard` on Linux, `~/Library/Application Support/Hildegard` on macOS and `%LOCALAPPDATA%\Hildegard` on
 Windows. Every command here is safe to run again.
+
+## Telling Hildegard's makers: bugs and ideas
+
+When Hildegard itself is at fault (a command or tool fails in a way the doctor's fix and a changed request don't
+cure, or it crashes), or your user wants something Hildegard can't do yet, offer to tell the people who make it. Never
+file without your user's yes: an issue is public, under their name.
+
+1. **Draft.** Over MCP: `report_draft` (kind `bug` or `idea`, a one-line title, and `what`). From a shell:
+
+   ```sh
+   hildegard report bug "Draft takes fail on a 4 GB GPU" --what "What you did, what you expected, what happened" --json
+   hildegard report idea "Cut a trailer from my takes" --what "The work they want to make" --json
+   ```
+
+   A bug carries `hildegard doctor`, the version, the system and the end of `server.log` (`--no-log` leaves the log
+   out). Keys and tokens, home folders, the account and computer names, device and people names, tailnet names, IP and
+   email addresses are taken out of every part, and the draft says how many of each. Nothing is sent but the title's
+   words, to search GitHub for issues like it.
+2. **Show it.** Give your user the title and text word for word, and the matching issues. If one is the same thing,
+   add to it rather than open another.
+3. **On their yes, file it.** `report_file` with the draft's id and `confirm: true` (and `on: <number>` to add to an
+   open issue), or `hildegard report file <id> [--on <number>]`. It files exactly the text they read, through the
+   GitHub CLI signed in on the computer Hildegard runs on, as them. Without the GitHub CLI, or for someone who isn't the
+   owner, the draft's `url` opens the issue form on GitHub filled in, for them to send from their own account.
+
+A draft files once; the same title from the same computer goes on the first issue; at most five go from one computer in
+a day. Security problems never go in an issue: see `SECURITY.md`.
+
