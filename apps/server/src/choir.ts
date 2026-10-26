@@ -274,6 +274,7 @@ export class Choir {
       fit: i?.fit ?? {},
       fitWhy: i?.fitWhy ?? {},
       problem,
+      update: i?.update ?? null,
     };
   }
 
@@ -432,6 +433,26 @@ export class Choir {
     if (problem) this.problems.set(name, problem);
     else this.problems.delete(name);
     if (JSON.stringify(this.device(name, '')) !== before) this.emit();
+  }
+
+  /** Update a joined device to the newest release; it restarts as the new version, or once its renders finish. */
+  async update(name: string): Promise<ChoirDevice> {
+    const d = this.joined.devices.find((x) => x.name === name);
+    if (!d) throw new ChoirError(404, `This computer hasn’t joined a device called ${name}.`);
+    const secret = this.secret(d.name);
+    const e = new RemoteEngine({ name: d.name, url: d.url, token: () => secret.get(), fetch: this.fetchFn });
+    try {
+      const update = await e.update();
+      const known = this.info.get(name);
+      if (known) this.record(name, { ...known, update }, null);
+    } catch (err) {
+      const x = err as EngineError;
+      throw new ChoirError(
+        x.code === 'engine_offline' ? 502 : 409,
+        [x.message, x.hint].filter(Boolean).join(' '),
+      );
+    }
+    return this.device(d.name, d.url);
   }
 
   /** Ask every joined device how it is, for lists (the scheduler also watches the one in use). */

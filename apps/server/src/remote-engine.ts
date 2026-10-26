@@ -10,6 +10,7 @@ import {
   type EngineErrorCode,
   type RenderOptions,
 } from '@hildegard/comfy';
+import type { UpdateState } from '@hildegard/presets';
 
 /** The detail on the error a device gives when it refuses this computer's key. */
 export const REFUSED = 'key refused';
@@ -35,6 +36,8 @@ export interface NodeInfo {
   queue: number;
   /** False while it renders on yet another device itself, so it takes no work. */
   accepting: boolean;
+  /** Its updates; missing from versions before 0.1.8. */
+  update?: UpdateState;
 }
 
 /** POST /api/node/render streams these, one JSON object per line. */
@@ -190,6 +193,32 @@ export class RemoteEngine implements Engine {
     const info = (await res.json()) as NodeInfo;
     this.last = info;
     return info;
+  }
+
+  /** Asks the device to update to the newest release. Returns its update state; throws with a sentence when it can't. */
+  async update(): Promise<UpdateState> {
+    let res: Response;
+    try {
+      res = await this.fetchFn(`${this.url}/api/node/update`, {
+        method: 'POST',
+        headers: this.headers(),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (e) {
+      if (e instanceof EngineError) throw e;
+      throw this.offline((e as Error).message);
+    }
+    if (res.status === 401) throw this.refused();
+    if (res.status === 404)
+      throw new EngineError(
+        'unknown',
+        `${this.name} runs a Hildegard from before 0.1.8, which can’t be updated from here.`,
+        '',
+        `On ${this.name}, run \`hildegard update\` once. After that, update it from any of your devices.`,
+      );
+    const body = (await res.json().catch(() => ({}))) as { error?: string } & Partial<UpdateState>;
+    if (!res.ok) throw new EngineError('unknown', `${this.name}: ${body.error ?? `HTTP ${res.status}`}`);
+    return body as UpdateState;
   }
 
   /** Ready when the device answers, its ComfyUI does, and it takes work. */

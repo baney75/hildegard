@@ -598,7 +598,17 @@ function Privacy() {
 function deviceDetail(d: ChoirDevice, catalog: Catalog): string {
   if (!d.online) return d.problem ?? 'Not answering yet.';
   const models = d.models.map((id) => catalog.models.find((m) => m.id === id)?.name ?? id);
-  return [d.gpu ?? 'GPU unknown', models.length ? models.join(', ') : 'No models yet'].join(' · ');
+  const u = d.update;
+  const version = u?.applying
+    ? `Updating to ${u.available}`
+    : u?.waiting
+      ? `Updates to ${u.available} after its render`
+      : d.version
+        ? `Hildegard ${d.version}`
+        : null;
+  return [d.gpu ?? 'GPU unknown', models.length ? models.join(', ') : 'No models yet', version]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function Devices({ catalog }: { catalog: Catalog }) {
@@ -621,6 +631,13 @@ function Devices({ catalog }: { catalog: Catalog }) {
       .catch(() => setTailnet(null));
   }, []);
   const askUrl = tailnet === null && !choir?.sharing.on;
+  // While a device updates it restarts, so ask again until it's back as the new version.
+  const updating = (choir?.devices ?? []).some((d) => d.update?.applying || d.update?.waiting || !d.online);
+  useEffect(() => {
+    if (!updating) return;
+    const t = setInterval(() => void api.choir().catch(() => {}), 10_000);
+    return () => clearInterval(t);
+  }, [updating]);
 
   const run = async (name: string, fn: () => Promise<unknown>) => {
     setBusy(name);
@@ -716,6 +733,29 @@ function Devices({ catalog }: { catalog: Catalog }) {
                 >
                   <Icon name="check" size={16} /> Use for renders
                 </button>
+                {d.online &&
+                d.update?.updatable &&
+                d.update.available &&
+                !d.update.applying &&
+                !d.update.waiting ? (
+                  <Button
+                    kind="primary"
+                    size="sm"
+                    busy={busy === `update-${d.name}`}
+                    onClick={() =>
+                      run(`update-${d.name}`, async () => {
+                        const r = await api.choirUpdate(d.name);
+                        toast(
+                          r.device.update?.waiting
+                            ? `${d.name} updates once its render finishes`
+                            : `${d.name} is updating to ${r.device.update?.available ?? 'the newest release'}`,
+                        );
+                      })
+                    }
+                  >
+                    Update to {d.update.available}
+                  </Button>
+                ) : null}
                 <Button
                   kind="ghost"
                   size="sm"

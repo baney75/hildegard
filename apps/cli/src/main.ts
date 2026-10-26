@@ -31,6 +31,7 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard status           What's installed and running
   hildegard update           Update to the newest release, signed and checked (--check: only look).
                              Hildegard also updates itself when nothing is rendering: update auto on|off
+  hildegard update <device>  Update another of your devices from here; \`update all\` updates every one, this one last
   hildegard doctor           Check every part, and print the command that fixes each problem
   hildegard open             Open the Studio in your browser
   hildegard models           Models, and whether they fit this GPU
@@ -180,7 +181,8 @@ async function main(): Promise<Result | null> {
       return status(ctx);
     case 'update': {
       const u = await import('./update.ts');
-      return rest[0] === 'auto' ? u.autoUpdate(ctx, rest[1]) : u.update(ctx);
+      if (rest[0] === 'auto') return u.autoUpdate(ctx, rest[1]);
+      return rest[0] ? u.updateDevices(ctx, rest[0]) : u.update(ctx);
     }
     case 'doctor':
       return doctor(ctx);

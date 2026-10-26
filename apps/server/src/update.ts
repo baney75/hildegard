@@ -99,6 +99,8 @@ export class Updates {
   private available: string | null = null;
   private auto: boolean;
   private applying = false;
+  /** Asked for while something rendered: updates once nothing is, whatever `auto` says. */
+  private waiting = false;
   private error: string | null = null;
   private checkedAt: string | null = null;
   private timers: NodeJS.Timeout[] = [];
@@ -121,6 +123,7 @@ export class Updates {
       available: this.available,
       auto: this.auto,
       applying: this.applying,
+      waiting: this.waiting,
       updatable: this.opts.updatable,
       error: this.error,
       checkedAt: this.checkedAt,
@@ -168,6 +171,7 @@ export class Updates {
     if (!this.available) return 'Hildegard is up to date.';
     if (this.applying) return null;
     this.applying = true;
+    this.waiting = false;
     this.changed();
     try {
       this.opts.run();
@@ -180,8 +184,31 @@ export class Updates {
     return null;
   }
 
+  /**
+   * Update for another of the owner's devices, which asked over the paired link: checks first if it hasn't yet, and
+   * waits for anything rendering here to finish rather than cutting it off. Returns why not, when it can't.
+   */
+  async request(): Promise<string | null> {
+    if (!this.opts.updatable) return 'It runs from its source code. Update it there with git.';
+    if (!this.available && !this.applying) await this.check();
+    if (!this.available) return this.error ?? `It’s up to date: ${this.opts.version} is the newest release.`;
+    if (this.applying) return null;
+    if (this.opts.busy()) {
+      this.waiting = true;
+      this.changed();
+      return null;
+    }
+    return this.apply();
+  }
+
   private maybeApply() {
-    if (this.auto && this.available && !this.applying && this.opts.updatable && !this.opts.busy())
+    if (
+      (this.auto || this.waiting) &&
+      this.available &&
+      !this.applying &&
+      this.opts.updatable &&
+      !this.opts.busy()
+    )
       this.apply();
   }
 

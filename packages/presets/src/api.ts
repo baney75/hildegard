@@ -234,6 +234,8 @@ export interface ChoirDevice {
   fitWhy: Record<string, 'memory' | 'apple-gpu' | null>;
   /** Why it is not answering, in a sentence. */
   problem: string | null;
+  /** Its updates, as it last said; null from versions before 0.1.8, which can't be updated from here. */
+  update: UpdateState | null;
 }
 
 /** Choir: rendering on another of your devices, and sharing this one's GPU with them. */
@@ -299,6 +301,8 @@ export interface UpdateState {
   auto: boolean;
   /** An update is running: Hildegard restarts as the new version. */
   applying: boolean;
+  /** Asked to update while something renders: it updates once that's done, even with automatic updates off. */
+  waiting: boolean;
   /** A release install, which can update itself; a source checkout can't. */
   updatable: boolean;
   /** Why the last check failed, if it did. */
