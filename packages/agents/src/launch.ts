@@ -7,7 +7,7 @@
  */
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { McpCommand } from '@hildegard/runtime';
 import { COMMANDS, type Detected, KEY_ENV, LOCAL_PROVIDERS, providerOf, type Sys, system } from './detect.ts';
@@ -60,6 +60,13 @@ export interface LaunchInput {
   budgetUsd?: number;
   /** Tools a headless Claude Code may also use without asking, such as `Bash(blender:*)` for a modeling loop. */
   extraTools?: string[];
+  /**
+   * Pi only: the owner accepts that Pi has no sandbox, so its file tools can read and write anything their account
+   * can. Pi never runs without it.
+   */
+  unsandboxed?: boolean;
+  /** Pi only: where this run's Pi profile goes, outside the workspace Pi may write. */
+  piProfile?: string;
 }
 
 export interface Plan {
@@ -109,6 +116,17 @@ const BORROWED = [
  */
 export const PI_ENV = [
   'PATH',
+  // Proxies, certificate authorities and a local model server's address: needed to reach a provider, never a key.
+  'HTTPS_PROXY',
+  'HTTP_PROXY',
+  'NO_PROXY',
+  'https_proxy',
+  'http_proxy',
+  'no_proxy',
+  'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
+  'OLLAMA_HOST',
   'HOME',
   'LANG',
   'LC_*',
@@ -127,7 +145,8 @@ export const PI_ENV = [
 
 /**
  * Pi's built-in tools Hildegard allows, and Hildegard's own over MCP. Pi has no way to allow a shell for some programs
- * only (as Claude Code's `Bash(ffmpeg:*)` does), so it gets no shell: media work goes through Hildegard's tools.
+ * only (as Claude Code's `Bash(ffmpeg:*)` does), so it gets no shell: media work goes through Hildegard's tools. This
+ * narrows what Pi does; it is not a sandbox, since its file tools reach any path the account can.
  */
 export const PI_TOOLS = ['read', 'edit', 'write', 'grep', 'find', 'ls', 'mcp__hildegard__*'];
 
@@ -147,8 +166,34 @@ const DEFAULT_PROVIDER: Record<AgentId, string> = {
 /** The folder next to the run’s workspace that holds OMP’s own profile. */
 const OMP_PROFILE = 'omp-profile';
 
-/** Pi's profile for one run: inside the run's workspace, made empty for every run. */
-export const piProfile = (workspace: string) => join(workspace, '.pi-profile');
+/**
+ * Pi's profile for one run, made empty for every run: `input.piProfile` (the CLI keeps it under Hildegard's data
+ * folder), or one beside the workspace, so it is never inside the folder Pi works in.
+ */
+export const piProfile = (input: Pick<LaunchInput, 'workspace' | 'piProfile'>) =>
+  input.piProfile ?? join(dirname(input.workspace), '.pi-profiles', basename(input.workspace));
+
+/** Where each local model server listens by default, for the `models.json` a Pi run gets. */
+export const LOCAL_BASE_URLS: Record<string, string> = {
+  ollama: 'http://127.0.0.1:11434/v1',
+  'lm-studio': 'http://127.0.0.1:1234/v1',
+  lmstudio: 'http://127.0.0.1:1234/v1',
+  vllm: 'http://127.0.0.1:8000/v1',
+  'llama.cpp': 'http://127.0.0.1:8080/v1',
+  llamacpp: 'http://127.0.0.1:8080/v1',
+};
+
+/** Ollama's address from OLLAMA_HOST (`0.0.0.0:11434`, `host:port` or a URL), as an OpenAI-style base URL. */
+export function ollamaBase(host: string | undefined): string {
+  if (!host?.trim()) return LOCAL_BASE_URLS.ollama!;
+  const h = host.trim().replace(/\/+$/, '');
+  // A bare host (`gpu-box`) gets Ollama's port; a full URL keeps whatever it says.
+  const bare = !/^https?:\/\//.test(h);
+  const u = new URL(bare ? `http://${h}` : h);
+  if (u.hostname === '0.0.0.0') u.hostname = '127.0.0.1';
+  if (bare && !u.port) u.port = '11434';
+  return `${u.origin}/v1`;
+}
 
 /** TOML basic string for `codex -c key=value`. JSON escapes are valid TOML escapes for these characters. */
 const toml = (s: string) => JSON.stringify(s);
@@ -208,10 +253,41 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       reason:
         'A Pi model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.',
     };
-  if (input.budgetUsd && input.agent !== 'claude-code')
+  if (input.budgetUsd !== undefined && !(Number.isFinite(input.budgetUsd) && input.budgetUsd > 0))
+    verdict = { allowed: false, reason: 'A budget is a number of US dollars above 0, such as --budget 5.' };
+  else if (input.budgetUsd !== undefined && input.agent !== 'claude-code')
     verdict = {
       allowed: false,
       reason: `${NAMES_SHORT[input.agent]} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
+    };
+  if (
+    verdict.allowed &&
+    input.agent === 'pi' &&
+    input.use === 'local' &&
+    input.model &&
+    !LOCAL_BASE_URLS[providerOf(input.model)]
+  )
+    verdict = {
+      allowed: false,
+      reason: `Hildegard doesn’t know where ${providerOf(input.model)} listens for Pi. Use ollama, lm-studio, vllm or llama.cpp.`,
+    };
+  // Last, so a more specific refusal above keeps its reason.
+  if (verdict.allowed && input.agent === 'pi' && !input.unsandboxed)
+    verdict = {
+      allowed: false,
+      reason:
+        'Pi has no sandbox: its file tools can read and write anything your account can, not just its workspace. Run it with --unsandboxed if you accept that, or use Codex, which works in a sandbox.',
+    };
+  if (
+    verdict.allowed &&
+    input.agent === 'pi' &&
+    input.unsandboxed &&
+    input.trigger !== 'owner-here' &&
+    input.trigger !== 'owner-remote'
+  )
+    verdict = {
+      allowed: false,
+      reason: 'Pi runs without a sandbox, so only you can start it, and never on a schedule.',
     };
   if (input.agent === 'pi' && input.extraTools?.length)
     verdict = {
@@ -274,7 +350,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       // A profile of its own for this run: no stored logins, no auth.json, only what Hildegard puts there. It starts
       // with only the variables it needs, so no sign-in or other key in Hildegard's environment reaches it.
       inherit = PI_ENV;
-      env.PI_CODING_AGENT_DIR = piProfile(ws);
+      env.PI_CODING_AGENT_DIR = piProfile(input);
       env.PI_SKIP_VERSION_CHECK = '1';
       env.PI_TELEMETRY = '0';
       // The task goes on stdin, which Pi puts before the prompt, so it never shows in a process list or a shell.
@@ -282,6 +358,10 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
         '--print',
         '--no-session',
         '--no-approve',
+        // No extensions but Pi's own MCP support: a profile or folder can't load code into it.
+        '--no-extensions',
+        '--extension',
+        'builtin:mcp',
         '--tools',
         PI_TOOLS.join(','),
         '--model',
@@ -312,7 +392,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
 }
 
 /** Writes the run's workspace: Hildegard's MCP server for each agent's config format, and the skills. */
-export function prepareWorkspace(input: LaunchInput) {
+export function prepareWorkspace(input: LaunchInput, env: NodeJS.ProcessEnv = process.env) {
   const ws = input.workspace;
   mkdirSync(ws, { recursive: true, mode: 0o700 });
   const server = {
@@ -324,13 +404,31 @@ export function prepareWorkspace(input: LaunchInput) {
   if (input.agent === 'pi') {
     // Pi reads MCP servers and skills from its agent directory. Each run's starts empty, so nothing (a login Pi saved,
     // an old skill) carries over from an earlier run.
-    const profile = piProfile(ws);
+    const profile = piProfile(input);
     rmSync(profile, { recursive: true, force: true });
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     writeFileSync(
       join(profile, 'mcp.json'),
       `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`,
     );
+    // Pi knows local model servers only from models.json; this run's names the one its model is on.
+    const provider = input.model ? providerOf(input.model) : '';
+    if (input.use === 'local' && LOCAL_BASE_URLS[provider]) {
+      const baseUrl = provider === 'ollama' ? ollamaBase(env.OLLAMA_HOST) : LOCAL_BASE_URLS[provider];
+      const id = input.model!.slice(input.model!.indexOf('/') + 1);
+      writeFileSync(
+        join(profile, 'models.json'),
+        `${JSON.stringify(
+          {
+            providers: {
+              [provider]: { baseUrl, api: 'openai-completions', apiKey: 'local', models: [{ id }] },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    }
     if (input.skillsDir && existsSync(input.skillsDir))
       cpSync(input.skillsDir, join(profile, 'skills'), { recursive: true });
   }
@@ -442,12 +540,25 @@ export function parseLine(agent: AgentId, line: string): RunEvent[] {
   return [];
 }
 
-/** The variables of `from` that `names` allows: exact names, or prefixes ending in `*`. */
-export function inherited(from: NodeJS.ProcessEnv, names: readonly string[]): NodeJS.ProcessEnv {
+/**
+ * The variables of `from` that `names` allows: exact names, or prefixes ending in `*`. Windows' names ignore case
+ * (`Path` is `PATH` there).
+ */
+export function inherited(
+  from: NodeJS.ProcessEnv,
+  names: readonly string[],
+  caseless = false,
+): NodeJS.ProcessEnv {
+  const norm = (x: string) => (caseless ? x.toUpperCase() : x);
   const out: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(from))
-    if (v !== undefined && names.some((n) => (n.endsWith('*') ? k.startsWith(n.slice(0, -1)) : k === n)))
+  for (const [k, v] of Object.entries(from)) {
+    const key = norm(k);
+    if (
+      v !== undefined &&
+      names.some((n) => (n.endsWith('*') ? key.startsWith(norm(n.slice(0, -1))) : key === norm(n)))
+    )
       out[k] = v;
+  }
   return out;
 }
 
@@ -463,7 +574,9 @@ export async function run(
 ): Promise<RunResult> {
   if (!p.verdict.allowed) throw new Error(p.verdict.reason);
   const sys = opts.sys ?? system();
-  const env: NodeJS.ProcessEnv = p.inherit ? inherited(sys.env, p.inherit) : { ...sys.env };
+  const env: NodeJS.ProcessEnv = p.inherit
+    ? inherited(sys.env, p.inherit, sys.platform === 'win32')
+    : { ...sys.env };
   for (const [k, v] of Object.entries(p.env)) {
     if (v === null) delete env[k];
     else env[k] = v;

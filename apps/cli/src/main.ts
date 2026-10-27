@@ -72,9 +72,10 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              (--agent claude-code|codex|omp|pi|gemini|opencode, --project DIR; skills list | remove)
   hildegard agents           Which coding agents are here, and how Hildegard may run each under
                              its provider's terms (agents key <provider> --key-stdin, share-keys on|off)
-  hildegard agents run <claude-code|codex|omp> "<task>"
+  hildegard agents run <claude-code|codex|omp|pi> "<task>"
                              Run one for you: its own sign-in, or --use key (your API key; needed
-                             with --unattended), or --use local --model ollama/<model> for OMP
+                             with --unattended), or --use local --model ollama/<model> for OMP and Pi.
+                             Pi has no sandbox and runs only with --unsandboxed, started by you
   hildegard cloud            Rented GPUs: Runpod, Hugging Face Jobs, Colab, with what each costs and sees
   hildegard cloud runpod up  Rent a Runpod GPU that joins your fleet and stops itself when idle
                              (cloud runpod key --key-stdin | status | down [--delete])

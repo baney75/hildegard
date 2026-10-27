@@ -14,6 +14,7 @@ import {
   isPiAgent,
   type LaunchInput,
   listSkills,
+  ollamaBase,
   PACE,
   Pacer,
   PI_PROMPT,
@@ -168,6 +169,11 @@ describe('detecting sign-ins, by asking the agents', () => {
     expect(d.installed).toBe(false);
     expect(d.detail).toMatch(/isn’t the Pi coding agent/);
     expect(isPiAgent(fakeSys())).toBe(false);
+    // A Node warning on stderr doesn't hide the version on stdout.
+    const warned = fakeSys({
+      run: () => ({ status: 0, out: '1.4.0\n(node:1) [DEP0040] DeprecationWarning: x\n', stdout: '1.4.0\n' }),
+    });
+    expect(isPiAgent(warned)).toBe(true);
   });
 
   it('treats an unknown sign-in as a subscription, the stricter case', () => {
@@ -299,12 +305,25 @@ describe('launch plans', () => {
     ).toMatch(/needs a model/);
   });
 
+  it('runs Pi only when its owner accepts it has no sandbox, and never for anyone else or on a schedule', () => {
+    const none = detected('pi', { kind: 'none' });
+    const p = (over: Partial<LaunchInput>) =>
+      plan(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder', ...over }), none);
+    expect(p({}).verdict.allowed).toBe(false);
+    expect(p({}).verdict.reason).toMatch(/Pi has no sandbox.*--unsandboxed/);
+    expect(p({ unsandboxed: true }).verdict.allowed).toBe(true);
+    expect(p({ unsandboxed: true, trigger: 'owner-remote' }).verdict.allowed).toBe(true);
+    for (const trigger of ['schedule', 'director', 'peer'] as const)
+      expect(p({ unsandboxed: true, trigger }).verdict.allowed).toBe(false);
+  });
+
   it('runs Pi only on a key or a local model, in a profile of its own with borrowed sign-ins removed', () => {
     const none = detected('pi', { kind: 'none' });
-    const own = plan(input({ agent: 'pi', model: 'anthropic/claude-sonnet-5-5' }), none);
+    const pi = (over: Partial<LaunchInput>) => input({ agent: 'pi', unsandboxed: true, ...over });
+    const own = plan(pi({ model: 'anthropic/claude-sonnet-5-5' }), none);
     expect(own.verdict.allowed).toBe(false);
     expect(own.verdict.reason).toMatch(/banned/);
-    const local = plan(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder' }), none);
+    const local = plan(pi({ use: 'local', model: 'ollama/qwen3-coder' }), none);
     expect(local.verdict.allowed).toBe(true);
     expect(local.cmd).toBe('pi');
     // The task never goes in argv: only fixed words and the owner's checked model name do.
@@ -312,6 +331,9 @@ describe('launch plans', () => {
       '--print',
       '--no-session',
       '--no-approve',
+      '--no-extensions',
+      '--extension',
+      'builtin:mcp',
       '--tools',
       'read,edit,write,grep,find,ls,mcp__hildegard__*',
       '--model',
@@ -322,20 +344,15 @@ describe('launch plans', () => {
     expect(local.args.join(' ')).not.toContain('baker');
     expect(local.stdin).toBe(input({}).task);
     expect(PI_TOOLS).not.toContain('bash');
-    expect(local.env).toMatchObject({ PI_CODING_AGENT_DIR: piProfile('/tmp/hg/agents/run1') });
+    expect(local.env).toMatchObject({ PI_CODING_AGENT_DIR: piProfile({ workspace: '/tmp/hg/agents/run1' }) });
     // Pi starts from a short allow-list, so sign-ins and other keys in Hildegard's environment never reach it.
     expect(local.inherit).toContain('PATH');
     expect(local.inherit).not.toContain('ANTHROPIC_OAUTH_TOKEN');
-    const keyed = plan(
-      input({ agent: 'pi', use: 'key', key: 'sk-or-X', model: 'openrouter/qwen/qwen3-coder' }),
-      none,
-    );
+    const keyed = plan(pi({ use: 'key', key: 'sk-or-X', model: 'openrouter/qwen/qwen3-coder' }), none);
     expect(keyed.verdict.allowed).toBe(true);
     expect(keyed.env.OPENROUTER_API_KEY).toBe('sk-or-X');
-    expect(plan(input({ agent: 'pi', use: 'local', model: 'openrouter/x' }), none).verdict.allowed).toBe(
-      false,
-    );
-    expect(plan(input({ agent: 'pi', use: 'local' }), none).verdict.reason).toMatch(/Pi needs a model/);
+    expect(plan(pi({ use: 'local', model: 'openrouter/x' }), none).verdict.allowed).toBe(false);
+    expect(plan(pi({ use: 'local' }), none).verdict.reason).toMatch(/Pi needs a model/);
     expect(allowedFor('pi', { kind: 'borrowed-login', provider: 'openai' })).toEqual([]);
   });
 
@@ -344,14 +361,20 @@ describe('launch plans', () => {
       const none = detected(agent, { kind: 'none' });
       // A local provider can't vouch for a model that goes to Anthropic.
       const sneaky = plan(
-        input({ agent, use: 'local', provider: 'ollama', model: 'anthropic/claude-sonnet-5-5' }),
+        input({
+          agent,
+          use: 'local',
+          provider: 'ollama',
+          model: 'anthropic/claude-sonnet-5-5',
+          unsandboxed: true,
+        }),
         none,
       );
       expect(sneaky.verdict.allowed).toBe(false);
       expect(sneaky.verdict.reason).toMatch(/provider its model names \(anthropic\)/);
       // Case doesn't matter, on either side.
       const mixed = plan(
-        input({ agent, use: 'local', provider: 'OLLAMA', model: 'Ollama/qwen3-coder' }),
+        input({ agent, use: 'local', provider: 'OLLAMA', model: 'Ollama/qwen3-coder', unsandboxed: true }),
         none,
       );
       expect(mixed.verdict.allowed).toBe(true);
@@ -362,7 +385,14 @@ describe('launch plans', () => {
   it('refuses a budget the agent can’t keep, and Pi models that aren’t one plain word', () => {
     for (const agent of ['codex', 'omp', 'pi'] as const) {
       const p = plan(
-        input({ agent, use: 'key', key: SECRET, model: 'openrouter/qwen/qwen3-coder', budgetUsd: 5 }),
+        input({
+          agent,
+          use: 'key',
+          key: SECRET,
+          model: 'openrouter/qwen/qwen3-coder',
+          budgetUsd: 5,
+          unsandboxed: true,
+        }),
         detected(agent, { kind: 'none' }),
       );
       expect(p.verdict.allowed).toBe(false);
@@ -374,14 +404,32 @@ describe('launch plans', () => {
     );
     expect(claude.verdict.allowed).toBe(true);
     expect(claude.args).toContain('--max-budget-usd');
+    // A budget that isn't a positive number is refused, never dropped.
+    for (const budgetUsd of [0, -5, Number.NaN]) {
+      const bad = plan(input({ use: 'key', key: SECRET, budgetUsd }), detected('claude-code', claudePlan));
+      expect(bad.verdict.reason).toMatch(/number of US dollars above 0/);
+    }
     const none = detected('pi', { kind: 'none' });
-    expect(plan(input({ agent: 'pi', use: 'local', model: 'ollama/x" & calc' }), none).verdict.allowed).toBe(
-      false,
-    );
     expect(
-      plan(input({ agent: 'pi', use: 'local', model: 'ollama/x', extraTools: ['Bash(blender:*)'] }), none)
-        .verdict.reason,
+      plan(input({ agent: 'pi', use: 'local', model: 'ollama/x" & calc', unsandboxed: true }), none).verdict
+        .allowed,
+    ).toBe(false);
+    expect(
+      plan(
+        input({
+          agent: 'pi',
+          use: 'local',
+          model: 'ollama/x',
+          extraTools: ['Bash(blender:*)'],
+          unsandboxed: true,
+        }),
+        none,
+      ).verdict.reason,
     ).toMatch(/without a shell/);
+    expect(
+      plan(input({ agent: 'pi', use: 'local', model: 'hildegard/x', unsandboxed: true }), none).verdict
+        .reason,
+    ).toMatch(/doesn’t know where hildegard listens/);
   });
 
   it('refuses an agent that isn’t installed', () => {
@@ -415,7 +463,7 @@ describe('workspace and running', () => {
     expect(existsSync(join(root, 'agents', 'omp-profile'))).toBe(true);
   });
 
-  it('gives Pi its own profile with Hildegard’s MCP server and skills in it', () => {
+  it('gives Pi its own profile, outside its workspace, with Hildegard’s MCP server and skills in it', () => {
     const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
     const skills = join(root, 'skills');
     mkdirSync(join(skills, 'hildegard-film'), { recursive: true });
@@ -425,7 +473,10 @@ describe('workspace and running', () => {
     );
     const ws = join(root, 'agents', 'run1');
     prepareWorkspace(input({ agent: 'pi', workspace: ws, skillsDir: skills }));
-    const profile = piProfile(ws);
+    const profile = piProfile({ workspace: ws });
+    // Never inside the folder Pi works in, where its file tools could rewrite its own MCP config.
+    expect(profile.startsWith(join(ws, 'x').slice(0, -1))).toBe(false);
+    expect(piProfile({ workspace: ws, piProfile: '/data/pi/1' })).toBe('/data/pi/1');
     expect(JSON.parse(readFileSync(join(profile, 'mcp.json'), 'utf8')).mcpServers.hildegard.args).toEqual([
       '/opt/hildegard/main.ts',
       'mcp',
@@ -440,16 +491,47 @@ describe('workspace and running', () => {
     const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
     const a = join(root, 'agents', 'runs', 'a');
     const b = join(root, 'agents', 'runs', 'b');
+    const pa = piProfile({ workspace: a });
+    const pb = piProfile({ workspace: b });
     prepareWorkspace(input({ agent: 'pi', workspace: a }));
     // Pi saved a login during run a.
-    writeFileSync(join(piProfile(a), 'auth.json'), '{}');
+    writeFileSync(join(pa, 'auth.json'), '{}');
     prepareWorkspace(input({ agent: 'pi', workspace: b }));
-    expect(piProfile(a)).not.toBe(piProfile(b));
-    expect(existsSync(join(piProfile(b), 'auth.json'))).toBe(false);
+    expect(pa).not.toBe(pb);
+    expect(existsSync(join(pb, 'auth.json'))).toBe(false);
     // Run a again, in the same workspace: its profile starts over.
     prepareWorkspace(input({ agent: 'pi', workspace: a }));
-    expect(existsSync(join(piProfile(a), 'auth.json'))).toBe(false);
-    expect(existsSync(join(piProfile(a), 'mcp.json'))).toBe(true);
+    expect(existsSync(join(pa, 'auth.json'))).toBe(false);
+    expect(existsSync(join(pa, 'mcp.json'))).toBe(true);
+  });
+
+  it('tells Pi where a local model server is, and nothing for a hosted provider', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
+    const ws = join(root, 'run');
+    const profile = piProfile({ workspace: ws });
+    prepareWorkspace(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder:7b', workspace: ws }), {
+      OLLAMA_HOST: '0.0.0.0:11500',
+    });
+    const models = JSON.parse(readFileSync(join(profile, 'models.json'), 'utf8'));
+    expect(models.providers.ollama).toMatchObject({
+      baseUrl: 'http://127.0.0.1:11500/v1',
+      api: 'openai-completions',
+      models: [{ id: 'qwen3-coder:7b' }],
+    });
+    prepareWorkspace(
+      input({ agent: 'pi', use: 'key', key: SECRET, model: 'openrouter/qwen/q', workspace: ws }),
+    );
+    expect(existsSync(join(profile, 'models.json'))).toBe(false);
+    expect(ollamaBase(undefined)).toBe('http://127.0.0.1:11434/v1');
+    expect(ollamaBase('gpu-box')).toBe('http://gpu-box:11434/v1');
+    expect(ollamaBase('https://ollama.example')).toBe('https://ollama.example/v1');
+  });
+
+  it('keeps Windows’ Path whatever its case', () => {
+    expect(inherited({ Path: 'C:\\Windows', SECRET_X: 's' }, ['PATH'], true)).toEqual({
+      Path: 'C:\\Windows',
+    });
+    expect(inherited({ Path: 'x' }, ['PATH'])).toEqual({});
   });
 
   it('passes Pi only the variables it needs, with the task on stdin', async () => {
@@ -459,12 +541,19 @@ describe('workspace and running', () => {
       fake,
       `let input = ''; process.stdin.on('data', (d) => (input += d)); process.stdin.on('end', () => {
   const e = process.env;
-  console.log(['path=' + (e.PATH ? 'set' : 'unset'), 'oauth=' + (e.ANTHROPIC_OAUTH_TOKEN ? 'set' : 'unset'), 'other=' + (e.OPENAI_API_KEY ? 'set' : 'unset'), 'key=' + (e.OPENROUTER_API_KEY ? 'set' : 'unset'), 'lc=' + (e.LC_ALL ?? ''), 'task=' + input].join(' '));
+  console.log(['path=' + (e.PATH ? 'set' : 'unset'), 'oauth=' + (e.ANTHROPIC_OAUTH_TOKEN ? 'set' : 'unset'), 'other=' + (e.OPENAI_API_KEY ? 'set' : 'unset'), 'key=' + (e.OPENROUTER_API_KEY ? 'set' : 'unset'), 'lc=' + (e.LC_ALL ?? ''), 'proxy=' + (e.HTTPS_PROXY ?? ''), 'task=' + input].join(' '));
 });`,
     );
     const p = {
       ...plan(
-        input({ agent: 'pi', use: 'key', key: SECRET, model: 'openrouter/qwen/qwen3-coder', workspace: dir }),
+        input({
+          agent: 'pi',
+          use: 'key',
+          key: SECRET,
+          model: 'openrouter/qwen/qwen3-coder',
+          workspace: dir,
+          unsandboxed: true,
+        }),
         detected('pi', { kind: 'none' }),
       ),
       cmd: process.execPath,
@@ -472,10 +561,18 @@ describe('workspace and running', () => {
     };
     const r = await run(p, dir, () => {}, {
       sys: fakeSys({
-        env: { ...process.env, LC_ALL: 'C', ANTHROPIC_OAUTH_TOKEN: 'x', OPENAI_API_KEY: 'y' },
+        env: {
+          ...process.env,
+          LC_ALL: 'C',
+          HTTPS_PROXY: 'http://proxy:3128',
+          ANTHROPIC_OAUTH_TOKEN: 'x',
+          OPENAI_API_KEY: 'y',
+        },
       }),
     });
-    expect(r.final).toBe(`path=set oauth=unset other=unset key=set lc=C task=${input({}).task}`);
+    expect(r.final).toBe(
+      `path=set oauth=unset other=unset key=set lc=C proxy=http://proxy:3128 task=${input({}).task}`,
+    );
     expect(inherited({ PATH: '/bin', LC_ALL: 'C', SECRET_X: 's' }, ['PATH', 'LC_*'])).toEqual({
       PATH: '/bin',
       LC_ALL: 'C',
