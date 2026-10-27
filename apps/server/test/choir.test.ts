@@ -187,7 +187,7 @@ let mac: Running;
 /** Updates the GPU device started: a newer release is always out for it. */
 let gpuUpdates = 0;
 /** What the GPU device's stand-in says when asked whether something else is using it. */
-let gpuBusy = false;
+let gpuBusy: boolean | 'fails' = false;
 let gpuData: string;
 let shareUrl: string;
 let token: string;
@@ -209,7 +209,10 @@ beforeAll(async () => {
     { ...parseArgs(['--fake-gpu', '--data', gpuData]), port: 0 },
     {
       fakeTickMs: 30,
-      hostBusy: async () => gpuBusy,
+      hostBusy: async () => {
+        if (gpuBusy === 'fails') throw new Error('can’t tell');
+        return gpuBusy;
+      },
       busyRecheckMs: 100,
       busySettleMs: 50,
       secrets: memoryStore(),
@@ -523,7 +526,8 @@ describe('sharing only when the GPU device is free', () => {
       await opp(false);
     }
 
-    // Paused, speech still gets the GPU: a lease stops the paired render even then.
+    // Paused, speech still gets the GPU: a lease stops the paired render even then, and it goes on afterwards
+    // without anyone unpausing.
     await opp(true);
     try {
       const remote = await sendAndRun('Wind chimes on a porch');
@@ -531,8 +535,8 @@ describe('sharing only when the GPU device is free', () => {
       const release = await gpu.scheduler.lease();
       expect(guestStatus()).toBe('queued');
       release();
-      gpu.scheduler.setPaused(false);
       await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+      gpu.scheduler.setPaused(false);
     } finally {
       gpu.scheduler.setPaused(false);
       await opp(false);
@@ -553,6 +557,23 @@ describe('sharing only when the GPU device is free', () => {
       await opp(false);
     }
   }, 120_000);
+
+  it('counts a check that fails as busy, and starts once it answers', async () => {
+    await opp(true);
+    gpuBusy = 'fails';
+    try {
+      const res = await post(mac, '/api/shots', { request: request('Moths around a porch light') });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'queued');
+      await new Promise((r) => setTimeout(r, 600));
+      expect(guestStatus()).toBe('queued');
+      gpuBusy = false;
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+    } finally {
+      gpuBusy = false;
+      await opp(false);
+    }
+  });
 
   it('runs renders straight away when it’s off, busy or not', async () => {
     gpuBusy = true;
@@ -623,6 +644,19 @@ describe('sharing only when the GPU device is free', () => {
     expect(await busyCheck('linux', missing)).toBe('load');
     expect(await busyCheck('darwin', missing)).toBe('load');
     expect(await busyCheck('win32', missing)).toBe('none');
+    // Known to render on NVIDIA: a missing nvidia-smi means it can't be read, not that there's no GPU.
+    expect(await busyCheck('linux', missing, true)).toBe('gpu-unknown');
+    // Asked at once, they share one nvidia-smi.
+    let runs = 0;
+    const once = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) => {
+      runs++;
+      setTimeout(() => cb(null, '5\n'), 20);
+      return { exitCode: null };
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await Promise.all([nvidiaPercent(once), nvidiaPercent(once), nvidiaPercent(once)])).toEqual([
+      5, 5, 5,
+    ]);
+    expect(runs).toBe(1);
   }, 15_000);
 });
 

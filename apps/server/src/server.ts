@@ -175,14 +175,10 @@ export async function startServer(
   const secretsFor = opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets')));
   // Looks at what opportunistic sharing can see of this computer being busy; set up once the server is ready.
   let lookBusy = async () => {};
-  let wasOpportunistic: boolean | null = null;
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
     onChange: (s) => {
-      // Turned on: look again now, since the driver may have stopped answering while it was off.
-      if (s.sharing.opportunistic && wasOpportunistic === false) void lookBusy();
-      wasOpportunistic = s.sharing.opportunistic;
       store.emit({ type: 'choir', choir: s });
       route();
       store.emit({ type: 'models', models: modelStates() });
@@ -215,7 +211,8 @@ export async function startServer(
     // Voice models let go of the GPU before a render needs it.
     beforeRender: () => voiceEngine.release(),
     // Asked only when this computer shares its GPU opportunistically. The fake GPU has no one else to yield to.
-    hostBusy: opts.hostBusy ?? (config.fake ? async () => false : hostBusy),
+    hostBusy:
+      opts.hostBusy ?? (config.fake ? async () => false : () => hostBusy(localGpu?.backend === 'cuda')),
     busyRecheckMs: opts.busyRecheckMs,
     busySettleMs: opts.busySettleMs,
   });
@@ -375,8 +372,8 @@ export async function startServer(
       [...store.takes.values(), ...store.stills.values()].some(
         (t) => t.status === 'queued' || t.status === 'running',
       ) ||
-      // Waiting paired renders hold an update only when they'd run soon; opportunistic ones may wait without end.
-      scheduler.guestTakes().some((g) => g.status === 'running' || !scheduler.yields) ||
+      // A paired render waiting here would be canceled by the restart, so it holds the update until it's done.
+      scheduler.guestTakes().length > 0 ||
       models.states().some((m) => m.downloading) ||
       exporter.list().some((e) => e.status === 'running') ||
       voice.state().jobs.some((j) => j.status === 'queued' || j.status === 'running') ||
@@ -606,9 +603,11 @@ export async function startServer(
   scheduler.start();
 
   // The fake GPU says it can see GPU use, like an NVIDIA computer would.
-  wasOpportunistic = choir.opportunistic;
   lookBusy = () =>
-    (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
+    (config.fake
+      ? Promise.resolve('gpu+load' as const)
+      : busyCheck(undefined, undefined, localGpu?.backend === 'cuda')
+    ).then((b) => {
       if (closing || b === choir.busyCheck) return;
       choir.busyCheck = b;
       choir.emit();

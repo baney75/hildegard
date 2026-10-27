@@ -117,6 +117,8 @@ export class Scheduler {
   /** hostBusy just said this computer is free, for this paired render: it may start if it is still first, soon. */
   private guestCleared: { id: string; at: number } | null = null;
   private busyTimer: NodeJS.Timeout | null = null;
+  /** A paired render stopped for speech while takes were paused: it may run again once speech is done, paused or not. */
+  private resumeGuest: string | null = null;
   /** When this computer's own last render or lease ended. */
   private localEndedAt = 0;
   private readonly busySettleMs: number;
@@ -288,6 +290,7 @@ export class Scheduler {
     // even while takes are paused or ComfyUI is down, so a lease waiting always counts.
     const local = !this.paused && this.online && this.order().some((x) => !('guest' in x));
     if (!this.leaseQueue.length && !local) return;
+    if (!local && this.paused) this.resumeGuest = this.guestRunning.id;
     this.running.requeue = true;
     this.running.abort.abort();
   }
@@ -485,8 +488,9 @@ export class Scheduler {
   }
 
   /**
-   * Hold the GPU for other work, such as speech: waits for the render on it now to finish (never stops one), then no
-   * take starts until the returned function is called. Voice goes ahead of takes still waiting, since it takes
+   * Hold the GPU for other work, such as speech: waits for the render on it now to finish, then no take starts until
+   * the returned function is called. The one exception: shared opportunistically, a paired device's render on the GPU
+   * stops for it and goes back in line, and resumes after it even while takes are paused. Voice goes ahead of takes still waiting, since it takes
    * seconds. Renders that go to another device don't need this GPU, so the lease comes at once.
    */
   lease(): Promise<() => void> {
@@ -519,8 +523,11 @@ export class Scheduler {
       lease();
       return;
     }
-    if (this.paused || !this.online) return;
-    const next = this.order()[0];
+    if (!this.online) return;
+    // Paused, only a paired render that speech interrupted may go on, ahead of the paused takes.
+    const next = this.paused
+      ? this.order().find((x) => 'guest' in x && x.guest.id === this.resumeGuest)
+      : this.order()[0];
     if (!next) return;
     if ('guest' in next && this.opportunistic) {
       const c = this.guestCleared;
@@ -565,8 +572,10 @@ export class Scheduler {
         return;
       }
     }
-    if ('guest' in next) void this.runGuest(next.guest);
-    else if ('take' in next) void this.run(next.take);
+    if ('guest' in next) {
+      if (next.guest.id === this.resumeGuest) this.resumeGuest = null;
+      void this.runGuest(next.guest);
+    } else if ('take' in next) void this.run(next.take);
     else void this.runStill(next.still);
   }
 

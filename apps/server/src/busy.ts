@@ -28,19 +28,24 @@ export function busyFrom(s: { gpuPercent: number | null; load1: number; cores: n
 /** Raised when nvidia-smi is there but didn't answer: a busy or stuck driver, so treat the GPU as in use. */
 export class GpuUnknown extends Error {}
 
-/** nvidia-smi's exit codes for "no driver loaded" (9) and "no NVIDIA GPU here" (6): there is no NVIDIA GPU to watch. */
+/** nvidia-smi's exit codes for "no driver loaded" (9) and "the GPU it asked about isn't there" (6). */
 const NO_NVIDIA_EXIT = new Set([6, 9]);
 
 /** The nvidia-smi still running from an earlier ask, if it never finished: a wedged driver. */
 let stuck: { exitCode: number | null } | null = null;
+/** The ask under way, which anyone else asking now shares, so only one nvidia-smi ever runs at a time. */
+let asking: Promise<number | null> | null = null;
 
 /**
  * The busiest NVIDIA GPU's use in percent, or null when there is none to watch: no nvidia-smi, no driver or GPU, or a
- * GPU that reports no use figure (MIG, some vGPUs). Throws GpuUnknown when nvidia-smi fails otherwise, times out, or
- * an earlier one is still stuck, so at most one ever waits on a wedged driver.
+ * GPU that reports no use figure (MIG, some vGPUs). On a computer known to render on NVIDIA (`nvidia`), a missing
+ * nvidia-smi or one that finds no GPU means it can't be read, not that there is none. Throws GpuUnknown when it can't
+ * be read, fails otherwise, times out, or an earlier one is still stuck. Callers asking at the same time share one
+ * nvidia-smi, so at most one ever waits on a wedged driver.
  */
-export function nvidiaPercent(run: typeof execFile = execFile): Promise<number | null> {
-  return new Promise((resolve, reject) => {
+export function nvidiaPercent(run: typeof execFile = execFile, nvidia = false): Promise<number | null> {
+  if (asking) return asking;
+  const ask = new Promise<number | null>((resolve, reject) => {
     if (stuck && stuck.exitCode === null)
       return reject(new GpuUnknown('nvidia-smi is still stuck from before.'));
     stuck = null;
@@ -61,7 +66,10 @@ export function nvidiaPercent(run: typeof execFile = execFile): Promise<number |
         clearTimeout(deadline);
         if (child && stuck === child) stuck = null;
         const code = (err as NodeJS.ErrnoException | null)?.code;
-        if (code === 'ENOENT' || (typeof code === 'number' && NO_NVIDIA_EXIT.has(code))) return resolve(null);
+        if (code === 'ENOENT' || (typeof code === 'number' && NO_NVIDIA_EXIT.has(code)))
+          return nvidia
+            ? reject(new GpuUnknown('This computer has an NVIDIA GPU nvidia-smi can’t read.'))
+            : resolve(null);
         if (err) return reject(new GpuUnknown(err.message));
         const v = String(stdout)
           .split('\n')
@@ -73,12 +81,22 @@ export function nvidiaPercent(run: typeof execFile = execFile): Promise<number |
       },
     ) as { exitCode: number | null } | undefined;
   });
+  asking = ask;
+  const done = () => {
+    if (asking === ask) asking = null;
+  };
+  ask.then(done, done);
+  return ask;
 }
 
 /** Is something other than Hildegard using this computer now? Unknown counts as yes. */
-export async function hostBusy(): Promise<boolean> {
+export async function hostBusy(nvidia = false): Promise<boolean> {
   try {
-    return busyFrom({ gpuPercent: await nvidiaPercent(), load1: loadavg()[0] ?? 0, cores: cpus().length });
+    return busyFrom({
+      gpuPercent: await nvidiaPercent(execFile, nvidia),
+      load1: loadavg()[0] ?? 0,
+      cores: cpus().length,
+    });
   } catch {
     return true;
   }
@@ -88,8 +106,9 @@ export async function hostBusy(): Promise<boolean> {
 export async function busyCheck(
   os: NodeJS.Platform = platform(),
   run: typeof execFile = execFile,
+  nvidia = false,
 ): Promise<BusyCheck> {
-  const gpu = await nvidiaPercent(run).then(
+  const gpu = await nvidiaPercent(run, nvidia).then(
     (p): BusyCheck | null => (p === null ? null : 'gpu+load'),
     (): BusyCheck => 'gpu-unknown',
   );
