@@ -10,7 +10,7 @@ export interface Gpu {
   backend: Backend;
   /** For people: "NVIDIA GeForce RTX 4090", "Apple M3 Max", "No supported GPU". */
   name: string;
-  /** Memory the GPU can use, in GB; unified memory on Apple silicon. Null when unknown. */
+  /** Memory the GPU can use, in GB; a share of system memory on Apple silicon and the GB10. Null when unknown. */
   vramGb: number | null;
   /**
    * True for an NVIDIA part that shares memory with the CPU (the GB10 in the DGX Spark), so `vramGb` is a share of
@@ -121,7 +121,7 @@ function detectNvidia(p: Probe): Gpu | null {
     .map(([name, mem, driver, cap]) => ({
       name: name!,
       // Unified-memory parts (GB10) answer "[N/A]" here; so can a card in trouble, which must not count as unified.
-      shared: mem === '[N/A]' && UNIFIED_NAME.test(name!),
+      shared: /^\[(N\/A|Not Supported)\]$/.test(mem ?? '') && UNIFIED_NAME.test(name!),
       vramGb: mem === '' ? Number.NaN : Math.round((Number(mem) / 1024) * 10) / 10,
       driver: Number.parseFloat(driver!),
       cap: Number.parseFloat(cap!),
@@ -195,8 +195,8 @@ export function fit(gpu: Gpu, need: Need): 'fits' | 'tight' | 'no' {
   if (gpu.backend === 'cpu' || gpu.vramGb === null) return 'no';
   if (gpu.backend === 'mps' || gpu.unified) {
     if (gpu.backend === 'mps' && need.mps === false) return 'no';
-    // Unified memory (Apple silicon, DGX Spark) has nothing to offload to, and the system and open apps share it: the weights and the activations
-    // must fit with a quarter to spare.
+    // Unified memory (Apple silicon, DGX Spark) has nothing to offload to, and the system and open apps share it:
+    // the weights and the activations must fit with a quarter to spare.
     const weightsGb = (need.files ?? []).reduce((n, f) => n + f.size, 0) / 1024 ** 3;
     return gpu.vramGb >= Math.max(need.minVramGb, weightsGb) * 1.25 ? 'fits' : 'no';
   }

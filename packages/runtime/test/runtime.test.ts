@@ -154,6 +154,15 @@ describe('detectGpu', () => {
       }),
     );
     expect(na.unified).toBeUndefined();
+    // A GB10 that says "[Not Supported]" instead counts the same.
+    const ns = detectGpu(
+      probe({
+        arch: 'arm64',
+        totalmem: 128 * 1024 ** 3,
+        run: (c) => (c === 'nvidia-smi' ? 'NVIDIA GB10, [Not Supported], 580.95.05, 12.1\n' : null),
+      }),
+    );
+    expect(ns).toMatchObject({ vramGb: 115.2, unified: true });
     // Nor an Arm server's discrete card, nor a Jetson that hasn't been checked.
     for (const line of ['NVIDIA L40S, [N/A], 580.95.05, 8.9', 'Orin (nvgpu), [N/A], 540.4.0, 8.7']) {
       const arm = detectGpu(

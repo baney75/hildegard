@@ -74,7 +74,7 @@ hildegard open      # opens the Studio
 Hildegard supports the DGX Spark (GB10, Arm Linux); it hasn't been tried on a real one yet. The GB10 shares its
 128 GB with the CPU, and `nvidia-smi` reports no memory total for it, so Hildegard counts nine tenths of the
 computer's memory as the GPU's and leaves the rest for the system. There is no separate video memory to offload to,
-so a model fits when its weights plus a quarter more fit in that share. The installer picks PyTorch's CUDA 13 build
+so a model fits when the larger of its minimum memory and its weights, plus a quarter more, fits in that share. The installer picks PyTorch's CUDA 13 build
 for driver 580 or newer.
 
 Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Support/Hildegard` on macOS,
