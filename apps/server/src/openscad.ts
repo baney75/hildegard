@@ -24,8 +24,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   closeSync,
-  copyFileSync,
   existsSync,
+  constants as fsConstants,
+  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -37,6 +38,7 @@ import {
   renameSync,
   rmSync,
   statSync,
+  writeFileSync,
   writeSync,
 } from 'node:fs';
 import { homedir, platform, tmpdir, totalmem } from 'node:os';
@@ -291,10 +293,15 @@ export function vetScad(files: Map<string, string>, opts: VetOptions): string[] 
   for (const [name, src] of files) {
     if (/\.scad$/i.test(name) && !name.endsWith('.scad'))
       problems.push(`${name}: name OpenSCAD files with a lowercase .scad.`);
-    if (name.endsWith('.scad')) size += src.length;
+    if (name.endsWith('.scad')) size += Buffer.byteLength(src, 'utf8');
   }
   if (size > MAX_SOURCE_BYTES)
     return [`The round’s OpenSCAD source is over ${MAX_SOURCE_BYTES / 1024 / 1024} MB. Send less.`];
+  /** One argument of a call: how many tokens it has at the call's own level, and its first three. */
+  type Arg = { count: number; head: Tok[] };
+  type Frame = { callee: string | null; args: Arg[]; strs: Tok[]; line: number };
+  const reader = (v: string) => v === 'import' || v === 'surface';
+  const extruder = (v: string) => v === 'linear_extrude' || v === 'rotate_extrude';
   for (const [name, src] of files) {
     if (!name.endsWith('.scad')) continue;
     const toks = tokenize(src);
@@ -302,42 +309,75 @@ export function vetScad(files: Map<string, string>, opts: VetOptions): string[] 
       problems.push(`${name}: too long to read. Split it into smaller files.`);
       continue;
     }
-    /** Open brackets, innermost last; a call's records the function or module it calls, and import's its arguments. */
-    const stack: Array<{ callee: string | null; args: Tok[][] | null; line: number }> = [];
-    const reader = (v: string) => v === 'import' || v === 'surface';
-    const close = (f: { callee: string | null; args: Tok[][] | null; line: number }) => {
-      if (!f.args || !f.callee) return;
-      const isFile = (a: Tok[]) => a[0]?.t === 'id' && a[0].v === 'file' && a[1]?.v === '=';
-      const named = f.args.filter(isFile);
-      const positional = f.args.filter((a) => a.length && !(a[0]?.t === 'id' && a[1]?.v === '='));
-      if (named.length + (positional.length ? 1 : 0) !== 1) {
+    const stack: Frame[] = [];
+    /** The import or surface calls open now, innermost last: a string anywhere inside one is its to check. */
+    const readers: Frame[] = [];
+    const named = (a: Arg) => a.head[0]?.t === 'id' && a.head[1]?.v === '=';
+    const close = (f: Frame) => {
+      if (!f.callee) return;
+      if (extruder(f.callee)) {
+        // In OpenSCAD these take a file first, by position; only a number may go there.
+        for (const a of f.args) {
+          if (!a.count || named(a)) continue;
+          const num =
+            (a.count === 1 && a.head[0]!.t === 'num') ||
+            (a.count === 2 && a.head[0]!.v === '-' && a.head[1]!.t === 'num');
+          if (num) continue;
+          if (a.head[0]!.t === 'str' && a.count === 1)
+            problems.push(
+              `${name}, line ${f.line}: ${f.callee}("…") reads a file; read it with import() instead, and extrude what it draws.`,
+            );
+          else if (!opts.sandboxed)
+            problems.push(
+              `${name}, line ${f.line}: give ${f.callee} its height by name (height = …); by position it may be read as a file.`,
+            );
+        }
+        return;
+      }
+      if (!reader(f.callee)) return;
+      if (!opts.sandboxed) {
+        problems.push(
+          `${name}, line ${f.line}: ${f.callee}() reads a file, which Hildegard runs only where OpenSCAD is sandboxed, and it can’t be here. Model it in OpenSCAD instead, or export the mesh yourself and send that.`,
+        );
+        return;
+      }
+      const files_ = f.args.filter(
+        (a) => a.head[0]?.t === 'id' && a.head[0].v === 'file' && a.head[1]?.v === '=',
+      );
+      const positional = f.args.filter((a) => a.count && !named(a));
+      if (files_.length + (positional.length ? 1 : 0) !== 1) {
         problems.push(
           `${name}, line ${f.line}: give ${f.callee} its file once, as the first argument or as file = "…", not both.`,
         );
         return;
       }
-      const fileArg = named.length ? named[0]!.slice(2) : positional[0]!;
-      const lit = fileArg.length === 1 && fileArg[0]!.t === 'str' ? fileArg[0]!.v : null;
-      if (lit === null)
+      const lit = files_.length
+        ? files_[0]!.count === 3 && files_[0]!.head[2]!.t === 'str'
+          ? files_[0]!.head[2]!
+          : null
+        : positional[0]!.count === 1 && positional[0]!.head[0]!.t === 'str'
+          ? positional[0]!.head[0]!
+          : null;
+      if (lit === null || lit.t !== 'str')
         problems.push(
           `${name}, line ${f.line}: ${f.callee} needs the file as a plain string, such as ${f.callee}("logo.svg"), not a variable or an expression.`,
         );
-      else if (!safeRelative(lit) || !files.has(from(name, lit)))
+      else if (!safeRelative(lit.v) || !files.has(from(name, lit.v)))
         problems.push(
-          `${name}, line ${f.line}: ${f.callee}("${lit}") must name a file sent with this round, beside the .scad that reads it or in a folder under it.`,
-        );
-      else if (!opts.sandboxed && !lit.endsWith('.scad'))
-        problems.push(
-          `${name}, line ${f.line}: ${f.callee}("${lit}") reads a data file, which Hildegard does only where OpenSCAD runs sandboxed, and it can’t be here. Model it in OpenSCAD instead, or export the mesh yourself and send that.`,
+          `${name}, line ${f.line}: ${f.callee}("${lit.v}") must name a file sent with this round, beside the .scad that reads it or in a folder under it.`,
         );
       // Its other strings are layer and id names: none may look like a path.
-      const own = new Set(fileArg);
-      for (const arg of f.args)
-        for (const x of arg)
-          if (!own.has(x) && x.t === 'str' && /[/\\:~]|\.\./.test(x.v))
-            problems.push(
-              `${name}, line ${x.line}: ${f.callee} takes one file; “${x.v}” looks like another.`,
-            );
+      for (const x of f.strs)
+        if (x !== lit && x.t === 'str' && /[/\\:~]|\.\./.test(x.v))
+          problems.push(`${name}, line ${x.line}: ${f.callee} takes one file; “${x.v}” looks like another.`);
+    };
+    /** Counts a token as part of the current argument of the innermost call. */
+    const count = (tk: Tok) => {
+      const f = stack.at(-1);
+      if (!f) return;
+      const a = f.args.at(-1)!;
+      a.count++;
+      if (a.head.length < 3) a.head.push(tk);
     };
     for (let k = 0; k < toks.length; k++) {
       const tk = toks[k]!;
@@ -382,31 +422,31 @@ export function vetScad(files: Map<string, string>, opts: VetOptions): string[] 
             );
         }
       }
-      // Brackets: every token inside an import's or surface's own brackets goes to its arguments, split at its commas.
+      if (tk.t === 'str' && readers.length) readers.at(-1)!.strs.push(tk);
       const open = tk.t === 'p' && '([{'.includes(tk.v);
       const shut = tk.t === 'p' && ')]}'.includes(tk.v);
-      if (!open && !shut && !(tk.t === 'p' && tk.v === ',' && stack.at(-1)?.args)) {
-        for (const f of stack) if (f.args) f.args.at(-1)!.push(tk);
-      } else if (tk.t === 'p' && tk.v === ',') {
-        const top = stack.at(-1)!;
-        for (const f of stack) if (f.args && f !== top) f.args.at(-1)!.push(tk);
-        top.args!.push([]);
-      }
       if (open) {
-        for (const f of stack) if (f.args) f.args.at(-1)!.push(tk);
+        count(tk);
         if (stack.length >= MAX_DEPTH) {
           problems.push(`${name}, line ${tk.line}: brackets nested deeper than ${MAX_DEPTH}.`);
           break;
         }
         const callee = tk.v === '(' && prev?.t === 'id' ? prev.v : null;
-        stack.push({ callee, args: callee && reader(callee) ? [[]] : null, line: prev?.line ?? tk.line });
+        const f: Frame = { callee, args: [{ count: 0, head: [] }], strs: [], line: prev?.line ?? tk.line };
+        stack.push(f);
+        if (callee && reader(callee)) readers.push(f);
       } else if (shut) {
         const f = stack.pop();
-        if (f) close(f);
-        for (const g of stack) if (g.args) g.args.at(-1)!.push(tk);
-      }
+        if (f) {
+          if (readers.at(-1) === f) readers.pop();
+          close(f);
+        }
+        count(tk);
+      } else if (tk.t === 'p' && tk.v === ',' && stack.length)
+        stack.at(-1)!.args.push({ count: 0, head: [] });
+      else count(tk);
     }
-    // An import left open at the end of the file is still checked.
+    // A call left open at the end of the file is still checked.
     for (const f of stack.reverse()) close(f);
   }
   return problems;
@@ -532,6 +572,7 @@ export function seatbeltProfile(plan: SandboxPlan): string {
   const read = plan.read.map(real);
   const hide = plan.hide.map(real);
   const fonts = real(join(homedir(), 'Library', 'Fonts'));
+  const pass = hide.filter((h) => [round, ...read, fonts].some((p) => within(p, h)));
   const sub = (ps: string[]) => ps.map((p) => `(subpath ${sbString(p)})`).join(' ');
   // Looking up an allowed folder stats each folder above it, so those, and only those, may be looked at in the hidden.
   const above = new Set<string>();
@@ -541,9 +582,17 @@ export function seatbeltProfile(plan: SandboxPlan): string {
     '(version 1)',
     '(allow default)',
     '(deny network*)',
+    // What a compromised render could reach past files: the pasteboard, opening URLs or apps, Apple Events.
+    '(deny mach-lookup (global-name "com.apple.pasteboard.1") (global-name "com.apple.coreservices.launchservicesd") (global-name "com.apple.coreservices.appleevents") (global-name "com.apple.lsd.mapdb") (global-name "com.apple.lsd.open"))',
+    '(deny appleevent-send)',
+    '(deny process-exec)',
+    `(allow process-exec ${sub(['/bin', '/usr/bin', ...read])})`,
     '(deny file-read*)',
     '(allow file-read-metadata)',
-    ...(hide.length ? [`(deny file-read-metadata ${sub(hide)})`] : []),
+    // Not even a stat of other people's files, mounted disks or the hidden folders. A hidden folder the round (or
+    // OpenSCAD) sits in keeps stat, which finding a path through it needs; its files' contents and listings stay shut.
+    `(deny file-read-metadata ${sub([...hide, '/Users', '/Volumes', '/Network', '/private/var/root'])})`,
+    ...(pass.length ? [`(allow file-read-metadata ${sub(pass)})`] : []),
     ...(above.size
       ? [`(allow file-read-metadata ${[...above].map((p) => `(literal ${sbString(p)})`).join(' ')})`]
       : []),
@@ -722,8 +771,20 @@ export function scrubPaths(
     return '<path>';
   };
   return out
-    .replace(/(?<![\w.\-/\\<>])(?:[A-Za-z]:[\\/]|\/|(?:\.\.[\\/])+)[^\s"'<>,;)]*/g, (m) => name(m))
+    .replace(/(?<![\w.\-/\\<>])(?:[A-Za-z]:[\\/]|\/|(?:\.\.[\\/])+)[^\s"'<>,;)]+/g, (m) => name(m))
     .replace(/"<path>"/g, '<path>');
+}
+
+/** Copies a plain file without following a link at `from`. */
+function copyNoFollow(from: string, to: string) {
+  const fd = openSync(from, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  try {
+    if (!fstatSync(fd).isFile())
+      throw new ScadError('OpenSCAD left something other than a mesh where the mesh goes.');
+    writeFileSync(to, readFileSync(fd));
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** One OpenSCAD at a time on this computer: renders wait their turn rather than share the CPU and memory. */
@@ -776,6 +837,8 @@ export function renderScad(
     sandbox?: Sandbox | null;
     hide?: string[];
     maxBytes?: number;
+    /** The round was read as sandboxed (libraries, data files): then it never runs without one. */
+    requireSandbox?: boolean;
   } = {},
 ): Promise<ScadRender> {
   if (opts.part !== undefined && !PART.test(opts.part))
@@ -795,10 +858,27 @@ export function renderScad(
             `OpenSCAD took longer than the round’s ${limit} s. Lower $fn while blocking out, avoid minkowski() and hull() over many children, and render one part at a time.`,
           );
         if (budget.ms <= 0) return reject(tooLong());
+        // A fresh, empty home for every render: nothing the round sent, or an earlier render left, is read as config.
         const priv = join(dir, PRIVATE);
-        mkdirSync(priv, { recursive: true });
+        rmSync(priv, { recursive: true, force: true });
+        mkdirSync(priv);
         // Written inside the round, the one place the sandbox lets it write, then moved to `out` from here.
         const inside = join(dir, `.render-${randomBytes(6).toString('hex')}.stl`);
+        const own = ownFiles(scad.path, hide);
+        const sandbox =
+          opts.sandbox === undefined
+            ? own && findSandbox({ round: dir, read: [...libraries, ...own], hide })
+            : opts.sandbox;
+        if (opts.requireSandbox && !sandbox)
+          return reject(
+            new ScadError(
+              'OpenSCAD can’t be sandboxed on this computer right now, so this round, which needs it, won’t run.',
+            ),
+          );
+        // On macOS the sandbox hides the folders above the round, where the working directory can't be worked out, so
+        // OpenSCAD runs from / and is given the main file by its full path. Either way, never a name that reads as an
+        // option.
+        const fromRoot = sandbox?.kind === 'sandbox-exec';
         const args = [
           ...scad.manifoldArgs,
           ...(opts.part !== undefined ? ['-D', `part="${opts.part}"`] : []),
@@ -806,14 +886,8 @@ export function renderScad(
           inside,
           '--export-format',
           'binstl',
-          // `./`, so a file's name is never read as an option.
-          `./${main}`,
+          fromRoot ? join(real(dir), main) : `./${main}`,
         ];
-        const own = ownFiles(scad.path, hide);
-        const sandbox =
-          opts.sandbox === undefined
-            ? own && findSandbox({ round: dir, read: [...libraries, ...own], hide })
-            : opts.sandbox;
         const windows = platform() === 'win32';
         // Files it writes stop growing past the cap, and on Linux it gets at most most of the memory.
         const limits = windows
@@ -833,7 +907,7 @@ export function renderScad(
         let child: ReturnType<typeof spawn>;
         try {
           child = spawn(run.cmd, run.args, {
-            cwd: dir,
+            cwd: fromRoot ? '/' : dir,
             env: scadEnv(process.env, libraries, platform(), sandbox ? priv : undefined),
             stdio: ['ignore', 'pipe', 'pipe'],
             windowsHide: true,
@@ -921,10 +995,16 @@ export function renderScad(
                 ),
               );
             if (size > cap) return fail(Object.assign(tooBig(size), { log: tail }));
+            // The round's folder was OpenSCAD's to write: take only a plain file it made, never a link or a pipe.
+            const st = lstatSync(inside);
+            if (!st.isFile() || st.nlink !== 1)
+              return fail(
+                new ScadError('OpenSCAD left something other than a mesh where the mesh goes.', tail),
+              );
             try {
               renameSync(inside, out);
             } catch {
-              copyFileSync(inside, out);
+              copyNoFollow(inside, out);
               rmSync(inside, { force: true });
             }
             resolvePromise({
@@ -997,7 +1077,7 @@ export function writePartsObj(
       `The parts come to over ${Math.round(maxBytes / 1024 / 1024)} MB as one mesh. Lower $fn, or simplify curved surfaces.`,
     );
   let total = 0;
-  for (const p of parts) total += statSync(p.stl).size;
+  for (const p of parts) total += lstatSync(p.stl).size;
   if (total > maxBytes) throw tooBig();
   const fd = openSync(out, 'w');
   let written = 0;
@@ -1010,6 +1090,7 @@ export function writePartsObj(
     write('# Rendered by Hildegard with OpenSCAD, one object per part\n');
     let base = 1;
     for (const p of parts) {
+      if (!lstatSync(p.stl).isFile()) throw new ScadError(`Part ${p.name} isn’t a mesh file.`);
       const stl = readFileSync(p.stl);
       const dv = new DataView(stl.buffer, stl.byteOffset, stl.byteLength);
       const n = stl.byteLength >= 84 ? dv.getUint32(80, true) : -1;

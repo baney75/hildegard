@@ -438,10 +438,15 @@ export async function startServer(
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
       reviewWeb: webReviewer(chrome),
-      renderScad: async (dir, main, out, { part, budget }) => {
+      renderScad: async (dir, main, out, { part, budget, requireSandbox }) => {
         const o = openscad();
         return o
-          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), { part, budget, hide: scadHidden })
+          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), {
+              part,
+              budget,
+              hide: scadHidden,
+              requireSandbox,
+            })
           : null;
       },
       scadSandboxed: () => {

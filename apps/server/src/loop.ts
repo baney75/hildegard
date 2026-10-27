@@ -330,7 +330,7 @@ export interface LoopDeps {
     dir: string,
     main: string,
     out: string,
-    opts: { part?: string; budget: ScadBudget },
+    opts: { part?: string; budget: ScadBudget; requireSandbox: boolean },
   ) => Promise<ScadRender | null>;
   /** Whether OpenSCAD runs sandboxed here, so a round may include libraries and import data files. */
   scadSandboxed?: () => boolean;
@@ -659,7 +659,17 @@ export class Loops {
     }
     try {
       const main = mainScad(names);
-      const problems = vetScad(readRound(src, names), { sandboxed: this.deps.scadSandboxed?.() ?? false });
+      // Hildegard's own files in the round folder are never the agent's to send.
+      const own = names.filter((x) => x.split('/').some((seg) => seg.startsWith('.')));
+      if (own.length)
+        throw new LoopError(
+          422,
+          'openscad_files',
+          `Hildegard won’t run this source: leave out files and folders whose names start with a dot (${own.slice(0, 3).join(', ')}).`,
+        );
+      // Decided once for the round: what it may read, and whether it must run sandboxed.
+      const sandboxed = this.deps.scadSandboxed?.() ?? false;
+      const problems = vetScad(readRound(src, names), { sandboxed });
       if (problems.length)
         throw new LoopError(
           422,
@@ -671,28 +681,37 @@ export class Loops {
       const budget: ScadBudget = { ms: scadTimeoutMs() };
       if (!parts) {
         const file = `round-${n}.stl`;
-        const r = await this.deps.renderScad!(src, main, join(dir, file), { budget });
+        const r = await this.deps.renderScad!(src, main, join(dir, file), {
+          budget,
+          requireSandbox: sandboxed,
+        });
         if (!r) throw noOpenScad();
         return { rendered: r, file };
       }
       // A print in parts: each rendered on its own, then kept as one OBJ with each part named, so fits are measured.
       const meshes: { name: string; stl: string }[] = [];
       const renders: ScadRender[] = [];
-      for (const part of parts) {
-        const out = join(src, `.part-${part}.stl`);
-        let r: ScadRender | null;
-        try {
-          r = await this.deps.renderScad!(src, main, out, { part, budget });
-        } catch (e) {
-          if (e instanceof ScadError) throw new ScadError(`Part “${part}”: ${e.message}`, e.log);
-          throw e;
-        }
-        if (!r) throw noOpenScad();
-        meshes.push({ name: part, stl: out });
-        renders.push(r);
-      }
+      const partFiles = parts.map((part) => join(dir, `.round-${n}-part-${part}.stl`));
       const file = `round-${n}.obj`;
-      writePartsObj(join(dir, file), meshes);
+      try {
+        for (const part of parts) {
+          // Outside the round folder, where the next part's render can't touch it.
+          const out = join(dir, `.round-${n}-part-${part}.stl`);
+          let r: ScadRender | null;
+          try {
+            r = await this.deps.renderScad!(src, main, out, { part, budget, requireSandbox: sandboxed });
+          } catch (e) {
+            if (e instanceof ScadError) throw new ScadError(`Part “${part}”: ${e.message}`, e.log);
+            throw e;
+          }
+          if (!r) throw noOpenScad();
+          meshes.push({ name: part, stl: out });
+          renders.push(r);
+        }
+        writePartsObj(join(dir, file), meshes);
+      } finally {
+        for (const f of partFiles) rmSync(f, { force: true });
+      }
       const rendered: ScadRender = {
         ...renders[0]!,
         out: join(dir, file),

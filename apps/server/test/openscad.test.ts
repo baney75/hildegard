@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -9,9 +10,9 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createMcpServer, HildegardClient } from '@hildegard/mcp';
+import { createMcpServer, HildegardClient, zip } from '@hildegard/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -87,7 +88,16 @@ describe('reading OpenSCAD source before it runs', () => {
         ].join('\n'),
       }),
     );
-    expect(p.map((x) => /line (\d+)/.exec(x)![1])).toEqual(['2', '3', '4', '5', '6', '7', '8', '9']);
+    expect([...new Set(p.map((x) => /line (\d+)/.exec(x)![1]))]).toEqual([
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+    ]);
   });
 
   it('ignores the words in comments and strings', () => {
@@ -261,7 +271,7 @@ describe('every include and use, as OpenSCAD reads them', () => {
     expect(vet(round)).toEqual([]);
     const p = vet(round, noLib);
     expect(p).toHaveLength(2);
-    for (const x of p) expect(x).toContain('only where OpenSCAD runs sandboxed');
+    for (const x of p) expect(x).toContain('only where OpenSCAD is sandboxed');
   });
 
   it('reads deep nesting in one pass, and refuses what’s too deep or too big', () => {
@@ -596,7 +606,7 @@ describe('running OpenSCAD', () => {
       if (process.platform === 'darwin') {
         const pid = Number(readFileSync(join(dir, 'child.pid'), 'utf8'));
         expect(() => process.kill(pid, 0)).toThrow();
-      } else expect(spawnSync('pgrep', ['-f', 'sleep 30']).stdout.toString().trim()).toBe('');
+      } else expect(spawnSync('pgrep', ['-f', 'sleep 31.7']).stdout.toString().trim()).toBe('');
     },
   );
 
@@ -689,6 +699,155 @@ describe('a round of OpenSCAD source', () => {
     expect(budgets).toHaveLength(2);
     expect(budgets[0]).toBe(budgets[1]);
   });
+});
+
+describe('round 3: what OpenSCAD reads by position, and what it leaves behind', () => {
+  it('refuses a file given to linear_extrude or rotate_extrude by position, and asks for height by name unsandboxed', () => {
+    const one = (src: string, o = { sandboxed: true }) => vet(files({ 'main.scad': src }), o);
+    expect(one('linear_extrude("C:/Users/owner/secret.dxf") square(1);')[0]).toContain('reads a file');
+    expect(one('rotate_extrude("\\\\\\\\host\\\\share\\\\x.dxf") square(1);')[0]).toContain('reads a file');
+    expect(one('f = "x.dxf"; linear_extrude(f) square(1);', { sandboxed: false })[0]).toContain(
+      'height by name',
+    );
+    expect(one('h = 3; linear_extrude(h) square(1);')).toEqual([]);
+    for (const ok of [
+      'linear_extrude(5) square(1);',
+      'linear_extrude(-2) square(1);',
+      'h = 3; linear_extrude(height = h) square(1);',
+      'rotate_extrude(angle = 90) square(1);',
+    ])
+      expect(one(ok, { sandboxed: false }), ok).toEqual([]);
+  });
+
+  it('runs no import or surface at all unsandboxed, .scad or not', () => {
+    const p = vet(
+      files({ 'main.scad': 'cube(1);\nsurface("heights.scad");', 'heights.scad': '1 2 3\n4 5 6' }),
+      noLib,
+    );
+    expect(p).toHaveLength(1);
+    expect(p[0]).toContain('only where OpenSCAD is sandboxed');
+  });
+
+  it('reads nested imports with long arguments in time and memory linear in the source', () => {
+    const inner = Array.from({ length: 20_000 }, (_, i) => `${i}`).join(' + ');
+    const src = `${'import("heights.scad", a = '.repeat(250)}${inner}${')'.repeat(250)};`;
+    const started = Date.now();
+    vet(files({ 'main.scad': src, 'heights.scad': '' }));
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+
+  it('counts the source cap in bytes, not characters', () => {
+    expect(vet(files({ 'main.scad': `x = "${'é'.repeat(2_200_000)}";` }))[0]).toContain('over 4 MB');
+  });
+
+  it('leaves a lone slash in what OpenSCAD echoes alone', () => {
+    expect(scrubPaths('ECHO: "ratio 3 / 2"', '/r', [], [])).toBe('ECHO: "ratio 3 / 2"');
+  });
+
+  const fake3 = (body: string): OpenScad => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-fakescad-'));
+    const path = join(dir, 'openscad');
+    writeFileSync(path, `#!/bin/sh\n${body}\n`);
+    chmodSync(path, 0o755);
+    return { path, version: '2021.01', manifoldArgs: [], manifold: false };
+  };
+  const round3 = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-round-'));
+    writeFileSync(join(dir, 'main.scad'), 'cube(1);');
+    return dir;
+  };
+  const OUT = 'while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then out="$2"; fi; shift; done';
+
+  it.runIf(unix)('takes only a plain file OpenSCAD wrote, never a link where the mesh goes', async () => {
+    const dir = round3();
+    const target = join(mkdtempSync(join(tmpdir(), 'hg-t-')), 'big');
+    writeFileSync(target, stl(3));
+    const s = fake3(`${OUT}\nln -s "${target}" "$out"`);
+    const e = await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], { sandbox: null }).catch(
+      (x) => x,
+    );
+    expect(e.message).toContain('something other than a mesh');
+  });
+
+  it.runIf(unix)('gives OpenSCAD an empty home each time, whatever the round left there', async () => {
+    const dir = round3();
+    mkdirSync(join(dir, '.openscad-home'));
+    writeFileSync(join(dir, '.openscad-home', 'planted.conf'), 'x');
+    const s = fake3(`${OUT}\nhead -c 134 /dev/zero > "$out"`);
+    await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], { sandbox: null }).catch(() => {});
+    expect(existsSync(join(dir, '.openscad-home', 'planted.conf'))).toBe(false);
+  });
+
+  it('never runs a round read as sandboxed without the sandbox', async () => {
+    const dir = round3();
+    const e = await renderScad(
+      { path: '/bin/true', version: '2021.01', manifoldArgs: [], manifold: false },
+      dir,
+      'main.scad',
+      join(dir, 'x.stl'),
+      [],
+      { sandbox: null, requireSandbox: true },
+    ).catch((x) => x);
+    expect(e.message).toContain('can’t be sandboxed');
+  });
+
+  it('refuses a round that brings Hildegard’s own dot-folders', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-loops-'));
+    const loops = new Loops({
+      dir,
+      scadSandboxed: () => true,
+      renderScad: async () => {
+        throw new Error('should not render');
+      },
+      reviewModel: async () => ({ kind: 'mesh', info: {}, checks: [], passed: true }),
+    });
+    const l = loops.start({
+      kind: 'model',
+      title: 'Box',
+      brief: { for: 'a test', what: 'a box', specifics: ['fits'] },
+    });
+    const enc = new TextEncoder();
+    const z = zip([
+      { name: 'main.scad', data: enc.encode('cube(1);') },
+      { name: '.openscad-home/.config/fontconfig/fonts.conf', data: enc.encode('<fontconfig/>') },
+    ]);
+    await expect(loops.submit(l.id, new Uint8Array(z), 'first')).rejects.toThrow(/start with a dot/);
+  });
+
+  it.runIf(process.platform === 'darwin')(
+    'renders a round kept inside a hidden folder, as Hildegard’s data is in the home folder',
+    async () => {
+      const data = mkdtempSync(join(tmpdir(), 'hg-data-'));
+      mkdirSync(join(data, 'loops', 'a', 'round-1.src'), { recursive: true });
+      writeFileSync(join(data, 'secret.json'), 'x');
+      const dir = join(data, 'loops', 'a', 'round-1.src');
+      writeFileSync(join(dir, 'main.scad'), 'cube(1);');
+      const s = fake3(
+        `${OUT}\ncat "${data}/secret.json" > "${dir}/leak" 2>/dev/null; head -c 134 /dev/zero > "$out"`,
+      );
+      const r = await renderScad(s, dir, 'main.scad', join(data, 'loops', 'a', 'round-1.stl'), [], {
+        hide: [data, homedir()],
+        requireSandbox: true,
+      });
+      expect(statSync(r.out).size).toBe(134);
+      expect(readFileSync(join(dir, 'leak'), 'utf8')).toBe('');
+    },
+  );
+
+  it.runIf(process.platform === 'darwin')(
+    'keeps a sandboxed render from running other programs or listing other homes',
+    () => {
+      const dir = round3();
+      const elsewhere = mkdtempSync(join(tmpdir(), 'hg-bin-'));
+      copyFileSync('/bin/echo', join(elsewhere, 'echo2'));
+      const prof = seatbeltProfile({ round: dir, read: [], hide: [] });
+      expect(prof).toContain('com.apple.pasteboard.1');
+      const run = (...a: string[]) => spawnSync('/usr/bin/sandbox-exec', ['-p', prof, ...a]).status;
+      expect(run(join(elsewhere, 'echo2'), 'x')).not.toBe(0);
+      expect(run('/bin/ls', '/Users')).not.toBe(0);
+      expect(run('/bin/echo', 'x')).toBe(0);
+    },
+  );
 });
 
 const textOf = (r: CallToolResult) =>

@@ -28,8 +28,9 @@ can take minutes on the same model), and which libraries `include <…>` will fi
   `minkowski()`.
 - **Not installed**: tell your user how (the tool says), or export STL yourself and send that.
 - **Not sandboxed** (Windows, Linux without bubblewrap, or an AppImage; the tool says): a round may be only `.scad`
-  files of its own. No libraries, and no `import()` or `surface()` of meshes, images or drawings. Send the library's
-  files inside the round, beside the `.scad` that includes them, or write plain OpenSCAD.
+  files of its own. No libraries, no `import()` or `surface()` at all, and `linear_extrude` and `rotate_extrude` take
+  their height by name (`height = h`), not by position. Send the library's files inside the round, beside the `.scad`
+  that includes them, or write plain OpenSCAD.
 
 ## 2. The file
 
@@ -153,7 +154,9 @@ What it refuses, before anything runs (no round is used, so fix it and send agai
 - `import()` or `surface()` with anything but one plain string naming a file sent with the round, from the folder of
   the file that reads it. Send the SVG or STL beside the `.scad` that imports it. Its other strings (a DXF layer, an
   SVG id) can't look like paths. Data files are read only where OpenSCAD runs sandboxed.
-- `import_stl`, `import_off`, `import_dxf`, any `dxf_…`, and `file = …` on any call but `import()` and `surface()`.
+- `import_stl`, `import_off`, `import_dxf`, any `dxf_…`, `file = …` on any call but `import()` and `surface()`, and a
+  string given by position to `linear_extrude` or `rotate_extrude` (that's a file to them).
+- Files or folders in the round whose names start with a dot.
 
 OpenSCAD then runs sandboxed where it can be (sandbox-exec on macOS, bubblewrap on Linux): no network; it reads only
 the system, its own files, fonts, the libraries and the round; and it writes only in the round. It gets no

@@ -19,6 +19,7 @@ describe('loopTask', () => {
     const t = loopTask({ idea: 'a fox for a game', kind: 'model', print: false, skills });
     expect(t).not.toContain('hildegard-print');
     expect(t).not.toContain('printer_profile');
+    expect(t).toContain('hildegard-loop, hildegard-3d, hildegard-openscad, and hildegard');
   });
 
   it('builds a website as a folder that loads with nothing from outside', () => {
