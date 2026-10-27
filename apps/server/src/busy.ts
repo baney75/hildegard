@@ -28,33 +28,49 @@ export function busyFrom(s: { gpuPercent: number | null; load1: number; cores: n
 /** Raised when nvidia-smi is there but didn't answer: a busy or stuck driver, so treat the GPU as in use. */
 export class GpuUnknown extends Error {}
 
+/** nvidia-smi's exit codes for "no driver loaded" (9) and "no NVIDIA GPU here" (6): there is no NVIDIA GPU to watch. */
+const NO_NVIDIA_EXIT = new Set([6, 9]);
+
+/** The nvidia-smi still running from an earlier ask, if it never finished: a wedged driver. */
+let stuck: { exitCode: number | null } | null = null;
+
 /**
- * The busiest NVIDIA GPU's use in percent, or null when there is no NVIDIA GPU (no nvidia-smi). Throws GpuUnknown when
- * nvidia-smi fails, times out or answers nothing usable.
+ * The busiest NVIDIA GPU's use in percent, or null when there is none to watch: no nvidia-smi, no driver or GPU, or a
+ * GPU that reports no use figure (MIG, some vGPUs). Throws GpuUnknown when nvidia-smi fails otherwise, times out, or
+ * an earlier one is still stuck, so at most one ever waits on a wedged driver.
  */
 export function nvidiaPercent(run: typeof execFile = execFile): Promise<number | null> {
   return new Promise((resolve, reject) => {
+    if (stuck && stuck.exitCode === null)
+      return reject(new GpuUnknown('nvidia-smi is still stuck from before.'));
+    stuck = null;
     // A wedged driver can leave nvidia-smi stuck where no signal ends it, and then no answer would ever come: give up
     // on it after 3.5 s, whatever the process does.
     const deadline = setTimeout(() => reject(new GpuUnknown('nvidia-smi didn’t answer in time.')), 3500);
     deadline.unref?.();
-    run(
+    let child: { exitCode: number | null } | undefined;
+    let done = false;
+    child = run(
       'nvidia-smi',
       ['--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
       { timeout: 3000, windowsHide: true },
       (err, stdout) => {
         clearTimeout(deadline);
-        if ((err as NodeJS.ErrnoException | null)?.code === 'ENOENT') return resolve(null);
+        done = true;
+        if (child && stuck === child) stuck = null;
+        const code = (err as NodeJS.ErrnoException | null)?.code;
+        if (code === 'ENOENT' || (typeof code === 'number' && NO_NVIDIA_EXIT.has(code))) return resolve(null);
         if (err) return reject(new GpuUnknown(err.message));
         const v = String(stdout)
           .split('\n')
           .map((l) => l.trim())
           .filter((l) => /^\d+(\.\d+)?$/.test(l))
           .map(Number);
-        if (!v.length) return reject(new GpuUnknown('nvidia-smi gave no GPU use.'));
-        resolve(Math.max(...v));
+        // Answered, but with no figure ("[N/A]"): watch the load alone.
+        resolve(v.length ? Math.max(...v) : null);
       },
-    );
+    ) as { exitCode: number | null } | undefined;
+    if (!done && child && typeof child.exitCode !== 'undefined') stuck = child;
   });
 }
 

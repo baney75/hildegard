@@ -174,14 +174,14 @@ export async function startServer(
   // Choir: the devices this one joined (one of which may render), and sharing this GPU with them.
   const secretsFor = opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets')));
   // Looks at what opportunistic sharing can see of this computer being busy; set up once the server is ready.
-  let lookBusy = () => {};
+  let lookBusy = async () => {};
   let wasOpportunistic: boolean | null = null;
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
     onChange: (s) => {
       // Turned on: look again now, since the driver may have stopped answering while it was off.
-      if (s.sharing.opportunistic && wasOpportunistic === false) lookBusy();
+      if (s.sharing.opportunistic && wasOpportunistic === false) void lookBusy();
       wasOpportunistic = s.sharing.opportunistic;
       store.emit({ type: 'choir', choir: s });
       route();
@@ -397,6 +397,7 @@ export async function startServer(
   // The browser that checks web pages and imports sites; tests can say there is none.
   const chrome = opts.chrome === undefined ? findChrome() : opts.chrome;
   const app = createApp({
+    lookBusy: () => lookBusy(),
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     likeness: new Likeness(config.dataDir),
@@ -606,14 +607,14 @@ export async function startServer(
   // The fake GPU says it can see GPU use, like an NVIDIA computer would.
   wasOpportunistic = choir.opportunistic;
   lookBusy = () =>
-    void (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
+    (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
       if (closing || b === choir.busyCheck) return;
       choir.busyCheck = b;
       choir.emit();
     });
-  lookBusy();
+  void lookBusy();
   // A driver can stop answering later (an update without a restart): look again now and then, so Settings says so.
-  const busyLook = setInterval(() => choir.opportunistic && lookBusy(), 5 * 60_000);
+  const busyLook = setInterval(() => choir.opportunistic && void lookBusy(), 5 * 60_000);
   busyLook.unref?.();
   return {
     url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,

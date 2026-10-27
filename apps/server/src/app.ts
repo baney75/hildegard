@@ -142,6 +142,8 @@ export interface AppDeps {
   /** This data folder's id (`homeId`), so a client can tell this server from another Hildegard's. */
   home?: string;
   choir: Choir;
+  /** Looks again at what opportunistic sharing can see of this computer being busy (up to 3.5 s). */
+  lookBusy?: () => Promise<void>;
   /** Models as the Studio should see them: this computer's, or those on the device renders go to. */
   modelStates: () => ModelState[];
   /** /api/node/*, for devices paired with this one. */
@@ -1472,7 +1474,10 @@ export function createApp(deps: AppDeps) {
     if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
     const body = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Say on or off.' }, 400);
+    const turningOn = body.data.on && !deps.choir.opportunistic;
     deps.choir.setOpportunistic(body.data.on);
+    // Answer with what it can see now, not what it saw at start: the driver may have stopped answering since.
+    if (turningOn) await deps.lookBusy?.();
     return c.json(deps.choir.state());
   });
   app.post('/api/choir/join', async (c) => {

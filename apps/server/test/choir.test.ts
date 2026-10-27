@@ -584,16 +584,36 @@ describe('sharing only when the GPU device is free', () => {
       )) as unknown as Parameters<typeof nvidiaPercent>[0];
     expect(await nvidiaPercent(missing)).toBe(null);
     // Stuck for good: it gives up on its own deadline.
-    const stuck = (() => {}) as unknown as Parameters<typeof nvidiaPercent>[0];
+    const hung = { exitCode: null };
+    const stuck = (() => hung) as unknown as Parameters<typeof nvidiaPercent>[0];
     await expect(nvidiaPercent(stuck)).rejects.toThrow(/in time/);
-    await expect(nvidiaPercent(said('[N/A]\n'))).rejects.toThrow();
+    // While that one is still stuck, no second one starts.
+    let started = 0;
+    const counted = ((..._a: unknown[]) => {
+      started++;
+      return hung;
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    await expect(nvidiaPercent(counted)).rejects.toThrow(/still stuck/);
+    expect(started).toBe(0);
+    (hung as { exitCode: number | null }).exitCode = 0;
+    // Answered with no figure (MIG, some vGPUs): no figure, so the load alone is watched.
+    expect(await nvidiaPercent(said('[N/A]\n'))).toBe(null);
+    // No driver loaded (exit 9) or no GPU (exit 6): no NVIDIA GPU to watch.
+    const exits = (code: number) =>
+      ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) =>
+        cb(Object.assign(new Error('nvidia-smi failed'), { code }), '')) as unknown as Parameters<
+        typeof nvidiaPercent
+      >[0];
+    expect(await nvidiaPercent(exits(9))).toBe(null);
+    expect(await nvidiaPercent(exits(6))).toBe(null);
+    await expect(nvidiaPercent(exits(15))).rejects.toThrow();
     await expect(nvidiaPercent(said(null))).rejects.toThrow();
     expect(await busyCheck('linux', said('12\n'))).toBe('gpu+load');
     expect(await busyCheck('linux', said(null))).toBe('gpu-unknown');
     expect(await busyCheck('linux', missing)).toBe('load');
     expect(await busyCheck('darwin', missing)).toBe('load');
     expect(await busyCheck('win32', missing)).toBe('none');
-  });
+  }, 15_000);
 });
 
 describe('updating another of your devices', () => {
