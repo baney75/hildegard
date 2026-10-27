@@ -30,11 +30,15 @@ everything that stands in the way.
    read that exact line and listed it in `skills/SCAN-ALLOW` (by a hash of the line, so a changed line needs a fresh
    look). `.github/CODEOWNERS` puts `skills/`, the scan, `SCAN-ALLOW` and what packs and ships skills under the owner's
    review.
-7. **It ships only signed.** Skills reach people inside a release: the app and server bundle, `hildegard.plugin` and
-   the skill zips, all built by the release workflow from main. Installs update only to a release whose minisign
-   signature checks against the key built into them (`apps/server/src/update.ts`), so a change that didn't go through
-   main and a release can't reach anyone. The Claude Code plugin installs from this repository's main branch, which
-   only takes reviewed, green pull requests.
+7. **App and server installs get skills only inside a signed release.** The release workflow builds the app and
+   server bundle, `hildegard.plugin` (the plugin as a file, for apps that take one) and the skill zips from main.
+   All of them are signed in the release, but once `hildegard.plugin` or a skill zip is loaded into another app,
+   nothing in that app checks the signature: check it yourself with minisign before loading one. Installs update only to a release whose minisign
+   signature checks against the key built into them (`apps/server/src/update.ts`), so no change reaches an app or
+   server install without going through main and a signed release. The Claude Code plugin is the exception: it
+   installs from this repository's main branch, which only takes reviewed, green pull requests, but nothing checks a
+   signature on that path, so a change merged to main reaches plugin users before any release. Closing that gap is
+   [ROADMAP.md](../ROADMAP.md), section 1, step 3.
 
 ## What the scan refuses
 
@@ -59,12 +63,10 @@ which is why steps 3, 5 and 7 are people and signatures, not patterns.
 
 A skill can carry notes for one model family in `models/`: `models/claude.md` for every Claude, `models/claude-opus.md`
 for Opus, `models/qwen.md` for Qwen. `read_skill` with `model` adds the ones that match, most general first, and agents
-that read skill folders directly are told to read theirs. These files go through the same review, scan and signing as
-the rest of the skill.
+that read skill folders directly are told to read theirs. These files go through the same review and scan as the
+rest of the skill, and reach app and server installs only inside a signed release; plugin users get them from main,
+as above.
 
 ## Still to build
 
-- Running a suggested change against fixed prompts in a sandbox (no network, no keys, a throwaway folder), and putting
-  the before and after in the pull request, so the owner judges results as well as words.
-- A second, model-based reviewer in CI that reads skill diffs for intent the patterns miss, advisory only.
-- Counting suggestions per skill and model, so the owner sees where the skills fail most.
+In order, with what makes each one done: [ROADMAP.md](../ROADMAP.md), section 1.
