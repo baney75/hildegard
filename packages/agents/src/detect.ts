@@ -12,8 +12,8 @@ export interface Sys {
   platform: NodeJS.Platform;
   /** Whether a program is on PATH. */
   has(cmd: string): boolean;
-  /** Runs a program and gives back its exit status and everything it printed. */
-  run(cmd: string, args: string[]): { status: number | null; out: string };
+  /** Runs a program and gives back its exit status, everything it printed, and its standard output alone. */
+  run(cmd: string, args: string[]): { status: number | null; out: string; stdout?: string };
 }
 
 export const system = (): Sys => ({
@@ -31,7 +31,7 @@ export const system = (): Sys => ({
       // Windows finds npm-installed CLIs (claude.cmd, codex.cmd) only through the shell.
       shell: process.platform === 'win32',
     });
-    return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
+    return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}`, stdout: r.stdout ?? '' };
   },
 });
 
@@ -178,8 +178,10 @@ export function detectAgents(e: Sys = system()): Detected[] {
  * the coding agent answers `pi --version` with its version number alone.
  */
 export function isPiAgent(e: Sys): boolean {
-  const { status, out } = e.run('pi', ['--version']);
-  return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(out.trim());
+  const { status, out, stdout } = e.run('pi', ['--version']);
+  // Node may warn on stderr (a deprecation, say); the version is the first line Pi prints on stdout.
+  const first = (stdout ?? out).split('\n').find((l) => l.trim()) ?? '';
+  return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(first.trim());
 }
 
 /** The provider of an OMP or Pi model selector such as `openrouter/qwen/qwen3-coder` or `ollama/llama3.3`. */

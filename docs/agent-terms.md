@@ -105,17 +105,24 @@ Pi is open source and uses your own model providers. Like OMP, it can sign in to
 consumer plans (`/login`), and those providers say their plans belong to their own apps, so Hildegard runs Pi only with
 an API key or a local model, from the provider its model names (`--provider` can't point elsewhere).
 
+**Pi has no sandbox.** Its file tools can read and write anything your account can, not just its workspace (Pi's own
+`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself with `--unsandboxed`, never on
+a schedule or for someone you invited. If you want a sandbox, use Codex.
+
 What a run gets:
 
-- **A fresh profile.** Each run's Pi profile (`PI_CODING_AGENT_DIR`, `.pi-profile` in the run's folder) starts empty,
-  then holds only Hildegard's MCP server in its `mcp.json` and the skills in its `skills` folder. Nothing Pi saves in
-  one run, a login included, reaches the next. Hildegard never reads Pi's `auth.json` and doesn't reuse its
-  credentials.
-- **A short environment.** Pi starts with only `PATH`, `HOME`, the locale, the temp folder and Windows' system
-  variables, plus the one key Hildegard gives it. No sign-in or other key in Hildegard's environment reaches it.
-- **Files and Hildegard's tools, no shell.** Pi has no sandbox and can't allow a shell for some programs only, so it
-  runs with `--tools read,edit,write,grep,find,ls,mcp__hildegard__*`. Media work goes through Hildegard's tools.
-  A loop that needs a program such as Blender runs on Claude Code or Codex instead.
+- **A fresh profile, outside its workspace.** Each run's Pi profile (`PI_CODING_AGENT_DIR`, under Hildegard's data
+  folder) starts empty, then holds only Hildegard's MCP server in `mcp.json`, the skills, and, for a local model,
+  a `models.json` naming that server (Ollama from `OLLAMA_HOST`, or LM Studio, vLLM or llama.cpp on their default
+  ports). It is deleted after the run. Nothing Pi saves in one run, a login included, reaches the next. Hildegard never
+  reads Pi's `auth.json` and doesn't reuse its credentials.
+- **No extensions but Pi's own MCP support** (`--no-extensions --extension builtin:mcp`), and project settings in the
+  folder are ignored (`--no-approve`).
+- **A short environment.** Pi starts with only `PATH`, `HOME`, the locale, the temp folder, proxy and certificate
+  settings, `OLLAMA_HOST` and Windows' system variables, plus the one key Hildegard gives it. No sign-in or other key
+  in Hildegard's environment reaches it.
+- **Files and Hildegard's tools, no shell** (`--tools read,edit,write,grep,find,ls,mcp__hildegard__*`). This narrows
+  what Pi does; it isn't a boundary. A loop that needs a program such as Blender runs on Claude Code or Codex.
 - **The task on stdin.** It never shows in a process list or passes through a shell.
 - **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
 

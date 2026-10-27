@@ -4,7 +4,7 @@
  * allow (packages/agents), Hildegard's skills installed where they look, and the media checks from a terminal.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   type AgentId,
@@ -304,8 +304,11 @@ export async function runAgentTask(
     mcp: mcpCommand({ url: `http://127.0.0.1:${ctx.config.port}` }),
     skillsDir: skillsDir() ?? undefined,
     addDirs: ctx.opts.get('add-dir') ? [resolve(ctx.opts.get('add-dir')!)] : undefined,
-    budgetUsd: ctx.opts.get('budget') ? Number(ctx.opts.get('budget')) : undefined,
+    // Any --budget is checked when the run is planned: a non-number or 0 is refused, never dropped.
+    budgetUsd: ctx.opts.get('budget') !== undefined ? Number(ctx.opts.get('budget')) : undefined,
     extraTools,
+    unsandboxed: ctx.flags.has('unsandboxed'),
+    piProfile: join(ctx.config.dataDir, 'agents', 'pi-profiles', id),
   };
   const detected = detectAgents().find((d) => d.agent === agent)!;
   const p = plan(input, detected, settings(ctx));
@@ -353,6 +356,9 @@ export async function runAgentTask(
     );
   } finally {
     pacer?.release();
+    // A Pi profile is for one run: nothing it saved stays behind.
+    if (agent === 'pi')
+      rmSync(join(ctx.config.dataDir, 'agents', 'pi-profiles', id), { recursive: true, force: true });
   }
 }
 
