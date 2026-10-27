@@ -121,12 +121,19 @@ jobs:
           cat out/SHA256SUMS
           # The skills people load into other apps (hildegard.plugin, the skill zips), and the list of hashes, signed with
           # the same key, so anyone can check them with minisign before loading one. Nothing else checks them there.
+          # Each signature is checked against the key built into Hildegard, for its own file name, before anything ships.
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             for f in out/SHA256SUMS out/hildegard.plugin out/skill-*.zip; do
               npx --yes @tauri-apps/cli@2.12.2 signer sign "$f" > /dev/null
               base64 -d "$f.sig" > "$f.minisig"
               rm "$f.sig"
+              node scripts/verify-minisig.mjs "$f"
             done
+          elif [ "${{ github.repository }}" = "baney75/hildegard" ]; then
+            echo "::error::No signing key, so hildegard.plugin, the skill zips and SHA256SUMS would ship unsigned."
+            exit 1
+          else
+            echo "::warning::No signing key: hildegard.plugin, the skill zips and SHA256SUMS ship unsigned."
           fi
       - name: Publish
         env:

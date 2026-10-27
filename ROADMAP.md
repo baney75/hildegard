@@ -18,11 +18,14 @@ In place now:
 - a maintainer writes any change in their own words; CI scans every skill file (`scripts/check-skills.mjs`), and
   `CODEOWNERS` puts `skills/`, the scan and `SCAN-ALLOW` under the owner's review;
 - app and server installs update only to a release signed with minisign, checked against the key built into them;
-- the release signs `hildegard.plugin`, each skill zip and `SHA256SUMS` too. The app you load one into doesn't check
-  that, so the docs give the key and the `minisign` command to check it yourself;
+- from 0.1.10 the release signs `hildegard.plugin`, each skill zip and `SHA256SUMS` too, and refuses to publish if
+  the key is missing. The app you load one into doesn't check that, so the docs give the key and the `minisign`
+  command to check it yourself;
 - the Claude Code plugin is the exception: it installs from `main`, and nothing checks a signature on that path.
   `main` takes the owner's pull requests once every required check passes (`auto-merge.yml`), so a change merged
-  there reaches plugin users before any release;
+  there reaches plugin users before any release. The owner can't review their own pull request, so the
+  `CODEOWNERS` review applies to other people's: the owner's own, including any an agent opens under the owner's
+  account, merge on the checks alone;
 - notes for one model family live in `skills/<skill>/models/` (`claude.md`, `claude-opus.md`, `qwen.md`), and
   `read_skill` with `model` adds only the ones that match.
 
@@ -51,18 +54,21 @@ Next, in order:
      other secrets.
    - GitHub has no token that can only comment, so a third job with `pull-requests: write` and nothing else posts the
      report, in a fenced plain-text block with links and HTML stripped and a length cap. That job runs no model and
-     reads no diff. The report can never approve or merge anything.
+     reads no diff and calls only the issue-comment endpoint. The report can never approve or merge anything: the
+     repository setting that lets Actions approve pull requests stays off, and `auto-merge.yml` never counts an
+     approval from a bot.
 
    Done when it flags every case in a fixed hostile set, including diffs addressed to the reviewer itself, and stays
-   quiet on at least 9 of 10 cases in a fixed set of ordinary skill edits.
+   quiet on at least 9 of 10 cases in a fixed set of ordinary skill edits, with the Actions-approval setting off.
 3. **Pull the plugin from a signed release.** The Claude Code plugin should take skills from the same signed release
    as the app, not from `main`.
    - The plugin from `main` carries only a small loader with Hildegard's public key pinned in it. The loader fetches
      the skills from the newest signed release and checks them before any agent reads them.
    - The signed bundle carries its version and its issue date. The loader refuses a bundle older than the last one it
      accepted, so an old release with a known-bad skill can't be replayed. It also refuses any bundle, fetched or
-     cached, whose issue date is more than 30 days old, so a host that keeps serving a stale bundle can't freeze it;
-     releases are signed again at least every 30 days. With no fresh bundle it gives no skills and says why, never
+     cached, whose issue date is more than 30 days old, so a host that keeps serving a stale bundle can't freeze it.
+     A scheduled workflow signs the current bundle again every 14 days and alerts the owner when it fails, which
+     leaves two weeks to fix it before any loader runs out. With no fresh bundle it gives no skills and says why, never
      anything unsigned.
    - The loader and its pinned keys are the root of trust for every plugin user, and they still come from `main`
      unsigned: that is the risk this step accepts, kept small by keeping the loader short and under `CODEOWNERS`.
@@ -70,8 +76,8 @@ Next, in order:
      release key or revoke one, so a stolen release key can't rotate itself.
 
    Done when a bundle that fails the signature check, an older signed bundle, a bundle past 30 days and an unreachable
-   release host each leave the agent with no unsigned skills and say why, and `CODEOWNERS` covers the loader and both
-   keys.
+   release host each leave the agent with no unsigned skills and say why, `CODEOWNERS` covers the loader and both
+   keys, and the 14-day signing workflow has run twice.
 4. **Counts.** Suggestions per skill and per model, so the owner sees where skills fail most. Anyone can file an
    issue and name any skill or model, so the counts are advisory: they count distinct accounts, and a count never
    changes a skill by itself. Done when the counts appear in the release checklist with distinct-account totals,

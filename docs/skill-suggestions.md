@@ -42,10 +42,22 @@ everything that stands in the way.
    minisign -Vm hildegard.plugin -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV
    ```
 
-   The key's ID is C71F565D818B4E6E, the same one in `apps/server/src/update.ts`.
+   For a skill zip, the same with its name (`minisign -Vm skill-hildegard-3d.zip -P …`). To check everything at once,
+   check the list of hashes, then the files against it:
+
+   ```sh
+   minisign -Vm SHA256SUMS -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV && sha256sum -c --ignore-missing SHA256SUMS
+   ```
+
+   The key's ID is C71F565D818B4E6E, the same one in `apps/server/src/update.ts`. A good check proves Hildegard's key
+   signed that file at some point, not that it is the newest one: minisign prints the signature's trusted comment, so
+   make sure the release you downloaded from is the latest on the releases page. Releases before 0.1.10 have no
+   `.minisig` files; a release without them is unsigned, so don't load it.
 9. **The Claude Code plugin is the exception.** It installs from this repository's main branch, and nothing checks a
    signature on that path. Main takes the owner's pull requests once every required check passes (`auto-merge.yml`),
-   so a change merged to main reaches plugin users before any release. Closing that gap is
+   so a change merged to main reaches plugin users before any release. The owner can't review their own pull
+   request, so the `CODEOWNERS` review in step 6 applies to other people's; the owner's own, including any an agent
+   opens under the owner's account, merge on the checks alone. Closing that gap is
    [ROADMAP.md](../ROADMAP.md), section 1, step 3.
 
 ## What the scan refuses
