@@ -112,8 +112,8 @@ export class Scheduler {
   private readonly hostBusy: () => Promise<boolean>;
   /** Asking hostBusy now; nothing starts until it answers. */
   private askingBusy = false;
-  /** hostBusy just said this computer is free: the paired render at the front may start. */
-  private guestCleared = false;
+  /** hostBusy just said this computer is free, for this paired render: it may start if it is still first, soon. */
+  private guestCleared: { id: string; at: number } | null = null;
   private busyTimer: NodeJS.Timeout | null = null;
   private readonly busyRecheckMs: number;
   /** Other work holding this GPU (voice), and work waiting for it; no take starts while it is held. */
@@ -241,7 +241,10 @@ export class Scheduler {
   setPaused(paused: boolean) {
     this.paused = paused;
     this.onEngine(this.engineState());
-    if (!paused) this.pump();
+    if (!paused) {
+      this.yieldGuest();
+      this.pump();
+    }
   }
 
   /**
@@ -251,13 +254,13 @@ export class Scheduler {
   setOpportunistic(on: boolean) {
     if (on === this.opportunistic) return;
     this.opportunistic = on;
-    this.guestCleared = false;
+    this.guestCleared = null;
     if (!on && this.busyTimer) {
       clearTimeout(this.busyTimer);
       this.busyTimer = null;
     }
     // Something of this computer's own may be waiting behind the paired render on the GPU now.
-    if (on && this.order().some((x) => !('guest' in x))) this.yieldGuest();
+    if (on) this.yieldGuest();
     this.renumber();
     this.pump();
   }
@@ -265,6 +268,9 @@ export class Scheduler {
   /** Opportunistic: stop the paired device's render on the GPU now; it goes back in line, and starts over later. */
   private yieldGuest() {
     if (!this.opportunistic || !this.guestRunning || !this.running) return;
+    // Only for work that can start now: never stop a paired render just to leave the GPU idle.
+    if (this.paused || !this.online || this.stopped) return;
+    if (!this.leaseQueue.length && !this.order().some((x) => !('guest' in x))) return;
     this.running.requeue = true;
     this.running.abort.abort();
   }
@@ -495,31 +501,36 @@ export class Scheduler {
       lease();
       return;
     }
-    if (this.paused || !this.online || this.askingBusy) return;
+    if (this.paused || !this.online) return;
     const next = this.order()[0];
     if (!next) return;
-    if ('guest' in next && this.opportunistic && !this.guestCleared) {
-      // Only paired renders wait (they go last), so ask whether anything else is using this computer first.
-      if (this.busyTimer) return;
-      this.askingBusy = true;
-      void this.hostBusy()
-        .catch(() => false)
-        .then((busy) => {
-          this.askingBusy = false;
-          if (this.stopped) return;
-          if (busy) {
-            this.busyTimer = setTimeout(() => {
-              this.busyTimer = null;
-              this.pump();
-            }, this.busyRecheckMs);
-            this.busyTimer.unref?.();
-          } else this.guestCleared = true;
-          this.pump();
-        });
-      return;
+    if ('guest' in next && this.opportunistic) {
+      const c = this.guestCleared;
+      this.guestCleared = null;
+      // Cleared moments ago for this very render: start it. Anything else asks again.
+      if (!(c && c.id === next.guest.id && Date.now() - c.at < 2000)) {
+        // Only paired renders wait (they go last), so ask whether anything else is using this computer first.
+        if (this.busyTimer || this.askingBusy) return;
+        this.askingBusy = true;
+        const id = next.guest.id;
+        void this.hostBusy()
+          // Can't tell: count it busy, since this computer's own work comes first.
+          .catch(() => true)
+          .then((busy) => {
+            this.askingBusy = false;
+            if (this.stopped) return;
+            if (busy) {
+              this.busyTimer = setTimeout(() => {
+                this.busyTimer = null;
+                this.pump();
+              }, this.busyRecheckMs);
+              this.busyTimer.unref?.();
+            } else this.guestCleared = { id, at: Date.now() };
+            this.pump();
+          });
+        return;
+      }
     }
-    // A clearance is for the render that starts now; after any render, ask again.
-    this.guestCleared = false;
     if ('guest' in next) void this.runGuest(next.guest);
     else if ('take' in next) void this.run(next.take);
     else void this.runStill(next.still);

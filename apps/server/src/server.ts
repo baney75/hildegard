@@ -17,7 +17,7 @@ import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
-import { hostBusy } from './busy.ts';
+import { busyCheck, hostBusy } from './busy.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
@@ -595,6 +595,11 @@ export async function startServer(
   void host.resume();
   scheduler.start();
 
+  // The fake GPU says it can see GPU use, like an NVIDIA computer would.
+  void (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
+    choir.busyCheck = b;
+    choir.emit();
+  });
   return {
     url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,
     config,

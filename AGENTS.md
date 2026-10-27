@@ -96,7 +96,8 @@ A Hildegard without a usable GPU renders on another of the owner's devices. Two 
   `POST /api/choir/opportunistic`, loopback only, kept in `<data>/choir/settings.json`) sets how guests queue: on,
   `Scheduler.setOpportunistic` ranks them after all local work, a local take, still or voice lease stops a running
   guest (it requeues, as Force now does), and a guest starts only after `hostBusy` (`busy.ts`: NVIDIA use, load per
-  core) says the computer is free, asking again every 30 s. Off, guests queue as studio work.
+  core) says the computer is free, asking again every 30 s (an error counts as busy; a clearance is for one guest, for 2 s).
+  `sharing.busyCheck` says what `hostBusy` can see here. Off, guests queue as studio work.
 - **Rendering elsewhere** (`remote-engine.ts`). `hildegard choir join` checks the code against the device's
   `/api/node/info`, keeps the key in the keychain (`secretStores`, account `choir-<name>`; `HILDEGARD_SECRETS=file`
   forces 0600 files, which tests always use), and records the device in `<data>/choir/devices.json`. When `use` names
