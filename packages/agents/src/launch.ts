@@ -20,6 +20,7 @@ import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { McpCommand } from '@hildegard/runtime';
 import { COMMANDS, type Detected, KEY_ENV, LOCAL_PROVIDERS, providerOf, type Sys, system } from './detect.ts';
+import { inherited, PI_ENV } from './env.ts';
 
 import {
   type AgentId,
@@ -76,6 +77,11 @@ export interface LaunchInput {
   unsandboxed?: boolean;
   /** Pi only: where this run's Pi profile goes, outside the workspace Pi may write. */
   piProfile?: string;
+  /**
+   * Pi only: the folder of Hildegard's own Pi profiles, where ones a killed run left are swept. Never derived from
+   * `piProfile`, so a caller's path can't make Hildegard delete someone's folder.
+   */
+  piProfilesRoot?: string;
 }
 
 export interface Plan {
@@ -116,41 +122,6 @@ const BORROWED = [
   'XAI_OAUTH_TOKEN',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'OMP_AUTH_BROKER_URL',
-];
-
-/**
- * What Pi may read from Hildegard's environment: enough to start, find programs and use a temp folder, and nothing
- * that could hold a sign-in or a key other than the one Hildegard sets. Windows needs its system variables to start
- * Node at all.
- */
-export const PI_ENV = [
-  'PATH',
-  // Proxies, certificate authorities and a local model server's address: needed to reach a provider. A proxy URL can
-  // carry the proxy's own user and password; those pass through, since Pi can't reach the provider without them.
-  'HTTPS_PROXY',
-  'HTTP_PROXY',
-  'NO_PROXY',
-  'https_proxy',
-  'http_proxy',
-  'no_proxy',
-  'NODE_EXTRA_CA_CERTS',
-  'SSL_CERT_FILE',
-  'SSL_CERT_DIR',
-  'OLLAMA_HOST',
-  'HOME',
-  'LANG',
-  'LC_*',
-  'TMPDIR',
-  'TEMP',
-  'TMP',
-  'SystemRoot',
-  'SYSTEMROOT',
-  'windir',
-  'PATHEXT',
-  'USERPROFILE',
-  'APPDATA',
-  'LOCALAPPDATA',
-  'ComSpec',
 ];
 
 /**
@@ -227,9 +198,14 @@ export function ollamaBase(host: string | undefined): string {
   } catch {
     throw new Error(`OLLAMA_HOST (${host}) isn’t an address. Set it like 127.0.0.1:11434, or unset it.`);
   }
+  if (u.username || u.password)
+    throw new Error(
+      'OLLAMA_HOST has a user and password in it; Hildegard won’t copy them into Pi’s profile.',
+    );
   if (u.hostname === '0.0.0.0') u.hostname = '127.0.0.1';
   if (bare && !u.port) u.port = '11434';
-  return `${u.origin}/v1`;
+  // A path in front of Ollama (a reverse proxy's /ollama, say) stays.
+  return `${u.origin}${u.pathname.replace(/\/+$/, '')}/v1`;
 }
 
 /** TOML basic string for `codex -c key=value`. JSON escapes are valid TOML escapes for these characters. */
@@ -262,84 +238,62 @@ function authFor(input: LaunchInput, detected: Detected): Auth {
 /** Decides, then says exactly what would run. Pure: nothing starts and nothing is written. */
 export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions = {}): Plan {
   const auth = authFor(input, detected);
-  let verdict = decide(input.agent, auth, input.trigger, opts);
-  if (!detected.installed)
-    verdict = {
-      allowed: false,
-      reason: `${detected.name} isn’t installed on this computer.`,
-      fix: detected.detail,
-    };
-  const short = input.agent === 'pi' ? 'Pi' : 'OMP';
-  if (isPiFamily(input.agent) && !input.model?.includes('/'))
-    verdict = {
-      allowed: false,
-      reason: `${short} needs a model, as provider/model (such as ollama/qwen3-coder).`,
-    };
-  else if (
+  // The first refusal that applies keeps its reason: each later check runs only while the run is still allowed.
+  let verdict: Verdict = { allowed: true, reason: '' };
+  const refuse = (when: boolean, reason: string, fix?: string) => {
+    if (verdict.allowed && when) verdict = { allowed: false, reason, ...(fix ? { fix } : {}) };
+  };
+  const short = NAMES_SHORT[input.agent];
+  const pi = input.agent === 'pi';
+  const model = input.model ?? '';
+  refuse(!detected.installed, `${detected.name} isn’t installed on this computer.`, detected.detail);
+  refuse(
+    isPiFamily(input.agent) && !model.includes('/'),
+    `${short} needs a model, as provider/model (such as ollama/qwen3-coder).`,
+  );
+  refuse(
+    isPiFamily(input.agent) && !MODEL_RE.test(model),
+    `A ${short} model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.`,
+  );
+  refuse(
     isPiFamily(input.agent) &&
-    input.provider !== undefined &&
-    input.provider.toLowerCase() !== providerOf(input.model!)
-  )
-    verdict = {
-      allowed: false,
-      reason: `${short} sends the task to the provider its model names (${providerOf(input.model!)}), not ${input.provider}. Leave out --provider, or pick a ${input.provider} model.`,
-    };
-  else if (isPiFamily(input.agent) && !MODEL_RE.test(input.model!))
-    verdict = {
-      allowed: false,
-      reason: `A ${short} model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.`,
-    };
-  if (input.budgetUsd !== undefined && !(Number.isFinite(input.budgetUsd) && input.budgetUsd > 0))
-    verdict = { allowed: false, reason: 'A budget is a number of US dollars above 0, such as --budget 5.' };
+      input.provider !== undefined &&
+      input.provider.toLowerCase() !== providerOf(model),
+    `${short} sends the task to the provider its model names (${providerOf(model)}), not ${input.provider}. Leave out --provider, or pick a ${input.provider} model.`,
+  );
+  if (verdict.allowed) verdict = decide(input.agent, auth, input.trigger, opts);
+  refuse(
+    input.budgetUsd !== undefined && !(Number.isFinite(input.budgetUsd) && input.budgetUsd > 0),
+    'A budget is a number of US dollars above 0, such as --budget 5.',
+  );
   // Only Claude Code on an API key gets --max-budget-usd; anything else would run past the budget unnoticed.
-  else if (input.budgetUsd !== undefined && (input.agent !== 'claude-code' || auth.kind !== 'api-key'))
-    verdict = {
-      allowed: false,
-      reason:
-        input.agent === 'claude-code'
-          ? 'Claude Code holds a run to a budget only on an API key (--use key). Set a limit with your provider, or run without --budget.'
-          : `${NAMES_SHORT[input.agent]} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
-    };
-  if (
-    verdict.allowed &&
-    input.agent === 'pi' &&
-    input.use === 'local' &&
-    input.model &&
-    !LOCAL_BASE_URLS[providerOf(input.model)]
-  )
-    verdict = {
-      allowed: false,
-      reason: `Hildegard doesn’t know where ${providerOf(input.model)} listens for Pi. Use ollama, lm-studio, vllm or llama.cpp.`,
-    };
-  // Last, so a more specific refusal above keeps its reason; who started it comes before --unsandboxed, which can't
-  // make a scheduled or someone else's run allowed.
-  if (
-    verdict.allowed &&
-    input.agent === 'pi' &&
-    input.trigger !== 'owner-here' &&
-    input.trigger !== 'owner-remote'
-  )
-    verdict = {
-      allowed: false,
-      reason: 'Pi runs without a sandbox, so only you can start it, and never on a schedule.',
-    };
-  if (verdict.allowed && input.agent === 'pi' && !input.unsandboxed)
-    verdict = {
-      allowed: false,
-      reason:
-        'Pi has no sandbox: its file tools can read and write anything your account can, not just its workspace. Run it with --unsandboxed if you accept that, or use Codex, which works in a sandbox.',
-    };
-  if (input.agent === 'pi' && input.extraTools?.length)
-    verdict = {
-      allowed: false,
-      reason: `Pi runs here without a shell, so it can’t use ${input.extraTools.join(', ')}. Use Claude Code or Codex for this.`,
-    };
-  if (input.agent === 'pi' && input.addDirs?.length)
-    verdict = {
-      allowed: false,
-      reason:
-        'Pi takes no list of folders: with no sandbox it already reaches every folder your account can. Leave out --add-dir.',
-    };
+  refuse(
+    input.budgetUsd !== undefined && (input.agent !== 'claude-code' || auth.kind !== 'api-key'),
+    input.agent === 'claude-code'
+      ? 'Claude Code holds a run to a budget only on an API key (--use key). Set a limit with your provider, or run without --budget.'
+      : `${short} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
+  );
+  refuse(
+    pi && !!input.extraTools?.length,
+    `Pi runs here without a shell, so it can’t use ${(input.extraTools ?? []).join(', ')}. Use Claude Code or Codex for this.`,
+  );
+  refuse(
+    pi && !!input.addDirs?.length,
+    'Pi takes no list of folders: with no sandbox it already reaches every folder your account can. Leave out --add-dir.',
+  );
+  refuse(
+    pi && input.use === 'local' && !LOCAL_BASE_URLS[providerOf(model)],
+    `Hildegard doesn’t know where ${providerOf(model)} listens for Pi. Use ollama, lm-studio, vllm or llama.cpp.`,
+  );
+  // Who started it comes before --unsandboxed, which can't make a scheduled or someone else's run allowed.
+  refuse(
+    pi && input.trigger !== 'owner-here' && input.trigger !== 'owner-remote',
+    'Pi runs without a sandbox, so only you can start it, from a terminal you’re at, and never on a schedule.',
+  );
+  refuse(
+    pi && !input.unsandboxed,
+    'Pi has no sandbox: its file tools can read and write anything your account can, not just its workspace. Run it with --unsandboxed if you accept that, or use Codex, which works in a sandbox.',
+  );
   const env: Record<string, string | null> = {};
   const ws = input.workspace;
   let args: string[];
@@ -432,12 +386,11 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
     }
     if (auth.kind === 'api-key') {
       const name = KEY_ENV[auth.provider];
-      if (!name)
-        verdict = {
-          allowed: false,
-          reason: `Hildegard doesn’t know where ${short} reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
-        };
-      else env[name] = input.key!;
+      refuse(
+        !name,
+        `Hildegard doesn’t know where ${short} reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
+      );
+      if (name) env[name] = input.key!;
     }
     return { agent: input.agent, verdict, auth, cmd: COMMANDS[input.agent], args, env, stdin, inherit };
   }
@@ -458,7 +411,9 @@ export function prepareWorkspace(input: LaunchInput, env: NodeJS.ProcessEnv = pr
     // Pi reads MCP servers and skills from its agent directory. Each run's starts empty, so nothing (a login Pi saved,
     // an old skill) carries over from an earlier run.
     const profile = piProfile(input);
-    sweepProfiles(dirname(profile));
+    // Only a folder Hildegard owns: the one it was given, or its own default beside the workspace.
+    const root = input.piProfilesRoot ?? (input.piProfile ? null : dirname(profile));
+    if (root) sweepProfiles(root);
     rmSync(profile, { recursive: true, force: true });
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     writeFileSync(
@@ -592,28 +547,6 @@ export function parseLine(agent: AgentId, line: string): RunEvent[] {
       return [{ kind: 'tool', text: String(item.command ?? 'command') }];
   }
   return [];
-}
-
-/**
- * The variables of `from` that `names` allows: exact names, or prefixes ending in `*`. Windows' names ignore case
- * (`Path` is `PATH` there).
- */
-export function inherited(
-  from: NodeJS.ProcessEnv,
-  names: readonly string[],
-  caseless = false,
-): NodeJS.ProcessEnv {
-  const norm = (x: string) => (caseless ? x.toUpperCase() : x);
-  const out: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(from)) {
-    const key = norm(k);
-    if (
-      v !== undefined &&
-      names.some((n) => (n.endsWith('*') ? key.startsWith(norm(n.slice(0, -1))) : key === norm(n)))
-    )
-      out[k] = v;
-  }
-  return out;
 }
 
 const quoteWin = (a: string) =>

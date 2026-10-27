@@ -4,6 +4,9 @@
  * `codex login status`). Hildegard never opens their credential files: it only needs to know the kind of sign-in.
  */
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { inherited, PI_ENV } from './env.ts';
 import type { AgentId, Auth } from './policy.ts';
 
 /** What detection needs from the computer; tests give their own. */
@@ -13,7 +16,11 @@ export interface Sys {
   /** Whether a program is on PATH. */
   has(cmd: string): boolean;
   /** Runs a program and gives back its exit status, everything it printed, and its standard output alone. */
-  run(cmd: string, args: string[]): { status: number | null; out: string; stdout?: string };
+  run(
+    cmd: string,
+    args: string[],
+    env?: NodeJS.ProcessEnv,
+  ): { status: number | null; out: string; stdout?: string };
 }
 
 export const system = (): Sys => ({
@@ -23,8 +30,9 @@ export const system = (): Sys => ({
     const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
     return r.status === 0;
   },
-  run(cmd, args) {
+  run(cmd, args, env) {
     const r = spawnSync(cmd, args, {
+      ...(env ? { env } : {}),
       encoding: 'utf8',
       timeout: 20_000,
       windowsHide: true,
@@ -135,42 +143,34 @@ function codexAuth(e: Sys): { auth: Auth; detail: string } {
  * logins (including any Claude or ChatGPT one) never apply, and only the key or local model Hildegard gives it counts.
  */
 export function detectAgents(e: Sys = system()): Detected[] {
-  const out: Detected[] = [];
-  for (const agent of ['claude-code', 'codex', 'omp', 'pi'] as const) {
-    const installed = e.has(COMMANDS[agent]);
-    if (installed && agent === 'pi' && !isPiAgent(e)) {
-      out.push({
-        agent,
-        name: NAMES[agent],
-        installed: false,
-        auth: { kind: 'none' },
-        detail:
-          'A program called `pi` is on your PATH, but it isn’t the Pi coding agent (`pi --version` didn’t answer with a version).',
-      });
-      continue;
-    }
-    if (!installed) {
-      out.push({
-        agent,
-        name: NAMES[agent],
-        installed,
-        auth: { kind: 'none' },
-        detail: `${NAMES[agent]} isn’t installed.`,
-      });
-      continue;
-    }
-    const { auth, detail } =
-      agent === 'claude-code'
-        ? claudeAuth(e)
-        : agent === 'codex'
-          ? codexAuth(e)
-          : {
-              auth: { kind: 'none' } as Auth,
-              detail: 'Runs with a key or local model that Hildegard gives it.',
-            };
-    out.push({ agent, name: NAMES[agent], installed, auth, detail });
-  }
-  return out;
+  return (['claude-code', 'codex', 'omp', 'pi'] as const).map((agent) => detectAgent(agent, e));
+}
+
+/** One agent and its sign-in, asking only that agent: a Claude Code run never starts whatever `pi` is. */
+export function detectAgent(agent: AgentId, e: Sys = system()): Detected {
+  const name = NAMES[agent];
+  const installed = e.has(COMMANDS[agent]);
+  if (installed && agent === 'pi' && !isPiAgent(e))
+    return {
+      agent,
+      name,
+      installed: false,
+      auth: { kind: 'none' },
+      detail:
+        'A program called `pi` is on your PATH, but it isn’t the Pi coding agent (`pi --version` didn’t answer with a version).',
+    };
+  if (!installed)
+    return { agent, name, installed, auth: { kind: 'none' }, detail: `${name} isn’t installed.` };
+  const { auth, detail } =
+    agent === 'claude-code'
+      ? claudeAuth(e)
+      : agent === 'codex'
+        ? codexAuth(e)
+        : {
+            auth: { kind: 'none' } as Auth,
+            detail: 'Runs with a key or local model that Hildegard gives it.',
+          };
+  return { agent, name, installed, auth, detail };
 }
 
 /**
@@ -178,7 +178,13 @@ export function detectAgents(e: Sys = system()): Detected[] {
  * the coding agent answers `pi --version` with its version number alone.
  */
 export function isPiAgent(e: Sys): boolean {
-  const { status, out, stdout } = e.run('pi', ['--version']);
+  // Asked with the same short environment a run gets: an unknown `pi` sees no sign-in or key of the owner's.
+  const { status, out, stdout } = e.run('pi', ['--version'], {
+    ...inherited(e.env, PI_ENV, e.platform === 'win32'),
+    PI_SKIP_VERSION_CHECK: '1',
+    PI_TELEMETRY: '0',
+    PI_CODING_AGENT_DIR: join(tmpdir(), 'hildegard-pi-probe'),
+  });
   // Node may warn on stderr (a deprecation, say); the version is the first line Pi prints on stdout.
   const first = (stdout ?? out).split('\n').find((l) => l.trim()) ?? '';
   return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(first.trim());

@@ -8,6 +8,7 @@ import {
   type Auth,
   type Detected,
   decide,
+  detectAgent,
   detectAgents,
   inherited,
   installSkills,
@@ -175,6 +176,31 @@ describe('detecting sign-ins, by asking the agents', () => {
       run: () => ({ status: 0, out: '1.4.0\n(node:1) [DEP0040] DeprecationWarning: x\n', stdout: '1.4.0\n' }),
     });
     expect(isPiAgent(warned)).toBe(true);
+    // The probe sees the same short environment as a run: no sign-in or key of the owner's.
+    let seen: NodeJS.ProcessEnv | undefined;
+    const probe = fakeSys({
+      env: { PATH: '/bin', ANTHROPIC_OAUTH_TOKEN: 'x', OPENAI_API_KEY: 'y' },
+      run: (_c, _a, env) => {
+        seen = env;
+        return { status: 0, out: '1.4.0\n', stdout: '1.4.0\n' };
+      },
+    });
+    expect(isPiAgent(probe)).toBe(true);
+    expect(seen).toMatchObject({ PATH: '/bin', PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0' });
+    expect(seen?.ANTHROPIC_OAUTH_TOKEN).toBeUndefined();
+    expect(seen?.OPENAI_API_KEY).toBeUndefined();
+    // Asking about Claude Code never runs `pi`.
+    let ranPi = false;
+    detectAgent(
+      'claude-code',
+      fakeSys({
+        run: (c) => {
+          if (c === 'pi') ranPi = true;
+          return { status: 1, out: '' };
+        },
+      }),
+    );
+    expect(ranPi).toBe(false);
   });
 
   it('treats an unknown sign-in as a subscription, the stricter case', () => {
@@ -579,6 +605,44 @@ describe('workspace and running', () => {
     sweepProfiles(dir);
     expect(existsSync(join(dir, 'old'))).toBe(false);
     expect(existsSync(join(dir, 'new'))).toBe(true);
+  });
+
+  it('never sweeps a folder derived from a caller’s profile path, only Hildegard’s own', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-sweep-'));
+    const theirs = join(root, 'projects');
+    mkdirSync(join(theirs, 'old-film'), { recursive: true });
+    const old = new Date(Date.now() - 3 * 3_600_000);
+    utimesSync(join(theirs, 'old-film'), old, old);
+    prepareWorkspace(input({ agent: 'pi', workspace: join(root, 'run'), piProfile: join(theirs, 'pi-1') }));
+    expect(existsSync(join(theirs, 'old-film'))).toBe(true);
+    const ours = join(root, 'pi-profiles');
+    mkdirSync(join(ours, 'left'), { recursive: true });
+    utimesSync(join(ours, 'left'), old, old);
+    prepareWorkspace(
+      input({
+        agent: 'pi',
+        workspace: join(root, 'run'),
+        piProfile: join(ours, 'new'),
+        piProfilesRoot: ours,
+      }),
+    );
+    expect(existsSync(join(ours, 'left'))).toBe(false);
+  });
+
+  it('keeps an Ollama path, and won’t copy a user and password into Pi’s profile', () => {
+    expect(ollamaBase('https://gpu.example/ollama/')).toBe('https://gpu.example/ollama/v1');
+    expect(() => ollamaBase('https://u:pw@gpu.example')).toThrow(/user and password/);
+  });
+
+  it('keeps the first refusal’s reason: a wrong `pi` is reported as that, not as a missing model', () => {
+    const notPi = {
+      ...detected('pi', { kind: 'none' }),
+      installed: false,
+      detail: 'isn’t the Pi coding agent',
+    };
+    const p = plan(input({ agent: 'pi', use: 'local' }), notPi);
+    expect(p.verdict.reason).toMatch(/isn’t installed/);
+    expect(p.verdict.fix).toMatch(/isn’t the Pi coding agent/);
   });
 
   it('keeps Windows’ Path whatever its case', () => {

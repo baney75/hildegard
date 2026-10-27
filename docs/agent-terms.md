@@ -106,15 +106,15 @@ consumer plans (`/login`), and those providers say their plans belong to their o
 an API key or a local model, from the provider its model names (`--provider` can't point elsewhere).
 
 **Pi has no sandbox.** Its file tools can read and write anything your account can, not just its workspace (Pi's own
-`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself with `--unsandboxed`, never on
-a schedule or for someone you invited. If you want a sandbox, use Codex.
+`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself, from a terminal you're at,
+with `--unsandboxed`: never on a schedule, from a script without a terminal, or for someone you invited. If you want a sandbox, use Codex.
 
 What a run gets:
 
 - **A fresh profile, outside its workspace.** Each run's Pi profile (`PI_CODING_AGENT_DIR`, under Hildegard's data
   folder) starts empty, then holds only Hildegard's MCP server in `mcp.json`, the skills, and, for a local model,
-  a `models.json` naming that server (Ollama from `OLLAMA_HOST`, or LM Studio, vLLM or llama.cpp on their default
-  ports). It is deleted after the run. Nothing Pi saves in one run, a login included, reaches the next. Hildegard never
+  a `models.json` naming that server (Ollama from `OLLAMA_HOST`, path included, or LM Studio, vLLM or llama.cpp on
+  their default ports). It is deleted after the run. Nothing Pi saves in one run, a login included, reaches the next. Hildegard never
   reads Pi's `auth.json` and doesn't reuse its credentials.
 - **No extensions but Pi's own MCP support** (`--no-extensions --extension builtin:mcp`), and project settings in the
   folder are ignored (`--no-approve`).
@@ -128,6 +128,9 @@ What a run gets:
   still holds a task you typed after `agents run`; pipe it in with `--task-stdin` to keep it out of a process list.
 - **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
 - **No folder list.** With no sandbox Pi already reaches every folder, so `--add-dir` is refused rather than ignored.
+
+OMP and Pi both get the model's provider in lowercase (`Ollama/x` becomes `ollama/x`), the way Hildegard's policy
+read it.
 
 Hildegard checks that `pi` on your PATH is the coding agent (`pi --version` answers with a version) before it counts
 Pi as installed. These runs follow Pi 1.4's documentation and haven't yet been tried against a real Pi install. `hildegard connect pi` only adds Hildegard

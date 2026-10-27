@@ -10,6 +10,7 @@ import {
   type AgentId,
   COMMANDS,
   decide,
+  detectAgent,
   detectAgents,
   installSkills,
   isPiFamily,
@@ -135,9 +136,14 @@ async function check(ctx: Ctx): Promise<Result> {
         id: d.agent,
         installed: d.installed,
         auth: d.auth,
+        // OMP runs on a held key or a local model; Pi only with --unsandboxed (see needs), so not by default.
         startedByYou:
           d.installed &&
-          (isPiFamily(d.agent) ? held.length > 0 : decide(d.agent, d.auth, 'owner-here', opts).allowed),
+          (d.agent === 'pi'
+            ? false
+            : d.agent === 'omp'
+              ? true
+              : decide(d.agent, d.auth, 'owner-here', opts).allowed),
         scheduled: d.installed && !isPiFamily(d.agent) && decide(d.agent, d.auth, 'schedule', opts).allowed,
         // Pi runs only when the owner passes --unsandboxed themselves.
         ...(d.agent === 'pi' ? { needs: '--unsandboxed' } : {}),
@@ -295,7 +301,10 @@ export async function runAgentTask(
     ? ctx.opts.get('provider')
     : (ctx.opts.get('provider') ?? (agent === 'codex' ? 'openai' : 'anthropic'));
   const keyProvider = isPiFamily(agent) && model ? providerOf(model) : provider;
-  const trigger: Trigger = ctx.flags.has('unattended') ? 'schedule' : 'owner-here';
+  // Pi has no sandbox, so a run counts as yours only from a terminal you're at; cron or a script without one is a
+  // scheduled run, --unattended or not.
+  const trigger: Trigger =
+    ctx.flags.has('unattended') || (agent === 'pi' && !process.stderr.isTTY) ? 'schedule' : 'owner-here';
   const id = randomUUID().slice(0, 8);
   const workspace = resolve(ctx.opts.get('workspace') ?? join(ctx.config.dataDir, 'agents', 'runs', id));
   const input: LaunchInput = {
@@ -324,8 +333,9 @@ export async function runAgentTask(
     extraTools,
     unsandboxed: ctx.flags.has('unsandboxed'),
     piProfile: join(ctx.config.dataDir, 'agents', 'pi-profiles', id),
+    piProfilesRoot: join(ctx.config.dataDir, 'agents', 'pi-profiles'),
   };
-  const detected = detectAgents().find((d) => d.agent === agent)!;
+  const detected = detectAgent(agent);
   const p = plan(input, detected, settings(ctx));
   const said = (s: Step['status'], detail: string, command?: string): Step => ({
     id: 'run',
@@ -339,7 +349,8 @@ export async function runAgentTask(
     const src = p.verdict.source ? `\nSource: ${p.verdict.source}` : '';
     return result(
       [said('needs-owner', `${p.verdict.reason}${fix}${src}`)],
-      'Nothing ran: the provider’s terms don’t allow this run.',
+      // A provider's terms, or Hildegard's own rule (Pi's missing sandbox, a budget it can't keep): say which.
+      p.verdict.source ? 'Nothing ran: the provider’s terms don’t allow this run.' : 'Nothing ran.',
       { policy: p.verdict },
     );
   }
@@ -372,8 +383,16 @@ export async function runAgentTask(
   } finally {
     pacer?.release();
     // A Pi profile is for one run: nothing it saved stays behind.
+    // A file still held (Windows, Pi's MCP child) mustn't replace the run's result; the next Pi run sweeps it.
     if (agent === 'pi')
-      rmSync(join(ctx.config.dataDir, 'agents', 'pi-profiles', id), { recursive: true, force: true });
+      try {
+        rmSync(join(ctx.config.dataDir, 'agents', 'pi-profiles', id), {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+          retryDelay: 200,
+        });
+      } catch {}
   }
 }
 
@@ -406,7 +425,10 @@ export function skills(ctx: Ctx, args: string[]): Result {
       ? [
           'claude-code',
           'codex',
-          ...(listAgents().find((a) => a.id === 'pi')?.installed ? (['pi'] as const) : []),
+          // Only the Pi coding agent, not another program called `pi`.
+          ...(listAgents().find((a) => a.id === 'pi')?.installed && detectAgent('pi').installed
+            ? (['pi'] as const)
+            : []),
         ]
       : [ALIASES[which] ?? (which as SkillTarget)];
   const project = ctx.opts.get('project') ? resolve(ctx.opts.get('project')!) : undefined;
