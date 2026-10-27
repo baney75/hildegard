@@ -69,6 +69,14 @@ hildegard open      # opens the Studio
 | A Mac with Apple silicon | Nothing yet: on Apple's GPU Wan 2.2 came out blurred after an hour, and LTX needs int8 or fp8 kernels Apple lacks. Pair it with a computer that has an NVIDIA or AMD GPU (`hildegard choir join`) |
 | Less, or no GPU | Nothing yet. The Studio works; pair it with a computer that has a GPU |
 
+### NVIDIA DGX Spark
+
+Hildegard supports the DGX Spark (GB10, Arm Linux); it hasn't been tried on a real one yet. The GB10 shares its
+128 GB with the CPU, and `nvidia-smi` reports no memory total for it, so Hildegard counts nine tenths of the
+computer's memory as the GPU's and leaves the rest for the system. There is no separate video memory to offload to,
+so a model fits when the larger of its minimum memory and its weights, plus a quarter more, fits in that share. The installer picks PyTorch's CUDA 13 build
+for driver 580 or newer.
+
 Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Support/Hildegard` on macOS,
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,
 added to your PATH). To remove Hildegard, run `hildegard stop` and delete that folder.

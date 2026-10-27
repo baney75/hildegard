@@ -101,6 +101,82 @@ describe('detectGpu', () => {
     expect(fit(g, { minVramGb: 12 })).toBe('no');
   });
 
+  it('counts unified memory on the DGX Spark (GB10), where nvidia-smi reports no memory total', () => {
+    const smi = 'NVIDIA GB10, [N/A], 580.95.05, 12.1\n';
+    const g = detectGpu(
+      probe({ arch: 'arm64', totalmem: 128 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }),
+    );
+    expect(g).toEqual({
+      backend: 'cuda',
+      name: 'NVIDIA GB10',
+      vramGb: 115.2,
+      unified: true,
+      torchBackend: 'cu130',
+    });
+    const files = (gb: number) => [{ size: gb * 1024 ** 3 }];
+    expect(fit(g, { minVramGb: 24 })).toBe('fits');
+    // Nothing to offload to: weights plus a quarter must fit the shared memory.
+    expect(fit(g, { minVramGb: 24, files: files(90) })).toBe('fits');
+    expect(fit(g, { minVramGb: 24, files: files(95) })).toBe('no');
+    expect(fit(g, { minVramGb: 100 })).toBe('no');
+    expect(fitWhy(g, { minVramGb: 100 })).toBe('memory');
+  });
+
+  it('compares a unified part’s share with discrete memory, and keeps the flag on the right card', () => {
+    const smi = 'NVIDIA GB10, [N/A], 580.95.05, 12.1\nNVIDIA GeForce RTX 3060, 12288, 580.95.05, 8.6\n';
+    const g = detectGpu(probe({ totalmem: 128 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }));
+    expect(g).toMatchObject({ name: 'NVIDIA GB10', unified: true });
+    const small = detectGpu(
+      probe({ totalmem: 8 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }),
+    );
+    expect(small).toMatchObject({ name: 'NVIDIA GeForce RTX 3060', vramGb: 12 });
+    expect(small.unified).toBeUndefined();
+  });
+
+  it('never takes a discrete card in trouble for unified memory', () => {
+    const smi = 'NVIDIA GeForce RTX 4090, [Unknown Error], 581.15, 8.9\n';
+    const g = detectGpu(
+      probe({
+        platform: 'linux',
+        arch: 'x64',
+        totalmem: 64 * 1024 ** 3,
+        run: (c) => (c === 'nvidia-smi' ? smi : null),
+      }),
+    );
+    expect(g).toMatchObject({ name: 'NVIDIA GeForce RTX 4090', vramGb: null });
+    expect(g.unified).toBeUndefined();
+    const na = detectGpu(
+      probe({
+        platform: 'linux',
+        arch: 'x64',
+        totalmem: 64 * 1024 ** 3,
+        run: (c) => (c === 'nvidia-smi' ? 'NVIDIA GeForce RTX 4090, [N/A], 581.15, 8.9\n' : null),
+      }),
+    );
+    expect(na.unified).toBeUndefined();
+    // A GB10 that says "[Not Supported]" instead counts the same.
+    const ns = detectGpu(
+      probe({
+        arch: 'arm64',
+        totalmem: 128 * 1024 ** 3,
+        run: (c) => (c === 'nvidia-smi' ? 'NVIDIA GB10, [Not Supported], 580.95.05, 12.1\n' : null),
+      }),
+    );
+    expect(ns).toMatchObject({ vramGb: 115.2, unified: true });
+    // Nor an Arm server's discrete card, nor a Jetson that hasn't been checked.
+    for (const line of ['NVIDIA L40S, [N/A], 580.95.05, 8.9', 'Orin (nvgpu), [N/A], 540.4.0, 8.7']) {
+      const arm = detectGpu(
+        probe({
+          arch: 'arm64',
+          totalmem: 64 * 1024 ** 3,
+          run: (c) => (c === 'nvidia-smi' ? `${line}\n` : null),
+        }),
+      );
+      expect(arm.vramGb).toBeNull();
+      expect(arm.unified).toBeUndefined();
+    }
+  });
+
   it('judges fit with room for offloading', () => {
     const g = { backend: 'cuda' as const, name: 'x', vramGb: 10, torchBackend: 'cu130' };
     expect(fit(g, { minVramGb: 8 })).toBe('fits');
