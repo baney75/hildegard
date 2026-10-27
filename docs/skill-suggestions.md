@@ -32,9 +32,11 @@ everything that stands in the way.
    review.
 7. **It ships only signed.** Skills reach people inside a release: the app and server bundle, `hildegard.plugin` and
    the skill zips, all built by the release workflow from main. Installs update only to a release whose minisign
-   signature checks against the key built into them (`apps/server/src/update.ts`), so a change that didn't go through
-   main and a release can't reach anyone. The Claude Code plugin installs from this repository's main branch, which
-   only takes reviewed, green pull requests.
+   signature checks against the key built into them (`apps/server/src/update.ts`), so no change reaches an app or
+   server install without going through main and a signed release. The Claude Code plugin is the exception: it
+   installs from this repository's main branch, which only takes reviewed, green pull requests, but nothing checks a
+   signature on that path, so a change merged to main reaches plugin users before any release. Closing that gap is
+   [ROADMAP.md](../ROADMAP.md), section 1, step 3.
 
 ## What the scan refuses
 
@@ -59,8 +61,9 @@ which is why steps 3, 5 and 7 are people and signatures, not patterns.
 
 A skill can carry notes for one model family in `models/`: `models/claude.md` for every Claude, `models/claude-opus.md`
 for Opus, `models/qwen.md` for Qwen. `read_skill` with `model` adds the ones that match, most general first, and agents
-that read skill folders directly are told to read theirs. These files go through the same review, scan and signing as
-the rest of the skill.
+that read skill folders directly are told to read theirs. These files go through the same review and scan as the
+rest of the skill, and reach app and server installs only inside a signed release; plugin users get them from main,
+as above.
 
 ## Still to build
 

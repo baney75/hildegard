@@ -17,17 +17,19 @@ In place now:
 - an issue is only data: no bot, workflow or Hildegard ever turns one into a change;
 - a maintainer writes any change in their own words; CI scans every skill file (`scripts/check-skills.mjs`), and
   `CODEOWNERS` puts `skills/`, the scan and `SCAN-ALLOW` under the owner's review;
-- the app and server take skills only inside a release signed with minisign, checked against the key built into
-  Hildegard. The Claude Code plugin is the exception: it installs from `main`, which takes only reviewed, green pull
-  requests, but no signature;
+- app and server installs update only to a release signed with minisign, checked against the key built into them.
+  The Claude Code plugin is the exception: it installs from `main`, which takes only reviewed, green pull requests,
+  but nothing checks a signature, so a change merged to `main` reaches plugin users before any release;
 - notes for one model family live in `skills/<skill>/models/` (`claude.md`, `claude-opus.md`, `qwen.md`), and
   `read_skill` with `model` adds only the ones that match.
 
 Next, in order:
 
 1. **Try a change before anyone reads it as good.** When a maintainer opens a pull request that changes a skill, they
-   can run it against fixed prompts in a sandbox: a local model, no network at all, no keys, a throwaway folder. Only
-   a maintainer's pull request runs, never the text of an issue. The before and after go in the pull request, so the
+   can run it against fixed prompts in a sandbox with a throwaway folder and no keys of the owner's. A change to the
+   shared skill text runs on a local model with no network at all. A change to one family's notes
+   (`models/claude-opus.md`) runs on that family's model, through a proxy that lets through only that model's
+   endpoint, with a key used for nothing else. Only a maintainer's pull request runs, never the text of an issue. The before and after go in the pull request, so the
    owner judges results as well as words. Done when a change that tries to reach the network or a key fails in the
    sandbox and says so, and the before and after transcripts for the fixed prompts are attached to the pull request.
 2. **A second reviewer for intent.** A model in CI reads skill diffs for what the patterns miss, such as a step that
@@ -37,9 +39,10 @@ Next, in order:
    flags every case in a fixed hostile set, including diffs addressed to the reviewer itself, and stays quiet on at
    least 9 of 10 cases in a fixed set of ordinary skill edits.
 3. **Pull the plugin from a signed release.** The Claude Code plugin should take skills from the same signed release
-   as the app, not from `main`. Done when installing or updating the plugin goes through a step that checks the
-   minisign signature against Hildegard's built-in key, and a skill that doesn't match the signed release is refused
-   with a message.
+   as the app, not from `main`. The plugin from `main` would carry only a small loader with Hildegard's public key
+   pinned in it; the loader fetches the skills from the newest signed release and checks them before any agent reads
+   them. The loader itself still comes from reviewed `main`, so it is the one part trusted on install. Done when a
+   skill bundle that fails the signature check is refused with a message and the agent gets no skills from it.
 4. **Counts.** Suggestions per skill and per model, so the owner sees where skills fail most. Anyone can file an
    issue and name any skill or model, so the counts are advisory: they count distinct accounts, and a count never
    changes a skill by itself. Done when the counts appear in the release checklist with distinct-account totals.
@@ -55,12 +58,14 @@ Next, in order:
   computer's own work and wait while it's busy. Next: notice other programs starting on the GPU during a guest
   render (today only Hildegard's own work stops one), quiet hours, and changing the mode from another device.
 - **AMD on Windows**, which today renders on the CPU.
-- **Link**, the encrypted relay that pairs devices without Tailscale.
+- **Link**, an encrypted relay that would pair devices without Tailscale. Not built yet; devices pair over
+  Tailscale today.
 
 ## 3. Making things
 
-- **OpenSCAD in model loops** (#34): source in, measured parts out. It is held until the renderer runs in a
-  filesystem sandbox on macOS and Linux; on a computer without one, it refuses library includes. Next: bundle OpenSCAD and
+- **OpenSCAD in model loops** (#34): source in, measured parts out. Not merged yet: it waits until the renderer runs
+  in a filesystem sandbox on macOS and Linux. When it ships, a computer without a sandbox (Windows today) will render
+  only the files a round carries and refuse library includes. Next: bundle OpenSCAD and
   BOSL2 with the app, so no one has to install them first.
 - **Products from print to page.** Parts to print (after print3d), then the product's page, with the same rounds of
   measuring and review. Next: a side-by-side check of Hildegard's web loop against pen.dev on the same briefs, with
