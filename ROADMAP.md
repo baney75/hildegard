@@ -1,7 +1,7 @@
 # Roadmap
 
-What Hildegard is building next, and in what order. Done work moves to the release notes. Each line names what must
-be true before it counts as done.
+What Hildegard is building next, and in what order. Section 1 says what must be true before each step counts as done.
+The other sections are shorter: where things stand, and what comes next.
 
 ## 1. Skill suggestions that can't be turned into an attack
 
@@ -17,22 +17,31 @@ In place now:
 - an issue is only data: no bot, workflow or Hildegard ever turns one into a change;
 - a maintainer writes any change in their own words; CI scans every skill file (`scripts/check-skills.mjs`), and
   `CODEOWNERS` puts `skills/`, the scan and `SCAN-ALLOW` under the owner's review;
-- skills reach installs only inside a release signed with minisign, checked against the key built into Hildegard.
+- the app and server take skills only inside a release signed with minisign, checked against the key built into
+  Hildegard. The Claude Code plugin is the exception: it installs from `main`, which takes only reviewed, green pull
+  requests, but no signature;
+- notes for one model family live in `skills/<skill>/models/` (`claude.md`, `claude-opus.md`, `qwen.md`), and
+  `read_skill` with `model` adds only the ones that match.
 
 Next, in order:
 
-1. **Try a suggestion before anyone reads it as good.** Run the changed skill against fixed prompts in a sandbox (no
-   network, no keys, a throwaway folder). The before and after go in the pull request, so the owner judges results
-   as well as words. Done when a suggestion that tries to reach the network or a key fails in the sandbox and says so.
-2. **A second reviewer for intent.** A model-based reviewer in CI reads skill diffs for what the patterns miss, such as
-   a step that quietly widens what an agent may touch. It is advisory only and can never approve. Done when it flags
-   every case in a fixed set of hostile examples.
-3. **Per-model notes, kept apart.** Model-specific advice lives in `skills/<skill>/models/<family>.md`, read only by
-   that model, so one model's workaround never changes what another model is told. Done when `read_skill` serves
-   them and the scan covers them.
-4. **Counts.** Suggestions per skill and per model, so the owner sees where skills fail most and fixes those first.
-5. **Provenance for every skill file.** The signed release lists a hash for each skill file, and an install refuses a
-   skill whose hash isn't in its release. Done when a hand-edited skill file in an install is reported, not loaded.
+1. **Try a change before anyone reads it as good.** When a maintainer opens a pull request that changes a skill, they
+   can run it against fixed prompts in a sandbox: no network, no keys, a throwaway folder. Only a maintainer's pull
+   request runs, never the text of an issue. The before and after go in the pull request, so the owner judges results
+   as well as words. Done when a change that tries to reach the network or a key fails in the sandbox and says so.
+2. **A second reviewer for intent.** A model in CI reads skill diffs for what the patterns miss, such as a step that
+   quietly widens what an agent may touch. The diff is hostile input to that model too, so it runs with no secrets
+   and no write token, sees the diff only as data, and its report can never approve or merge anything. Done when it
+   flags every case in a fixed hostile set, including diffs addressed to the reviewer itself, and stays quiet on at
+   least 9 of 10 cases in a fixed set of ordinary skill edits.
+3. **Pull the plugin from a signed release.** The Claude Code plugin should take skills from the same signed release
+   as the app, not from `main`. Done when a plugin install refuses skills that don't match a signed release.
+4. **Counts.** Suggestions per skill and per model, so the owner sees where skills fail most. Anyone can file an
+   issue and name any skill or model, so the counts are advisory: they count distinct accounts, and a count never
+   changes a skill by itself. Done when the counts appear in the release checklist with distinct-account totals.
+5. **Provenance for every skill file.** The signed release lists a hash for each skill file. Done when `read_skill`
+   and Hildegard's installer report and refuse a hand-edited skill file. An agent that reads a skill folder directly
+   is outside what Hildegard can check, and the docs say so.
 
 ## 2. Every device, every GPU
 
