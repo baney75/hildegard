@@ -247,7 +247,6 @@ Write down three to six **load-bearing findings**, each tied to the decision it 
 **Destination specifics** (check current limits with a quick search):
 - **Images:**
   - wall or print: 4000 px or more on the long side;
-  - X: 4:5 at about 1620×2025 px, under 5 MB;
   - phone wallpaper: about 1290×2796 px;
   - album cover: 3000×3000 px.
 - **Color:** sRGB for screens; soft-proof print in CMYK.
