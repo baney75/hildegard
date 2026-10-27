@@ -138,6 +138,17 @@ export function detectAgents(e: Sys = system()): Detected[] {
   const out: Detected[] = [];
   for (const agent of ['claude-code', 'codex', 'omp', 'pi'] as const) {
     const installed = e.has(COMMANDS[agent]);
+    if (installed && agent === 'pi' && !isPiAgent(e)) {
+      out.push({
+        agent,
+        name: NAMES[agent],
+        installed: false,
+        auth: { kind: 'none' },
+        detail:
+          'A program called `pi` is on your PATH, but it isn’t the Pi coding agent (`pi --version` didn’t answer with a version).',
+      });
+      continue;
+    }
     if (!installed) {
       out.push({
         agent,
@@ -160,6 +171,15 @@ export function detectAgents(e: Sys = system()): Detected[] {
     out.push({ agent, name: NAMES[agent], installed, auth, detail });
   }
   return out;
+}
+
+/**
+ * Whether `pi` on PATH is the Pi coding agent, not another program of that name (Debian's `pi` prints digits of π):
+ * the coding agent answers `pi --version` with its version number alone.
+ */
+export function isPiAgent(e: Sys): boolean {
+  const { status, out } = e.run('pi', ['--version']);
+  return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(out.trim());
 }
 
 /** The provider of an OMP or Pi model selector such as `openrouter/qwen/qwen3-coder` or `ollama/llama3.3`. */

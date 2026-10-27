@@ -6,11 +6,12 @@
  * documents. It never reads, copies or forwards anyone's sign-in.
  */
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { McpCommand } from '@hildegard/runtime';
 import { COMMANDS, type Detected, KEY_ENV, LOCAL_PROVIDERS, providerOf, type Sys, system } from './detect.ts';
+
 import {
   type AgentId,
   type Auth,
@@ -22,6 +23,13 @@ import {
   type Trigger,
   type Verdict,
 } from './policy.ts';
+
+const NAMES_SHORT: Record<AgentId, string> = {
+  'claude-code': 'Claude Code',
+  codex: 'Codex',
+  omp: 'OMP',
+  pi: 'Pi',
+};
 
 export interface LaunchInput {
   agent: AgentId;
@@ -64,6 +72,11 @@ export interface Plan {
   env: Record<string, string | null>;
   /** What goes to the agent on stdin: the task, so it never shows in a process list. */
   stdin: string | null;
+  /**
+   * Only these variables of Hildegard's own environment reach the agent (exact names, or a prefix ending in `*`),
+   * before `env` applies. Absent: the whole environment, minus what `env` removes.
+   */
+  inherit?: string[];
 }
 
 /** The tools a headless Claude Code may use without asking: Hildegard's, files in its workspace, and media tools. */
@@ -89,6 +102,41 @@ const BORROWED = [
   'OMP_AUTH_BROKER_URL',
 ];
 
+/**
+ * What Pi may read from Hildegard's environment: enough to start, find programs and use a temp folder, and nothing
+ * that could hold a sign-in or a key other than the one Hildegard sets. Windows needs its system variables to start
+ * Node at all.
+ */
+export const PI_ENV = [
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_*',
+  'TMPDIR',
+  'TEMP',
+  'TMP',
+  'SystemRoot',
+  'SYSTEMROOT',
+  'windir',
+  'PATHEXT',
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'ComSpec',
+];
+
+/**
+ * Pi's built-in tools Hildegard allows, and Hildegard's own over MCP. Pi has no way to allow a shell for some programs
+ * only (as Claude Code's `Bash(ffmpeg:*)` does), so it gets no shell: media work goes through Hildegard's tools.
+ */
+export const PI_TOOLS = ['read', 'edit', 'write', 'grep', 'find', 'ls', 'mcp__hildegard__*'];
+
+/** The fixed prompt Pi gets in argv; the owner's task comes before it on stdin, which Pi puts first. */
+export const PI_PROMPT = 'Do the task above.';
+
+/** A model selector Pi takes as one plain argument everywhere, Windows' shell included. */
+const MODEL_RE = /^[A-Za-z0-9._:@/+-]+$/;
+
 const DEFAULT_PROVIDER: Record<AgentId, string> = {
   'claude-code': 'anthropic',
   codex: 'openai',
@@ -96,16 +144,29 @@ const DEFAULT_PROVIDER: Record<AgentId, string> = {
   pi: 'openrouter',
 };
 
-/** The folder next to the run’s workspace that holds OMP’s or Pi’s own profile. */
-const profileName = (agent: AgentId) => (agent === 'pi' ? 'pi-profile' : 'omp-profile');
+/** The folder next to the run’s workspace that holds OMP’s own profile. */
+const OMP_PROFILE = 'omp-profile';
+
+/** Pi's profile for one run: inside the run's workspace, made empty for every run. */
+export const piProfile = (workspace: string) => join(workspace, '.pi-profile');
 
 /** TOML basic string for `codex -c key=value`. JSON escapes are valid TOML escapes for these characters. */
 const toml = (s: string) => JSON.stringify(s);
 
+/**
+ * The provider a run uses. OMP and Pi take it from the model selector alone, since that is where they send the task;
+ * a `provider` that names another is refused in `plan`.
+ */
+function providerFor(input: LaunchInput): string {
+  if (isPiFamily(input.agent))
+    return input.model
+      ? providerOf(input.model)
+      : (input.provider?.toLowerCase() ?? DEFAULT_PROVIDER[input.agent]);
+  return input.provider ?? DEFAULT_PROVIDER[input.agent];
+}
+
 function authFor(input: LaunchInput, detected: Detected): Auth {
-  const provider =
-    input.provider ??
-    (input.model && isPiFamily(input.agent) ? providerOf(input.model) : DEFAULT_PROVIDER[input.agent]);
+  const provider = providerFor(input);
   if (input.use === 'key') return input.key ? { kind: 'api-key', provider } : { kind: 'none' };
   if (input.use === 'local') {
     if (!isPiFamily(input.agent) || !LOCAL_PROVIDERS.has(provider)) return { kind: 'none' };
@@ -126,10 +187,36 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       reason: `${detected.name} isn’t installed on this computer.`,
       fix: detected.detail,
     };
+  const short = input.agent === 'pi' ? 'Pi' : 'OMP';
   if (isPiFamily(input.agent) && !input.model)
     verdict = {
       allowed: false,
-      reason: `${input.agent === 'pi' ? 'Pi' : 'OMP'} needs a model, as provider/model (such as ollama/qwen3-coder).`,
+      reason: `${short} needs a model, as provider/model (such as ollama/qwen3-coder).`,
+    };
+  else if (
+    isPiFamily(input.agent) &&
+    input.provider !== undefined &&
+    input.provider.toLowerCase() !== providerOf(input.model!)
+  )
+    verdict = {
+      allowed: false,
+      reason: `${short} sends the task to the provider its model names (${providerOf(input.model!)}), not ${input.provider}. Leave out --provider, or pick a ${input.provider} model.`,
+    };
+  else if (input.agent === 'pi' && !MODEL_RE.test(input.model!))
+    verdict = {
+      allowed: false,
+      reason:
+        'A Pi model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.',
+    };
+  if (input.budgetUsd && input.agent !== 'claude-code')
+    verdict = {
+      allowed: false,
+      reason: `${NAMES_SHORT[input.agent]} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
+    };
+  if (input.agent === 'pi' && input.extraTools?.length)
+    verdict = {
+      allowed: false,
+      reason: `Pi runs here without a shell, so it can’t use ${input.extraTools.join(', ')}. Use Claude Code or Codex for this.`,
     };
   const env: Record<string, string | null> = {};
   const ws = input.workspace;
@@ -182,21 +269,44 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
     ];
     if (auth.kind === 'api-key') env.CODEX_API_KEY = input.key!;
   } else {
-    // A profile of its own: stored logins (a Claude or ChatGPT one included) don't exist there.
-    env.PI_CODING_AGENT_DIR = join(dirname(ws), profileName(input.agent));
-    env.CLAUDE_CONFIG_DIR = join(ws, '.claude-home');
-    for (const k of BORROWED) env[k] = null;
+    let inherit: string[] | undefined;
+    if (input.agent === 'pi') {
+      // A profile of its own for this run: no stored logins, no auth.json, only what Hildegard puts there. It starts
+      // with only the variables it needs, so no sign-in or other key in Hildegard's environment reaches it.
+      inherit = PI_ENV;
+      env.PI_CODING_AGENT_DIR = piProfile(ws);
+      env.PI_SKIP_VERSION_CHECK = '1';
+      env.PI_TELEMETRY = '0';
+      // The task goes on stdin, which Pi puts before the prompt, so it never shows in a process list or a shell.
+      args = [
+        '--print',
+        '--no-session',
+        '--no-approve',
+        '--tools',
+        PI_TOOLS.join(','),
+        '--model',
+        input.model ?? '',
+        '--',
+        PI_PROMPT,
+      ];
+    } else {
+      // A profile of its own: stored logins (a Claude or ChatGPT one included) don't exist there.
+      env.PI_CODING_AGENT_DIR = join(dirname(ws), OMP_PROFILE);
+      env.CLAUDE_CONFIG_DIR = join(ws, '.claude-home');
+      for (const k of BORROWED) env[k] = null;
+      args = ['-p', '--no-session', '--model', input.model ?? '', input.task];
+      stdin = null;
+    }
     if (auth.kind === 'api-key') {
       const name = KEY_ENV[auth.provider];
       if (!name)
         verdict = {
           allowed: false,
-          reason: `Hildegard doesn’t know where ${input.agent === 'pi' ? 'Pi' : 'OMP'} reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
+          reason: `Hildegard doesn’t know where ${short} reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
         };
       else env[name] = input.key!;
     }
-    args = ['-p', '--no-session', '--model', input.model ?? '', input.task];
-    stdin = null;
+    return { agent: input.agent, verdict, auth, cmd: COMMANDS[input.agent], args, env, stdin, inherit };
   }
   return { agent: input.agent, verdict, auth, cmd: COMMANDS[input.agent], args, env, stdin };
 }
@@ -212,8 +322,10 @@ export function prepareWorkspace(input: LaunchInput) {
   };
   writeFileSync(join(ws, '.mcp.json'), `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`);
   if (input.agent === 'pi') {
-    // Pi reads MCP servers and skills from its agent directory; this run's directory is a fresh one.
-    const profile = join(dirname(ws), profileName('pi'));
+    // Pi reads MCP servers and skills from its agent directory. Each run's starts empty, so nothing (a login Pi saved,
+    // an old skill) carries over from an earlier run.
+    const profile = piProfile(ws);
+    rmSync(profile, { recursive: true, force: true });
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     writeFileSync(
       join(profile, 'mcp.json'),
@@ -228,7 +340,7 @@ export function prepareWorkspace(input: LaunchInput) {
       join(ws, '.claude-home', '.claude.json'),
       `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`,
     );
-    mkdirSync(join(dirname(ws), profileName('omp')), { recursive: true, mode: 0o700 });
+    mkdirSync(join(dirname(ws), OMP_PROFILE), { recursive: true, mode: 0o700 });
   }
   if (input.skillsDir && existsSync(input.skillsDir)) {
     // Claude Code and OMP read .claude/skills; Codex and Pi read .agents/skills.
@@ -330,6 +442,15 @@ export function parseLine(agent: AgentId, line: string): RunEvent[] {
   return [];
 }
 
+/** The variables of `from` that `names` allows: exact names, or prefixes ending in `*`. */
+export function inherited(from: NodeJS.ProcessEnv, names: readonly string[]): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(from))
+    if (v !== undefined && names.some((n) => (n.endsWith('*') ? k.startsWith(n.slice(0, -1)) : k === n)))
+      out[k] = v;
+  return out;
+}
+
 const quoteWin = (a: string) =>
   /^[\w.:\\/=,@+-]+$/.test(a) ? a : `"${a.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`;
 
@@ -342,7 +463,7 @@ export async function run(
 ): Promise<RunResult> {
   if (!p.verdict.allowed) throw new Error(p.verdict.reason);
   const sys = opts.sys ?? system();
-  const env: NodeJS.ProcessEnv = { ...sys.env };
+  const env: NodeJS.ProcessEnv = p.inherit ? inherited(sys.env, p.inherit) : { ...sys.env };
   for (const [k, v] of Object.entries(p.env)) {
     if (v === null) delete env[k];
     else env[k] = v;
