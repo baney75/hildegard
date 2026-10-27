@@ -116,7 +116,8 @@ const BORROWED = [
  */
 export const PI_ENV = [
   'PATH',
-  // Proxies, certificate authorities and a local model server's address: needed to reach a provider, never a key.
+  // Proxies, certificate authorities and a local model server's address: needed to reach a provider. A proxy URL can
+  // carry the proxy's own user and password; those pass through, since Pi can't reach the provider without them.
   'HTTPS_PROXY',
   'HTTP_PROXY',
   'NO_PROXY',
@@ -189,7 +190,12 @@ export function ollamaBase(host: string | undefined): string {
   const h = host.trim().replace(/\/+$/, '');
   // A bare host (`gpu-box`) gets Ollama's port; a full URL keeps whatever it says.
   const bare = !/^https?:\/\//.test(h);
-  const u = new URL(bare ? `http://${h}` : h);
+  let u: URL;
+  try {
+    u = new URL(bare ? `http://${h}` : h);
+  } catch {
+    throw new Error(`OLLAMA_HOST (${host}) isn’t an address. Set it like 127.0.0.1:11434, or unset it.`);
+  }
   if (u.hostname === '0.0.0.0') u.hostname = '127.0.0.1';
   if (bare && !u.port) u.port = '11434';
   return `${u.origin}/v1`;
@@ -294,6 +300,12 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       allowed: false,
       reason: `Pi runs here without a shell, so it can’t use ${input.extraTools.join(', ')}. Use Claude Code or Codex for this.`,
     };
+  if (input.agent === 'pi' && input.addDirs?.length)
+    verdict = {
+      allowed: false,
+      reason:
+        'Pi takes no list of folders: with no sandbox it already reaches every folder your account can. Leave out --add-dir.',
+    };
   const env: Record<string, string | null> = {};
   const ws = input.workspace;
   let args: string[];
@@ -365,7 +377,8 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
         '--tools',
         PI_TOOLS.join(','),
         '--model',
-        input.model ?? '',
+        // The provider as policy saw it, lowercased; the model's own name as given.
+        input.model ? `${providerOf(input.model)}${input.model.slice(input.model.indexOf('/'))}` : '',
         '--',
         PI_PROMPT,
       ];
@@ -609,8 +622,13 @@ export async function run(
     err = (err + d.toString()).slice(-4000);
   });
   child.stdin!.end(p.stdin ?? '');
-  const timer = setTimeout(() => child.kill(), opts.timeoutMs ?? 60 * 60_000);
-  opts.signal?.addEventListener('abort', () => child.kill());
+  // On Windows the agent runs under cmd.exe, so stopping it means the whole tree, not only the shell.
+  const stop = () => {
+    if (win && child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+    else child.kill();
+  };
+  const timer = setTimeout(stop, opts.timeoutMs ?? 60 * 60_000);
+  opts.signal?.addEventListener('abort', stop);
   const exitCode = await new Promise<number | null>((resolve) => {
     child.once('error', () => resolve(null));
     child.once('close', (code) => resolve(code));

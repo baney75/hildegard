@@ -94,7 +94,13 @@ async function check(ctx: Ctx): Promise<Result> {
   const opts = settings(ctx);
   const steps: Step[] = detected.map((d) => {
     if (!d.installed)
-      return { id: d.agent, title: d.name, status: 'skipped', detail: `${d.name} isn’t installed.` };
+      // Detection says why: not on PATH, or a `pi` that isn't the coding agent.
+      return {
+        id: d.agent,
+        title: d.name,
+        status: 'skipped',
+        detail: d.detail || `${d.name} isn’t installed.`,
+      };
     const lines: string[] = [d.detail];
     if (!isPiFamily(d.agent)) {
       const own = (t: Trigger) => decide(d.agent, d.auth, t, opts);
@@ -107,7 +113,8 @@ async function check(ctx: Ctx): Promise<Result> {
         `${d.agent === 'omp' ? 'OMP' : d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
         ...(d.agent === 'pi'
           ? [
-              `Pi gets ${PI_TOOLS.filter((t) => !t.startsWith('mcp__')).join(', ')} and Hildegard’s tools, in a fresh profile, with no shell.`,
+              'Pi has no sandbox: its file tools reach anything your account can. Hildegard runs it only when you start it with --unsandboxed, never on a schedule.',
+              `It gets ${PI_TOOLS.filter((t) => !t.startsWith('mcp__')).join(', ')} and Hildegard’s tools, in a fresh profile, with no shell.`,
             ]
           : []),
       );
@@ -132,6 +139,8 @@ async function check(ctx: Ctx): Promise<Result> {
           d.installed &&
           (isPiFamily(d.agent) ? held.length > 0 : decide(d.agent, d.auth, 'owner-here', opts).allowed),
         scheduled: d.installed && !isPiFamily(d.agent) && decide(d.agent, d.auth, 'schedule', opts).allowed,
+        // Pi runs only when the owner passes --unsandboxed themselves.
+        ...(d.agent === 'pi' ? { needs: '--unsandboxed' } : {}),
       })),
       keys: held,
       shareKeysWithDirectors: opts.shareKeysWithDirectors,
@@ -305,7 +314,13 @@ export async function runAgentTask(
     skillsDir: skillsDir() ?? undefined,
     addDirs: ctx.opts.get('add-dir') ? [resolve(ctx.opts.get('add-dir')!)] : undefined,
     // Any --budget is checked when the run is planned: a non-number or 0 is refused, never dropped.
-    budgetUsd: ctx.opts.get('budget') !== undefined ? Number(ctx.opts.get('budget')) : undefined,
+    // A --budget with no value after it lands in flags: Number.NaN, so the plan refuses it rather than dropping it.
+    budgetUsd:
+      ctx.opts.get('budget') !== undefined
+        ? Number(ctx.opts.get('budget'))
+        : ctx.flags.has('budget')
+          ? Number.NaN
+          : undefined,
     extraTools,
     unsandboxed: ctx.flags.has('unsandboxed'),
     piProfile: join(ctx.config.dataDir, 'agents', 'pi-profiles', id),

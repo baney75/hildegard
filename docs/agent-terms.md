@@ -119,12 +119,14 @@ What a run gets:
 - **No extensions but Pi's own MCP support** (`--no-extensions --extension builtin:mcp`), and project settings in the
   folder are ignored (`--no-approve`).
 - **A short environment.** Pi starts with only `PATH`, `HOME`, the locale, the temp folder, proxy and certificate
-  settings, `OLLAMA_HOST` and Windows' system variables, plus the one key Hildegard gives it. No sign-in or other key
-  in Hildegard's environment reaches it.
+  settings, `OLLAMA_HOST` and Windows' system variables, plus the one key Hildegard gives it. No sign-in or other
+  provider key in Hildegard's environment reaches it. A proxy address that carries the proxy's own user and password
+  passes through with them, since Pi needs it to reach the provider.
 - **Files and Hildegard's tools, no shell** (`--tools read,edit,write,grep,find,ls,mcp__hildegard__*`). This narrows
   what Pi does; it isn't a boundary. A loop that needs a program such as Blender runs on Claude Code or Codex.
 - **The task on stdin.** It never shows in a process list or passes through a shell.
 - **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
+- **No folder list.** With no sandbox Pi already reaches every folder, so `--add-dir` is refused rather than ignored.
 
 Hildegard checks that `pi` on your PATH is the coding agent (`pi --version` answers with a version) before it counts
 Pi as installed. These runs follow Pi 1.4's documentation and haven't yet been tried against a real Pi install. `hildegard connect pi` only adds Hildegard

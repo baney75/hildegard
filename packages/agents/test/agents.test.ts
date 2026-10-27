@@ -527,6 +527,23 @@ describe('workspace and running', () => {
     expect(ollamaBase('https://ollama.example')).toBe('https://ollama.example/v1');
   });
 
+  it('gives Pi the provider in lowercase, as policy saw it, and refuses folders it can’t be limited to', () => {
+    const none = detected('pi', { kind: 'none' });
+    const p = plan(
+      input({ agent: 'pi', use: 'local', model: 'Ollama/Qwen3-Coder', unsandboxed: true }),
+      none,
+    );
+    expect(p.verdict.allowed).toBe(true);
+    expect(p.args[p.args.indexOf('--model') + 1]).toBe('ollama/Qwen3-Coder');
+    expect(
+      plan(
+        input({ agent: 'pi', use: 'local', model: 'ollama/x', addDirs: ['/footage'], unsandboxed: true }),
+        none,
+      ).verdict.reason,
+    ).toMatch(/Leave out --add-dir/);
+    expect(() => ollamaBase(':11434')).toThrow(/OLLAMA_HOST \(:11434\) isn’t an address/);
+  });
+
   it('keeps Windows’ Path whatever its case', () => {
     expect(inherited({ Path: 'C:\\Windows', SECRET_X: 's' }, ['PATH'], true)).toEqual({
       Path: 'C:\\Windows',
