@@ -31,7 +31,9 @@ everything that stands in the way.
    look). `.github/CODEOWNERS` puts `skills/`, the scan, `SCAN-ALLOW` and what packs and ships skills under the owner's
    review.
 7. **App and server installs get skills only inside a signed release.** The release workflow builds the app and
-   server bundle, `hildegard.plugin` (the plugin as a file, for apps that take one) and the skill zips from main. Installs update only to a release whose minisign
+   server bundle, `hildegard.plugin` (the plugin as a file, for apps that take one) and the skill zips from main.
+   All of them are signed in the release, but once `hildegard.plugin` or a skill zip is loaded into another app,
+   nothing in that app checks the signature: check it yourself with minisign before loading one. Installs update only to a release whose minisign
    signature checks against the key built into them (`apps/server/src/update.ts`), so no change reaches an app or
    server install without going through main and a signed release. The Claude Code plugin is the exception: it
    installs from this repository's main branch, which only takes reviewed, green pull requests, but nothing checks a
