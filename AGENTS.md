@@ -93,10 +93,10 @@ A Hildegard without a usable GPU renders on another of the owner's devices. Two 
   everything else. Graphs from peers must pass `vetGraph` (node classes in `GRAPH_NODE_CLASSES`, model files from the
   catalog, one SaveVideo, LoadImage only as the start frame) and run through `Scheduler.guest`, so they queue with
   local takes. `revoke` drops every key and closes that listener. `hildegard choir opportunistic on|off` (or
-  `POST /api/choir/opportunistic`, loopback only, kept in `<data>/choir/settings.json`) sets how guests queue: on,
+  `POST /api/choir/opportunistic`, owner only (loopback or a signed-in owner, like `/api/choir/update`), kept in `<data>/choir/settings.json`) sets how guests queue: on,
   `Scheduler.setOpportunistic` ranks them after all local work, a local take, still or voice lease stops a running
   guest (it requeues, as Force now does), and a guest starts only after `hostBusy` (`busy.ts`: NVIDIA use, load per
-  core) says the computer is free, asking again every 30 s (an error counts as busy; a clearance is for one guest, for 2 s).
+  core) says the computer is free, asking again every 30 s (an error counts as busy; a clearance is for one guest, for 2 s; the first ask waits 3 s after local work ends).
   `sharing.busyCheck` says what `hostBusy` can see here. Off, guests queue as studio work.
 - **Rendering elsewhere** (`remote-engine.ts`). `hildegard choir join` checks the code against the device's
   `/api/node/info`, keeps the key in the keychain (`secretStores`, account `choir-<name>`; `HILDEGARD_SECRETS=file`

@@ -853,6 +853,9 @@ function Devices({ catalog }: { catalog: Catalog }) {
                 {sharing.opportunistic && sharing.busyCheck === 'load'
                   ? ' This computer can’t see its GPU’s use, so it goes by how busy the processor is.'
                   : ''}
+                {sharing.opportunistic && sharing.busyCheck === 'gpu-unknown'
+                  ? ' The NVIDIA driver isn’t answering (restart this computer after a driver update), so they wait until it does.'
+                  : ''}
                 {sharing.opportunistic && sharing.busyCheck === 'none'
                   ? ' This computer can’t tell when it’s busy, so they wait only for Hildegard’s own work here.'
                   : ''}

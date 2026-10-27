@@ -211,6 +211,7 @@ beforeAll(async () => {
       fakeTickMs: 30,
       hostBusy: async () => gpuBusy,
       busyRecheckMs: 100,
+      busySettleMs: 50,
       secrets: memoryStore(),
       choirSecrets: memorySecrets(),
       updates: {
@@ -522,6 +523,21 @@ describe('sharing only when the GPU device is free', () => {
       await opp(false);
     }
 
+    // Paused, speech still gets the GPU: a lease stops the paired render even then.
+    await opp(true);
+    try {
+      const remote = await sendAndRun('Wind chimes on a porch');
+      gpu.scheduler.setPaused(true);
+      const release = await gpu.scheduler.lease();
+      expect(guestStatus()).toBe('queued');
+      release();
+      gpu.scheduler.setPaused(false);
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      gpu.scheduler.setPaused(false);
+      await opp(false);
+    }
+
     // Off, with its own take waiting: turning it on stops the paired render for that take.
     const remote = await sendAndRun('Sparks from a forge');
     gpu.scheduler.setPaused(true);
@@ -570,7 +586,7 @@ describe('sharing only when the GPU device is free', () => {
     await expect(nvidiaPercent(said('[N/A]\n'))).rejects.toThrow();
     await expect(nvidiaPercent(said(null))).rejects.toThrow();
     expect(await busyCheck('linux', said('12\n'))).toBe('gpu+load');
-    expect(await busyCheck('linux', said(null))).toBe('gpu+load');
+    expect(await busyCheck('linux', said(null))).toBe('gpu-unknown');
     expect(await busyCheck('linux', missing)).toBe('load');
     expect(await busyCheck('darwin', missing)).toBe('load');
     expect(await busyCheck('win32', missing)).toBe('none');

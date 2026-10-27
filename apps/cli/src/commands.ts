@@ -1048,7 +1048,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
             title: 'Opportunistic sharing',
             status: 'done',
             detail: s.sharing.opportunistic
-              ? `Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.${s.sharing.busyCheck === 'load' ? ' It can’t see its GPU’s use, so it goes by how busy the processor is.' : s.sharing.busyCheck === 'none' ? ' It can’t tell when it’s busy, so they wait only for Hildegard’s own work here.' : ''}`
+              ? `Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.${s.sharing.busyCheck === 'load' ? ' It can’t see its GPU’s use, so it goes by how busy the processor is.' : s.sharing.busyCheck === 'none' ? ' It can’t tell when it’s busy, so they wait only for Hildegard’s own work here.' : s.sharing.busyCheck === 'gpu-unknown' ? ' The NVIDIA driver isn’t answering (restart after a driver update), so they wait until it does.' : ''}`
               : 'Your other devices’ renders run here when their turn comes.',
           },
         ],

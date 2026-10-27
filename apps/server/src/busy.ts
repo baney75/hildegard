@@ -9,9 +9,10 @@ export const LOAD_BUSY_PER_CORE = 0.8;
 
 /**
  * What this computer can tell about being busy: GPU use and load (NVIDIA), load only (Linux and macOS without NVIDIA),
- * or nothing (Windows without NVIDIA, which reports no load).
+ * nothing (Windows without NVIDIA, which reports no load), or that nvidia-smi is there but not answering, such as
+ * after a driver update without a restart, which holds paired renders until it answers.
  */
-export type BusyCheck = 'gpu+load' | 'load' | 'none';
+export type BusyCheck = 'gpu+load' | 'load' | 'none' | 'gpu-unknown';
 
 /**
  * Whether this computer is busy with something other than Hildegard, from what it reports: the GPU's use (NVIDIA only;
@@ -67,9 +68,8 @@ export async function busyCheck(
   run: typeof execFile = execFile,
 ): Promise<BusyCheck> {
   const gpu = await nvidiaPercent(run).then(
-    (p) => p !== null,
-    () => true,
+    (p): BusyCheck | null => (p === null ? null : 'gpu+load'),
+    (): BusyCheck => 'gpu-unknown',
   );
-  if (gpu) return 'gpu+load';
-  return os === 'win32' ? 'none' : 'load';
+  return gpu ?? (os === 'win32' ? 'none' : 'load');
 }

@@ -119,6 +119,7 @@ export async function startServer(
     /** Whether something else is using this computer, for opportunistic sharing: tests give a stand-in. */
     hostBusy?: () => Promise<boolean>;
     busyRecheckMs?: number;
+    busySettleMs?: number;
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
     /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
@@ -210,6 +211,7 @@ export async function startServer(
     // Asked only when this computer shares its GPU opportunistically. The fake GPU has no one else to yield to.
     hostBusy: opts.hostBusy ?? (config.fake ? async () => false : hostBusy),
     busyRecheckMs: opts.busyRecheckMs,
+    busySettleMs: opts.busySettleMs,
   });
   scheduler.setOpportunistic(choir.opportunistic);
   route();
@@ -596,10 +598,16 @@ export async function startServer(
   scheduler.start();
 
   // The fake GPU says it can see GPU use, like an NVIDIA computer would.
-  void (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
-    choir.busyCheck = b;
-    choir.emit();
-  });
+  const lookBusy = () =>
+    void (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
+      if (b === choir.busyCheck) return;
+      choir.busyCheck = b;
+      choir.emit();
+    });
+  lookBusy();
+  // A driver can stop answering later (an update without a restart): look again now and then, so Settings says so.
+  const busyLook = setInterval(() => choir.opportunistic && lookBusy(), 5 * 60_000);
+  busyLook.unref?.();
   return {
     url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,
     config,
