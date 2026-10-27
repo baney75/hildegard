@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -27,6 +27,7 @@ import {
   run,
   type Sys,
   skillRoots,
+  sweepProfiles,
   type Trigger,
 } from '../src/index.ts';
 
@@ -542,6 +543,42 @@ describe('workspace and running', () => {
       ).verdict.reason,
     ).toMatch(/Leave out --add-dir/);
     expect(() => ollamaBase(':11434')).toThrow(/OLLAMA_HOST \(:11434\) isn’t an address/);
+  });
+
+  it('hands OMP and Pi the provider policy saw, needs provider/model, and says why a scheduled Pi run can’t be', () => {
+    for (const agent of ['omp', 'pi'] as const) {
+      const none = detected(agent, { kind: 'none' });
+      const p = plan(input({ agent, use: 'local', model: 'Ollama/qwen3-coder', unsandboxed: true }), none);
+      expect(p.verdict.allowed).toBe(true);
+      expect(p.args[p.args.indexOf('--model') + 1]).toBe('ollama/qwen3-coder');
+      // A bare provider is not a model: no '--model ollamaa'.
+      const bare = plan(input({ agent, use: 'local', model: 'ollama', unsandboxed: true }), none);
+      expect(bare.verdict.reason).toMatch(/needs a model, as provider\/model/);
+    }
+    const sched = plan(
+      input({ agent: 'pi', use: 'local', model: 'ollama/x', trigger: 'schedule' }),
+      detected('pi', { kind: 'none' }),
+    );
+    expect(sched.verdict.reason).toMatch(/never on a schedule/);
+  });
+
+  it('refuses a budget Claude Code won’t get, on a plan or a cloud account', () => {
+    for (const auth of [claudePlan, { kind: 'cloud', provider: 'bedrock' } as Auth]) {
+      const p = plan(input({ budgetUsd: 5 }), detected('claude-code', auth));
+      expect(p.verdict.allowed).toBe(false);
+      expect(p.verdict.reason).toMatch(/only on an API key/);
+    }
+  });
+
+  it('sweeps Pi profiles that a killed run left behind, and keeps fresh ones', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-profiles-'));
+    mkdirSync(join(dir, 'old'));
+    mkdirSync(join(dir, 'new'));
+    const old = new Date(Date.now() - 3 * 3_600_000);
+    utimesSync(join(dir, 'old'), old, old);
+    sweepProfiles(dir);
+    expect(existsSync(join(dir, 'old'))).toBe(false);
+    expect(existsSync(join(dir, 'new'))).toBe(true);
   });
 
   it('keeps Windows’ Path whatever its case', () => {

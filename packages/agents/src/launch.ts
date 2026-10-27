@@ -6,7 +6,16 @@
  * documents. It never reads, copies or forwards anyone's sign-in.
  */
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { McpCommand } from '@hildegard/runtime';
@@ -155,7 +164,10 @@ export const PI_TOOLS = ['read', 'edit', 'write', 'grep', 'find', 'ls', 'mcp__hi
 export const PI_PROMPT = 'Do the task above.';
 
 /** A model selector Pi takes as one plain argument everywhere, Windows' shell included. */
-const MODEL_RE = /^[A-Za-z0-9._:@/+-]+$/;
+const MODEL_RE = /^[A-Za-z0-9._:@+-]+\/[A-Za-z0-9._:@/+-]+$/;
+
+/** OMP's and Pi's model selector with the provider lowercased, as policy and the key lookup saw it. */
+const selector = (model: string) => `${providerOf(model)}${model.slice(model.indexOf('/'))}`;
 
 const DEFAULT_PROVIDER: Record<AgentId, string> = {
   'claude-code': 'anthropic',
@@ -173,6 +185,25 @@ const OMP_PROFILE = 'omp-profile';
  */
 export const piProfile = (input: Pick<LaunchInput, 'workspace' | 'piProfile'>) =>
   input.piProfile ?? join(dirname(input.workspace), '.pi-profiles', basename(input.workspace));
+
+/** A run stops within its hour; a Pi profile older than this was left by one that was killed before cleaning up. */
+const STALE_PROFILE_MS = 2 * 60 * 60_000;
+
+/** Removes Pi profiles that runs killed mid-way (Ctrl-C, a crash) left behind. */
+export function sweepProfiles(dir: string, now = Date.now()) {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const n of names) {
+    const p = join(dir, n);
+    try {
+      if (now - statSync(p).mtimeMs > STALE_PROFILE_MS) rmSync(p, { recursive: true, force: true });
+    } catch {}
+  }
+}
 
 /** Where each local model server listens by default, for the `models.json` a Pi run gets. */
 export const LOCAL_BASE_URLS: Record<string, string> = {
@@ -239,7 +270,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       fix: detected.detail,
     };
   const short = input.agent === 'pi' ? 'Pi' : 'OMP';
-  if (isPiFamily(input.agent) && !input.model)
+  if (isPiFamily(input.agent) && !input.model?.includes('/'))
     verdict = {
       allowed: false,
       reason: `${short} needs a model, as provider/model (such as ollama/qwen3-coder).`,
@@ -253,18 +284,21 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       allowed: false,
       reason: `${short} sends the task to the provider its model names (${providerOf(input.model!)}), not ${input.provider}. Leave out --provider, or pick a ${input.provider} model.`,
     };
-  else if (input.agent === 'pi' && !MODEL_RE.test(input.model!))
+  else if (isPiFamily(input.agent) && !MODEL_RE.test(input.model!))
     verdict = {
       allowed: false,
-      reason:
-        'A Pi model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.',
+      reason: `A ${short} model is provider/model in letters, digits and . _ : @ / + - only, such as ollama/qwen3-coder.`,
     };
   if (input.budgetUsd !== undefined && !(Number.isFinite(input.budgetUsd) && input.budgetUsd > 0))
     verdict = { allowed: false, reason: 'A budget is a number of US dollars above 0, such as --budget 5.' };
-  else if (input.budgetUsd !== undefined && input.agent !== 'claude-code')
+  // Only Claude Code on an API key gets --max-budget-usd; anything else would run past the budget unnoticed.
+  else if (input.budgetUsd !== undefined && (input.agent !== 'claude-code' || auth.kind !== 'api-key'))
     verdict = {
       allowed: false,
-      reason: `${NAMES_SHORT[input.agent]} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
+      reason:
+        input.agent === 'claude-code'
+          ? 'Claude Code holds a run to a budget only on an API key (--use key). Set a limit with your provider, or run without --budget.'
+          : `${NAMES_SHORT[input.agent]} can’t hold a run to a budget. Set a spending limit with your provider, or run without --budget.`,
     };
   if (
     verdict.allowed &&
@@ -277,23 +311,23 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       allowed: false,
       reason: `Hildegard doesn’t know where ${providerOf(input.model)} listens for Pi. Use ollama, lm-studio, vllm or llama.cpp.`,
     };
-  // Last, so a more specific refusal above keeps its reason.
-  if (verdict.allowed && input.agent === 'pi' && !input.unsandboxed)
-    verdict = {
-      allowed: false,
-      reason:
-        'Pi has no sandbox: its file tools can read and write anything your account can, not just its workspace. Run it with --unsandboxed if you accept that, or use Codex, which works in a sandbox.',
-    };
+  // Last, so a more specific refusal above keeps its reason; who started it comes before --unsandboxed, which can't
+  // make a scheduled or someone else's run allowed.
   if (
     verdict.allowed &&
     input.agent === 'pi' &&
-    input.unsandboxed &&
     input.trigger !== 'owner-here' &&
     input.trigger !== 'owner-remote'
   )
     verdict = {
       allowed: false,
       reason: 'Pi runs without a sandbox, so only you can start it, and never on a schedule.',
+    };
+  if (verdict.allowed && input.agent === 'pi' && !input.unsandboxed)
+    verdict = {
+      allowed: false,
+      reason:
+        'Pi has no sandbox: its file tools can read and write anything your account can, not just its workspace. Run it with --unsandboxed if you accept that, or use Codex, which works in a sandbox.',
     };
   if (input.agent === 'pi' && input.extraTools?.length)
     verdict = {
@@ -378,7 +412,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
         PI_TOOLS.join(','),
         '--model',
         // The provider as policy saw it, lowercased; the model's own name as given.
-        input.model ? `${providerOf(input.model)}${input.model.slice(input.model.indexOf('/'))}` : '',
+        input.model?.includes('/') ? selector(input.model) : '',
         '--',
         PI_PROMPT,
       ];
@@ -387,7 +421,13 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       env.PI_CODING_AGENT_DIR = join(dirname(ws), OMP_PROFILE);
       env.CLAUDE_CONFIG_DIR = join(ws, '.claude-home');
       for (const k of BORROWED) env[k] = null;
-      args = ['-p', '--no-session', '--model', input.model ?? '', input.task];
+      args = [
+        '-p',
+        '--no-session',
+        '--model',
+        input.model?.includes('/') ? selector(input.model) : '',
+        input.task,
+      ];
       stdin = null;
     }
     if (auth.kind === 'api-key') {
@@ -418,6 +458,7 @@ export function prepareWorkspace(input: LaunchInput, env: NodeJS.ProcessEnv = pr
     // Pi reads MCP servers and skills from its agent directory. Each run's starts empty, so nothing (a login Pi saved,
     // an old skill) carries over from an earlier run.
     const profile = piProfile(input);
+    sweepProfiles(dirname(profile));
     rmSync(profile, { recursive: true, force: true });
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     writeFileSync(

@@ -124,7 +124,8 @@ What a run gets:
   passes through with them, since Pi needs it to reach the provider.
 - **Files and Hildegard's tools, no shell** (`--tools read,edit,write,grep,find,ls,mcp__hildegard__*`). This narrows
   what Pi does; it isn't a boundary. A loop that needs a program such as Blender runs on Claude Code or Codex.
-- **The task on stdin.** It never shows in a process list or passes through a shell.
+- **The task on stdin.** It is never in Pi's command line or passed through a shell. Hildegard's own command line
+  still holds a task you typed after `agents run`; pipe it in with `--task-stdin` to keep it out of a process list.
 - **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
 - **No folder list.** With no sandbox Pi already reaches every folder, so `--add-dir` is refused rather than ignored.
 
