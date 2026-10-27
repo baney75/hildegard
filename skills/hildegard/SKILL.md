@@ -167,7 +167,7 @@ Ask these questions in roughly this order, rephrased to fit what the user has sa
 4. **The tension.** "What is it against, or what's the cost?" Gain and loss, old and new, glory and suffering, emptiness and rest.
 5. **The true details.** "Is there a real object, text, tune, place or person in it that has to be exactly right?" Research these to the screw. Use the user's messages, lyrics, captions and quotations word for word, with their spelling.
 6. **Given media.** "Do you have photos, footage, recordings, sketches or drafts I should work from?" If yes, follow 5f.
-7. **Where it lives.** A wall, a print size, the X feed, a phone, headphones, a church, a printer (which one), a book, read aloud, a gift. This sets the format, the smallest surviving detail, the loudness, the physical size and the length. Ask it early, before you propose any medium that depends on it. A live-camera piece that would have put each viewer's own face in the pupil died as soon as the user said "strictly on X," because X shows only images and video.
+7. **Where it lives.** A wall, a print size, a social feed, a phone, headphones, a church, a printer (which one), a book, read aloud, a gift. This sets the format, the smallest surviving detail, the loudness, the physical size and the length. Ask it early, before you propose any medium that depends on it. A live-camera piece that would have put each viewer's own face in the pupil died as soon as the user said the piece would live only as a post in a social feed, where it could only be a still image or a video.
 8. **The realism level and the method for hard parts.** If figures, hands or faces appear, settle what the brief implies ("look real," "as though truly present") and how each will be made, before the first render (pitfall 28).
 9. **The hand and the style.** Ask only if still unclear. Offer two or three media or styles that fit what you've heard, each with one clause on what it would *say*.
 
@@ -247,7 +247,6 @@ Write down three to six **load-bearing findings**, each tied to the decision it 
 **Destination specifics** (check current limits with a quick search):
 - **Images:**
   - wall or print: 4000 px or more on the long side;
-  - X: 4:5 at about 1620×2025 px, under 5 MB;
   - phone wallpaper: about 1290×2796 px;
   - album cover: 3000×3000 px.
 - **Color:** sRGB for screens; soft-proof print in CMYK.
