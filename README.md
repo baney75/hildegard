@@ -287,6 +287,11 @@ installed when they are installed there, so nothing downloads twice. Settings â€
   builds, and their takes wait in parish1's own queue, so they never run at the same time as its own.
 - Hildegard pairs only over Tailscale (or https), so prompts and videos are encrypted on the way. Without Tailscale
   on the GPU computer, give its address yourself: `hildegard choir invite --url http://100.x.y.z:7341`.
+- If parish1 is also someone's everyday computer, run `hildegard choir opportunistic on` there (or turn on **Only
+  when it's free** in Settings â€º Devices). Your other devices' renders then wait behind parish1's own work, stop and
+  go back in line when its own work arrives, and start only while nothing else is using it: the GPU is under 30% busy
+  and the load is under 0.8 per core. A render already running for another device finishes unless parish1's own
+  Hildegard work arrives. Off, the default, renders from your other devices simply take their turn.
 
 ## Commands
 
@@ -301,7 +306,7 @@ hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
-hildegard choir invite | join | list | use <device|local> | leave <device> | revoke
+hildegard choir invite | join | list | use <device|local> | leave <device> | opportunistic on|off | revoke
 hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin

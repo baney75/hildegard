@@ -210,6 +210,10 @@ in on each.
 
    A device without ComfyUI switches to rendering there at once. Otherwise `hildegard choir use <device> --json`.
 
+   If the GPU device is also someone's everyday computer, ask the owner whether its own work should come first. If it
+   should, run `hildegard choir opportunistic on --json` on the GPU device. Other devices' renders then yield to its
+   own work and wait while it's busy. Leave it off for a dedicated render box.
+
 3. Verify on the joined device:
 
    ```sh

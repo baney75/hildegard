@@ -185,6 +185,11 @@ interface SharingFile {
   url: string;
   keys: Array<{ hash: string; createdAt: string }>;
 }
+/** How this computer shares its GPU; kept apart from the keys, so it outlasts revoking and inviting. */
+interface SettingsFile {
+  /** Paired devices' renders go behind this computer's own work and wait while it's busy. */
+  opportunistic: boolean;
+}
 interface DevicesFile {
   use: string;
   devices: Array<{ name: string; url: string; joinedAt: string }>;
@@ -216,6 +221,7 @@ export class Choir {
   private readonly dir: string;
   private sharing: SharingFile | null;
   private joined: DevicesFile;
+  private settings: SettingsFile;
   private readonly info = new Map<string, NodeInfo>();
   private readonly problems = new Map<string, string>();
   private engine: RemoteEngine | null = null;
@@ -244,6 +250,8 @@ export class Choir {
     const sharing = load<SharingFile | null>(join(this.dir, 'sharing.json'), null);
     this.sharing = sharing?.keys?.length ? sharing : null;
     this.joined = load<DevicesFile>(join(this.dir, 'devices.json'), { use: 'local', devices: [] });
+    const settings = load<Partial<SettingsFile>>(join(this.dir, 'settings.json'), {});
+    this.settings = { opportunistic: settings.opportunistic === true };
     if (this.joined.use !== 'local' && !this.joined.devices.some((d) => d.name === this.joined.use))
       this.joined.use = 'local';
   }
@@ -257,6 +265,7 @@ export class Choir {
         url: this.sharing?.url ?? null,
         paired: this.sharing?.keys.length ?? 0,
         problem: this.sharing ? this.sharingProblem : null,
+        opportunistic: this.settings.opportunistic,
       },
     };
   }
@@ -324,6 +333,18 @@ export class Choir {
     this.sharingProblem = null;
     this.emit();
     return { code: encodeJoinCode({ name: this.sharing.name, url: origin, token }), url: origin };
+  }
+
+  /** Whether paired devices' renders yield to this computer's own work (see Scheduler.setOpportunistic). */
+  get opportunistic(): boolean {
+    return this.settings.opportunistic;
+  }
+
+  setOpportunistic(on: boolean) {
+    if (on === this.settings.opportunistic) return;
+    this.settings = { ...this.settings, opportunistic: on };
+    save(join(this.dir, 'settings.json'), this.settings);
+    this.emit();
   }
 
   /** Stop sharing: every key goes, so no paired device can render here until it joins again. */

@@ -223,6 +223,7 @@ export const api = {
     call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code }),
   choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
   choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
+  choirOpportunistic: (on: boolean) => call<ChoirState>('POST', '/api/choir/opportunistic', { on }),
   /** Update a joined device to the newest release. */
   choirUpdate: (name: string) =>
     call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/update', { name }),
