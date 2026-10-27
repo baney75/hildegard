@@ -583,6 +583,16 @@ describe('sharing only when the GPU device is free', () => {
         '',
       )) as unknown as Parameters<typeof nvidiaPercent>[0];
     expect(await nvidiaPercent(missing)).toBe(null);
+    // Two at once on a healthy driver: both answer, neither is taken for stuck.
+    const slow = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) => {
+      const child = { exitCode: null as number | null };
+      setTimeout(() => {
+        child.exitCode = 0;
+        cb(null, '40\n');
+      }, 50);
+      return child;
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await Promise.all([nvidiaPercent(slow), nvidiaPercent(slow)])).toEqual([40, 40]);
     // Stuck for good: it gives up on its own deadline.
     const hung = { exitCode: null };
     const stuck = (() => hung) as unknown as Parameters<typeof nvidiaPercent>[0];

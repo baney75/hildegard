@@ -46,17 +46,19 @@ export function nvidiaPercent(run: typeof execFile = execFile): Promise<number |
     stuck = null;
     // A wedged driver can leave nvidia-smi stuck where no signal ends it, and then no answer would ever come: give up
     // on it after 3.5 s, whatever the process does.
-    const deadline = setTimeout(() => reject(new GpuUnknown('nvidia-smi didn’t answer in time.')), 3500);
+    const deadline = setTimeout(() => {
+      // Only one that outlived its deadline counts as stuck; one still running inside it is just slow.
+      if (child && child.exitCode === null) stuck = child;
+      reject(new GpuUnknown('nvidia-smi didn’t answer in time.'));
+    }, 3500);
     deadline.unref?.();
     let child: { exitCode: number | null } | undefined;
-    let done = false;
     child = run(
       'nvidia-smi',
       ['--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
       { timeout: 3000, windowsHide: true },
       (err, stdout) => {
         clearTimeout(deadline);
-        done = true;
         if (child && stuck === child) stuck = null;
         const code = (err as NodeJS.ErrnoException | null)?.code;
         if (code === 'ENOENT' || (typeof code === 'number' && NO_NVIDIA_EXIT.has(code))) return resolve(null);
@@ -70,7 +72,6 @@ export function nvidiaPercent(run: typeof execFile = execFile): Promise<number |
         resolve(v.length ? Math.max(...v) : null);
       },
     ) as { exitCode: number | null } | undefined;
-    if (!done && child && typeof child.exitCode !== 'undefined') stuck = child;
   });
 }
 

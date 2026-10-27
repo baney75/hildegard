@@ -276,6 +276,11 @@ export class Scheduler {
     this.pump();
   }
 
+  /** Whether paired devices' renders wait behind this computer's own work and its being busy. */
+  get yields(): boolean {
+    return this.opportunistic;
+  }
+
   /** Opportunistic: stop the paired device's render on the GPU now; it goes back in line, and starts over later. */
   private yieldGuest() {
     if (!this.opportunistic || !this.guestRunning || !this.running || this.stopped) return;

@@ -375,7 +375,8 @@ export async function startServer(
       [...store.takes.values(), ...store.stills.values()].some(
         (t) => t.status === 'queued' || t.status === 'running',
       ) ||
-      scheduler.guestTakes().length > 0 ||
+      // Waiting paired renders hold an update only when they'd run soon; opportunistic ones may wait without end.
+      scheduler.guestTakes().some((g) => g.status === 'running' || !scheduler.yields) ||
       models.states().some((m) => m.downloading) ||
       exporter.list().some((e) => e.status === 'running') ||
       voice.state().jobs.some((j) => j.status === 'queued' || j.status === 'running') ||
