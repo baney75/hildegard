@@ -106,8 +106,10 @@ consumer plans (`/login`), and those providers say their plans belong to their o
 an API key or a local model, from the provider its model names (`--provider` can't point elsewhere).
 
 **Pi has no sandbox.** Its file tools can read and write anything your account can, not just its workspace (Pi's own
-`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself, from a terminal you're at,
-with `--unsandboxed`: never on a schedule, from a script without a terminal, or for someone you invited. If you want a sandbox, use Codex.
+`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself with `--unsandboxed` and then
+type `yes` on the terminal it asks on (the terminal itself, not stdin). It never runs on a schedule, from a script or
+service without a terminal, from another device, or for someone you invited. An agent that drives a terminal of its
+own could type that yes too, so don't hand `--unsandboxed` to one. If you want a sandbox, use Codex.
 
 What a run gets:
 

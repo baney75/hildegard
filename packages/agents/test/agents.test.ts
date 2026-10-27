@@ -339,8 +339,7 @@ describe('launch plans', () => {
     expect(p({}).verdict.allowed).toBe(false);
     expect(p({}).verdict.reason).toMatch(/Pi has no sandbox.*--unsandboxed/);
     expect(p({ unsandboxed: true }).verdict.allowed).toBe(true);
-    expect(p({ unsandboxed: true, trigger: 'owner-remote' }).verdict.allowed).toBe(true);
-    for (const trigger of ['schedule', 'director', 'peer'] as const)
+    for (const trigger of ['owner-remote', 'schedule', 'director', 'peer'] as const)
       expect(p({ unsandboxed: true, trigger }).verdict.allowed).toBe(false);
   });
 
@@ -568,7 +567,11 @@ describe('workspace and running', () => {
         none,
       ).verdict.reason,
     ).toMatch(/Leave out --add-dir/);
-    expect(() => ollamaBase(':11434')).toThrow(/OLLAMA_HOST \(:11434\) isn’t an address/);
+    // Ollama's own forms for every interface mean this computer.
+    expect(ollamaBase(':11500')).toBe('http://127.0.0.1:11500/v1');
+    expect(ollamaBase('[::]:11434')).toBe('http://[::1]:11434/v1');
+    expect(ollamaBase('::')).toBe('http://127.0.0.1:11434/v1');
+    expect(() => ollamaBase('gpu box')).toThrow(/isn’t an address/);
   });
 
   it('hands OMP and Pi the provider policy saw, needs provider/model, and says why a scheduled Pi run can’t be', () => {
@@ -627,6 +630,17 @@ describe('workspace and running', () => {
       }),
     );
     expect(existsSync(join(ours, 'left'))).toBe(false);
+  });
+
+  it('empties a Pi profile only inside Hildegard’s own folder, and won’t delete a caller’s folder of files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-own-'));
+    const theirs = join(root, 'project');
+    mkdirSync(theirs);
+    writeFileSync(join(theirs, 'film.mp4'), 'x');
+    expect(() =>
+      prepareWorkspace(input({ agent: 'pi', workspace: join(root, 'run'), piProfile: theirs })),
+    ).toThrow(/won’t delete it/);
+    expect(existsSync(join(theirs, 'film.mp4'))).toBe(true);
   });
 
   it('keeps an Ollama path, and won’t copy a user and password into Pi’s profile', () => {

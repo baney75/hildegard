@@ -4,7 +4,17 @@
  * allow (packages/agents), Hildegard's skills installed where they look, and the media checks from a terminal.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   type AgentId,
@@ -303,8 +313,7 @@ export async function runAgentTask(
   const keyProvider = isPiFamily(agent) && model ? providerOf(model) : provider;
   // Pi has no sandbox, so a run counts as yours only from a terminal you're at; cron or a script without one is a
   // scheduled run, --unattended or not.
-  const trigger: Trigger =
-    ctx.flags.has('unattended') || (agent === 'pi' && !process.stderr.isTTY) ? 'schedule' : 'owner-here';
+  const trigger: Trigger = ctx.flags.has('unattended') ? 'schedule' : 'owner-here';
   const id = randomUUID().slice(0, 8);
   const workspace = resolve(ctx.opts.get('workspace') ?? join(ctx.config.dataDir, 'agents', 'runs', id));
   const input: LaunchInput = {
@@ -353,6 +362,24 @@ export async function runAgentTask(
       p.verdict.source ? 'Nothing ran: the provider’s terms don’t allow this run.' : 'Nothing ran.',
       { policy: p.verdict },
     );
+  }
+  // Pi has no sandbox: the owner says yes on the terminal itself, not on stdin, which a pipe or a script could fill.
+  if (agent === 'pi') {
+    const answer = askTerminal(
+      `Pi has no sandbox: its file tools can read and write anything your account can. Type yes to start it: `,
+    );
+    if (answer?.trim().toLowerCase() !== 'yes')
+      return result(
+        [
+          said(
+            'needs-owner',
+            answer === null
+              ? 'Pi starts only after you type yes at a terminal, and there is no terminal here.'
+              : 'Pi didn’t start: you didn’t type yes.',
+          ),
+        ],
+        'Nothing ran.',
+      );
   }
   const pacer =
     p.auth.kind === 'subscription' ? new Pacer(join(ctx.config.dataDir, 'agents', 'pace.json')) : null;
@@ -521,4 +548,37 @@ export async function review(ctx: Ctx, args: string[]): Promise<Result> {
     ok: r.passed,
     needsOwner: false,
   };
+}
+
+/**
+ * Asks on the controlling terminal (`/dev/tty`, or the Windows console), never stdin, and reads one line. Null when
+ * there is no terminal, as under cron, a service or a pipe-only script.
+ */
+export function askTerminal(question: string): string | null {
+  const win = process.platform === 'win32';
+  let rfd: number;
+  let wfd: number;
+  try {
+    rfd = openSync(win ? '\\\\.\\CONIN$' : '/dev/tty', 'r');
+  } catch {
+    return null;
+  }
+  try {
+    wfd = openSync(win ? '\\\\.\\CONOUT$' : '/dev/tty', 'w');
+  } catch {
+    closeSync(rfd);
+    return null;
+  }
+  try {
+    writeSync(wfd, question);
+    const byte = Buffer.alloc(1);
+    let line = '';
+    while (readSync(rfd, byte, 0, 1, null) === 1 && byte[0] !== 10) line += String.fromCharCode(byte[0]!);
+    return line.replace(/\r$/, '');
+  } catch {
+    return null;
+  } finally {
+    closeSync(rfd);
+    closeSync(wfd);
+  }
 }

@@ -4,6 +4,7 @@
  * `codex login status`). Hildegard never opens their credential files: it only needs to know the kind of sign-in.
  */
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inherited, PI_ENV } from './env.ts';
@@ -178,13 +179,21 @@ export function detectAgent(agent: AgentId, e: Sys = system()): Detected {
  * the coding agent answers `pi --version` with its version number alone.
  */
 export function isPiAgent(e: Sys): boolean {
-  // Asked with the same short environment a run gets: an unknown `pi` sees no sign-in or key of the owner's.
-  const { status, out, stdout } = e.run('pi', ['--version'], {
-    ...inherited(e.env, PI_ENV, e.platform === 'win32'),
-    PI_SKIP_VERSION_CHECK: '1',
-    PI_TELEMETRY: '0',
-    PI_CODING_AGENT_DIR: join(tmpdir(), 'hildegard-pi-probe'),
-  });
+  // Asked with the same short environment a run gets: an unknown `pi` sees no sign-in or key of the owner's, and an
+  // empty agent folder of its own that no one else could have put anything in.
+  const probe = mkdtempSync(join(tmpdir(), 'hildegard-pi-probe-'));
+  let r: ReturnType<Sys['run']>;
+  try {
+    r = e.run('pi', ['--version'], {
+      ...inherited(e.env, PI_ENV, e.platform === 'win32'),
+      PI_SKIP_VERSION_CHECK: '1',
+      PI_TELEMETRY: '0',
+      PI_CODING_AGENT_DIR: probe,
+    });
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
+  const { status, out, stdout } = r;
   // Node may warn on stderr (a deprecation, say); the version is the first line Pi prints on stdout.
   const first = (stdout ?? out).split('\n').find((l) => l.trim()) ?? '';
   return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(first.trim());

@@ -104,7 +104,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
 Agents: see docs/agents.md. Everything stays on your own devices.`;
 
 const argv = process.argv.slice(2);
-const flags = new Set(argv.filter((a) => a.startsWith('--') && !a.includes('=')).map((a) => a.slice(2)));
+// Filled with the options below: a token taken as an option's value (`--workspace --unsandboxed`) is never a flag too.
+const flags = new Set<string>();
 const valued = new Set([
   'port',
   'data',
@@ -164,8 +165,11 @@ for (let i = 0; i < argv.length; i++) {
   if (a.startsWith('--')) {
     const [k, v] = a.slice(2).split('=', 2) as [string, string | undefined];
     if (v !== undefined) opts.set(k, v);
-    else if (valued.has(k) && argv[i + 1] !== undefined && !(optional.has(k) && argv[i + 1]!.startsWith('-')))
-      opts.set(k, argv[++i]!);
+    else {
+      flags.add(k);
+      if (valued.has(k) && argv[i + 1] !== undefined && !(optional.has(k) && argv[i + 1]!.startsWith('-')))
+        opts.set(k, argv[++i]!);
+    }
   } else positional.push(a);
 }
 const [command = 'help', ...rest] = positional;

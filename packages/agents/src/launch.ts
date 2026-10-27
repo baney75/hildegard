@@ -16,7 +16,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { McpCommand } from '@hildegard/runtime';
 import { COMMANDS, type Detected, KEY_ENV, LOCAL_PROVIDERS, providerOf, type Sys, system } from './detect.ts';
@@ -189,7 +189,10 @@ export const LOCAL_BASE_URLS: Record<string, string> = {
 /** Ollama's address from OLLAMA_HOST (`0.0.0.0:11434`, `host:port` or a URL), as an OpenAI-style base URL. */
 export function ollamaBase(host: string | undefined): string {
   if (!host?.trim()) return LOCAL_BASE_URLS.ollama!;
-  const h = host.trim().replace(/\/+$/, '');
+  let h = host.trim().replace(/\/+$/, '');
+  // Ollama reads an empty host (`:11434`) and `::` as every interface; this computer is the one to ask.
+  if (h.startsWith(':') && !h.startsWith('::')) h = `127.0.0.1${h}`;
+  if (h === '::' || h === '[::]') h = '127.0.0.1';
   // A bare host (`gpu-box`) gets Ollama's port; a full URL keeps whatever it says.
   const bare = !/^https?:\/\//.test(h);
   let u: URL;
@@ -203,6 +206,7 @@ export function ollamaBase(host: string | undefined): string {
       'OLLAMA_HOST has a user and password in it; Hildegard won’t copy them into Pi’s profile.',
     );
   if (u.hostname === '0.0.0.0') u.hostname = '127.0.0.1';
+  if (u.hostname === '[::]') u.hostname = '[::1]';
   if (bare && !u.port) u.port = '11434';
   // A path in front of Ollama (a reverse proxy's /ollama, say) stays.
   return `${u.origin}${u.pathname.replace(/\/+$/, '')}/v1`;
@@ -287,7 +291,7 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
   );
   // Who started it comes before --unsandboxed, which can't make a scheduled or someone else's run allowed.
   refuse(
-    pi && input.trigger !== 'owner-here' && input.trigger !== 'owner-remote',
+    pi && input.trigger !== 'owner-here',
     'Pi runs without a sandbox, so only you can start it, from a terminal you’re at, and never on a schedule.',
   );
   refuse(
@@ -414,7 +418,13 @@ export function prepareWorkspace(input: LaunchInput, env: NodeJS.ProcessEnv = pr
     // Only a folder Hildegard owns: the one it was given, or its own default beside the workspace.
     const root = input.piProfilesRoot ?? (input.piProfile ? null : dirname(profile));
     if (root) sweepProfiles(root);
-    rmSync(profile, { recursive: true, force: true });
+    // Emptied only inside that folder; anywhere else, a folder that already holds something is refused, not deleted.
+    if (root && resolve(profile).startsWith(resolve(root) + sep))
+      rmSync(profile, { recursive: true, force: true });
+    else if (existsSync(profile) && readdirSync(profile).length)
+      throw new Error(
+        `Pi’s profile folder ${profile} already holds files and isn’t in Hildegard’s profiles folder; Hildegard won’t delete it.`,
+      );
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     writeFileSync(
       join(profile, 'mcp.json'),
