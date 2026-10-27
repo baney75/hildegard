@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "Runs Claude Code, Codex and OMP for their owner only in the ways each provider's terms allow, and installs Hildegard's skills for them.",
+  "description": "Runs Claude Code, Codex, OMP and Pi for their owner only in the ways each provider's terms allow, and installs Hildegard's skills for them.",
   "exports": {
     ".": "./src/index.ts"
   },

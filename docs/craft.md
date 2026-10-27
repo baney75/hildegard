@@ -73,7 +73,7 @@ three rounds with an honest note.
 | hildegard-print | Working parts to print: measured from photos and listings, sized from your printer's fits, sliced, with a print sheet (`scripts/print_kit.py`) |
 | hildegard-web | Websites and web app screens as real HTML and CSS, rendered at three widths in light and dark and audited |
 
-`hildegard skills install --json` puts them where Claude Code, Codex and OMP read them, from any model provider. Every
+`hildegard skills install --json` puts them where Claude Code, Codex, OMP and Pi read them, from any model provider. Every
 app linked to Hildegard also reads them over MCP (`list_skills`, `read_skill`), and [chatbots.md](chatbots.md) has the
 uploads for the Claude app, claude.ai and ChatGPT.
 

@@ -1,6 +1,6 @@
 # Running coding agents within their providers' terms
 
-Hildegard can start Claude Code, Codex and OMP (oh-my-pi) for its owner, with Hildegard's MCP tools and skills, to
+Hildegard can start Claude Code, Codex, OMP (oh-my-pi) and Pi for its owner, with Hildegard's MCP tools and skills, to
 make and edit films, photos, art and sound. This page says which ways of running them are allowed, which aren't, and
 why, from each provider's own published terms. `packages/agents/src/policy.ts` enforces exactly this table before
 anything starts; `hildegard agents --json` shows the verdict for each agent on a computer.
@@ -95,6 +95,19 @@ say those plans belong to their own apps (and OpenAI's listed partners), so Hild
 (`PI_CODING_AGENT_DIR`) and an empty Claude data folder (`CLAUDE_CONFIG_DIR`), and the environment loses
 `ANTHROPIC_OAUTH_TOKEN`, `XAI_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` and `OMP_AUTH_BROKER_URL`, so a plan's sign-in
 can't leak in by accident.
+
+## Pi
+
+Source: [earendil-works/pi](https://github.com/earendil-works/pi) (formerly badlogic/pi-mono, npm `@earendil-works/pi-coding-agent`;
+MIT licensed) documentation.
+
+Pi is open source and uses your own model providers. Like OMP, it can sign in to Anthropic and ChatGPT with their
+consumer plans (`/login`), and those providers say their plans belong to their own apps, so Hildegard runs Pi only with
+an API key or a local model. Each run gets its own Pi profile (`PI_CODING_AGENT_DIR`) with Hildegard's MCP server in its
+`mcp.json` and the skills in its `skills` folder, and the environment loses `ANTHROPIC_OAUTH_TOKEN`,
+`XAI_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` and `OMP_AUTH_BROKER_URL`, so a plan's sign-in can't leak in by accident.
+Hildegard never reads Pi's `auth.json` and doesn't reuse its credentials. `hildegard connect pi` only adds Hildegard
+to `~/.pi/agent/mcp.json` and its skills to `~/.pi/agent/skills`; Pi signs in as you set it up.
 
 ## Other coding agents linked to Hildegard
 

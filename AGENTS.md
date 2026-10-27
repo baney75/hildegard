@@ -15,7 +15,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `packages/presets` | Cameras, lenses, looks and models (`presets/*.toml`), prompt composition, and the API types shared by everything |
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
 | `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` and `reviewMesh` (run `tools/review_media.py` and `tools/review_mesh.py`), and critique rubrics |
-| `packages/agents` | Runs Claude Code, Codex and OMP only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
+| `packages/agents` | Runs Claude Code, Codex, OMP and Pi only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
 | `skills/` | Agent skills for creative work (hildegard), film, video and photo editing, art, sound, 3D, the loop, setup and cloud, with Hildegard's quality gates. Packed for uploads by `scripts/pack-skills.mjs` |
 | `.claude-plugin/`, `plugin/` | The repository as a Claude Code plugin and marketplace; `plugin/mcp.mjs` starts the installed Hildegard's MCP server. See [docs/chatbots.md](docs/chatbots.md) |

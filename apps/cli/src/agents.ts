@@ -12,6 +12,7 @@ import {
   decide,
   detectAgents,
   installSkills,
+  isPiFamily,
   KEY_ENV,
   type LaunchInput,
   listSkills,
@@ -32,13 +33,14 @@ import type { Ctx } from './commands.ts';
 import { readStdin } from './commands.ts';
 import { dim, type Result, result } from './output.ts';
 
-const AGENT_IDS: AgentId[] = ['claude-code', 'codex', 'omp'];
+const AGENT_IDS: AgentId[] = ['claude-code', 'codex', 'omp', 'pi'];
 const ALIASES: Record<string, AgentId> = {
   claude: 'claude-code',
   'claude-code': 'claude-code',
   codex: 'codex',
   omp: 'omp',
   'oh-my-pi': 'omp',
+  pi: 'pi',
 };
 
 const settingsFile = (ctx: Ctx) => join(ctx.config.dataDir, 'agents', 'settings.json');
@@ -92,14 +94,16 @@ async function check(ctx: Ctx): Promise<Result> {
     if (!d.installed)
       return { id: d.agent, title: d.name, status: 'skipped', detail: `${d.name} isn’t installed.` };
     const lines: string[] = [d.detail];
-    if (d.agent !== 'omp') {
+    if (!isPiFamily(d.agent)) {
       const own = (t: Trigger) => decide(d.agent, d.auth, t, opts);
       lines.push(
         `Runs you start: ${own('owner-here').allowed ? 'yes' : 'no'}, with its own sign-in. Scheduled runs: ${own('schedule').allowed ? 'yes' : 'no'}.`,
       );
       if (!own('schedule').allowed && d.auth.kind === 'subscription') lines.push(own('schedule').reason);
     } else
-      lines.push('OMP runs only with an API key or a local model, never with a Claude or ChatGPT login.');
+      lines.push(
+        `${d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
+      );
     const keyFor = d.agent === 'claude-code' ? 'anthropic' : d.agent === 'codex' ? 'openai' : null;
     if (keyFor)
       lines.push(
@@ -119,8 +123,8 @@ async function check(ctx: Ctx): Promise<Result> {
         auth: d.auth,
         startedByYou:
           d.installed &&
-          (d.agent === 'omp' ? held.length > 0 : decide(d.agent, d.auth, 'owner-here', opts).allowed),
-        scheduled: d.installed && d.agent !== 'omp' && decide(d.agent, d.auth, 'schedule', opts).allowed,
+          (isPiFamily(d.agent) ? held.length > 0 : decide(d.agent, d.auth, 'owner-here', opts).allowed),
+        scheduled: d.installed && !isPiFamily(d.agent) && decide(d.agent, d.auth, 'schedule', opts).allowed,
       })),
       keys: held,
       shareKeysWithDirectors: opts.shareKeysWithDirectors,
@@ -233,7 +237,7 @@ async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
 
 /**
  * Runs one coding agent on one task, if the provider's terms allow it. `extraTools` are tools a headless Claude Code
- * may use beyond the usual ones (a loop's modeling programs, say); Codex and OMP work inside their own sandboxes.
+ * may use beyond the usual ones (a loop's modeling programs, say); Codex, OMP and Pi work inside their own sandboxes.
  */
 export async function runAgentTask(
   ctx: Ctx,
@@ -266,11 +270,11 @@ export async function runAgentTask(
       ],
       'Nothing ran.',
     );
-  const use = (ctx.opts.get('use') ?? (agent === 'omp' ? 'key' : 'own-sign-in')) as LaunchInput['use'];
+  const use = (ctx.opts.get('use') ?? (isPiFamily(agent) ? 'key' : 'own-sign-in')) as LaunchInput['use'];
   const model = ctx.opts.get('model');
   const provider =
     ctx.opts.get('provider') ??
-    (agent === 'omp' && model ? model.split('/')[0] : agent === 'codex' ? 'openai' : 'anthropic');
+    (isPiFamily(agent) && model ? model.split('/')[0] : agent === 'codex' ? 'openai' : 'anthropic');
   const trigger: Trigger = ctx.flags.has('unattended') ? 'schedule' : 'owner-here';
   const id = randomUUID().slice(0, 8);
   const workspace = resolve(ctx.opts.get('workspace') ?? join(ctx.config.dataDir, 'agents', 'runs', id));
@@ -338,7 +342,7 @@ export async function runAgentTask(
   }
 }
 
-/** `hildegard skills [list|install|remove] [--agent claude-code|codex|omp|all] [--project DIR]`. */
+/** `hildegard skills [list|install|remove] [--agent claude-code|codex|omp|pi|all] [--project DIR]`. */
 export function skills(ctx: Ctx, args: string[]): Result {
   const dir = skillsDir();
   if (!dir)
@@ -358,7 +362,7 @@ export function skills(ctx: Ctx, args: string[]): Result {
   if (action === 'list')
     return result(
       all.map((s) => ({ id: s.name, title: s.name, status: 'done' as const, detail: s.description })),
-      '`hildegard skills install` puts them where Claude Code, Codex and OMP look.',
+      '`hildegard skills install` puts them where Claude Code, Codex, OMP and Pi look.',
       { skills: all.map(({ name, description }) => ({ name, description })) },
     );
   const which = ctx.opts.get('agent') ?? 'all';
