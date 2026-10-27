@@ -67,6 +67,15 @@ export const systemProbe: Probe = {
 
 const gb = (bytes: number) => Math.round((bytes / 1024 ** 3) * 10) / 10;
 
+/**
+ * The share of system memory a unified-memory NVIDIA part (DGX Spark's GB10) can use on Linux. Unlike macOS, Linux sets
+ * no fixed GPU cap, so only the system and running programs need room: keep a tenth for them. fit() adds its own
+ * quarter of headroom for activations on top.
+ */
+export const UNIFIED_SHARE_LINUX = 0.9;
+/** NVIDIA parts that share memory with the CPU. */
+const UNIFIED_NAME = /\b(GB10|Grace|Thor|Orin|Jetson)\b/i;
+
 /** The best GPU on this computer and the PyTorch build that runs on it. */
 export function detectGpu(p: Probe = systemProbe): Gpu {
   const nvidia = detectNvidia(p);
@@ -111,18 +120,22 @@ function detectNvidia(p: Probe): Gpu | null {
     .filter((f) => f.length >= 4 && f[0])
     .map(([name, mem, driver, cap]) => ({
       name: name!,
-      // Unified-memory parts (GB10, Jetson) answer "[N/A]" here: NaN, handled below.
+      // Unified-memory parts (GB10) answer "[N/A]" here; so can a card in trouble, which must not count as unified.
+      shared: mem === '[N/A]' && ((p.platform === 'linux' && p.arch === 'arm64') || UNIFIED_NAME.test(name!)),
       vramGb: mem === '' ? Number.NaN : Math.round((Number(mem) / 1024) * 10) / 10,
       driver: Number.parseFloat(driver!),
       cap: Number.parseFloat(cap!),
     }));
-  // A card without a memory figure shares system memory: count that, as on Apple silicon.
+  // A part that shares system memory counts its share of it. Any other card without a figure sorts last, unknown.
   const sized = gpus.map((g) =>
     Number.isFinite(g.vramGb)
       ? { ...g, unified: false }
-      : { ...g, vramGb: gb(p.totalmem * 0.75), unified: true },
+      : g.shared
+        ? { ...g, vramGb: gb(p.totalmem * UNIFIED_SHARE_LINUX), unified: true }
+        : { ...g, unified: false },
   );
-  const best = sized.sort((a, b) => b.vramGb - a.vramGb)[0];
+  const size = (v: number) => (Number.isFinite(v) ? v : -1);
+  const best = sized.sort((a, b) => size(b.vramGb) - size(a.vramGb))[0];
   if (!best) return null;
   // PyTorch's CUDA 13 builds need driver 580+ and a Turing (7.5) or newer card; older ones get CUDA 12.6.
   const modern = best.cap >= 7.5;
@@ -131,7 +144,7 @@ function detectNvidia(p: Probe): Gpu | null {
   return {
     backend: 'cuda',
     name: best.name,
-    vramGb: best.vramGb,
+    vramGb: Number.isFinite(best.vramGb) ? best.vramGb : null,
     ...(best.unified ? { unified: true as const } : {}),
     torchBackend,
     ...(modern && best.driver < 580
