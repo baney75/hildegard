@@ -29,6 +29,10 @@ import {
 import type { Store } from './store.ts';
 
 const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
+/** Where paired devices' renders wait when this computer shares opportunistically: behind all of its own work. */
+const YIELD_RANK = 3;
+/** How long a paired device's render waits before this computer asks again whether it's busy. */
+export const BUSY_RECHECK_MS = 30_000;
 
 /** Plain-language fixes for each failure. */
 export function explain(e: unknown): TakeError {
@@ -89,6 +93,10 @@ const jobOf = (j: Job): Take | Still => ('take' in j ? j.take : j.still);
  * One GPU, one render at a time. Forced work goes first, then studio work, then agent work; within a class, oldest
  * first. Force now stops a lower-priority render, which goes back to the front of its class. Stills queue with takes,
  * and renders from paired devices queue here too, as studio work, so nothing runs alongside anything else.
+ *
+ * Shared opportunistically, paired devices' renders go behind all of this computer's own work instead: a take, a still
+ * or speech arriving here stops one that is rendering (it goes back in line), and one only starts when `hostBusy` says
+ * nothing else is using this computer.
  */
 export class Scheduler {
   private running: { id: string; priority: Priority; abort: AbortController; requeue: boolean } | null = null;
@@ -100,6 +108,14 @@ export class Scheduler {
   private guestProgressAt = 0;
   private paused = false;
   private online = false;
+  private opportunistic = false;
+  private readonly hostBusy: () => Promise<boolean>;
+  /** Asking hostBusy now; nothing starts until it answers. */
+  private askingBusy = false;
+  /** hostBusy just said this computer is free: the paired render at the front may start. */
+  private guestCleared = false;
+  private busyTimer: NodeJS.Timeout | null = null;
+  private readonly busyRecheckMs: number;
   /** Other work holding this GPU (voice), and work waiting for it; no take starts while it is held. */
   private leased = false;
   private readonly leaseQueue: Array<() => void> = [];
@@ -133,7 +149,13 @@ export class Scheduler {
     safety?: SafetyCheck;
     /** Runs before each render on this computer's GPU: voice lets go of the memory it holds. */
     beforeRender?: () => Promise<void>;
+    /** Whether something other than Hildegard is using this computer now; asked only when sharing opportunistically. */
+    hostBusy?: () => Promise<boolean>;
+    /** How long to wait before asking again; BUSY_RECHECK_MS unless a test says otherwise. */
+    busyRecheckMs?: number;
   }) {
+    this.busyRecheckMs = opts.busyRecheckMs ?? BUSY_RECHECK_MS;
+    this.hostBusy = opts.hostBusy ?? (async () => false);
     this.poster = opts.poster;
     this.beforeRender = opts.beforeRender ?? (async () => {});
     this.safety = opts.safety ?? loadSafety();
@@ -206,6 +228,7 @@ export class Scheduler {
   stop() {
     this.stopped = true;
     if (this.pingTimer) clearTimeout(this.pingTimer);
+    if (this.busyTimer) clearTimeout(this.busyTimer);
     // Shutting down is not a cancel: the take goes back in the queue and renders after the next start.
     if (this.running) {
       this.running.requeue = true;
@@ -221,6 +244,31 @@ export class Scheduler {
     if (!paused) this.pump();
   }
 
+  /**
+   * On: paired devices' renders go behind this computer's own work, yield to it, and wait while this computer is busy.
+   * Off: they queue as studio work and run.
+   */
+  setOpportunistic(on: boolean) {
+    if (on === this.opportunistic) return;
+    this.opportunistic = on;
+    this.guestCleared = false;
+    if (!on && this.busyTimer) {
+      clearTimeout(this.busyTimer);
+      this.busyTimer = null;
+    }
+    // Something of this computer's own may be waiting behind the paired render on the GPU now.
+    if (on && this.order().some((x) => !('guest' in x))) this.yieldGuest();
+    this.renumber();
+    this.pump();
+  }
+
+  /** Opportunistic: stop the paired device's render on the GPU now; it goes back in line, and starts over later. */
+  private yieldGuest() {
+    if (!this.opportunistic || !this.guestRunning || !this.running) return;
+    this.running.requeue = true;
+    this.running.abort.abort();
+  }
+
   queued(): Take[] {
     return [...this.store.takes.values()]
       .filter((t) => t.status === 'queued')
@@ -231,7 +279,7 @@ export class Scheduler {
   private order(): Array<Job | { guest: Guest }> {
     const key = (x: Job | { guest: Guest }) =>
       'guest' in x
-        ? ([RANK.interactive, x.guest.createdAt] as const)
+        ? ([this.opportunistic ? YIELD_RANK : RANK.interactive, x.guest.createdAt] as const)
         : ([RANK[jobOf(x).priority], jobOf(x).createdAt] as const);
     const stills = [...this.store.stills.values()]
       .filter((s) => s.status === 'queued')
@@ -345,12 +393,14 @@ export class Scheduler {
 
   enqueue(take: Take) {
     this.store.putTake(take);
+    this.yieldGuest();
     this.renumber();
     this.pump();
   }
 
   enqueueStill(still: Still) {
     this.store.putStill(still);
+    this.yieldGuest();
     this.renumber();
     this.pump();
   }
@@ -405,6 +455,7 @@ export class Scheduler {
       createdAt: new Date().toISOString(),
     } satisfies Partial<Take>);
     found.put();
+    this.yieldGuest();
     this.renumber();
     this.pump();
     return t;
@@ -430,6 +481,7 @@ export class Scheduler {
           this.pump();
         });
       });
+      this.yieldGuest();
       this.pump();
     });
   }
@@ -443,12 +495,34 @@ export class Scheduler {
       lease();
       return;
     }
-    if (this.paused || !this.online) return;
+    if (this.paused || !this.online || this.askingBusy) return;
     const next = this.order()[0];
     if (!next) return;
-    if ('take' in next) void this.run(next.take);
-    else if ('still' in next) void this.runStill(next.still);
-    else void this.runGuest(next.guest);
+    if ('guest' in next && this.opportunistic && !this.guestCleared) {
+      // Only paired renders wait (they go last), so ask whether anything else is using this computer first.
+      if (this.busyTimer) return;
+      this.askingBusy = true;
+      void this.hostBusy()
+        .catch(() => false)
+        .then((busy) => {
+          this.askingBusy = false;
+          if (this.stopped) return;
+          if (busy) {
+            this.busyTimer = setTimeout(() => {
+              this.busyTimer = null;
+              this.pump();
+            }, this.busyRecheckMs);
+            this.busyTimer.unref?.();
+          } else this.guestCleared = true;
+          this.pump();
+        });
+      return;
+    }
+    // A clearance is for the render that starts now; after any render, ask again.
+    this.guestCleared = false;
+    if ('guest' in next) void this.runGuest(next.guest);
+    else if ('take' in next) void this.run(next.take);
+    else void this.runStill(next.still);
   }
 
   /** The characters a take casts, as they are now: each must still exist, and may still be drawn. */

@@ -1467,6 +1467,14 @@ export function createApp(deps: AppDeps) {
     deps.choir.revoke();
     return c.json(deps.choir.state());
   });
+  app.post('/api/choir/opportunistic', async (c) => {
+    const refused = pairLocal(c);
+    if (refused) return refused;
+    const body = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say on or off.' }, 400);
+    deps.choir.setOpportunistic(body.data.on);
+    return c.json(deps.choir.state());
+  });
   app.post('/api/choir/join', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;

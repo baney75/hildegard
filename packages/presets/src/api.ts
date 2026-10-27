@@ -252,6 +252,11 @@ export interface ChoirState {
     paired: number;
     /** Why paired devices can't reach it right now, such as Tailscale being down. */
     problem: string | null;
+    /**
+     * On: paired devices' renders wait behind this computer's own work, stop when its own work arrives, and start only
+     * while nothing else is using it. Off: they render when their turn comes.
+     */
+    opportunistic: boolean;
   };
 }
 

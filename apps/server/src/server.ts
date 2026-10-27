@@ -17,6 +17,7 @@ import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
+import { hostBusy } from './busy.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
@@ -115,6 +116,9 @@ export async function startServer(
     updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
     /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
     slicer?: Slicer | null;
+    /** Whether something else is using this computer, for opportunistic sharing: tests give a stand-in. */
+    hostBusy?: () => Promise<boolean>;
+    busyRecheckMs?: number;
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
     /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
@@ -175,6 +179,7 @@ export async function startServer(
       store.emit({ type: 'choir', choir: s });
       route();
       store.emit({ type: 'models', models: modelStates() });
+      scheduler.setOpportunistic(s.sharing.opportunistic);
       store.emit({ type: 'engine', engine: scheduler.engineState() });
       void syncSharing();
     },
@@ -202,7 +207,11 @@ export async function startServer(
     poster: (video, out) => makePoster(config.dataDir, video, out),
     // Voice models let go of the GPU before a render needs it.
     beforeRender: () => voiceEngine.release(),
+    // Asked only when this computer shares its GPU opportunistically. The fake GPU has no one else to yield to.
+    hostBusy: opts.hostBusy ?? (config.fake ? async () => false : hostBusy),
+    busyRecheckMs: opts.busyRecheckMs,
   });
+  scheduler.setOpportunistic(choir.opportunistic);
   route();
   await runtime?.start();
   const secrets =

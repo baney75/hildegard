@@ -167,7 +167,7 @@ function choirFor(who: Who | null, s: ChoirState): ChoirState {
   return {
     use: s.use,
     devices: s.devices.filter((d) => d.name === s.use).map((d) => ({ ...d, url: '' })),
-    sharing: { on: false, url: null, paired: 0, problem: null },
+    sharing: { on: false, url: null, paired: 0, problem: null, opportunistic: false },
   };
 }
 const hfFor = (who: Who | null, s: HfState): HfState =>

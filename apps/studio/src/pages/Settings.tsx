@@ -2,7 +2,7 @@
 import type { Catalog, ChoirDevice, UpdateState } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
-import { Button, Icon, RadioGroup, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
+import { Button, Icon, RadioGroup, Segmented, Status, Switch, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
@@ -840,6 +840,24 @@ function Devices({ catalog }: { catalog: Catalog }) {
           <p className="hg-err body-sm" role="note">
             <Icon name="alert" size={16} /> {sharing.problem}
           </p>
+        ) : null}
+        {sharing?.on ? (
+          <div className="hg-devices__opp">
+            <span className="body-sm">
+              <b>Only when it’s free</b>
+              <br />
+              <span className="muted">
+                {sharing.opportunistic
+                  ? 'Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.'
+                  : 'Your other devices’ renders run here when their turn comes, alongside this computer’s own in one line.'}
+              </span>
+            </span>
+            <Switch
+              checked={sharing.opportunistic}
+              label="Only render for other devices when this computer is free"
+              onChange={(on) => void run('opportunistic', () => api.choirOpportunistic(on))}
+            />
+          </div>
         ) : null}
         {askUrl && !invite ? (
           <label className="hg-field hg-field--block">

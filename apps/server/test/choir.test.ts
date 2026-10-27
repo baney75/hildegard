@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import type { ChoirDevice, ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
+import { busyFrom, nvidiaPercent } from '../src/busy.ts';
 import {
+  Choir,
   checkUrl,
   encodeJoinCode,
   hashToken,
@@ -184,6 +186,9 @@ let gpu: Running;
 let mac: Running;
 /** Updates the GPU device started: a newer release is always out for it. */
 let gpuUpdates = 0;
+/** What the GPU device's stand-in says when asked whether something else is using it. */
+let gpuBusy = false;
+let gpuData: string;
 let shareUrl: string;
 let token: string;
 const post = (srv: Running, path: string, body?: unknown) =>
@@ -199,10 +204,13 @@ const request = (prompt: string) => ({
 });
 
 beforeAll(async () => {
+  gpuData = mkdtempSync(join(tmpdir(), 'hg-node-'));
   gpu = await startServer(
-    { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-node-'))]), port: 0 },
+    { ...parseArgs(['--fake-gpu', '--data', gpuData]), port: 0 },
     {
       fakeTickMs: 30,
+      hostBusy: async () => gpuBusy,
+      busyRecheckMs: 100,
       secrets: memoryStore(),
       choirSecrets: memorySecrets(),
       updates: {
@@ -382,6 +390,111 @@ describe('rendering on another device', () => {
     expect(lists.at(-1)).toEqual([]);
     expect((await snap()).guests).toEqual([]);
     await until(() => gpu.store.takes.get(ownTake.id)?.status === 'done');
+  });
+});
+
+describe('sharing only when the GPU device is free', () => {
+  const opp = async (on: boolean) => {
+    const res = await post(gpu, '/api/choir/opportunistic', { on });
+    expect(res.status).toBe(200);
+    return (await res.json()) as ChoirState;
+  };
+  const guestStatus = () => gpu.scheduler.guestTakes()[0]?.status ?? null;
+
+  it('is off until the owner turns it on, and stays as set across restarts and revokes', async () => {
+    expect(
+      ((await (await fetch(`${gpu.url}/api/choir`, { headers: H })).json()) as ChoirState).sharing
+        .opportunistic,
+    ).toBe(false);
+    expect((await opp(true)).sharing.opportunistic).toBe(true);
+    const again = new Choir({ dataDir: gpuData, secrets: memorySecrets(), onChange: () => {} });
+    expect(again.opportunistic).toBe(true);
+    expect((await post(gpu, '/api/choir/opportunistic', { on: 'yes' })).status).toBe(400);
+    expect((await opp(false)).sharing.opportunistic).toBe(false);
+  });
+
+  it('puts a paired device’s render behind this computer’s own work, even one that came later', async () => {
+    await opp(true);
+    try {
+      gpu.scheduler.setPaused(true);
+      const res = await post(mac, '/api/shots', { request: request('Wind in a wheat field at dusk') });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'queued');
+      const own = await post(gpu, '/api/shots', { request: request('A bell rope sways in an empty tower') });
+      const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+      gpu.scheduler.setPaused(false);
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      expect(guestStatus()).toBe('queued');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+      expect(gpu.store.takes.get(ownTake.id)?.status).toBe('done');
+    } finally {
+      await opp(false);
+    }
+  });
+
+  it('stops a paired device’s render when this computer’s own work arrives, and finishes it afterwards', async () => {
+    await opp(true);
+    try {
+      const res = await post(mac, '/api/shots', {
+        request: {
+          ...request('Candles lit one by one down a nave'),
+          format: { quality: 'final', seconds: 5 },
+        },
+      });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'running');
+      const own = await post(gpu, '/api/shots', { request: request('Dust in a shaft of light') });
+      const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      expect(guestStatus()).toBe('queued');
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'done');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      await opp(false);
+    }
+  }, 45_000);
+
+  it('waits while something else uses the computer, and starts once it’s free', async () => {
+    await opp(true);
+    gpuBusy = true;
+    try {
+      const res = await post(mac, '/api/shots', { request: request('Snow settling on a lychgate') });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'queued');
+      await new Promise((r) => setTimeout(r, 600));
+      expect(guestStatus()).toBe('queued');
+      gpuBusy = false;
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+    } finally {
+      gpuBusy = false;
+      await opp(false);
+    }
+  });
+
+  it('runs renders straight away when it’s off, busy or not', async () => {
+    gpuBusy = true;
+    try {
+      const res = await post(mac, '/api/shots', { request: request('A kettle steams on a range') });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+    } finally {
+      gpuBusy = false;
+    }
+  });
+
+  it('counts the computer busy from GPU use or load per core', async () => {
+    expect(busyFrom({ gpuPercent: 45, load1: 0, cores: 8 })).toBe(true);
+    expect(busyFrom({ gpuPercent: 5, load1: 1, cores: 8 })).toBe(false);
+    expect(busyFrom({ gpuPercent: null, load1: 7, cores: 8 })).toBe(true);
+    expect(busyFrom({ gpuPercent: null, load1: 0, cores: 0 })).toBe(false);
+    const said = (out: string | null) =>
+      ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) =>
+        out === null ? cb(new Error('no nvidia-smi'), '') : cb(null, out)) as unknown as Parameters<
+        typeof nvidiaPercent
+      >[0];
+    expect(await nvidiaPercent(said('3\n71\n'))).toBe(71);
+    expect(await nvidiaPercent(said('[N/A]\n'))).toBe(null);
+    expect(await nvidiaPercent(said(null))).toBe(null);
   });
 });
 

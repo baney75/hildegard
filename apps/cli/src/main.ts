@@ -52,6 +52,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              (--url to give the address yourself; choir revoke stops sharing)
   hildegard choir join       On a computer without a big GPU: paste that code, and takes render there
   hildegard choir list       Devices, and which one renders (choir use <device|local>, choir leave <device>)
+  hildegard choir opportunistic on|off
+                             On: your other devices’ renders here yield to this computer’s own work and wait
+                             while it’s busy. Off (the default): they render when their turn comes
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet)
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>

@@ -1033,6 +1033,29 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         return fail('Join a device', e);
       }
     }
+    case 'opportunistic': {
+      const want = args[1];
+      if (want !== 'on' && want !== 'off')
+        return result([], 'Say `hildegard choir opportunistic on` or `off`.', { ok: false });
+      const s = await api<ChoirState>(c, '/api/choir/opportunistic', {
+        method: 'POST',
+        body: { on: want === 'on' },
+      });
+      return result(
+        [
+          {
+            id: 'opportunistic',
+            title: 'Opportunistic sharing',
+            status: 'done',
+            detail: s.sharing.opportunistic
+              ? 'Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.'
+              : 'Your other devices’ renders run here when their turn comes.',
+          },
+        ],
+        s.sharing.on ? '' : 'It applies once you share this GPU: `hildegard choir invite`.',
+        { choir: s },
+      );
+    }
     case 'use': {
       const name = args[1];
       if (!name)
@@ -1074,7 +1097,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
           id: 'local',
           title: 'This computer',
           status: s.use === 'local' ? 'done' : 'skipped',
-          detail: `${s.use === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}.` : 'Not sharing its GPU.'}`,
+          detail: `${s.use === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}${s.sharing.opportunistic ? ', when it’s free' : ''}.` : 'Not sharing its GPU.'}`,
         },
         ...s.devices.map((d) => deviceStep(d, s.use)),
       ];
@@ -1085,8 +1108,12 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
       );
     }
     default:
-      return result([], 'Use `hildegard choir invite`, `join`, `list`, `use`, `leave` or `revoke`.', {
-        ok: false,
-      });
+      return result(
+        [],
+        'Use `hildegard choir invite`, `join`, `list`, `use`, `leave`, `opportunistic` or `revoke`.',
+        {
+          ok: false,
+        },
+      );
   }
 }
