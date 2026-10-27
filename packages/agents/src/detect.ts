@@ -49,10 +49,16 @@ export const NAMES: Record<AgentId, string> = {
   'claude-code': 'Claude Code',
   codex: 'Codex',
   omp: 'OMP (oh my pi)',
+  pi: 'Pi',
 };
-export const COMMANDS: Record<AgentId, string> = { 'claude-code': 'claude', codex: 'codex', omp: 'omp' };
+export const COMMANDS: Record<AgentId, string> = {
+  'claude-code': 'claude',
+  codex: 'codex',
+  omp: 'omp',
+  pi: 'pi',
+};
 
-/** Providers OMP reaches on the owner's own computers. */
+/** Providers OMP and Pi reach on the owner's own computers. */
 export const LOCAL_PROVIDERS = new Set([
   'ollama',
   'llama.cpp',
@@ -63,7 +69,7 @@ export const LOCAL_PROVIDERS = new Set([
   'hildegard',
 ]);
 
-/** The environment variable each API provider's key goes in, for OMP; Claude Code and Codex have their own. */
+/** The environment variable each API provider's key goes in, for OMP and Pi; Claude Code and Codex have their own. */
 export const KEY_ENV: Record<string, string> = {
   anthropic: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',
@@ -125,12 +131,12 @@ function codexAuth(e: Sys): { auth: Auth; detail: string } {
 }
 
 /**
- * Every agent and its sign-in. OMP has no sign-in of its own here: Hildegard runs it with a fresh profile, so its own
+ * Every agent and its sign-in. OMP and Pi have no sign-in of their own here: Hildegard runs them with a fresh profile, so their own
  * logins (including any Claude or ChatGPT one) never apply, and only the key or local model Hildegard gives it counts.
  */
 export function detectAgents(e: Sys = system()): Detected[] {
   const out: Detected[] = [];
-  for (const agent of ['claude-code', 'codex', 'omp'] as const) {
+  for (const agent of ['claude-code', 'codex', 'omp', 'pi'] as const) {
     const installed = e.has(COMMANDS[agent]);
     if (!installed) {
       out.push({
@@ -156,7 +162,7 @@ export function detectAgents(e: Sys = system()): Detected[] {
   return out;
 }
 
-/** The provider of an OMP model selector such as `openrouter/qwen/qwen3-coder` or `ollama/llama3.3`. */
+/** The provider of an OMP or Pi model selector such as `openrouter/qwen/qwen3-coder` or `ollama/llama3.3`. */
 export function providerOf(model: string): string {
   return model.split('/')[0]!.toLowerCase();
 }

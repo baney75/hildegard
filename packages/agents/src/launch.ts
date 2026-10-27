@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runs a coding agent for its owner the way each vendor documents for scripts: `claude -p`, `codex exec`, `omp -p`,
+ * Runs a coding agent for its owner the way each vendor documents for scripts: `claude -p`, `codex exec`, `omp -p`, `pi -p`,
  * the unmodified programs the owner installed. Hildegard decides first (policy.ts), gives the agent a workspace with
  * Hildegard's MCP server and skills in it, and passes an API key only through the environment variable the vendor
  * documents. It never reads, copies or forwards anyone's sign-in.
@@ -15,6 +15,7 @@ import {
   type AgentId,
   type Auth,
   decide,
+  isPiFamily,
   type PaceState,
   type PolicyOptions,
   pace,
@@ -30,14 +31,14 @@ export interface LaunchInput {
   /**
    * `own-sign-in`: however the agent itself is signed in (a plan, or a key it already has).
    * `key`: the owner's API key that Hildegard holds in the keychain, for `provider`.
-   * `local`: a model on the owner's own computers (OMP only).
+   * `local`: a model on the owner's own computers (OMP and Pi only).
    */
   use: 'own-sign-in' | 'key' | 'local';
   /** For `key`: anthropic, openai, openrouter, … Defaults to the agent’s own provider. */
   provider?: string;
   /** For `key`: the key itself. Goes only into the documented environment variable, never argv, logs or files. */
   key?: string;
-  /** The model: Claude Code and Codex take their own names; OMP takes `provider/model`. */
+  /** The model: Claude Code and Codex take their own names; OMP and Pi take `provider/model`. */
   model?: string;
   /** The run’s own folder: Hildegard’s MCP config and skills go here, and the agent works here. */
   workspace: string;
@@ -80,8 +81,8 @@ export const CLAUDE_TOOLS = [
   'Bash(hildegard review:*)',
 ];
 
-/** Sign-ins OMP could otherwise pick up from the environment, which must never reach it. */
-const OMP_BORROWED = [
+/** Sign-ins OMP or Pi could otherwise pick up from the environment, which must never reach it. */
+const BORROWED = [
   'ANTHROPIC_OAUTH_TOKEN',
   'XAI_OAUTH_TOKEN',
   'CLAUDE_CODE_OAUTH_TOKEN',
@@ -92,7 +93,11 @@ const DEFAULT_PROVIDER: Record<AgentId, string> = {
   'claude-code': 'anthropic',
   codex: 'openai',
   omp: 'openrouter',
+  pi: 'openrouter',
 };
+
+/** The folder next to the run’s workspace that holds OMP’s or Pi’s own profile. */
+const profileName = (agent: AgentId) => (agent === 'pi' ? 'pi-profile' : 'omp-profile');
 
 /** TOML basic string for `codex -c key=value`. JSON escapes are valid TOML escapes for these characters. */
 const toml = (s: string) => JSON.stringify(s);
@@ -100,14 +105,14 @@ const toml = (s: string) => JSON.stringify(s);
 function authFor(input: LaunchInput, detected: Detected): Auth {
   const provider =
     input.provider ??
-    (input.model && input.agent === 'omp' ? providerOf(input.model) : DEFAULT_PROVIDER[input.agent]);
+    (input.model && isPiFamily(input.agent) ? providerOf(input.model) : DEFAULT_PROVIDER[input.agent]);
   if (input.use === 'key') return input.key ? { kind: 'api-key', provider } : { kind: 'none' };
   if (input.use === 'local') {
-    if (input.agent !== 'omp' || !LOCAL_PROVIDERS.has(provider)) return { kind: 'none' };
+    if (!isPiFamily(input.agent) || !LOCAL_PROVIDERS.has(provider)) return { kind: 'none' };
     return { kind: 'local', provider };
   }
-  // OMP's own sign-in would be a Claude or ChatGPT login borrowed into another tool.
-  if (input.agent === 'omp') return { kind: 'borrowed-login', provider };
+  // Their own sign-ins would be a Claude or ChatGPT login borrowed into another tool.
+  if (isPiFamily(input.agent)) return { kind: 'borrowed-login', provider };
   return detected.auth;
 }
 
@@ -121,10 +126,10 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
       reason: `${detected.name} isn’t installed on this computer.`,
       fix: detected.detail,
     };
-  if (input.agent === 'omp' && !input.model)
+  if (isPiFamily(input.agent) && !input.model)
     verdict = {
       allowed: false,
-      reason: 'OMP needs a model, as provider/model (such as ollama/qwen3-coder).',
+      reason: `${input.agent === 'pi' ? 'Pi' : 'OMP'} needs a model, as provider/model (such as ollama/qwen3-coder).`,
     };
   const env: Record<string, string | null> = {};
   const ws = input.workspace;
@@ -177,16 +182,16 @@ export function plan(input: LaunchInput, detected: Detected, opts: PolicyOptions
     ];
     if (auth.kind === 'api-key') env.CODEX_API_KEY = input.key!;
   } else {
-    // A profile of its own: OMP's stored logins (a Claude or ChatGPT one included) don't exist there.
-    env.PI_CODING_AGENT_DIR = join(dirname(ws), 'omp-profile');
+    // A profile of its own: stored logins (a Claude or ChatGPT one included) don't exist there.
+    env.PI_CODING_AGENT_DIR = join(dirname(ws), profileName(input.agent));
     env.CLAUDE_CONFIG_DIR = join(ws, '.claude-home');
-    for (const k of OMP_BORROWED) env[k] = null;
+    for (const k of BORROWED) env[k] = null;
     if (auth.kind === 'api-key') {
       const name = KEY_ENV[auth.provider];
       if (!name)
         verdict = {
           allowed: false,
-          reason: `Hildegard doesn’t know where OMP reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
+          reason: `Hildegard doesn’t know where ${input.agent === 'pi' ? 'Pi' : 'OMP'} reads a ${auth.provider} key. Use one of: ${Object.keys(KEY_ENV).join(', ')}.`,
         };
       else env[name] = input.key!;
     }
@@ -206,16 +211,27 @@ export function prepareWorkspace(input: LaunchInput) {
     ...(input.mcp.env ? { env: input.mcp.env } : {}),
   };
   writeFileSync(join(ws, '.mcp.json'), `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`);
+  if (input.agent === 'pi') {
+    // Pi reads MCP servers and skills from its agent directory; this run's directory is a fresh one.
+    const profile = join(dirname(ws), profileName('pi'));
+    mkdirSync(profile, { recursive: true, mode: 0o700 });
+    writeFileSync(
+      join(profile, 'mcp.json'),
+      `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`,
+    );
+    if (input.skillsDir && existsSync(input.skillsDir))
+      cpSync(input.skillsDir, join(profile, 'skills'), { recursive: true });
+  }
   if (input.agent === 'omp') {
     mkdirSync(join(ws, '.claude-home'), { recursive: true });
     writeFileSync(
       join(ws, '.claude-home', '.claude.json'),
       `${JSON.stringify({ mcpServers: { hildegard: server } }, null, 2)}\n`,
     );
-    mkdirSync(join(dirname(ws), 'omp-profile'), { recursive: true, mode: 0o700 });
+    mkdirSync(join(dirname(ws), profileName('omp')), { recursive: true, mode: 0o700 });
   }
   if (input.skillsDir && existsSync(input.skillsDir)) {
-    // Claude Code and OMP read .claude/skills; Codex reads .agents/skills.
+    // Claude Code and OMP read .claude/skills; Codex and Pi read .agents/skills.
     for (const dir of ['.claude/skills', '.agents/skills'])
       cpSync(input.skillsDir, join(ws, dir), { recursive: true });
   }
@@ -275,7 +291,7 @@ export interface RunResult {
 
 /** Reads the agent's JSON lines into events; anything else is the agent talking. */
 export function parseLine(agent: AgentId, line: string): RunEvent[] {
-  if (agent === 'omp') return line.trim() ? [{ kind: 'text', text: line }] : [];
+  if (agent === 'omp' || agent === 'pi') return line.trim() ? [{ kind: 'text', text: line }] : [];
   let m: Record<string, unknown>;
   try {
     m = JSON.parse(line);
@@ -348,7 +364,8 @@ export async function run(
   const lines = createInterface({ input: child.stdout! });
   lines.on('line', (line) => {
     for (const e of parseLine(agent, line)) {
-      if (e.kind === 'text') final = agent === 'omp' ? `${final}${final ? '\n' : ''}${e.text}` : e.text;
+      if (e.kind === 'text')
+        final = agent === 'omp' || agent === 'pi' ? `${final}${final ? '\n' : ''}${e.text}` : e.text;
       if (e.kind === 'cost') costUsd = Number(e.text);
       onEvent(e);
     }

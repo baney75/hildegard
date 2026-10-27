@@ -10,7 +10,7 @@ it, and is safe to run again: a step that is already done comes back as `skipped
 | [B. Host it at a link](#b-host-it-at-a-link) | Their own Hildegard at an HTTPS link, for their phone, laptop and the people they invite, all signing in |
 | [C. Join a fleet](#c-join-a-fleet) | Their devices render on each other over Tailscale: a laptop without a GPU uses the desktop's |
 | [D. Rent a GPU](#d-rent-a-gpu) | A Runpod GPU that joins their fleet and stops itself when idle |
-| [E. Skills and coding agents](#e-skills-and-coding-agents) | Hildegard's skills in Claude Code, Codex and OMP, and agent runs within each provider's terms |
+| [E. Skills and coding agents](#e-skills-and-coding-agents) | Hildegard's skills in Claude Code, Codex, OMP and Pi, and agent runs within each provider's terms |
 | [F. AI apps on other devices, and chatbots](#f-ai-apps-on-other-devices-and-chatbots) | Hildegard's tools in the AI apps on their laptop, and in claude.ai or ChatGPT |
 | [G. Their local models](#g-their-local-models) | The models they run (Ollama, LM Studio, llama.cpp, vLLM, MLX…) direct shots, and serve their other devices |
 

@@ -149,6 +149,7 @@ describe('detecting sign-ins, by asking the agents', () => {
       ['claude-code', claudePlan],
       ['codex', { kind: 'api-key', provider: 'openai' }],
       ['omp', { kind: 'none' }],
+      ['pi', { kind: 'none' }],
     ]);
   });
 
@@ -169,13 +170,14 @@ describe('detecting sign-ins, by asking the agents', () => {
     const d = detectAgents(
       fakeSys({
         env: { CLAUDE_CODE_USE_BEDROCK: '1' },
-        has: (c) => c !== 'omp',
+        has: (c) => c !== 'omp' && c !== 'pi',
         outputs: { 'codex login status': { status: 1, out: 'Not logged in\n' } },
       }),
     );
     expect(d[0]!.auth).toEqual({ kind: 'cloud', provider: 'bedrock' });
     expect(d[1]!.auth).toEqual({ kind: 'none' });
     expect(d[2]!.installed).toBe(false);
+    expect(d[3]!.installed).toBe(false);
   });
 });
 
@@ -280,6 +282,35 @@ describe('launch plans', () => {
     ).toMatch(/needs a model/);
   });
 
+  it('runs Pi only on a key or a local model, in a profile of its own with borrowed sign-ins removed', () => {
+    const none = detected('pi', { kind: 'none' });
+    const own = plan(input({ agent: 'pi', model: 'anthropic/claude-sonnet-5-5' }), none);
+    expect(own.verdict.allowed).toBe(false);
+    expect(own.verdict.reason).toMatch(/banned/);
+    const local = plan(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder' }), none);
+    expect(local.verdict.allowed).toBe(true);
+    expect(local.cmd).toBe('pi');
+    expect(local.args).toEqual(['-p', '--no-session', '--model', 'ollama/qwen3-coder', expect.any(String)]);
+    expect(local.env).toMatchObject({
+      PI_CODING_AGENT_DIR: join('/tmp/hg/agents', 'pi-profile'),
+      ANTHROPIC_OAUTH_TOKEN: null,
+      XAI_OAUTH_TOKEN: null,
+      CLAUDE_CODE_OAUTH_TOKEN: null,
+      OMP_AUTH_BROKER_URL: null,
+    });
+    const keyed = plan(
+      input({ agent: 'pi', use: 'key', key: 'sk-or-X', model: 'openrouter/qwen/qwen3-coder' }),
+      none,
+    );
+    expect(keyed.verdict.allowed).toBe(true);
+    expect(keyed.env.OPENROUTER_API_KEY).toBe('sk-or-X');
+    expect(plan(input({ agent: 'pi', use: 'local', model: 'openrouter/x' }), none).verdict.allowed).toBe(
+      false,
+    );
+    expect(plan(input({ agent: 'pi', use: 'local' }), none).verdict.reason).toMatch(/Pi needs a model/);
+    expect(allowedFor('pi', { kind: 'borrowed-login', provider: 'openai' })).toEqual([]);
+  });
+
   it('refuses an agent that isn’t installed', () => {
     const p = plan(input({}), {
       ...detected('claude-code', claudePlan),
@@ -309,6 +340,27 @@ describe('workspace and running', () => {
     expect(existsSync(join(ws, '.agents', 'skills', 'hildegard-film', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(ws, '.claude-home', '.claude.json'))).toBe(true);
     expect(existsSync(join(root, 'agents', 'omp-profile'))).toBe(true);
+  });
+
+  it('gives Pi its own profile with Hildegard’s MCP server and skills in it', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
+    const skills = join(root, 'skills');
+    mkdirSync(join(skills, 'hildegard-film'), { recursive: true });
+    writeFileSync(
+      join(skills, 'hildegard-film', 'SKILL.md'),
+      '---\nname: hildegard-film\ndescription: Films.\n---\n# Film\n',
+    );
+    const ws = join(root, 'agents', 'run1');
+    prepareWorkspace(input({ agent: 'pi', workspace: ws, skillsDir: skills }));
+    const profile = join(root, 'agents', 'pi-profile');
+    expect(JSON.parse(readFileSync(join(profile, 'mcp.json'), 'utf8')).mcpServers.hildegard.args).toEqual([
+      '/opt/hildegard/main.ts',
+      'mcp',
+    ]);
+    expect(existsSync(join(profile, 'skills', 'hildegard-film', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(ws, '.agents', 'skills', 'hildegard-film', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, 'agents', 'omp-profile'))).toBe(false);
+    expect(parseLine('pi', 'Done.')).toEqual([{ kind: 'text', text: 'Done.' }]);
   });
 
   it('reads each agent’s JSON lines', () => {

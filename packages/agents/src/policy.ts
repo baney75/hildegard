@@ -9,12 +9,15 @@
  *   that on, never resold; Claude never runs for anyone but the owner, as Anthropic requires.
  * - A subscription (Claude Pro/Max, ChatGPT Plus/Pro) runs only in that vendor's own unmodified app (Claude Code,
  *   Codex), only for the owner themselves, only when they asked for it just now, paced like a person working.
- * - A subscription's sign-in is never taken into another tool (OMP's Anthropic or ChatGPT login, say), never read
+ * - A subscription's sign-in is never taken into another tool (OMP's or Pi's Anthropic or ChatGPT login, say), never read
  *   by Hildegard, and never shared with other people or devices.
  * - Models on the owner's own computers have no such limits.
  */
 
-export type AgentId = 'claude-code' | 'codex' | 'omp';
+export type AgentId = 'claude-code' | 'codex' | 'omp' | 'pi';
+
+/** OMP and Pi take any provider’s model and bring sign-ins of their own, so they run only on a key or a local model. */
+export const isPiFamily = (agent: AgentId): boolean => agent === 'omp' || agent === 'pi';
 
 export type Auth =
   /** The owner's own API key with the provider, billed to them. */
@@ -25,7 +28,7 @@ export type Auth =
   | { kind: 'subscription'; plan: 'claude' | 'chatgpt' }
   /** A model served on the owner's own computers (Ollama, llama.cpp, LM Studio, vLLM, Hildegard). */
   | { kind: 'local'; provider: string }
-  /** A consumer plan's sign-in used inside some other tool, such as OMP logged in to Claude or ChatGPT. */
+  /** A consumer plan's sign-in used inside some other tool, such as OMP or Pi logged in to Claude or ChatGPT. */
   | { kind: 'borrowed-login'; provider: string }
   | { kind: 'none' };
 
