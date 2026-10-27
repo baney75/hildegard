@@ -64,7 +64,4 @@ the rest of the skill.
 
 ## Still to build
 
-- Running a suggested change against fixed prompts in a sandbox (no network, no keys, a throwaway folder), and putting
-  the before and after in the pull request, so the owner judges results as well as words.
-- A second, model-based reviewer in CI that reads skill diffs for intent the patterns miss, advisory only.
-- Counting suggestions per skill and model, so the owner sees where the skills fail most.
+In order, with what makes each one done: [ROADMAP.md](../ROADMAP.md), section 1.

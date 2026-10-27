@@ -318,6 +318,10 @@ Hildegard is AGPL-3.0-only; the presets in `presets/` are Apache-2.0. The models
 Hildegard shows before any download: LTX-2.x is free for people and companies under $10M yearly revenue, Wan 2.2 and
 FLUX.2 [klein] 4B are Apache-2.0. See [LICENSING.md](LICENSING.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Roadmap
+
+What comes next, starting with skill suggestions that can't be turned into an attack: [ROADMAP.md](ROADMAP.md).
+
 ## Develop
 
 Node 22.18 or later and pnpm 10. If you don't have pnpm, `npm install -g pnpm@10.28.0` (Node 25 and later no longer
