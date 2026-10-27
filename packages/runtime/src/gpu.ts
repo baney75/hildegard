@@ -13,8 +13,8 @@ export interface Gpu {
   /** Memory the GPU can use, in GB; unified memory on Apple silicon. Null when unknown. */
   vramGb: number | null;
   /**
-   * True when the GPU shares memory with the CPU (NVIDIA GB10 in the DGX Spark, Jetson), so `vramGb` is a share of
-   * system memory, not a card's own. Absent otherwise.
+   * True for an NVIDIA part that shares memory with the CPU (the GB10 in the DGX Spark), so `vramGb` is a share of
+   * system memory, not a card's own. Absent otherwise; Apple silicon shares memory too, and is told apart by `mps`.
    */
   unified?: true;
   /** uv's --torch-backend for this GPU; null means PyPI's default build (macOS). */
@@ -73,8 +73,8 @@ const gb = (bytes: number) => Math.round((bytes / 1024 ** 3) * 10) / 10;
  * quarter of headroom for activations on top.
  */
 export const UNIFIED_SHARE_LINUX = 0.9;
-/** NVIDIA parts that share memory with the CPU. */
-const UNIFIED_NAME = /\b(GB10|Grace|Thor|Orin|Jetson)\b/i;
+/** NVIDIA parts known to share memory with the CPU, and checked here: only the GB10 so far. */
+const UNIFIED_NAME = /\bGB10\b/i;
 
 /** The best GPU on this computer and the PyTorch build that runs on it. */
 export function detectGpu(p: Probe = systemProbe): Gpu {
@@ -121,7 +121,7 @@ function detectNvidia(p: Probe): Gpu | null {
     .map(([name, mem, driver, cap]) => ({
       name: name!,
       // Unified-memory parts (GB10) answer "[N/A]" here; so can a card in trouble, which must not count as unified.
-      shared: mem === '[N/A]' && ((p.platform === 'linux' && p.arch === 'arm64') || UNIFIED_NAME.test(name!)),
+      shared: mem === '[N/A]' && UNIFIED_NAME.test(name!),
       vramGb: mem === '' ? Number.NaN : Math.round((Number(mem) / 1024) * 10) / 10,
       driver: Number.parseFloat(driver!),
       cap: Number.parseFloat(cap!),

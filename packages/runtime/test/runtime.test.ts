@@ -154,6 +154,18 @@ describe('detectGpu', () => {
       }),
     );
     expect(na.unified).toBeUndefined();
+    // Nor an Arm server's discrete card, nor a Jetson that hasn't been checked.
+    for (const line of ['NVIDIA L40S, [N/A], 580.95.05, 8.9', 'Orin (nvgpu), [N/A], 540.4.0, 8.7']) {
+      const arm = detectGpu(
+        probe({
+          arch: 'arm64',
+          totalmem: 64 * 1024 ** 3,
+          run: (c) => (c === 'nvidia-smi' ? `${line}\n` : null),
+        }),
+      );
+      expect(arm.vramGb).toBeNull();
+      expect(arm.unified).toBeUndefined();
+    }
   });
 
   it('judges fit with room for offloading', () => {
