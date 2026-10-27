@@ -1468,8 +1468,8 @@ export function createApp(deps: AppDeps) {
     return c.json(deps.choir.state());
   });
   app.post('/api/choir/opportunistic', async (c) => {
-    const refused = pairLocal(c);
-    if (refused) return refused;
+    // How this computer queues its own work against your other devices': the owner's choice, from anywhere.
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
     const body = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Say on or off.' }, 400);
     deps.choir.setOpportunistic(body.data.on);

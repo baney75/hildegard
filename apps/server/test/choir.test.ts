@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { ChoirDevice, ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
-import { busyFrom, nvidiaPercent } from '../src/busy.ts';
+import { busyCheck, busyFrom, nvidiaPercent } from '../src/busy.ts';
 import {
   Choir,
   checkUrl,
@@ -409,6 +409,16 @@ describe('sharing only when the GPU device is free', () => {
     expect((await opp(true)).sharing.opportunistic).toBe(true);
     const again = new Choir({ dataDir: gpuData, secrets: memorySecrets(), onChange: () => {} });
     expect(again.opportunistic).toBe(true);
+    // Revoking and inviting again drop or add keys, never this setting.
+    const lone = mkdtempSync(join(tmpdir(), 'hg-opp-'));
+    const one = new Choir({ dataDir: lone, secrets: memorySecrets(), onChange: () => {} });
+    one.setOpportunistic(true);
+    one.invite('http://127.0.0.1:7999', 'lone');
+    one.revoke();
+    one.invite('http://127.0.0.1:7999', 'lone');
+    expect(new Choir({ dataDir: lone, secrets: memorySecrets(), onChange: () => {} }).opportunistic).toBe(
+      true,
+    );
     expect((await post(gpu, '/api/choir/opportunistic', { on: 'yes' })).status).toBe(400);
     expect((await opp(false)).sharing.opportunistic).toBe(false);
   });
@@ -471,6 +481,63 @@ describe('sharing only when the GPU device is free', () => {
     }
   });
 
+  it('stops a paired device’s render for speech, a retried take, or the mode turned on, and never to sit idle', async () => {
+    const final = (prompt: string) => ({ ...request(prompt), format: { quality: 'final', seconds: 5 } });
+    const sendAndRun = async (prompt: string) => {
+      const res = await post(mac, '/api/shots', { request: final(prompt) });
+      const t = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'running');
+      return t;
+    };
+    await opp(true);
+    try {
+      // Speech (a lease) on this computer.
+      let remote = await sendAndRun('Bells across a valley at noon');
+      const release = await gpu.scheduler.lease();
+      expect(guestStatus()).toBe('queued');
+      release();
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+
+      // A take of this computer's own that failed, retried.
+      const failed = await post(gpu, '/api/shots', { request: request('A lamp flickers [fail:node]') });
+      const bad = ((await failed.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => gpu.store.takes.get(bad.id)?.status === 'failed');
+      remote = await sendAndRun('Leaves turning on a pond');
+      expect((await post(gpu, `/api/takes/${bad.id}/retry`)).status).toBeLessThan(300);
+      await until(() => guestStatus() === 'queued');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+
+      // Paused here: a new take of its own can't start, so the paired render keeps going.
+      remote = await sendAndRun('Fog lifting off a harbour');
+      gpu.scheduler.setPaused(true);
+      const own = await post(gpu, '/api/shots', { request: request('A clock face at dawn') });
+      const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+      await new Promise((r) => setTimeout(r, 300));
+      expect(guestStatus()).toBe('running');
+      // Unpaused, it yields to that take.
+      gpu.scheduler.setPaused(false);
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      await opp(false);
+    }
+
+    // Off, with its own take waiting: turning it on stops the paired render for that take.
+    const remote = await sendAndRun('Sparks from a forge');
+    gpu.scheduler.setPaused(true);
+    const own = await post(gpu, '/api/shots', { request: request('Rain on slate'), priority: 'agent' });
+    const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+    gpu.scheduler.setPaused(false);
+    expect(guestStatus()).toBe('running');
+    await opp(true);
+    try {
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      await opp(false);
+    }
+  }, 120_000);
+
   it('runs renders straight away when it’s off, busy or not', async () => {
     gpuBusy = true;
     try {
@@ -493,8 +560,20 @@ describe('sharing only when the GPU device is free', () => {
         typeof nvidiaPercent
       >[0];
     expect(await nvidiaPercent(said('3\n71\n'))).toBe(71);
-    expect(await nvidiaPercent(said('[N/A]\n'))).toBe(null);
-    expect(await nvidiaPercent(said(null))).toBe(null);
+    // No nvidia-smi: no NVIDIA GPU. One that fails or says nothing usable: unknown, which counts as busy.
+    const missing = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) =>
+      cb(
+        Object.assign(new Error('spawn nvidia-smi ENOENT'), { code: 'ENOENT' }),
+        '',
+      )) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await nvidiaPercent(missing)).toBe(null);
+    await expect(nvidiaPercent(said('[N/A]\n'))).rejects.toThrow();
+    await expect(nvidiaPercent(said(null))).rejects.toThrow();
+    expect(await busyCheck('linux', said('12\n'))).toBe('gpu+load');
+    expect(await busyCheck('linux', said(null))).toBe('gpu+load');
+    expect(await busyCheck('linux', missing)).toBe('load');
+    expect(await busyCheck('darwin', missing)).toBe('load');
+    expect(await busyCheck('win32', missing)).toBe('none');
   });
 });
 
