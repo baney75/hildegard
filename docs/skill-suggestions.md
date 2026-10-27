@@ -30,14 +30,39 @@ everything that stands in the way.
    read that exact line and listed it in `skills/SCAN-ALLOW` (by a hash of the line, so a changed line needs a fresh
    look). `.github/CODEOWNERS` puts `skills/`, the scan, `SCAN-ALLOW` and what packs and ships skills under the owner's
    review.
-7. **App and server installs get skills only inside a signed release.** The release workflow builds the app and
-   server bundle, `hildegard.plugin` (the plugin as a file, for apps that take one) and the skill zips from main.
-   All of them are signed in the release, but once `hildegard.plugin` or a skill zip is loaded into another app,
-   nothing in that app checks the signature: check it yourself with minisign before loading one. Installs update only to a release whose minisign
-   signature checks against the key built into them (`apps/server/src/update.ts`), so no change reaches an app or
-   server install without going through main and a signed release. The Claude Code plugin is the exception: it
-   installs from this repository's main branch, which only takes reviewed, green pull requests, but nothing checks a
-   signature on that path, so a change merged to main reaches plugin users before any release. Closing that gap is
+7. **App and server installs get skills only inside a signed release.** Installs update only to a release whose
+   minisign signature checks against the key built into them (`apps/server/src/update.ts`), so no change reaches an
+   app or server install without going through main and a signed release.
+8. **Skills for other apps are signed too, and you check them.** The release signs `hildegard.plugin` (the plugin as
+   a file, for apps that take an upload), each skill zip and `SHA256SUMS` with the same key, as
+   `<file>.minisig`. The app you load them into doesn't check that signature, so check it yourself first, with the
+   key from this repository rather than from the release page:
+
+   ```sh
+   minisign -Vm hildegard.plugin -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV
+   ```
+
+   For a skill zip, the same with its name (`minisign -Vm skill-hildegard-3d.zip -P …`). To check everything at once,
+   check the list of hashes, then the files against it:
+
+   ```sh
+   minisign -Vm SHA256SUMS -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV && sha256sum -c --ignore-missing SHA256SUMS
+   ```
+
+   On a Mac, use `shasum -a 256 -c SHA256SUMS` for the second half and ignore the lines for files you didn't
+   download. On Windows, compare `(Get-FileHash hildegard.plugin -Algorithm SHA256).Hash` with the file's line in
+   `SHA256SUMS`.
+
+   The key's ID is C71F565D818B4E6E, the same one in `apps/server/src/update.ts`. A good check proves Hildegard's key
+   signed that file at some point, not that it is the newest one. minisign prints the signature's trusted comment:
+   check that it says `file:` and the name you downloaded, and that its timestamp matches the date of the latest
+   release on the releases page. Releases before signing began have no `.minisig` files; a release without them is
+   unsigned, so don't load it.
+9. **The Claude Code plugin is the exception.** It installs from this repository's main branch, and nothing checks a
+   signature on that path. Main takes the owner's pull requests once every required check passes (`auto-merge.yml`),
+   so a change merged to main reaches plugin users before any release. The owner can't review their own pull
+   request, so the `CODEOWNERS` review in step 6 applies to other people's; the owner's own, including any an agent
+   opens under the owner's account, merge on the checks alone. Closing that gap is
    [ROADMAP.md](../ROADMAP.md), section 1, step 3.
 
 ## What the scan refuses

@@ -45,9 +45,11 @@ Without the plugin: `hildegard connect claude-code` and `hildegard skills instal
 ## Claude Desktop
 
 1. `hildegard connect claude-desktop`, then quit and reopen Claude.
-2. For the skills, download `hildegard.plugin` from the [latest release](https://github.com/baney75/hildegard/releases/latest)
-   and add it in Claude: Settings › Plugins (or Customize › Plugins) › Upload. It carries the skills only, since
-   step 1 linked the tools.
+2. For the skills, download `hildegard.plugin` and `hildegard.plugin.minisig` from the
+   [latest release](https://github.com/baney75/hildegard/releases/latest) and check it:
+   `minisign -Vm hildegard.plugin -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV`
+   ([what that proves](skill-suggestions.md)). Then add it in Claude: Settings › Plugins (or Customize › Plugins) ›
+   Upload. It carries the skills only, since step 1 linked the tools.
 
 ## claude.ai, Cowork and Claude on your phone
 
