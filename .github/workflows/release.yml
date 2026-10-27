@@ -119,6 +119,15 @@ jobs:
           # One list of hashes for everything, the installers' own lines included.
           (cd out && sha256sum -- * > SHA256SUMS)
           cat out/SHA256SUMS
+          # The skills people load into other apps (hildegard.plugin, the skill zips), and the list of hashes, signed with
+          # the same key, so anyone can check them with minisign before loading one. Nothing else checks them there.
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            for f in out/SHA256SUMS out/hildegard.plugin out/skill-*.zip; do
+              npx --yes @tauri-apps/cli@2.12.2 signer sign "$f" > /dev/null
+              base64 -d "$f.sig" > "$f.minisig"
+              rm "$f.sig"
+            done
+          fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
