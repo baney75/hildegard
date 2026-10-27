@@ -583,6 +583,9 @@ describe('sharing only when the GPU device is free', () => {
         '',
       )) as unknown as Parameters<typeof nvidiaPercent>[0];
     expect(await nvidiaPercent(missing)).toBe(null);
+    // Stuck for good: it gives up on its own deadline.
+    const stuck = (() => {}) as unknown as Parameters<typeof nvidiaPercent>[0];
+    await expect(nvidiaPercent(stuck)).rejects.toThrow(/in time/);
     await expect(nvidiaPercent(said('[N/A]\n'))).rejects.toThrow();
     await expect(nvidiaPercent(said(null))).rejects.toThrow();
     expect(await busyCheck('linux', said('12\n'))).toBe('gpu+load');

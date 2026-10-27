@@ -173,10 +173,16 @@ export async function startServer(
 
   // Choir: the devices this one joined (one of which may render), and sharing this GPU with them.
   const secretsFor = opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets')));
+  // Looks at what opportunistic sharing can see of this computer being busy; set up once the server is ready.
+  let lookBusy = () => {};
+  let wasOpportunistic: boolean | null = null;
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
     onChange: (s) => {
+      // Turned on: look again now, since the driver may have stopped answering while it was off.
+      if (s.sharing.opportunistic && wasOpportunistic === false) lookBusy();
+      wasOpportunistic = s.sharing.opportunistic;
       store.emit({ type: 'choir', choir: s });
       route();
       store.emit({ type: 'models', models: modelStates() });
@@ -598,9 +604,10 @@ export async function startServer(
   scheduler.start();
 
   // The fake GPU says it can see GPU use, like an NVIDIA computer would.
-  const lookBusy = () =>
+  wasOpportunistic = choir.opportunistic;
+  lookBusy = () =>
     void (config.fake ? Promise.resolve('gpu+load' as const) : busyCheck()).then((b) => {
-      if (b === choir.busyCheck) return;
+      if (closing || b === choir.busyCheck) return;
       choir.busyCheck = b;
       choir.emit();
     });
@@ -627,6 +634,7 @@ export async function startServer(
     voiceModels,
     async close() {
       closing = true;
+      clearInterval(busyLook);
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);

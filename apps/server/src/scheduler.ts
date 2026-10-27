@@ -536,14 +536,15 @@ export class Scheduler {
         }
         this.askingBusy = true;
         const id = next.guest.id;
+        const askedAt = Date.now();
         void this.hostBusy()
           // Can't tell: count it busy, since this computer's own work comes first.
           .catch(() => true)
           .then((busy) => {
             this.askingBusy = false;
             if (this.stopped) return;
-            // Turned off while asking: the answer is for a mode that no longer applies.
-            if (!this.opportunistic) {
+            // Turned off while asking, or this computer's own work ran meanwhile and the answer measured it: ask again.
+            if (!this.opportunistic || this.running || this.leased || this.localEndedAt >= askedAt) {
               this.pump();
               return;
             }
@@ -642,6 +643,8 @@ export class Scheduler {
       g.job.signal.removeEventListener('abort', onAbort);
       this.running = null;
       this.guestRunning = null;
+      // Its GPU use and load linger a moment too, like this computer's own work.
+      this.localEndedAt = Date.now();
       this.renumber();
       this.pump();
     }

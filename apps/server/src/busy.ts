@@ -34,11 +34,16 @@ export class GpuUnknown extends Error {}
  */
 export function nvidiaPercent(run: typeof execFile = execFile): Promise<number | null> {
   return new Promise((resolve, reject) => {
+    // A wedged driver can leave nvidia-smi stuck where no signal ends it, and then no answer would ever come: give up
+    // on it after 3.5 s, whatever the process does.
+    const deadline = setTimeout(() => reject(new GpuUnknown('nvidia-smi didn’t answer in time.')), 3500);
+    deadline.unref?.();
     run(
       'nvidia-smi',
       ['--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
       { timeout: 3000, windowsHide: true },
       (err, stdout) => {
+        clearTimeout(deadline);
         if ((err as NodeJS.ErrnoException | null)?.code === 'ENOENT') return resolve(null);
         if (err) return reject(new GpuUnknown(err.message));
         const v = String(stdout)
