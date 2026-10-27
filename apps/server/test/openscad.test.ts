@@ -365,9 +365,10 @@ describe('running OpenSCAD', () => {
     expect(said).toContain('<library>/BOSL2/std.scad');
     expect(said).toContain('<path>');
     expect(said).toContain('"M3/screw"');
-    expect(ownFiles('/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD')).toEqual([
-      '/Applications/OpenSCAD.app',
-    ]);
+    if (unix)
+      expect(ownFiles('/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD')).toEqual([
+        '/Applications/OpenSCAD.app',
+      ]);
   });
 
   it('writes parts as one OBJ without holding every vertex in one array, and refuses too big a mesh', () => {
@@ -627,7 +628,11 @@ describe('running OpenSCAD', () => {
       const dir = round();
       const s = ok(`cat "${hidden}/secret.txt" > "${dir}/leak" 2>/dev/null; true`);
       const sandbox = findSandbox({ round: dir, read: [join(s.path, '..')], hide: [hidden] });
-      expect(sandbox?.kind).toBe('bwrap');
+      const why = sandbox
+        ? ''
+        : spawnSync('bwrap', [...bwrapArgs({ round: dir, read: [], hide: [] }), 'true'], { encoding: 'utf8' })
+            .stderr;
+      expect(sandbox?.kind, why).toBe('bwrap');
       await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], { sandbox });
       expect(readFileSync(join(dir, 'leak'), 'utf8')).toBe('');
     },
@@ -643,6 +648,7 @@ describe('running OpenSCAD', () => {
     expect(j).toContain('--ro-bind /usr /usr');
     expect(j).toContain('--ro-bind-try /lib/x /lib/x');
     expect(j).toContain('--bind /r /r');
+    expect(a.indexOf('/tmp')).toBeLessThan(a.indexOf('/r'));
     expect(j).toContain('--remount-ro /');
     expect(a).toContain('--unshare-all');
     expect(a).toContain('--die-with-parent');

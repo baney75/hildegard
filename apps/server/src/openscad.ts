@@ -568,7 +568,7 @@ const LINUX_ETC = [
 
 /**
  * bubblewrap's arguments: an empty, read-only root holding only the system's programs and libraries, fonts, the
- * libraries and OpenSCAD; the round writable, and its private folder as /tmp; no network, no other processes.
+ * libraries and OpenSCAD; a 64 MB /tmp of its own; the round writable; no network, no other processes.
  */
 export function bwrapArgs(plan: SandboxPlan, lstat: (p: string) => 'dir' | 'link' | null = kindOf): string[] {
   const args: string[] = ['--ro-bind', '/usr', '/usr'];
@@ -578,16 +578,13 @@ export function bwrapArgs(plan: SandboxPlan, lstat: (p: string) => 'dir' | 'link
     else if (k === 'dir') args.push('--ro-bind', d, d);
   }
   for (const e of LINUX_ETC) args.push('--ro-bind-try', e, e);
-  args.push('--dev', '/dev', '--proc', '/proc');
+  // A small /tmp of its own first, so the round (which may be under /tmp) is bound over it, not hidden by it.
+  args.push('--dev', '/dev', '--proc', '/proc', '--size', String(64 * 1024 * 1024), '--tmpfs', '/tmp');
   for (const r of plan.read) args.push('--ro-bind-try', r, r);
-  const priv = join(plan.round, PRIVATE);
   args.push(
     '--bind',
     plan.round,
     plan.round,
-    '--bind',
-    priv,
-    '/tmp',
     '--remount-ro',
     '/',
     '--unshare-all',
