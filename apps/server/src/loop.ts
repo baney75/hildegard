@@ -38,6 +38,7 @@ import {
   looksLikeScad,
   mainScad,
   readRound,
+  type ScadBudget,
   ScadError,
   type ScadRender,
   scadTimeoutMs,
@@ -296,11 +297,12 @@ export function sniff(b: Uint8Array): string | null {
   }
   const head = new TextDecoder('utf-8', { fatal: false }).decode(b.subarray(0, 4096)).trimStart();
   if (/^(\ufeff)?\s*(<!--[\s\S]*?-->\s*)*<(!doctype html|html|head|body)[\s>]/i.test(head)) return 'html';
-  if (/^solid[\s\S]*facet/i.test(head)) return 'stl';
+  if (/^solid[^\n]*\r?\n\s*facet\s+normal/i.test(head)) return 'stl';
   if (/^\{[\s\S]*"asset"/.test(head)) return 'gltf';
   // Comments, groups and named objects (`o lid`), materials and smoothing may come before the first vertex.
   if (/^(#[^\n]*\n|\s|[og] [^\n]*\n|mtllib [^\n]*\n|s [^\n]*\n)*v\s+-?[\d.]/.test(head)) return 'obj';
-  if (looksLikeScad(head)) return 'scad';
+  // A licence or a long comment may come first in OpenSCAD source, so it reads further.
+  if (looksLikeScad(new TextDecoder('utf-8', { fatal: false }).decode(b.subarray(0, 65_536)))) return 'scad';
   return null;
 }
 
@@ -322,15 +324,15 @@ export interface LoopDeps {
   slice?: (files: string[], keep: string) => Promise<SliceResult | null>;
   /**
    * Renders OpenSCAD source (the round's files, laid out in `dir`) into a binary STL at `out`, only the named `part`
-   * when given, by `deadline` (when the whole round must be done); null (or absent) when this computer has no OpenSCAD.
+   * when given, taking its time from the round's `budget`; null (or absent) when this computer has no OpenSCAD.
    */
   renderScad?: (
     dir: string,
     main: string,
     out: string,
-    opts: { part?: string; deadline: number },
+    opts: { part?: string; budget: ScadBudget },
   ) => Promise<ScadRender | null>;
-  /** Whether OpenSCAD runs sandboxed here, so a round's includes may reach the libraries on this computer. */
+  /** Whether OpenSCAD runs sandboxed here, so a round may include libraries and import data files. */
   scadSandboxed?: () => boolean;
   /** Renders and checks a web page; absent when this computer has no Chromium-family browser. */
   reviewWeb?: (spec: WebSpec) => Promise<Review>;
@@ -657,7 +659,7 @@ export class Loops {
     }
     try {
       const main = mainScad(names);
-      const problems = vetScad(readRound(src, names), { libraries: this.deps.scadSandboxed?.() ?? false });
+      const problems = vetScad(readRound(src, names), { sandboxed: this.deps.scadSandboxed?.() ?? false });
       if (problems.length)
         throw new LoopError(
           422,
@@ -665,11 +667,11 @@ export class Loops {
           `Hildegard won’t run this source: it reaches for files outside the round.\n${problems.slice(0, 10).join('\n')}`,
         );
       const parts = declaredParts(readFileSync(join(src, main), 'utf8'));
-      // One time limit for the whole round, however many parts it renders.
-      const deadline = Date.now() + scadTimeoutMs();
+      // One time limit for the whole round, however many parts it renders, counted while OpenSCAD runs.
+      const budget: ScadBudget = { ms: scadTimeoutMs() };
       if (!parts) {
         const file = `round-${n}.stl`;
-        const r = await this.deps.renderScad!(src, main, join(dir, file), { deadline });
+        const r = await this.deps.renderScad!(src, main, join(dir, file), { budget });
         if (!r) throw noOpenScad();
         return { rendered: r, file };
       }
@@ -680,7 +682,7 @@ export class Loops {
         const out = join(src, `.part-${part}.stl`);
         let r: ScadRender | null;
         try {
-          r = await this.deps.renderScad!(src, main, out, { part, deadline });
+          r = await this.deps.renderScad!(src, main, out, { part, budget });
         } catch (e) {
           if (e instanceof ScadError) throw new ScadError(`Part “${part}”: ${e.message}`, e.log);
           throw e;

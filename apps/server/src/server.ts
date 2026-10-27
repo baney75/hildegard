@@ -407,6 +407,8 @@ export async function startServer(
   const chrome = opts.chrome === undefined ? findChrome() : opts.chrome;
   // Looked for each time, so OpenSCAD installed while Hildegard runs is used without a restart.
   const openscad = () => (opts.openscad === undefined ? findOpenScad() : opts.openscad);
+  // Hidden from OpenSCAD: the owner's home and Hildegard's data, but for the round and the libraries.
+  const scadHidden = [homedir(), config.dataDir];
   const app = createApp({
     lookBusy: () => lookBusy(),
     updates,
@@ -436,15 +438,16 @@ export async function startServer(
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
       reviewWeb: webReviewer(chrome),
-      renderScad: async (dir, main, out, { part, deadline }) => {
+      renderScad: async (dir, main, out, { part, budget }) => {
         const o = openscad();
-        // Hidden from OpenSCAD: the owner's home and Hildegard's data, but for the round and the libraries.
-        const hide = [homedir(), config.dataDir];
         return o
-          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), { part, deadline, hide })
+          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), { part, budget, hide: scadHidden })
           : null;
       },
-      scadSandboxed: () => canSandbox(),
+      scadSandboxed: () => {
+        const o = openscad();
+        return !!o && canSandbox(o.path, scadHidden);
+      },
       printer: () => printer.get(),
       slice: (files, keep) => {
         const p = printer.get();
@@ -463,7 +466,7 @@ export async function startServer(
         found: o,
         libraryDirs: dirs,
         libraries: listLibraries(dirs).map((l) => l.name),
-        sandbox: sandboxKind(),
+        sandbox: o ? sandboxKind(o.path, scadHidden) : null,
       };
     },
     sites: {

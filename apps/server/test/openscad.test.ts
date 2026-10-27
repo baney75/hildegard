@@ -23,11 +23,11 @@ import {
   declaredParts,
   findOpenScad,
   findSandbox,
-  installDir,
   looksLikeScad,
   mainScad,
   type OpenScad,
   openScadCandidates,
+  ownFiles,
   readLog,
   renderScad,
   type ScadRender,
@@ -43,11 +43,13 @@ import {
 } from '../src/openscad.ts';
 
 const files = (o: Record<string, string>) => new Map(Object.entries(o));
+/** A round read as where OpenSCAD runs sandboxed, unless a test says otherwise. */
+const vet = (f: Map<string, string>, o = { sandboxed: true }) => vetScad(f, o);
 
 describe('reading OpenSCAD source before it runs', () => {
   it('lets a round include its own files and libraries', () => {
     expect(
-      vetScad(
+      vet(
         files({
           'main.scad': 'include <BOSL2/std.scad>\nuse <parts/lid.scad>\nlid();\nimport("logo.svg");',
           'parts/lid.scad': 'module lid() cube(10);\nsurface(file = "../height.png");',
@@ -59,7 +61,7 @@ describe('reading OpenSCAD source before it runs', () => {
   });
 
   it('refuses includes that leave the round', () => {
-    const p = vetScad(
+    const p = vet(
       files({
         'main.scad':
           'include </etc/passwd>\nuse <../../secret.scad>\ninclude <C:\\Users\\me\\x.scad>\ninclude<~/.ssh/id>\ncube(1);',
@@ -70,7 +72,7 @@ describe('reading OpenSCAD source before it runs', () => {
   });
 
   it('wants import and surface to name, as a plain string, a file the round carries', () => {
-    const p = vetScad(
+    const p = vet(
       files({
         'main.scad': [
           'f = "/etc/hostname";',
@@ -90,7 +92,7 @@ describe('reading OpenSCAD source before it runs', () => {
 
   it('ignores the words in comments and strings', () => {
     expect(
-      vetScad(
+      vet(
         files({
           'main.scad':
             '// include </etc/passwd>\n/* import(x) */\necho("import(f); include </x>");\ncube(1); // surface(f)',
@@ -120,6 +122,11 @@ describe('reading OpenSCAD source before it runs', () => {
     const b = (s: string) => new TextEncoder().encode(s);
     expect(sniff(b('module peg(h) { cylinder(h = h, d = 5); }\npeg(10);'))).toBe('scad');
     expect(sniff(b('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'))).toBe('obj');
+    expect(sniff(b('solid_wall = 2;\n// the facet count\ncube(solid_wall);'))).toBe('scad');
+    expect(
+      sniff(b(`/*\n${'Licensed under the MIT licence. '.repeat(200)}\n*/\nwidth = 20;\ncube(width);`)),
+    ).toBe('scad');
+    expect(sniff(b('solid x\n  facet normal 0 0 1\n'))).toBe('stl');
   });
 
   it('reads the parts a print names at its top level', () => {
@@ -172,11 +179,13 @@ function stl(n: number): Buffer {
 }
 
 const unix = process.platform !== 'win32';
-const noLib = { libraries: false };
+const bwrapOk =
+  process.platform === 'linux' && spawnSync('bwrap', ['--ro-bind', '/', '/', 'true']).status === 0;
+const noLib = { sandboxed: false };
 
 describe('every include and use, as OpenSCAD reads them', () => {
   it('refuses includes of anything but .scad files, so no unread file runs as source', () => {
-    const p = vetScad(
+    const p = vet(
       files({
         'main.scad':
           'include <helpers.inc>\nuse <data.json>\ninclude <notes.txt>\ninclude <x.SCAD>\ncube(1);',
@@ -187,7 +196,7 @@ describe('every include and use, as OpenSCAD reads them', () => {
     );
     expect(p).toHaveLength(4);
     for (const x of p) expect(x).toContain('only OpenSCAD files, named .scad');
-    expect(vetScad(files({ 'main.scad': 'cube(1);', 'x.SCAD': 'import("/etc/x");' }))[0]).toContain(
+    expect(vet(files({ 'main.scad': 'cube(1);', 'x.SCAD': 'import("/etc/x");' }))[0]).toContain(
       'lowercase .scad',
     );
   });
@@ -200,18 +209,18 @@ describe('every include and use, as OpenSCAD reads them', () => {
       'include >> </tmp/canary.scad>\ncube(1);',
       'x = 1.5include</etc/x.scad>\ncube(1);',
     ])
-      expect(vetScad(files({ 'main.scad': src })).join('\n'), JSON.stringify(src)).toMatch(
+      expect(vet(files({ 'main.scad': src })).join('\n'), JSON.stringify(src)).toMatch(
         /reaches outside the round/,
       );
     expect(tokenize('a = x_include<y;').some((t) => t.t === 'inc')).toBe(false);
-    expect(vetScad(files({ 'main.scad': 'refuse = 2; b = refuse < 3 ? 1 : 0; cube(b);' }))).toEqual([]);
+    expect(vet(files({ 'main.scad': 'refuse = 2; b = refuse < 3 ? 1 : 0; cube(b);' }))).toEqual([]);
   });
 
   it('refuses include and use when they aren’t a path in < >, so a lexer it doesn’t match fails closed', () => {
-    const p = vetScad(files({ 'main.scad': 'include /* hide */ </etc/x.scad>\nuse;\ncube(1);' }));
+    const p = vet(files({ 'main.scad': 'include /* hide */ </etc/x.scad>\nuse;\ncube(1);' }));
     expect(p.join('\n')).toMatch(/write include as include <file.scad>/);
     expect(p.join('\n')).toMatch(/write use as use <file.scad>/);
-    expect(vetScad(files({ 'main.scad': 'include <a.scad\ncube(1);', 'a.scad': '' }))[0]).toContain(
+    expect(vet(files({ 'main.scad': 'include <a.scad\ncube(1);', 'a.scad': '' }))[0]).toContain(
       'no closing >',
     );
   });
@@ -221,14 +230,14 @@ describe('every include and use, as OpenSCAD reads them', () => {
       'import("logo.svg", convexity =\ninclude </tmp/n.scad>\n);',
       'import("logo.svg",\ninclude </dev/zero.scad>',
     ])
-      expect(vetScad(files({ 'main.scad': src, 'logo.svg': '' })).join('\n')).toMatch(
+      expect(vet(files({ 'main.scad': src, 'logo.svg': '' })).join('\n')).toMatch(
         /reaches outside the round/,
       );
   });
 
   it('resolves an include or import from the folder of the file that names it, and nowhere else', () => {
     expect(
-      vetScad(
+      vet(
         files({
           'main.scad': 'use <parts/lid.scad>\nlid();',
           'parts/lid.scad': 'import("logo.svg");',
@@ -237,31 +246,50 @@ describe('every include and use, as OpenSCAD reads them', () => {
       ).join('\n'),
     ).toContain('parts/lid.scad, line 1: import("logo.svg") must name a file sent with this round');
     expect(
-      vetScad(
+      vet(
         files({
           'main.scad': 'use <parts/lid.scad>\nlid();',
           'parts/lid.scad': 'import("logo.svg");',
           'parts/logo.svg': '',
         }),
-        noLib,
       ),
     ).toEqual([]);
   });
 
+  it('reads data files only where OpenSCAD runs sandboxed, since its parsers for them run on what the agent sent', () => {
+    const round = files({ 'main.scad': 'import("x.stl");\nsurface("h.png");', 'x.stl': '', 'h.png': '' });
+    expect(vet(round)).toEqual([]);
+    const p = vet(round, noLib);
+    expect(p).toHaveLength(2);
+    for (const x of p) expect(x).toContain('only where OpenSCAD runs sandboxed');
+  });
+
+  it('reads deep nesting in one pass, and refuses what’s too deep or too big', () => {
+    const deep = `cube(1);\n${'f('.repeat(100_000)}${')'.repeat(100_000)};`;
+    const started = Date.now();
+    expect(vet(files({ 'main.scad': deep })).join('\n')).toContain('nested deeper than 256');
+    expect(Date.now() - started).toBeLessThan(3000);
+    const wide = `cube(1);\n${'f(1, g(2, h(3))); '.repeat(50_000)}`;
+    const t2 = Date.now();
+    expect(vet(files({ 'main.scad': wide }))).toEqual([]);
+    expect(Date.now() - t2).toBeLessThan(3000);
+    expect(vet(files({ 'main.scad': `x = "${'a'.repeat(5 * 1024 * 1024)}";` }))[0]).toContain('over 4 MB');
+  });
+
   it('takes libraries only where OpenSCAD runs sandboxed', () => {
     const round = files({ 'main.scad': 'include <BOSL2/std.scad>\ncuboid(10);' });
-    expect(vetScad(round, { libraries: true })).toEqual([]);
-    expect(vetScad(round, noLib)[0]).toContain('libraries can’t be used here');
+    expect(vet(round, { sandboxed: true })).toEqual([]);
+    expect(vet(round, noLib)[0]).toContain('libraries can’t be used here');
     // Its own files still may be included.
     expect(
-      vetScad(files({ 'main.scad': 'use <lib/a.scad>\na();', 'lib/a.scad': 'module a() cube(1);' }), noLib),
+      vet(files({ 'main.scad': 'use <lib/a.scad>\na();', 'lib/a.scad': 'module a() cube(1);' }), noLib),
     ).toEqual([]);
   });
 });
 
 describe('the other ways OpenSCAD reads files', () => {
   it('refuses every built-in that reads a file by name besides import and surface', () => {
-    const p = vetScad(
+    const p = vet(
       files({
         'main.scad': [
           'echo(dxf_dim(file = "/abs/drawing.dxf", name = "w"));',
@@ -279,7 +307,7 @@ describe('the other ways OpenSCAD reads files', () => {
   });
 
   it('wants import’s file once, and none of its other strings to look like a path', () => {
-    const round = (src: string) => vetScad(files({ 'main.scad': src, 'logo.svg': '', 'b.dxf': '' }));
+    const round = (src: string) => vet(files({ 'main.scad': src, 'logo.svg': '', 'b.dxf': '' }));
     expect(round('import(file = "logo.svg", file = "/etc/x.svg");')[0]).toContain(
       'give import its file once',
     );
@@ -337,9 +365,9 @@ describe('running OpenSCAD', () => {
     expect(said).toContain('<library>/BOSL2/std.scad');
     expect(said).toContain('<path>');
     expect(said).toContain('"M3/screw"');
-    expect(installDir('/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD')).toBe(
+    expect(ownFiles('/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD')).toEqual([
       '/Applications/OpenSCAD.app',
-    );
+    ]);
   });
 
   it('writes parts as one OBJ without holding every vertex in one array, and refuses too big a mesh', () => {
@@ -356,6 +384,18 @@ describe('running OpenSCAD', () => {
     expect(obj.trimEnd().split('\n').at(-1)).toBe('f 900004 900005 900006');
     expect(() => writePartsObj(join(dir, 'q.obj'), [{ name: 'a', stl: join(dir, 'a.stl') }], 1000)).toThrow(
       /over/,
+    );
+    // Under the cap as STL, over it as OBJ text: stopped, and nothing left behind.
+    const stlBytes = statSync(join(dir, 'a.stl')).size;
+    expect(() =>
+      writePartsObj(join(dir, 'r.obj'), [{ name: 'a', stl: join(dir, 'a.stl') }], stlBytes + 10),
+    ).toThrow(/over/);
+    expect(existsSync(join(dir, 'r.obj'))).toBe(false);
+    const bad = stl(1);
+    bad.writeFloatLE(Number.NaN, 84 + 12);
+    writeFileSync(join(dir, 'nan.stl'), bad);
+    expect(() => writePartsObj(join(dir, 'n.obj'), [{ name: 'n', stl: join(dir, 'nan.stl') }])).toThrow(
+      /infinity/,
     );
   });
 
@@ -407,7 +447,7 @@ describe('running OpenSCAD', () => {
       const started = Date.now();
       const e = await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], {
         sandbox: null,
-        deadline: Date.now() + 700,
+        budget: { ms: 700 },
       }).catch((x) => x);
       expect(e.message).toContain('took longer');
       expect(Date.now() - started).toBeLessThan(5000);
@@ -460,6 +500,105 @@ describe('running OpenSCAD', () => {
     expect(lines).toEqual(['start', 'end', 'start', 'end']);
   });
 
+  it.runIf(unix)('starts a round’s time when its render starts, not while it waits its turn', async () => {
+    const dir = round();
+    const slow = ok('sleep 0.6');
+    const budget = { ms: 400 };
+    const first = renderScad(slow, dir, 'main.scad', join(dir, 'a.stl'), [], { sandbox: null });
+    const second = renderScad(ok(), dir, 'main.scad', join(dir, 'b.stl'), [], { sandbox: null, budget });
+    await Promise.all([first, second]);
+    expect(budget.ms).toBeGreaterThan(0);
+    expect(budget.ms).toBeLessThan(400);
+  });
+
+  it.runIf(unix)('turns renders away as busy once too many wait', async () => {
+    const dir = round();
+    const slow = ok('sleep 0.3');
+    const all = Array.from({ length: 9 }, (_, i) =>
+      renderScad(slow, dir, 'main.scad', join(dir, `q${i}.stl`), [], { sandbox: null }).then(
+        () => 'ok',
+        (e: Error) => e.message,
+      ),
+    );
+    const said = await Promise.all(all);
+    expect(said.filter((x) => x.includes('busy')).length).toBeGreaterThan(0);
+    expect(said.filter((x) => x === 'ok').length).toBeGreaterThan(0);
+  });
+
+  it.runIf(unix)('stops an export that grows past the cap while it runs', async () => {
+    const dir = round();
+    const s = fake(
+      'while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then out="$2"; fi; shift; done\nhead -c 4000000 /dev/zero > "$out"\nsleep 30',
+    );
+    const started = Date.now();
+    const e = await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], {
+      sandbox: null,
+      maxBytes: 1_000_000,
+    }).catch((x) => x);
+    expect(e.message).toContain('over');
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it('opens only OpenSCAD’s own files to the sandbox, never a hidden folder they sit in', () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-home-'));
+    mkdirSync(join(home, 'bin'));
+    writeFileSync(join(home, 'bin', 'openscad'), '');
+    expect(ownFiles(join(home, 'bin', 'openscad'), [home])).toBeNull();
+    expect(ownFiles(join(home, 'OpenSCAD-2025.AppImage'), [home])).toBeNull();
+    expect(ownFiles('/usr/bin/openscad', [home])).toEqual([]);
+    expect(
+      ownFiles(join(home, 'Applications', 'OpenSCAD.app', 'Contents', 'MacOS', 'OpenSCAD'), [home]),
+    ).toEqual([join(home, 'Applications', 'OpenSCAD.app')]);
+  });
+
+  it('keeps paths with spaces out of what OpenSCAD says, whole', () => {
+    const r = '/Users/jane doe/Library/Application Support/Hildegard/loops/a/round-1.src';
+    const said = scrubPaths(
+      `ERROR: in file ${r}/main.scad, line 2\nWARNING: in file /Users/jane doe/Documents/OpenSCAD/libraries/BOSL2/std.scad, line 1\nCan't open /Users/jane doe/Desktop/x.stl`,
+      r,
+      ['/Users/jane doe/Documents/OpenSCAD/libraries'],
+      ['/Users/jane doe'],
+    );
+    expect(said).not.toContain('jane');
+    expect(said).not.toContain('Support');
+    expect(said).toContain('main.scad, line 2');
+    expect(said).toContain('<library>/BOSL2/std.scad');
+  });
+
+  it.runIf(process.platform === 'darwin')(
+    'writes the mesh where it’s asked for, outside the round, from the sandbox',
+    async () => {
+      const dir = round();
+      const elsewhere = mkdtempSync(join(tmpdir(), 'hg-loop-'));
+      const s = ok();
+      const sandbox = findSandbox({ round: dir, read: [join(s.path, '..')], hide: [elsewhere] });
+      const r = await renderScad(s, dir, 'main.scad', join(elsewhere, 'round-1.stl'), [], { sandbox });
+      expect(statSync(r.out).size).toBe(84 + 50);
+    },
+  );
+
+  it.runIf(process.platform === 'darwin' || bwrapOk)(
+    'stops a sandboxed render at the deadline too',
+    async () => {
+      const dir = round();
+      const s = fake(`sleep 30 &\necho $! > "${dir}/child.pid"\nsleep 30`);
+      const sandbox = findSandbox({ round: dir, read: [join(s.path, '..')], hide: [] });
+      expect(sandbox).not.toBeNull();
+      const started = Date.now();
+      const e = await renderScad(s, dir, 'main.scad', join(dir, 'x.stl'), [], {
+        sandbox,
+        budget: { ms: 700 },
+      }).catch((x) => x);
+      expect(e.message).toContain('took longer');
+      expect(Date.now() - started).toBeLessThan(5000);
+      await new Promise((r) => setTimeout(r, 300));
+      if (process.platform === 'darwin') {
+        const pid = Number(readFileSync(join(dir, 'child.pid'), 'utf8'));
+        expect(() => process.kill(pid, 0)).toThrow();
+      } else expect(spawnSync('pgrep', ['-f', 'sleep 30']).stdout.toString().trim()).toBe('');
+    },
+  );
+
   it.runIf(process.platform === 'darwin')(
     'runs OpenSCAD in a sandbox that hides the owner’s files on macOS',
     async () => {
@@ -480,7 +619,7 @@ describe('running OpenSCAD', () => {
 
   const bwrap =
     process.platform === 'linux' && spawnSync('bwrap', ['--ro-bind', '/', '/', 'true']).status === 0;
-  it.runIf(bwrap || !!process.env.HILDEGARD_EXPECT_SANDBOX)(
+  it.runIf(bwrapOk || !!process.env.HILDEGARD_EXPECT_SANDBOX)(
     'runs OpenSCAD in bubblewrap on Linux',
     async () => {
       const hidden = mkdtempSync(join(tmpdir(), 'hg-hidden-'));
@@ -494,25 +633,31 @@ describe('running OpenSCAD', () => {
     },
   );
 
-  it('builds bubblewrap’s arguments: the system read only, home hidden, the round writable, no network', () => {
-    const a = bwrapArgs({ round: '/r', read: ['/lib'], hide: ['/home/a'] });
-    expect(a.join(' ')).toContain('--ro-bind / /');
-    expect(a.join(' ')).toContain('--tmpfs /home/a');
-    expect(a.join(' ')).toContain('--bind /r /r');
-    expect(a).toContain('--unshare-net');
-    expect(a.indexOf('--tmpfs')).toBeLessThan(a.indexOf('--bind'));
+  it('builds bubblewrap’s arguments: an empty root with only the system, the round writable, no network', () => {
+    const a = bwrapArgs({ round: '/r', read: ['/lib/x'], hide: ['/home/a'] }, (p) =>
+      p === '/lib' ? 'link' : null,
+    );
+    const j = a.join(' ');
+    expect(j).not.toContain('--ro-bind / /');
+    expect(j).not.toContain('/home');
+    expect(j).toContain('--ro-bind /usr /usr');
+    expect(j).toContain('--ro-bind-try /lib/x /lib/x');
+    expect(j).toContain('--bind /r /r');
+    expect(j).toContain('--remount-ro /');
+    expect(a).toContain('--unshare-all');
+    expect(a).toContain('--die-with-parent');
   });
 });
 
 describe('a round of OpenSCAD source', () => {
-  it('records the rendered file’s size, the source’s apart, and gives every part one deadline', async () => {
+  it('records the rendered file’s size, the source’s apart, and gives every part one time budget', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-loops-'));
-    const deadlines: number[] = [];
+    const budgets: object[] = [];
     const loops = new Loops({
       dir,
       scadSandboxed: () => false,
       renderScad: async (_dir, _main, out, o) => {
-        deadlines.push(o.deadline);
+        budgets.push(o.budget);
         writeFileSync(out, stl(10));
         return {
           out,
@@ -535,8 +680,8 @@ describe('a round of OpenSCAD source', () => {
     expect(r.sourceBytes).toBe(src.length);
     expect(r.bytes).toBe(statSync(join(dir, l.id, r.file)).size);
     expect(r.bytes).not.toBe(src.length);
-    expect(deadlines).toHaveLength(2);
-    expect(deadlines[0]).toBe(deadlines[1]);
+    expect(budgets).toHaveLength(2);
+    expect(budgets[0]).toBe(budgets[1]);
   });
 });
 
