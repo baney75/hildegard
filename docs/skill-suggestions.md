@@ -49,10 +49,15 @@ everything that stands in the way.
    minisign -Vm SHA256SUMS -P RWRuTouBXVYfx+4G+nXGdy1FJZ87J5avjw/lHDAES6YnmumXkpK7y0FV && sha256sum -c --ignore-missing SHA256SUMS
    ```
 
+   On a Mac, use `shasum -a 256 -c SHA256SUMS` for the second half and ignore the lines for files you didn't
+   download. On Windows, compare `(Get-FileHash hildegard.plugin -Algorithm SHA256).Hash` with the file's line in
+   `SHA256SUMS`.
+
    The key's ID is C71F565D818B4E6E, the same one in `apps/server/src/update.ts`. A good check proves Hildegard's key
-   signed that file at some point, not that it is the newest one: minisign prints the signature's trusted comment, so
-   make sure the release you downloaded from is the latest on the releases page. Releases before 0.1.10 have no
-   `.minisig` files; a release without them is unsigned, so don't load it.
+   signed that file at some point, not that it is the newest one. minisign prints the signature's trusted comment:
+   check that it says `file:` and the name you downloaded, and that its timestamp matches the date of the latest
+   release on the releases page. Releases before signing began have no `.minisig` files; a release without them is
+   unsigned, so don't load it.
 9. **The Claude Code plugin is the exception.** It installs from this repository's main branch, and nothing checks a
    signature on that path. Main takes the owner's pull requests once every required check passes (`auto-merge.yml`),
    so a change merged to main reaches plugin users before any release. The owner can't review their own pull

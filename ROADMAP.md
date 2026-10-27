@@ -18,7 +18,7 @@ In place now:
 - a maintainer writes any change in their own words; CI scans every skill file (`scripts/check-skills.mjs`), and
   `CODEOWNERS` puts `skills/`, the scan and `SCAN-ALLOW` under the owner's review;
 - app and server installs update only to a release signed with minisign, checked against the key built into them;
-- from 0.1.10 the release signs `hildegard.plugin`, each skill zip and `SHA256SUMS` too, and refuses to publish if
+- from the next release on, each release signs `hildegard.plugin`, each skill zip and `SHA256SUMS` too, and refuses to publish if
   the key is missing. The app you load one into doesn't check that, so the docs give the key and the `minisign`
   command to check it yourself;
 - the Claude Code plugin is the exception: it installs from `main`, and nothing checks a signature on that path.
@@ -73,7 +73,9 @@ Next, in order:
    - The loader and its pinned keys are the root of trust for every plugin user, and they still come from `main`
      unsigned: that is the risk this step accepts, kept small by keeping the loader short and under `CODEOWNERS`.
    - Two keys are pinned: the release key, and a recovery key kept offline. Only the recovery key can sign a new
-     release key or revoke one, so a stolen release key can't rotate itself.
+     release key or revoke one, so a stolen release key can't rotate itself. A revocation also clears the stored
+     version floor and every cached bundle signed by the revoked key, so a bundle signed with a stolen key and a huge
+     version number can't lock out the real releases.
 
    Done when a bundle that fails the signature check, an older signed bundle, a bundle past 30 days and an unreachable
    release host each leave the agent with no unsigned skills and say why, `CODEOWNERS` covers the loader and both
