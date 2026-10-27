@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { signedInstaller } from '../src/update.ts';
+import { installerFailure, signedInstaller } from '../src/update.ts';
 
 // The server's fixtures: installers for 9.9.9, signed with a throwaway key.
 const dir = fileURLToPath(new URL('../../server/test/fixtures/update/', import.meta.url));
@@ -20,6 +20,21 @@ function github(files: Record<string, string>) {
   }) as unknown as typeof fetch;
   return { f, asked };
 }
+
+describe('a failed update', () => {
+  it('says why setup stopped and what runs now', () => {
+    const out = '{"ok":false,"needsOwner":false,"steps":[],"message":"PyTorch’s download timed out."}\n';
+    const err =
+      'Going back to Hildegard 0.1.9.\nHildegard 0.1.9 is running again.\nhildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again: hildegard install\n';
+    expect(installerFailure('0.1.10', out, err)).toBe(
+      'The 0.1.10 installer stopped: PyTorch’s download timed out. hildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again: hildegard install',
+    );
+    expect(installerFailure('0.1.10', '', '')).toMatch(/installer stopped\. .* is still installed\./);
+    expect(installerFailure('0.1.10', 'not json', 'hildegard: couldn’t download it.')).toBe(
+      'The 0.1.10 installer stopped: hildegard: couldn’t download it.',
+    );
+  });
+});
 
 describe('signedInstaller', () => {
   it('returns the release’s installer when its signature checks out', async () => {

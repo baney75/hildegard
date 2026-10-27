@@ -50,6 +50,27 @@ export async function signedInstaller(
   return script;
 }
 
+/**
+ * What a failed update says: why setup stopped (its own JSON message, when it gave one) and the installer's last line,
+ * which says what runs now. Without those, that this version is still installed.
+ */
+export function installerFailure(latest: string, stdout: string, stderr: string): string {
+  let why = '';
+  for (const line of stdout.trim().split('\n').reverse()) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const m = (JSON.parse(line) as { message?: unknown }).message;
+      if (typeof m === 'string' && m) why = m;
+    } catch {}
+    break;
+  }
+  const last = stderr.trim().split('\n').at(-1)?.trim() ?? '';
+  const parts = [why, last].filter(Boolean);
+  return parts.length
+    ? `The ${latest} installer stopped: ${parts.join(' ')}`
+    : `The ${latest} installer stopped. ${VERSION} is still installed.`;
+}
+
 export async function update(ctx: Ctx): Promise<Result> {
   let latest: string;
   try {
@@ -142,7 +163,7 @@ export async function update(ctx: Ctx): Promise<Result> {
           id: 'update',
           title,
           status: 'failed',
-          detail: `The ${latest} installer stopped${r.stderr ? `: ${r.stderr.trim().split('\n').at(-1)}` : '.'} ${VERSION} is still installed.`,
+          detail: installerFailure(latest, r.stdout ?? '', r.stderr ?? ''),
         },
       ],
       'Hildegard wasn’t updated.',

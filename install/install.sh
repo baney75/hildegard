@@ -20,6 +20,8 @@ set -eu
 VERSION=@VERSION@
 NODE=@NODE@
 RELEASE=${HILDEGARD_RELEASE_URL:-https://github.com/baney75/hildegard/releases/download/v$VERSION}
+# Where Node.js comes from. Each file is still checked against the SHA-256 written below, wherever it comes from.
+NODE_DIST=${HILDEGARD_NODE_URL:-https://nodejs.org/dist}
 
 say() { printf '%s\n' "$*" >&2; }
 # When an older Hildegard runs this to update itself, its own paths are in the environment. They name the version being
@@ -106,9 +108,30 @@ checked() { # url file sha
   [ "$got" = "$3" ] || die "$(basename "$2") didn't match its checksum (expected $3, got $got). Nothing was installed."
 }
 
+# Until setup finishes, the version this replaces is kept: its app folder, and its Node.js in node.prev. If anything
+# fails, restore() puts it back, so a failed update leaves the old Hildegard as it was.
+prev=$(readlink "$home/app" 2>/dev/null || true)
+[ "$prev" = "app-$VERSION" ] && prev=
+switched=
+committed=
+restore() {
+  [ -n "$committed" ] && return 0
+  committed=1
+  if [ -n "$switched" ] && [ -n "$prev" ] && [ -d "$home/$prev" ]; then
+    # Whatever started from the new version stops before the link moves back under it.
+    "$bin/hildegard" stop </dev/null >/dev/null 2>&1 || true
+    ln -sfn "$prev" "$home/app"
+  fi
+  if [ -d "$home/node.prev" ]; then
+    rm -rf "$home/node"
+    mv "$home/node.prev" "$home/node"
+  fi
+}
+
 tmp=$(mktemp -d)
+rc=0
 # Keep the exit status: an EXIT trap's own status would otherwise hide a failure.
-trap 'rc=$?; rm -rf "$tmp"; exit $rc' EXIT
+trap 'rc=$?; rm -rf "$tmp"; [ "$rc" = 0 ] || restore; exit $rc' EXIT
 trap 'exit 130' INT TERM
 mkdir -p "$home" "$bin"
 
@@ -116,11 +139,11 @@ mkdir -p "$home" "$bin"
 if [ "$("$home/node/bin/node" --version 2>/dev/null || true)" != "v$NODE" ]; then
   say "Getting Node.js ${NODE}..."
   f=node-v$NODE-$target.tar.gz
-  checked "https://nodejs.org/dist/v$NODE/$f" "$tmp/$f" "$(node_sha "$target")"
-  rm -rf "$home/node.new"
+  checked "$NODE_DIST/v$NODE/$f" "$tmp/$f" "$(node_sha "$target")"
+  rm -rf "$home/node.new" "$home/node.prev"
   mkdir -p "$home/node.new"
   tar -xmzf "$tmp/$f" -C "$home/node.new" --strip-components 1
-  rm -rf "$home/node"
+  [ -d "$home/node" ] && mv "$home/node" "$home/node.prev"
   mv "$home/node.new" "$home/node"
 fi
 
@@ -133,7 +156,6 @@ tar -xmzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
 rm -rf "$home/app-$VERSION"
 mv "$home/app-$VERSION.new" "$home/app-$VERSION"
 # Keep this version and the one before it, for going back.
-prev=$(readlink "$home/app" 2>/dev/null || true)
 for old in "$home"/app-*; do
   [ -d "$old" ] || continue
   case $(basename "$old") in
@@ -141,6 +163,7 @@ for old in "$home"/app-*; do
   *) rm -rf "$old" ;;
   esac
 done
+switched=1
 ln -sfn "app-$VERSION" "$home/app"
 
 cat >"$bin/hildegard" <<EOF
@@ -157,18 +180,27 @@ case ":$PATH:" in
 *) say "Add $bin to your PATH to run it by name, or run $bin/hildegard." ;;
 esac
 
-if [ "${HILDEGARD_SKIP_SETUP:-}" != 1 ]; then
-  "$bin/hildegard" install --yes "$@" && exit 0
-  status=$?
-  # An update that won't start goes back to the version it replaced, and starts that one again.
-  if [ -n "$prev" ] && [ "$prev" != "app-$VERSION" ] && [ -d "$home/$prev" ]; then
-    say "Going back to Hildegard ${prev#app-}..."
-    ln -sfn "$prev" "$home/app"
-    if "$bin/hildegard" start >/dev/null 2>&1; then
-      say "Hildegard ${prev#app-} is running again."
-    else
-      say "Hildegard ${prev#app-} didn't start either. Run: hildegard doctor"
-    fi
+finish() {
+  committed=1
+  rm -rf "$home/node.prev"
+  exit 0
+}
+[ "${HILDEGARD_SKIP_SETUP:-}" = 1 ] && finish
+# Setup never prompts (--yes), and under `curl | sh` its stdin would be the rest of this script.
+"$bin/hildegard" install --yes "$@" </dev/null && finish
+status=$?
+# An update that won't set up goes back to the version it replaced, and starts that one again.
+if [ -n "$prev" ] && [ -d "$home/$prev" ]; then
+  say "Going back to Hildegard ${prev#app-}. Hildegard $VERSION stays in $home/app-$VERSION."
+  restore
+  if "$bin/hildegard" start </dev/null >/dev/null 2>&1; then
+    say "Hildegard ${prev#app-} is running again."
+  else
+    say "Hildegard ${prev#app-} didn't start either. Run: hildegard doctor"
   fi
-  exit $status
+  # The last line is the one an updating Hildegard shows: what failed, and what runs now.
+  say "hildegard: setting up $VERSION failed (exit $status), so ${prev#app-} runs again. To try $VERSION again: hildegard install"
+else
+  say "hildegard: setting up $VERSION failed (exit $status). Run it again with: hildegard install"
 fi
+exit $status

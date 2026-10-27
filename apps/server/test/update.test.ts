@@ -199,4 +199,31 @@ describe('the update routes', () => {
       await s.close();
     }
   });
+
+  it('update now looks for the release itself, before any check has run', async () => {
+    const { startServer } = await import('../src/server.ts');
+    const { parseArgs } = await import('../src/config.ts');
+    const { memoryStore } = await import('./helpers.ts');
+    let runs = 0;
+    const s = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-update-now-'))]), port: 0 },
+      {
+        secrets: memoryStore(),
+        updates: {
+          fetch: (async () => Response.json({ version: '99.0.0' })) as unknown as typeof fetch,
+          run: () => runs++,
+          firstMs: 3_600_000,
+        },
+      },
+    );
+    try {
+      const snap = (await (await fetch(`${s.url}/api/snapshot`)).json()) as { update: unknown };
+      expect(snap.update).toMatchObject({ available: null });
+      const res = await fetch(`${s.url}/api/update`, { method: 'POST', headers: { 'x-hildegard': '1' } });
+      expect(await res.json()).toMatchObject({ applying: true, available: '99.0.0' });
+      expect(runs).toBe(1);
+    } finally {
+      await s.close();
+    }
+  });
 });
