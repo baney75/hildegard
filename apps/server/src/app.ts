@@ -191,7 +191,12 @@ export interface AppDeps {
   /** This computer's GPU, as people name it, for reports. */
   gpu?: string | null;
   /** OpenSCAD on this computer, and the libraries it renders with. */
-  openscad?: () => { found: OpenScad | null; libraryDirs: string[]; libraries: string[] };
+  openscad?: () => {
+    found: OpenScad | null;
+    libraryDirs: string[];
+    libraries: string[];
+    sandbox: 'sandbox-exec' | 'bwrap' | null;
+  };
   /** The owner's websites: templates, imports, files and previews. */
   sites?: {
     store: Sites;
@@ -2245,6 +2250,7 @@ export function createApp(deps: AppDeps) {
         path: local(c) ? (o.found?.path ?? null) : null,
         libraryDirs: local(c) ? o.libraryDirs : [],
         libraries: o.libraries,
+        sandbox: o.sandbox,
       });
     });
   }

@@ -620,7 +620,10 @@ export function registerLoopTools(
           `OpenSCAD ${o.version}, rendering with ${o.manifold ? 'Manifold (fast booleans)' : 'CGAL (slow on booleans; keep $fn low while blocking out, or install a development snapshot for Manifold)'}.`,
           `Libraries: ${libs}.${o.libraries.includes('BOSL2') ? '' : ' BOSL2 isn’t installed; without it, write plain OpenSCAD. To add it, clone https://github.com/BelfrySCAD/BOSL2 into the OpenSCAD libraries folder.'}`,
           ...(o.libraryDirs.length ? [`Library folders: ${o.libraryDirs.join(', ')}.`] : []),
-          'Send the source with loop_submit (text, or file_path to the .scad or to a folder with main.scad). Includes must be relative paths inside the round or a library; import() and surface() take a plain string naming a file sent with the round.',
+          o.sandbox
+            ? `OpenSCAD runs sandboxed here (${o.sandbox}): no network, and it reads only the round, the libraries and the system, never the owner's files.`
+            : 'OpenSCAD can’t be sandboxed on this computer (Windows, or Linux without bubblewrap), so rounds may include only their own files: send any library files you need inside the round, beside the .scad that includes them. On Linux, `sudo apt install bubblewrap` (or your distribution’s package) turns libraries on.',
+          'Send the source with loop_submit (text, or file_path to the .scad or to a folder with main.scad). Every include and use names a .scad file by a relative path, from the folder of the file that includes it, inside the round or a library. import() and surface() take one plain string naming a file sent with the round, relative to the file that reads it. Hildegard refuses import_stl, import_dxf, dxf_* and any other call with file = …',
         ].join('\n'),
       );
     }),

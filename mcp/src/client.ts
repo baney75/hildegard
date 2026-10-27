@@ -93,6 +93,8 @@ export interface OpenScadInfo {
   path: string | null;
   libraryDirs: string[];
   libraries: string[];
+  /** How OpenSCAD is sandboxed here; null when it can't be, and then rounds can't include libraries. */
+  sandbox: 'sandbox-exec' | 'bwrap' | null;
 }
 
 export interface PrinterInfo {

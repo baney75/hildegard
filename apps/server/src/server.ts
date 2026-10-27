@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
@@ -32,7 +32,15 @@ import { Loops } from './loop.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
-import { findOpenScad, libraryDirs, listLibraries, type OpenScad, renderScad } from './openscad.ts';
+import {
+  canSandbox,
+  findOpenScad,
+  libraryDirs,
+  listLibraries,
+  type OpenScad,
+  renderScad,
+  sandboxKind,
+} from './openscad.ts';
 import { People } from './people.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
@@ -428,10 +436,15 @@ export async function startServer(
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
       reviewWeb: webReviewer(chrome),
-      renderScad: async (dir, main, out, part) => {
+      renderScad: async (dir, main, out, { part, deadline }) => {
         const o = openscad();
-        return o ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), { part }) : null;
+        // Hidden from OpenSCAD: the owner's home and Hildegard's data, but for the round and the libraries.
+        const hide = [homedir(), config.dataDir];
+        return o
+          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), { part, deadline, hide })
+          : null;
       },
+      scadSandboxed: () => canSandbox(),
       printer: () => printer.get(),
       slice: (files, keep) => {
         const p = printer.get();
@@ -446,7 +459,12 @@ export async function startServer(
     openscad: () => {
       const o = openscad();
       const dirs = libraryDirs(config.dataDir);
-      return { found: o, libraryDirs: dirs, libraries: listLibraries(dirs).map((l) => l.name) };
+      return {
+        found: o,
+        libraryDirs: dirs,
+        libraries: listLibraries(dirs).map((l) => l.name),
+        sandbox: sandboxKind(),
+      };
     },
     sites: {
       store: new Sites(join(config.dataDir, 'sites')),

@@ -27,6 +27,8 @@ can take minutes on the same model), and which libraries `include <…>` will fi
 - **CGAL only**: keep `$fn` at 24 to 32 while blocking out, raise it to 64 to 96 for the final round, and avoid
   `minkowski()`.
 - **Not installed**: tell your user how (the tool says), or export STL yourself and send that.
+- **Not sandboxed** (Windows, or Linux without bubblewrap; the tool says): rounds can't include libraries. Send the
+  library's files inside the round, beside the `.scad` that includes them, or write plain OpenSCAD.
 
 ## 2. The file
 
@@ -142,10 +144,20 @@ size, base, overhangs, the fits. The round keeps your source, so the owner can o
 
 What it refuses, before anything runs (no round is used, so fix it and send again):
 
-- `include` or `use` of an absolute path or one with `..`. Include the round's own files by their path in the round,
-  and libraries by their own path (`include <BOSL2/std.scad>`).
-- `import()` or `surface()` with anything but a plain string naming a file sent with the round. Send the SVG or STL
-  beside `main.scad` in the folder.
+- `include` or `use` of anything but a `.scad` file (lowercase), of an absolute path, or of one with `..`. Paths are
+  read from the folder of the file that includes them: the round's own files by that path, and libraries by their own
+  (`include <BOSL2/std.scad>`), only where OpenSCAD runs sandboxed.
+- `include` or `use` written any other way than `include <file.scad>`, such as with a comment before the `<`.
+- `import()` or `surface()` with anything but one plain string naming a file sent with the round, from the folder of
+  the file that reads it. Send the SVG or STL beside the `.scad` that imports it. Its other strings (a DXF layer, an
+  SVG id) can't look like paths.
+- `import_stl`, `import_off`, `import_dxf`, any `dxf_…`, and `file = …` on any call but `import()` and `surface()`.
+
+OpenSCAD then runs sandboxed where it can be (sandbox-exec on macOS, bubblewrap on Linux): no network, the owner's
+home and Hildegard's data hidden apart from the round and the libraries, and nothing written outside the round. It
+gets no environment beyond what it needs, one round renders at a time, and the whole round, every part of it, has one
+time limit (180 s, or `HILDEGARD_OPENSCAD_TIMEOUT` seconds). Paths in OpenSCAD's messages come back as round-relative
+names or `<library>/…`. A mesh over 256 MB is refused: lower `$fn`.
 
 What fails at render, with OpenSCAD's own message (no round is used):
 

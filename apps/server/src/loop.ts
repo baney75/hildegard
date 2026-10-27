@@ -12,7 +12,16 @@
  * browser shut off from the network and from every file but the round's own (web-review.ts).
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, posix } from 'node:path';
 import {
   describeReview,
@@ -28,11 +37,12 @@ import {
   declaredParts,
   looksLikeScad,
   mainScad,
-  partsObj,
   readRound,
   ScadError,
   type ScadRender,
+  scadTimeoutMs,
   vetScad,
+  writePartsObj,
 } from './openscad.ts';
 import type { Printer, SliceResult } from './printer.ts';
 import type { WebSpec } from './web-review.ts';
@@ -208,7 +218,10 @@ export interface Round {
   format: string;
   /** The OpenSCAD source the file was rendered from (a .scad, or a ZIP of the round's files), in this loop's folder. */
   source?: string | null;
+  /** The size of `file`. */
   bytes: number;
+  /** The size of `source`, when there is one. */
+  sourceBytes?: number;
   /** What the agent changed in this round, in its words. */
   note: string;
   review: Review & { summary: string };
@@ -309,9 +322,16 @@ export interface LoopDeps {
   slice?: (files: string[], keep: string) => Promise<SliceResult | null>;
   /**
    * Renders OpenSCAD source (the round's files, laid out in `dir`) into a binary STL at `out`, only the named `part`
-   * when given; null (or absent) when this computer has no OpenSCAD.
+   * when given, by `deadline` (when the whole round must be done); null (or absent) when this computer has no OpenSCAD.
    */
-  renderScad?: (dir: string, main: string, out: string, part?: string) => Promise<ScadRender | null>;
+  renderScad?: (
+    dir: string,
+    main: string,
+    out: string,
+    opts: { part?: string; deadline: number },
+  ) => Promise<ScadRender | null>;
+  /** Whether OpenSCAD runs sandboxed here, so a round's includes may reach the libraries on this computer. */
+  scadSandboxed?: () => boolean;
   /** Renders and checks a web page; absent when this computer has no Chromium-family browser. */
   reviewWeb?: (spec: WebSpec) => Promise<Review>;
   /** Checks an image, video or sound; absent when Python can't run here. */
@@ -531,8 +551,8 @@ export class Loops {
         at: this.now().toISOString(),
         file,
         format: scad ? file.split('.').pop()! : format,
-        ...(source ? { source } : {}),
-        bytes: bytes.length,
+        ...(source ? { source, sourceBytes: bytes.length } : {}),
+        bytes: statSync(join(dir, file)).size,
         note: note.trim().slice(0, 1000),
         review: { ...review, summary: describeReview(review) },
         sheet: existsSync(join(dir, sheet)) ? sheet : null,
@@ -637,7 +657,7 @@ export class Loops {
     }
     try {
       const main = mainScad(names);
-      const problems = vetScad(readRound(src, names));
+      const problems = vetScad(readRound(src, names), { libraries: this.deps.scadSandboxed?.() ?? false });
       if (problems.length)
         throw new LoopError(
           422,
@@ -645,30 +665,32 @@ export class Loops {
           `Hildegard won’t run this source: it reaches for files outside the round.\n${problems.slice(0, 10).join('\n')}`,
         );
       const parts = declaredParts(readFileSync(join(src, main), 'utf8'));
+      // One time limit for the whole round, however many parts it renders.
+      const deadline = Date.now() + scadTimeoutMs();
       if (!parts) {
         const file = `round-${n}.stl`;
-        const r = await this.deps.renderScad!(src, main, join(dir, file));
+        const r = await this.deps.renderScad!(src, main, join(dir, file), { deadline });
         if (!r) throw noOpenScad();
         return { rendered: r, file };
       }
       // A print in parts: each rendered on its own, then kept as one OBJ with each part named, so fits are measured.
-      const meshes: { name: string; stl: Uint8Array }[] = [];
+      const meshes: { name: string; stl: string }[] = [];
       const renders: ScadRender[] = [];
       for (const part of parts) {
         const out = join(src, `.part-${part}.stl`);
         let r: ScadRender | null;
         try {
-          r = await this.deps.renderScad!(src, main, out, part);
+          r = await this.deps.renderScad!(src, main, out, { part, deadline });
         } catch (e) {
           if (e instanceof ScadError) throw new ScadError(`Part “${part}”: ${e.message}`, e.log);
           throw e;
         }
         if (!r) throw noOpenScad();
-        meshes.push({ name: part, stl: readFileSync(out) });
+        meshes.push({ name: part, stl: out });
         renders.push(r);
       }
       const file = `round-${n}.obj`;
-      writeFileSync(join(dir, file), partsObj(meshes));
+      writePartsObj(join(dir, file), meshes);
       const rendered: ScadRender = {
         ...renders[0]!,
         out: join(dir, file),
