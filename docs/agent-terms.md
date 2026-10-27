@@ -103,10 +103,24 @@ MIT licensed) documentation.
 
 Pi is open source and uses your own model providers. Like OMP, it can sign in to Anthropic and ChatGPT with their
 consumer plans (`/login`), and those providers say their plans belong to their own apps, so Hildegard runs Pi only with
-an API key or a local model. Each run gets its own Pi profile (`PI_CODING_AGENT_DIR`) with Hildegard's MCP server in its
-`mcp.json` and the skills in its `skills` folder, and the environment loses `ANTHROPIC_OAUTH_TOKEN`,
-`XAI_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` and `OMP_AUTH_BROKER_URL`, so a plan's sign-in can't leak in by accident.
-Hildegard never reads Pi's `auth.json` and doesn't reuse its credentials. `hildegard connect pi` only adds Hildegard
+an API key or a local model, from the provider its model names (`--provider` can't point elsewhere).
+
+What a run gets:
+
+- **A fresh profile.** Each run's Pi profile (`PI_CODING_AGENT_DIR`, `.pi-profile` in the run's folder) starts empty,
+  then holds only Hildegard's MCP server in its `mcp.json` and the skills in its `skills` folder. Nothing Pi saves in
+  one run, a login included, reaches the next. Hildegard never reads Pi's `auth.json` and doesn't reuse its
+  credentials.
+- **A short environment.** Pi starts with only `PATH`, `HOME`, the locale, the temp folder and Windows' system
+  variables, plus the one key Hildegard gives it. No sign-in or other key in Hildegard's environment reaches it.
+- **Files and Hildegard's tools, no shell.** Pi has no sandbox and can't allow a shell for some programs only, so it
+  runs with `--tools read,edit,write,grep,find,ls,mcp__hildegard__*`. Media work goes through Hildegard's tools.
+  A loop that needs a program such as Blender runs on Claude Code or Codex instead.
+- **The task on stdin.** It never shows in a process list or passes through a shell.
+- **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
+
+Hildegard checks that `pi` on your PATH is the coding agent (`pi --version` answers with a version) before it counts
+Pi as installed. These runs follow Pi 1.4's documentation and haven't yet been tried against a real Pi install. `hildegard connect pi` only adds Hildegard
 to `~/.pi/agent/mcp.json` and its skills to `~/.pi/agent/skills`; Pi signs in as you set it up.
 
 ## Other coding agents linked to Hildegard

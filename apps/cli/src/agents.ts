@@ -18,8 +18,10 @@ import {
   listSkills,
   NAMES,
   Pacer,
+  PI_TOOLS,
   plan,
   prepareWorkspace,
+  providerOf,
   removeSkills,
   run,
   type SkillTarget,
@@ -102,7 +104,12 @@ async function check(ctx: Ctx): Promise<Result> {
       if (!own('schedule').allowed && d.auth.kind === 'subscription') lines.push(own('schedule').reason);
     } else
       lines.push(
-        `${d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
+        `${d.agent === 'omp' ? 'OMP' : d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
+        ...(d.agent === 'pi'
+          ? [
+              `Pi gets ${PI_TOOLS.filter((t) => !t.startsWith('mcp__')).join(', ')} and Hildegard’s tools, in a fresh profile, with no shell.`,
+            ]
+          : []),
       );
     const keyFor = d.agent === 'claude-code' ? 'anthropic' : d.agent === 'codex' ? 'openai' : null;
     if (keyFor)
@@ -237,7 +244,8 @@ async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
 
 /**
  * Runs one coding agent on one task, if the provider's terms allow it. `extraTools` are tools a headless Claude Code
- * may use beyond the usual ones (a loop's modeling programs, say); Codex, OMP and Pi work inside their own sandboxes.
+ * may use beyond the usual ones (a loop's modeling programs, say); Codex and OMP work inside their own sandboxes, and
+ * Pi gets only file tools and Hildegard's, with no shell.
  */
 export async function runAgentTask(
   ctx: Ctx,
@@ -272,9 +280,12 @@ export async function runAgentTask(
     );
   const use = (ctx.opts.get('use') ?? (isPiFamily(agent) ? 'key' : 'own-sign-in')) as LaunchInput['use'];
   const model = ctx.opts.get('model');
-  const provider =
-    ctx.opts.get('provider') ??
-    (isPiFamily(agent) && model ? model.split('/')[0] : agent === 'codex' ? 'openai' : 'anthropic');
+  // OMP and Pi send the task to the provider their model names, so that's where their key comes from; a --provider
+  // that names another is refused when the run is planned.
+  const provider = isPiFamily(agent)
+    ? ctx.opts.get('provider')
+    : (ctx.opts.get('provider') ?? (agent === 'codex' ? 'openai' : 'anthropic'));
+  const keyProvider = isPiFamily(agent) && model ? providerOf(model) : provider;
   const trigger: Trigger = ctx.flags.has('unattended') ? 'schedule' : 'owner-here';
   const id = randomUUID().slice(0, 8);
   const workspace = resolve(ctx.opts.get('workspace') ?? join(ctx.config.dataDir, 'agents', 'runs', id));
@@ -284,7 +295,10 @@ export async function runAgentTask(
     trigger,
     use,
     provider,
-    key: use === 'key' ? ((await keys(ctx))(keyAccount(provider!)).get() ?? undefined) : undefined,
+    key:
+      use === 'key' && keyProvider
+        ? ((await keys(ctx))(keyAccount(keyProvider)).get() ?? undefined)
+        : undefined,
     model,
     workspace,
     mcp: mcpCommand({ url: `http://127.0.0.1:${ctx.config.port}` }),
