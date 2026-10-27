@@ -101,6 +101,38 @@ describe('detectGpu', () => {
     expect(fit(g, { minVramGb: 12 })).toBe('no');
   });
 
+  it('counts unified memory on the DGX Spark (GB10), where nvidia-smi reports no memory total', () => {
+    const smi = 'NVIDIA GB10, [N/A], 580.95.05, 12.1\n';
+    const g = detectGpu(
+      probe({ arch: 'arm64', totalmem: 128 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }),
+    );
+    expect(g).toEqual({
+      backend: 'cuda',
+      name: 'NVIDIA GB10',
+      vramGb: 96,
+      unified: true,
+      torchBackend: 'cu130',
+    });
+    const files = (gb: number) => [{ size: gb * 1024 ** 3 }];
+    expect(fit(g, { minVramGb: 24 })).toBe('fits');
+    // Nothing to offload to: weights plus a quarter must fit the shared memory.
+    expect(fit(g, { minVramGb: 24, files: files(70) })).toBe('fits');
+    expect(fit(g, { minVramGb: 24, files: files(80) })).toBe('no');
+    expect(fit(g, { minVramGb: 90 })).toBe('no');
+    expect(fitWhy(g, { minVramGb: 90 })).toBe('memory');
+  });
+
+  it('prefers a discrete card with a real figure over NaN sorting, and keeps unified off it', () => {
+    const smi = 'NVIDIA GB10, [N/A], 580.95.05, 12.1\nNVIDIA GeForce RTX 3060, 12288, 580.95.05, 8.6\n';
+    const g = detectGpu(probe({ totalmem: 128 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }));
+    expect(g.name).toBe('NVIDIA GB10');
+    const small = detectGpu(
+      probe({ totalmem: 8 * 1024 ** 3, run: (c) => (c === 'nvidia-smi' ? smi : null) }),
+    );
+    expect(small).toMatchObject({ name: 'NVIDIA GeForce RTX 3060', vramGb: 12 });
+    expect(small.unified).toBeUndefined();
+  });
+
   it('judges fit with room for offloading', () => {
     const g = { backend: 'cuda' as const, name: 'x', vramGb: 10, torchBackend: 'cu130' };
     expect(fit(g, { minVramGb: 8 })).toBe('fits');

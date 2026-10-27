@@ -12,6 +12,11 @@ export interface Gpu {
   name: string;
   /** Memory the GPU can use, in GB; unified memory on Apple silicon. Null when unknown. */
   vramGb: number | null;
+  /**
+   * True when the GPU shares memory with the CPU (NVIDIA GB10 in the DGX Spark, Jetson), so `vramGb` is a share of
+   * system memory, not a card's own. Absent otherwise.
+   */
+  unified?: true;
   /** uv's --torch-backend for this GPU; null means PyPI's default build (macOS). */
   torchBackend: string | null;
   /** Something the owner should know, such as an old driver. */
@@ -106,11 +111,18 @@ function detectNvidia(p: Probe): Gpu | null {
     .filter((f) => f.length >= 4 && f[0])
     .map(([name, mem, driver, cap]) => ({
       name: name!,
-      vramGb: Math.round((Number(mem) / 1024) * 10) / 10,
+      // Unified-memory parts (GB10, Jetson) answer "[N/A]" here: NaN, handled below.
+      vramGb: mem === '' ? Number.NaN : Math.round((Number(mem) / 1024) * 10) / 10,
       driver: Number.parseFloat(driver!),
       cap: Number.parseFloat(cap!),
     }));
-  const best = gpus.sort((a, b) => b.vramGb - a.vramGb)[0];
+  // A card without a memory figure shares system memory: count that, as on Apple silicon.
+  const sized = gpus.map((g) =>
+    Number.isFinite(g.vramGb)
+      ? { ...g, unified: false }
+      : { ...g, vramGb: gb(p.totalmem * 0.75), unified: true },
+  );
+  const best = sized.sort((a, b) => b.vramGb - a.vramGb)[0];
   if (!best) return null;
   // PyTorch's CUDA 13 builds need driver 580+ and a Turing (7.5) or newer card; older ones get CUDA 12.6.
   const modern = best.cap >= 7.5;
@@ -119,7 +131,8 @@ function detectNvidia(p: Probe): Gpu | null {
   return {
     backend: 'cuda',
     name: best.name,
-    vramGb: Number.isFinite(best.vramGb) ? best.vramGb : null,
+    vramGb: best.vramGb,
+    ...(best.unified ? { unified: true as const } : {}),
     torchBackend,
     ...(modern && best.driver < 580
       ? {
@@ -167,9 +180,9 @@ export function fitWhy(gpu: Gpu, need: Need): 'memory' | 'apple-gpu' | null {
 /** How a model fits this GPU: the Studio and the CLI show the same words. */
 export function fit(gpu: Gpu, need: Need): 'fits' | 'tight' | 'no' {
   if (gpu.backend === 'cpu' || gpu.vramGb === null) return 'no';
-  if (gpu.backend === 'mps') {
-    if (need.mps === false) return 'no';
-    // Unified memory has nothing to offload to, and macOS and open apps share it: the weights and the activations
+  if (gpu.backend === 'mps' || gpu.unified) {
+    if (gpu.backend === 'mps' && need.mps === false) return 'no';
+    // Unified memory (Apple silicon, DGX Spark) has nothing to offload to, and the system and open apps share it: the weights and the activations
     // must fit with a quarter to spare.
     const weightsGb = (need.files ?? []).reduce((n, f) => n + f.size, 0) / 1024 ** 3;
     return gpu.vramGb >= Math.max(need.minVramGb, weightsGb) * 1.25 ? 'fits' : 'no';
