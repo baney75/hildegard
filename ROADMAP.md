@@ -26,22 +26,26 @@ In place now:
 Next, in order:
 
 1. **Try a change before anyone reads it as good.** When a maintainer opens a pull request that changes a skill, they
-   can run it against fixed prompts in a sandbox: no network, no keys, a throwaway folder. Only a maintainer's pull
-   request runs, never the text of an issue. The before and after go in the pull request, so the owner judges results
-   as well as words. Done when a change that tries to reach the network or a key fails in the sandbox and says so.
+   can run it against fixed prompts in a sandbox: a local model, no network at all, no keys, a throwaway folder. Only
+   a maintainer's pull request runs, never the text of an issue. The before and after go in the pull request, so the
+   owner judges results as well as words. Done when a change that tries to reach the network or a key fails in the
+   sandbox and says so, and the before and after transcripts for the fixed prompts are attached to the pull request.
 2. **A second reviewer for intent.** A model in CI reads skill diffs for what the patterns miss, such as a step that
-   quietly widens what an agent may touch. The diff is hostile input to that model too, so it runs with no secrets
-   and no write token, sees the diff only as data, and its report can never approve or merge anything. Done when it
+   quietly widens what an agent may touch. The diff is hostile input to that model too. Its key lives only in a
+   separate job that receives the diff as a file, with no checkout, no write token and no other secrets, and its
+   report can never approve or merge anything. Done when it
    flags every case in a fixed hostile set, including diffs addressed to the reviewer itself, and stays quiet on at
    least 9 of 10 cases in a fixed set of ordinary skill edits.
 3. **Pull the plugin from a signed release.** The Claude Code plugin should take skills from the same signed release
-   as the app, not from `main`. Done when a plugin install refuses skills that don't match a signed release.
+   as the app, not from `main`. Done when installing or updating the plugin goes through a step that checks the
+   minisign signature against Hildegard's built-in key, and a skill that doesn't match the signed release is refused
+   with a message.
 4. **Counts.** Suggestions per skill and per model, so the owner sees where skills fail most. Anyone can file an
    issue and name any skill or model, so the counts are advisory: they count distinct accounts, and a count never
    changes a skill by itself. Done when the counts appear in the release checklist with distinct-account totals.
 5. **Provenance for every skill file.** The signed release lists a hash for each skill file. Done when `read_skill`
-   and Hildegard's installer report and refuse a hand-edited skill file. An agent that reads a skill folder directly
-   is outside what Hildegard can check, and the docs say so.
+   and Hildegard's installer report and refuse a hand-edited skill file, and the docs say that an agent reading a
+   skill folder directly is outside what Hildegard can check.
 
 ## 2. Every device, every GPU
 
@@ -56,7 +60,7 @@ Next, in order:
 ## 3. Making things
 
 - **OpenSCAD in model loops** (#34): source in, measured parts out. It is held until the renderer runs in a
-  filesystem sandbox on macOS and Linux, and refuses library includes where there is none. Next: bundle OpenSCAD and
+  filesystem sandbox on macOS and Linux; on a computer without one, it refuses library includes. Next: bundle OpenSCAD and
   BOSL2 with the app, so no one has to install them first.
 - **Products from print to page.** Parts to print (after print3d), then the product's page, with the same rounds of
   measuring and review. Next: a side-by-side check of Hildegard's web loop against pen.dev on the same briefs, with
@@ -70,6 +74,7 @@ end to end through each linked agent in CI, and record which agents can do each 
 
 ## 5. Updates
 
-Any device updates the others (`hildegard update all`). Installs update only to a signed release, and a failed update
-rolls back to the version it replaced (0.1.10). Next: staged rollouts, where one device takes a release first and the
+Any device updates the others (`hildegard update all`). The app and server update only to a signed release (the
+Claude Code plugin still installs from `main`; see section 1, step 3), and since 0.1.10 a failed update rolls back to
+the version it replaced. Next: staged rollouts, where one device takes a release first and the
 rest follow once it renders.
