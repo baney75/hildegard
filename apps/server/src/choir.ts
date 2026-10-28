@@ -229,8 +229,11 @@ export function place(job: Job, local: Candidate | null, devices: Candidate[]): 
         a.queue - b.queue ||
         Number(b.name === 'local') - Number(a.name === 'local'),
     )[0];
+  // Nothing free: a device that can run it, then this computer, then any ready device. Never one that isn't ready
+  // (offline, or on "auto" itself, which could leave two devices each waiting on the other).
   return (
-    (best ?? (local && runs(local) ? local : null) ?? all.find(runs) ?? local ?? devices[0])?.name ?? 'local'
+    (best ?? (local && runs(local) ? local : null) ?? all.find(runs) ?? local ?? devices.find((c) => c.ready))
+      ?.name ?? 'local'
   );
 }
 

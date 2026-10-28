@@ -151,6 +151,11 @@ describe('placing a take on any free device', () => {
     expect(place(job(), inUse, [c('spark', { busy: 'y' })])).toBe('local');
     expect(place(job(), c('local', { has: () => false }), [c('spark', { busy: 'y' })])).toBe('spark');
     expect(place(job(), null, [])).toBe('local');
+    // Without ComfyUI here, still never on a device that isn't ready, such as one on "auto" itself.
+    expect(
+      place(job({ models: ['gone'] }), null, [c('spark', { ready: false }), c('box', { has: () => false })]),
+    ).toBe('box');
+    expect(place(job(), null, [c('spark', { ready: false })])).toBe('local');
     // A take with characters needs its keyframe's stills model there too.
     const elsewhere = c('local', { has: () => false });
     const noStills = c('spark', { has: (m) => m !== 'klein' });
