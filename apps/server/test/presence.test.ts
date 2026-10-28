@@ -3,13 +3,21 @@ import { mkdtempSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState, Take } from '@hildegard/presets';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  type Character,
+  type ChoirState,
+  loadCatalog,
+  type ModelState,
+  ShotRequest,
+  type Take,
+} from '@hildegard/presets';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { snapshotFor, type Who } from '../src/access.ts';
-import { type Candidate, place } from '../src/choir.ts';
+import { type Candidate, place, withRemoteFit } from '../src/choir.ts';
 import { parseArgs } from '../src/config.ts';
 import type { SecretStore } from '../src/hf.ts';
 import {
+  gpuSourceFor,
   Presence,
   parseComputeApps,
   parseLogind,
@@ -19,6 +27,7 @@ import {
   systemIdle,
   underUs,
 } from '../src/presence.ts';
+import { takeModels } from '../src/scheduler.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -91,6 +100,17 @@ describe('seeing whether someone else wants the computer', () => {
     expect(presenceReason(null, [])).toBeNull();
   });
 
+  it('watches GPU memory only beside the ComfyUI Hildegard runs, never one started apart (--comfy)', () => {
+    const others = vi.fn(() => async () => [] as string[]);
+    expect(gpuSourceFor(false, null, others)).toBeUndefined();
+    expect(gpuSourceFor(true, { pids: () => [1] }, others)).toBeUndefined();
+    expect(others).not.toHaveBeenCalled();
+    expect(gpuSourceFor(false, { pids: () => [41, 42] }, others)).toBeTypeOf('function');
+    // Hildegard's own ComfyUI processes are left out of what counts.
+    const extra = (others.mock.calls[0] as unknown[])[1] as () => number[];
+    expect(extra()).toEqual([41, 42]);
+  });
+
   it('takes an idle hook’s word where the desktop has no idle clock (Hyprland), until it runs out', async () => {
     let t = 0;
     const p = new Presence({ idle: async () => null, now: () => t });
@@ -117,7 +137,7 @@ describe('placing a take on any free device', () => {
     queue: 0,
     ...over,
   });
-  const job = (over = {}) => ({ model: 'wan', priority: 'interactive' as const, guest: false, ...over });
+  const job = (over = {}) => ({ models: ['wan'], priority: 'interactive' as const, guest: false, ...over });
 
   it('prefers a device that’s always shared, then a comfortable fit, then the shorter queue, then this computer', () => {
     expect(place(job(), c('local', { opportunistic: true }), [c('spark')])).toBe('spark');
@@ -139,7 +159,90 @@ describe('placing a take on any free device', () => {
     expect(place(job(), inUse, [c('spark', { busy: 'y' })])).toBe('local');
     expect(place(job(), c('local', { has: () => false }), [c('spark', { busy: 'y' })])).toBe('spark');
     expect(place(job(), null, [])).toBe('local');
+    // Without ComfyUI here, still never on a device that isn't ready, such as one on "auto" itself.
+    expect(
+      place(job({ models: ['gone'] }), null, [c('spark', { ready: false }), c('box', { has: () => false })]),
+    ).toBe('box');
+    expect(place(job(), null, [c('spark', { ready: false })])).toBe('local');
+    // A take with characters needs its keyframe's stills model there too.
+    const elsewhere = c('local', { has: () => false });
+    const noStills = c('spark', { has: (m) => m !== 'klein' });
+    expect(place(job({ models: ['wan', 'klein'] }), elsewhere, [noStills, c('box')])).toBe('box');
     expect(place(job({ guest: true }), inUse, [c('spark')])).toBe('local');
+  });
+});
+
+describe('the models a take needs', () => {
+  const { catalog } = loadCatalog();
+  const mara: Character = {
+    id: 'a1b2c3d4e5f60718',
+    name: 'Mara',
+    description: 'Early thirties, auburn side braid',
+    wardrobe: '',
+    references: [
+      { file: `${'0'.repeat(64)}.png`, view: 'portrait', source: 'still', addedAt: '2026-10-24T00:00:00Z' },
+    ],
+    cover: null,
+    voice: null,
+    likeness: 'invented',
+    consent: null,
+    createdAt: '2026-10-24T00:00:00Z',
+    updatedAt: '2026-10-24T00:00:00Z',
+  };
+  const request = (over: Record<string, unknown> = {}) =>
+    ShotRequest.parse({
+      prompt: 'A keeper climbs the stairs',
+      model: 'wan-2-2-ti2v-5b',
+      rig: { body: 'vintage-16mm', lens: 'clean', focal: 35, aperture: 2.8 },
+      ...over,
+    });
+
+  it('counts the keyframe’s stills model for a take with characters, so it goes where both are', () => {
+    const plain = takeModels(catalog, request(), []);
+    expect(plain).toEqual(['wan-2-2-ti2v-5b']);
+    const cast = takeModels(catalog, request({ characters: [mara.id] }), [mara]);
+    expect(cast).toHaveLength(2);
+    expect(cast[0]).toBe('wan-2-2-ti2v-5b');
+    expect(catalog.models.find((m) => m.id === cast[1])?.kind).toBe('image');
+  });
+});
+
+describe('models with any free device', () => {
+  const state = (over: Partial<ModelState>): ModelState => ({
+    id: 'wan',
+    installed: false,
+    missingBytes: 9e9,
+    downloading: null,
+    gated: false,
+    licenseAccepted: false,
+    fit: null,
+    fitWhy: null,
+    error: null,
+    ...over,
+  });
+
+  it('counts a model installed here but unable to run here when a device takes go to can run it', () => {
+    const here = state({
+      installed: true,
+      missingBytes: 0,
+      licenseAccepted: true,
+      fit: 'no',
+      fitWhy: 'apple-gpu',
+    });
+    const [m] = withRemoteFit([here], [{ models: ['wan'], fit: { wan: 'tight' } }]);
+    expect(m).toMatchObject({ installed: true, fit: 'tight', fitWhy: null });
+  });
+
+  it('keeps this computer’s state when it runs the model, or no device can', () => {
+    const fits = state({ installed: true, missingBytes: 0, fit: 'fits' });
+    expect(withRemoteFit([fits], [{ models: ['wan'], fit: { wan: 'tight' } }])[0]).toBe(fits);
+    const no = state({ installed: true, fit: 'no', fitWhy: 'apple-gpu' });
+    expect(withRemoteFit([no], [{ models: ['wan'], fit: { wan: 'no' } }])[0]).toBe(no);
+    const missing = state({});
+    expect(withRemoteFit([missing], [{ models: ['wan'], fit: { wan: 'fits' } }])[0]).toMatchObject({
+      installed: true,
+      fit: 'fits',
+    });
   });
 });
 
@@ -380,6 +483,34 @@ describe('any free device', () => {
       await post(laptop, '/api/choir/use', { name: 'local' });
     }
   }, 45_000);
+
+  it('never sends a take to a device that places its own takes too, so two can’t wait on each other', async () => {
+    expect((await post(laptop, '/api/choir/use', { name: 'auto' })).status).toBe(200);
+    expect((await post(spark, '/api/choir/use', { name: 'auto' })).status).toBe(200);
+    try {
+      // The laptop is in use and the Spark is free, but the Spark is on "auto" itself: the take stays here.
+      await opportunistic(laptop, true);
+      idle.laptop = 1;
+      await until(() => laptop.choir.state().sharing.busy !== null);
+      await laptop.choir.refresh();
+      const id = await shot(laptop, 'Rain beads on a bus window');
+      await until(() => laptop.store.takes.get(id)?.status === 'done');
+      expect(laptop.choir.state().rendering).toBe('local');
+      expect(spark.scheduler.guestTakes()).toHaveLength(0);
+
+      // Once the Spark stops placing its own takes it can take this one's, and the Studio hears so.
+      await post(spark, '/api/choir/use', { name: 'local' });
+      const told = vi.spyOn(laptop.choir, 'emit');
+      await laptop.choir.refresh();
+      expect(told).toHaveBeenCalled();
+      told.mockRestore();
+    } finally {
+      idle.laptop = 9999;
+      await opportunistic(laptop, false);
+      await post(spark, '/api/choir/use', { name: 'local' });
+      await post(laptop, '/api/choir/use', { name: 'local' });
+    }
+  });
 
   it('refuses “auto” as a device’s name', async () => {
     const invite = await post(spark, '/api/choir/invite', { url: `http://127.0.0.1:${await freePort()}` });

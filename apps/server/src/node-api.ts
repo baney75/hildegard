@@ -142,6 +142,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       accepting: takesWork(),
       opportunistic: choir.opportunistic,
       busy: choir.state().sharing.busy,
+      auto: choir.state().use === 'auto',
       update: deps.updates?.().state(),
     };
     c.header('cache-control', 'no-store');

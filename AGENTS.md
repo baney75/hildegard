@@ -105,7 +105,8 @@ A Hildegard without a usable GPU renders on another of the owner's devices. Two 
   `sharing.busy` for Settings and for `/api/node/info`. Off, guests queue as studio work.
 - **Any free device** (`choir use auto`). `place()` in choir.ts picks the device for each job from
   `Choir.candidates()` and `localCandidate()`; the scheduler's `choose` hook calls `route(job)` before each job
-  starts (its `pump` never nests), so the engine can switch per job. Guests always run here. In auto, the joined
+  starts (its `pump` never nests), so the engine can switch per job. Guests always run here, and a device whose
+  `/api/node/info` says `auto` is never a candidate (two auto devices could each hold a take waiting on the other). In auto, the joined
   devices are refreshed every 15 s.
 - **Rendering elsewhere** (`remote-engine.ts`). `hildegard choir join` checks the code against the device's
   `/api/node/info`, keeps the key in the keychain (`secretStores`, account `choir-<name>`; `HILDEGARD_SECRETS=file`

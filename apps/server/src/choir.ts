@@ -12,7 +12,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
-import type { ChoirDevice, ChoirState, Priority } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, ModelState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
 import type { SecretStore } from './hf.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
@@ -182,9 +182,10 @@ export function tailscaleSelf(exec: Run = run): TailscaleSelf | null {
 
 // ── Placing work across devices ─────────────────────────────────────────────────────────────────────────────────
 
-/** One job to place: the model it needs (null when any will do), and whether the owner forced it. */
+/** One job to place: every model its graph needs (none when any device will do), and whether the owner forced it. */
 export interface Job {
-  model: string | null;
+  /** The video or stills model, and for a take with characters and no start frame, the stills model its keyframe needs. */
+  models: string[];
   priority: Priority;
   /** A paired device's render: it came to this computer's GPU and renders nowhere else. */
   guest: boolean;
@@ -193,7 +194,10 @@ export interface Job {
 /** A device a job could go to, as far as this computer knows: "local" is this computer. */
 export interface Candidate {
   name: string;
-  /** It answers, its ComfyUI does, and it takes work. */
+  /**
+   * It answers, its ComfyUI does, and it takes work. A device that places its own takes too ("auto") never counts:
+   * two of them could each hold a take waiting on the other's GPU, with the other's render queued behind it.
+   */
   ready: boolean;
   /** It shares its GPU only while it's free. */
   opportunistic: boolean;
@@ -214,9 +218,8 @@ export interface Candidate {
 export function place(job: Job, local: Candidate | null, devices: Candidate[]): string {
   if (job.guest) return 'local';
   const all = local ? [local, ...devices] : devices;
-  const runs = (c: Candidate) =>
-    c.ready && (job.model === null || (c.has(job.model) && c.fit(job.model) !== 'no'));
-  const fitRank = (c: Candidate) => (job.model && c.fit(job.model) === 'tight' ? 1 : 0);
+  const runs = (c: Candidate) => c.ready && job.models.every((m) => c.has(m) && c.fit(m) !== 'no');
+  const fitRank = (c: Candidate) => (job.models.some((m) => c.fit(m) === 'tight') ? 1 : 0);
   const best = all
     .filter((c) => runs(c) && !c.busy)
     .sort(
@@ -226,8 +229,11 @@ export function place(job: Job, local: Candidate | null, devices: Candidate[]): 
         a.queue - b.queue ||
         Number(b.name === 'local') - Number(a.name === 'local'),
     )[0];
+  // Nothing free: a device that can run it, then this computer, then any ready device. Never one that isn't ready
+  // (offline, or on "auto" itself, which could leave two devices each waiting on the other).
   return (
-    (best ?? (local && runs(local) ? local : null) ?? all.find(runs) ?? local ?? devices[0])?.name ?? 'local'
+    (best ?? (local && runs(local) ? local : null) ?? all.find(runs) ?? local ?? devices.find((c) => c.ready))
+      ?.name ?? 'local'
   );
 }
 
@@ -365,7 +371,7 @@ export class Choir {
       const i = this.info.get(d.name);
       return {
         name: d.name,
-        ready: !!i && !this.problems.has(d.name) && i.online && i.accepting,
+        ready: this.ready(d.name),
         opportunistic: i?.opportunistic === true,
         busy: i?.busy ?? null,
         has: (m) => !!i && (i.fake || i.models.includes(m)),
@@ -373,6 +379,12 @@ export class Choir {
         queue: i?.queue ?? 0,
       };
     });
+  }
+
+  /** Whether a joined device takes work placed on it now: online, accepting, and not on "auto" itself. */
+  private ready(name: string): boolean {
+    const i = this.info.get(name);
+    return !!i && !this.problems.has(name) && i.online && i.accepting && !i.auto;
   }
 
   /** With "auto": send the next job to this device ("local" for this computer). Says whether it changed. */
@@ -556,11 +568,13 @@ export class Choir {
   }
 
   private record(name: string, info: NodeInfo | null, problem: string | null) {
-    const before = JSON.stringify(this.device(name, ''));
+    // Placement eligibility counts too: the models the Studio can use follow which devices are ready.
+    const look = () => JSON.stringify([this.device(name, ''), this.ready(name)]);
+    const before = look();
     if (info) this.info.set(name, info);
     if (problem) this.problems.set(name, problem);
     else this.problems.delete(name);
-    if (JSON.stringify(this.device(name, '')) !== before) this.emit();
+    if (look() !== before) this.emit();
   }
 
   /** Update a joined device to the newest release; it restarts as the new version, or once its renders finish. */
@@ -603,4 +617,20 @@ export class Choir {
     );
     return this.state();
   }
+}
+
+/**
+ * With "auto": this computer's model states, with a model counted installed when a device a take could go to has it
+ * and can run it. A model installed here but unable to run here (an Apple GPU it can't use, say) still renders there.
+ */
+export function withRemoteFit(
+  states: ModelState[],
+  devices: Pick<ChoirDevice, 'models' | 'fit'>[],
+): ModelState[] {
+  return states.map((m) => {
+    const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
+    if ((m.installed && m.fit !== 'no') || !there.length) return m;
+    const fit = there.some((x) => x.fit[m.id] === 'fits') ? 'fits' : (there[0]!.fit[m.id] ?? null);
+    return { ...m, installed: true, missingBytes: 0, licenseAccepted: true, fit, fitWhy: null, error: null };
+  });
 }

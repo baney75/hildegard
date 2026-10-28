@@ -30,6 +30,17 @@ import {
 import type { Job as Placement } from './choir.ts';
 import type { Store } from './store.ts';
 
+/** Every model a take's graph uses, for placing it on a device that has them all. */
+export function takeModels(catalog: Catalog, request: Take['request'], cast: Character[]): string[] {
+  try {
+    const shot = composeShot(catalog, request, cast);
+    // A take with characters draws its start frame with the stills model in the same graph, unless one was given.
+    return [shot.model.id, ...(shot.cast && !request.startFrame ? [shot.cast.keyframe.model.id] : [])];
+  } catch {
+    return [pickModel(catalog, request.model).id];
+  }
+}
+
 const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
 /** Where paired devices' renders wait when this computer shares opportunistically: behind all of its own work. */
 const YIELD_RANK = 3;
@@ -567,17 +578,15 @@ export class Scheduler {
     }
   }
 
-  /** The model a job needs and how urgent it is, for placing it on a device. */
+  /** The models a job's graph needs and how urgent it is, for placing it on a device. */
   private placement(next: Job | { guest: Guest }): Placement {
-    if ('guest' in next) return { model: null, priority: 'interactive', guest: true };
-    let model: string | null = null;
+    if ('guest' in next) return { models: [], priority: 'interactive', guest: true };
+    let models: string[] = [];
     try {
-      model =
-        'take' in next
-          ? pickModel(this.catalog, next.take.request.model).id
-          : pickStillModel(this.catalog, next.still.model).id;
+      if ('still' in next) models = [pickStillModel(this.catalog, next.still.model).id];
+      else models = takeModels(this.catalog, next.take.request, this.castOf(next.take));
     } catch {}
-    return { model, priority: jobOf(next).priority, guest: false };
+    return { models, priority: jobOf(next).priority, guest: false };
   }
 
   private pumpOnce() {

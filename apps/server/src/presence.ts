@@ -260,3 +260,16 @@ export function nvidiaOthers(
     return parseComputeApps(out, (pid) => mine.has(pid) || underUs(pid, read));
   };
 }
+
+/**
+ * The GPU-memory source for a server: only with the ComfyUI Hildegard runs itself, whose processes it can leave out.
+ * One started apart (--comfy) is no process of Hildegard's, and would count as another program on the GPU.
+ */
+export function gpuSourceFor(
+  fake: boolean,
+  runtime: { pids(): number[] } | null,
+  others: typeof nvidiaOthers = nvidiaOthers,
+): GpuSource | undefined {
+  if (fake || !runtime) return undefined;
+  return others(undefined, () => runtime.pids());
+}

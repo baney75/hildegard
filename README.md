@@ -291,7 +291,8 @@ installed when they are installed there, so nothing downloads twice. Settings â€
   for it, this one included: one that has its model and fits it, that isn't busy, shares whenever asked before one
   that shares only when free, then a comfortable fit before a tight one, then the shorter queue. A laptop in use
   sends its takes to the DGX Spark, and a Spark in use leaves them on the laptop. With none free, a take renders
-  here, since this computer's own work never waits.
+  here, since this computer's own work never waits. A device on `auto` itself is never sent takes, so two can't end up
+  waiting on each other.
 - `hildegard choir leave parish1` forgets the device; `hildegard choir revoke` on parish1 stops sharing and turns
   every paired device away.
 - The code holds a fresh 256-bit key. parish1 keeps only its hash; the other computer keeps it in the system
