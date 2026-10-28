@@ -80,8 +80,11 @@ interface UpdatesOptions {
   updatable: boolean;
   /** Something is rendering or downloading, so an automatic update waits. */
   busy: () => boolean;
-  /** Starts `hildegard update`, which outlives this server. */
-  run: () => void;
+  /**
+   * Starts `hildegard update`, which outlives this server. It calls `failed` with why if the update ends without
+   * replacing this server, so Update can be tried again.
+   */
+  run: (failed: (why: string) => void) => void;
   onChange: (s: UpdateState) => void;
   fetch?: typeof fetch;
   /** How long after starting the first check waits, and how often an available update looks for a quiet moment. */
@@ -117,7 +120,21 @@ export class Updates {
     }
   }
 
+  /**
+   * The version an installer last failed to install here, and why, from the file it writes (`failedUpdateFile` in
+   * apps/cli/src/update.ts). The server may have been stopped and started again since, so it can't just remember.
+   */
+  private failed(): { version: string; why: string } | null {
+    try {
+      const [version, why] = readFileSync(join(this.opts.dataDir, 'update-failed'), 'utf8').split('\n');
+      return version ? { version: version.trim(), why: why?.trim() ?? '' } : null;
+    } catch {
+      return null;
+    }
+  }
+
   state(): UpdateState {
+    const failed = this.failed();
     return {
       current: this.opts.version,
       available: this.available,
@@ -125,7 +142,7 @@ export class Updates {
       applying: this.applying,
       waiting: this.waiting,
       updatable: this.opts.updatable,
-      error: this.error,
+      error: this.error ?? (failed && failed.version === this.available ? failed.why || null : null),
       checkedAt: this.checkedAt,
     };
   }
@@ -165,6 +182,14 @@ export class Updates {
     this.maybeApply();
   }
 
+  /** Update now, looking for the newest release first when the last check found none. Returns why not. */
+  async now(): Promise<string | null> {
+    if (this.opts.updatable && !this.available && !this.applying) await this.check();
+    if (this.applying) return null;
+    if (!this.available && this.error) return this.error;
+    return this.apply();
+  }
+
   /** Update now. Returns why not, when it can't. */
   apply(): string | null {
     if (!this.opts.updatable) return 'This Hildegard runs from its source code. Update it with git.';
@@ -174,7 +199,11 @@ export class Updates {
     this.waiting = false;
     this.changed();
     try {
-      this.opts.run();
+      this.opts.run((why) => {
+        this.applying = false;
+        this.error = why;
+        this.changed();
+      });
     } catch (e) {
       this.applying = false;
       this.error = e instanceof Error ? e.message : String(e);
@@ -202,6 +231,10 @@ export class Updates {
   }
 
   private maybeApply() {
+    // A version that failed to install here waits for a newer one, or for someone to ask for it, rather than failing
+    // again every time nothing renders.
+    const failed = this.failed();
+    if (this.auto && !this.waiting && failed && failed.version === this.available) return;
     if (
       (this.auto || this.waiting) &&
       this.available &&
@@ -217,20 +250,50 @@ export class Updates {
   }
 }
 
-/** Starts `hildegard update` on its own, so it carries on when it stops this server. Its output goes to the log. */
+/** The environment without what this version's bundle set about its own files, which a newer version must not use. */
+export function withoutBundleEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const v of ['HILDEGARD_ENTRY', 'HILDEGARD_RESOURCES', 'HILDEGARD_PRESETS_DIR', 'HILDEGARD_COMMIT'])
+    delete out[v];
+  return out;
+}
+
+/**
+ * Starts `hildegard update` on its own, so it carries on when it stops this server. Its output goes to the log. If it
+ * fails while this server still runs (a download or setup that went back to this version), `failed` gets its last line.
+ */
 export function runUpdate(
   entry: string,
   args: string[],
   logFile: string,
   env: NodeJS.ProcessEnv = process.env,
+  failed: (why: string) => void = () => {},
+  node: string = process.execPath,
 ) {
   const fd = openSync(logFile, 'a');
-  const child = spawn(process.execPath, [entry, 'update', '--yes', ...args], {
+  const child = spawn(node, [entry, 'update', '--yes', ...args], {
     detached: true,
     stdio: ['ignore', fd, fd],
     windowsHide: true,
-    env: { ...env, HILDEGARD_ENTRY: entry },
+    // The update command runs from this version's bundle, which sets the rest itself.
+    env: { ...withoutBundleEnv(env), HILDEGARD_ENTRY: entry },
   });
   closeSync(fd);
+  let told = false;
+  const tell = (why: string) => {
+    if (told) return;
+    told = true;
+    failed(why);
+  };
+  // It couldn't start at all (no processes left, say): without a listener, that error would stop this server.
+  child.on('error', (e) => tell(`The update couldn’t start: ${e.message}`));
+  child.on('exit', (code) => {
+    if (code === 0) return;
+    let last = '';
+    try {
+      last = readFileSync(logFile, 'utf8').trim().split('\n').at(-1)?.trim() ?? '';
+    } catch {}
+    tell(last || `The update stopped (exit ${code}). Its log is ${logFile}.`);
+  });
   child.unref();
 }

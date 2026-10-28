@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { newer, UPDATE_KEY, Updates, verifySigned } from '../src/update.ts';
+import { newer, runUpdate, UPDATE_KEY, Updates, verifySigned, withoutBundleEnv } from '../src/update.ts';
 
 // Signed by `tauri signer sign` with a throwaway key, as releases sign theirs with the real one.
 const dir = fileURLToPath(new URL('./fixtures/update/', import.meta.url));
@@ -125,6 +125,81 @@ describe('Updates', () => {
     expect(w.runs).toHaveLength(1);
   });
 
+  it('updates now even before its first check, looking for the release itself', async () => {
+    const w = watcher({ latest: '0.1.6' });
+    w.u.setAuto(false);
+    expect(w.u.state().available).toBeNull();
+    expect(await w.u.now()).toBeNull();
+    expect(w.u.state()).toMatchObject({ available: '0.1.6', applying: true });
+    expect(w.runs).toHaveLength(1);
+    expect(await watcher({ latest: '0.1.5' }).u.now()).toMatch(/up to date/);
+    expect(await watcher().u.now()).toMatch(/doesn’t offer updates/);
+  });
+
+  it('can update again once an update fails without replacing it', async () => {
+    let fail: (why: string) => void = () => {};
+    const u = new Updates({
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-update-')),
+      version: '0.1.5',
+      updatable: true,
+      busy: () => false,
+      run: (failed) => {
+        fail = failed;
+      },
+      onChange: () => {},
+      fetch: (async () => Response.json({ version: '0.1.6' })) as unknown as typeof fetch,
+    });
+    u.setAuto(false);
+    expect(await u.now()).toBeNull();
+    expect(u.state().applying).toBe(true);
+    fail('hildegard: 0.1.6.tar.gz didn’t match its checksum.');
+    expect(u.state()).toMatchObject({
+      applying: false,
+      error: 'hildegard: 0.1.6.tar.gz didn’t match its checksum.',
+    });
+    expect(await u.now()).toBeNull();
+    expect(u.state().applying).toBe(true);
+  });
+
+  it('won’t update on its own to a version that already failed here, but will when asked', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'hg-update-'));
+    writeFileSync(join(dataDir, 'update-failed'), '0.1.6\nhildegard: setting up 0.1.6 failed (exit 1)\n');
+    const w = watcher({ latest: '0.1.6', dataDir });
+    await w.u.check();
+    expect(w.runs).toHaveLength(0);
+    expect(w.u.state()).toMatchObject({
+      available: '0.1.6',
+      error: 'hildegard: setting up 0.1.6 failed (exit 1)',
+    });
+    // A newer release than the one that failed is fair game again.
+    const n = watcher({ latest: '0.1.7', dataDir });
+    await n.u.check();
+    expect(n.runs).toHaveLength(1);
+    expect(await w.u.now()).toBeNull();
+    expect(w.runs).toHaveLength(1);
+  });
+
+  it('survives an update that can’t start, and can try again', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'hg-update-'));
+    const log = join(dataDir, 'update.log');
+    const why = await new Promise<string>((resolve) =>
+      runUpdate('/x.mjs', [], log, { PATH: '/nonexistent' }, resolve, '/nonexistent/node'),
+    );
+    expect(why).toMatch(/couldn’t start: .*ENOENT/);
+  });
+
+  it('keeps this version’s own paths away from the update it starts', () => {
+    const env = withoutBundleEnv({
+      PATH: '/bin',
+      HILDEGARD_HOME: '/h',
+      HILDEGARD_ENTRY: '/h/app-0.1.5/hildegard.mjs',
+      HILDEGARD_RESOURCES: '/h/app-0.1.5',
+      HILDEGARD_PRESETS_DIR: '/h/app-0.1.5/presets',
+      HILDEGARD_COMMIT: 'abc',
+    });
+    expect(env).toEqual({ PATH: '/bin', HILDEGARD_HOME: '/h' });
+  });
+
   it('says why another device can’t update it', async () => {
     expect(await watcher({ latest: '0.1.5' }).u.request()).toMatch(/up to date/);
     expect(await watcher().u.request()).toMatch(/doesn’t offer updates|404/);
@@ -166,12 +241,38 @@ describe('the update routes', () => {
     try {
       const snap = (await (await fetch(`${s.url}/api/snapshot`)).json()) as { update: unknown };
       expect(snap.update).toMatchObject({ available: null, auto: true, updatable: true });
-      expect((await call('POST', '/api/update')).status).toBe(409);
       expect(await (await call('PUT', '/api/update', { auto: false })).json()).toMatchObject({ auto: false });
       expect((await call('PUT', '/api/update', { auto: 'yes' })).status).toBe(400);
       expect(await (await call('POST', '/api/update/check')).json()).toMatchObject({ available: '99.0.0' });
       expect(runs).toBe(0);
       expect(await (await call('POST', '/api/update')).json()).toMatchObject({ applying: true });
+      expect(runs).toBe(1);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it('update now looks for the release itself, before any check has run', async () => {
+    const { startServer } = await import('../src/server.ts');
+    const { parseArgs } = await import('../src/config.ts');
+    const { memoryStore } = await import('./helpers.ts');
+    let runs = 0;
+    const s = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-update-now-'))]), port: 0 },
+      {
+        secrets: memoryStore(),
+        updates: {
+          fetch: (async () => Response.json({ version: '99.0.0' })) as unknown as typeof fetch,
+          run: () => runs++,
+          firstMs: 3_600_000,
+        },
+      },
+    );
+    try {
+      const snap = (await (await fetch(`${s.url}/api/snapshot`)).json()) as { update: unknown };
+      expect(snap.update).toMatchObject({ available: null });
+      const res = await fetch(`${s.url}/api/update`, { method: 'POST', headers: { 'x-hildegard': '1' } });
+      expect(await res.json()).toMatchObject({ applying: true, available: '99.0.0' });
       expect(runs).toBe(1);
     } finally {
       await s.close();

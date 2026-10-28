@@ -69,9 +69,12 @@ await build({
       "import { dirname as __hgDir, join as __hgJoin } from 'node:path';",
       'const require = __hgRequire(import.meta.url);',
       'process.env.HILDEGARD_ENTRY ??= __hgPath(import.meta.url);',
-      'process.env.HILDEGARD_RESOURCES ??= __hgDir(__hgPath(import.meta.url));',
-      "process.env.HILDEGARD_PRESETS_DIR ??= __hgJoin(process.env.HILDEGARD_RESOURCES, 'presets');",
-      ...(commit ? [`process.env.HILDEGARD_COMMIT ??= ${JSON.stringify(commit)};`] : []),
+      // Always this bundle's own folder: a value inherited from another version (one updating to this) would be wrong.
+      'process.env.HILDEGARD_RESOURCES = __hgDir(__hgPath(import.meta.url));',
+      "process.env.HILDEGARD_PRESETS_DIR = __hgJoin(process.env.HILDEGARD_RESOURCES, 'presets');",
+      commit
+        ? `process.env.HILDEGARD_COMMIT = ${JSON.stringify(commit)};`
+        : 'delete process.env.HILDEGARD_COMMIT;',
     ].join('\n'),
   },
   logLevel: 'warning',

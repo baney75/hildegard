@@ -126,7 +126,12 @@ stop() {
 # one and restarts; the snapshot says so meanwhile.
 update() {
   local out
-  out=$(curl -sS --max-time 10 -X POST -H 'x-hildegard: 1' "$URL/api/update" 2>&1) || fail "Hildegard isn't running."
+  out=$(curl -sS --max-time 40 -X POST -H 'x-hildegard: 1' "$URL/api/update" 2>&1) || fail "Hildegard isn't running."
+  # Hildegard before 0.1.10 updates only to a release its last check found, so look, then ask again.
+  if [[ $(jq -r '.error // ""' <<<"$out" 2>/dev/null) == *"up to date"* ]]; then
+    curl -sS --max-time 30 -X POST -H 'x-hildegard: 1' "$URL/api/update/check" >/dev/null 2>&1
+    out=$(curl -sS --max-time 10 -X POST -H 'x-hildegard: 1' "$URL/api/update" 2>&1) || fail "Hildegard isn't running."
+  fi
   if [[ $(jq -r 'has("error")' <<<"$out" 2>/dev/null) == true ]]; then fail "$(jq -r '.error' <<<"$out")"; fi
 }
 

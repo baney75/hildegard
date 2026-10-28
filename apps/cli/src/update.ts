@@ -3,12 +3,12 @@
 // key and refused unless the signature matches; it then checks every file it downloads against the SHA-256 written in
 // it, lays the release down next to this one (this one stays, for going back) and restarts Hildegard.
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { ChoirDevice, ChoirState, UpdateState } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
-import { latestVersion, newer, RELEASES, VERSION, verifySigned } from '@hildegard/server';
+import { latestVersion, newer, RELEASES, VERSION, verifySigned, withoutBundleEnv } from '@hildegard/server';
 import { api, type Ctx, running, stop } from './commands.ts';
 import { type Result, result } from './output.ts';
 
@@ -16,6 +16,18 @@ const title = 'Update Hildegard';
 
 /** While an update restarts Hildegard: the desktop app waits instead of saying Hildegard stopped. */
 export const updatingFile = (dataDir: string) => join(dataDir, 'updating');
+/**
+ * Where an installer that fails says which version it couldn't install (first line) and why (second). The server
+ * reads it too (apps/server/src/update.ts), and won't update to that version on its own again.
+ */
+export const failedUpdateFile = (dataDir: string) => join(dataDir, 'update-failed');
+const failedUpdateLine = (dataDir: string) => {
+  try {
+    return readFileSync(failedUpdateFile(dataDir), 'utf8').split('\n')[1]?.trim() ?? '';
+  } catch {
+    return '';
+  }
+};
 
 /** Where this install lives: the folder its `hildegard` command names, or the one around its script. */
 function installHome(): string | null {
@@ -48,6 +60,27 @@ export async function signedInstaller(
   const marker = windows ? `$Version = '${version}'` : `VERSION=${version}\n`;
   if (!script.includes(marker)) throw new Error(`${name} doesn’t install ${version}.`);
   return script;
+}
+
+/**
+ * What a failed update says: why setup stopped (its own JSON message, when it gave one) and the installer's last line,
+ * which says what runs now. Without those, that this version is still installed.
+ */
+export function installerFailure(latest: string, stdout: string, stderr: string): string {
+  let why = '';
+  for (const line of stdout.trim().split('\n').reverse()) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const m = (JSON.parse(line) as { message?: unknown }).message;
+      if (typeof m === 'string' && m) why = m;
+    } catch {}
+    break;
+  }
+  const last = stderr.trim().split('\n').at(-1)?.trim() ?? '';
+  const parts = [why, last].filter(Boolean);
+  return parts.length
+    ? `The ${latest} installer stopped: ${parts.join(' ')}`
+    : `The ${latest} installer stopped. ${VERSION} is still installed.`;
 }
 
 export async function update(ctx: Ctx): Promise<Result> {
@@ -102,8 +135,13 @@ export async function update(ctx: Ctx): Promise<Result> {
   const file = join(dir, windows ? 'install.ps1' : 'install.sh');
   writeFileSync(file, script);
   writeFileSync(updatingFile(c.dataDir), `${latest}\n`);
-  const env: NodeJS.ProcessEnv = { ...process.env, HILDEGARD_HOME: home };
-  delete env.HILDEGARD_ENTRY;
+  // Without this version's own paths: the new one finds its files where it is.
+  rmSync(failedUpdateFile(c.dataDir), { force: true });
+  const env: NodeJS.ProcessEnv = {
+    ...withoutBundleEnv(process.env),
+    HILDEGARD_HOME: home,
+    HILDEGARD_UPDATE_REPORT: failedUpdateFile(c.dataDir),
+  };
 
   if (windows) {
     // Windows won't replace a program that's running, Node.js included, so Hildegard stops first and the installer
@@ -142,7 +180,8 @@ export async function update(ctx: Ctx): Promise<Result> {
           id: 'update',
           title,
           status: 'failed',
-          detail: `The ${latest} installer stopped${r.stderr ? `: ${r.stderr.trim().split('\n').at(-1)}` : '.'} ${VERSION} is still installed.`,
+          // Its stderr isn't captured when it shows on the terminal, so its last line comes from the report.
+          detail: installerFailure(latest, r.stdout ?? '', failedUpdateLine(c.dataDir) || (r.stderr ?? '')),
         },
       ],
       'Hildegard wasn’t updated.',
