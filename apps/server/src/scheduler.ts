@@ -30,6 +30,17 @@ import {
 import type { Job as Placement } from './choir.ts';
 import type { Store } from './store.ts';
 
+/** Every model a take's graph uses, for placing it on a device that has them all. */
+export function takeModels(catalog: Catalog, request: Take['request'], cast: Character[]): string[] {
+  try {
+    const shot = composeShot(catalog, request, cast);
+    // A take with characters draws its start frame with the stills model in the same graph, unless one was given.
+    return [shot.model.id, ...(shot.cast && !request.startFrame ? [shot.cast.keyframe.model.id] : [])];
+  } catch {
+    return [pickModel(catalog, request.model).id];
+  }
+}
+
 const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
 /** Where paired devices' renders wait when this computer shares opportunistically: behind all of its own work. */
 const YIELD_RANK = 3;
@@ -573,19 +584,7 @@ export class Scheduler {
     let models: string[] = [];
     try {
       if ('still' in next) models = [pickStillModel(this.catalog, next.still.model).id];
-      else {
-        const { request } = next.take;
-        // A take with characters draws its start frame with the stills model in the same graph, unless one was given.
-        try {
-          const shot = composeShot(this.catalog, request, this.castOf(next.take));
-          models = [
-            shot.model.id,
-            ...(shot.cast && !request.startFrame ? [shot.cast.keyframe.model.id] : []),
-          ];
-        } catch {
-          models = [pickModel(this.catalog, request.model).id];
-        }
-      }
+      else models = takeModels(this.catalog, next.take.request, this.castOf(next.take));
     } catch {}
     return { models, priority: jobOf(next).priority, guest: false };
   }

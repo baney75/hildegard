@@ -3,7 +3,14 @@ import { mkdtempSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState, ModelState, Take } from '@hildegard/presets';
+import {
+  type Character,
+  type ChoirState,
+  loadCatalog,
+  type ModelState,
+  ShotRequest,
+  type Take,
+} from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { snapshotFor, type Who } from '../src/access.ts';
 import { type Candidate, place, withRemoteFit } from '../src/choir.ts';
@@ -20,6 +27,7 @@ import {
   systemIdle,
   underUs,
 } from '../src/presence.ts';
+import { takeModels } from '../src/scheduler.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -161,6 +169,41 @@ describe('placing a take on any free device', () => {
     const noStills = c('spark', { has: (m) => m !== 'klein' });
     expect(place(job({ models: ['wan', 'klein'] }), elsewhere, [noStills, c('box')])).toBe('box');
     expect(place(job({ guest: true }), inUse, [c('spark')])).toBe('local');
+  });
+});
+
+describe('the models a take needs', () => {
+  const { catalog } = loadCatalog();
+  const mara: Character = {
+    id: 'a1b2c3d4e5f60718',
+    name: 'Mara',
+    description: 'Early thirties, auburn side braid',
+    wardrobe: '',
+    references: [
+      { file: `${'0'.repeat(64)}.png`, view: 'portrait', source: 'still', addedAt: '2026-10-24T00:00:00Z' },
+    ],
+    cover: null,
+    voice: null,
+    likeness: 'invented',
+    consent: null,
+    createdAt: '2026-10-24T00:00:00Z',
+    updatedAt: '2026-10-24T00:00:00Z',
+  };
+  const request = (over: Record<string, unknown> = {}) =>
+    ShotRequest.parse({
+      prompt: 'A keeper climbs the stairs',
+      model: 'wan-2-2-ti2v-5b',
+      rig: { body: 'vintage-16mm', lens: 'clean', focal: 35, aperture: 2.8 },
+      ...over,
+    });
+
+  it('counts the keyframe’s stills model for a take with characters, so it goes where both are', () => {
+    const plain = takeModels(catalog, request(), []);
+    expect(plain).toEqual(['wan-2-2-ti2v-5b']);
+    const cast = takeModels(catalog, request({ characters: [mara.id] }), [mara]);
+    expect(cast).toHaveLength(2);
+    expect(cast[0]).toBe('wan-2-2-ti2v-5b');
+    expect(catalog.models.find((m) => m.id === cast[1])?.kind).toBe('image');
   });
 });
 
