@@ -18,7 +18,7 @@ import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
-import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf } from './choir.ts';
+import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf, withRemoteFit } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
@@ -42,7 +42,7 @@ import {
   sandboxKind,
 } from './openscad.ts';
 import { People } from './people.ts';
-import { type GpuSource, type IdleSource, nvidiaOthers, Presence, systemIdle } from './presence.ts';
+import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
@@ -210,11 +210,7 @@ export async function startServer(
   // GPU memory. Hildegard's own ComfyUI and voice workers don't count.
   const presence = new Presence({
     idle: opts.presence?.idle ?? (config.fake ? undefined : systemIdle()),
-    // Only with the ComfyUI Hildegard runs itself: one started apart (--comfy) is no process of Hildegard's, and would
-    // count as another program on the GPU.
-    gpu:
-      opts.presence?.gpu ??
-      (config.fake || !runtime ? undefined : nvidiaOthers(undefined, () => runtime?.pids() ?? [])),
+    gpu: opts.presence?.gpu ?? gpuSourceFor(config.fake, runtime),
   });
   /** Note why this computer is busy for paired devices, for Settings and for the devices placing work here. */
   const setBusy = (why: string | null) => {
@@ -325,21 +321,7 @@ export async function startServer(
           .map((x) => x.name),
       );
       const devices = choir.state().devices.filter((x) => places.has(x.name));
-      return models.states().map((m) => {
-        const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
-        // Installed here but unable to run here (an Apple GPU it can't use, say) still renders on a device that can.
-        if ((m.installed && m.fit !== 'no') || !there.length) return m;
-        const fit = there.some((x) => x.fit[m.id] === 'fits') ? 'fits' : (there[0]!.fit[m.id] ?? null);
-        return {
-          ...m,
-          installed: true,
-          missingBytes: 0,
-          licenseAccepted: true,
-          fit,
-          fitWhy: null,
-          error: null,
-        };
-      });
+      return withRemoteFit(models.states(), devices);
     }
     const d = choir.active();
     if (!d) return models.states();

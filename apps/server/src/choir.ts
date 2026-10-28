@@ -12,7 +12,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
-import type { ChoirDevice, ChoirState, Priority } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, ModelState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
 import type { SecretStore } from './hf.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
@@ -614,4 +614,20 @@ export class Choir {
     );
     return this.state();
   }
+}
+
+/**
+ * With "auto": this computer's model states, with a model counted installed when a device a take could go to has it
+ * and can run it. A model installed here but unable to run here (an Apple GPU it can't use, say) still renders there.
+ */
+export function withRemoteFit(
+  states: ModelState[],
+  devices: Pick<ChoirDevice, 'models' | 'fit'>[],
+): ModelState[] {
+  return states.map((m) => {
+    const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
+    if ((m.installed && m.fit !== 'no') || !there.length) return m;
+    const fit = there.some((x) => x.fit[m.id] === 'fits') ? 'fits' : (there[0]!.fit[m.id] ?? null);
+    return { ...m, installed: true, missingBytes: 0, licenseAccepted: true, fit, fitWhy: null, error: null };
+  });
 }

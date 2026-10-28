@@ -3,13 +3,14 @@ import { mkdtempSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState, Take } from '@hildegard/presets';
+import type { ChoirState, ModelState, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { snapshotFor, type Who } from '../src/access.ts';
-import { type Candidate, place } from '../src/choir.ts';
+import { type Candidate, place, withRemoteFit } from '../src/choir.ts';
 import { parseArgs } from '../src/config.ts';
 import type { SecretStore } from '../src/hf.ts';
 import {
+  gpuSourceFor,
   Presence,
   parseComputeApps,
   parseLogind,
@@ -91,6 +92,17 @@ describe('seeing whether someone else wants the computer', () => {
     expect(presenceReason(null, [])).toBeNull();
   });
 
+  it('watches GPU memory only beside the ComfyUI Hildegard runs, never one started apart (--comfy)', () => {
+    const others = vi.fn(() => async () => [] as string[]);
+    expect(gpuSourceFor(false, null, others)).toBeUndefined();
+    expect(gpuSourceFor(true, { pids: () => [1] }, others)).toBeUndefined();
+    expect(others).not.toHaveBeenCalled();
+    expect(gpuSourceFor(false, { pids: () => [41, 42] }, others)).toBeTypeOf('function');
+    // Hildegard's own ComfyUI processes are left out of what counts.
+    const extra = (others.mock.calls[0] as unknown[])[1] as () => number[];
+    expect(extra()).toEqual([41, 42]);
+  });
+
   it('takes an idle hook’s word where the desktop has no idle clock (Hyprland), until it runs out', async () => {
     let t = 0;
     const p = new Presence({ idle: async () => null, now: () => t });
@@ -144,6 +156,45 @@ describe('placing a take on any free device', () => {
     const noStills = c('spark', { has: (m) => m !== 'klein' });
     expect(place(job({ models: ['wan', 'klein'] }), elsewhere, [noStills, c('box')])).toBe('box');
     expect(place(job({ guest: true }), inUse, [c('spark')])).toBe('local');
+  });
+});
+
+describe('models with any free device', () => {
+  const state = (over: Partial<ModelState>): ModelState => ({
+    id: 'wan',
+    installed: false,
+    missingBytes: 9e9,
+    downloading: null,
+    gated: false,
+    licenseAccepted: false,
+    fit: null,
+    fitWhy: null,
+    error: null,
+    ...over,
+  });
+
+  it('counts a model installed here but unable to run here when a device takes go to can run it', () => {
+    const here = state({
+      installed: true,
+      missingBytes: 0,
+      licenseAccepted: true,
+      fit: 'no',
+      fitWhy: 'apple-gpu',
+    });
+    const [m] = withRemoteFit([here], [{ models: ['wan'], fit: { wan: 'tight' } }]);
+    expect(m).toMatchObject({ installed: true, fit: 'tight', fitWhy: null });
+  });
+
+  it('keeps this computer’s state when it runs the model, or no device can', () => {
+    const fits = state({ installed: true, missingBytes: 0, fit: 'fits' });
+    expect(withRemoteFit([fits], [{ models: ['wan'], fit: { wan: 'tight' } }])[0]).toBe(fits);
+    const no = state({ installed: true, fit: 'no', fitWhy: 'apple-gpu' });
+    expect(withRemoteFit([no], [{ models: ['wan'], fit: { wan: 'no' } }])[0]).toBe(no);
+    const missing = state({});
+    expect(withRemoteFit([missing], [{ models: ['wan'], fit: { wan: 'fits' } }])[0]).toMatchObject({
+      installed: true,
+      fit: 'fits',
+    });
   });
 });
 
