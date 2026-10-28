@@ -4,7 +4,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ChoirState, Take } from '@hildegard/presets';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { snapshotFor, type Who } from '../src/access.ts';
 import { type Candidate, place } from '../src/choir.ts';
 import { parseArgs } from '../src/config.ts';
@@ -398,6 +398,13 @@ describe('any free device', () => {
       await until(() => laptop.store.takes.get(id)?.status === 'done');
       expect(laptop.choir.state().rendering).toBe('local');
       expect(spark.scheduler.guestTakes()).toHaveLength(0);
+
+      // Once the Spark stops placing its own takes it can take this one's, and the Studio hears so.
+      await post(spark, '/api/choir/use', { name: 'local' });
+      const told = vi.spyOn(laptop.choir, 'emit');
+      await laptop.choir.refresh();
+      expect(told).toHaveBeenCalled();
+      told.mockRestore();
     } finally {
       idle.laptop = 9999;
       await opportunistic(laptop, false);

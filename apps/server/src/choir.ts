@@ -368,7 +368,7 @@ export class Choir {
       const i = this.info.get(d.name);
       return {
         name: d.name,
-        ready: !!i && !this.problems.has(d.name) && i.online && i.accepting && !i.auto,
+        ready: this.ready(d.name),
         opportunistic: i?.opportunistic === true,
         busy: i?.busy ?? null,
         has: (m) => !!i && (i.fake || i.models.includes(m)),
@@ -376,6 +376,12 @@ export class Choir {
         queue: i?.queue ?? 0,
       };
     });
+  }
+
+  /** Whether a joined device takes work placed on it now: online, accepting, and not on "auto" itself. */
+  private ready(name: string): boolean {
+    const i = this.info.get(name);
+    return !!i && !this.problems.has(name) && i.online && i.accepting && !i.auto;
   }
 
   /** With "auto": send the next job to this device ("local" for this computer). Says whether it changed. */
@@ -559,11 +565,13 @@ export class Choir {
   }
 
   private record(name: string, info: NodeInfo | null, problem: string | null) {
-    const before = JSON.stringify(this.device(name, ''));
+    // Placement eligibility counts too: the models the Studio can use follow which devices are ready.
+    const look = () => JSON.stringify([this.device(name, ''), this.ready(name)]);
+    const before = look();
     if (info) this.info.set(name, info);
     if (problem) this.problems.set(name, problem);
     else this.problems.delete(name);
-    if (JSON.stringify(this.device(name, '')) !== before) this.emit();
+    if (look() !== before) this.emit();
   }
 
   /** Update a joined device to the newest release; it restarts as the new version, or once its renders finish. */
