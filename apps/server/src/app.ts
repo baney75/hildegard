@@ -81,6 +81,7 @@ import type { Loops } from './loop.ts';
 import { loopRoutes } from './loop-routes.ts';
 import type { ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
+import { type OpenScad, usesManifold } from './openscad.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
 import {
   findSlicer,
@@ -189,6 +190,13 @@ export interface AppDeps {
   reports?: Reports;
   /** This computer's GPU, as people name it, for reports. */
   gpu?: string | null;
+  /** OpenSCAD on this computer, and the libraries it renders with. */
+  openscad?: () => {
+    found: OpenScad | null;
+    libraryDirs: string[];
+    libraries: string[];
+    sandbox: 'sandbox-exec' | 'bwrap' | null;
+  };
   /** The owner's websites: templates, imports, files and previews. */
   sites?: {
     store: Sites;
@@ -2224,6 +2232,26 @@ export function createApp(deps: AppDeps) {
         if (e instanceof PrinterError) return c.json({ error: e.message }, e.status);
         throw e;
       }
+    });
+  }
+
+  // ── OpenSCAD ────────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.openscad) {
+    const info = deps.openscad;
+    app.get('/api/openscad', (c) => {
+      const refused = ownerOnly(c);
+      if (refused) return refused;
+      const o = info();
+      return c.json({
+        installed: !!o.found,
+        version: o.found?.version ?? null,
+        manifold: o.found ? usesManifold(o.found) : false,
+        // Paths are this computer's: only someone at it sees them.
+        path: local(c) ? (o.found?.path ?? null) : null,
+        libraryDirs: local(c) ? o.libraryDirs : [],
+        libraries: o.libraries,
+        sandbox: o.sandbox,
+      });
     });
   }
 

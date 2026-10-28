@@ -18,7 +18,12 @@ card"). The **hildegard-print** skill leads it through:
    quotes a shop listing's dimensions. Every number keeps its source and its tolerance, and what no photo shows is
    written down as an unknown.
 3. **Rounds.** The part is modelled assembled, each piece named, every mating feature sized from your printer's
-   clearance. Each round Hildegard checks the mesh (watertight, size, bed, base, overhangs), measures the gap between
+   clearance. The strongest way to model one is OpenSCAD code (the **hildegard-openscad** skill): the agent sends the
+   `.scad` source, Hildegard renders it with the OpenSCAD on your computer (each named part on its own, so the fits are
+   measured), and the round keeps the source for you to change. Hildegard reads the source before it runs and refuses
+   any that reaches for a file outside the round, then runs OpenSCAD sandboxed (sandbox-exec on macOS, bubblewrap on
+   Linux) with no network and the owner's files hidden. Without a sandbox (Windows, Linux without bubblewrap) a round
+   may be only `.scad` files of its own, with no libraries and no imported meshes or images; `openscad_status` says whether OpenSCAD and BOSL2 are installed. Each round Hildegard checks the mesh (watertight, size, bed, base, overhangs), measures the gap between
    every two parts against the fit declared for them, lays the model's silhouette over the photo's outline (and says
    when the part is turned the wrong way or the right shape at the wrong size), and slices it: time, grams, layers,
    and what the filament costs against what the part costs to buy.

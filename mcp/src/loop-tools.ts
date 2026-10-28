@@ -60,7 +60,7 @@ export function registerLoopTools(
     {
       title: 'Start a loop',
       description:
-        'Start a generate → render → critique → refine loop for a 3D model or printable part (kind "model"), a web page or site (kind "web"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (a model in Blender, OpenSCAD, build123d, trimesh or signed-distance code, exported as GLB, STL, OBJ or PLY; a page as HTML and CSS, or a folder or ZIP of the site) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model; every page at phone, tablet and desktop width, light and dark, with problems outlined, for the web; a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the skill first (read_skill): hildegard-3d for a model, hildegard-print for a part to print, hildegard-web for a page.',
+        'Start a generate → render → critique → refine loop for a 3D model or printable part (kind "model"), a web page or site (kind "web"), an image, a video or a sound. Write the brief first: who it is for, what it is, and the specifics that make it this piece rather than the average one. Then make the first version (a model as OpenSCAD source, which Hildegard renders itself, or made in Blender, build123d, trimesh or signed-distance code and exported as GLB, STL, OBJ or PLY; a page as HTML and CSS, or a folder or ZIP of the site) and send it with loop_submit. Each round comes back measured and drawn (eight views and silhouettes for a model; every page at phone, tablet and desktop width, light and dark, with problems outlined, for the web; a contact sheet for media); answer its questions with loop_critique, change one thing, and send the next round. Read the skill first (read_skill): hildegard-3d for a model, hildegard-print for a part to print, hildegard-web for a page.',
       inputSchema: {
         kind: z.enum(['model', 'web', 'image', 'video', 'audio']).describe('What the loop makes.'),
         title: z.string().min(1).max(120).describe('A short name, such as "Heron finial".'),
@@ -281,8 +281,8 @@ export function registerLoopTools(
       const how =
         a.kind === 'model'
           ? remote
-            ? 'Send each round with loop_submit as text (OBJ, ASCII STL or glTF JSON) or data (base64 GLB, STL or PLY).'
-            : 'Send each round with loop_submit: file_path to the GLB, STL, OBJ or PLY you exported, or text or data.'
+            ? 'Send each round with loop_submit as text (OpenSCAD source, OBJ, ASCII STL or glTF JSON) or data (base64 GLB, STL or PLY, or a ZIP of .scad files).'
+            : 'Send each round with loop_submit: file_path to the .scad file (or a folder of them with main.scad), or to the GLB, STL, OBJ or PLY you exported; or text or data.'
           : a.kind === 'web'
             ? a.site_id
               ? `Send each round with loop_submit site_id "${a.site_id}" after changing its files with site_write.`
@@ -304,7 +304,7 @@ export function registerLoopTools(
     'loop_submit',
     {
       title: 'Send a round',
-      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id, still_id or site_id' : 'file_path, text, data, take_id, still_id or site_id'}. The previous round must be critiqued first.`,
+      description: `Send the next version to a loop. Hildegard reads a model or media as data only (never runs it), measures it and draws it; OpenSCAD source is rendered first, in a folder holding only the round's files, and refused if it reaches for any other file: for a model, eight views around it and one above (or below, for a print), with holes and flipped faces in magenta, and black silhouettes; for a web page, every page at phone, tablet and desktop width, light and dark, opened in a browser cut off from the network, with problems outlined in magenta; for media, a contact sheet. Look at the image that comes back before you critique it. Give exactly one of ${remote ? 'text, data, take_id, still_id or site_id' : 'file_path, text, data, take_id, still_id or site_id'}. The previous round must be critiqued first.`,
       inputSchema: {
         loop_id: z.string().describe('The loop, from loop_start or loop_status.'),
         note: z
@@ -319,7 +319,7 @@ export function registerLoopTools(
                 .string()
                 .optional()
                 .describe(
-                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, HTML, ZIP, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG; or, for a web loop, the site’s folder.',
+                  'Absolute path to the file on this computer: GLB, glTF, STL, OBJ, PLY, OpenSCAD .scad, HTML, ZIP, PNG, JPEG, WebP, MP4, WAV, FLAC, MP3 or OGG; or a folder: a web loop’s site, or a model’s .scad files with main.scad.',
                 ),
             }),
         text: z
@@ -327,7 +327,7 @@ export function registerLoopTools(
           .max(60_000_000)
           .optional()
           .describe(
-            'The round as text: a model as OBJ, ASCII STL or glTF JSON with embedded buffers; a web page as one HTML document.',
+            'The round as text: a model as OpenSCAD source (rendered here with OpenSCAD), OBJ, ASCII STL or glTF JSON with embedded buffers; a web page as one HTML document.',
           ),
         data: z
           .string()
@@ -595,6 +595,35 @@ export function registerLoopTools(
               ? `Slices with ${p.slicerFound.name} on this computer.`
               : `${p.slicerFound.name} is here but needs this printer’s profiles: export them from it and set them with profiles.`
             : 'No slicer on this computer: install PrusaSlicer (free) for print time, grams and cost on every round.',
+        ].join('\n'),
+      );
+    }),
+  );
+
+  server.registerTool(
+    'openscad_status',
+    {
+      title: 'OpenSCAD here',
+      description:
+        'Whether this computer can render OpenSCAD source for a model loop: the version, whether it renders with Manifold (fast booleans), and the libraries installed (BOSL2, MCAD, NopSCADlib…), so you know what `include <…>` will find. Read it before writing OpenSCAD, and read the hildegard-openscad skill.',
+      inputSchema: {},
+    },
+    guard(async () => {
+      const o = await client.openscad();
+      if (!o.installed)
+        return text(
+          'OpenSCAD isn’t installed on the computer Hildegard runs on. Ask your user to install it from https://openscad.org/downloads.html (a development snapshot renders with Manifold, many times faster than 2021.01): macOS `brew install --cask openscad@snapshot`, Windows `winget install OpenSCAD.OpenSCAD`, Arch and Omarchy `sudo pacman -S openscad` (or `openscad-git` from the AUR for Manifold), Debian and Ubuntu `sudo apt install openscad`. Until then, export STL yourself and send that.',
+        );
+      const libs = o.libraries.length ? o.libraries.join(', ') : 'none';
+      return text(
+        [
+          `OpenSCAD ${o.version}, rendering with ${o.manifold ? 'Manifold (fast booleans)' : 'CGAL (slow on booleans; keep $fn low while blocking out, or install a development snapshot for Manifold)'}.`,
+          `Libraries: ${libs}.${o.libraries.includes('BOSL2') ? '' : ' BOSL2 isn’t installed; without it, write plain OpenSCAD. To add it, clone https://github.com/BelfrySCAD/BOSL2 into the OpenSCAD libraries folder.'}`,
+          ...(o.libraryDirs.length ? [`Library folders: ${o.libraryDirs.join(', ')}.`] : []),
+          o.sandbox
+            ? `OpenSCAD runs sandboxed here (${o.sandbox}): no network, it reads only the system, its own files, fonts, the libraries and the round, and it writes only in the round.`
+            : 'OpenSCAD can’t be sandboxed on this computer (Windows; Linux without bubblewrap; or an OpenSCAD kept in the home folder outside an app, such as an AppImage), so a round may be only .scad files of its own: no libraries, no import() or surface(), and linear_extrude and rotate_extrude take their height by name. Send any library files you need inside the round, beside the .scad that includes them. On Linux, `sudo apt install bubblewrap` (or your distribution’s package) turns libraries and imports on.',
+          'Send the source with loop_submit (text, or file_path to the .scad or to a folder with main.scad). Every include and use names a .scad file by a relative path, from the folder of the file that includes it, inside the round or a library. import() and surface() take one plain string naming a file sent with the round, relative to the file that reads it. Hildegard refuses import_stl, import_dxf, dxf_* and any other call with file = …',
         ].join('\n'),
       );
     }),

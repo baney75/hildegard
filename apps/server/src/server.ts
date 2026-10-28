@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
@@ -32,6 +32,15 @@ import { Loops } from './loop.ts';
 import { ModelManager } from './models.ts';
 import { nodeOnlyApp, nodeRoutes } from './node-api.ts';
 import type { FetchMetadata } from './oauth.ts';
+import {
+  canSandbox,
+  findOpenScad,
+  libraryDirs,
+  listLibraries,
+  type OpenScad,
+  renderScad,
+  sandboxKind,
+} from './openscad.ts';
 import { People } from './people.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
@@ -122,6 +131,8 @@ export async function startServer(
     busySettleMs?: number;
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
+    /** OpenSCAD for model loops sent as source (null for none); found on this computer by default. */
+    openscad?: OpenScad | null;
     /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
     chrome?: string | null;
     /** Figma's API, for the tests. */
@@ -394,6 +405,10 @@ export async function startServer(
   const pickSlicer = (p: Printer) => (opts.slicer === undefined ? findSlicer(p) : opts.slicer);
   // The browser that checks web pages and imports sites; tests can say there is none.
   const chrome = opts.chrome === undefined ? findChrome() : opts.chrome;
+  // Looked for each time, so OpenSCAD installed while Hildegard runs is used without a restart.
+  const openscad = () => (opts.openscad === undefined ? findOpenScad() : opts.openscad);
+  // Hidden from OpenSCAD: the owner's home and Hildegard's data, but for the round and the libraries.
+  const scadHidden = [homedir(), config.dataDir];
   const app = createApp({
     lookBusy: () => lookBusy(),
     updates,
@@ -423,6 +438,21 @@ export async function startServer(
       reviewModel: meshReviewer(config.dataDir),
       reviewMedia: reviewer(config.dataDir),
       reviewWeb: webReviewer(chrome),
+      renderScad: async (dir, main, out, { part, budget, requireSandbox }) => {
+        const o = openscad();
+        return o
+          ? renderScad(o, dir, main, out, libraryDirs(config.dataDir), {
+              part,
+              budget,
+              hide: scadHidden,
+              requireSandbox,
+            })
+          : null;
+      },
+      scadSandboxed: () => {
+        const o = openscad();
+        return !!o && canSandbox(o.path, scadHidden);
+      },
       printer: () => printer.get(),
       slice: (files, keep) => {
         const p = printer.get();
@@ -434,6 +464,16 @@ export async function startServer(
     slicer: pickSlicer,
     reports: opts.reports,
     gpu: localGpu ? `${localGpu.name}${localGpu.vramGb ? `, ${localGpu.vramGb} GB` : ''}` : null,
+    openscad: () => {
+      const o = openscad();
+      const dirs = libraryDirs(config.dataDir);
+      return {
+        found: o,
+        libraryDirs: dirs,
+        libraries: listLibraries(dirs).map((l) => l.name),
+        sandbox: o ? sandboxKind(o.path, scadHidden) : null,
+      };
+    },
     sites: {
       store: new Sites(join(config.dataDir, 'sites')),
       secrets: secretsFor,

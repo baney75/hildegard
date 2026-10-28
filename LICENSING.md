@@ -14,3 +14,5 @@ Copyright 2026 Donovan Baney and Hildegard contributors.
   - FLUX.2 [klein] 4B, the stills model for characters: [Apache-2.0](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B), with the Qwen3-4B text encoder ([Apache-2.0](https://huggingface.co/Qwen/Qwen3-4B))
 
 ComfyUI (GPL-3.0) runs as a separate program that Hildegard talks to over HTTP; it is not part of Hildegard.
+
+OpenSCAD (GPL-2.0-or-later), when it is installed, runs the same way: a separate program Hildegard starts to render a model's source into a mesh. It is never linked into Hildegard or shipped with it, and a mesh it renders is the author's, not covered by OpenSCAD's license. OpenSCAD libraries the owner installs (BOSL2 is BSD-2-Clause) stay in the owner's library folder and are never copied into a model.

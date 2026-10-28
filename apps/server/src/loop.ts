@@ -12,7 +12,16 @@
  * browser shut off from the network and from every file but the round's own (web-review.ts).
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, posix } from 'node:path';
 import {
   describeReview,
@@ -24,6 +33,18 @@ import {
 } from '@hildegard/craft';
 import { z } from 'zod';
 import { writeHandoff } from './handoff.ts';
+import {
+  declaredParts,
+  looksLikeScad,
+  mainScad,
+  readRound,
+  type ScadBudget,
+  ScadError,
+  type ScadRender,
+  scadTimeoutMs,
+  vetScad,
+  writePartsObj,
+} from './openscad.ts';
 import type { Printer, SliceResult } from './printer.ts';
 import type { WebSpec } from './web-review.ts';
 import { unzipTo, ZipError } from './zip.ts';
@@ -33,7 +54,7 @@ export const LOOP_KINDS: LoopKind[] = ['model', 'image', 'video', 'audio', 'web'
 
 /** The file formats each kind takes, by extension. */
 export const FORMATS: Record<LoopKind, string[]> = {
-  model: ['glb', 'gltf', 'stl', 'obj', 'ply'],
+  model: ['glb', 'gltf', 'stl', 'obj', 'ply', 'scad', 'zip'],
   image: ['png', 'jpg', 'webp'],
   video: ['mp4'],
   audio: ['wav', 'flac', 'mp3', 'ogg'],
@@ -41,9 +62,10 @@ export const FORMATS: Record<LoopKind, string[]> = {
 };
 
 const SAY: Record<string, string> = { gltf: 'glTF', jpg: 'JPEG', webp: 'WebP', zip: 'a ZIP of the site' };
+const SAY_MODEL: Record<string, string> = { scad: 'OpenSCAD source', zip: 'a ZIP of OpenSCAD files' };
 /** "GLB, glTF, STL, OBJ or PLY". */
 const formatList = (k: LoopKind) => {
-  const n = FORMATS[k].map((f) => SAY[f] ?? f.toUpperCase());
+  const n = FORMATS[k].map((f) => (k === 'model' ? SAY_MODEL[f] : undefined) ?? SAY[f] ?? f.toUpperCase());
   return n.length > 1 ? `${n.slice(0, -1).join(', ')} or ${n.at(-1)}` : n[0]!;
 };
 
@@ -195,7 +217,12 @@ export interface Round {
   /** The file, in this loop's folder. */
   file: string;
   format: string;
+  /** The OpenSCAD source the file was rendered from (a .scad, or a ZIP of the round's files), in this loop's folder. */
+  source?: string | null;
+  /** The size of `file`. */
   bytes: number;
+  /** The size of `source`, when there is one. */
+  sourceBytes?: number;
   /** What the agent changed in this round, in its words. */
   note: string;
   review: Review & { summary: string };
@@ -270,12 +297,21 @@ export function sniff(b: Uint8Array): string | null {
   }
   const head = new TextDecoder('utf-8', { fatal: false }).decode(b.subarray(0, 4096)).trimStart();
   if (/^(\ufeff)?\s*(<!--[\s\S]*?-->\s*)*<(!doctype html|html|head|body)[\s>]/i.test(head)) return 'html';
-  if (/^solid[\s\S]*facet/i.test(head)) return 'stl';
+  if (/^solid[^\n]*\r?\n\s*facet\s+normal/i.test(head)) return 'stl';
   if (/^\{[\s\S]*"asset"/.test(head)) return 'gltf';
   // Comments, groups and named objects (`o lid`), materials and smoothing may come before the first vertex.
   if (/^(#[^\n]*\n|\s|[og] [^\n]*\n|mtllib [^\n]*\n|s [^\n]*\n)*v\s+-?[\d.]/.test(head)) return 'obj';
+  // A licence or a long comment may come first in OpenSCAD source, so it reads further.
+  if (looksLikeScad(new TextDecoder('utf-8', { fatal: false }).decode(b.subarray(0, 65_536)))) return 'scad';
   return null;
 }
+
+const noOpenScad = () =>
+  new LoopError(
+    501,
+    'no_openscad',
+    'OpenSCAD isn’t on this computer, so Hildegard can’t render .scad source. Install it from openscad.org (a development snapshot renders with Manifold, many times faster), or set HILDEGARD_OPENSCAD to its path. Or export the model yourself and send the STL.',
+  );
 
 export interface LoopDeps {
   /** Where loops keep their rounds: one folder each. */
@@ -286,6 +322,18 @@ export interface LoopDeps {
   printer?: () => Printer;
   /** Slices print files into G-code at `keep`; null when this computer has no slicer. */
   slice?: (files: string[], keep: string) => Promise<SliceResult | null>;
+  /**
+   * Renders OpenSCAD source (the round's files, laid out in `dir`) into a binary STL at `out`, only the named `part`
+   * when given, taking its time from the round's `budget`; null (or absent) when this computer has no OpenSCAD.
+   */
+  renderScad?: (
+    dir: string,
+    main: string,
+    out: string,
+    opts: { part?: string; budget: ScadBudget; requireSandbox: boolean },
+  ) => Promise<ScadRender | null>;
+  /** Whether OpenSCAD runs sandboxed here, so a round may include libraries and import data files. */
+  scadSandboxed?: () => boolean;
   /** Renders and checks a web page; absent when this computer has no Chromium-family browser. */
   reviewWeb?: (spec: WebSpec) => Promise<Review>;
   /** Checks an image, video or sound; absent when Python can't run here. */
@@ -341,7 +389,12 @@ export class Loops {
     if (!l) return null;
     if (
       !l.rounds.some(
-        (r) => r.file === name || r.sheet === name || r.handoff === name || r.slice?.gcode === name,
+        (r) =>
+          r.file === name ||
+          r.sheet === name ||
+          r.handoff === name ||
+          r.slice?.gcode === name ||
+          r.source === name,
       ) &&
       l.reference?.file !== name
     )
@@ -414,15 +467,30 @@ export class Loops {
         'format',
         `Send ${l.kind === 'model' ? 'a 3D model' : l.kind === 'video' ? 'a video' : l.kind === 'web' ? 'a web page' : `an ${l.kind} file`} as ${formatList(l.kind)}.`,
       );
+    const scad = l.kind === 'model' && (format === 'scad' || format === 'zip');
+    if (scad && !this.deps.renderScad) throw noOpenScad();
     if (this.busy.has(l.id))
       throw new LoopError(409, 'busy', 'A round of this loop is being checked. Wait for it.');
     this.busy.add(l.id);
     const n = l.rounds.length + 1;
-    const file = `round-${n}.${format}`;
+    let file = `round-${n}.${format}`;
+    const source = scad ? `round-${n}.${format}` : null;
     const sheet = `round-${n}.sheet.jpg`;
     const dir = join(this.deps.dir, l.id);
     try {
-      writeFileSync(join(dir, file), bytes);
+      let rendered: ScadRender | null = null;
+      if (source) {
+        writeFileSync(join(dir, source), bytes);
+        try {
+          ({ rendered, file } = await this.openscad(l, n, format, bytes));
+        } catch (e) {
+          rmSync(join(dir, source), { force: true });
+          for (const f of [`round-${n}.stl`, `round-${n}.obj`]) rmSync(join(dir, f), { force: true });
+          throw e;
+        } finally {
+          rmSync(join(dir, `round-${n}.src`), { recursive: true, force: true });
+        }
+      } else writeFileSync(join(dir, file), bytes);
       let review: Review;
       try {
         review =
@@ -462,17 +530,31 @@ export class Loops {
                 });
       } catch (e) {
         rmSync(join(dir, file), { force: true });
+        if (source) rmSync(join(dir, source), { force: true });
         rmSync(join(dir, `round-${n}`), { recursive: true, force: true });
         if (e instanceof LoopError) throw e;
         throw new LoopError(422, 'unreadable', `Hildegard couldn’t read that file: ${(e as Error).message}`);
+      }
+      if (rendered) {
+        review.info.openscad = `${rendered.version}, ${rendered.engine}, ${rendered.seconds} s`;
+        if (rendered.echo.length) review.info.echo = rendered.echo;
+        if (rendered.warnings.length)
+          review.checks.push({
+            id: 'openscad',
+            status: 'warn',
+            value: rendered.warnings.slice(0, 5).join(' | ').slice(0, 600),
+            limit: null,
+            detail: `OpenSCAD warned ${rendered.warnings.length} time${rendered.warnings.length === 1 ? '' : 's'}. An undefined variable or an ignored argument usually means the part isn’t the shape you think; fix each one.`,
+          });
       }
       const printed = await this.slice(l, n, review);
       const round: Round = {
         n,
         at: this.now().toISOString(),
         file,
-        format,
-        bytes: bytes.length,
+        format: scad ? file.split('.').pop()! : format,
+        ...(source ? { source, sourceBytes: bytes.length } : {}),
+        bytes: statSync(join(dir, file)).size,
         note: note.trim().slice(0, 1000),
         review: { ...review, summary: describeReview(review) },
         sheet: existsSync(join(dir, sheet)) ? sheet : null,
@@ -546,6 +628,106 @@ export class Loops {
       });
       review.passed = false;
       return null;
+    }
+  }
+
+  /**
+   * OpenSCAD: lays the round's source out in its own folder (one .scad, or a ZIP unpacked), checks every file against
+   * the rules in openscad.ts, and renders the main file to `out`.
+   */
+  private async openscad(
+    l: Loop,
+    n: number,
+    format: string,
+    bytes: Uint8Array,
+  ): Promise<{ rendered: ScadRender; file: string }> {
+    const dir = join(this.deps.dir, l.id);
+    const src = join(dir, `round-${n}.src`);
+    rmSync(src, { recursive: true, force: true });
+    mkdirSync(src, { recursive: true });
+    let names: string[];
+    if (format === 'zip') {
+      try {
+        names = unzipTo(bytes, src);
+      } catch (e) {
+        if (e instanceof ZipError) throw new LoopError(422, 'zip', e.message);
+        throw e;
+      }
+    } else {
+      writeFileSync(join(src, 'main.scad'), bytes);
+      names = ['main.scad'];
+    }
+    try {
+      const main = mainScad(names);
+      // Hildegard's own files in the round folder are never the agent's to send.
+      const own = names.filter((x) => x.split('/').some((seg) => seg.startsWith('.')));
+      if (own.length)
+        throw new LoopError(
+          422,
+          'openscad_files',
+          `Hildegard won’t run this source: leave out files and folders whose names start with a dot (${own.slice(0, 3).join(', ')}).`,
+        );
+      // Decided once for the round: what it may read, and whether it must run sandboxed.
+      const sandboxed = this.deps.scadSandboxed?.() ?? false;
+      const problems = vetScad(readRound(src, names), { sandboxed });
+      if (problems.length)
+        throw new LoopError(
+          422,
+          'openscad_files',
+          `Hildegard won’t run this source: it reaches for files outside the round.\n${problems.slice(0, 10).join('\n')}`,
+        );
+      const parts = declaredParts(readFileSync(join(src, main), 'utf8'));
+      // One time limit for the whole round, however many parts it renders, counted while OpenSCAD runs.
+      const budget: ScadBudget = { ms: scadTimeoutMs() };
+      if (!parts) {
+        const file = `round-${n}.stl`;
+        const r = await this.deps.renderScad!(src, main, join(dir, file), {
+          budget,
+          requireSandbox: sandboxed,
+        });
+        if (!r) throw noOpenScad();
+        return { rendered: r, file };
+      }
+      // A print in parts: each rendered on its own, then kept as one OBJ with each part named, so fits are measured.
+      const meshes: { name: string; stl: string }[] = [];
+      const renders: ScadRender[] = [];
+      const partFiles = parts.map((part) => join(dir, `.round-${n}-part-${part}.stl`));
+      const file = `round-${n}.obj`;
+      try {
+        for (const part of parts) {
+          // Outside the round folder, where the next part's render can't touch it.
+          const out = join(dir, `.round-${n}-part-${part}.stl`);
+          let r: ScadRender | null;
+          try {
+            r = await this.deps.renderScad!(src, main, out, { part, budget, requireSandbox: sandboxed });
+          } catch (e) {
+            if (e instanceof ScadError) throw new ScadError(`Part “${part}”: ${e.message}`, e.log);
+            throw e;
+          }
+          if (!r) throw noOpenScad();
+          meshes.push({ name: part, stl: out });
+          renders.push(r);
+        }
+        writePartsObj(join(dir, file), meshes);
+      } finally {
+        for (const f of partFiles) rmSync(f, { force: true });
+      }
+      const rendered: ScadRender = {
+        ...renders[0]!,
+        out: join(dir, file),
+        seconds: Math.round(renders.reduce((t, r) => t + r.seconds, 0) * 10) / 10,
+        warnings: [...new Set(renders.flatMap((r) => r.warnings))],
+        echo: [...new Set(renders.flatMap((r) => r.echo))],
+      };
+      return { rendered, file };
+    } catch (e) {
+      if (e instanceof ScadError)
+        throw new LoopError(
+          422,
+          'openscad',
+          [e.message, ...e.log.filter((x) => !e.message.includes(x)).map((x) => `- ${x}`)].join('\n'),
+        );
+      throw e;
     }
   }
 

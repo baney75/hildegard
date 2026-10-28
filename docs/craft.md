@@ -69,6 +69,7 @@ three rounds with an honest note.
 | hildegard-setup | Installing Hildegard, linking AI apps, agent access within terms |
 | hildegard-cloud | Renting a GPU on Runpod |
 | hildegard-3d | 3D models for screens and printing, built in code (`scripts/mesh_kit.py`) and checked view by view |
+| hildegard-openscad | Exact, parametric parts in OpenSCAD code (with BOSL2 when installed), sent as source and rendered by Hildegard |
 | hildegard-loop | Generate, render, critique, refine: the loop, by hand or as a coding-agent run |
 | hildegard-print | Working parts to print: measured from photos and listings, sized from your printer's fits, sliced, with a print sheet (`scripts/print_kit.py`) |
 | hildegard-web | Websites and web app screens as real HTML and CSS, rendered at three widths in light and dark and audited |

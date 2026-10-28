@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Packs a site's folder as a ZIP, so a coding agent can send a whole website to a loop with one file_path. Only
+ * Packs a site's folder as a ZIP, so a coding agent can send a whole website (or a model's OpenSCAD files) to a loop
+ * with one file_path. Only
  * regular files are packed (never links, which could point anywhere on this computer), and dotfiles, node_modules
  * and version-control folders stay behind.
  */
@@ -82,9 +83,10 @@ export function zip(entries: { name: string; data: Uint8Array }[]): Buffer {
   return Buffer.concat([...locals, ...central, end]);
 }
 
-/** A site's folder, packed. */
+/** A site's folder, or a model's OpenSCAD files, packed. */
 export function zipFolder(dir: string): Buffer {
   const files = siteFiles(dir);
-  if (!files.some((f) => /\.html?$/i.test(f.name))) throw new PackError(`There’s no HTML page in ${dir}.`);
+  if (!files.some((f) => /\.(html?|scad)$/i.test(f.name)))
+    throw new PackError(`There’s no HTML page or .scad file in ${dir}.`);
   return zip(files.map((f) => ({ name: f.name, data: readFileSync(f.path) })));
 }

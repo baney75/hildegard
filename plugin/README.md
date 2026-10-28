@@ -11,6 +11,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
   light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
   file or a live page; your user watches the site on Hildegard's canvas while you build it.
+- **hildegard-openscad**: exact, parametric parts in OpenSCAD code, sent as source; Hildegard renders it, checks the
+  mesh and measures how the parts fit.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.

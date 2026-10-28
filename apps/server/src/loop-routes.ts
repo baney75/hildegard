@@ -30,6 +30,7 @@ const TYPES: Record<string, string> = {
   ogg: 'audio/ogg',
   // A page an agent made is shown as its source, never run on Hildegard's own address.
   html: 'text/plain; charset=utf-8',
+  scad: 'text/plain; charset=utf-8',
   zip: 'application/zip',
   gcode: 'text/plain; charset=utf-8',
 };
@@ -39,6 +40,7 @@ export const roundView = (l: Loop, r: Round) => ({
   ...r,
   file: `/api/loops/${l.id}/files/${r.file}`,
   sheet: r.sheet ? `/api/loops/${l.id}/files/${r.sheet}` : null,
+  source: r.source ? `/api/loops/${l.id}/files/${r.source}` : null,
   handoff: r.handoff ? `/api/loops/${l.id}/files/${r.handoff}` : null,
   slice: r.slice
     ? { ...r.slice, gcode: r.slice.gcode ? `/api/loops/${l.id}/files/${r.slice.gcode}` : null }

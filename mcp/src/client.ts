@@ -86,6 +86,17 @@ export interface LoopRound {
   /** A delivered print's sheet to hand on. */
   handoff?: string | null;
 }
+export interface OpenScadInfo {
+  installed: boolean;
+  version: string | null;
+  manifold: boolean;
+  path: string | null;
+  libraryDirs: string[];
+  libraries: string[];
+  /** How OpenSCAD is sandboxed here; null when it can't be, and then rounds can't include libraries. */
+  sandbox: 'sandbox-exec' | 'bwrap' | null;
+}
+
 export interface PrinterInfo {
   name: string;
   bedMm: [number, number, number];
@@ -321,6 +332,7 @@ export class HildegardClient {
   // ── The printer ──
   printer = () => this.call<PrinterInfo>('GET', '/api/printer');
   setPrinter = (body: Record<string, unknown>) => this.call<PrinterInfo>('PUT', '/api/printer', body);
+  openscad = () => this.call<OpenScadInfo>('GET', '/api/openscad');
   /** Any file the server serves (a take's video, a still), as bytes; null if it isn't there. */
   async bytes(path: string): Promise<Uint8Array | null> {
     const res = await this.fetchFn(`${this.url}${path}`).catch(() => null);
