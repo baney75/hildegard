@@ -97,7 +97,16 @@ A Hildegard without a usable GPU renders on another of the owner's devices. Two 
   `Scheduler.setOpportunistic` ranks them after all local work, a local take, still or voice lease stops a running
   guest (it requeues, as Force now does), and a guest starts only after `hostBusy` (`busy.ts`: NVIDIA use, load per
   core) says the computer is free, asking again every 30 s (an error counts as busy; a clearance is for one guest, for 2 s; the first ask waits 3 s after local work ends).
-  `sharing.busyCheck` says what `hostBusy` can see here. Off, guests queue as studio work.
+  `sharing.busyCheck` says what `hostBusy` can see here. The server's `lookHost` adds `presence.ts` to it: the
+  owner's input in the last 3 minutes (macOS ioreg, GNOME Mutter, xprintidle on X11, logind, Windows
+  GetLastInputInfo, or `POST /api/choir/presence` from a local idle hook) and other programs holding 1 GiB+ of GPU
+  memory (`nvidia-smi --query-compute-apps`, Linux, Hildegard's own processes left out by /proc ancestry and
+  `ComfyRuntime.pids`). A 5 s watch calls `Scheduler.interruptGuest` when either appears mid-render, and keeps
+  `sharing.busy` for Settings and for `/api/node/info`. Off, guests queue as studio work.
+- **Any free device** (`choir use auto`). `place()` in choir.ts picks the device for each job from
+  `Choir.candidates()` and `localCandidate()`; the scheduler's `choose` hook calls `route(job)` before each job
+  starts (its `pump` never nests), so the engine can switch per job. Guests always run here. In auto, the joined
+  devices are refreshed every 15 s.
 - **Rendering elsewhere** (`remote-engine.ts`). `hildegard choir join` checks the code against the device's
   `/api/node/info`, keeps the key in the keychain (`secretStores`, account `choir-<name>`; `HILDEGARD_SECRETS=file`
   forces 0600 files, which tests always use), and records the device in `<data>/choir/devices.json`. When `use` names

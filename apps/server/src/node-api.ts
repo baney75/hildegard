@@ -104,6 +104,9 @@ export function nodeRoutes(deps: NodeDeps): Hono {
   /** Finished videos not yet fetched. */
   const ready = new Set<string>();
   const id = () => randomBytes(16).toString('hex');
+  // A device that sends all its own takes elsewhere passes work on rather than doing it, so it takes none; with
+  // "auto" its own GPU is one of the places, and paired devices' renders always run on it.
+  const takesWork = () => choir.state().use === 'local' || choir.state().use === 'auto';
 
   // Videos nobody came back for, and anything left from before a restart.
   const sweep = () => {
@@ -136,7 +139,9 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       fit: Object.fromEntries(states.map((s) => [s.id, s.fit])),
       fitWhy: Object.fromEntries(states.map((s) => [s.id, s.fitWhy])),
       queue: scheduler.load(),
-      accepting: choir.state().use === 'local',
+      accepting: takesWork(),
+      opportunistic: choir.opportunistic,
+      busy: choir.state().sharing.busy,
       update: deps.updates?.().state(),
     };
     c.header('cache-control', 'no-store');
@@ -165,7 +170,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
         }),
     }),
     async (c) => {
-      if (choir.state().use !== 'local')
+      if (!takesWork())
         return c.json(
           {
             error: `${choir.sharingName()} renders on another device itself right now.`,

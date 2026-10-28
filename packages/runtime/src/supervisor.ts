@@ -3,7 +3,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { layout, readRuntime } from './install.ts';
+import { layout, type RuntimeInfo, readRuntime } from './install.ts';
 
 export type RuntimeStatus = 'stopped' | 'starting' | 'running' | 'restarting' | 'failed';
 
@@ -31,6 +31,17 @@ export function freePort(): Promise<number> {
  * Runs the ComfyUI Hildegard installed, and comfy-api-proxy in front of it, on loopback ports only. Restarts either
  * one if it exits, backing off up to 30 seconds, and stops both when Hildegard stops.
  */
+/**
+ * How ComfyUI should treat memory on this GPU. Where the GPU shares the computer's memory (DGX Spark), reading
+ * weights through mmap and then copying them "to the GPU" holds each model twice, and dynamic VRAM offloads into the
+ * same memory it frees: both are turned off, as NVIDIA's forum setups for Spark do.
+ */
+export function comfyMemoryArgs(info: Pick<RuntimeInfo, 'backend' | 'unified' | 'gpu'>): string[] {
+  // Installs from before 0.1.11 didn't note `unified`; the GB10 is the one NVIDIA part that shares memory so far.
+  const shared = info.unified || /\bGB10\b/i.test(info.gpu);
+  return info.backend === 'cuda' && shared ? ['--disable-mmap', '--disable-dynamic-vram'] : [];
+}
+
 export class ComfyRuntime {
   readonly dataDir: string;
   private readonly onChange: (s: RuntimeState) => void;
@@ -49,6 +60,11 @@ export class ComfyRuntime {
   /** ComfyUI's own address (not the proxy's), while it runs: for asking it to free GPU memory. */
   comfyUrl(): string | null {
     return this.ports && this.state.status !== 'stopped' ? `http://127.0.0.1:${this.ports[0]}` : null;
+  }
+
+  /** The processes it runs, so a GPU watcher can tell them from other programs. */
+  pids(): number[] {
+    return this.procs.flatMap((p) => (p.pid && p.exitCode === null ? [p.pid] : []));
   }
 
   /** Whether `hildegard install` has finished here. */
@@ -93,6 +109,7 @@ export class ComfyRuntime {
         '--preview-method',
         'auto',
         ...(info.backend === 'cpu' ? ['--cpu'] : []),
+        ...comfyMemoryArgs(info),
       ],
       L.comfyDir,
     );

@@ -236,12 +236,20 @@ export interface ChoirDevice {
   problem: string | null;
   /** Its updates, as it last said; null from versions before 0.1.9, which can't be updated from here. */
   update: UpdateState | null;
+  /** It shares its GPU only while it's free; null until it says (versions before 0.1.11 don't). */
+  opportunistic: boolean | null;
+  /** Why it is busy for paired devices now (opportunistic, and in use), or null. */
+  busy: string | null;
+  /** Renders queued or running there, as it last said. */
+  queue: number | null;
 }
 
 /** Choir: rendering on another of your devices, and sharing this one's GPU with them. */
 export interface ChoirState {
-  /** Where takes render: "local", or the name of a joined device. */
+  /** Where takes render: "local", the name of a joined device, or "auto" for the best free device for each take. */
   use: string;
+  /** Where the take rendering now, or next, goes: "local" or a device's name. The same as `use` unless that's "auto". */
+  rendering: string;
   devices: ChoirDevice[];
   /** This computer shares its GPU: paired devices may render here. */
   sharing: {
@@ -263,6 +271,13 @@ export interface ChoirState {
      * holds paired renders until it does. Null until the server has looked.
      */
     busyCheck: 'gpu+load' | 'load' | 'none' | 'gpu-unknown' | null;
+    /**
+     * Opportunistic: why it's busy for paired devices now, such as "Someone is using this computer." or "llama-server
+     * is using the GPU.", or null while it's free. Always null when not opportunistic.
+     */
+    busy: string | null;
+    /** Whether it can tell when someone uses it (an idle clock); null until it has looked, false on a headless box. */
+    seesOwner: boolean | null;
   };
 }
 

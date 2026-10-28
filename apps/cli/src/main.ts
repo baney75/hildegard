@@ -51,10 +51,14 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a join code
                              (--url to give the address yourself; choir revoke stops sharing)
   hildegard choir join       On a computer without a big GPU: paste that code, and takes render there
-  hildegard choir list       Devices, and which one renders (choir use <device|local>, choir leave <device>)
+  hildegard choir list       Devices, and which one renders (choir use <device|local|auto>, choir leave <device>);
+                             use auto sends each take to the device free for it, this one included
   hildegard choir opportunistic on|off
                              On: your other devices’ renders here yield to this computer’s own work and wait
-                             while it’s busy. Off (the default): they render when their turn comes
+                             while it’s busy: in use, or another program on the GPU. Off (the default): they
+                             render when their turn comes
+  hildegard choir presence away|back
+                             For idle hooks (hypridle): say you left or came back (--minutes it holds, a day)
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet)
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
@@ -139,6 +143,7 @@ const valued = new Set([
   'gpu',
   'env',
   'idle-minutes',
+  'minutes',
   'disk',
   'volume',
   'wait-minutes',

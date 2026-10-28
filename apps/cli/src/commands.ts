@@ -918,11 +918,11 @@ export const dataExists = (c: Config) => existsSync(c.dataDir);
 
 // ── Choir: render on another of your devices ─────────────────────────────────────────────────────────────────────
 
-const deviceStep = (d: ChoirDevice, use: string): Step => ({
+const deviceStep = (d: ChoirDevice, rendering: string): Step => ({
   id: `device-${d.name}`,
   title: d.name,
   status: d.online ? 'done' : 'skipped',
-  detail: `${d.name === use ? 'Takes render here. ' : ''}${d.online ? `Online${d.gpu ? ` · ${d.gpu}` : ''}${d.models.length ? ` · ${d.models.join(', ')}` : ''}.` : (d.problem ?? 'Not answering.')} ${d.url}`,
+  detail: `${d.name === rendering ? 'Takes render here. ' : ''}${d.online ? `Online${d.gpu ? ` · ${d.gpu}` : ''}${d.models.length ? ` · ${d.models.join(', ')}` : ''}${d.busy ? ` · busy: ${d.busy.replace(/\.$/, '')}` : d.opportunistic ? ' · only when it’s free' : ''}.` : (d.problem ?? 'Not answering.')} ${d.url}`,
 });
 
 /**
@@ -1018,7 +1018,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         return result(
           [
             {
-              ...deviceStep(r.device, r.choir.use),
+              ...deviceStep(r.device, r.choir.rendering),
               id: 'join',
               status: 'done',
               title: `Join ${r.device.name}`,
@@ -1031,6 +1031,22 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         );
       } catch (e) {
         return fail('Join a device', e);
+      }
+    }
+    case 'presence': {
+      // For idle hooks on desktops with no idle clock Hildegard can ask, such as hypridle on Hyprland.
+      const want = args[1];
+      if (want !== 'away' && want !== 'back')
+        return result([], 'Say `hildegard choir presence away` or `back`.', { ok: false });
+      const minutes = ctx.opts.get('minutes');
+      try {
+        const s = await api<ChoirState>(c, '/api/choir/presence', {
+          method: 'POST',
+          body: { away: want === 'away', ...(minutes ? { minutes: Number(minutes) } : {}) },
+        });
+        return result([], s.sharing.busy ?? 'This computer is free for your other devices.', { choir: s });
+      } catch (e) {
+        return fail('Say you’re away or back', e);
       }
     }
     case 'opportunistic': {
@@ -1048,7 +1064,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
             title: 'Opportunistic sharing',
             status: 'done',
             detail: s.sharing.opportunistic
-              ? `Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.${s.sharing.busyCheck === 'load' ? ' It can’t see its GPU’s use, so it goes by how busy the processor is.' : s.sharing.busyCheck === 'none' ? ' It can’t tell when it’s busy, so they wait only for Hildegard’s own work here.' : s.sharing.busyCheck === 'gpu-unknown' ? ' The NVIDIA driver isn’t answering (restart after a driver update), so they wait until it does.' : ''}`
+              ? `Your other devices’ renders wait behind this computer’s own work, and run only while nothing else is using it: no one at the keyboard, and no other program on the GPU. One rendering stops when that changes, and starts again by itself.${s.sharing.busy ? ` Busy now: ${s.sharing.busy}` : ''}${s.sharing.busyCheck === 'load' ? ' It can’t see its GPU’s use, so it goes by how busy the processor is.' : s.sharing.busyCheck === 'none' ? ' It can’t tell when it’s busy, so they wait only for Hildegard’s own work here.' : s.sharing.busyCheck === 'gpu-unknown' ? ' The NVIDIA driver isn’t answering (restart after a driver update), so they wait until it does.' : ''}`
               : 'Your other devices’ renders run here when their turn comes.',
           },
         ],
@@ -1059,12 +1075,20 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
     case 'use': {
       const name = args[1];
       if (!name)
-        return result([], 'Say where: `hildegard choir use <device>` or `use local`.', { ok: false });
+        return result([], 'Say where: `hildegard choir use <device>`, `use local`, or `use auto`.', {
+          ok: false,
+        });
       try {
         const s = await api<ChoirState>(c, '/api/choir/use', { method: 'POST', body: { name } });
-        return result([], name === 'local' ? 'Takes render on this computer.' : `Takes render on ${name}.`, {
-          choir: s,
-        });
+        return result(
+          [],
+          name === 'local'
+            ? 'Takes render on this computer.'
+            : name === 'auto'
+              ? 'Each take goes to the device free for it, this one included.'
+              : `Takes render on ${name}.`,
+          { choir: s },
+        );
       } catch (e) {
         return fail('Choose where takes render', e);
       }
@@ -1096,10 +1120,23 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         {
           id: 'local',
           title: 'This computer',
-          status: s.use === 'local' ? 'done' : 'skipped',
-          detail: `${s.use === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}${s.sharing.opportunistic ? ', when it’s free' : ''}.` : 'Not sharing its GPU.'}`,
+          status: s.rendering === 'local' ? 'done' : 'skipped',
+          detail: `${s.rendering === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}${s.sharing.opportunistic ? `, when it’s free${s.sharing.busy ? ` (busy now: ${s.sharing.busy.replace(/\.$/, '')})` : ''}` : ''}.` : 'Not sharing its GPU.'}`,
         },
-        ...s.devices.map((d) => deviceStep(d, s.use)),
+        ...(s.devices.length
+          ? [
+              {
+                id: 'auto',
+                title: 'Any free device',
+                status: s.use === 'auto' ? ('done' as const) : ('skipped' as const),
+                detail:
+                  s.use === 'auto'
+                    ? 'Each take goes to the device free for it, this one included.'
+                    : 'Off. `hildegard choir use auto` sends each take to the device free for it.',
+              },
+            ]
+          : []),
+        ...s.devices.map((d) => deviceStep(d, s.rendering)),
       ];
       return result(
         steps,
@@ -1110,7 +1147,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
     default:
       return result(
         [],
-        'Use `hildegard choir invite`, `join`, `list`, `use`, `leave`, `opportunistic` or `revoke`.',
+        'Use `hildegard choir invite`, `join`, `list`, `use`, `leave`, `opportunistic`, `presence` or `revoke`.',
         {
           ok: false,
         },

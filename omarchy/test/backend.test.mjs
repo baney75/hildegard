@@ -176,6 +176,34 @@ test('snapshot of a running Hildegard', async () => {
   assert.equal(u.stderr, 'hildegard: This Hildegard runs from its source code. Update it with git.\n');
 });
 
+test('lend flips sharing only while free, and presence is what the idle watch says', async () => {
+  // Not shared yet: nothing to flip.
+  assert.equal(JSON.parse((await run('snapshot')).stdout).sharing, null);
+  const invite = await fetch(`http://127.0.0.1:${port}/api/choir/invite`, {
+    method: 'POST',
+    headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+    body: JSON.stringify({ url: 'http://127.0.0.1:7999' }),
+  });
+  assert.equal(invite.status, 200);
+  assert.deepEqual(JSON.parse((await run('snapshot')).stdout).sharing, { opportunistic: false, busy: null });
+  assert.equal((await run('lend', 'on')).code, 0);
+  assert.equal(JSON.parse((await run('snapshot')).stdout).sharing.opportunistic, true);
+  // The stand-in server has no idle clock of its own: the panel's word is what it goes by.
+  assert.equal((await run('presence', 'back')).code, 0);
+  await until(
+    async () => JSON.parse((await run('snapshot')).stdout).sharing.busy === 'Someone is using this computer.',
+  );
+  assert.equal((await run('presence', 'away')).code, 0);
+  await until(async () => JSON.parse((await run('snapshot')).stdout).sharing.busy === null);
+  assert.equal((await run('lend', 'sometimes')).code, 1);
+  assert.equal((await run('presence', 'maybe')).code, 1);
+  assert.equal((await run('lend', 'off')).code, 0);
+  await fetch(`http://127.0.0.1:${port}/api/choir/revoke`, {
+    method: 'POST',
+    headers: { 'x-hildegard': '1' },
+  });
+});
+
 test('snapshot counts renders paired devices sent here, and shows the running one as the current take', async () => {
   // Hildegard's own snapshot, as a GPU computer busy with another device's render gives it: curl is a stub here.
   const snapshot = {

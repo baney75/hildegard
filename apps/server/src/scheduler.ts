@@ -19,6 +19,7 @@ import {
   type GuestTake,
   loadSafety,
   type Priority,
+  pickModel,
   pickStillModel,
   type SafetyCheck,
   type Still,
@@ -26,6 +27,7 @@ import {
   type TakeError,
   usable,
 } from '@hildegard/presets';
+import type { Job as Placement } from './choir.ts';
 import type { Store } from './store.ts';
 
 const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
@@ -123,6 +125,11 @@ export class Scheduler {
   private localEndedAt = 0;
   private readonly busySettleMs: number;
   private readonly busyRecheckMs: number;
+  /** Takes go to the best free device for each ("auto"): speech then waits for any render, wherever it runs. */
+  private auto = false;
+  private pumping = false;
+  private repump = false;
+  private readonly choose: (job: Placement) => void;
   /** Other work holding this GPU (voice), and work waiting for it; no take starts while it is held. */
   private leased = false;
   private readonly leaseQueue: Array<() => void> = [];
@@ -162,7 +169,10 @@ export class Scheduler {
     busyRecheckMs?: number;
     /** How long to let this computer's own work settle before asking; BUSY_SETTLE_MS unless a test says otherwise. */
     busySettleMs?: number;
+    /** Called with the next job before it starts, to send it to the device that suits it (Choir's "auto"). */
+    choose?: (job: Placement) => void;
   }) {
+    this.choose = opts.choose ?? (() => {});
     this.busyRecheckMs = opts.busyRecheckMs ?? BUSY_RECHECK_MS;
     this.busySettleMs = opts.busySettleMs ?? BUSY_SETTLE_MS;
     this.hostBusy = opts.hostBusy ?? (async () => false);
@@ -276,6 +286,31 @@ export class Scheduler {
     if (on) this.yieldGuest();
     this.renumber();
     this.pump();
+  }
+
+  /** Whether takes are placed on a device each ("auto"). */
+  setAuto(on: boolean) {
+    this.auto = on;
+  }
+
+  /**
+   * Opportunistic: someone else wants this computer now (its owner came back, or another program took GPU memory), so
+   * the paired device's render on the GPU stops and goes back in line. It starts over once `hostBusy` says it's free.
+   */
+  interruptGuest() {
+    if (!this.opportunistic || !this.guestRunning || !this.running || this.stopped) return;
+    this.running.requeue = true;
+    this.running.abort.abort();
+  }
+
+  /** Nothing of Hildegard's is on this computer's GPU now: no render, no speech. */
+  get idle(): boolean {
+    return !this.running && !this.leased;
+  }
+
+  /** Whether a paired device's render is on the GPU now. */
+  get guestOnGpu(): boolean {
+    return this.guestRunning !== null;
   }
 
   /** Whether paired devices' renders wait behind this computer's own work and its being busy. */
@@ -495,7 +530,7 @@ export class Scheduler {
    */
   lease(): Promise<() => void> {
     return new Promise((resolve) => {
-      if (this.comfy === 'remote') {
+      if (this.comfy === 'remote' && !this.auto) {
         resolve(() => {});
         return;
       }
@@ -516,6 +551,36 @@ export class Scheduler {
 
   /** Start the next take or still if the GPU is free. */
   pump() {
+    // Placing a job can change the engine, which pumps again: run that after this one, never inside it.
+    if (this.pumping) {
+      this.repump = true;
+      return;
+    }
+    this.pumping = true;
+    try {
+      do {
+        this.repump = false;
+        this.pumpOnce();
+      } while (this.repump && !this.running && !this.stopped);
+    } finally {
+      this.pumping = false;
+    }
+  }
+
+  /** The model a job needs and how urgent it is, for placing it on a device. */
+  private placement(next: Job | { guest: Guest }): Placement {
+    if ('guest' in next) return { model: null, priority: 'interactive', guest: true };
+    let model: string | null = null;
+    try {
+      model =
+        'take' in next
+          ? pickModel(this.catalog, next.take.request.model).id
+          : pickStillModel(this.catalog, next.still.model).id;
+    } catch {}
+    return { model, priority: jobOf(next).priority, guest: false };
+  }
+
+  private pumpOnce() {
     if (this.running || this.leased || this.stopped) return;
     const lease = this.leaseQueue.shift();
     if (lease) {
@@ -523,12 +588,14 @@ export class Scheduler {
       lease();
       return;
     }
-    if (!this.online) return;
     // Paused, only a paired render that speech interrupted may go on, ahead of the paused takes.
     const next = this.paused
       ? this.order().find((x) => 'guest' in x && x.guest.id === this.resumeGuest)
       : this.order()[0];
     if (!next) return;
+    // With "auto", the job goes to the device free for it first, which may bring the engine online.
+    if (this.auto) this.choose(this.placement(next));
+    if (!this.online) return;
     if ('guest' in next && this.opportunistic) {
       const c = this.guestCleared;
       this.guestCleared = null;

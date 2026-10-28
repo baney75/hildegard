@@ -11,7 +11,7 @@ const M = {};
 // Arrays made inside the vm context have another realm's prototype; compare them by value.
 const same = (actual, expected) => assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
 vm.runInNewContext(
-  `${source.replace(/^\.pragma library\n/, '')}\nObject.assign(M, { mark, plural, status, percent, progressLine, takeRoute, ago, finished, actions })`,
+  `${source.replace(/^\.pragma library\n/, '')}\nObject.assign(M, { mark, plural, status, percent, progressLine, takeRoute, ago, finished, actions, lending })`,
   { M },
 );
 
@@ -124,4 +124,23 @@ test('actions', () => {
   same(ids(up({ update: { available: null, applying: false } })), ['studio', 'agents', 'stop']);
   for (const s of [{ installed: false }, { installed: true, running: false }, up()])
     assert.equal(M.actions(s).filter((a) => a.primary).length, 1);
+});
+
+test('lending', () => {
+  assert.equal(M.lending(up()), null);
+  assert.equal(M.lending({ installed: true, running: false, sharing: { opportunistic: true } }), null);
+  same(M.lending(up({ sharing: { opportunistic: false, busy: null } })), {
+    text: 'Shares its GPU whenever your other devices ask',
+    flip: 'on',
+    label: 'Only when free',
+  });
+  same(M.lending(up({ sharing: { opportunistic: true, busy: null } })), {
+    text: 'Shares its GPU only while it’s free',
+    flip: 'off',
+    label: 'Always share',
+  });
+  assert.equal(
+    M.lending(up({ sharing: { opportunistic: true, busy: 'qwen3-coder is using the GPU.' } })).text,
+    'qwen3-coder is using the GPU, so your other devices’ renders wait',
+  );
 });

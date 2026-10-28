@@ -38,6 +38,10 @@ export interface NodeInfo {
   accepting: boolean;
   /** Its updates; missing from versions before 0.1.9. */
   update?: UpdateState;
+  /** It shares its GPU only while it's free; missing from versions before 0.1.11. */
+  opportunistic?: boolean;
+  /** Opportunistic and in use: why renders sent there wait, such as "Someone is using this computer."; or null. */
+  busy?: string | null;
 }
 
 /** POST /api/node/render streams these, one JSON object per line. */

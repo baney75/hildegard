@@ -12,7 +12,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
-import type { ChoirDevice, ChoirState } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
 import type { SecretStore } from './hf.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
@@ -70,7 +70,7 @@ export function deviceName(raw: string): string {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 63);
-  return n && n !== 'local' ? n : 'gpu';
+  return n && n !== 'local' && n !== 'auto' ? n : 'gpu';
 }
 
 export function encodeJoinCode(c: JoinCode): string {
@@ -128,7 +128,7 @@ export function parseJoinCode(raw: string): JoinCode {
     typeof o.u !== 'string' ||
     typeof o.t !== 'string' ||
     !NAME_RE.test(o.n) ||
-    o.n.toLowerCase() === 'local' ||
+    ['local', 'auto'].includes(o.n.toLowerCase()) ||
     !TOKEN_RE.test(o.t)
   )
     throw bad();
@@ -180,6 +180,57 @@ export function tailscaleSelf(exec: Run = run): TailscaleSelf | null {
   return null;
 }
 
+// ── Placing work across devices ─────────────────────────────────────────────────────────────────────────────────
+
+/** One job to place: the model it needs (null when any will do), and whether the owner forced it. */
+export interface Job {
+  model: string | null;
+  priority: Priority;
+  /** A paired device's render: it came to this computer's GPU and renders nowhere else. */
+  guest: boolean;
+}
+
+/** A device a job could go to, as far as this computer knows: "local" is this computer. */
+export interface Candidate {
+  name: string;
+  /** It answers, its ComfyUI does, and it takes work. */
+  ready: boolean;
+  /** It shares its GPU only while it's free. */
+  opportunistic: boolean;
+  /** Why it's busy for paired devices now (opportunistic, and in use), or null. */
+  busy: string | null;
+  has(model: string): boolean;
+  fit(model: string): 'fits' | 'tight' | 'no' | null;
+  queue: number;
+}
+
+/**
+ * Where a job goes when takes render on "auto". Only devices that are ready and have its model, fitting their GPU,
+ * are free for it, and a busy one isn't free (another device's render waits there until it's free again, forced or
+ * not). Among those: one that's always shared before an opportunistic one, a comfortable fit before a tight one, the
+ * shorter queue, then this computer (nothing to send). With none free, it renders here if it can, since this
+ * computer's own work never waits for it to be free; else where it could run, and waits there.
+ */
+export function place(job: Job, local: Candidate | null, devices: Candidate[]): string {
+  if (job.guest) return 'local';
+  const all = local ? [local, ...devices] : devices;
+  const runs = (c: Candidate) =>
+    c.ready && (job.model === null || (c.has(job.model) && c.fit(job.model) !== 'no'));
+  const fitRank = (c: Candidate) => (job.model && c.fit(job.model) === 'tight' ? 1 : 0);
+  const best = all
+    .filter((c) => runs(c) && !c.busy)
+    .sort(
+      (a, b) =>
+        Number(a.opportunistic) - Number(b.opportunistic) ||
+        fitRank(a) - fitRank(b) ||
+        a.queue - b.queue ||
+        Number(b.name === 'local') - Number(a.name === 'local'),
+    )[0];
+  return (
+    (best ?? (local && runs(local) ? local : null) ?? all.find(runs) ?? local ?? devices[0])?.name ?? 'local'
+  );
+}
+
 // ── Choir ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
 interface SharingFile {
@@ -227,6 +278,8 @@ export class Choir {
   private readonly info = new Map<string, NodeInfo>();
   private readonly problems = new Map<string, string>();
   private engine: RemoteEngine | null = null;
+  /** With "auto": the device the current job goes to. */
+  private picked = 'local';
   private readonly secrets: (account: string) => SecretStore;
   private readonly onChange: (s: ChoirState) => void;
   private readonly fetchFn: typeof fetch;
@@ -254,13 +307,24 @@ export class Choir {
     this.joined = load<DevicesFile>(join(this.dir, 'devices.json'), { use: 'local', devices: [] });
     const settings = load<Partial<SettingsFile>>(join(this.dir, 'settings.json'), {});
     this.settings = { opportunistic: settings.opportunistic === true };
-    if (this.joined.use !== 'local' && !this.joined.devices.some((d) => d.name === this.joined.use))
+    if (
+      this.joined.use !== 'local' &&
+      this.joined.use !== 'auto' &&
+      !this.joined.devices.some((d) => d.name === this.joined.use)
+    )
       this.joined.use = 'local';
+  }
+
+  /** The device takes go to now: the one in use, or with "auto" the one the current job was placed on. */
+  private target(): string {
+    if (this.joined.use !== 'auto') return this.joined.use;
+    return this.joined.devices.some((d) => d.name === this.picked) ? this.picked : 'local';
   }
 
   state(): ChoirState {
     return {
       use: this.joined.use,
+      rendering: this.target(),
       devices: this.joined.devices.map((d) => this.device(d.name, d.url)),
       sharing: {
         on: !!this.sharing,
@@ -269,6 +333,8 @@ export class Choir {
         problem: this.sharing ? this.sharingProblem : null,
         opportunistic: this.settings.opportunistic,
         busyCheck: this.busyCheck,
+        busy: this.settings.opportunistic ? this.busy : null,
+        seesOwner: this.seesOwner,
       },
     };
   }
@@ -287,7 +353,34 @@ export class Choir {
       fitWhy: i?.fitWhy ?? {},
       problem,
       update: i?.update ?? null,
+      opportunistic: i?.opportunistic ?? null,
+      busy: i?.busy ?? null,
+      queue: i?.queue ?? null,
     };
+  }
+
+  /** Joined devices as places a job could go, from what each said last. */
+  candidates(): Candidate[] {
+    return this.joined.devices.map((d) => {
+      const i = this.info.get(d.name);
+      return {
+        name: d.name,
+        ready: !!i && !this.problems.has(d.name) && i.online && i.accepting,
+        opportunistic: i?.opportunistic === true,
+        busy: i?.busy ?? null,
+        has: (m) => !!i && (i.fake || i.models.includes(m)),
+        fit: (m) => i?.fit?.[m] ?? null,
+        queue: i?.queue ?? 0,
+      };
+    });
+  }
+
+  /** With "auto": send the next job to this device ("local" for this computer). Says whether it changed. */
+  pick(name: string): boolean {
+    if (this.joined.use !== 'auto' || name === this.picked) return false;
+    this.picked = name;
+    this.emit();
+    return true;
   }
 
   emit() {
@@ -354,6 +447,10 @@ export class Choir {
 
   /** What opportunistic sharing can tell about this computer being busy; set once the server has looked. */
   busyCheck: BusyCheck | null = null;
+  /** Why this computer is busy for paired devices now, as the server last saw it; shown only while opportunistic. */
+  busy: string | null = null;
+  /** Whether this computer can tell when someone uses it; set once the server has looked. */
+  seesOwner: boolean | null = null;
 
   /** Stop sharing: every key goes, so no paired device can render here until it joins again. */
   revoke() {
@@ -375,7 +472,7 @@ export class Choir {
   async join(code: string, opts: { name?: string; autoUse?: boolean } = {}): Promise<ChoirDevice> {
     const c = parseJoinCode(code);
     const name = opts.name ? opts.name.toLowerCase() : c.name;
-    if (!NAME_RE.test(name) || name === 'local')
+    if (!NAME_RE.test(name) || name === 'local' || name === 'auto')
       throw new ChoirError(400, 'Name it with letters, digits and dashes.');
     const engine = new RemoteEngine({ name, url: c.url, token: () => c.token, fetch: this.fetchFn });
     let info: NodeInfo;
@@ -397,7 +494,7 @@ export class Choir {
     this.secret(name).set(c.token);
     const devices = this.joined.devices.filter((d) => d.name !== name);
     devices.push({ name, url: c.url, joinedAt: new Date().toISOString() });
-    this.joined = { use: opts.autoUse ? name : this.joined.use, devices };
+    this.joined = { use: opts.autoUse && this.joined.use !== 'auto' ? name : this.joined.use, devices };
     if (this.engine?.name === name) this.engine = null;
     this.info.set(name, info);
     this.problems.delete(name);
@@ -421,9 +518,9 @@ export class Choir {
     this.emit();
   }
 
-  /** Render on a joined device, or on this computer ("local"). */
+  /** Render on a joined device, on this computer ("local"), or on whichever is free for each take ("auto"). */
   use(name: string) {
-    if (name !== 'local' && !this.joined.devices.some((d) => d.name === name))
+    if (name !== 'local' && name !== 'auto' && !this.joined.devices.some((d) => d.name === name))
       throw new ChoirError(404, `This computer hasn’t joined a device called ${name}.`);
     this.joined = { ...this.joined, use: name };
     save(join(this.dir, 'devices.json'), this.joined);
@@ -432,13 +529,15 @@ export class Choir {
 
   /** The device renders go to, when it isn't this computer. */
   active(): ChoirDevice | null {
-    const d = this.joined.devices.find((x) => x.name === this.joined.use);
+    const name = this.target();
+    const d = this.joined.devices.find((x) => x.name === name);
     return d ? this.device(d.name, d.url) : null;
   }
 
   /** The engine for the device in use; the same object while it stays in use, so its state carries over. */
   activeEngine(): RemoteEngine | null {
-    const d = this.joined.devices.find((x) => x.name === this.joined.use);
+    const name = this.target();
+    const d = this.joined.devices.find((x) => x.name === name);
     if (!d) return null;
     if (this.engine?.name !== d.name || this.engine.url !== d.url) {
       const secret = this.secret(d.name);

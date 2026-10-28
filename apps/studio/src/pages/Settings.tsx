@@ -606,7 +606,13 @@ function deviceDetail(d: ChoirDevice, catalog: Catalog): string {
       : d.version
         ? `Hildegard ${d.version}`
         : null;
-  return [d.gpu ?? 'GPU unknown', models.length ? models.join(', ') : 'No models yet', version]
+  // Opportunistic devices say when they're busy: takes sent there wait until they're free.
+  const lends = d.busy
+    ? `Busy: ${d.busy.replace(/\.$/, '')}`
+    : d.opportunistic
+      ? 'Only when it’s free'
+      : null;
+  return [d.gpu ?? 'GPU unknown', models.length ? models.join(', ') : 'No models yet', version, lends]
     .filter(Boolean)
     .join(' · ');
 }
@@ -664,6 +670,8 @@ function Devices({ catalog }: { catalog: Catalog }) {
   };
   const use = choir?.use ?? 'local';
   const here = use === 'local';
+  const auto = use === 'auto';
+  const rendering = choir?.rendering ?? use;
   const sharing = choir?.sharing;
 
   return (
@@ -689,7 +697,13 @@ function Devices({ catalog }: { catalog: Catalog }) {
           <span className="hg-devices__name">
             <b>This computer</b>
             <small className="body-sm muted">
-              {here ? (engine?.online ? 'Renders here' : comfyDown(engine).short) : 'Standing by'}
+              {here
+                ? engine?.online
+                  ? 'Renders here'
+                  : comfyDown(engine).short
+                : auto
+                  ? 'One of the devices takes go to'
+                  : 'Standing by'}
               {sharing?.on ? ' · Shares its GPU' : ''}
             </small>
           </span>
@@ -707,6 +721,34 @@ function Devices({ catalog }: { catalog: Catalog }) {
             </button>
           </span>
         </div>
+        {choir?.devices.length ? (
+          <div className="hg-devices__row">
+            <span className="st-dev__g">
+              <Icon name="sparkle" size={22} />
+            </span>
+            <span className="hg-devices__name">
+              <b>Any free device</b>
+              <small className="body-sm muted">
+                {auto
+                  ? `Each take goes to the device free for it, this one included · Now ${rendering === 'local' ? 'this computer' : rendering}`
+                  : 'Each take goes to the device free for it, this one included'}
+              </small>
+            </span>
+            <span className="hg-devices__act">
+              <button
+                type="button"
+                role="radio"
+                className="hg-use"
+                aria-checked={auto}
+                tabIndex={auto ? 0 : -1}
+                aria-label="Send each take to any free device"
+                onClick={() => !auto && void run('use', () => api.choirUse('auto'))}
+              >
+                <Icon name="check" size={16} /> Use for renders
+              </button>
+            </span>
+          </div>
+        ) : null}
         {(choir?.devices ?? []).map((d) => {
           const on = use === d.name;
           return (
@@ -848,7 +890,7 @@ function Devices({ catalog }: { catalog: Catalog }) {
               <br />
               <span className="muted">
                 {sharing.opportunistic
-                  ? 'Your other devices’ renders wait behind this computer’s own work, stop when its own work arrives, and start only while nothing else is using it.'
+                  ? 'Your other devices’ renders wait behind this computer’s own work, and run only while nothing else is using it: no one at the keyboard, and no other program on the GPU. One rendering stops when that changes, and starts again by itself.'
                   : 'Your other devices’ renders run here when their turn comes, alongside this computer’s own in one line.'}
                 {sharing.opportunistic && sharing.busyCheck === 'load'
                   ? ' This computer can’t see its GPU’s use, so it goes by how busy the processor is.'
@@ -856,9 +898,10 @@ function Devices({ catalog }: { catalog: Catalog }) {
                 {sharing.opportunistic && sharing.busyCheck === 'gpu-unknown'
                   ? ' The NVIDIA driver isn’t answering (restart this computer after a driver update), so they wait until it does.'
                   : ''}
-                {sharing.opportunistic && sharing.busyCheck === 'none'
+                {sharing.opportunistic && sharing.busyCheck === 'none' && !sharing.seesOwner
                   ? ' This computer can’t tell when it’s busy, so they wait only for Hildegard’s own work here.'
                   : ''}
+                {sharing.opportunistic && sharing.busy ? ` Busy now: ${sharing.busy}` : ''}
               </span>
             </span>
             <Switch
