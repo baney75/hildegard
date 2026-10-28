@@ -208,11 +208,13 @@ in on each.
    printf %s "$CODE" | hildegard choir join --code-stdin --json
    ```
 
-   A device without ComfyUI switches to rendering there at once. Otherwise `hildegard choir use <device> --json`.
+   A device without ComfyUI switches to rendering there at once. Otherwise `hildegard choir use <device> --json`, or
+   `hildegard choir use auto --json` to send each take to whichever device is free for it, this one included.
 
    If the GPU device is also someone's everyday computer, ask the owner whether its own work should come first. If it
    should, run `hildegard choir opportunistic on --json` on the GPU device. Other devices' renders then yield to its
-   own work and wait while it's busy. Leave it off for a dedicated render box.
+   own work and wait while it's busy: in use, or with another program on its GPU. Leave it off for a dedicated
+   render box. `choir.sharing.busy` says why it's busy now, and `choir.devices[].busy` says it for a joined device.
 
 3. Verify on the joined device:
 
@@ -223,7 +225,8 @@ in on each.
 
    | Field | Expect |
    | --- | --- |
-   | `choir.use` | the GPU device's name |
+   | `choir.use` | the GPU device's name, or `auto` |
+   | `choir.rendering` | where the next take goes: `local` or a device's name |
    | `choir.devices[]` | that device with `online: true`, its `gpu`, and its `models` |
    | `engine.comfy` (from status) | `remote`, with `engine.device` naming the device and `engine.online: true` |
 

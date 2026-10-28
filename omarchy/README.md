@@ -7,6 +7,11 @@ take finishes while the panel is closed, you get a notification that opens it. W
 offers **Update to** it; Hildegard also updates itself when nothing is rendering, unless you turned that off in
 Settings.
 
+When this computer shares its GPU with your other devices, the panel says whether it shares only while it's free, and
+flips it. While it does, the panel also tells Hildegard when you step away and come back (Hyprland has no idle clock
+Hildegard could ask), so your other devices' renders wait while you're at the computer and pick up again once you
+leave.
+
 ![Hildegard in the Omarchy bar](preview.png)
 
 ## Install

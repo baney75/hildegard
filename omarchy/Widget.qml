@@ -61,8 +61,27 @@ Panel {
     }
     if (verb.running) return
     busyVerb = id
-    verb.command = ["timeout", "--kill-after=5", "120", cli, id]
+    // "lend-on" and "lend-off" flip whether this computer shares its GPU only while it's free.
+    verb.command = ["timeout", "--kill-after=5", "120", cli].concat(id.indexOf("lend-") === 0 ? ["lend", id.slice(5)] : [id])
     verb.running = true
+  }
+
+  // While this computer shares its GPU only when it's free, tell Hildegard when you leave and come back. Made apart
+  // (Idle.qml), so a shell without Wayland idle notifications still shows everything else.
+  property var idleWatch: null
+  readonly property bool watchIdle: !!(snap && snap.sharing && snap.sharing.opportunistic)
+  onWatchIdleChanged: {
+    if (watchIdle && !idleWatch) {
+      var c = Qt.createComponent("Idle.qml")
+      if (c.status !== Component.Ready) return
+      idleWatch = c.createObject(root, { cli: root.cli })
+      if (!idleWatch) return
+      // You're here now (you just signed in, or turned this on): anything said before no longer holds.
+      Quickshell.execDetached([cli, "presence", "back"])
+    } else if (!watchIdle && idleWatch) {
+      idleWatch.destroy()
+      idleWatch = null
+    }
   }
   Process {
     id: verb
@@ -165,6 +184,33 @@ Panel {
             color: root.mark === "failed" ? root.urgent : Qt.darker(root.fg, 1.3)
             font.family: root.font
             font.pixelSize: Style.font.bodySmall
+          }
+        }
+
+        // Sharing this GPU with your other devices, and the button that flips it
+        Row {
+          width: parent.width
+          spacing: Style.space(8)
+          visible: !!Model.lending(root.snap)
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - flip.width - parent.spacing
+            text: Model.lending(root.snap) ? Model.lending(root.snap).text : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: Qt.darker(root.fg, 1.3)
+            font.family: root.font
+            font.pixelSize: Style.font.bodySmall
+          }
+          Button {
+            id: flip
+            text: Model.lending(root.snap) ? Model.lending(root.snap).label : ""
+            bordered: true
+            focusable: true
+            enabled: root.busyVerb === ""
+            fontFamily: root.font
+            foreground: root.fg
+            onClicked: root.act("lend-" + Model.lending(root.snap).flip)
           }
         }
 

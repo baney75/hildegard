@@ -1,6 +1,6 @@
 {
   "name": "hildegard",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Your own studio, on your own GPUs: image, film, voice, music and 3D tools from the Hildegard on your computers, the craft skills to make work that isn't slop, and a generate, render, critique, refine loop for 3D models, parts to print, websites and media.",
   "author": { "name": "Donovan Baney", "url": "https://github.com/baney75" },
   "homepage": "https://dbaney.com/hildegard/",

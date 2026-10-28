@@ -18,7 +18,7 @@ import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
-import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
+import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
@@ -42,6 +42,7 @@ import {
   sandboxKind,
 } from './openscad.ts';
 import { People } from './people.ts';
+import { type GpuSource, type IdleSource, nvidiaOthers, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
@@ -134,6 +135,8 @@ export async function startServer(
     hostBusy?: () => Promise<boolean>;
     busyRecheckMs?: number;
     busySettleMs?: number;
+    /** How opportunistic sharing sees the owner and other programs' GPU memory: tests give stand-ins. */
+    presence?: { idle?: IdleSource; gpu?: GpuSource; watchMs?: number };
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
     /** OpenSCAD for model loops sent as source (null for none); found on this computer by default. */
@@ -203,8 +206,60 @@ export async function startServer(
       void syncSharing();
     },
   });
-  /** Send takes to the device in use: a joined one, or this computer's own ComfyUI. */
-  const route = () => {
+  // What opportunistic sharing sees beyond GPU use and load: the owner at the keyboard, and other programs holding
+  // GPU memory. Hildegard's own ComfyUI and voice workers don't count.
+  const presence = new Presence({
+    idle: opts.presence?.idle ?? (config.fake ? undefined : systemIdle()),
+    gpu:
+      opts.presence?.gpu ?? (config.fake ? undefined : nvidiaOthers(undefined, () => runtime?.pids() ?? [])),
+  });
+  /** Note why this computer is busy for paired devices, for Settings and for the devices placing work here. */
+  const setBusy = (why: string | null) => {
+    const sees = presence.sees;
+    if (why === choir.busy && sees === choir.seesOwner) return;
+    choir.busy = why;
+    choir.seesOwner = sees;
+    choir.emit();
+  };
+  const OTHER_WORK = 'This computer is busy with other work.';
+  /**
+   * Whether something other than Hildegard is using this computer, asked while it renders nothing: GPU use and load
+   * (busy.ts), then the owner and other programs' GPU memory.
+   */
+  const lookHost = async (): Promise<boolean> => {
+    const base =
+      opts.hostBusy ?? (config.fake ? async () => false : () => hostBusy(localGpu?.backend === 'cuda'));
+    // GPU use or load first: an NVIDIA driver that isn't answering counts as busy there, and isn't asked again.
+    if (await base().catch(() => true)) {
+      setBusy(OTHER_WORK);
+      return true;
+    }
+    const why = await presence.reason();
+    setBusy(why);
+    return why !== null;
+  };
+  /** This computer as a place for a job to go, when takes render on "auto"; null with no ComfyUI here. */
+  const localCandidate = (): Candidate | null =>
+    comfy === 'not-installed'
+      ? null
+      : {
+          name: 'local',
+          ready: localProblem === null,
+          opportunistic: choir.opportunistic,
+          busy: choir.opportunistic ? choir.busy : null,
+          has: (m) => config.fake || !!models.states().find((x) => x.id === m)?.installed,
+          fit: (m) => models.states().find((x) => x.id === m)?.fit ?? null,
+          queue: scheduler.guestTakes().length,
+        };
+  /**
+   * Send takes to the device in use: a joined one, or this computer's own ComfyUI. With "auto", `job` (the one about
+   * to start) goes to the best device free for it; without one, the queue is looked at again, since a device may
+   * have come free.
+   */
+  const route = (job?: Job) => {
+    const auto = choir.state().use === 'auto';
+    scheduler.setAuto(auto);
+    if (auto && job) choir.pick(place(job, localCandidate(), choir.candidates()));
     const remote = choir.activeEngine();
     if (remote) {
       scheduler.setEngine(remote, 'remote');
@@ -213,6 +268,7 @@ export async function startServer(
       scheduler.setEngine(localEngine, comfy);
       scheduler.setProblem(localProblem);
     }
+    if (auto && !job) scheduler.pump();
   };
   const scheduler = new Scheduler({
     store,
@@ -227,8 +283,8 @@ export async function startServer(
     // Voice models let go of the GPU before a render needs it.
     beforeRender: () => voiceEngine.release(),
     // Asked only when this computer shares its GPU opportunistically. The fake GPU has no one else to yield to.
-    hostBusy:
-      opts.hostBusy ?? (config.fake ? async () => false : () => hostBusy(localGpu?.backend === 'cuda')),
+    hostBusy: lookHost,
+    choose: (job) => route(job),
     busyRecheckMs: opts.busyRecheckMs,
     busySettleMs: opts.busySettleMs,
   });
@@ -256,6 +312,24 @@ export async function startServer(
   });
   /** Rendering on a joined device, its models are the ones that count, so nothing asks to download them here. */
   const modelStates = (): ModelState[] => {
+    // With "auto", a model counts as installed when any device takes can go to has it.
+    if (choir.state().use === 'auto') {
+      const devices = choir.state().devices.filter((x) => x.online);
+      return models.states().map((m) => {
+        const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
+        if (m.installed || !there.length) return m;
+        const fit = there.some((x) => x.fit[m.id] === 'fits') ? 'fits' : (there[0]!.fit[m.id] ?? null);
+        return {
+          ...m,
+          installed: true,
+          missingBytes: 0,
+          licenseAccepted: true,
+          fit,
+          fitWhy: null,
+          error: null,
+        };
+      });
+    }
     const d = choir.active();
     if (!d) return models.states();
     return catalog.models.map((m) => {
@@ -422,6 +496,15 @@ export async function startServer(
   const scadHidden = [homedir(), config.dataDir];
   const app = createApp({
     lookBusy: () => lookBusy(),
+    tellPresence: async (away, minutes) => {
+      presence.tell(away, minutes);
+      // Coming back stops a paired render now, not at the next look.
+      if (choir.opportunistic) {
+        if (!away && scheduler.guestOnGpu) scheduler.interruptGuest();
+        if (scheduler.idle) await lookHost();
+        else setBusy(await presence.reason());
+      }
+    },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     likeness: new Likeness(config.dataDir),
@@ -667,6 +750,32 @@ export async function startServer(
   // A driver can stop answering later (an update without a restart): look again now and then, so Settings says so.
   const busyLook = setInterval(() => choir.opportunistic && void lookBusy(), 5 * 60_000);
   busyLook.unref?.();
+  // Opportunistic: look every few seconds at whether someone else wants this computer. The owner coming back, or
+  // another program taking GPU memory, stops a paired device's render at once (it goes back in line), and paired
+  // devices placing work see it's busy. GPU use and load are only asked while nothing renders here.
+  let watching = false;
+  const watch = setInterval(async () => {
+    if (watching || closing) return;
+    if (!choir.opportunistic) return setBusy(null);
+    watching = true;
+    try {
+      if (scheduler.idle) await lookHost();
+      else {
+        const why = await presence.reason();
+        if (why && scheduler.guestOnGpu) scheduler.interruptGuest();
+        // A render here shows as GPU use; only the owner and other programs say anything now.
+        if (why || choir.busy !== OTHER_WORK) setBusy(why);
+      }
+    } finally {
+      watching = false;
+    }
+  }, opts.presence?.watchMs ?? 5000);
+  watch.unref?.();
+  // With "auto", every joined device is asked how it is now and then, so takes go to whichever is free.
+  const fleet = setInterval(() => {
+    if (choir.state().use === 'auto') void choir.refresh().catch(() => {});
+  }, 15_000);
+  fleet.unref?.();
   return {
     url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,
     config,
@@ -687,6 +796,8 @@ export async function startServer(
     async close() {
       closing = true;
       clearInterval(busyLook);
+      clearInterval(watch);
+      clearInterval(fleet);
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);

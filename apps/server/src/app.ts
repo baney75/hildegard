@@ -102,7 +102,7 @@ import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 
-export const VERSION = '0.1.10';
+export const VERSION = '0.1.11';
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -145,6 +145,8 @@ export interface AppDeps {
   choir: Choir;
   /** Looks again at what opportunistic sharing can see of this computer being busy (up to 3.5 s). */
   lookBusy?: () => Promise<void>;
+  /** An idle hook on this computer says the owner left or came back (Omarchy's panel), for opportunistic sharing. */
+  tellPresence?: (away: boolean, minutes?: number) => Promise<void>;
   /** Models as the Studio should see them: this computer's, or those on the device renders go to. */
   modelStates: () => ModelState[];
   /** /api/node/*, for devices paired with this one. */
@@ -1488,6 +1490,16 @@ export function createApp(deps: AppDeps) {
     if (turningOn) await deps.lookBusy?.();
     return c.json(deps.choir.state());
   });
+  app.post('/api/choir/presence', async (c) => {
+    // Only this computer's own desktop knows whether someone sits at it.
+    if (!local(c)) return c.json({ error: 'Only this computer can say that.', code: 'local' }, 403);
+    const body = z
+      .object({ away: z.boolean(), minutes: z.number().int().min(1).max(1440).optional() })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say away or back.' }, 400);
+    await deps.tellPresence?.(body.data.away, body.data.minutes);
+    return c.json(deps.choir.state());
+  });
   app.post('/api/choir/join', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;
@@ -1530,7 +1542,7 @@ export function createApp(deps: AppDeps) {
   });
   app.post('/api/choir/use', async (c) => {
     const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
-    if (!body.success) return c.json({ error: 'Say which device, or “local”.' }, 400);
+    if (!body.success) return c.json({ error: 'Say which device, “local”, or “auto”.' }, 400);
     try {
       deps.choir.use(body.data.name);
       return c.json(deps.choir.state());

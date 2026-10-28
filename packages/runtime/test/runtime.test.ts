@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   type AgentEnv,
+  comfyMemoryArgs,
   connectAgent,
   detectGpu,
   disconnectAgent,
@@ -198,6 +199,17 @@ describe('detectGpu', () => {
     expect(fitWhy({ ...mac, vramGb: 96 }, { minVramGb: 24, mps: false })).toBe('apple-gpu');
     expect(fitWhy(mac, { minVramGb: 24 })).toBe('memory');
     expect(fitWhy(mac, { minVramGb: 12, files: files(17) })).toBeNull();
+  });
+});
+
+describe('comfyMemoryArgs', () => {
+  it('turns off mmap and dynamic VRAM only where the GPU shares memory', () => {
+    const spark = ['--disable-mmap', '--disable-dynamic-vram'];
+    expect(comfyMemoryArgs({ backend: 'cuda', unified: true, gpu: 'NVIDIA GB10' })).toEqual(spark);
+    // Installed before Hildegard noted it: told by the name.
+    expect(comfyMemoryArgs({ backend: 'cuda', gpu: 'NVIDIA GB10' })).toEqual(spark);
+    expect(comfyMemoryArgs({ backend: 'cuda', gpu: 'NVIDIA GeForce RTX 4090' })).toEqual([]);
+    expect(comfyMemoryArgs({ backend: 'mps', gpu: 'Apple M3 Max' })).toEqual([]);
   });
 });
 

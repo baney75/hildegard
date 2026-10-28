@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: AGPL-3.0-only
 # omarchy:summary=Hildegard in the Omarchy bar: render status, start and stop, open the Studio
-# omarchy:args=snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route]
+# omarchy:args=snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route] | presence away|back | lend on|off
 # omarchy:hidden=true
 #
 # The bar widget's backend. It only talks to the hildegard command and to Hildegard's server on 127.0.0.1; it
@@ -103,7 +103,13 @@ snapshot() {
         ),
         models: ([.models[] | select(.installed)] | length),
         hf: (.hf.linked // false),
-        update: (if .update then { available: .update.available, applying: .update.applying } else null end)
+        update: (if .update then { available: .update.available, applying: .update.applying } else null end),
+        # Sharing this GPU with your other devices: only while free (opportunistic), and why it is busy now.
+        sharing: (
+          if (.choir.sharing.on // false)
+          then { opportunistic: (.choir.sharing.opportunistic // false), busy: (.choir.sharing.busy // null) }
+          else null end
+        )
       }' <<<"$raw"
 }
 
@@ -147,6 +153,32 @@ setup() {
   omarchy-launch-tui --app-id=org.omarchy.hildegard-setup "$HERE/hildegard-omarchy-setup" >/dev/null 2>&1 &
 }
 
+# The panel's idle watch (Wayland's ext-idle-notify, through Quickshell) says the owner left or came back: Hyprland has
+# no idle clock Hildegard could ask itself. Only matters while this computer shares its GPU only when it's free.
+presence() {
+  case ${1:-} in
+  away) local away=true ;;
+  back) local away=false ;;
+  *) fail "say away or back" ;;
+  esac
+  curl -fsS --max-time 5 -X POST "$URL/api/choir/presence" -H 'x-hildegard: 1' \
+    -H 'content-type: application/json' --data "{\"away\":$away}" >/dev/null 2>&1 || true
+}
+
+# Share this GPU with your other devices only while it's free (on), or whenever they ask (off).
+lend() {
+  local on
+  case ${1:-} in
+  on) on=true ;;
+  off) on=false ;;
+  *) fail "say on or off" ;;
+  esac
+  local out
+  out=$(curl -sS --max-time 10 -X POST "$URL/api/choir/opportunistic" -H 'x-hildegard: 1' \
+    -H 'content-type: application/json' --data "{\"on\":$on}" 2>&1) || fail "Hildegard isn't running."
+  if [[ $(jq -r 'has("error")' <<<"$out" 2>/dev/null) == true ]]; then fail "$(jq -r '.error' <<<"$out")"; fi
+}
+
 notify() {
   local title=${1//[<>&]/} body=${2//[<>&]/} route=${3:-}
   [[ -z $route || $route =~ ^#/[A-Za-z0-9/_-]*$ ]] || route=
@@ -162,5 +194,7 @@ update) update ;;
 open) open_studio "${2:-}" ;;
 setup) setup ;;
 notify) notify "${2:-}" "${3:-}" "${4:-}" ;;
-*) fail "usage: hildegard-omarchy snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route]" ;;
+presence) presence "${2:-}" ;;
+lend) lend "${2:-}" ;;
+*) fail "usage: hildegard-omarchy snapshot | start | stop | update | open [route] | setup | notify <title> <body> [route] | presence away|back | lend on|off" ;;
 esac

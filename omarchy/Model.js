@@ -37,6 +37,20 @@ function status(s) {
   return "Ready" + (e.device ? " on " + e.device : "") + (e.fake ? " (stand-in GPU)" : "")
 }
 
+// The sharing line in the panel, and the button that flips it. Null while this computer doesn't share its GPU.
+function lending(s) {
+  if (!s || !s.running || !s.sharing) return null
+  if (!s.sharing.opportunistic)
+    return { text: "Shares its GPU whenever your other devices ask", flip: "on", label: "Only when free" }
+  return {
+    text: s.sharing.busy
+      ? s.sharing.busy.replace(/\.$/, "") + ", so your other devices’ renders wait"
+      : "Shares its GPU only while it’s free",
+    flip: "off",
+    label: "Always share",
+  }
+}
+
 function percent(v) {
   return Math.max(0, Math.min(100, Math.round((v || 0) * 100)))
 }

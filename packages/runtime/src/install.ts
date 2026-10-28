@@ -71,6 +71,8 @@ export interface RuntimeInfo {
   backend: Backend;
   torchBackend: string | null;
   gpu: string;
+  /** The GPU shares the computer's memory (DGX Spark): ComfyUI starts with what suits that. */
+  unified?: boolean;
   torch: string;
   installedAt: string;
 }
@@ -282,6 +284,7 @@ export async function installRuntime(opts: InstallOptions): Promise<Step[]> {
       backend: gpu.backend,
       torchBackend: gpu.torchBackend,
       gpu: gpu.name,
+      ...(gpu.unified ? { unified: true } : {}),
       torch: torchVersion,
       installedAt: new Date().toISOString(),
     };

@@ -166,8 +166,18 @@ function choirFor(who: Who | null, s: ChoirState): ChoirState {
   if (who?.kind === 'local' || (who?.kind === 'person' && who.person.role === 'owner')) return s;
   return {
     use: s.use,
-    devices: s.devices.filter((d) => d.name === s.use).map((d) => ({ ...d, url: '' })),
-    sharing: { on: false, url: null, paired: 0, problem: null, opportunistic: false, busyCheck: null },
+    rendering: s.rendering,
+    devices: s.devices.filter((d) => d.name === s.rendering).map((d) => ({ ...d, url: '', busy: null })),
+    sharing: {
+      on: false,
+      url: null,
+      paired: 0,
+      problem: null,
+      opportunistic: false,
+      busyCheck: null,
+      busy: null,
+      seesOwner: null,
+    },
   };
 }
 const hfFor = (who: Who | null, s: HfState): HfState =>

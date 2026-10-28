@@ -27,6 +27,10 @@ describe('voice environments', () => {
     expect(voiceTorchBackend('chatterbox', cuda(12, 'cu130'))).toBe('cu126');
     expect(voiceTorchBackend('chatterbox', cuda(4, 'cu126'))).toBe('cu126');
     expect(voiceTorchBackend('speech', cuda(12, 'cu130'))).toBe('cu130');
+    // DGX Spark: torch 2.6's CUDA builds have no GB10 kernels and no Arm wheels, so Chatterbox gets the CPU build.
+    const spark: Gpu = { ...cuda(113.7), name: 'NVIDIA GB10', unified: true };
+    expect(voiceTorchBackend('chatterbox', spark)).toBe('cpu');
+    expect(voiceTorchBackend('speech', spark)).toBe('cu130');
     expect(voiceTorchBackend('chatterbox', { ...cuda(16), backend: 'rocm', torchBackend: 'rocm7.2' })).toBe(
       'rocm6.2.4',
     );

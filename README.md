@@ -75,7 +75,8 @@ Hildegard supports the DGX Spark (GB10, Arm Linux); it hasn't been tried on a re
 128 GB with the CPU, and `nvidia-smi` reports no memory total for it, so Hildegard counts nine tenths of the
 computer's memory as the GPU's and leaves the rest for the system. There is no separate video memory to offload to,
 so a model fits when the larger of its minimum memory and its weights, plus a quarter more, fits in that share. The installer picks PyTorch's CUDA 13 build
-for driver 580 or newer.
+for driver 580 or newer. ComfyUI starts there without memory-mapped weights or dynamic VRAM, which only hold each
+model twice in shared memory, and Chatterbox runs on the CPU, since its PyTorch has no GB10 or Arm CUDA build.
 
 Where it lives: `~/.local/share/hildegard` on Linux, `~/Library/Application Support/Hildegard` on macOS,
 `%LOCALAPPDATA%\Hildegard` on Windows. The `hildegard` command goes in `~/.local/bin` (Windows: the folder's `bin`,
@@ -286,6 +287,11 @@ installed when they are installed there, so nothing downloads twice. Settings â€
 
 - `hildegard choir use local` renders here again; `hildegard choir use parish1` goes back. A computer without
   ComfyUI switches to the device it joins on its own.
+- `hildegard choir use auto` (**Any free device** in Settings â€º Devices) sends each take to whichever device is free
+  for it, this one included: one that has its model and fits it, that isn't busy, shares whenever asked before one
+  that shares only when free, then a comfortable fit before a tight one, then the shorter queue. A laptop in use
+  sends its takes to the DGX Spark, and a Spark in use leaves them on the laptop. With none free, a take renders
+  here, since this computer's own work never waits.
 - `hildegard choir leave parish1` forgets the device; `hildegard choir revoke` on parish1 stops sharing and turns
   every paired device away.
 - The code holds a fresh 256-bit key. parish1 keeps only its hash; the other computer keeps it in the system
@@ -298,10 +304,14 @@ installed when they are installed there, so nothing downloads twice. Settings â€
 - If parish1 is also someone's everyday computer, run `hildegard choir opportunistic on` there (or turn on **Only
   when it's free** in Settings â€º Devices). Your other devices' renders then wait behind parish1's own work, stop and
   go back in line when its own work arrives, and start only while nothing else is using it: an NVIDIA GPU under 30%
-  busy and a load under 0.8 per core. A GPU that doesn't answer counts as busy. Without NVIDIA only the load is
-  checked, and Windows without NVIDIA can't tell at all, so there they wait only for Hildegard's own work (Settings
-  says which). A render already running for another device finishes unless parish1's own Hildegard work arrives.
-  Off, the default, renders from your other devices simply take their turn.
+  busy, a load under 0.8 per core, no one at the keyboard for 3 minutes, and no other program holding a gigabyte or
+  more of GPU memory (Linux with NVIDIA; a language model server waiting for requests, say, which uses no compute
+  while it holds the memory). A GPU that doesn't answer counts as busy. Without NVIDIA only the load and the keyboard
+  are checked, and Windows without NVIDIA sees only the keyboard (Settings says which). When the owner comes back or
+  another program takes the GPU, a render running for another device stops within a few seconds and goes back in
+  line; it starts again by itself once the computer is free, and parish1 stays online meanwhile. Hyprland has no idle
+  clock to ask, so Omarchy's panel says when you leave and come back, and any other idle hook can with
+  `hildegard choir presence away|back`. Off, the default, renders from your other devices simply take their turn.
 
 ## Commands
 
@@ -316,7 +326,8 @@ hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
-hildegard choir invite | join | list | use <device|local> | leave <device> | opportunistic on|off | revoke
+hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
+               | presence away|back | revoke
 hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin

@@ -65,6 +65,8 @@ export function readVoiceEnv(dataDir: string, env: VoiceEnv): VoiceEnvInfo | nul
 export function voiceTorchBackend(env: VoiceEnv, gpu: Gpu): string | null {
   const b = gpu.torchBackend;
   if (env !== 'chatterbox' || !b) return b;
+  // CUDA 12.6 has no kernels for GB10 (DGX Spark) and no Arm builds of torch 2.6: Chatterbox runs on its CPU there.
+  if (gpu.unified) return 'cpu';
   if (b === 'cu128' || b === 'cu130') return 'cu126';
   if (b.startsWith('rocm')) return 'rocm6.2.4';
   return b;
@@ -206,7 +208,8 @@ export async function installVoice(opts: VoiceInstallOptions): Promise<Step[]> {
         .trim()
         .split(/\s+/);
       const [torch = '?', usable] = probe;
-      if (gpu.backend !== 'cpu' && usable !== 'True') {
+      // An environment given the CPU build on purpose (Chatterbox on DGX Spark) isn't a GPU that failed.
+      if (gpu.backend !== 'cpu' && backend !== 'cpu' && usable !== 'True') {
         record({
           id: env,
           title,
