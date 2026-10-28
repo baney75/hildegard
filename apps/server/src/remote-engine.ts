@@ -42,6 +42,8 @@ export interface NodeInfo {
   opportunistic?: boolean;
   /** Opportunistic and in use: why renders sent there wait, such as "Someone is using this computer."; or null. */
   busy?: string | null;
+  /** It sends each of its own takes to any free device ("auto") itself; missing from versions before 0.1.11. */
+  auto?: boolean;
 }
 
 /** POST /api/node/render streams these, one JSON object per line. */

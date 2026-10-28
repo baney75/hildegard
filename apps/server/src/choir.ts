@@ -194,7 +194,10 @@ export interface Job {
 /** A device a job could go to, as far as this computer knows: "local" is this computer. */
 export interface Candidate {
   name: string;
-  /** It answers, its ComfyUI does, and it takes work. */
+  /**
+   * It answers, its ComfyUI does, and it takes work. A device that places its own takes too ("auto") never counts:
+   * two of them could each hold a take waiting on the other's GPU, with the other's render queued behind it.
+   */
   ready: boolean;
   /** It shares its GPU only while it's free. */
   opportunistic: boolean;
@@ -365,7 +368,7 @@ export class Choir {
       const i = this.info.get(d.name);
       return {
         name: d.name,
-        ready: !!i && !this.problems.has(d.name) && i.online && i.accepting,
+        ready: !!i && !this.problems.has(d.name) && i.online && i.accepting && !i.auto,
         opportunistic: i?.opportunistic === true,
         busy: i?.busy ?? null,
         has: (m) => !!i && (i.fake || i.models.includes(m)),

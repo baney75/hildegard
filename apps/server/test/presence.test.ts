@@ -385,6 +385,27 @@ describe('any free device', () => {
     }
   }, 45_000);
 
+  it('never sends a take to a device that places its own takes too, so two can’t wait on each other', async () => {
+    expect((await post(laptop, '/api/choir/use', { name: 'auto' })).status).toBe(200);
+    expect((await post(spark, '/api/choir/use', { name: 'auto' })).status).toBe(200);
+    try {
+      // The laptop is in use and the Spark is free, but the Spark is on "auto" itself: the take stays here.
+      await opportunistic(laptop, true);
+      idle.laptop = 1;
+      await until(() => laptop.choir.state().sharing.busy !== null);
+      await laptop.choir.refresh();
+      const id = await shot(laptop, 'Rain beads on a bus window');
+      await until(() => laptop.store.takes.get(id)?.status === 'done');
+      expect(laptop.choir.state().rendering).toBe('local');
+      expect(spark.scheduler.guestTakes()).toHaveLength(0);
+    } finally {
+      idle.laptop = 9999;
+      await opportunistic(laptop, false);
+      await post(spark, '/api/choir/use', { name: 'local' });
+      await post(laptop, '/api/choir/use', { name: 'local' });
+    }
+  });
+
   it('refuses “auto” as a device’s name', async () => {
     const invite = await post(spark, '/api/choir/invite', { url: `http://127.0.0.1:${await freePort()}` });
     const { code } = (await invite.json()) as { code: string };
