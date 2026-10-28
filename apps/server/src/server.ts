@@ -317,7 +317,9 @@ export async function startServer(
   const modelStates = (): ModelState[] => {
     // With "auto", a model counts as installed when any device takes can go to has it.
     if (choir.state().use === 'auto') {
-      const devices = choir.state().devices.filter((x) => x.online);
+      // Only devices a take could be placed on: one on "auto" itself never is (see Choir.candidates).
+      const places = new Set(choir.candidates().filter((x) => x.ready).map((x) => x.name));
+      const devices = choir.state().devices.filter((x) => places.has(x.name));
       return models.states().map((m) => {
         const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
         // Installed here but unable to run here (an Apple GPU it can't use, say) still renders on a device that can.
