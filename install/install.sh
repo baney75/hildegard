@@ -37,6 +37,8 @@ die() {
 # Until setup finishes, the version this replaces is kept: its app folder, and its Node.js in node.prev. Any failure
 # puts it back and starts it again, so a failed update leaves the old Hildegard as it was.
 tmp=
+home=
+bin=
 prev=
 switched=
 committed=
@@ -52,7 +54,7 @@ failed() {
     ln -sfn "$prev" "$home/app" && back=1
   fi
   # The old Node.js goes with the old app, or stays when the app never changed; a new app keeps the new Node.js.
-  if [ -d "$home/node.prev" ]; then
+  if [ -n "$home" ] && [ -d "$home/node.prev" ]; then
     if [ -n "$back" ] || [ -z "$switched" ]; then
       rm -rf "$home/node"
       mv "$home/node.prev" "$home/node"
@@ -61,6 +63,8 @@ failed() {
     fi
   fi
   msg=${failure:-the installer stopped (exit $1)}
+  cur=
+  [ -n "$home" ] && cur=$(readlink "$home/app" 2>/dev/null)
   if [ -n "$back" ]; then
     say "Going back to Hildegard ${prev#app-}. Hildegard $VERSION stays in $home/app-$VERSION."
     if sh "$bin/hildegard" start </dev/null >/dev/null 2>&1; then
@@ -68,10 +72,17 @@ failed() {
     else
       msg="${msg%.}, and ${prev#app-} didn't start either. Run: hildegard doctor"
     fi
+  elif [ -z "$switched" ] && [ -n "$cur" ] && [ "$cur" != "app-$VERSION" ]; then
+    # Nothing was switched or stopped, so the version that was there is as it was.
+    msg="${msg%.}. Hildegard ${cur#app-} is unchanged. To try $VERSION again, run: hildegard update"
   elif [ -n "$setup_failed" ]; then
     msg="${msg%.}. Run it again with: hildegard install"
   fi
   say "hildegard: $msg"
+  # For an updating Hildegard, which may not see this output: the version that failed, and the line above.
+  if [ -n "${HILDEGARD_UPDATE_REPORT:-}" ]; then
+    printf '%s\nhildegard: %s\n' "$VERSION" "$msg" >"$HILDEGARD_UPDATE_REPORT" 2>/dev/null
+  fi
 }
 rc=0
 # Keep the exit status: an EXIT trap's own status would otherwise hide a failure.
@@ -190,14 +201,16 @@ done
 switched=1
 ln -sfn "app-$VERSION" "$home/app"
 
-cat >"$bin/hildegard" <<EOF
+# Written beside it and then moved into place, so a full disk can't leave a broken launcher for going back with.
+cat >"$bin/hildegard.new" <<EOF
 #!/bin/sh
 export HILDEGARD_HOME="$home"
 # AI apps get this path, which survives upgrades (app is a link to the current version).
 export HILDEGARD_ENTRY="$home/app/hildegard.mjs"
 exec "$home/node/bin/node" "$home/app/hildegard.mjs" "\$@"
 EOF
-chmod 755 "$bin/hildegard"
+chmod 755 "$bin/hildegard.new"
+mv "$bin/hildegard.new" "$bin/hildegard"
 say "Installed the hildegard command in $bin."
 case ":$PATH:" in
 *":$bin:"*) ;;

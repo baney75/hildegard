@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { newer, UPDATE_KEY, Updates, verifySigned, withoutBundleEnv } from '../src/update.ts';
+import { newer, runUpdate, UPDATE_KEY, Updates, verifySigned, withoutBundleEnv } from '../src/update.ts';
 
 // Signed by `tauri signer sign` with a throwaway key, as releases sign theirs with the real one.
 const dir = fileURLToPath(new URL('./fixtures/update/', import.meta.url));
@@ -159,6 +159,33 @@ describe('Updates', () => {
     });
     expect(await u.now()).toBeNull();
     expect(u.state().applying).toBe(true);
+  });
+
+  it('won’t update on its own to a version that already failed here, but will when asked', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'hg-update-'));
+    writeFileSync(join(dataDir, 'update-failed'), '0.1.6\nhildegard: setting up 0.1.6 failed (exit 1)\n');
+    const w = watcher({ latest: '0.1.6', dataDir });
+    await w.u.check();
+    expect(w.runs).toHaveLength(0);
+    expect(w.u.state()).toMatchObject({
+      available: '0.1.6',
+      error: 'hildegard: setting up 0.1.6 failed (exit 1)',
+    });
+    // A newer release than the one that failed is fair game again.
+    const n = watcher({ latest: '0.1.7', dataDir });
+    await n.u.check();
+    expect(n.runs).toHaveLength(1);
+    expect(await w.u.now()).toBeNull();
+    expect(w.runs).toHaveLength(1);
+  });
+
+  it('survives an update that can’t start, and can try again', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'hg-update-'));
+    const log = join(dataDir, 'update.log');
+    const why = await new Promise<string>((resolve) =>
+      runUpdate('/x.mjs', [], log, { PATH: '/nonexistent' }, resolve, '/nonexistent/node'),
+    );
+    expect(why).toMatch(/couldn’t start: .*ENOENT/);
   });
 
   it('keeps this version’s own paths away from the update it starts', () => {

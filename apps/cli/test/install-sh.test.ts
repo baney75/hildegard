@@ -55,6 +55,13 @@ function world(opts: { installFails: boolean; newNode: boolean; oldStartFails?: 
   writeFileSync(join(home, 'app-0.1.5', 'hildegard.mjs'), '');
   writeFileSync(join(home, 'app-0.1.5', 'fake.sh'), fakeApp('0.1.5', opts.oldStartFails ? 'start' : null));
   spawnSync('ln', ['-s', 'app-0.1.5', join(home, 'app')]);
+  // Its hildegard command, as an earlier install.sh wrote it.
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, 'hildegard'),
+    `#!/bin/sh\nexport HILDEGARD_HOME="${home}"\nexec "${home}/node/bin/node" "${home}/app/hildegard.mjs" "$@"\n`,
+  );
+  chmodSync(join(bin, 'hildegard'), 0o755);
   // The release: Hildegard 9.9.9, and Node 1.2.3 when this update brings a new one.
   const appSrc = join(t, 'src', 'hildegard-9.9.9');
   mkdirSync(appSrc, { recursive: true });
@@ -99,12 +106,14 @@ function world(opts: { installFails: boolean; newNode: boolean; oldStartFails?: 
         HILDEGARD_RELEASE_URL: `file://${rel}`,
         HILDEGARD_NODE_URL: `file://${dist}`,
         HG_LOG: log,
+        HILDEGARD_UPDATE_REPORT: join(t, 'report'),
       },
     });
   const said = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []);
   const nodeVersion = () =>
     spawnSync(join(home, 'node', 'bin', 'node'), ['--version'], { encoding: 'utf8' }).stdout.trim();
-  return { home, bin, run, said, nodeVersion };
+  const report = () => (existsSync(join(t, 'report')) ? readFileSync(join(t, 'report'), 'utf8') : null);
+  return { home, bin, tools, run, said, nodeVersion, report };
 }
 
 describe.skipIf(process.platform === 'win32')('install.sh', () => {
@@ -129,6 +138,8 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
       'hildegard: setting up 9.9.9 failed (exit 3), so 0.1.5 runs again. To try 9.9.9 again, run: hildegard update',
     );
     expect(r.stderr).toContain('PyTorch download timed out');
+    // An updating Hildegard may not see stderr: the report has the version and the same last line.
+    expect(w.report()).toBe(`9.9.9\n${last}\n`);
     expect(r.stderr).toContain('Hildegard 9.9.9 stays in');
   });
 
@@ -173,6 +184,17 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     expect(r.stderr.trim().split('\n').at(-1)).toMatch(/^hildegard: .*so 0\.1\.5 runs again/);
   });
 
+  it('says why it can’t run on another system', () => {
+    const w = world({ installFails: false, newNode: false });
+    writeFileSync(join(w.tools, 'uname'), '#!/bin/sh\necho FreeBSD\n');
+    chmodSync(join(w.tools, 'uname'), 0o755);
+    const r = w.run();
+    expect(r.status).toBe(1);
+    expect(r.stderr.trim()).toBe(
+      'hildegard: this installer is for Linux and macOS. On Windows, use install.ps1.',
+    );
+  });
+
   it('refuses before downloading anything when the disk is short of room', () => {
     const w = world({ installFails: false, newNode: true });
     writeFileSync(
@@ -182,7 +204,9 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     const r = w.run();
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/needs at least 12 GB free .* has 7 GB/);
-    expect(r.stderr.trim().split('\n').at(-1)).toBe('hildegard: nothing was installed.');
+    expect(r.stderr.trim().split('\n').at(-1)).toBe(
+      'hildegard: nothing was installed. Hildegard 0.1.5 is unchanged. To try 9.9.9 again, run: hildegard update',
+    );
     expect(readlinkSync(join(w.home, 'app'))).toBe('app-0.1.5');
     expect(w.nodeVersion()).toBe('v1.2.2');
     expect(w.said()).toEqual([]);
@@ -196,6 +220,10 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     const r = w.run();
     expect(r.status).not.toBe(0);
     expect(r.stderr).toMatch(/didn't match its checksum/);
+    // Nothing moved or stopped, so the old version is as it was, and an update is how to try again.
+    expect(r.stderr.trim().split('\n').at(-1)).toMatch(
+      /^hildegard: hildegard-9\.9\.9-.*didn't match its checksum .* Nothing was installed\. Hildegard 0\.1\.5 is unchanged\. To try 9\.9\.9 again, run: hildegard update$/,
+    );
     expect(readlinkSync(join(w.home, 'app'))).toBe('app-0.1.5');
     expect(w.nodeVersion()).toBe('v1.2.2');
     expect(w.said()).toEqual([]);

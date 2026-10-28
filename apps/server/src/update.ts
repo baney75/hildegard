@@ -120,7 +120,21 @@ export class Updates {
     }
   }
 
+  /**
+   * The version an installer last failed to install here, and why, from the file it writes (`failedUpdateFile` in
+   * apps/cli/src/update.ts). The server may have been stopped and started again since, so it can't just remember.
+   */
+  private failed(): { version: string; why: string } | null {
+    try {
+      const [version, why] = readFileSync(join(this.opts.dataDir, 'update-failed'), 'utf8').split('\n');
+      return version ? { version: version.trim(), why: why?.trim() ?? '' } : null;
+    } catch {
+      return null;
+    }
+  }
+
   state(): UpdateState {
+    const failed = this.failed();
     return {
       current: this.opts.version,
       available: this.available,
@@ -128,7 +142,7 @@ export class Updates {
       applying: this.applying,
       waiting: this.waiting,
       updatable: this.opts.updatable,
-      error: this.error,
+      error: this.error ?? (failed && failed.version === this.available ? failed.why || null : null),
       checkedAt: this.checkedAt,
     };
   }
@@ -217,6 +231,10 @@ export class Updates {
   }
 
   private maybeApply() {
+    // A version that failed to install here waits for a newer one, or for someone to ask for it, rather than failing
+    // again every time nothing renders.
+    const failed = this.failed();
+    if (this.auto && !this.waiting && failed && failed.version === this.available) return;
     if (
       (this.auto || this.waiting) &&
       this.available &&
@@ -250,9 +268,10 @@ export function runUpdate(
   logFile: string,
   env: NodeJS.ProcessEnv = process.env,
   failed: (why: string) => void = () => {},
+  node: string = process.execPath,
 ) {
   const fd = openSync(logFile, 'a');
-  const child = spawn(process.execPath, [entry, 'update', '--yes', ...args], {
+  const child = spawn(node, [entry, 'update', '--yes', ...args], {
     detached: true,
     stdio: ['ignore', fd, fd],
     windowsHide: true,
@@ -260,13 +279,21 @@ export function runUpdate(
     env: { ...withoutBundleEnv(env), HILDEGARD_ENTRY: entry },
   });
   closeSync(fd);
+  let told = false;
+  const tell = (why: string) => {
+    if (told) return;
+    told = true;
+    failed(why);
+  };
+  // It couldn't start at all (no processes left, say): without a listener, that error would stop this server.
+  child.on('error', (e) => tell(`The update couldn’t start: ${e.message}`));
   child.on('exit', (code) => {
     if (code === 0) return;
     let last = '';
     try {
       last = readFileSync(logFile, 'utf8').trim().split('\n').at(-1)?.trim() ?? '';
     } catch {}
-    failed(last || `The update stopped (exit ${code}). Its log is ${logFile}.`);
+    tell(last || `The update stopped (exit ${code}). Its log is ${logFile}.`);
   });
   child.unref();
 }

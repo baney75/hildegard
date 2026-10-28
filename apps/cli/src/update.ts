@@ -3,7 +3,7 @@
 // key and refused unless the signature matches; it then checks every file it downloads against the SHA-256 written in
 // it, lays the release down next to this one (this one stays, for going back) and restarts Hildegard.
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { ChoirDevice, ChoirState, UpdateState } from '@hildegard/presets';
@@ -16,6 +16,18 @@ const title = 'Update Hildegard';
 
 /** While an update restarts Hildegard: the desktop app waits instead of saying Hildegard stopped. */
 export const updatingFile = (dataDir: string) => join(dataDir, 'updating');
+/**
+ * Where an installer that fails says which version it couldn't install (first line) and why (second). The server
+ * reads it too (apps/server/src/update.ts), and won't update to that version on its own again.
+ */
+export const failedUpdateFile = (dataDir: string) => join(dataDir, 'update-failed');
+const failedUpdateLine = (dataDir: string) => {
+  try {
+    return readFileSync(failedUpdateFile(dataDir), 'utf8').split('\n')[1]?.trim() ?? '';
+  } catch {
+    return '';
+  }
+};
 
 /** Where this install lives: the folder its `hildegard` command names, or the one around its script. */
 function installHome(): string | null {
@@ -124,7 +136,12 @@ export async function update(ctx: Ctx): Promise<Result> {
   writeFileSync(file, script);
   writeFileSync(updatingFile(c.dataDir), `${latest}\n`);
   // Without this version's own paths: the new one finds its files where it is.
-  const env: NodeJS.ProcessEnv = { ...withoutBundleEnv(process.env), HILDEGARD_HOME: home };
+  rmSync(failedUpdateFile(c.dataDir), { force: true });
+  const env: NodeJS.ProcessEnv = {
+    ...withoutBundleEnv(process.env),
+    HILDEGARD_HOME: home,
+    HILDEGARD_UPDATE_REPORT: failedUpdateFile(c.dataDir),
+  };
 
   if (windows) {
     // Windows won't replace a program that's running, Node.js included, so Hildegard stops first and the installer
@@ -163,7 +180,8 @@ export async function update(ctx: Ctx): Promise<Result> {
           id: 'update',
           title,
           status: 'failed',
-          detail: installerFailure(latest, r.stdout ?? '', r.stderr ?? ''),
+          // Its stderr isn't captured when it shows on the terminal, so its last line comes from the report.
+          detail: installerFailure(latest, r.stdout ?? '', failedUpdateLine(c.dataDir) || (r.stderr ?? '')),
         },
       ],
       'Hildegard wasn’t updated.',
