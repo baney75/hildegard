@@ -318,7 +318,12 @@ export async function startServer(
     // With "auto", a model counts as installed when any device takes can go to has it.
     if (choir.state().use === 'auto') {
       // Only devices a take could be placed on: one on "auto" itself never is (see Choir.candidates).
-      const places = new Set(choir.candidates().filter((x) => x.ready).map((x) => x.name));
+      const places = new Set(
+        choir
+          .candidates()
+          .filter((x) => x.ready)
+          .map((x) => x.name),
+      );
       const devices = choir.state().devices.filter((x) => places.has(x.name));
       return models.states().map((m) => {
         const there = devices.filter((x) => x.models.includes(m.id) && x.fit[m.id] !== 'no');
