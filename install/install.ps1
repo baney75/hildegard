@@ -144,16 +144,18 @@ try {
       Invoke-Quiet $launcher 'stop' | Out-Null
       $was = ''
       try { $was = (Get-Content -Raw (Join-Path $link 'package.json') | ConvertFrom-Json).version } catch { $was = '' }
-      $switched = $true
       if ($was -and $was -ne $Version -and -not (Test-Path (Join-Path $Root "app-$was"))) {
+        # Until the move works, the copy is still `app`, as it was; a failure here starts it again.
         for ($i = 0; ; $i++) {
           try { Move-Item $link (Join-Path $Root "app-$was") -ErrorAction Stop; break }
           catch { if ($i -ge 10) { throw "Couldn't replace $link while something still uses it: $($_.Exception.Message)" }; Start-Sleep -Seconds 1 }
         }
         $prev = "app-$was"
+        $switched = $true
       }
       else {
         if ($was -and $was -ne $Version) { $prev = "app-$was" }
+        $switched = $true
         Remove-App $link
       }
     }
@@ -188,32 +190,33 @@ set "HILDEGARD_ENTRY=$link\hildegard.mjs"
 catch {
   $why = $_.Exception.Message.TrimEnd('.')
   # Anything that failed puts back what was there, and starts it again: `hildegard update` stopped it to get here.
-  if ($hadApp) {
-    $back = if ($prev) { Join-Path $Root $prev } else { $null }
+  $back = $false
+  if ($switched -and $prev -and (Test-Path (Join-Path $Root $prev))) {
     Invoke-Quiet $launcher 'stop' | Out-Null
-    if ($switched -and $back -and (Test-Path $back)) {
-      Write-Host "Going back to Hildegard $($prev -replace '^app-', ''). Hildegard $Version stays in $(Join-Path $Root "app-$Version")."
-      try { Remove-App $link; Set-App $link $back } catch { Write-Host "Couldn't put $link back: $($_.Exception.Message)" }
-    }
-    if (Test-Path $nodePrev) {
-      try {
+    Write-Host "Going back to Hildegard $($prev -replace '^app-', ''). Hildegard $Version stays in $(Join-Path $Root "app-$Version")."
+    try { Remove-App $link; Set-App $link (Join-Path $Root $prev); $back = $true }
+    catch { Write-Host "Couldn't put $link back: $($_.Exception.Message)" }
+  }
+  # The old Node.js goes with the old app, or stays when the app never changed; a new app keeps the new Node.js.
+  if (Test-Path $nodePrev) {
+    try {
+      if ($back -or -not $switched) {
         if (Test-Path $nodeDir) { Remove-Item -Recurse -Force $nodeDir }
         Move-Item $nodePrev $nodeDir
       }
-      catch { Write-Host "Couldn't put Node.js back: $($_.Exception.Message)" }
+      else { Remove-Item -Recurse -Force $nodePrev }
     }
-    $name = if ($prev) { "Hildegard $($prev -replace '^app-', '')" } elseif (-not $switched) { 'Hildegard' } else { $null }
-    if ($name) {
-      if (Invoke-Quiet $launcher 'start') { $why = "$why, so $name runs again. To try $Version again, run: hildegard install" }
-      else { $why = "$why, and $name didn't start either. Run: hildegard doctor" }
-    }
+    catch { Write-Host "Couldn't put Node.js back: $($_.Exception.Message)" }
   }
-  elseif (Test-Path $nodePrev) {
-    Remove-Item -Recurse -Force $nodeDir -ErrorAction SilentlyContinue
-    Move-Item $nodePrev $nodeDir -ErrorAction SilentlyContinue
+  # Whatever `app` holds now starts again: the version this went back to, the one that was there, or this one.
+  if ($hadApp -and (Test-Path (Join-Path $link 'hildegard.mjs'))) {
+    $name = if ($back) { "Hildegard $($prev -replace '^app-', '')" } else { 'Hildegard' }
+    $retry = if ($back) { "To try $Version again, run: hildegard update" } else { 'To try again, run: hildegard install' }
+    if (Invoke-Quiet $launcher 'start') { $why = "$why, so $name runs again. $retry" }
+    else { $why = "$why, and $name didn't start either. Run: hildegard doctor" }
   }
-  # A throw, not exit: under `irm | iex`, exit would close the window.
-  if ($why -notmatch 'hildegard (install|doctor)$') { $why = "$why." }
+  elseif (Test-Path (Join-Path $link 'hildegard.mjs')) { $why = "$why. To try again, run: hildegard install" }
+  if ($why -notmatch 'hildegard (install|update|doctor)$') { $why = "$why." }
   throw "hildegard: $why"
 }
 finally {

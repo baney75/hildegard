@@ -24,35 +24,42 @@ const sha = (f: string) => createHash('sha256').update(readFileSync(f)).digest('
 /** A fake `node`: prints its version, or runs the app's fake.sh with the command it was given. */
 const fakeNode = (version: string) =>
   `#!/bin/sh\n[ "$1" = --version ] && { echo v${version}; exit 0; }\napp=$1\nshift\n. "$(dirname "$app")/fake.sh"\n`;
-/** A fake app: logs each command; `install` fails when told to. */
-const fakeApp = (version: string, installFails: boolean) =>
+/** A fake app: logs each command, and installs with which bundle paths it was given; a command fails when told to. */
+const fakeApp = (version: string, fails: string | null) =>
   [
-    `echo "${version} $1" >> "$HG_LOG"`,
-    `if [ "$1" = install ]; then ${installFails ? 'echo "PyTorch download timed out" >&2; exit 3' : 'exit 0'}; fi`,
+    `if [ "$1" = install ]; then echo "${version} install resources=\${HILDEGARD_RESOURCES:-unset} presets=\${HILDEGARD_PRESETS_DIR:-unset} commit=\${HILDEGARD_COMMIT:-unset}" >> "$HG_LOG"; else echo "${version} $1" >> "$HG_LOG"; fi`,
+    `if [ "$1" = "${fails ?? ''}" ]; then echo "PyTorch download timed out" >&2; exit 3; fi`,
     'exit 0',
   ].join('\n');
+/** A fake `df` with plenty of room, so the free-space check passes on a runner with a small /tmp. */
+const fakeDf =
+  '#!/bin/sh\necho "Filesystem 1024-blocks Used Available Capacity Mounted on"\necho "fake 999999999 0 999999999 0% /"\n';
 
-function world(opts: { installFails: boolean; newNode: boolean }) {
+function world(opts: { installFails: boolean; newNode: boolean; oldStartFails?: boolean }) {
   const t = mkdtempSync(join(tmpdir(), 'hg-install-sh-'));
   const home = join(t, 'home');
   const bin = join(t, 'bin');
   const rel = join(t, 'rel');
   const dist = join(t, 'dist');
   const log = join(t, 'log');
+  const tools = join(t, 'tools');
   mkdirSync(rel, { recursive: true });
+  mkdirSync(tools, { recursive: true });
+  writeFileSync(join(tools, 'df'), fakeDf);
+  chmodSync(join(tools, 'df'), 0o755);
   // What's installed now: Hildegard 0.1.5 on Node 1.2.2.
   mkdirSync(join(home, 'node', 'bin'), { recursive: true });
   writeFileSync(join(home, 'node', 'bin', 'node'), fakeNode('1.2.2'));
   chmodSync(join(home, 'node', 'bin', 'node'), 0o755);
   mkdirSync(join(home, 'app-0.1.5'), { recursive: true });
   writeFileSync(join(home, 'app-0.1.5', 'hildegard.mjs'), '');
-  writeFileSync(join(home, 'app-0.1.5', 'fake.sh'), fakeApp('0.1.5', false));
+  writeFileSync(join(home, 'app-0.1.5', 'fake.sh'), fakeApp('0.1.5', opts.oldStartFails ? 'start' : null));
   spawnSync('ln', ['-s', 'app-0.1.5', join(home, 'app')]);
   // The release: Hildegard 9.9.9, and Node 1.2.3 when this update brings a new one.
   const appSrc = join(t, 'src', 'hildegard-9.9.9');
   mkdirSync(appSrc, { recursive: true });
   writeFileSync(join(appSrc, 'hildegard.mjs'), '');
-  writeFileSync(join(appSrc, 'fake.sh'), fakeApp('9.9.9', opts.installFails));
+  writeFileSync(join(appSrc, 'fake.sh'), fakeApp('9.9.9', opts.installFails ? 'install' : null));
   const appTar = join(rel, `hildegard-9.9.9-${target}.tar.gz`);
   spawnSync('tar', ['-czf', appTar, '-C', join(t, 'src'), 'hildegard-9.9.9']);
   const node = opts.newNode ? '1.2.3' : '1.2.2';
@@ -75,12 +82,17 @@ function world(opts: { installFails: boolean; newNode: boolean }) {
     .replaceAll(`@NODE_SHA_${key}@`, nodeSha);
   const file = join(t, 'install.sh');
   writeFileSync(file, script);
-  const run = () =>
+  const run = (env: Record<string, string> = {}) =>
     spawnSync('sh', [file], {
       encoding: 'utf8',
       input: 'echo this line must never run\n',
       env: {
-        PATH: process.env.PATH,
+        PATH: `${tools}:${process.env.PATH}`,
+        // What an older Hildegard updating itself passes on: its own bundle's paths.
+        HILDEGARD_RESOURCES: join(home, 'app-0.1.5'),
+        HILDEGARD_PRESETS_DIR: join(home, 'app-0.1.5', 'presets'),
+        HILDEGARD_COMMIT: 'old',
+        ...env,
         HOME: t,
         HILDEGARD_HOME: home,
         XDG_BIN_HOME: bin,
@@ -92,7 +104,7 @@ function world(opts: { installFails: boolean; newNode: boolean }) {
   const said = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []);
   const nodeVersion = () =>
     spawnSync(join(home, 'node', 'bin', 'node'), ['--version'], { encoding: 'utf8' }).stdout.trim();
-  return { home, run, said, nodeVersion };
+  return { home, bin, run, said, nodeVersion };
 }
 
 describe.skipIf(process.platform === 'win32')('install.sh', () => {
@@ -106,9 +118,16 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     expect(w.nodeVersion()).toBe('v1.2.2');
     expect(existsSync(join(w.home, 'node.prev'))).toBe(false);
     // Whatever the new version started is stopped before the old one starts.
-    expect(w.said()).toEqual(['9.9.9 install', '9.9.9 stop', '0.1.5 start']);
+    expect(w.said()).toEqual([
+      '9.9.9 install resources=unset presets=unset commit=unset',
+      '9.9.9 stop',
+      '0.1.5 start',
+    ]);
+    // Retrying with `hildegard install` would set up 0.1.5 again, so the way back to 9.9.9 is `hildegard update`.
     const last = r.stderr.trim().split('\n').at(-1);
-    expect(last).toMatch(/setting up 9\.9\.9 failed \(exit 3\), so 0\.1\.5 runs again/);
+    expect(last).toBe(
+      'hildegard: setting up 9.9.9 failed (exit 3), so 0.1.5 runs again. To try 9.9.9 again, run: hildegard update',
+    );
     expect(r.stderr).toContain('PyTorch download timed out');
     expect(r.stderr).toContain('Hildegard 9.9.9 stays in');
   });
@@ -122,7 +141,51 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     expect(existsSync(join(w.home, 'node.prev'))).toBe(false);
     // The one before it stays, for going back; setup never reads the rest of a piped script.
     expect(existsSync(join(w.home, 'app-0.1.5'))).toBe(true);
-    expect(w.said()).toEqual(['9.9.9 install']);
+    // The old version's bundle paths never reach the new one.
+    expect(w.said()).toEqual(['9.9.9 install resources=unset presets=unset commit=unset']);
+  });
+
+  it('says so when the version it went back to won’t start either', () => {
+    const w = world({ installFails: true, newNode: false, oldStartFails: true });
+    const r = w.run();
+    expect(r.status).toBe(3);
+    expect(readlinkSync(join(w.home, 'app'))).toBe('app-0.1.5');
+    expect(r.stderr).not.toMatch(/runs again/);
+    expect(r.stderr.trim().split('\n').at(-1)).toBe(
+      'hildegard: setting up 9.9.9 failed (exit 3), and 0.1.5 didn’t start either. Run: hildegard doctor'.replace(
+        '’',
+        "'",
+      ),
+    );
+  });
+
+  it('goes back and starts the old version when something fails between switching and setup', () => {
+    const w = world({ installFails: false, newNode: true });
+    // chmod fails after the launcher is written: the link has moved to 9.9.9 by then.
+    const chmod = join(w.home, '..', 'tools', 'chmod');
+    writeFileSync(chmod, '#!/bin/sh\nexit 1\n');
+    chmodSync(chmod, 0o755);
+    const r = w.run();
+    expect(r.status).not.toBe(0);
+    expect(readlinkSync(join(w.home, 'app'))).toBe('app-0.1.5');
+    expect(w.nodeVersion()).toBe('v1.2.2');
+    expect(existsSync(join(w.home, 'node.prev'))).toBe(false);
+    expect(r.stderr.trim().split('\n').at(-1)).toMatch(/^hildegard: .*so 0\.1\.5 runs again/);
+  });
+
+  it('refuses before downloading anything when the disk is short of room', () => {
+    const w = world({ installFails: false, newNode: true });
+    writeFileSync(
+      join(w.home, '..', 'tools', 'df'),
+      '#!/bin/sh\necho "Filesystem 1024-blocks Used Available Capacity Mounted on"\necho "fake 9999999 0 7340032 0% /"\n',
+    );
+    const r = w.run();
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/needs at least 12 GB free .* has 7 GB/);
+    expect(r.stderr.trim().split('\n').at(-1)).toBe('hildegard: nothing was installed.');
+    expect(readlinkSync(join(w.home, 'app'))).toBe('app-0.1.5');
+    expect(w.nodeVersion()).toBe('v1.2.2');
+    expect(w.said()).toEqual([]);
   });
 
   it('changes nothing it can’t put back when a download is refused', () => {

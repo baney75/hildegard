@@ -27,10 +27,56 @@ say() { printf '%s\n' "$*" >&2; }
 # When an older Hildegard runs this to update itself, its own paths are in the environment. They name the version being
 # replaced, and the new one must find its files where it is, so drop them; the hildegard command sets what it needs.
 unset HILDEGARD_ENTRY HILDEGARD_RESOURCES HILDEGARD_PRESETS_DIR HILDEGARD_COMMIT
+# What failed, said last (an updating Hildegard shows the last line), after whatever going back did.
+failure=
 die() {
-  say "hildegard: $*"
+  failure=$*
   exit 1
 }
+
+# Until setup finishes, the version this replaces is kept: its app folder, and its Node.js in node.prev. Any failure
+# puts it back and starts it again, so a failed update leaves the old Hildegard as it was.
+tmp=
+prev=
+switched=
+committed=
+setup_failed=
+failed() {
+  set +e
+  [ -n "$committed" ] && return 0
+  committed=1
+  back=
+  if [ -n "$switched" ] && [ -n "$prev" ] && [ -d "$home/$prev" ]; then
+    # Run with sh, so a launcher left without its execute bit still works. Whatever started from the new version stops before the link moves back under it.
+    sh "$bin/hildegard" stop </dev/null >/dev/null 2>&1
+    ln -sfn "$prev" "$home/app" && back=1
+  fi
+  # The old Node.js goes with the old app, or stays when the app never changed; a new app keeps the new Node.js.
+  if [ -d "$home/node.prev" ]; then
+    if [ -n "$back" ] || [ -z "$switched" ]; then
+      rm -rf "$home/node"
+      mv "$home/node.prev" "$home/node"
+    else
+      rm -rf "$home/node.prev"
+    fi
+  fi
+  msg=${failure:-the installer stopped (exit $1)}
+  if [ -n "$back" ]; then
+    say "Going back to Hildegard ${prev#app-}. Hildegard $VERSION stays in $home/app-$VERSION."
+    if sh "$bin/hildegard" start </dev/null >/dev/null 2>&1; then
+      msg="${msg%.}, so ${prev#app-} runs again. To try $VERSION again, run: hildegard update"
+    else
+      msg="${msg%.}, and ${prev#app-} didn't start either. Run: hildegard doctor"
+    fi
+  elif [ -n "$setup_failed" ]; then
+    msg="${msg%.}. Run it again with: hildegard install"
+  fi
+  say "hildegard: $msg"
+}
+rc=0
+# Keep the exit status: an EXIT trap's own status would otherwise hide a failure.
+trap 'rc=$?; [ -z "$tmp" ] || rm -rf "$tmp"; [ "$rc" = 0 ] || failed "$rc"; exit $rc' EXIT
+trap 'exit 130' INT TERM
 
 case "$(uname -s)" in
 Linux) os=linux ;;
@@ -108,31 +154,7 @@ checked() { # url file sha
   [ "$got" = "$3" ] || die "$(basename "$2") didn't match its checksum (expected $3, got $got). Nothing was installed."
 }
 
-# Until setup finishes, the version this replaces is kept: its app folder, and its Node.js in node.prev. If anything
-# fails, restore() puts it back, so a failed update leaves the old Hildegard as it was.
-prev=$(readlink "$home/app" 2>/dev/null || true)
-[ "$prev" = "app-$VERSION" ] && prev=
-switched=
-committed=
-restore() {
-  [ -n "$committed" ] && return 0
-  committed=1
-  if [ -n "$switched" ] && [ -n "$prev" ] && [ -d "$home/$prev" ]; then
-    # Whatever started from the new version stops before the link moves back under it.
-    "$bin/hildegard" stop </dev/null >/dev/null 2>&1 || true
-    ln -sfn "$prev" "$home/app"
-  fi
-  if [ -d "$home/node.prev" ]; then
-    rm -rf "$home/node"
-    mv "$home/node.prev" "$home/node"
-  fi
-}
-
 tmp=$(mktemp -d)
-rc=0
-# Keep the exit status: an EXIT trap's own status would otherwise hide a failure.
-trap 'rc=$?; rm -rf "$tmp"; [ "$rc" = 0 ] || restore; exit $rc' EXIT
-trap 'exit 130' INT TERM
 mkdir -p "$home" "$bin"
 
 # Node.js, Hildegard's own copy, so it never depends on (or changes) one you have.
@@ -156,6 +178,8 @@ tar -xmzf "$tmp/$f" -C "$home/app-$VERSION.new" --strip-components 1
 rm -rf "$home/app-$VERSION"
 mv "$home/app-$VERSION.new" "$home/app-$VERSION"
 # Keep this version and the one before it, for going back.
+prev=$(readlink "$home/app" 2>/dev/null || true)
+[ "$prev" = "app-$VERSION" ] && prev=
 for old in "$home"/app-*; do
   [ -d "$old" ] || continue
   case $(basename "$old") in
@@ -180,27 +204,14 @@ case ":$PATH:" in
 *) say "Add $bin to your PATH to run it by name, or run $bin/hildegard." ;;
 esac
 
-finish() {
-  committed=1
-  rm -rf "$home/node.prev"
-  exit 0
-}
-[ "${HILDEGARD_SKIP_SETUP:-}" = 1 ] && finish
-# Setup never prompts (--yes), and under `curl | sh` its stdin would be the rest of this script.
-"$bin/hildegard" install --yes "$@" </dev/null && finish
-status=$?
-# An update that won't set up goes back to the version it replaced, and starts that one again.
-if [ -n "$prev" ] && [ -d "$home/$prev" ]; then
-  say "Going back to Hildegard ${prev#app-}. Hildegard $VERSION stays in $home/app-$VERSION."
-  restore
-  if "$bin/hildegard" start </dev/null >/dev/null 2>&1; then
-    say "Hildegard ${prev#app-} is running again."
-  else
-    say "Hildegard ${prev#app-} didn't start either. Run: hildegard doctor"
-  fi
-  # The last line is the one an updating Hildegard shows: what failed, and what runs now.
-  say "hildegard: setting up $VERSION failed (exit $status), so ${prev#app-} runs again. To try $VERSION again: hildegard install"
-else
-  say "hildegard: setting up $VERSION failed (exit $status). Run it again with: hildegard install"
+if [ "${HILDEGARD_SKIP_SETUP:-}" != 1 ]; then
+  # Setup never prompts (--yes), and under `curl | sh` its stdin would be the rest of this script.
+  "$bin/hildegard" install --yes "$@" </dev/null || {
+    status=$?
+    setup_failed=1
+    failure="setting up $VERSION failed (exit $status)"
+    exit $status
+  }
 fi
-exit $status
+committed=1
+rm -rf "$home/node.prev"

@@ -122,7 +122,12 @@ export async function startServer(
     /** The voice engine: tests give a stand-in. */
     voiceEngine?: VoiceEngine;
     /** Checking for and running updates: tests give stand-ins. */
-    updates?: { fetch?: typeof fetch; run?: () => void; firstMs?: number; idleMs?: number };
+    updates?: {
+      fetch?: typeof fetch;
+      run?: (failed: (why: string) => void) => void;
+      firstMs?: number;
+      idleMs?: number;
+    };
     /** The slicer for print loops (null for none); found on this computer by default. Tests give a stand-in. */
     slicer?: Slicer | null;
     /** Whether something else is using this computer, for opportunistic sharing: tests give a stand-in. */
@@ -391,10 +396,16 @@ export async function startServer(
       voiceModels.states().some((m) => m.downloading),
     run:
       opts.updates?.run ??
-      (() => {
+      ((failed) => {
         const logs = join(config.dataDir, 'logs');
         mkdirSync(logs, { recursive: true });
-        runUpdate(entry!, ['--data', config.dataDir, '--port', String(listening)], join(logs, 'update.log'));
+        runUpdate(
+          entry!,
+          ['--data', config.dataDir, '--port', String(listening)],
+          join(logs, 'update.log'),
+          process.env,
+          failed,
+        );
       }),
     onChange: (update) => store.emit({ type: 'update', update }),
     fetch: opts.updates?.fetch,

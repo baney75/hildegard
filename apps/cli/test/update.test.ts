@@ -25,9 +25,9 @@ describe('a failed update', () => {
   it('says why setup stopped and what runs now', () => {
     const out = '{"ok":false,"needsOwner":false,"steps":[],"message":"PyTorch’s download timed out."}\n';
     const err =
-      'Going back to Hildegard 0.1.9.\nHildegard 0.1.9 is running again.\nhildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again: hildegard install\n';
+      'Going back to Hildegard 0.1.9.\nHildegard 0.1.9 is running again.\nhildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again, run: hildegard update\n';
     expect(installerFailure('0.1.10', out, err)).toBe(
-      'The 0.1.10 installer stopped: PyTorch’s download timed out. hildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again: hildegard install',
+      'The 0.1.10 installer stopped: PyTorch’s download timed out. hildegard: setting up 0.1.10 failed (exit 1), so 0.1.9 runs again. To try 0.1.10 again, run: hildegard update',
     );
     expect(installerFailure('0.1.10', '', '')).toMatch(/installer stopped\. .* is still installed\./);
     expect(installerFailure('0.1.10', 'not json', 'hildegard: couldn’t download it.')).toBe(

@@ -80,8 +80,11 @@ interface UpdatesOptions {
   updatable: boolean;
   /** Something is rendering or downloading, so an automatic update waits. */
   busy: () => boolean;
-  /** Starts `hildegard update`, which outlives this server. */
-  run: () => void;
+  /**
+   * Starts `hildegard update`, which outlives this server. It calls `failed` with why if the update ends without
+   * replacing this server, so Update can be tried again.
+   */
+  run: (failed: (why: string) => void) => void;
   onChange: (s: UpdateState) => void;
   fetch?: typeof fetch;
   /** How long after starting the first check waits, and how often an available update looks for a quiet moment. */
@@ -182,7 +185,11 @@ export class Updates {
     this.waiting = false;
     this.changed();
     try {
-      this.opts.run();
+      this.opts.run((why) => {
+        this.applying = false;
+        this.error = why;
+        this.changed();
+      });
     } catch (e) {
       this.applying = false;
       this.error = e instanceof Error ? e.message : String(e);
@@ -233,12 +240,16 @@ export function withoutBundleEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return out;
 }
 
-/** Starts `hildegard update` on its own, so it carries on when it stops this server. Its output goes to the log. */
+/**
+ * Starts `hildegard update` on its own, so it carries on when it stops this server. Its output goes to the log. If it
+ * fails while this server still runs (a download or setup that went back to this version), `failed` gets its last line.
+ */
 export function runUpdate(
   entry: string,
   args: string[],
   logFile: string,
   env: NodeJS.ProcessEnv = process.env,
+  failed: (why: string) => void = () => {},
 ) {
   const fd = openSync(logFile, 'a');
   const child = spawn(process.execPath, [entry, 'update', '--yes', ...args], {
@@ -249,5 +260,13 @@ export function runUpdate(
     env: { ...withoutBundleEnv(env), HILDEGARD_ENTRY: entry },
   });
   closeSync(fd);
+  child.on('exit', (code) => {
+    if (code === 0) return;
+    let last = '';
+    try {
+      last = readFileSync(logFile, 'utf8').trim().split('\n').at(-1)?.trim() ?? '';
+    } catch {}
+    failed(last || `The update stopped (exit ${code}). Its log is ${logFile}.`);
+  });
   child.unref();
 }

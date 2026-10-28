@@ -136,6 +136,31 @@ describe('Updates', () => {
     expect(await watcher().u.now()).toMatch(/doesn’t offer updates/);
   });
 
+  it('can update again once an update fails without replacing it', async () => {
+    let fail: (why: string) => void = () => {};
+    const u = new Updates({
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-update-')),
+      version: '0.1.5',
+      updatable: true,
+      busy: () => false,
+      run: (failed) => {
+        fail = failed;
+      },
+      onChange: () => {},
+      fetch: (async () => Response.json({ version: '0.1.6' })) as unknown as typeof fetch,
+    });
+    u.setAuto(false);
+    expect(await u.now()).toBeNull();
+    expect(u.state().applying).toBe(true);
+    fail('hildegard: 0.1.6.tar.gz didn’t match its checksum.');
+    expect(u.state()).toMatchObject({
+      applying: false,
+      error: 'hildegard: 0.1.6.tar.gz didn’t match its checksum.',
+    });
+    expect(await u.now()).toBeNull();
+    expect(u.state().applying).toBe(true);
+  });
+
   it('keeps this version’s own paths away from the update it starts', () => {
     const env = withoutBundleEnv({
       PATH: '/bin',
