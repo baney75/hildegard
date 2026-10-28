@@ -5,6 +5,7 @@
  * takes there. Keys are 256 random bits, kept hashed on the sharing device and in the keychain on the joined one.
  * Addresses must be private: Tailscale (WireGuard encrypts the link), loopback, or https.
  */
+
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
 import type { ChoirDevice, ChoirState } from '@hildegard/presets';
+import type { BusyCheck } from './busy.ts';
 import type { SecretStore } from './hf.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
 
@@ -266,6 +268,7 @@ export class Choir {
         paired: this.sharing?.keys.length ?? 0,
         problem: this.sharing ? this.sharingProblem : null,
         opportunistic: this.settings.opportunistic,
+        busyCheck: this.busyCheck,
       },
     };
   }
@@ -342,10 +345,15 @@ export class Choir {
 
   setOpportunistic(on: boolean) {
     if (on === this.settings.opportunistic) return;
-    this.settings = { ...this.settings, opportunistic: on };
-    save(join(this.dir, 'settings.json'), this.settings);
+    const next = { ...this.settings, opportunistic: on };
+    // Saved first: if it can't be, nothing changes and the caller hears why.
+    save(join(this.dir, 'settings.json'), next);
+    this.settings = next;
     this.emit();
   }
+
+  /** What opportunistic sharing can tell about this computer being busy; set once the server has looked. */
+  busyCheck: BusyCheck | null = null;
 
   /** Stop sharing: every key goes, so no paired device can render here until it joins again. */
   revoke() {

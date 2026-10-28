@@ -17,7 +17,7 @@ import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
-import { hostBusy } from './busy.ts';
+import { busyCheck, hostBusy } from './busy.ts';
 import { Choir, ChoirError, tailscaleSelf } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
@@ -119,6 +119,7 @@ export async function startServer(
     /** Whether something else is using this computer, for opportunistic sharing: tests give a stand-in. */
     hostBusy?: () => Promise<boolean>;
     busyRecheckMs?: number;
+    busySettleMs?: number;
     /** Reports to Hildegard's makers: tests give one with a stand-in GitHub. */
     reports?: Reports;
     /** The Chromium-family browser for web loops and site imports (null for none); found by default. */
@@ -172,6 +173,8 @@ export async function startServer(
 
   // Choir: the devices this one joined (one of which may render), and sharing this GPU with them.
   const secretsFor = opts.choirSecrets ?? (await secretStores(join(config.dataDir, 'secrets')));
+  // Looks at what opportunistic sharing can see of this computer being busy; set up once the server is ready.
+  let lookBusy = async () => {};
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
@@ -208,8 +211,10 @@ export async function startServer(
     // Voice models let go of the GPU before a render needs it.
     beforeRender: () => voiceEngine.release(),
     // Asked only when this computer shares its GPU opportunistically. The fake GPU has no one else to yield to.
-    hostBusy: opts.hostBusy ?? (config.fake ? async () => false : hostBusy),
+    hostBusy:
+      opts.hostBusy ?? (config.fake ? async () => false : () => hostBusy(localGpu?.backend === 'cuda')),
     busyRecheckMs: opts.busyRecheckMs,
+    busySettleMs: opts.busySettleMs,
   });
   scheduler.setOpportunistic(choir.opportunistic);
   route();
@@ -367,6 +372,7 @@ export async function startServer(
       [...store.takes.values(), ...store.stills.values()].some(
         (t) => t.status === 'queued' || t.status === 'running',
       ) ||
+      // A paired render waiting here would be canceled by the restart, so it holds the update until it's done.
       scheduler.guestTakes().length > 0 ||
       models.states().some((m) => m.downloading) ||
       exporter.list().some((e) => e.status === 'running') ||
@@ -389,6 +395,7 @@ export async function startServer(
   // The browser that checks web pages and imports sites; tests can say there is none.
   const chrome = opts.chrome === undefined ? findChrome() : opts.chrome;
   const app = createApp({
+    lookBusy: () => lookBusy(),
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     likeness: new Likeness(config.dataDir),
@@ -595,6 +602,20 @@ export async function startServer(
   void host.resume();
   scheduler.start();
 
+  // The fake GPU says it can see GPU use, like an NVIDIA computer would.
+  lookBusy = () =>
+    (config.fake
+      ? Promise.resolve('gpu+load' as const)
+      : busyCheck(undefined, undefined, localGpu?.backend === 'cuda')
+    ).then((b) => {
+      if (closing || b === choir.busyCheck) return;
+      choir.busyCheck = b;
+      choir.emit();
+    });
+  void lookBusy();
+  // A driver can stop answering later (an update without a restart): look again now and then, so Settings says so.
+  const busyLook = setInterval(() => choir.opportunistic && void lookBusy(), 5 * 60_000);
+  busyLook.unref?.();
   return {
     url: `http://${bracketed === '0.0.0.0' ? '127.0.0.1' : bracketed}:${port}`,
     config,
@@ -614,6 +635,7 @@ export async function startServer(
     voiceModels,
     async close() {
       closing = true;
+      clearInterval(busyLook);
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);

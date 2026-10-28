@@ -297,9 +297,11 @@ installed when they are installed there, so nothing downloads twice. Settings â€
   on the GPU computer, give its address yourself: `hildegard choir invite --url http://100.x.y.z:7341`.
 - If parish1 is also someone's everyday computer, run `hildegard choir opportunistic on` there (or turn on **Only
   when it's free** in Settings â€º Devices). Your other devices' renders then wait behind parish1's own work, stop and
-  go back in line when its own work arrives, and start only while nothing else is using it: the GPU is under 30% busy
-  and the load is under 0.8 per core. A render already running for another device finishes unless parish1's own
-  Hildegard work arrives. Off, the default, renders from your other devices simply take their turn.
+  go back in line when its own work arrives, and start only while nothing else is using it: an NVIDIA GPU under 30%
+  busy and a load under 0.8 per core. A GPU that doesn't answer counts as busy. Without NVIDIA only the load is
+  checked, and Windows without NVIDIA can't tell at all, so there they wait only for Hildegard's own work (Settings
+  says which). A render already running for another device finishes unless parish1's own Hildegard work arrives.
+  Off, the default, renders from your other devices simply take their turn.
 
 ## Commands
 

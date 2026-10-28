@@ -33,6 +33,8 @@ const RANK = { forced: 0, interactive: 1, agent: 2 } as const;
 const YIELD_RANK = 3;
 /** How long a paired device's render waits before this computer asks again whether it's busy. */
 export const BUSY_RECHECK_MS = 30_000;
+/** How long after this computer's own work ends before asking: GPU use and load still show that work for a moment. */
+export const BUSY_SETTLE_MS = 3_000;
 
 /** Plain-language fixes for each failure. */
 export function explain(e: unknown): TakeError {
@@ -112,9 +114,14 @@ export class Scheduler {
   private readonly hostBusy: () => Promise<boolean>;
   /** Asking hostBusy now; nothing starts until it answers. */
   private askingBusy = false;
-  /** hostBusy just said this computer is free: the paired render at the front may start. */
-  private guestCleared = false;
+  /** hostBusy just said this computer is free, for this paired render: it may start if it is still first, soon. */
+  private guestCleared: { id: string; at: number } | null = null;
   private busyTimer: NodeJS.Timeout | null = null;
+  /** A paired render stopped for speech while takes were paused: it may run again once speech is done, paused or not. */
+  private resumeGuest: string | null = null;
+  /** When this computer's own last render or lease ended. */
+  private localEndedAt = 0;
+  private readonly busySettleMs: number;
   private readonly busyRecheckMs: number;
   /** Other work holding this GPU (voice), and work waiting for it; no take starts while it is held. */
   private leased = false;
@@ -153,8 +160,11 @@ export class Scheduler {
     hostBusy?: () => Promise<boolean>;
     /** How long to wait before asking again; BUSY_RECHECK_MS unless a test says otherwise. */
     busyRecheckMs?: number;
+    /** How long to let this computer's own work settle before asking; BUSY_SETTLE_MS unless a test says otherwise. */
+    busySettleMs?: number;
   }) {
     this.busyRecheckMs = opts.busyRecheckMs ?? BUSY_RECHECK_MS;
+    this.busySettleMs = opts.busySettleMs ?? BUSY_SETTLE_MS;
     this.hostBusy = opts.hostBusy ?? (async () => false);
     this.poster = opts.poster;
     this.beforeRender = opts.beforeRender ?? (async () => {});
@@ -212,7 +222,10 @@ export class Scheduler {
     this.online = online;
     if (was !== this.online) {
       this.onEngine(this.engineState());
-      if (this.online) this.pump();
+      if (this.online) {
+        this.yieldGuest();
+        this.pump();
+      }
     }
     if (this.pingTimer) clearTimeout(this.pingTimer);
     this.pingTimer = setTimeout(() => void this.tick(), this.online ? 10_000 : 2_000);
@@ -241,7 +254,10 @@ export class Scheduler {
   setPaused(paused: boolean) {
     this.paused = paused;
     this.onEngine(this.engineState());
-    if (!paused) this.pump();
+    if (!paused) {
+      this.yieldGuest();
+      this.pump();
+    }
   }
 
   /**
@@ -251,20 +267,30 @@ export class Scheduler {
   setOpportunistic(on: boolean) {
     if (on === this.opportunistic) return;
     this.opportunistic = on;
-    this.guestCleared = false;
+    this.guestCleared = null;
     if (!on && this.busyTimer) {
       clearTimeout(this.busyTimer);
       this.busyTimer = null;
     }
     // Something of this computer's own may be waiting behind the paired render on the GPU now.
-    if (on && this.order().some((x) => !('guest' in x))) this.yieldGuest();
+    if (on) this.yieldGuest();
     this.renumber();
     this.pump();
   }
 
+  /** Whether paired devices' renders wait behind this computer's own work and its being busy. */
+  get yields(): boolean {
+    return this.opportunistic;
+  }
+
   /** Opportunistic: stop the paired device's render on the GPU now; it goes back in line, and starts over later. */
   private yieldGuest() {
-    if (!this.opportunistic || !this.guestRunning || !this.running) return;
+    if (!this.opportunistic || !this.guestRunning || !this.running || this.stopped) return;
+    // Only for work that can start now: never stop a paired render just to leave the GPU idle. Speech gets the GPU
+    // even while takes are paused or ComfyUI is down, so a lease waiting always counts.
+    const local = !this.paused && this.online && this.order().some((x) => !('guest' in x));
+    if (!this.leaseQueue.length && !local) return;
+    if (!local && this.paused) this.resumeGuest = this.guestRunning.id;
     this.running.requeue = true;
     this.running.abort.abort();
   }
@@ -462,8 +488,9 @@ export class Scheduler {
   }
 
   /**
-   * Hold the GPU for other work, such as speech: waits for the render on it now to finish (never stops one), then no
-   * take starts until the returned function is called. Voice goes ahead of takes still waiting, since it takes
+   * Hold the GPU for other work, such as speech: waits for the render on it now to finish, then no take starts until
+   * the returned function is called. The one exception: shared opportunistically, a paired device's render on the GPU
+   * stops for it and goes back in line, and resumes after it even while takes are paused. Voice goes ahead of takes still waiting, since it takes
    * seconds. Renders that go to another device don't need this GPU, so the lease comes at once.
    */
   lease(): Promise<() => void> {
@@ -478,6 +505,7 @@ export class Scheduler {
           if (done) return;
           done = true;
           this.leased = false;
+          this.localEndedAt = Date.now();
           this.pump();
         });
       });
@@ -495,33 +523,59 @@ export class Scheduler {
       lease();
       return;
     }
-    if (this.paused || !this.online || this.askingBusy) return;
-    const next = this.order()[0];
+    if (!this.online) return;
+    // Paused, only a paired render that speech interrupted may go on, ahead of the paused takes.
+    const next = this.paused
+      ? this.order().find((x) => 'guest' in x && x.guest.id === this.resumeGuest)
+      : this.order()[0];
     if (!next) return;
-    if ('guest' in next && this.opportunistic && !this.guestCleared) {
-      // Only paired renders wait (they go last), so ask whether anything else is using this computer first.
-      if (this.busyTimer) return;
-      this.askingBusy = true;
-      void this.hostBusy()
-        .catch(() => false)
-        .then((busy) => {
-          this.askingBusy = false;
-          if (this.stopped) return;
-          if (busy) {
-            this.busyTimer = setTimeout(() => {
-              this.busyTimer = null;
+    if ('guest' in next && this.opportunistic) {
+      const c = this.guestCleared;
+      this.guestCleared = null;
+      // Cleared moments ago for this very render: start it. Anything else asks again.
+      if (!(c && c.id === next.guest.id && Date.now() - c.at < 2000)) {
+        // Only paired renders wait (they go last), so ask whether anything else is using this computer first.
+        if (this.busyTimer || this.askingBusy) return;
+        // This computer's own work just ended: let its GPU use and load settle before asking.
+        const settle = this.localEndedAt + this.busySettleMs - Date.now();
+        if (settle > 0) {
+          this.busyTimer = setTimeout(() => {
+            this.busyTimer = null;
+            this.pump();
+          }, settle);
+          this.busyTimer.unref?.();
+          return;
+        }
+        this.askingBusy = true;
+        const id = next.guest.id;
+        const askedAt = Date.now();
+        void this.hostBusy()
+          // Can't tell: count it busy, since this computer's own work comes first.
+          .catch(() => true)
+          .then((busy) => {
+            this.askingBusy = false;
+            if (this.stopped) return;
+            // Turned off while asking, or this computer's own work ran meanwhile and the answer measured it: ask again.
+            if (!this.opportunistic || this.running || this.leased || this.localEndedAt >= askedAt) {
               this.pump();
-            }, this.busyRecheckMs);
-            this.busyTimer.unref?.();
-          } else this.guestCleared = true;
-          this.pump();
-        });
-      return;
+              return;
+            }
+            if (busy) {
+              this.busyTimer = setTimeout(() => {
+                this.busyTimer = null;
+                this.pump();
+              }, this.busyRecheckMs);
+              this.busyTimer.unref?.();
+            } else this.guestCleared = { id, at: Date.now() };
+            this.pump();
+          });
+        return;
+      }
     }
-    // A clearance is for the render that starts now; after any render, ask again.
-    this.guestCleared = false;
-    if ('guest' in next) void this.runGuest(next.guest);
-    else if ('take' in next) void this.run(next.take);
+    if ('guest' in next) {
+      if (next.guest.id === this.resumeGuest) this.resumeGuest = null;
+      void this.runGuest(next.guest);
+    } else if ('take' in next) void this.run(next.take);
     else void this.runStill(next.still);
   }
 
@@ -603,6 +657,8 @@ export class Scheduler {
       g.job.signal.removeEventListener('abort', onAbort);
       this.running = null;
       this.guestRunning = null;
+      // Its GPU use and load linger a moment too, like this computer's own work.
+      this.localEndedAt = Date.now();
       this.renumber();
       this.pump();
     }
@@ -713,6 +769,7 @@ export class Scheduler {
       }
       this.store.putTake(take);
       this.running = null;
+      this.localEndedAt = Date.now();
       this.renumber();
       this.pump();
     }
@@ -812,6 +869,7 @@ export class Scheduler {
       }
       this.store.putStill(still);
       this.running = null;
+      this.localEndedAt = Date.now();
       this.renumber();
       this.pump();
     }

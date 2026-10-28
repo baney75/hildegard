@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { ChoirDevice, ChoirState, GuestTake, Snapshot, Take } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
-import { busyFrom, nvidiaPercent } from '../src/busy.ts';
+import { busyCheck, busyFrom, nvidiaPercent } from '../src/busy.ts';
 import {
   Choir,
   checkUrl,
@@ -187,7 +187,7 @@ let mac: Running;
 /** Updates the GPU device started: a newer release is always out for it. */
 let gpuUpdates = 0;
 /** What the GPU device's stand-in says when asked whether something else is using it. */
-let gpuBusy = false;
+let gpuBusy: boolean | 'fails' = false;
 let gpuData: string;
 let shareUrl: string;
 let token: string;
@@ -209,8 +209,12 @@ beforeAll(async () => {
     { ...parseArgs(['--fake-gpu', '--data', gpuData]), port: 0 },
     {
       fakeTickMs: 30,
-      hostBusy: async () => gpuBusy,
+      hostBusy: async () => {
+        if (gpuBusy === 'fails') throw new Error('can’t tell');
+        return gpuBusy;
+      },
       busyRecheckMs: 100,
+      busySettleMs: 50,
       secrets: memoryStore(),
       choirSecrets: memorySecrets(),
       updates: {
@@ -409,6 +413,16 @@ describe('sharing only when the GPU device is free', () => {
     expect((await opp(true)).sharing.opportunistic).toBe(true);
     const again = new Choir({ dataDir: gpuData, secrets: memorySecrets(), onChange: () => {} });
     expect(again.opportunistic).toBe(true);
+    // Revoking and inviting again drop or add keys, never this setting.
+    const lone = mkdtempSync(join(tmpdir(), 'hg-opp-'));
+    const one = new Choir({ dataDir: lone, secrets: memorySecrets(), onChange: () => {} });
+    one.setOpportunistic(true);
+    one.invite('http://127.0.0.1:7999', 'lone');
+    one.revoke();
+    one.invite('http://127.0.0.1:7999', 'lone');
+    expect(new Choir({ dataDir: lone, secrets: memorySecrets(), onChange: () => {} }).opportunistic).toBe(
+      true,
+    );
     expect((await post(gpu, '/api/choir/opportunistic', { on: 'yes' })).status).toBe(400);
     expect((await opp(false)).sharing.opportunistic).toBe(false);
   });
@@ -471,6 +485,96 @@ describe('sharing only when the GPU device is free', () => {
     }
   });
 
+  it('stops a paired device’s render for speech, a retried take, or the mode turned on, and never to sit idle', async () => {
+    const final = (prompt: string) => ({ ...request(prompt), format: { quality: 'final', seconds: 5 } });
+    const sendAndRun = async (prompt: string) => {
+      const res = await post(mac, '/api/shots', { request: final(prompt) });
+      const t = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'running');
+      return t;
+    };
+    await opp(true);
+    try {
+      // Speech (a lease) on this computer.
+      let remote = await sendAndRun('Bells across a valley at noon');
+      const release = await gpu.scheduler.lease();
+      expect(guestStatus()).toBe('queued');
+      release();
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+
+      // A take of this computer's own that failed, retried.
+      const failed = await post(gpu, '/api/shots', { request: request('A lamp flickers [fail:node]') });
+      const bad = ((await failed.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => gpu.store.takes.get(bad.id)?.status === 'failed');
+      remote = await sendAndRun('Leaves turning on a pond');
+      expect((await post(gpu, `/api/takes/${bad.id}/retry`)).status).toBeLessThan(300);
+      await until(() => guestStatus() === 'queued');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+
+      // Paused here: a new take of its own can't start, so the paired render keeps going.
+      remote = await sendAndRun('Fog lifting off a harbour');
+      gpu.scheduler.setPaused(true);
+      const own = await post(gpu, '/api/shots', { request: request('A clock face at dawn') });
+      const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+      await new Promise((r) => setTimeout(r, 300));
+      expect(guestStatus()).toBe('running');
+      // Unpaused, it yields to that take.
+      gpu.scheduler.setPaused(false);
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      await opp(false);
+    }
+
+    // Paused, speech still gets the GPU: a lease stops the paired render even then, and it goes on afterwards
+    // without anyone unpausing.
+    await opp(true);
+    try {
+      const remote = await sendAndRun('Wind chimes on a porch');
+      gpu.scheduler.setPaused(true);
+      const release = await gpu.scheduler.lease();
+      expect(guestStatus()).toBe('queued');
+      release();
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+      gpu.scheduler.setPaused(false);
+    } finally {
+      gpu.scheduler.setPaused(false);
+      await opp(false);
+    }
+
+    // Off, with its own take waiting: turning it on stops the paired render for that take.
+    const remote = await sendAndRun('Sparks from a forge');
+    gpu.scheduler.setPaused(true);
+    const own = await post(gpu, '/api/shots', { request: request('Rain on slate'), priority: 'agent' });
+    const ownTake = ((await own.json()) as { takes: Take[] }).takes[0]!;
+    gpu.scheduler.setPaused(false);
+    expect(guestStatus()).toBe('running');
+    await opp(true);
+    try {
+      await until(() => gpu.store.takes.get(ownTake.id)?.status === 'running');
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done', 30_000);
+    } finally {
+      await opp(false);
+    }
+  }, 120_000);
+
+  it('counts a check that fails as busy, and starts once it answers', async () => {
+    await opp(true);
+    gpuBusy = 'fails';
+    try {
+      const res = await post(mac, '/api/shots', { request: request('Moths around a porch light') });
+      const remote = ((await res.json()) as { takes: Take[] }).takes[0]!;
+      await until(() => guestStatus() === 'queued');
+      await new Promise((r) => setTimeout(r, 600));
+      expect(guestStatus()).toBe('queued');
+      gpuBusy = false;
+      await until(() => mac.store.takes.get(remote.id)?.status === 'done');
+    } finally {
+      gpuBusy = false;
+      await opp(false);
+    }
+  });
+
   it('runs renders straight away when it’s off, busy or not', async () => {
     gpuBusy = true;
     try {
@@ -493,9 +597,67 @@ describe('sharing only when the GPU device is free', () => {
         typeof nvidiaPercent
       >[0];
     expect(await nvidiaPercent(said('3\n71\n'))).toBe(71);
+    // No nvidia-smi: no NVIDIA GPU. One that fails or says nothing usable: unknown, which counts as busy.
+    const missing = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) =>
+      cb(
+        Object.assign(new Error('spawn nvidia-smi ENOENT'), { code: 'ENOENT' }),
+        '',
+      )) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await nvidiaPercent(missing)).toBe(null);
+    // Two at once on a healthy driver: both answer, neither is taken for stuck.
+    const slow = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) => {
+      const child = { exitCode: null as number | null };
+      setTimeout(() => {
+        child.exitCode = 0;
+        cb(null, '40\n');
+      }, 50);
+      return child;
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await Promise.all([nvidiaPercent(slow), nvidiaPercent(slow)])).toEqual([40, 40]);
+    // Stuck for good: it gives up on its own deadline.
+    const hung = { exitCode: null };
+    const stuck = (() => hung) as unknown as Parameters<typeof nvidiaPercent>[0];
+    await expect(nvidiaPercent(stuck)).rejects.toThrow(/in time/);
+    // While that one is still stuck, no second one starts.
+    let started = 0;
+    const counted = ((..._a: unknown[]) => {
+      started++;
+      return hung;
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    await expect(nvidiaPercent(counted)).rejects.toThrow(/still stuck/);
+    expect(started).toBe(0);
+    (hung as { exitCode: number | null }).exitCode = 0;
+    // Answered with no figure (MIG, some vGPUs): no figure, so the load alone is watched.
     expect(await nvidiaPercent(said('[N/A]\n'))).toBe(null);
-    expect(await nvidiaPercent(said(null))).toBe(null);
-  });
+    // No driver loaded (exit 9) or no GPU (exit 6): no NVIDIA GPU to watch.
+    const exits = (code: number) =>
+      ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) =>
+        cb(Object.assign(new Error('nvidia-smi failed'), { code }), '')) as unknown as Parameters<
+        typeof nvidiaPercent
+      >[0];
+    expect(await nvidiaPercent(exits(9))).toBe(null);
+    expect(await nvidiaPercent(exits(6))).toBe(null);
+    await expect(nvidiaPercent(exits(15))).rejects.toThrow();
+    await expect(nvidiaPercent(said(null))).rejects.toThrow();
+    expect(await busyCheck('linux', said('12\n'))).toBe('gpu+load');
+    expect(await busyCheck('linux', said(null))).toBe('gpu-unknown');
+    expect(await busyCheck('linux', missing)).toBe('load');
+    expect(await busyCheck('darwin', missing)).toBe('load');
+    expect(await busyCheck('win32', missing)).toBe('none');
+    // Known to render on NVIDIA: a missing nvidia-smi means it can't be read, not that there's no GPU.
+    expect(await busyCheck('linux', missing, true)).toBe('gpu-unknown');
+    // Asked at once, they share one nvidia-smi.
+    let runs = 0;
+    const once = ((_c: string, _a: string[], _o: unknown, cb: (e: Error | null, out: string) => void) => {
+      runs++;
+      setTimeout(() => cb(null, '5\n'), 20);
+      return { exitCode: null };
+    }) as unknown as Parameters<typeof nvidiaPercent>[0];
+    expect(await Promise.all([nvidiaPercent(once), nvidiaPercent(once), nvidiaPercent(once)])).toEqual([
+      5, 5, 5,
+    ]);
+    expect(runs).toBe(1);
+  }, 15_000);
 });
 
 describe('updating another of your devices', () => {

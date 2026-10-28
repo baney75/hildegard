@@ -257,6 +257,12 @@ export interface ChoirState {
      * while nothing else is using it. Off: they render when their turn comes.
      */
     opportunistic: boolean;
+    /**
+     * What it can tell about being busy: GPU use and load (NVIDIA), load only, or nothing (Windows without NVIDIA,
+     * where opportunistic sharing can only yield to Hildegard's own work), or an NVIDIA GPU that isn't answering, which
+     * holds paired renders until it does. Null until the server has looked.
+     */
+    busyCheck: 'gpu+load' | 'load' | 'none' | 'gpu-unknown' | null;
   };
 }
 
