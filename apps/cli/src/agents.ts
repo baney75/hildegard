@@ -4,12 +4,23 @@
  * allow (packages/agents), Hildegard's skills installed where they look, and the media checks from a terminal.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   type AgentId,
   COMMANDS,
   decide,
+  detectAgent,
   detectAgents,
   installSkills,
   isPiFamily,
@@ -18,8 +29,10 @@ import {
   listSkills,
   NAMES,
   Pacer,
+  PI_TOOLS,
   plan,
   prepareWorkspace,
+  providerOf,
   removeSkills,
   run,
   type SkillTarget,
@@ -92,7 +105,13 @@ async function check(ctx: Ctx): Promise<Result> {
   const opts = settings(ctx);
   const steps: Step[] = detected.map((d) => {
     if (!d.installed)
-      return { id: d.agent, title: d.name, status: 'skipped', detail: `${d.name} isn’t installed.` };
+      // Detection says why: not on PATH, or a `pi` that isn't the coding agent.
+      return {
+        id: d.agent,
+        title: d.name,
+        status: 'skipped',
+        detail: d.detail || `${d.name} isn’t installed.`,
+      };
     const lines: string[] = [d.detail];
     if (!isPiFamily(d.agent)) {
       const own = (t: Trigger) => decide(d.agent, d.auth, t, opts);
@@ -102,7 +121,13 @@ async function check(ctx: Ctx): Promise<Result> {
       if (!own('schedule').allowed && d.auth.kind === 'subscription') lines.push(own('schedule').reason);
     } else
       lines.push(
-        `${d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
+        `${d.agent === 'omp' ? 'OMP' : d.name} runs only with an API key or a local model, never with a Claude or ChatGPT login.`,
+        ...(d.agent === 'pi'
+          ? [
+              'Pi has no sandbox: its file tools reach anything your account can. Hildegard runs it only when you start it with --unsandboxed, never on a schedule.',
+              `It gets ${PI_TOOLS.filter((t) => !t.startsWith('mcp__')).join(', ')} and Hildegard’s tools, in a fresh profile, with no shell.`,
+            ]
+          : []),
       );
     const keyFor = d.agent === 'claude-code' ? 'anthropic' : d.agent === 'codex' ? 'openai' : null;
     if (keyFor)
@@ -121,10 +146,17 @@ async function check(ctx: Ctx): Promise<Result> {
         id: d.agent,
         installed: d.installed,
         auth: d.auth,
+        // OMP runs on a held key or a local model; Pi only with --unsandboxed (see needs), so not by default.
         startedByYou:
           d.installed &&
-          (isPiFamily(d.agent) ? held.length > 0 : decide(d.agent, d.auth, 'owner-here', opts).allowed),
+          (d.agent === 'pi'
+            ? false
+            : d.agent === 'omp'
+              ? true
+              : decide(d.agent, d.auth, 'owner-here', opts).allowed),
         scheduled: d.installed && !isPiFamily(d.agent) && decide(d.agent, d.auth, 'schedule', opts).allowed,
+        // Pi runs only when the owner passes --unsandboxed themselves.
+        ...(d.agent === 'pi' ? { needs: '--unsandboxed' } : {}),
       })),
       keys: held,
       shareKeysWithDirectors: opts.shareKeysWithDirectors,
@@ -237,7 +269,8 @@ async function runAgent(ctx: Ctx, args: string[]): Promise<Result> {
 
 /**
  * Runs one coding agent on one task, if the provider's terms allow it. `extraTools` are tools a headless Claude Code
- * may use beyond the usual ones (a loop's modeling programs, say); Codex, OMP and Pi work inside their own sandboxes.
+ * may use beyond the usual ones (a loop's modeling programs, say); Codex and OMP work inside their own sandboxes, and
+ * Pi gets only file tools and Hildegard's, with no shell.
  */
 export async function runAgentTask(
   ctx: Ctx,
@@ -272,9 +305,14 @@ export async function runAgentTask(
     );
   const use = (ctx.opts.get('use') ?? (isPiFamily(agent) ? 'key' : 'own-sign-in')) as LaunchInput['use'];
   const model = ctx.opts.get('model');
-  const provider =
-    ctx.opts.get('provider') ??
-    (isPiFamily(agent) && model ? model.split('/')[0] : agent === 'codex' ? 'openai' : 'anthropic');
+  // OMP and Pi send the task to the provider their model names, so that's where their key comes from; a --provider
+  // that names another is refused when the run is planned.
+  const provider = isPiFamily(agent)
+    ? ctx.opts.get('provider')
+    : (ctx.opts.get('provider') ?? (agent === 'codex' ? 'openai' : 'anthropic'));
+  const keyProvider = isPiFamily(agent) && model ? providerOf(model) : provider;
+  // Pi has no sandbox, so a run counts as yours only from a terminal you're at; cron or a script without one is a
+  // scheduled run, --unattended or not.
   const trigger: Trigger = ctx.flags.has('unattended') ? 'schedule' : 'owner-here';
   const id = randomUUID().slice(0, 8);
   const workspace = resolve(ctx.opts.get('workspace') ?? join(ctx.config.dataDir, 'agents', 'runs', id));
@@ -284,16 +322,29 @@ export async function runAgentTask(
     trigger,
     use,
     provider,
-    key: use === 'key' ? ((await keys(ctx))(keyAccount(provider!)).get() ?? undefined) : undefined,
+    key:
+      use === 'key' && keyProvider
+        ? ((await keys(ctx))(keyAccount(keyProvider)).get() ?? undefined)
+        : undefined,
     model,
     workspace,
     mcp: mcpCommand({ url: `http://127.0.0.1:${ctx.config.port}` }),
     skillsDir: skillsDir() ?? undefined,
     addDirs: ctx.opts.get('add-dir') ? [resolve(ctx.opts.get('add-dir')!)] : undefined,
-    budgetUsd: ctx.opts.get('budget') ? Number(ctx.opts.get('budget')) : undefined,
+    // Any --budget is checked when the run is planned: a non-number or 0 is refused, never dropped.
+    // A --budget with no value after it lands in flags: Number.NaN, so the plan refuses it rather than dropping it.
+    budgetUsd:
+      ctx.opts.get('budget') !== undefined
+        ? Number(ctx.opts.get('budget'))
+        : ctx.flags.has('budget')
+          ? Number.NaN
+          : undefined,
     extraTools,
+    unsandboxed: ctx.flags.has('unsandboxed'),
+    piProfile: join(ctx.config.dataDir, 'agents', 'pi-profiles', id),
+    piProfilesRoot: join(ctx.config.dataDir, 'agents', 'pi-profiles'),
   };
-  const detected = detectAgents().find((d) => d.agent === agent)!;
+  const detected = detectAgent(agent);
   const p = plan(input, detected, settings(ctx));
   const said = (s: Step['status'], detail: string, command?: string): Step => ({
     id: 'run',
@@ -307,9 +358,28 @@ export async function runAgentTask(
     const src = p.verdict.source ? `\nSource: ${p.verdict.source}` : '';
     return result(
       [said('needs-owner', `${p.verdict.reason}${fix}${src}`)],
-      'Nothing ran: the provider’s terms don’t allow this run.',
+      // A provider's terms, or Hildegard's own rule (Pi's missing sandbox, a budget it can't keep): say which.
+      p.verdict.source ? 'Nothing ran: the provider’s terms don’t allow this run.' : 'Nothing ran.',
       { policy: p.verdict },
     );
+  }
+  // Pi has no sandbox: the owner says yes on the terminal itself, not on stdin, which a pipe or a script could fill.
+  if (agent === 'pi') {
+    const answer = askTerminal(
+      `Pi has no sandbox: its file tools can read and write anything your account can. Type yes to start it: `,
+    );
+    if (answer?.trim().toLowerCase() !== 'yes')
+      return result(
+        [
+          said(
+            'needs-owner',
+            answer === null
+              ? 'Pi starts only after you type yes at a terminal, and there is no terminal here.'
+              : 'Pi didn’t start: you didn’t type yes.',
+          ),
+        ],
+        'Nothing ran.',
+      );
   }
   const pacer =
     p.auth.kind === 'subscription' ? new Pacer(join(ctx.config.dataDir, 'agents', 'pace.json')) : null;
@@ -339,6 +409,17 @@ export async function runAgentTask(
     );
   } finally {
     pacer?.release();
+    // A Pi profile is for one run: nothing it saved stays behind.
+    // A file still held (Windows, Pi's MCP child) mustn't replace the run's result; the next Pi run sweeps it.
+    if (agent === 'pi')
+      try {
+        rmSync(join(ctx.config.dataDir, 'agents', 'pi-profiles', id), {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+          retryDelay: 200,
+        });
+      } catch {}
   }
 }
 
@@ -371,7 +452,10 @@ export function skills(ctx: Ctx, args: string[]): Result {
       ? [
           'claude-code',
           'codex',
-          ...(listAgents().find((a) => a.id === 'pi')?.installed ? (['pi'] as const) : []),
+          // Only the Pi coding agent, not another program called `pi`.
+          ...(listAgents().find((a) => a.id === 'pi')?.installed && detectAgent('pi').installed
+            ? (['pi'] as const)
+            : []),
         ]
       : [ALIASES[which] ?? (which as SkillTarget)];
   const project = ctx.opts.get('project') ? resolve(ctx.opts.get('project')!) : undefined;
@@ -464,4 +548,37 @@ export async function review(ctx: Ctx, args: string[]): Promise<Result> {
     ok: r.passed,
     needsOwner: false,
   };
+}
+
+/**
+ * Asks on the controlling terminal (`/dev/tty`, or the Windows console), never stdin, and reads one line. Null when
+ * there is no terminal, as under cron, a service or a pipe-only script.
+ */
+export function askTerminal(question: string): string | null {
+  const win = process.platform === 'win32';
+  let rfd: number;
+  let wfd: number;
+  try {
+    rfd = openSync(win ? '\\\\.\\CONIN$' : '/dev/tty', 'r');
+  } catch {
+    return null;
+  }
+  try {
+    wfd = openSync(win ? '\\\\.\\CONOUT$' : '/dev/tty', 'w');
+  } catch {
+    closeSync(rfd);
+    return null;
+  }
+  try {
+    writeSync(wfd, question);
+    const byte = Buffer.alloc(1);
+    let line = '';
+    while (readSync(rfd, byte, 0, 1, null) === 1 && byte[0] !== 10) line += String.fromCharCode(byte[0]!);
+    return line.replace(/\r$/, '');
+  } catch {
+    return null;
+  } finally {
+    closeSync(rfd);
+    closeSync(wfd);
+  }
 }

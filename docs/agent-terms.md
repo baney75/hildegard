@@ -103,10 +103,39 @@ MIT licensed) documentation.
 
 Pi is open source and uses your own model providers. Like OMP, it can sign in to Anthropic and ChatGPT with their
 consumer plans (`/login`), and those providers say their plans belong to their own apps, so Hildegard runs Pi only with
-an API key or a local model. Each run gets its own Pi profile (`PI_CODING_AGENT_DIR`) with Hildegard's MCP server in its
-`mcp.json` and the skills in its `skills` folder, and the environment loses `ANTHROPIC_OAUTH_TOKEN`,
-`XAI_OAUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` and `OMP_AUTH_BROKER_URL`, so a plan's sign-in can't leak in by accident.
-Hildegard never reads Pi's `auth.json` and doesn't reuse its credentials. `hildegard connect pi` only adds Hildegard
+an API key or a local model, from the provider its model names (`--provider` can't point elsewhere).
+
+**Pi has no sandbox.** Its file tools can read and write anything your account can, not just its workspace (Pi's own
+`docs/security.md` says the same). So Hildegard runs Pi only when you start it yourself with `--unsandboxed` and then
+type `yes` on the terminal it asks on (the terminal itself, not stdin). It never runs on a schedule, from a script or
+service without a terminal, from another device, or for someone you invited. An agent that drives a terminal of its
+own could type that yes too, so don't hand `--unsandboxed` to one. If you want a sandbox, use Codex.
+
+What a run gets:
+
+- **A fresh profile, outside its workspace.** Each run's Pi profile (`PI_CODING_AGENT_DIR`, under Hildegard's data
+  folder) starts empty, then holds only Hildegard's MCP server in `mcp.json`, the skills, and, for a local model,
+  a `models.json` naming that server (Ollama from `OLLAMA_HOST`, path included, or LM Studio, vLLM or llama.cpp on
+  their default ports). It is deleted after the run. Nothing Pi saves in one run, a login included, reaches the next. Hildegard never
+  reads Pi's `auth.json` and doesn't reuse its credentials.
+- **No extensions but Pi's own MCP support** (`--no-extensions --extension builtin:mcp`), and project settings in the
+  folder are ignored (`--no-approve`).
+- **A short environment.** Pi starts with only `PATH`, `HOME`, the locale, the temp folder, proxy and certificate
+  settings, `OLLAMA_HOST` and Windows' system variables, plus the one key Hildegard gives it. No sign-in or other
+  provider key in Hildegard's environment reaches it. A proxy address that carries the proxy's own user and password
+  passes through with them, since Pi needs it to reach the provider.
+- **Files and Hildegard's tools, no shell** (`--tools read,edit,write,grep,find,ls,mcp__hildegard__*`). This narrows
+  what Pi does; it isn't a boundary. A loop that needs a program such as Blender runs on Claude Code or Codex.
+- **The task on stdin.** It is never in Pi's command line or passed through a shell. Hildegard's own command line
+  still holds a task you typed after `agents run`; pipe it in with `--task-stdin` to keep it out of a process list.
+- **No budget.** Pi can't stop at a spending limit, so `--budget` is refused; set a limit with your provider.
+- **No folder list.** With no sandbox Pi already reaches every folder, so `--add-dir` is refused rather than ignored.
+
+OMP and Pi both get the model's provider in lowercase (`Ollama/x` becomes `ollama/x`), the way Hildegard's policy
+read it.
+
+Hildegard checks that `pi` on your PATH is the coding agent (`pi --version` answers with a version) before it counts
+Pi as installed. These runs follow Pi 1.4's documentation and haven't yet been tried against a real Pi install. `hildegard connect pi` only adds Hildegard
 to `~/.pi/agent/mcp.json` and its skills to `~/.pi/agent/skills`; Pi signs in as you set it up.
 
 ## Other coding agents linked to Hildegard

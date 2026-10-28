@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,19 +8,27 @@ import {
   type Auth,
   type Detected,
   decide,
+  detectAgent,
   detectAgents,
+  inherited,
   installSkills,
+  isPiAgent,
   type LaunchInput,
   listSkills,
+  ollamaBase,
   PACE,
   Pacer,
+  PI_PROMPT,
+  PI_TOOLS,
   parseLine,
+  piProfile,
   plan,
   prepareWorkspace,
   removeSkills,
   run,
   type Sys,
   skillRoots,
+  sweepProfiles,
   type Trigger,
 } from '../src/index.ts';
 
@@ -153,6 +161,48 @@ describe('detecting sign-ins, by asking the agents', () => {
     ]);
   });
 
+  it('counts `pi` as Pi only when it answers --version with a version, not Debian’s digits of π', () => {
+    const real = fakeSys({ outputs: { 'pi --version': { status: 0, out: '1.4.0\n' } } });
+    expect(isPiAgent(real)).toBe(true);
+    expect(detectAgents(real)[3]).toMatchObject({ agent: 'pi', installed: true });
+    const debian = fakeSys({ outputs: { 'pi --version': { status: 0, out: '3.14159265358979323846\n' } } });
+    expect(isPiAgent(debian)).toBe(false);
+    const d = detectAgents(debian)[3]!;
+    expect(d.installed).toBe(false);
+    expect(d.detail).toMatch(/isn’t the Pi coding agent/);
+    expect(isPiAgent(fakeSys())).toBe(false);
+    // A Node warning on stderr doesn't hide the version on stdout.
+    const warned = fakeSys({
+      run: () => ({ status: 0, out: '1.4.0\n(node:1) [DEP0040] DeprecationWarning: x\n', stdout: '1.4.0\n' }),
+    });
+    expect(isPiAgent(warned)).toBe(true);
+    // The probe sees the same short environment as a run: no sign-in or key of the owner's.
+    let seen: NodeJS.ProcessEnv | undefined;
+    const probe = fakeSys({
+      env: { PATH: '/bin', ANTHROPIC_OAUTH_TOKEN: 'x', OPENAI_API_KEY: 'y' },
+      run: (_c, _a, env) => {
+        seen = env;
+        return { status: 0, out: '1.4.0\n', stdout: '1.4.0\n' };
+      },
+    });
+    expect(isPiAgent(probe)).toBe(true);
+    expect(seen).toMatchObject({ PATH: '/bin', PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0' });
+    expect(seen?.ANTHROPIC_OAUTH_TOKEN).toBeUndefined();
+    expect(seen?.OPENAI_API_KEY).toBeUndefined();
+    // Asking about Claude Code never runs `pi`.
+    let ranPi = false;
+    detectAgent(
+      'claude-code',
+      fakeSys({
+        run: (c) => {
+          if (c === 'pi') ranPi = true;
+          return { status: 1, out: '' };
+        },
+      }),
+    );
+    expect(ranPi).toBe(false);
+  });
+
   it('treats an unknown sign-in as a subscription, the stricter case', () => {
     const d = detectAgents(
       fakeSys({
@@ -282,33 +332,130 @@ describe('launch plans', () => {
     ).toMatch(/needs a model/);
   });
 
+  it('runs Pi only when its owner accepts it has no sandbox, and never for anyone else or on a schedule', () => {
+    const none = detected('pi', { kind: 'none' });
+    const p = (over: Partial<LaunchInput>) =>
+      plan(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder', ...over }), none);
+    expect(p({}).verdict.allowed).toBe(false);
+    expect(p({}).verdict.reason).toMatch(/Pi has no sandbox.*--unsandboxed/);
+    expect(p({ unsandboxed: true }).verdict.allowed).toBe(true);
+    for (const trigger of ['owner-remote', 'schedule', 'director', 'peer'] as const)
+      expect(p({ unsandboxed: true, trigger }).verdict.allowed).toBe(false);
+  });
+
   it('runs Pi only on a key or a local model, in a profile of its own with borrowed sign-ins removed', () => {
     const none = detected('pi', { kind: 'none' });
-    const own = plan(input({ agent: 'pi', model: 'anthropic/claude-sonnet-5-5' }), none);
+    const pi = (over: Partial<LaunchInput>) => input({ agent: 'pi', unsandboxed: true, ...over });
+    const own = plan(pi({ model: 'anthropic/claude-sonnet-5-5' }), none);
     expect(own.verdict.allowed).toBe(false);
     expect(own.verdict.reason).toMatch(/banned/);
-    const local = plan(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder' }), none);
+    const local = plan(pi({ use: 'local', model: 'ollama/qwen3-coder' }), none);
     expect(local.verdict.allowed).toBe(true);
     expect(local.cmd).toBe('pi');
-    expect(local.args).toEqual(['-p', '--no-session', '--model', 'ollama/qwen3-coder', expect.any(String)]);
-    expect(local.env).toMatchObject({
-      PI_CODING_AGENT_DIR: join('/tmp/hg/agents', 'pi-profile'),
-      ANTHROPIC_OAUTH_TOKEN: null,
-      XAI_OAUTH_TOKEN: null,
-      CLAUDE_CODE_OAUTH_TOKEN: null,
-      OMP_AUTH_BROKER_URL: null,
-    });
-    const keyed = plan(
-      input({ agent: 'pi', use: 'key', key: 'sk-or-X', model: 'openrouter/qwen/qwen3-coder' }),
-      none,
-    );
+    // The task never goes in argv: only fixed words and the owner's checked model name do.
+    expect(local.args).toEqual([
+      '--print',
+      '--no-session',
+      '--no-approve',
+      '--no-extensions',
+      '--extension',
+      'builtin:mcp',
+      '--tools',
+      'read,edit,write,grep,find,ls,mcp__hildegard__*',
+      '--model',
+      'ollama/qwen3-coder',
+      '--',
+      PI_PROMPT,
+    ]);
+    expect(local.args.join(' ')).not.toContain('baker');
+    expect(local.stdin).toBe(input({}).task);
+    expect(PI_TOOLS).not.toContain('bash');
+    expect(local.env).toMatchObject({ PI_CODING_AGENT_DIR: piProfile({ workspace: '/tmp/hg/agents/run1' }) });
+    // Pi starts from a short allow-list, so sign-ins and other keys in Hildegard's environment never reach it.
+    expect(local.inherit).toContain('PATH');
+    expect(local.inherit).not.toContain('ANTHROPIC_OAUTH_TOKEN');
+    const keyed = plan(pi({ use: 'key', key: 'sk-or-X', model: 'openrouter/qwen/qwen3-coder' }), none);
     expect(keyed.verdict.allowed).toBe(true);
     expect(keyed.env.OPENROUTER_API_KEY).toBe('sk-or-X');
-    expect(plan(input({ agent: 'pi', use: 'local', model: 'openrouter/x' }), none).verdict.allowed).toBe(
-      false,
-    );
-    expect(plan(input({ agent: 'pi', use: 'local' }), none).verdict.reason).toMatch(/Pi needs a model/);
+    expect(plan(pi({ use: 'local', model: 'openrouter/x' }), none).verdict.allowed).toBe(false);
+    expect(plan(pi({ use: 'local' }), none).verdict.reason).toMatch(/Pi needs a model/);
     expect(allowedFor('pi', { kind: 'borrowed-login', provider: 'openai' })).toEqual([]);
+  });
+
+  it('takes OMP’s and Pi’s provider from the model, and refuses a --provider that names another', () => {
+    for (const agent of ['pi', 'omp'] as const) {
+      const none = detected(agent, { kind: 'none' });
+      // A local provider can't vouch for a model that goes to Anthropic.
+      const sneaky = plan(
+        input({
+          agent,
+          use: 'local',
+          provider: 'ollama',
+          model: 'anthropic/claude-sonnet-5-5',
+          unsandboxed: true,
+        }),
+        none,
+      );
+      expect(sneaky.verdict.allowed).toBe(false);
+      expect(sneaky.verdict.reason).toMatch(/provider its model names \(anthropic\)/);
+      // Case doesn't matter, on either side.
+      const mixed = plan(
+        input({ agent, use: 'local', provider: 'OLLAMA', model: 'Ollama/qwen3-coder', unsandboxed: true }),
+        none,
+      );
+      expect(mixed.verdict.allowed).toBe(true);
+      expect(mixed.auth).toEqual({ kind: 'local', provider: 'ollama' });
+    }
+  });
+
+  it('refuses a budget the agent can’t keep, and Pi models that aren’t one plain word', () => {
+    for (const agent of ['codex', 'omp', 'pi'] as const) {
+      const p = plan(
+        input({
+          agent,
+          use: 'key',
+          key: SECRET,
+          model: 'openrouter/qwen/qwen3-coder',
+          budgetUsd: 5,
+          unsandboxed: true,
+        }),
+        detected(agent, { kind: 'none' }),
+      );
+      expect(p.verdict.allowed).toBe(false);
+      expect(p.verdict.reason).toMatch(/can’t hold a run to a budget/);
+    }
+    const claude = plan(
+      input({ use: 'key', key: SECRET, budgetUsd: 5 }),
+      detected('claude-code', claudePlan),
+    );
+    expect(claude.verdict.allowed).toBe(true);
+    expect(claude.args).toContain('--max-budget-usd');
+    // A budget that isn't a positive number is refused, never dropped.
+    for (const budgetUsd of [0, -5, Number.NaN]) {
+      const bad = plan(input({ use: 'key', key: SECRET, budgetUsd }), detected('claude-code', claudePlan));
+      expect(bad.verdict.reason).toMatch(/number of US dollars above 0/);
+    }
+    const none = detected('pi', { kind: 'none' });
+    expect(
+      plan(input({ agent: 'pi', use: 'local', model: 'ollama/x" & calc', unsandboxed: true }), none).verdict
+        .allowed,
+    ).toBe(false);
+    expect(
+      plan(
+        input({
+          agent: 'pi',
+          use: 'local',
+          model: 'ollama/x',
+          extraTools: ['Bash(blender:*)'],
+          unsandboxed: true,
+        }),
+        none,
+      ).verdict.reason,
+    ).toMatch(/without a shell/);
+    expect(
+      plan(input({ agent: 'pi', use: 'local', model: 'hildegard/x', unsandboxed: true }), none).verdict
+        .reason,
+    ).toMatch(/doesn’t know where hildegard listens/);
   });
 
   it('refuses an agent that isn’t installed', () => {
@@ -342,7 +489,7 @@ describe('workspace and running', () => {
     expect(existsSync(join(root, 'agents', 'omp-profile'))).toBe(true);
   });
 
-  it('gives Pi its own profile with Hildegard’s MCP server and skills in it', () => {
+  it('gives Pi its own profile, outside its workspace, with Hildegard’s MCP server and skills in it', () => {
     const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
     const skills = join(root, 'skills');
     mkdirSync(join(skills, 'hildegard-film'), { recursive: true });
@@ -352,7 +499,10 @@ describe('workspace and running', () => {
     );
     const ws = join(root, 'agents', 'run1');
     prepareWorkspace(input({ agent: 'pi', workspace: ws, skillsDir: skills }));
-    const profile = join(root, 'agents', 'pi-profile');
+    const profile = piProfile({ workspace: ws });
+    // Never inside the folder Pi works in, where its file tools could rewrite its own MCP config.
+    expect(profile.startsWith(join(ws, 'x').slice(0, -1))).toBe(false);
+    expect(piProfile({ workspace: ws, piProfile: '/data/pi/1' })).toBe('/data/pi/1');
     expect(JSON.parse(readFileSync(join(profile, 'mcp.json'), 'utf8')).mcpServers.hildegard.args).toEqual([
       '/opt/hildegard/main.ts',
       'mcp',
@@ -361,6 +511,204 @@ describe('workspace and running', () => {
     expect(existsSync(join(ws, '.agents', 'skills', 'hildegard-film', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(root, 'agents', 'omp-profile'))).toBe(false);
     expect(parseLine('pi', 'Done.')).toEqual([{ kind: 'text', text: 'Done.' }]);
+  });
+
+  it('starts every Pi run in an empty profile: nothing Pi saved in one run reaches the next, nor another run', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
+    const a = join(root, 'agents', 'runs', 'a');
+    const b = join(root, 'agents', 'runs', 'b');
+    const pa = piProfile({ workspace: a });
+    const pb = piProfile({ workspace: b });
+    prepareWorkspace(input({ agent: 'pi', workspace: a }));
+    // Pi saved a login during run a.
+    writeFileSync(join(pa, 'auth.json'), '{}');
+    prepareWorkspace(input({ agent: 'pi', workspace: b }));
+    expect(pa).not.toBe(pb);
+    expect(existsSync(join(pb, 'auth.json'))).toBe(false);
+    // Run a again, in the same workspace: its profile starts over.
+    prepareWorkspace(input({ agent: 'pi', workspace: a }));
+    expect(existsSync(join(pa, 'auth.json'))).toBe(false);
+    expect(existsSync(join(pa, 'mcp.json'))).toBe(true);
+  });
+
+  it('tells Pi where a local model server is, and nothing for a hosted provider', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-pi-'));
+    const ws = join(root, 'run');
+    const profile = piProfile({ workspace: ws });
+    prepareWorkspace(input({ agent: 'pi', use: 'local', model: 'ollama/qwen3-coder:7b', workspace: ws }), {
+      OLLAMA_HOST: '0.0.0.0:11500',
+    });
+    const models = JSON.parse(readFileSync(join(profile, 'models.json'), 'utf8'));
+    expect(models.providers.ollama).toMatchObject({
+      baseUrl: 'http://127.0.0.1:11500/v1',
+      api: 'openai-completions',
+      models: [{ id: 'qwen3-coder:7b' }],
+    });
+    prepareWorkspace(
+      input({ agent: 'pi', use: 'key', key: SECRET, model: 'openrouter/qwen/q', workspace: ws }),
+    );
+    expect(existsSync(join(profile, 'models.json'))).toBe(false);
+    expect(ollamaBase(undefined)).toBe('http://127.0.0.1:11434/v1');
+    expect(ollamaBase('gpu-box')).toBe('http://gpu-box:11434/v1');
+    expect(ollamaBase('https://ollama.example')).toBe('https://ollama.example/v1');
+  });
+
+  it('gives Pi the provider in lowercase, as policy saw it, and refuses folders it can’t be limited to', () => {
+    const none = detected('pi', { kind: 'none' });
+    const p = plan(
+      input({ agent: 'pi', use: 'local', model: 'Ollama/Qwen3-Coder', unsandboxed: true }),
+      none,
+    );
+    expect(p.verdict.allowed).toBe(true);
+    expect(p.args[p.args.indexOf('--model') + 1]).toBe('ollama/Qwen3-Coder');
+    expect(
+      plan(
+        input({ agent: 'pi', use: 'local', model: 'ollama/x', addDirs: ['/footage'], unsandboxed: true }),
+        none,
+      ).verdict.reason,
+    ).toMatch(/Leave out --add-dir/);
+    // Ollama's own forms for every interface mean this computer.
+    expect(ollamaBase(':11500')).toBe('http://127.0.0.1:11500/v1');
+    expect(ollamaBase('[::]:11434')).toBe('http://[::1]:11434/v1');
+    expect(ollamaBase('::')).toBe('http://127.0.0.1:11434/v1');
+    expect(() => ollamaBase('gpu box')).toThrow(/isn’t an address/);
+  });
+
+  it('hands OMP and Pi the provider policy saw, needs provider/model, and says why a scheduled Pi run can’t be', () => {
+    for (const agent of ['omp', 'pi'] as const) {
+      const none = detected(agent, { kind: 'none' });
+      const p = plan(input({ agent, use: 'local', model: 'Ollama/qwen3-coder', unsandboxed: true }), none);
+      expect(p.verdict.allowed).toBe(true);
+      expect(p.args[p.args.indexOf('--model') + 1]).toBe('ollama/qwen3-coder');
+      // A bare provider is not a model: no '--model ollamaa'.
+      const bare = plan(input({ agent, use: 'local', model: 'ollama', unsandboxed: true }), none);
+      expect(bare.verdict.reason).toMatch(/needs a model, as provider\/model/);
+    }
+    const sched = plan(
+      input({ agent: 'pi', use: 'local', model: 'ollama/x', trigger: 'schedule' }),
+      detected('pi', { kind: 'none' }),
+    );
+    expect(sched.verdict.reason).toMatch(/never on a schedule/);
+  });
+
+  it('refuses a budget Claude Code won’t get, on a plan or a cloud account', () => {
+    for (const auth of [claudePlan, { kind: 'cloud', provider: 'bedrock' } as Auth]) {
+      const p = plan(input({ budgetUsd: 5 }), detected('claude-code', auth));
+      expect(p.verdict.allowed).toBe(false);
+      expect(p.verdict.reason).toMatch(/only on an API key/);
+    }
+  });
+
+  it('sweeps Pi profiles that a killed run left behind, and keeps fresh ones', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-profiles-'));
+    mkdirSync(join(dir, 'old'));
+    mkdirSync(join(dir, 'new'));
+    const old = new Date(Date.now() - 3 * 3_600_000);
+    utimesSync(join(dir, 'old'), old, old);
+    sweepProfiles(dir);
+    expect(existsSync(join(dir, 'old'))).toBe(false);
+    expect(existsSync(join(dir, 'new'))).toBe(true);
+  });
+
+  it('never sweeps a folder derived from a caller’s profile path, only Hildegard’s own', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-sweep-'));
+    const theirs = join(root, 'projects');
+    mkdirSync(join(theirs, 'old-film'), { recursive: true });
+    const old = new Date(Date.now() - 3 * 3_600_000);
+    utimesSync(join(theirs, 'old-film'), old, old);
+    prepareWorkspace(input({ agent: 'pi', workspace: join(root, 'run'), piProfile: join(theirs, 'pi-1') }));
+    expect(existsSync(join(theirs, 'old-film'))).toBe(true);
+    const ours = join(root, 'pi-profiles');
+    mkdirSync(join(ours, 'left'), { recursive: true });
+    utimesSync(join(ours, 'left'), old, old);
+    prepareWorkspace(
+      input({
+        agent: 'pi',
+        workspace: join(root, 'run'),
+        piProfile: join(ours, 'new'),
+        piProfilesRoot: ours,
+      }),
+    );
+    expect(existsSync(join(ours, 'left'))).toBe(false);
+  });
+
+  it('empties a Pi profile only inside Hildegard’s own folder, and won’t delete a caller’s folder of files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hg-own-'));
+    const theirs = join(root, 'project');
+    mkdirSync(theirs);
+    writeFileSync(join(theirs, 'film.mp4'), 'x');
+    expect(() =>
+      prepareWorkspace(input({ agent: 'pi', workspace: join(root, 'run'), piProfile: theirs })),
+    ).toThrow(/won’t delete it/);
+    expect(existsSync(join(theirs, 'film.mp4'))).toBe(true);
+  });
+
+  it('keeps an Ollama path, and won’t copy a user and password into Pi’s profile', () => {
+    expect(ollamaBase('https://gpu.example/ollama/')).toBe('https://gpu.example/ollama/v1');
+    expect(() => ollamaBase('https://u:pw@gpu.example')).toThrow(/user and password/);
+  });
+
+  it('keeps the first refusal’s reason: a wrong `pi` is reported as that, not as a missing model', () => {
+    const notPi = {
+      ...detected('pi', { kind: 'none' }),
+      installed: false,
+      detail: 'isn’t the Pi coding agent',
+    };
+    const p = plan(input({ agent: 'pi', use: 'local' }), notPi);
+    expect(p.verdict.reason).toMatch(/isn’t installed/);
+    expect(p.verdict.fix).toMatch(/isn’t the Pi coding agent/);
+  });
+
+  it('keeps Windows’ Path whatever its case', () => {
+    expect(inherited({ Path: 'C:\\Windows', SECRET_X: 's' }, ['PATH'], true)).toEqual({
+      Path: 'C:\\Windows',
+    });
+    expect(inherited({ Path: 'x' }, ['PATH'])).toEqual({});
+  });
+
+  it('passes Pi only the variables it needs, with the task on stdin', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-run-'));
+    const fake = join(dir, 'fake-pi.mjs');
+    writeFileSync(
+      fake,
+      `let input = ''; process.stdin.on('data', (d) => (input += d)); process.stdin.on('end', () => {
+  const e = process.env;
+  console.log(['path=' + (e.PATH ? 'set' : 'unset'), 'oauth=' + (e.ANTHROPIC_OAUTH_TOKEN ? 'set' : 'unset'), 'other=' + (e.OPENAI_API_KEY ? 'set' : 'unset'), 'key=' + (e.OPENROUTER_API_KEY ? 'set' : 'unset'), 'lc=' + (e.LC_ALL ?? ''), 'proxy=' + (e.HTTPS_PROXY ?? ''), 'task=' + input].join(' '));
+});`,
+    );
+    const p = {
+      ...plan(
+        input({
+          agent: 'pi',
+          use: 'key',
+          key: SECRET,
+          model: 'openrouter/qwen/qwen3-coder',
+          workspace: dir,
+          unsandboxed: true,
+        }),
+        detected('pi', { kind: 'none' }),
+      ),
+      cmd: process.execPath,
+      args: [fake],
+    };
+    const r = await run(p, dir, () => {}, {
+      sys: fakeSys({
+        env: {
+          ...process.env,
+          LC_ALL: 'C',
+          HTTPS_PROXY: 'http://proxy:3128',
+          ANTHROPIC_OAUTH_TOKEN: 'x',
+          OPENAI_API_KEY: 'y',
+        },
+      }),
+    });
+    expect(r.final).toBe(
+      `path=set oauth=unset other=unset key=set lc=C proxy=http://proxy:3128 task=${input({}).task}`,
+    );
+    expect(inherited({ PATH: '/bin', LC_ALL: 'C', SECRET_X: 's' }, ['PATH', 'LC_*'])).toEqual({
+      PATH: '/bin',
+      LC_ALL: 'C',
+    });
   });
 
   it('reads each agent’s JSON lines', () => {

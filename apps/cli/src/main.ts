@@ -72,9 +72,10 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              (--agent claude-code|codex|omp|pi|gemini|opencode, --project DIR; skills list | remove)
   hildegard agents           Which coding agents are here, and how Hildegard may run each under
                              its provider's terms (agents key <provider> --key-stdin, share-keys on|off)
-  hildegard agents run <claude-code|codex|omp> "<task>"
+  hildegard agents run <claude-code|codex|omp|pi> "<task>"
                              Run one for you: its own sign-in, or --use key (your API key; needed
-                             with --unattended), or --use local --model ollama/<model> for OMP
+                             with --unattended), or --use local --model ollama/<model> for OMP and Pi.
+                             Pi has no sandbox and runs only with --unsandboxed, started by you
   hildegard cloud            Rented GPUs: Runpod, Hugging Face Jobs, Colab, with what each costs and sees
   hildegard cloud runpod up  Rent a Runpod GPU that joins your fleet and stops itself when idle
                              (cloud runpod key --key-stdin | status | down [--delete])
@@ -103,7 +104,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
 Agents: see docs/agents.md. Everything stays on your own devices.`;
 
 const argv = process.argv.slice(2);
-const flags = new Set(argv.filter((a) => a.startsWith('--') && !a.includes('=')).map((a) => a.slice(2)));
+// Filled with the options below: a token taken as an option's value (`--workspace --unsandboxed`) is never a flag too.
+const flags = new Set<string>();
 const valued = new Set([
   'port',
   'data',
@@ -163,8 +165,11 @@ for (let i = 0; i < argv.length; i++) {
   if (a.startsWith('--')) {
     const [k, v] = a.slice(2).split('=', 2) as [string, string | undefined];
     if (v !== undefined) opts.set(k, v);
-    else if (valued.has(k) && argv[i + 1] !== undefined && !(optional.has(k) && argv[i + 1]!.startsWith('-')))
-      opts.set(k, argv[++i]!);
+    else {
+      flags.add(k);
+      if (valued.has(k) && argv[i + 1] !== undefined && !(optional.has(k) && argv[i + 1]!.startsWith('-')))
+        opts.set(k, argv[++i]!);
+    }
   } else positional.push(a);
 }
 const [command = 'help', ...rest] = positional;
