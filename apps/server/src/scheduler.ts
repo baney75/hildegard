@@ -567,17 +567,27 @@ export class Scheduler {
     }
   }
 
-  /** The model a job needs and how urgent it is, for placing it on a device. */
+  /** The models a job's graph needs and how urgent it is, for placing it on a device. */
   private placement(next: Job | { guest: Guest }): Placement {
-    if ('guest' in next) return { model: null, priority: 'interactive', guest: true };
-    let model: string | null = null;
+    if ('guest' in next) return { models: [], priority: 'interactive', guest: true };
+    let models: string[] = [];
     try {
-      model =
-        'take' in next
-          ? pickModel(this.catalog, next.take.request.model).id
-          : pickStillModel(this.catalog, next.still.model).id;
+      if ('still' in next) models = [pickStillModel(this.catalog, next.still.model).id];
+      else {
+        const { request } = next.take;
+        // A take with characters draws its start frame with the stills model in the same graph, unless one was given.
+        try {
+          const shot = composeShot(this.catalog, request, this.castOf(next.take));
+          models = [
+            shot.model.id,
+            ...(shot.cast && !request.startFrame ? [shot.cast.keyframe.model.id] : []),
+          ];
+        } catch {
+          models = [pickModel(this.catalog, request.model).id];
+        }
+      }
     } catch {}
-    return { model, priority: jobOf(next).priority, guest: false };
+    return { models, priority: jobOf(next).priority, guest: false };
   }
 
   private pumpOnce() {

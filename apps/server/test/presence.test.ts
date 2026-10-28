@@ -117,7 +117,7 @@ describe('placing a take on any free device', () => {
     queue: 0,
     ...over,
   });
-  const job = (over = {}) => ({ model: 'wan', priority: 'interactive' as const, guest: false, ...over });
+  const job = (over = {}) => ({ models: ['wan'], priority: 'interactive' as const, guest: false, ...over });
 
   it('prefers a device that’s always shared, then a comfortable fit, then the shorter queue, then this computer', () => {
     expect(place(job(), c('local', { opportunistic: true }), [c('spark')])).toBe('spark');
@@ -139,6 +139,10 @@ describe('placing a take on any free device', () => {
     expect(place(job(), inUse, [c('spark', { busy: 'y' })])).toBe('local');
     expect(place(job(), c('local', { has: () => false }), [c('spark', { busy: 'y' })])).toBe('spark');
     expect(place(job(), null, [])).toBe('local');
+    // A take with characters needs its keyframe's stills model there too.
+    const elsewhere = c('local', { has: () => false });
+    const noStills = c('spark', { has: (m) => m !== 'klein' });
+    expect(place(job({ models: ['wan', 'klein'] }), elsewhere, [noStills, c('box')])).toBe('box');
     expect(place(job({ guest: true }), inUse, [c('spark')])).toBe('local');
   });
 });

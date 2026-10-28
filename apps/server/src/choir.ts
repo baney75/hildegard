@@ -182,9 +182,10 @@ export function tailscaleSelf(exec: Run = run): TailscaleSelf | null {
 
 // ── Placing work across devices ─────────────────────────────────────────────────────────────────────────────────
 
-/** One job to place: the model it needs (null when any will do), and whether the owner forced it. */
+/** One job to place: every model its graph needs (none when any device will do), and whether the owner forced it. */
 export interface Job {
-  model: string | null;
+  /** The video or stills model, and for a take with characters and no start frame, the stills model its keyframe needs. */
+  models: string[];
   priority: Priority;
   /** A paired device's render: it came to this computer's GPU and renders nowhere else. */
   guest: boolean;
@@ -214,9 +215,8 @@ export interface Candidate {
 export function place(job: Job, local: Candidate | null, devices: Candidate[]): string {
   if (job.guest) return 'local';
   const all = local ? [local, ...devices] : devices;
-  const runs = (c: Candidate) =>
-    c.ready && (job.model === null || (c.has(job.model) && c.fit(job.model) !== 'no'));
-  const fitRank = (c: Candidate) => (job.model && c.fit(job.model) === 'tight' ? 1 : 0);
+  const runs = (c: Candidate) => c.ready && job.models.every((m) => c.has(m) && c.fit(m) !== 'no');
+  const fitRank = (c: Candidate) => (job.models.some((m) => c.fit(m) === 'tight') ? 1 : 0);
   const best = all
     .filter((c) => runs(c) && !c.busy)
     .sort(
