@@ -58,19 +58,30 @@ release; and runs the real installer from it on all three, then renders through 
 
 ## Review and merge
 
-`main` requires a `baney-review` commit status on the PR's head, next to the CI checks. Run the `baney-review` skill
-on every PR: its picker sets the tier, and the tier sets the reviewers. When the tier's merge rule holds (a tier 1
-check passed, a pooled SHIP, or settled) and the PR body has its Review block, set the status on the head that was
-reviewed, `H`:
+`main` requires a `baney-review` commit status on the PR's head, next to the CI checks. Setting that status is the
+merge step: auto-merge merges once CI passes. Agents never run `gh pr merge --admin`.
 
-```sh
-gh api repos/baney75/hildegard/statuses/$H -f state=success -f context=baney-review \
-  -f description="tier <n> <SHIP|settled> r<round>"
-```
+1. Run the `baney-review` skill on the PR. Its picker sets the tier, and the tier sets the reviewers.
+2. Set the status only when the skill's merge rule for that tier holds (its Tiers table; "settled" is defined there and
+   never loosens it), and the PR body has its Review block. A tier 3 change with an open critical or high finding, or
+   one settled over a dispute, waits for Donovan. When the picker says `donovan_merges: true`, Donovan sets the
+   status, or an agent does under his dated written authority quoted in the PR body.
+3. Set it on `H`, the head every counted verdict reviewed. A fix after a SHIP is a new head: review it before setting
+   the status. Put the base too, so a moved `main` is visible:
 
-Auto-merge then merges once CI passes. A push after that is a new head with no status, so it waits for its own
-review. When the picker says `donovan_merges: true`, Donovan sets the status, or an agent does under his dated written
-authority quoted in the PR body. Never set it before the review is done.
+   ```sh
+   gh api repos/baney75/hildegard/statuses/$H -f state=success -f context=baney-review \
+     -f description="tier <n> <SHIP|settled> r<round> base <first 7 of origin/main>"
+   ```
+
+4. If `main` moves and the PR is updated from it, that is a new head. Rerun the picker on it; if it returns the same
+   or a lower tier and the update merged cleanly, set the status on the new head with the new base. Otherwise review
+   again.
+5. To take approval back (a late finding, a verdict that turned), set `state=failure` on the same head with
+   `description="revoked: <reason>"`; the latest status wins. `gh pr merge <n> --disable-auto` stops a merge in flight.
+
+Anyone with write access can set this status, so it is a record the reviewing agent keeps, not proof a review ran.
+Pinning it to a review-only GitHub App is the open step (#49).
 
 ## Rules
 
