@@ -1,0 +1,39 @@
+{
+  "name": "hildegard",
+  "version": "0.1.12",
+  "description": "Your own studio, on your own GPUs: the craft skills to make image, film, voice, music, 3D, print and web work that isn't slop, and a generate, render, critique, refine loop. Link the Hildegard on your computers and its tools run the work there.",
+  "author": { "name": "Donovan Baney", "url": "https://github.com/baney75" },
+  "homepage": "https://dbaney.com/hildegard/",
+  "repository": "https://github.com/baney75/hildegard",
+  "license": "AGPL-3.0-only",
+  "keywords": [
+    "self-hosted",
+    "comfyui",
+    "3d",
+    "3d-printing",
+    "web-design",
+    "art",
+    "film",
+    "music",
+    "voice",
+    "gpu"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hildegard",
+    "shortDescription": "Your own studio, your own GPU",
+    "longDescription": "Hildegard is an open-source studio that runs on your own computers. Its skills bring the midwife's method to creative work in any form: a short interview, research, drafts and contact sheets, blind critique and measured checks. They cover art and stills, film and video editing, photo editing, sound and music, 3D models, parts to 3D print, OpenSCAD and websites, and a generate, render, critique, refine loop. With Hildegard installed and linked (hildegard connect codex), its tools render the work on your own GPUs, with nothing sent anywhere else.",
+    "developerName": "Donovan Baney",
+    "category": "Creativity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://dbaney.com/hildegard/",
+    "defaultPrompt": [
+      "Design a replacement knob I can 3D print",
+      "Build a landing page for my bakery",
+      "Direct a ten-second shot of a lighthouse at dusk"
+    ],
+    "brandColor": "#133A24",
+    "composerIcon": "./.claude-plugin/icon.png",
+    "logo": "./.claude-plugin/icon.png"
+  }
+}

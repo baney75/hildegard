@@ -1,6 +1,6 @@
 ---
 name: hildegard-craft
-description: Quality gates against slop for anything made with Hildegard (video, film, photos, art, music, voice, captions). Use before and after every generation or edit to brief, lint the prompt, review the result against the rubric, and decide whether to deliver. Other hildegard-* skills build on it.
+description: Use before and after every Hildegard generation or edit (video, photo, art, music, voice, captions) - brief, lint the prompt, review against the rubric, decide whether to deliver.
 ---
 
 # Craft, not slop

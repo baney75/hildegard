@@ -179,8 +179,8 @@ for (const script of ['install.sh', 'install.ps1']) {
 // The install page, ready for a static host (see site/README.md). It is not a release asset and has no checksum.
 cpSync(join(root, 'site'), join(out, 'site'), { recursive: true, filter: (s) => !s.endsWith('README.md') });
 
-// The skills for apps that take an upload: hildegard.plugin (the Claude app, Cowork) and one zip per skill (claude.ai,
-// ChatGPT).
+// The skills for apps that take an upload: hildegard.plugin (the Claude app, Cowork), hildegard-codex.zip (OpenAI's
+// plugin directory) and one zip per skill (claude.ai, ChatGPT).
 const packed = packSkills(out, version).map((f) => basename(f));
 
 // The Omarchy plugin, carrying this release's install.sh, for baney75/omarchy-hildegard to follow.

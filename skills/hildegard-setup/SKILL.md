@@ -1,6 +1,6 @@
 ---
 name: hildegard-setup
-description: Install and set up Hildegard for its owner end to end - the app, a model, linking AI apps over MCP, these skills, coding-agent access under each provider's terms, hosting at a link, and a fleet of devices. Use when asked to install, set up, connect, update or troubleshoot Hildegard.
+description: Use when asked to install, set up, connect, update or troubleshoot Hildegard - the app, a model, linking AI apps over MCP, skills, coding agents, hosting at a link and device fleets.
 ---
 
 # Setting up Hildegard for your user

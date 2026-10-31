@@ -92,8 +92,9 @@ jobs:
         run: |
           mkdir out
           cp artifacts/release/install.sh artifacts/release/install.ps1 artifacts/release/*.tar.gz out/
-          # The skills for apps that take an upload: the Claude app and Cowork (.plugin), claude.ai and ChatGPT (a zip each).
-          cp artifacts/release/hildegard.plugin artifacts/release/skill-*.zip out/
+          # The skills for apps that take an upload: the Claude app and Cowork (.plugin), OpenAI's plugin directory
+          # (hildegard-codex.zip), claude.ai and ChatGPT (a zip each).
+          cp artifacts/release/hildegard.plugin artifacts/release/hildegard-codex.zip artifacts/release/skill-*.zip out/
           find artifacts -path '*hildegard-app-*' -type f | while read -r f; do
             b=$(basename "$f")
             cp "$f" "out/$b"
@@ -123,7 +124,7 @@ jobs:
           # the same key, so anyone can check them with minisign before loading one. Nothing else checks them there.
           # Each signature is checked against the key built into Hildegard, for its own file name, before anything ships.
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            for f in out/SHA256SUMS out/hildegard.plugin out/skill-*.zip; do
+            for f in out/SHA256SUMS out/hildegard.plugin out/hildegard-codex.zip out/skill-*.zip; do
               npx --yes @tauri-apps/cli@2.12.2 signer sign "$f" > /dev/null
               base64 -d "$f.sig" > "$f.minisig"
               rm "$f.sig"

@@ -1,6 +1,6 @@
 ---
 name: hildegard
-description: "Hildegard, the midwife's method for serious creative work in any form - a Socratic interview scaled to the work, real research, drafts and contact sheets, full craft, blind critique and checks. Covers painting, drawing, figures, anatomy and drapery, image editing, background removal and compositing, color grading and color systems, film, animation, storyboards, video editing, sound design, music, podcasts, songs for Suno, music videos, 3D sculpture and printing, and all writing (fiction, poetry, scripts, essays, nonfiction, books, and academic papers in APA, Chicago or MLA). Use for /hildegard, /art, /vus, /mus and /suno, and for any request to make, edit, draft, design, write or compose a creative or written work."
+description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make, edit, draft, design, write or compose creative work - art, film, music, songs, podcasts, 3D, fiction, essays, academic papers.
 ---
 
 # Hildegard — the midwife's craft

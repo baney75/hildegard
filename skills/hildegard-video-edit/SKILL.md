@@ -1,6 +1,6 @@
 ---
 name: hildegard-video-edit
-description: Edit video with FFmpeg to a professional standard - cut, trim, assemble, colour-grade, stabilise, reframe for vertical, add captions, music and voice-over, and master loudness - on footage from Hildegard or from the user. Use when asked to edit, cut, trim, grade, caption, reframe, mix or finish a video. Checks every output with hildegard review.
+description: Use when asked to edit, cut, trim, grade, caption, reframe, mix or finish a video - FFmpeg to a professional standard, on Hildegard's footage or the user's, checked with hildegard review.
 ---
 
 # Editing video

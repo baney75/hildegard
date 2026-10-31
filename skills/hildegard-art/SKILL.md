@@ -1,6 +1,6 @@
 ---
 name: hildegard-art
-description: Make original art and stills with Hildegard - posters, key art, illustrations, album covers, mood boards, concept frames - through art direction, series of variations, honest critique and finishing. Use when asked to create art, an image, a poster, a cover, a still or a visual style. Works with whichever image or video models Hildegard has installed.
+description: Use when asked to create art, an image, poster, cover, key art, illustration, mood board or visual style - art direction, variations, honest critique and finishing with Hildegard's image models.
 ---
 
 # Making art

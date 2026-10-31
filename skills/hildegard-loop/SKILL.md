@@ -1,6 +1,6 @@
 ---
 name: hildegard-loop
-description: Iterate any piece with Hildegard's loop - generate, render, critique, refine - until it passes or the rounds run out, by hand in any AI app or as a coding-agent run (Codex, Claude Code, OMP) the owner starts. Use when a piece needs several rounds to get right, for a 3D model, an image, a video or a sound, or when asked to keep improving something on its own.
+description: Use when a 3D model, image, video or sound needs several rounds, or when asked to keep improving something on its own - generate, render, critique, refine, by hand or as an agent run.
 ---
 
 # The loop: generate, render, critique, refine

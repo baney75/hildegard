@@ -1,6 +1,6 @@
 ---
 name: hildegard-film
-description: Direct video shots and short films on the user's own GPU with Hildegard's MCP tools (direct_shot, make_sequence, review_take, export_film). Use when asked to make a video, a scene, a short film, an ad, a music video or an animated photo. Follows hildegard-craft's gates so the result isn't slop.
+description: Use when asked to make a video, scene, short film, ad, music video or animated photo on the user's own GPU with Hildegard's tools (direct_shot, make_sequence, review_take, export_film).
 ---
 
 # Directing a film with Hildegard
