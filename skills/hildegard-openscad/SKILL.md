@@ -1,6 +1,6 @@
 ---
 name: hildegard-openscad
-description: Model exact, parametric 3D parts in OpenSCAD code that Hildegard renders, measures and draws each round, with BOSL2 when it's installed. Use for brackets, enclosures, boxes and lids, knobs, clips, mounts, gears, threads, organisers, signs and any hard-surface or printable part with real dimensions, and whenever the user says OpenSCAD or .scad.
+description: Use when the user says OpenSCAD or .scad, or wants an exact parametric part (bracket, enclosure, box, knob, clip, mount, gear, thread) - code Hildegard renders, measures and draws.
 ---
 
 # Parts in OpenSCAD

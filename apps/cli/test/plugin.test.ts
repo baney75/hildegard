@@ -72,6 +72,38 @@ describe('the Claude Code plugin', () => {
   });
 });
 
+describe('the Codex plugin, for Codex and OpenAI’s plugin directory', () => {
+  const codex = json('.codex-plugin/plugin.json');
+  const claude = json('.claude-plugin/plugin.json');
+  const market = json('.agents/plugins/marketplace.json');
+
+  it('is the same plugin at the same version as the Claude one', () => {
+    expect(codex.name).toBe(claude.name);
+    expect(codex.version).toBe(json('package.json').version);
+    expect(codex.license).toBe(claude.license);
+    expect(market.plugins).toHaveLength(1);
+    expect(market.plugins[0]).toMatchObject({ name: 'hildegard', source: { source: 'local', path: './' } });
+  });
+
+  it('is skills only, since the directory takes no local MCP server', () => {
+    expect(codex.skills).toBe('./skills/');
+    expect(codex.mcpServers).toBeUndefined();
+  });
+
+  it('fills every listing field the directory requires, within its limits', () => {
+    const ui = codex.interface;
+    expect(codex.description.length).toBeLessThanOrEqual(4000);
+    expect(codex.author.name).toBeTruthy();
+    expect(ui.displayName.length).toBeLessThanOrEqual(30);
+    expect(ui.shortDescription.length).toBeLessThanOrEqual(30);
+    expect(ui.longDescription.length).toBeLessThanOrEqual(4000);
+    expect(ui.developerName.length).toBeLessThanOrEqual(80);
+    expect(ui.category).toBeTruthy();
+    expect(Array.isArray(ui.capabilities)).toBe(true);
+    for (const icon of [ui.composerIcon, ui.logo]) expect(existsSync(join(root, icon))).toBe(true);
+  });
+});
+
 describe('the plugin’s MCP launcher', () => {
   it('finds Hildegard by HILDEGARD_BIN, then PATH, then where the installer puts it', () => {
     const has = (set: string[]) => (p: string) => set.includes(p);
@@ -151,8 +183,19 @@ describe('the skill packs', () => {
     );
   });
 
+  it('makes a Codex plugin zip with every skill, its icon and no MCP server', () => {
+    const z = unzip(readFileSync(join(out, 'hildegard-codex.zip')));
+    const manifest = JSON.parse(z.get('.codex-plugin/plugin.json')!.toString());
+    expect(manifest.version).toBe('9.9.9');
+    expect(manifest.mcpServers).toBeUndefined();
+    expect(z.has('.claude-plugin/plugin.json')).toBe(false);
+    expect(z.has(manifest.interface.logo.replace(/^\.\//, ''))).toBe(true);
+    expect(z.has('LICENSE')).toBe(true);
+    for (const name of skillNames()) expect(z.has(`skills/${name}/SKILL.md`)).toBe(true);
+  });
+
   it('makes one zip per skill, with the skill’s folder at the top', () => {
-    expect(files).toHaveLength(skillNames().length + 1);
+    expect(files).toHaveLength(skillNames().length + 2);
     const z = unzip(readFileSync(join(out, 'skill-hildegard-3d.zip')));
     expect([...z.keys()].sort()).toEqual(['hildegard-3d/SKILL.md', 'hildegard-3d/scripts/mesh_kit.py']);
     expect([...unzip(readFileSync(join(out, 'skill-hildegard-print.zip'))).keys()].sort()).toEqual([
@@ -172,8 +215,7 @@ describe('the skill packs', () => {
   it('writes the same bytes for the same files', () => {
     const again = mkdtempSync(join(tmpdir(), 'hg-pack-'));
     packSkills(again, '9.9.9');
-    expect(
-      readFileSync(join(again, 'hildegard.plugin')).equals(readFileSync(join(out, 'hildegard.plugin'))),
-    ).toBe(true);
+    for (const f of ['hildegard.plugin', 'hildegard-codex.zip'])
+      expect(readFileSync(join(again, f)).equals(readFileSync(join(out, f)))).toBe(true);
   });
 });

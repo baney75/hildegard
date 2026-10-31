@@ -1,6 +1,6 @@
 ---
 name: hildegard-photo-edit
-description: Edit photos to a professional standard with ImageMagick - straighten, crop, white balance, exposure and contrast, colour, restrained retouching, sharpening and export for web or print - and bring a photo to life as video with Hildegard. Use when asked to edit, fix, retouch, grade, crop, resize or animate a photo or image.
+description: Use when asked to edit, fix, retouch, grade, crop, resize or animate a photo - ImageMagick to a professional standard (straighten, white balance, exposure, colour, sharpen, export).
 ---
 
 # Editing photos

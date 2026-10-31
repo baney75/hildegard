@@ -5,6 +5,8 @@
 //
 // - hildegard.plugin: every skill, as a Claude plugin for the Claude app and Cowork (Settings › Plugins › Upload).
 //   It carries no MCP server: those apps link Hildegard as a connector (docs/chatbots.md).
+// - hildegard-codex.zip: every skill, as a Codex plugin for OpenAI's plugin directory (platform.openai.com/plugins ›
+//   Upload plugin), which takes skills-only plugins; Codex links Hildegard's tools with `hildegard connect codex`.
 // - skill-<name>.zip: one skill each, for claude.ai (Settings › Capabilities › Skills) and ChatGPT (Skills ›
 //   Upload), which take one skill folder per zip.
 //
@@ -99,7 +101,7 @@ export function skillNames(skills = join(root, 'skills')) {
     .sort();
 }
 
-/** Writes hildegard.plugin and skill-<name>.zip into out, and returns their paths. */
+/** Writes hildegard.plugin, hildegard-codex.zip and skill-<name>.zip into out, and returns their paths. */
 export function packSkills(out, version, repo = root) {
   const skills = join(repo, 'skills');
   const manifest = JSON.parse(readFileSync(join(repo, '.claude-plugin', 'plugin.json'), 'utf8'));
@@ -112,9 +114,16 @@ export function packSkills(out, version, repo = root) {
     ['LICENSE', readFileSync(join(repo, 'LICENSE'))],
     ...tree(skills, 'skills/'),
   ];
+  const codex = JSON.parse(readFileSync(join(repo, '.codex-plugin', 'plugin.json'), 'utf8'));
+  codex.version = version;
+  const codexPlugin = [
+    ['.codex-plugin/plugin.json', Buffer.from(`${JSON.stringify(codex, null, 2)}\n`)],
+    ...plugin.filter(([name]) => name !== '.claude-plugin/plugin.json'),
+  ];
   mkdirSync(out, { recursive: true });
-  const written = [join(out, 'hildegard.plugin')];
+  const written = [join(out, 'hildegard.plugin'), join(out, 'hildegard-codex.zip')];
   writeFileSync(written[0], zip(plugin));
+  writeFileSync(written[1], zip(codexPlugin));
   for (const name of skillNames(skills)) {
     const file = join(out, `skill-${name}.zip`);
     writeFileSync(file, zip(tree(join(skills, name), `${name}/`)));

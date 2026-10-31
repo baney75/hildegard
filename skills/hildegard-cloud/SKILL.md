@@ -1,6 +1,6 @@
 ---
 name: hildegard-cloud
-description: Rent a GPU for Hildegard on Runpod with one command - it joins the owner's fleet, renders their takes and stops itself when idle. Use when the owner has no GPU or needs a bigger one, or asks about Runpod, Hugging Face or Colab for rendering.
+description: Use when the owner has no GPU or needs a bigger one, or asks about Runpod, Hugging Face or Colab for rendering - rents a Runpod GPU that joins their fleet and stops itself when idle.
 ---
 
 # Rented GPUs for Hildegard

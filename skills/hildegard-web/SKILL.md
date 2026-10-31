@@ -1,6 +1,6 @@
 ---
 name: hildegard-web
-description: Design and build websites, landing pages and web app screens as real HTML and CSS, in rounds that Hildegard renders at phone, tablet and desktop width, in light and dark, and audits (contrast, overflow, names and labels, tap targets, type, headings, stand-in copy, weight, focus, motion) until they pass, with images made on your own GPUs. Use for any web page, site, landing page, portfolio, product page, email-safe page, UI mockup or redesign.
+description: Use for any web page, site, landing page, portfolio, product page or UI mockup - real HTML and CSS that Hildegard renders at phone, tablet and desktop, light and dark, and audits until it passes.
 ---
 
 # Designing for the web, in rounds

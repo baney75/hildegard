@@ -1,6 +1,6 @@
 ---
 name: hildegard-3d
-description: Model 3D sculptures, objects and printable parts with an agent, in rounds that Hildegard measures and draws (eight views, silhouettes, watertight, size, base, overhangs) until they pass. Use for any 3D model, sculpture, figurine, game asset, relief, lithophane or 3D print, in Blender, OpenSCAD, trimesh, signed-distance code or by hand.
+description: Use for any 3D model, sculpture, figurine, game asset, relief or lithophane, in Blender, OpenSCAD or code. Hildegard measures and draws each round (views, watertight, size) until it passes.
 ---
 
 # Modeling in 3D, in rounds

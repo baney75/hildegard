@@ -1,0 +1,12 @@
+{
+  "name": "hildegard",
+  "interface": { "displayName": "Hildegard" },
+  "plugins": [
+    {
+      "name": "hildegard",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Creativity"
+    }
+  ]
+}

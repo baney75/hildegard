@@ -1,6 +1,6 @@
 ---
 name: hildegard-sound
-description: Sound for Hildegard work - music briefs, voice-over, sound design, mixing and loudness mastering - to a professional standard and with consent for voices. Use when asked to add or fix sound, music, voice-over, narration or a mix, or to make music or speech with Hildegard's audio models when they are installed.
+description: Use when asked to add or fix sound, music, voice-over, narration or a mix, or to make music or speech with Hildegard's audio models - sound design, mixing, loudness, consent for voices.
 ---
 
 # Sound

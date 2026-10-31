@@ -1,6 +1,6 @@
 ---
 name: hildegard-print
-description: Design a real, working part to 3D print, from a brief, a photo of the old one or a shop listing, measured and checked in rounds (fits between parts, likeness to the photo, slicing with time, grams and cost) until it prints right, then handed over with a print sheet. Use for replacement parts, brackets, clips, knobs, enclosures, organisers, fixtures, any functional print or product made at home.
+description: Use for a functional 3D print (replacement part, bracket, clip, knob, enclosure, fixture) from a brief, photo or listing - fits checked, sliced with time, grams and cost, with a print sheet.
 ---
 
 # Printing things that work

@@ -836,9 +836,11 @@ describe('the skills Hildegard ships', () => {
     for (const s of all) {
       expect(s.dir.endsWith(s.name)).toBe(true);
       expect(s.name).toMatch(/^[a-z0-9-]{1,64}$/);
-      // Codex and Claude Code both cap descriptions; a colon and space would break plain YAML.
+      // Codex and Claude Code both cap descriptions, and list skills by them until a budget runs out: past it a skill
+      // is listed by name alone and never loads on its own. So 200 at most, trigger words first. A colon and space
+      // would break plain YAML.
       expect(s.description.length).toBeGreaterThan(80);
-      expect(s.description.length).toBeLessThanOrEqual(1024);
+      expect(s.description.length).toBeLessThanOrEqual(200);
       expect(s.description).not.toMatch(/: /);
       const md = readFileSync(join(s.dir, 'SKILL.md'), 'utf8');
       expect(md.split('\n').length).toBeLessThan(500);

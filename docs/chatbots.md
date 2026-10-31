@@ -42,6 +42,20 @@ listed twice.
 
 Without the plugin: `hildegard connect claude-code` and `hildegard skills install`.
 
+## Codex
+
+`hildegard connect codex` links the tools and puts the skills in `~/.agents/skills`. To take the skills as a plugin
+instead, which Codex keeps up to date:
+
+```sh
+codex plugin marketplace add baney75/hildegard
+codex plugin add hildegard@hildegard
+hildegard connect codex --no-skills
+```
+
+The Codex plugin carries the skills only (`.codex-plugin/plugin.json`); the last line links the tools. The release's
+`hildegard-codex.zip` is the same plugin for OpenAI's plugin directory.
+
 ## Claude Desktop
 
 1. `hildegard connect claude-desktop`, then quit and reopen Claude.
