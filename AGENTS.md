@@ -56,6 +56,14 @@ The server's film-export tests run `python3` with PyAV and numpy; install them a
 CI runs those on Linux, macOS and Windows; renders a real (tiny) video through ComfyUI and comfy-api-proxy; builds the
 release; and runs the real installer from it on all three, then renders through what it installed.
 
+## Review and merge
+
+Run the `baney-review` skill on every PR before it merges: its picker sets the tier, and the tier sets the reviewers.
+When the tier's merge rule holds (a tier 1 check passed, or a pooled SHIP, or settled), add the `reviewed` label:
+`gh pr edit <n> --add-label reviewed`. That label is what turns on auto-merge (`.github/workflows/auto-merge.yml`);
+GitHub then merges once the required checks pass. A push after the label is a new head: the workflow turns auto-merge
+off and removes the label, so review the new head as the skill says before adding it back.
+
 ## Rules
 
 - **No regressions.** Every fix comes with a test that fails without it. Never skip or loosen a test to get green.

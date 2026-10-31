@@ -1,20 +1,25 @@
 name: Auto-merge
 
-# Every pull request the owner opens from a branch here merges itself once all of main's required checks pass, so
-# nobody has to come back to press Merge. The checks are the gate: branch protection on main names them, and GitHub
-# waits for every one. A draft, or a PR from a fork or from anyone else, is left alone.
+# A pull request the owner opens from a branch here merges itself once it carries the `reviewed` label and all of
+# main's required checks pass, so nobody has to come back to press Merge. The label means its baney-review tier is
+# settled (AGENTS.md, "Review and merge"): every agent pushes as the owner, so without it CI alone merged 37 PRs in
+# four days with no review (2026-10-24 to 10-28). A draft, an unlabeled PR, or a PR from a fork or anyone else is left
+# alone.
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+    types: [opened, reopened, ready_for_review, synchronize, labeled, unlabeled]
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   enable:
     if: >-
       !github.event.pull_request.draft &&
+      github.event.action != 'synchronize' && github.event.action != 'unlabeled' &&
+      contains(github.event.pull_request.labels.*.name, 'reviewed') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login == github.repository_owner
     runs-on: ubuntu-latest
@@ -28,3 +33,23 @@ jobs:
         run: |
           gh api graphql -f id="$ID" -f query='mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: MERGE}) { clientMutationId } }' \
             || echo "::warning::Auto-merge isn't on for this repo, or main requires no checks yet, so this PR waits for a manual merge."
+
+  # A push after review is a new head nobody reviewed, and GitHub keeps auto-merge on across pushes. Turn it off and
+  # take the label away; review the new head and label it again. Removing the label by hand turns auto-merge off too.
+  reset:
+    if: >-
+      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'reviewed')) ||
+      (github.event.action == 'unlabeled' && github.event.label.name == 'reviewed')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ github.event.pull_request.node_id }}
+          PR: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          gh api graphql -f id="$ID" -f query='mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }' \
+            || echo "::notice::Auto-merge was not on for this PR."
+          if [ "$ACTION" = synchronize ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label reviewed
+          fi
