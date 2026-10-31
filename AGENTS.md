@@ -58,11 +58,19 @@ release; and runs the real installer from it on all three, then renders through 
 
 ## Review and merge
 
-Run the `baney-review` skill on every PR before it merges: its picker sets the tier, and the tier sets the reviewers.
-When the tier's merge rule holds (a tier 1 check passed, or a pooled SHIP, or settled), add the `reviewed` label:
-`gh pr edit <n> --add-label reviewed`. That label is what turns on auto-merge (`.github/workflows/auto-merge.yml`);
-GitHub then merges once the required checks pass. A push after the label is a new head: the workflow turns auto-merge
-off and removes the label, so review the new head as the skill says before adding it back.
+`main` requires a `baney-review` commit status on the PR's head, next to the CI checks. Run the `baney-review` skill
+on every PR: its picker sets the tier, and the tier sets the reviewers. When the tier's merge rule holds (a tier 1
+check passed, a pooled SHIP, or settled) and the PR body has its Review block, set the status on the head that was
+reviewed, `H`:
+
+```sh
+gh api repos/baney75/hildegard/statuses/$H -f state=success -f context=baney-review \
+  -f description="tier <n> <SHIP|settled> r<round>"
+```
+
+Auto-merge then merges once CI passes. A push after that is a new head with no status, so it waits for its own
+review. When the picker says `donovan_merges: true`, Donovan sets the status, or an agent does under his dated written
+authority quoted in the PR body. Never set it before the review is done.
 
 ## Rules
 
