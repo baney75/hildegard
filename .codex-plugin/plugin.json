@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "Hildegard",
     "shortDescription": "Your own studio, your own GPU",
-    "longDescription": "Hildegard is an open-source studio that runs on your own computers. Its skills bring the midwife's method to creative work in any form: a short interview, research, drafts and contact sheets, blind critique and measured checks. They cover art and stills, film and video editing, photo editing, sound and music, 3D models, parts to 3D print, OpenSCAD and websites, and a generate, render, critique, refine loop. With Hildegard installed and linked (hildegard connect codex), its tools render the work on your own GPUs, with nothing sent anywhere else.",
+    "longDescription": "Hildegard is an open-source studio that runs on your own computers. Its skills bring the midwife's method to creative work in any form: a short interview, research, drafts and contact sheets, blind critique and measured checks. They cover art and stills, film and video editing, photo editing, sound and music, 3D models, parts to 3D print, OpenSCAD and websites, and a generate, render, critique, refine loop. With Hildegard installed and linked (hildegard connect codex), its tools render the work on your own GPUs, or on a GPU you rent that joins them.",
     "developerName": "Donovan Baney",
     "category": "Creativity",
     "capabilities": ["Read", "Write"],

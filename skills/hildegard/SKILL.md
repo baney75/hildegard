@@ -1,6 +1,6 @@
 ---
 name: hildegard
-description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make, edit, draft, design, write or compose creative work - art, film, music, songs, podcasts, 3D, fiction, essays, academic papers.
+description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make, edit, design, write or compose creative work - art, cutouts, storyboards, film, music, podcasts, 3D, fiction, essays, APA papers.
 ---
 
 # Hildegard — the midwife's craft
