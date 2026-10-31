@@ -2,7 +2,9 @@ name: Auto-merge
 
 # Every pull request the owner opens from a branch here merges itself once all of main's required checks pass, so
 # nobody has to come back to press Merge. The checks are the gate: branch protection on main names them, and GitHub
-# waits for every one. A draft, or a PR from a fork or from anyone else, is left alone.
+# waits for every one. One of them is the `baney-review` commit status, which a reviewer sets on the exact head it
+# reviewed (AGENTS.md, "Review and merge"), so a push after review is a new head that can't merge until it is
+# reviewed too. A draft, or a PR from a fork or from anyone else, is left alone.
 on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
