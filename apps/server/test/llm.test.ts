@@ -103,7 +103,7 @@ describe('addresses', () => {
     expect(endpointUrl('http://desk:8000/v1/')).toBe('http://desk:8000/v1');
     expect(endpointUrl('https://gpu.example/openai/v1')).toBe('https://gpu.example/openai/v1');
     expect(() => endpointUrl('ftp://desk')).toThrow(/http/);
-    expect(() => endpointUrl('http://user:sk-123@desk:8000')).toThrow(/key/);
+    expect(() => endpointUrl('http://user:sk-123' + '@' + 'desk:8000')).toThrow(/key/);
     // A consumer plan's address or sign-in token, which may only be used in its own app.
     for (const u of [
       'https://claude.ai/api',

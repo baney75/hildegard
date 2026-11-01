@@ -1,0 +1,9 @@
+# Narrow ignores only. Never blanket tests/** or auth paths.
+# Fake credentials in tests are assembled at runtime ("gh" + "p_" + "x",
+# "http://user:pw" + "@" + "host"); do not add ignored_detectors.
+version: 2
+secret:
+  ignored_paths:
+    # Design / media fixtures (no credentials).
+    - apps/server/test/fixtures/design/**
+    - packages/comfy/fixtures/**
