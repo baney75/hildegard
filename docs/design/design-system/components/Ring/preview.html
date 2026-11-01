@@ -1,0 +1,28 @@
+<!-- @dsCard group="Feedback" height=160 subtitle="Concentric progress: gold for the job, green for the device" -->
+<div class="hg-root" style="padding:24px;display:flex;gap:40px;align-items:center;background:var(--canvas)" id="rings"></div>
+<script>
+(function () {
+  function ring(size, p, busy, label) {
+    var r = 20, r2 = 13, C = 2 * Math.PI * r;
+    var el = document.createElement('div');
+    el.className = 'hg-ring' + (busy ? ' hg-ring--busy' : '');
+    el.style.setProperty('--size', size + 'px');
+    el.setAttribute('role', 'progressbar');
+    el.setAttribute('aria-label', busy ? 'Working' : 'Rendering');
+    if (!busy) { el.setAttribute('aria-valuenow', Math.round(p * 100)); el.setAttribute('aria-valuemin', 0); el.setAttribute('aria-valuemax', 100); }
+    var dash = busy ? '' : 'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - p)) + '"';
+    el.innerHTML = '<svg viewBox="0 0 48 48"><circle class="track" cx="24" cy="24" r="' + r + '"/>' +
+      '<circle class="bar" cx="24" cy="24" r="' + r + '" pathLength="' + (busy ? 100 : C) + '" ' + dash + '/>' +
+      '<circle class="track" cx="24" cy="24" r="' + r2 + '"/><circle class="inner" cx="24" cy="24" r="' + r2 + '" pathLength="100"/>' +
+      '<circle class="core" cx="24" cy="24" r="' + (size > 40 ? 3 : 2.5) + '"/></svg>' +
+      (label ? '<span class="hg-ring__label" style="top:auto;bottom:-22px">' + label + '</span>' : '');
+    return el;
+  }
+  var host = document.getElementById('rings');
+  host.appendChild(ring(24, 0, true));
+  host.appendChild(ring(48, 0, true));
+  host.appendChild(ring(72, 0, true));
+  host.appendChild(ring(72, 0.62, false, '62%'));
+  host.appendChild(ring(48, 0.18, false, '18%'));
+})();
+</script>

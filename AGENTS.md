@@ -198,3 +198,14 @@ People reach a Hildegard from other devices and sign in. Three parts, all in `ap
 Rules for changes here: a new route a director may use goes in `DIRECTOR` and checks `sees()`; anything that changes
 the computer stays loopback only (`local(c)`), even for owners signed in elsewhere; never let `/api/node/*` or ComfyUI
 behind the hosted listener; tests in `host.test.ts` cover each refusal, and `people.test.ts` the crypto and expiry.
+
+## Project memory and Claude export
+
+Notes and plans from the Claude project that preceded this repository live under `docs/`. They are history and context, not rules: the code and this file win where they disagree.
+
+- [docs/project-memory.md](docs/project-memory.md): index of Donovan's project memory notes. Read it before asking him something he may already have answered. Don't edit the notes themselves.
+- [docs/architecture/](docs/architecture/): the technical foundation, licensing, MCP public link, Hugging Face linking and research.
+- [docs/design/](docs/design/): design system snapshot, prompts, reviews and UI screenshots.
+- [docs/promo/](docs/promo/): teaser video (Git LFS) and social images.
+- [docs/roadmap/](docs/roadmap/): the 2026-10-19 roadmap, archived. The current one is `ROADMAP.md`.
+- [docs/challenge/](docs/challenge/): the #OpenSourceHiggsfield challenge plan.

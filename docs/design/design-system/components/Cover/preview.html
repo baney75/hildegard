@@ -1,0 +1,40 @@
+<!-- @dsCard height=288 -->
+<div class="cover">
+  <svg viewBox="0 0 960 288" class="art" aria-hidden="true">
+    <!--
+      blocks: sapphire slab 200x288 bleeding top and bottom (wisdom); brand 128x128 at radius-xl (viriditas); burgundy 128x96 at radius-lg (the rubric);
+              ember pill 80x140, rx half the short side (the Spirit's fire); gold disc r=28 at the slab's centre (the Living Light)
+      arrangement: one tall slab with satellites, the slab bleeding off top and bottom like a manuscript column
+      pattern: a literal motif, the Scivias cosmic egg, as three concentric egg rings in gold hairline crossing the slab;
+               chosen because the brand's mark is that egg and its README names the illuminated visions as the source
+      scales: gaps space-4 (16px); radii radius-xl (20), radius-lg (14), pill = 40; rings stroke-hairline (1px)
+    -->
+    <style>
+      .sap{fill:var(--sapphire)} .vir{fill:var(--brand)} .bur{fill:var(--burgundy)} .emb{fill:var(--ember)} .gold{fill:var(--gold)}
+      .ring{fill:none;stroke:var(--gold);stroke-width:1.25;opacity:.75}
+    </style>
+    <defs><clipPath id="slab"><rect x="640" y="0" width="200" height="288"/></clipPath></defs>
+    <rect class="vir" x="496" y="24" width="128" height="128" rx="20"/>
+    <rect class="bur" x="496" y="168" width="128" height="96" rx="14"/>
+    <rect class="sap" x="640" y="0" width="200" height="288"/>
+    <g clip-path="url(#slab)">
+      <ellipse class="ring" cx="740" cy="150" rx="52" ry="68"/>
+      <ellipse class="ring" cx="740" cy="150" rx="74" ry="96"/>
+      <ellipse class="ring" cx="740" cy="150" rx="96" ry="124"/>
+    </g>
+    <circle class="gold" cx="740" cy="150" r="28"/>
+    <rect class="emb" x="856" y="24" width="80" height="140" rx="40"/>
+  </svg>
+  <div class="text">
+    <div class="name">Hildegard</div>
+    <div class="tag">A generative studio of the Living Light: private, local and yours.</div>
+  </div>
+</div>
+<style>
+  html, body { margin: 0; }
+  .cover { position: relative; width: 960px; height: 288px; background: var(--canvas); overflow: hidden; }
+  .art { position: absolute; inset: 0; width: 960px; height: 288px; }
+  .text { position: absolute; left: 40px; bottom: 36px; max-width: 420px; }
+  .name { font: 500 88px/.92 var(--font-display); letter-spacing: -.01em; color: var(--text-primary); }
+  .tag { margin-top: 14px; font: 400 14px/20px var(--font-sans); color: var(--text-muted); }
+</style>

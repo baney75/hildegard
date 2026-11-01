@@ -1,0 +1,53 @@
+<!-- @dsCard group="Queue" height=470 width=980 subtitle="Queue rows, and Force now saying exactly what it will interrupt" -->
+<div class="hg-root" style="padding:24px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start;background:var(--canvas)">
+  <div style="display:grid;gap:10px">
+    <div class="hg-job">
+      <div class="hg-job__thumb" style="color:var(--gold-text)"><i data-icon="music" data-size="22"></i></div>
+      <div style="min-width:0">
+        <div class="hg-job__title">First Light over the Rhine · 2 variations</div>
+        <div class="hg-job__meta"><span class="hg-status hg-status--running">Running</span><span>Studio PC</span><span class="hg-num">ace-step-1.5 · 1:12 left</span></div>
+      </div>
+      <div class="hg-job__actions"><button class="hg-btn hg-btn--sm hg-btn--ghost" aria-label="Pause"><i data-icon="pause" data-size="16"></i></button></div>
+      <div class="hg-job__bar"><div class="hg-meter hg-meter--live" style="--v:58%"><i></i></div></div>
+    </div>
+    <div class="hg-job">
+      <div class="hg-job__thumb"><i data-icon="video" data-size="22"></i></div>
+      <div style="min-width:0">
+        <div class="hg-job__title">Abbey cloister, slow dolly in · 6s</div>
+        <div class="hg-job__meta"><span class="hg-status hg-status--queued">Queued · 1st</span><span>Waiting for Laptop</span><span class="hg-num">starts ~11:40 pm</span></div>
+      </div>
+      <div class="hg-job__actions"><button class="hg-btn hg-btn--sm hg-btn--force"><i data-icon="force" data-size="16"></i>Force now</button></div>
+    </div>
+    <div class="hg-job">
+      <div class="hg-job__thumb"><i data-icon="transcribe" data-size="22"></i></div>
+      <div style="min-width:0">
+        <div class="hg-job__title">Interview with Sr. Agnes.m4a</div>
+        <div class="hg-job__meta"><span class="hg-status hg-status--done">Done</span><span>Studio Mac</span><span class="hg-num">$0.00 · saved $0.36</span></div>
+      </div>
+      <div class="hg-job__actions"><button class="hg-btn hg-btn--sm">Open</button></div>
+    </div>
+    <div class="hg-job">
+      <div class="hg-job__thumb"><i data-icon="model3d" data-size="22"></i></div>
+      <div style="min-width:0">
+        <div class="hg-job__title">Reliquary box, carved oak</div>
+        <div class="hg-job__meta"><span class="hg-status hg-status--error">Out of memory</span><span>Needs 16 GB VRAM</span></div>
+      </div>
+      <div class="hg-job__actions"><button class="hg-btn hg-btn--sm">Retry on Studio PC</button></div>
+    </div>
+  </div>
+  <div class="hg-dialog" role="dialog" aria-labelledby="fn-t" aria-describedby="fn-d">
+    <h3 id="fn-t">Force this job now?</h3>
+    <p id="fn-d">The Laptop is in use. Hildegard will borrow its GPU right away.</p>
+    <div class="hg-dialog__impact">
+      <div><span>Interrupts</span><span style="color:var(--ember-text)">Your session on Laptop (fans will spin up)</span></div>
+      <div><span>Pauses</span><span>Nothing else in the queue</span></div>
+      <div><span>Starts</span><span class="hg-num">now, about 4 min</span></div>
+      <div><span>Cost</span><span class="hg-num">$0.00 · local</span></div>
+    </div>
+    <div class="hg-dialog__actions">
+      <button class="hg-btn hg-btn--ghost">Wait until 11:40 pm</button>
+      <button class="hg-btn hg-btn--force"><i data-icon="force" data-size="18"></i>Force now</button>
+    </div>
+  </div>
+</div>
+<script>Hildegard.hydrate(document)</script>

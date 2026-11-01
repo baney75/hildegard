@@ -1,0 +1,51 @@
+<!-- @dsCard group="Brand" height=1180 width=1200 page subtitle="The burning egg: mark, wordmark, lockups and app icons on every platform" -->
+<div class="hg-root sheet">
+  <section class="row ink">
+    <img src="/_blob/cf2ebb6ce8a38fa872436268c957f464" alt="Hildegard horizontal lockup, vellum" style="height:96px">
+    <img src="/_blob/0a495da4b2de23ca4b3409545726fc06" alt="Hildegard stacked lockup, vellum" style="height:190px">
+    <div class="sizes"><img src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" style="height:64px"><img src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" style="height:32px"><img src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" style="height:20px"><img src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" style="height:16px"></div>
+    <span class="cap">On ink · default</span>
+  </section>
+  <section class="row vellum">
+    <img src="/_blob/686a97e761299cd342aa0e861ea8ef8a" alt="Hildegard horizontal lockup, green" style="height:96px">
+    <img src="/_blob/741d8dd2f0485a9cc40267689ef57fbb" alt="Hildegard stacked lockup, green" style="height:190px">
+    <div class="sizes"><img src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" style="height:64px"><img src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" style="height:32px"><img src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" style="height:20px"><img src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" style="height:16px"></div>
+    <span class="cap">On vellum</span>
+  </section>
+  <section class="row green">
+    <img src="/_blob/cf2ebb6ce8a38fa872436268c957f464" alt="Hildegard horizontal lockup on viriditas" style="height:96px">
+    <img src="/_blob/7199a976377ee3f5bd34f969a65186b8" alt="Hildegard wordmark" style="height:70px">
+    <div class="sizes"><img src="/_blob/4d69758e780c44fe2647ac5873f5b675" alt="" style="height:64px"><img src="/_blob/4d69758e780c44fe2647ac5873f5b675" alt="" style="height:32px"><img src="/_blob/4d69758e780c44fe2647ac5873f5b675" alt="" style="height:16px"></div>
+    <span class="cap">On viriditas · one-colour mark at right</span>
+  </section>
+  <section class="icons">
+    <figure><img src="/_blob/64212540a160b5e7cd78cd2b581135af" alt="" style="width:176px"><figcaption>macOS</figcaption></figure>
+    <figure><img src="/_blob/7c555d4d2a6393e755814148caca000e" alt="" style="width:140px;border-radius:31px"><figcaption>iOS · iPadOS</figcaption></figure>
+    <figure><span class="adaptive"><img src="/_blob/ac682446f72b0186813fb10e510530ea" alt=""><img src="/_blob/020fccb185e1c55c99dce6c8007bc576" alt=""></span><figcaption>Android adaptive</figcaption></figure>
+    <figure><span class="adaptive themed"><img src="/_blob/a8a3df2da362f571a23b9b09423b861a" alt=""></span><figcaption>Android themed</figcaption></figure>
+    <figure><img src="/_blob/1bb4373685eaa77e45250b01dba71bda" alt="" style="width:140px"><figcaption>Windows</figcaption></figure>
+    <figure><img src="/_blob/e28a55839b292028c708ca63b67cf407" alt="" style="width:140px"><figcaption>Linux · Omarchy</figcaption></figure>
+  </section>
+  <section class="notes">
+    <div><h3>The mark</h3><p>Two strokes of a 42° broad nib write the cosmic egg of the Scivias and the stems of an H. The left stroke rises into a hairline tongue of flame, the fiery light of her visions. A gold lens crosses the counter: lux vivens, the Living Light.</p></div>
+    <div><h3>Clear space and size</h3><p>Keep clear space equal to the lens width on every side. Smallest mark: 16px tall on screen, 6mm in print. Below 20px use the one-colour mark so the lens does not fill in.</p></div>
+    <div><h3>Never</h3><p>Never redraw the strokes with a monoline pen, outline the mark, set the wordmark in another face, recolour the lens anything but gold, or put the mark on a busy image without a solid ground.</p></div>
+  </section>
+</div>
+<style>
+  .sheet { display: grid; background: var(--canvas); }
+  .row { position: relative; display: flex; align-items: center; gap: 56px; padding: 44px 48px; min-height: 260px; }
+  .row.ink { background: #0a0e13; } .row.vellum { background: #f4eedd; } .row.green { background: #12301f; }
+  .row .cap { position: absolute; left: 48px; bottom: 14px; font: 600 11px/14px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: #97968c; }
+  .row.vellum .cap { color: #615c4e; } .row.green .cap { color: #b9c9bc; }
+  .sizes { display: flex; align-items: flex-end; gap: 20px; margin-left: auto; }
+  .icons { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 40px 48px; background: #d9d4c9; }
+  .icons figure { margin: 0; display: grid; justify-items: center; gap: 10px; }
+  .icons figcaption { font: 600 12px/16px var(--font-sans); color: #2a2620; }
+  .adaptive { position: relative; width: 140px; height: 140px; border-radius: 50%; overflow: hidden; display: block; }
+  .adaptive img { position: absolute; inset: -16.67%; width: 133.33%; height: 133.33%; }
+  .adaptive.themed { background: #d7e8da; } .adaptive.themed img { filter: invert(19%) sepia(30%) saturate(900%) hue-rotate(95deg); }
+  .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; padding: 40px 48px 48px; background: var(--panel); }
+  .notes h3 { margin: 0 0 8px; font: 600 24px/30px var(--font-display); color: var(--text-primary); }
+  .notes p { margin: 0; font-size: 15px; line-height: 22px; color: var(--text-secondary); }
+</style>

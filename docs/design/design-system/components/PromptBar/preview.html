@@ -1,0 +1,26 @@
+<!-- @dsCard group="Create" height=300 subtitle="One prompt for every kind of work, with cost and privacy in view" -->
+<div class="hg-root" style="padding:32px;background:var(--canvas)">
+  <div class="hg-prompt" style="max-width:820px">
+    <label class="hg-sr" for="p">Describe what to make</label>
+    <textarea id="p" rows="2" placeholder="Describe a song, a voice line, a scene… or drop a file to transcribe">A slow choral piece in D Dorian, women's voices over a low drone, the feeling of first light over the Rhine</textarea>
+    <div class="hg-prompt__row">
+      <div class="hg-scroll-x" role="group" aria-label="Kind of work" style="--pad:0px">
+        <button class="hg-chip" aria-pressed="false"><i data-icon="transcribe" data-size="16"></i>Transcribe</button>
+        <button class="hg-chip" aria-pressed="false"><i data-icon="image" data-size="16"></i>Image</button>
+        <button class="hg-chip" aria-pressed="false"><i data-icon="voice" data-size="16"></i>Voice</button>
+        <button class="hg-chip" aria-pressed="true"><i data-icon="music" data-size="16"></i>Music</button>
+        <button class="hg-chip" aria-pressed="false"><i data-icon="video" data-size="16"></i>Video</button>
+        <button class="hg-chip" aria-pressed="false"><i data-icon="model3d" data-size="16"></i>3D</button>
+      </div>
+    </div>
+    <div class="hg-prompt__row" style="border-top:1px solid var(--hairline);padding-top:12px">
+      <span class="hg-prompt__where"><i data-icon="server" data-size="16"></i>Choir · Studio PC</span>
+      <span class="hg-prompt__where"><i data-icon="privacy" data-size="16"></i>Stays on your devices</span>
+      <div class="hg-prompt__meta">
+        <span>Est. <span class="hg-num">$0.00</span> local · saves <span class="hg-num">$0.48</span></span>
+        <button class="hg-btn hg-btn--primary"><i data-icon="studio" data-size="18"></i>Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>Hildegard.hydrate(document)</script>

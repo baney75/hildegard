@@ -1,0 +1,15 @@
+<!-- @dsCard group="Foundations" height=300 subtitle="24px grid, 1.5px stroke, round caps; drawn in currentColor" -->
+<div class="hg-root" style="padding:24px;background:var(--canvas)">
+  <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px"></div>
+</div>
+<script>
+(function () {
+  var g = document.getElementById('grid');
+  Object.keys(Hildegard.icons).forEach(function (n) {
+    var d = document.createElement('div');
+    d.style.cssText = 'display:grid;justify-items:center;gap:8px;padding:12px 4px;border-radius:var(--radius-md);color:var(--text-primary)';
+    d.innerHTML = Hildegard.icon(n, 24) + '<span style="font:400 11px/14px var(--font-mono);color:var(--text-muted)">' + n + '</span>';
+    g.appendChild(d);
+  });
+})();
+</script>
