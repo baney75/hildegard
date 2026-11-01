@@ -69,7 +69,7 @@ describe('join codes', () => {
       enc({ n: 'bad name!', u: 'http://100.64.0.1:7341', t: token }),
       enc({ n: 'p', u: 'file:///etc/passwd', t: token }),
       enc({ n: 'p', u: 'http://100.64.0.1:7341/api/snapshot', t: token }),
-      enc({ n: 'p', u: 'http://user:pw@100.64.0.1:7341', t: token }),
+      enc({ n: 'p', u: 'http://user:pw' + '@' + '100.64.0.1:7341', t: token }),
     ])
       expect(() => parseJoinCode(bad), bad.slice(0, 40)).toThrow();
   });

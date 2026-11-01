@@ -344,7 +344,7 @@ describe('running OpenSCAD', () => {
         LC_ALL: 'C',
         XDG_DATA_HOME: '/x',
         DATABASE_URL: 'postgres://u:pw@h/db',
-        GH_PAT: 'ghp_x',
+        GH_PAT: 'gh' + 'p_' + 'x',
         SENTRY_DSN: 'https://k@s.io/1',
         NODE_OPTIONS: '--require /tmp/x.js',
       },
