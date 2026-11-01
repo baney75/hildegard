@@ -2,7 +2,7 @@
 // The repository as a Claude Code plugin and marketplace, its MCP launcher, and the skill packs for apps that take an
 // upload (scripts/pack-skills.mjs).
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
@@ -175,6 +175,7 @@ describe('the skill packs', () => {
     const manifest = JSON.parse(z.get('.claude-plugin/plugin.json')!.toString());
     expect(manifest.version).toBe('9.9.9');
     expect(manifest.mcpServers).toBeUndefined();
+    expect(z.has(manifest.icon.replace(/^\.\//, ''))).toBe(true);
     expect(z.has('README.md')).toBe(true);
     for (const name of skillNames()) expect(z.has(`skills/${name}/SKILL.md`)).toBe(true);
     expect([...z.keys()].some((n) => n.startsWith('bin/') || n.includes('__pycache__'))).toBe(false);
@@ -189,9 +190,36 @@ describe('the skill packs', () => {
     expect(manifest.version).toBe('9.9.9');
     expect(manifest.mcpServers).toBeUndefined();
     expect(z.has('.claude-plugin/plugin.json')).toBe(false);
-    expect(z.has(manifest.interface.logo.replace(/^\.\//, ''))).toBe(true);
+    for (const icon of [manifest.interface.composerIcon, manifest.interface.logo])
+      expect(z.has(icon.replace(/^\.\//, '')), icon).toBe(true);
     expect(z.has('LICENSE')).toBe(true);
     for (const name of skillNames()) expect(z.has(`skills/${name}/SKILL.md`)).toBe(true);
+  });
+
+  it('packs the icons each manifest names, wherever they are', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'hg-repo-'));
+    for (const p of ['.claude-plugin', 'plugin/README.md', 'LICENSE'])
+      cpSync(join(root, p), join(repo, p), { recursive: true });
+    mkdirSync(join(repo, 'skills', 'one'), { recursive: true });
+    writeFileSync(join(repo, 'skills', 'one', 'SKILL.md'), '---\nname: one\n---\n');
+    mkdirSync(join(repo, '.codex-plugin'));
+    mkdirSync(join(repo, 'assets'));
+    writeFileSync(join(repo, 'assets', 'composer.png'), 'composer');
+    writeFileSync(join(repo, 'assets', 'logo.png'), 'logo');
+    const codex = json('.codex-plugin/plugin.json');
+    codex.interface = {
+      ...codex.interface,
+      composerIcon: './assets/composer.png',
+      logo: './assets/logo.png',
+    };
+    writeFileSync(join(repo, '.codex-plugin', 'plugin.json'), JSON.stringify(codex));
+    const at = mkdtempSync(join(tmpdir(), 'hg-pack-'));
+    packSkills(at, '9.9.9', repo);
+    const z = unzip(readFileSync(join(at, 'hildegard-codex.zip')));
+    expect(z.get('assets/composer.png')!.toString()).toBe('composer');
+    expect(z.get('assets/logo.png')!.toString()).toBe('logo');
+    expect(z.has('.claude-plugin/icon.png')).toBe(false);
+    expect(unzip(readFileSync(join(at, 'hildegard.plugin'))).has('.claude-plugin/icon.png')).toBe(true);
   });
 
   it('makes one zip per skill, with the skill’s folder at the top', () => {
