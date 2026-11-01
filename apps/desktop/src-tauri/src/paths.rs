@@ -248,7 +248,7 @@ mod tests {
     assert!(!l.has_runtime());
     std::fs::write(dir.join("choir").join("devices.json"), r#"{"use":"local","devices":[]}"#).unwrap();
     assert!(!l.has_runtime());
-    std::fs::write(dir.join("choir").join("devices.json"), r#"{"use":"parish1","devices":[]}"#).unwrap();
+    std::fs::write(dir.join("choir").join("devices.json"), r#"{"use":"gpu-a","devices":[]}"#).unwrap();
     assert!(l.has_runtime());
     std::fs::remove_file(dir.join("choir").join("devices.json")).unwrap();
     std::fs::write(dir.join("runtime.json"), "{}").unwrap();

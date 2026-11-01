@@ -227,7 +227,7 @@ test('snapshot counts renders paired devices sent here, and shows the running on
     guests: [
       {
         id: 'g1',
-        from: 'rectory1',
+        from: 'studio-1',
         status: 'running',
         queuePosition: 0,
         progress: 0.42,
@@ -253,7 +253,7 @@ test('snapshot counts renders paired devices sent here, and shows the running on
     assert.deepEqual(s.current, {
       id: 'g1',
       projectId: null,
-      title: 'From rectory1',
+      title: 'From studio-1',
       progress: 0.42,
       quality: 'draft',
     });

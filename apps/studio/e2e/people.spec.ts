@@ -5,7 +5,7 @@ import { expectAccessible, expectCurlyQuotes, watchErrors } from './helpers.ts';
 // Host mode, as people on other devices meet it. The server's second listener is the one Tailscale Serve forwards
 // to: everything that arrives there signs in, as it would through the link.
 const hosted = `http://127.0.0.1:${process.env.E2E_HOST_PORT}`;
-const OWNER = { name: 'Donovan', passphrase: 'a feather on the breath' };
+const OWNER = { name: 'Alex', passphrase: 'a feather on the breath' };
 /** The owner's passphrase after they change it, partway through. */
 const NEW_PASSPHRASE = 'o virtus sapientiae';
 const DIRECTOR = { name: 'Ada', passphrase: 'symphonia harmoniae' };

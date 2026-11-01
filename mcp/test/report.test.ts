@@ -42,15 +42,15 @@ describe('redact', () => {
 
   it('turns home folders into ~, on every system, and names into placeholders', () => {
     const r = redact(
-      'at /Users/donovan/Projects/x.ts and C:\\Users\\Donovan\\AppData\\x and /home/sam/.config and D:\\Hildegard\\data',
-      { home: '/Users/donovan', user: 'donovan', host: 'rectory1', names: ['gatehouse1'] },
+      'at /Users/example/Projects/x.ts and C:\\Users\\Example\\AppData\\x and /home/sam/.config and D:\\Hildegard\\data',
+      { home: '/Users/example', user: 'example', host: 'studio-1', names: ['edge-1'] },
     );
     expect(r.text).toBe('at ~/Projects/x.ts and ~\\AppData\\x and ~/.config and D:\\Hildegard\\data');
     const n = redact(
-      'rendering on gatehouse1 from rectory1.tail1234.ts.net (100.101.5.6), mail sam@example.com',
+      'rendering on edge-1 from studio-1.example.ts.net (100.64.0.3), mail someone@example.com',
       {
-        host: 'rectory1',
-        names: ['gatehouse1'],
+        host: 'studio-1',
+        names: ['edge-1'],
       },
     );
     expect(n.text).toBe('rendering on <name> from <tailnet name> (<address>), mail <email>');

@@ -414,7 +414,7 @@ describe('an opportunistic computer', () => {
     }
   }, 45_000);
 
-  it('waits for a language model holding the GPU, as on parish1, and stays online meanwhile', async () => {
+  it('waits for a language model holding the GPU, as on gpu-a, and stays online meanwhile', async () => {
     await opportunistic(spark, true);
     others.spark = ['qwen3-coder'];
     try {

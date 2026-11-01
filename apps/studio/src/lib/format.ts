@@ -111,12 +111,12 @@ export function leftMs(t: Take, history: number | null, now = Date.now()): numbe
   return history === null ? null : Math.max(0, history - elapsed);
 }
 
-/** Who sent a paired device's render here: "From rectory1", or just another device when it didn't say. */
+/** Who sent a paired device's render here: "From studio-1", or just another device when it didn't say. */
 export function guestFrom(g: GuestTake): string {
   return g.from ? `From ${g.from}` : 'From another device';
 }
 
-/** A paired device's render, in a line: "From rectory1 · rendering · 42%", "From rectory1 · waiting · up next". */
+/** A paired device's render, in a line: "From studio-1 · rendering · 42%", "From studio-1 · waiting · up next". */
 export function guestLine(g: GuestTake): string {
   if (g.status === 'running')
     return `${guestFrom(g)} · rendering${g.progress === null ? '' : g.progress >= 1 ? ' · finishing' : ` · ${Math.round(g.progress * 100)}%`}`;
@@ -124,7 +124,7 @@ export function guestLine(g: GuestTake): string {
   return `${guestFrom(g)} · waiting · ${place}`;
 }
 
-/** Which device takes render on, for people: "parish1 · RTX 4080 Laptop", "Stand-in GPU", "This computer". */
+/** Which device takes render on, for people: "gpu-a · RTX 4080 Laptop", "Stand-in GPU", "This computer". */
 export function deviceLabel(engine: EngineState | null): string {
   if (engine?.comfy === 'remote') return engine.device;
   return engine?.fake ? 'Stand-in GPU' : (engine?.device ?? 'This computer');

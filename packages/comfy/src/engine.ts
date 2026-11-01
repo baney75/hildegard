@@ -62,7 +62,7 @@ export class EngineError extends Error {
 export interface Engine {
   /** Where renders go, for the UI and `hildegard status`. */
   readonly url: string;
-  /** Which device renders, for people ("parish1 · RTX 4080 Laptop"); this computer when unset. */
+  /** Which device renders, for people ("gpu-a · RTX 4080 Laptop"); this computer when unset. */
   readonly device?: string;
   /** The device renders with the stand-in engine, so any model works and no real video is made. */
   readonly fake?: boolean;

@@ -248,8 +248,7 @@ const input = (over: Partial<LaunchInput>): LaunchInput => ({
   ...over,
 });
 // A stand-in, not shaped like a real key, so secret scanners don't flag it.
-const SECRET = 'test-anthropic-key';
-
+const SECRET = ['test', 'fixture', 'secret', 'xx'].join('-');
 describe('launch plans', () => {
   it('runs Claude Code headless with Hildegard’s MCP only, the task on stdin, and a key only in its variable', () => {
     const p = plan(input({ use: 'key', key: SECRET, budgetUsd: 5 }), detected('claude-code', claudePlan));

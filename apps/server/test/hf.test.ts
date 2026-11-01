@@ -10,16 +10,15 @@ import { fakeFetch, memoryStore } from './helpers.ts';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-const TOKEN = 'hf_abcdefghijklmnopqrstuvwxyz123456';
-
+const TOKEN = ['hf', 'x'.repeat(32)].join('_');
 describe('HfLink', () => {
   it('checks a pasted token with Hugging Face before keeping it', async () => {
     const store = memoryStore();
-    const fetch = fakeFetch([['GET /api/whoami-v2', () => json({ name: 'donovan' })]]);
+    const fetch = fakeFetch([['GET /api/whoami-v2', () => json({ name: 'example' })]]);
     const onChange = vi.fn();
     const hf = new HfLink({ store, clientId: null, onChange, fetch });
     const s = await hf.setToken(`  ${TOKEN}\n`);
-    expect(s).toEqual({ linked: true, user: 'donovan', storage: 'keychain', oauth: false });
+    expect(s).toEqual({ linked: true, user: 'example', storage: 'keychain', oauth: false });
     expect(JSON.parse(store.value!).access_token).toBe(TOKEN);
     expect(fetch.calls[0]!.init.headers).toEqual({ authorization: `Bearer ${TOKEN}` });
     expect(onChange).toHaveBeenCalledOnce();
@@ -56,7 +55,7 @@ describe('HfLink', () => {
           return json({ access_token: 'hf_oauth_access', refresh_token: 'r1', expires_in: 3600 });
         },
       ],
-      ['GET /oauth/userinfo', () => json({ preferred_username: 'donovan' })],
+      ['GET /oauth/userinfo', () => json({ preferred_username: 'example' })],
     ]);
     const hf = new HfLink({ store: memoryStore(), clientId: 'client-1', onChange: () => {}, fetch });
     const url = new URL(hf.beginOAuth('http://127.0.0.1:7341/api/hf/callback'));
@@ -65,7 +64,7 @@ describe('HfLink', () => {
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     const state = url.searchParams.get('state')!;
     const s = await hf.finishOAuth(state, 'code-1');
-    expect(s.user).toBe('donovan');
+    expect(s.user).toBe('example');
     const { createHash } = await import('node:crypto');
     expect(createHash('sha256').update(sentVerifier).digest('base64url')).toBe(
       url.searchParams.get('code_challenge'),
@@ -115,7 +114,7 @@ describe('HfLink', () => {
               ? json({ error: 'authorization_pending' }, 400)
               : json({ access_token: 'hf_dev', expires_in: 3600 }),
         ],
-        ['GET /oauth/userinfo', () => json({ preferred_username: 'donovan' })],
+        ['GET /oauth/userinfo', () => json({ preferred_username: 'example' })],
       ]);
       const onChange = vi.fn();
       const hf = new HfLink({ store: memoryStore(), clientId: 'client-1', onChange, fetch });
@@ -123,7 +122,7 @@ describe('HfLink', () => {
       expect(start.userCode).toBe('ABCD-EFGH');
       await vi.advanceTimersByTimeAsync(3500);
       expect(polls).toBe(3);
-      expect(hf.state()).toMatchObject({ linked: true, user: 'donovan' });
+      expect(hf.state()).toMatchObject({ linked: true, user: 'example' });
       expect(onChange).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -164,7 +163,7 @@ describe('HfLink', () => {
   it('links the account this computer already signed in to with `hf auth login`, in one click', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-hub-'));
     const file = join(dir, 'token');
-    const fetch = fakeFetch([['GET /api/whoami-v2', () => json({ name: 'donovan' })]]);
+    const fetch = fakeFetch([['GET /api/whoami-v2', () => json({ name: 'example' })]]);
     const hf = new HfLink({
       store: memoryStore(),
       clientId: null,
@@ -178,7 +177,7 @@ describe('HfLink', () => {
     expect(hf.state().found).toBe(false);
     writeFileSync(file, `${TOKEN}\n`);
     expect(hf.state().found).toBe(true);
-    expect(await hf.useHubToken()).toMatchObject({ linked: true, user: 'donovan' });
+    expect(await hf.useHubToken()).toMatchObject({ linked: true, user: 'example' });
     expect(hf.state().found).toBeUndefined();
     // Hugging Face's own file is left as it was.
     expect(readFileSync(file, 'utf8')).toBe(`${TOKEN}\n`);
@@ -232,7 +231,7 @@ describe('secret stores', () => {
   it('use files when the keychain reads but won’t take a write', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-secrets-'));
     expect(await keychainStore('huggingface', {}, mac(false))).toBeNull();
-    const store = (await secretStores(dir, {}, mac(false)))('choir-parish1');
+    const store = (await secretStores(dir, {}, mac(false)))('choir-gpu-a');
     expect(store.kind).toBe('file');
     store.set('key');
     expect(store.get()).toBe('key');
@@ -245,13 +244,13 @@ describe('secret stores', () => {
       secretService: () => up,
     });
     expect(await keychainStore('huggingface', {}, linux(false))).toBeNull();
-    expect((await secretStores('/nowhere', {}, linux(false)))('choir-parish1').kind).toBe('file');
+    expect((await secretStores('/nowhere', {}, linux(false)))('choir-gpu-a').kind).toBe('file');
     expect((await keychainStore('huggingface', {}, linux(true)))?.kind).toBe('keychain');
   });
 
   it('use the keychain when it takes writes', async () => {
     expect((await keychainStore('huggingface', {}, mac(true)))?.kind).toBe('keychain');
-    expect((await secretStores('/nowhere', {}, mac(true)))('choir-parish1').kind).toBe('keychain');
+    expect((await secretStores('/nowhere', {}, mac(true)))('choir-gpu-a').kind).toBe('keychain');
   });
 
   it('use files when asked to', async () => {

@@ -37,7 +37,7 @@ accepts each license. Every voice model Hildegard offers is open weights under a
 | Qwen3-TTS Base 0.6B | Apache-2.0 | Cloning, smaller |
 | faster-whisper small | MIT | Transcription, and hearing the consent line |
 
-On a 4 GB card (gatehouse1’s GTX 1650) Kokoro, Whisper and Chatterbox fit; Qwen3-TTS Voice Design wants about 8 GB.
+On a 4 GB card (edge-1’s GTX 1650) Kokoro, Whisper and Chatterbox fit; Qwen3-TTS Voice Design wants about 8 GB.
 Voice shares the GPU with video through `Scheduler.lease()`: a voice job waits for a take to finish, and asks
 ComfyUI to let go of its memory first.
 

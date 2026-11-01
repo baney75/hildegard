@@ -1465,7 +1465,7 @@ export function createApp(deps: AppDeps) {
     const body = z
       .object({ url: z.string().max(200).optional(), key: z.string().max(100).optional() })
       .safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ error: 'Give an address like http://100.101.102.103:7341.' }, 400);
+    if (!body.success) return c.json({ error: 'Give an address like http://100.64.0.1:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
       return c.json(await deps.invite(body.data.url, body.data.key));

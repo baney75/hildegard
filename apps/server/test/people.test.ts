@@ -59,14 +59,14 @@ describe('the owner and invites', () => {
   it('makes the owner once, and lets the same name set a new passphrase, signing them out', async () => {
     const { people } = fresh();
     expect(people.hasOwner()).toBe(false);
-    expect((await people.setOwner('Donovan', PASS)).created).toBe(true);
-    await expect(people.setOwner('Someone else', PASS)).rejects.toThrow(/already has an owner, Donovan/);
-    const s = (await people.signIn('donovan', PASS))!;
-    expect(people.authenticate(s.token)?.person.name).toBe('Donovan');
-    expect((await people.setOwner('Donovan', 'a brand new passphrase')).created).toBe(false);
+    expect((await people.setOwner('Alex', PASS)).created).toBe(true);
+    await expect(people.setOwner('Someone else', PASS)).rejects.toThrow(/already has an owner, Alex/);
+    const s = (await people.signIn('Alex', PASS))!;
+    expect(people.authenticate(s.token)?.person.name).toBe('Alex');
+    expect((await people.setOwner('Alex', 'a brand new passphrase')).created).toBe(false);
     expect(people.authenticate(s.token)).toBeNull();
-    expect(await people.signIn('Donovan', PASS)).toBeNull();
-    expect(await people.signIn('Donovan', 'a brand new passphrase')).not.toBeNull();
+    expect(await people.signIn('Alex', PASS)).toBeNull();
+    expect(await people.signIn('Alex', 'a brand new passphrase')).not.toBeNull();
   });
 
   it('uses an invite once, and never after it expires', async () => {

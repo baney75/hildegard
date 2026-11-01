@@ -213,7 +213,7 @@ describe('every include and use, as OpenSCAD reads them', () => {
 
   it('finds an include after line breaks, carriage returns or > before the <, as the lexer does', () => {
     for (const src of [
-      'include\n</Users/donovan/other/project.scad>\ncube(1);',
+      'include\n</Users/example/other/project.scad>\ncube(1);',
       'use\r\n<../x.scad>\ncube(1);',
       'use\r<../x.scad>\ncube(1);',
       'include >> </tmp/canary.scad>\ncube(1);',
@@ -366,11 +366,11 @@ describe('running OpenSCAD', () => {
 
   it('keeps this computer’s paths out of what OpenSCAD says', () => {
     const said = scrubPaths(
-      'WARNING: x in file ../../../../../Documents/OpenSCAD/libraries/BOSL2/std.scad, line 3\nERROR: in file /Users/donovan/Library/Hildegard/loops/abc/round-1.src/parts/lid.scad, line 2\nCan\'t open "/Users/donovan/secret.stl"\nECHO: "M3/screw"',
-      '/Users/donovan/Library/Hildegard/loops/abc/round-1.src',
-      ['/Users/donovan/Documents/OpenSCAD/libraries'],
+      'WARNING: x in file ../../../../../Documents/OpenSCAD/libraries/BOSL2/std.scad, line 3\nERROR: in file /Users/example/Library/Hildegard/loops/abc/round-1.src/parts/lid.scad, line 2\nCan\'t open "/Users/example/secret.stl"\nECHO: "M3/screw"',
+      '/Users/example/Library/Hildegard/loops/abc/round-1.src',
+      ['/Users/example/Documents/OpenSCAD/libraries'],
     );
-    expect(said).not.toMatch(/donovan|Hildegard\/loops/);
+    expect(said).not.toMatch(/example|Hildegard\/loops/);
     expect(said).toContain('parts/lid.scad');
     expect(said).toContain('<library>/BOSL2/std.scad');
     expect(said).toContain('<path>');
