@@ -125,7 +125,7 @@ Sources: [comfy.org/open-source-higgsfield](https://comfy.org/open-source-higgsf
    - Options: (a) email licensing@ltx.io for a written OK (recommended, before 10-30); (b) position Hildegard as a ComfyUI front-end, not an LTX Studio replacement; (c) if the answer is no, make Wan 2.2 the default.
 
    Does Hildegard competing with LTX Studio matter to you, and do you plan to charge for or host Hildegard?
-2. **Revenue.** Are you, or anything you control or are employed by in connection with this work (BarnLabs?), at or above $10M annual revenue? If not, LTX use is free for you.
+2. **Revenue.** Are you, or anything you control or are employed by in connection with this work, at or above $10M annual revenue? If not, LTX use is free for you.
 3. **AGPL-3.0-only vs -or-later.** "-only" keeps control. "-or-later" eases future relicensing by others. Either is fine for the challenge; confirm "-only".
 4. **Brand assets.** OK to keep the logos and wordmark under "all rights reserved / trademark" rather than Apache or AGPL?
 5. **Font provenance.** Were the woff2 files downloaded unmodified (Google Fonts or Fontsource), or subset by you? If you subset them, rename Source Sans 3 and Uncial Antiqua because of their Reserved Font Names.
