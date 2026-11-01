@@ -15,7 +15,9 @@
       "!**/playwright-report",
       "!**/test-results",
       "!**/*.svg",
-      "!omarchy/Model.js"
+      "!omarchy/Model.js",
+      "!docs/design",
+      "!docs/promo"
     ]
   },
   "formatter": {
