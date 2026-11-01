@@ -176,7 +176,7 @@ describe('before anyone signs in', () => {
 
 describe('signing in', () => {
   it('sets an HttpOnly, SameSite=Strict session cookie, Secure over HTTPS', async () => {
-    const res = await send('/api/auth/signin', 'POST', { name: 'Alex', passphrase: PASS });
+    const res = await send('/api/auth/signin', 'POST', { name: 'alex', passphrase: PASS });
     expect(res.status).toBe(200);
     const set = res.headers.getSetCookie().join('\n');
     expect(set).toMatch(

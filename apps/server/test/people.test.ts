@@ -61,7 +61,7 @@ describe('the owner and invites', () => {
     expect(people.hasOwner()).toBe(false);
     expect((await people.setOwner('Alex', PASS)).created).toBe(true);
     await expect(people.setOwner('Someone else', PASS)).rejects.toThrow(/already has an owner, Alex/);
-    const s = (await people.signIn('Alex', PASS))!;
+    const s = (await people.signIn('alex', PASS))!;
     expect(people.authenticate(s.token)?.person.name).toBe('Alex');
     expect((await people.setOwner('Alex', 'a brand new passphrase')).created).toBe(false);
     expect(people.authenticate(s.token)).toBeNull();

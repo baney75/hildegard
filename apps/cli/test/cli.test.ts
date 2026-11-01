@@ -473,7 +473,7 @@ describe('host and doctor', () => {
         ...at,
       );
       expect(owner.steps[0]).toMatchObject({ id: 'owner', status: 'done' });
-      expect(srv.people.find('Alex')).toMatchObject({ role: 'owner' });
+      expect(srv.people.find('alex')).toMatchObject({ role: 'owner' });
 
       const on = await hildegard(home, 'host', ...at);
       expect(on.ok).toBe(true);
