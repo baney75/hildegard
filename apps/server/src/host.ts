@@ -44,7 +44,7 @@ const tailscaleCmds = () =>
 export interface Tailnet {
   /** The command that answered. */
   cmd: string;
-  /** Full MagicDNS name, such as parish1.tail1234.ts.net, when MagicDNS is on. */
+  /** Full MagicDNS name, such as gpu-a.example.ts.net, when MagicDNS is on. */
   dns: string | null;
   ip: string;
 }
@@ -218,7 +218,7 @@ export class Host {
       try {
         u = new URL(`http://${bracket}:${this.opts.port()}`);
       } catch {
-        throw new HostError(400, 'That isn’t an address, like 100.101.102.103.');
+        throw new HostError(400, 'That isn’t an address, like 100.64.0.1.');
       }
       if (!privateLink(u) || ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname))
         throw new HostError(

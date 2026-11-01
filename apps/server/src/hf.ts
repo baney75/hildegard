@@ -111,7 +111,7 @@ function keychainEntry(Entry: Keyring['Entry'], account: string): SecretStore {
 }
 
 /**
- * The OS keychain entry for one secret ("huggingface", or "choir-parish1" for a joined device's key). Null where no
+ * The OS keychain entry for one secret ("huggingface", or "choir-gpu-a" for a joined device's key). Null where no
  * keychain takes writes, or when HILDEGARD_SECRETS=file asks for files (tests, and machines where a prompt would hang).
  */
 export async function keychainStore(

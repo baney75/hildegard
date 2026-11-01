@@ -247,7 +247,7 @@ signing in. It uses [Tailscale](https://tailscale.com); install it and sign in f
 
 ```sh
 hildegard host owner        # your name and a passphrase, for signing in from other devices
-hildegard host              # https://my-pc.tail1234.ts.net, on your tailnet
+hildegard host              # https://my-pc.example.ts.net, on your tailnet
 hildegard host invite       # a one-time link for someone else to join as a director
 ```
 
@@ -268,7 +268,7 @@ Open the link anywhere on your tailnet and sign in. Settings › Sharing and Set
 
 A Mac or laptop without a big GPU can render on one of your other computers. Put both on your
 [Tailscale](https://tailscale.com) tailnet and install Hildegard on both. On the computer with the GPU (here
-`parish1`), with its models installed:
+`gpu-a`), with its models installed:
 
 ```sh
 hildegard choir invite
@@ -278,14 +278,14 @@ It prints a one-line join code. On the other computer:
 
 ```sh
 hildegard choir join        # paste the code when asked; it doesn't show
-hildegard choir list        # parish1 · RTX 4080 Laptop, online, with its models
+hildegard choir list        # gpu-a · RTX 4080 Laptop, online, with its models
 ```
 
-Takes now render on parish1, and the Studio says so ("Rendering on parish1 · RTX 4080 Laptop"). Models count as
+Takes now render on gpu-a, and the Studio says so ("Rendering on gpu-a · RTX 4080 Laptop"). Models count as
 installed when they are installed there, so nothing downloads twice. Settings › Devices does the same with buttons:
 "Share this GPU" shows the code to copy, and "Add a device" takes it.
 
-- `hildegard choir use local` renders here again; `hildegard choir use parish1` goes back. A computer without
+- `hildegard choir use local` renders here again; `hildegard choir use gpu-a` goes back. A computer without
   ComfyUI switches to the device it joins on its own.
 - `hildegard choir use auto` (**Any free device** in Settings › Devices) sends each take to whichever device is free
   for it, this one included: one that has its model and fits it, that isn't busy, shares whenever asked before one
@@ -293,24 +293,24 @@ installed when they are installed there, so nothing downloads twice. Settings �
   sends its takes to the DGX Spark, and a Spark in use leaves them on the laptop. With none free, a take renders
   here, since this computer's own work never waits. A device on `auto` itself is never sent takes, so two can't end up
   waiting on each other.
-- `hildegard choir leave parish1` forgets the device; `hildegard choir revoke` on parish1 stops sharing and turns
+- `hildegard choir leave gpu-a` forgets the device; `hildegard choir revoke` on gpu-a stops sharing and turns
   every paired device away.
-- The code holds a fresh 256-bit key. parish1 keeps only its hash; the other computer keeps it in the system
+- The code holds a fresh 256-bit key. gpu-a keeps only its hash; the other computer keeps it in the system
   keychain. Treat the code like a password, and make a new one for each device.
-- Sharing opens one more door on parish1, on its Tailscale address only: renders from paired devices, and nothing
+- Sharing opens one more door on gpu-a, on its Tailscale address only: renders from paired devices, and nothing
   else. The Studio and its API stay on 127.0.0.1 as before. Paired devices can only run graphs Hildegard itself
-  builds, and their takes wait in parish1's own queue, so they never run at the same time as its own.
+  builds, and their takes wait in gpu-a's own queue, so they never run at the same time as its own.
 - Hildegard pairs only over Tailscale (or https), so prompts and videos are encrypted on the way. Without Tailscale
   on the GPU computer, give its address yourself: `hildegard choir invite --url http://100.x.y.z:7341`.
-- If parish1 is also someone's everyday computer, run `hildegard choir opportunistic on` there (or turn on **Only
-  when it's free** in Settings › Devices). Your other devices' renders then wait behind parish1's own work, stop and
+- If gpu-a is also someone's everyday computer, run `hildegard choir opportunistic on` there (or turn on **Only
+  when it's free** in Settings › Devices). Your other devices' renders then wait behind gpu-a's own work, stop and
   go back in line when its own work arrives, and start only while nothing else is using it: an NVIDIA GPU under 30%
   busy, a load under 0.8 per core, no one at the keyboard for 3 minutes, and no other program holding a gigabyte or
   more of GPU memory (Linux with NVIDIA; a language model server waiting for requests, say, which uses no compute
   while it holds the memory). A GPU that doesn't answer counts as busy. Without NVIDIA only the load and the keyboard
   are checked, and Windows without NVIDIA sees only the keyboard (Settings says which). When the owner comes back or
   another program takes the GPU, a render running for another device stops within a few seconds and goes back in
-  line; it starts again by itself once the computer is free, and parish1 stays online meanwhile. Hyprland has no idle
+  line; it starts again by itself once the computer is free, and gpu-a stays online meanwhile. Hyprland has no idle
   clock to ask, so Omarchy's panel says when you leave and come back, and any other idle hook can with
   `hildegard choir presence away|back`. Off, the default, renders from your other devices simply take their turn.
 

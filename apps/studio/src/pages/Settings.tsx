@@ -918,7 +918,7 @@ function Devices({ catalog }: { catalog: Catalog }) {
             <input
               type="url"
               value={url}
-              placeholder="http://100.101.102.103:7341"
+              placeholder="http://100.64.0.1:7341"
               autoComplete="off"
               spellCheck={false}
               onChange={(e) => setUrl(e.target.value)}

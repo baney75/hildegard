@@ -429,7 +429,7 @@ describe('host and doctor', () => {
           ok: true,
           out: JSON.stringify({
             BackendState: 'Running',
-            Self: { DNSName: 'studio.tail1234.ts.net.', TailscaleIPs: ['100.101.102.103'] },
+            Self: { DNSName: 'studio.example.ts.net.', TailscaleIPs: ['100.64.0.1'] },
           }),
         };
       return { ok: true, out: args[0] === 'serve' && args[1] === 'status' ? '{}' : '' };
@@ -457,7 +457,7 @@ describe('host and doctor', () => {
         'host',
         'owner',
         '--name',
-        'Donovan',
+        'Alex',
         '--passphrase-stdin',
         ...at,
       );
@@ -468,28 +468,28 @@ describe('host and doctor', () => {
         'host',
         'owner',
         '--name',
-        'Donovan',
+        'Alex',
         '--passphrase-stdin',
         ...at,
       );
       expect(owner.steps[0]).toMatchObject({ id: 'owner', status: 'done' });
-      expect(srv.people.find('donovan')).toMatchObject({ role: 'owner' });
+      expect(srv.people.find('alex')).toMatchObject({ role: 'owner' });
 
       const on = await hildegard(home, 'host', ...at);
       expect(on.ok).toBe(true);
-      expect(on.url).toBe('https://studio.tail1234.ts.net');
+      expect(on.url).toBe('https://studio.example.ts.net');
       expect(on.steps.at(-1)).toMatchObject({ id: 'host', status: 'done' });
       // AI apps on the owner's devices reach the MCP there with a key; chatbots on the web need Funnel.
-      expect(on.mcpUrl).toBe('https://studio.tail1234.ts.net/mcp');
+      expect(on.mcpUrl).toBe('https://studio.example.ts.net/mcp');
       expect(on.mcp).toMatch(/--funnel/);
       expect(calls).toContainEqual(['serve', '--bg', '--https=443', srv.hostedUrl()]);
       // Again: nothing changes, nothing breaks.
-      expect((await hildegard(home, 'host', ...at)).url).toBe('https://studio.tail1234.ts.net');
+      expect((await hildegard(home, 'host', ...at)).url).toBe('https://studio.example.ts.net');
 
       const invite = await hildegard(home, 'host', 'invite', '--role', 'director', '--hours', '24', ...at);
-      expect(invite.url).toMatch(/^https:\/\/studio\.tail1234\.ts\.net\/#\/invite\/[A-Za-z0-9_-]{43}$/);
+      expect(invite.url).toMatch(/^https:\/\/studio\.example\.ts\.net\/#\/invite\/[A-Za-z0-9_-]{43}$/);
       const people = await hildegard(home, 'host', 'people', ...at);
-      expect(people.people).toMatchObject([{ name: 'Donovan', role: 'owner' }]);
+      expect(people.people).toMatchObject([{ name: 'Alex', role: 'owner' }]);
       expect(people.invites).toMatchObject([{ role: 'director' }]);
 
       expect(await hildegard(home, 'host', 'limit', ...at)).toMatchObject({ ok: true, directorQueue: 3 });
@@ -506,7 +506,7 @@ describe('host and doctor', () => {
       expect((await hildegard(home, 'host', 'limit', ...at)).directorQueue).toBe(5);
 
       const st = await hildegard(home, 'status', ...at);
-      expect(st.host).toMatchObject({ on: true, via: 'tailscale', url: 'https://studio.tail1234.ts.net' });
+      expect(st.host).toMatchObject({ on: true, via: 'tailscale', url: 'https://studio.example.ts.net' });
       expect(st.steps.find((x) => x.id === 'host')).toMatchObject({ status: 'done' });
 
       const funnel = await hildegard(home, 'host', '--funnel', ...at);
@@ -516,7 +516,7 @@ describe('host and doctor', () => {
       const off = await hildegard(home, 'host', 'off', ...at);
       expect(off.host).toMatchObject({ on: false });
       expect(calls).toContainEqual(['funnel', '--https=443', 'off']);
-      expect((await hildegard(home, 'host', 'revoke', 'Donovan', ...at)).ok).toBe(false);
+      expect((await hildegard(home, 'host', 'revoke', 'Alex', ...at)).ok).toBe(false);
     } finally {
       await srv.close();
     }
@@ -542,13 +542,13 @@ describe('host and doctor', () => {
       const none = await hildegard(home, 'host', 'key', 'Laptop', ...at);
       expect(none.needsOwner).toBe(true);
       expect(none.steps[0]).toMatchObject({ id: 'key', command: 'hildegard host owner' });
-      await srv.people.setOwner('Donovan', 'a long and private passphrase');
+      await srv.people.setOwner('Alex', 'a long and private passphrase');
       const made = await hildegard(home, 'host', 'key', 'Claude Desktop on the laptop', ...at);
       expect(made.ok).toBe(true);
       const key = made.key as string;
       expect(key).toMatch(/^hgk_/);
       expect((await hildegard(home, 'host', 'keys', ...at)).grants).toMatchObject([
-        { name: 'Claude Desktop on the laptop', kind: 'key', person: { name: 'Donovan' } },
+        { name: 'Claude Desktop on the laptop', kind: 'key', person: { name: 'Alex' } },
       ]);
 
       // On the laptop: no key yet is the owner's step; a wrong one is refused; the right one links the app.
@@ -954,7 +954,7 @@ describe('doctor’s model steps', () => {
 
   it('asks for no Hugging Face account while takes render on a paired device', async () => {
     const { modelSteps } = await import('../src/doctor.ts');
-    const [, account] = modelSteps({ models: [model('ltx', null, true)], hf, choir: { use: 'parish1' } });
+    const [, account] = modelSteps({ models: [model('ltx', null, true)], hf, choir: { use: 'gpu-a' } });
     expect(account).toMatchObject({ status: 'skipped' });
   });
 

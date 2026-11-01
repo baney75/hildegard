@@ -14,7 +14,7 @@ import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { askSecret, type Ctx, readStdin } from './commands.ts';
 import { type Result, result } from './output.ts';
 
-/** `https://parish1.tail1234.ts.net/` → `https://parish1.tail1234.ts.net`. Only http(s), no path or credentials. */
+/** `https://gpu-a.example.ts.net/` → `https://gpu-a.example.ts.net`. Only http(s), no path or credentials. */
 export function remoteBase(raw: string): string {
   let u: URL;
   try {

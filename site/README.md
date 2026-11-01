@@ -20,7 +20,7 @@ path is relative, so it works from any folder, such as `https://dbaney.com/hilde
 - The takes play from `video/work/` (same name as the still, `.mp4`), and `video/reel.mp4` is 2.5 seconds of six of
   them in the order of `REEL` in `main.js`; the hero caption follows the reel by that order. They play only for visitors
   who haven't asked for reduced motion or data saving, and the reel has a pause button. They were cut from the demo
-  films in `~/Projects/hildegard-demos/films` on rectory1 with ffmpeg (H.264, no sound, 960 px for takes and 1248 px
+  films in `~/Projects/hildegard-demos/films` on studio-1 with ffmpeg (H.264, no sound, 960 px for takes and 1248 px
   for the reel, `-crf 27`/`25` with `-maxrate` 1 and 1.8 Mb/s, `+faststart`). Keep each take under 1 MB and the reel
   under 3 MB.
 - The stills are frames from real takes, in `img/work/`. Their captions (film, shot, prompt word for word, rig, model,

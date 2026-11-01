@@ -54,7 +54,7 @@ export function tokenMatches(presented: string, hashes: readonly string[]): bool
 export interface JoinCode {
   /** The sharing device's name, as the joined one shows it. */
   name: string;
-  /** Its origin, such as http://100.101.102.103:7341. */
+  /** Its origin, such as http://100.64.0.1:7341. */
   url: string;
   token: string;
 }
@@ -98,10 +98,10 @@ export function checkUrl(raw: string): string {
   try {
     u = new URL(raw);
   } catch {
-    throw new ChoirError(400, 'That address isn’t a URL, like http://100.101.102.103:7341.');
+    throw new ChoirError(400, 'That address isn’t a URL, like http://100.64.0.1:7341.');
   }
   if (u.username || u.password || (u.pathname !== '/' && u.pathname !== '') || u.search || u.hash)
-    throw new ChoirError(400, 'Give just the address and port, like http://100.101.102.103:7341.');
+    throw new ChoirError(400, 'Give just the address and port, like http://100.64.0.1:7341.');
   if (!privateLink(u))
     throw new ChoirError(
       400,

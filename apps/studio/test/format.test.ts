@@ -174,18 +174,18 @@ describe('render device', () => {
   it('names the device takes render on, another one included', () => {
     expect(deviceLabel(engine({}))).toBe('This computer');
     expect(deviceLabel(engine({ fake: true }))).toBe('Stand-in GPU');
-    const remote = engine({ comfy: 'remote', device: 'parish1 · RTX 4080 Laptop', fake: true });
-    expect(deviceLabel(remote)).toBe('parish1 · RTX 4080 Laptop');
-    const down = comfyDown({ ...remote, online: false, problem: 'parish1 isn’t answering.' });
-    expect(down.short).toBe('parish1 isn’t answering');
-    expect(down.long).toMatch(/^parish1 isn’t answering\. Takes wait/);
+    const remote = engine({ comfy: 'remote', device: 'gpu-a · RTX 4080 Laptop', fake: true });
+    expect(deviceLabel(remote)).toBe('gpu-a · RTX 4080 Laptop');
+    const down = comfyDown({ ...remote, online: false, problem: 'gpu-a isn’t answering.' });
+    expect(down.short).toBe('gpu-a isn’t answering');
+    expect(down.long).toMatch(/^gpu-a isn’t answering\. Takes wait/);
   });
 });
 
 describe('renders from paired devices', () => {
   const g: GuestTake = {
     id: 'g1',
-    from: 'rectory1',
+    from: 'studio-1',
     status: 'running',
     queuePosition: 0,
     progress: 0.416,
@@ -193,14 +193,14 @@ describe('renders from paired devices', () => {
     createdAt: '2026-10-23T12:00:00.000Z',
   };
   it('say who sent them and how far along they are', () => {
-    expect(guestLine(g)).toBe('From rectory1 · rendering · 42%');
-    expect(guestLine({ ...g, progress: null })).toBe('From rectory1 · rendering');
-    expect(guestLine({ ...g, progress: 1 })).toBe('From rectory1 · rendering · finishing');
+    expect(guestLine(g)).toBe('From studio-1 · rendering · 42%');
+    expect(guestLine({ ...g, progress: null })).toBe('From studio-1 · rendering');
+    expect(guestLine({ ...g, progress: 1 })).toBe('From studio-1 · rendering · finishing');
     expect(guestLine({ ...g, status: 'queued', queuePosition: 1, progress: null })).toBe(
-      'From rectory1 · waiting · up next',
+      'From studio-1 · waiting · up next',
     );
     expect(guestLine({ ...g, status: 'queued', queuePosition: 3, progress: null })).toBe(
-      'From rectory1 · waiting · 3rd in line',
+      'From studio-1 · waiting · 3rd in line',
     );
     expect(guestFrom({ ...g, from: null })).toBe('From another device');
   });

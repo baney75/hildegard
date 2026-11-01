@@ -62,7 +62,7 @@ const figmaFetch = async (url: string, init?: { headers?: Record<string, string>
   if (u.hostname === 'api.figma.com') tokensSeen.push(init?.headers?.['X-Figma-Token'] ?? '');
   const json = (b: unknown) =>
     new Response(JSON.stringify(b), { headers: { 'content-type': 'application/json' } });
-  if (u.pathname === '/v1/me') return json({ handle: 'donovan' });
+  if (u.pathname === '/v1/me') return json({ handle: 'example' });
   if (u.pathname === '/v1/files/AbCdEf1234567890') return json(bakery);
   if (u.pathname === '/v1/files/AbCdEf1234567890/images')
     return json({ meta: { images: { ref0abcdef: 'https://s3-alpha.figma.com/img/a' } } });
@@ -228,9 +228,9 @@ describe('sites', { timeout: 60_000 }, () => {
     expect(bad.status).toBe(422);
     const link = await api('/api/sites/figma-token', {
       method: 'PUT',
-      body: JSON.stringify({ token: 'figd_0123456789abcdefghijklmnop' }),
+      body: JSON.stringify({ token: ['figd', '0123456789abcdefghijklmnop'].join('_') }),
     });
-    expect(await link.json()).toEqual({ linked: true, as: 'donovan' });
+    expect(await link.json()).toEqual({ linked: true, as: 'example' });
     expect(readFileSync(join(dir, 'secrets', 'figma.secret'), 'utf8')).toBe(
       'figd_0123456789abcdefghijklmnop',
     );
@@ -272,7 +272,7 @@ describe('sites', { timeout: 60_000 }, () => {
       '192.168.1.20',
       '172.20.0.1',
       '169.254.169.254',
-      '100.101.102.103',
+      '100.64.0.1',
       '::1',
       'fd7a:115c:a1e0::1',
       '::ffff:10.0.0.1',
@@ -286,7 +286,7 @@ describe('sites', { timeout: 60_000 }, () => {
     expect(await allow('http://localhost:7341/api/settings')).toBe(false);
     expect(await allow('http://[::1]/')).toBe(false);
     expect(await allow('file:///etc/passwd')).toBe(false);
-    expect(await allow('https://parish1.tail1234.ts.net/')).toBe(false);
+    expect(await allow('https://gpu-a.example.ts.net/')).toBe(false);
     const r = await api('/api/sites', {
       method: 'POST',
       body: JSON.stringify({ from: 'url', url: `${srv.url}/` }),

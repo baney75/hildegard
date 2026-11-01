@@ -132,7 +132,7 @@ export class RemoteEngine implements Engine {
     this.from = opts.from ?? (() => null);
   }
 
-  /** "parish1 · RTX 4080 Laptop" once it has said which GPU it has. */
+  /** "gpu-a · RTX 4080 Laptop" once it has said which GPU it has. */
   get device(): string {
     const gpu = this.last?.gpu?.name;
     return gpu ? `${this.name} · ${shortGpu(gpu)}` : this.name;

@@ -136,7 +136,7 @@ behind the link.
    hildegard host --json
    ```
 
-   On success the `host` step is `done` and `url` is the link, such as `https://parish1.tail1234.ts.net`. Rerunning it
+   On success the `host` step is `done` and `url` is the link, such as `https://gpu-a.example.ts.net`. Rerunning it
    keeps the same link. When a step is `needs-owner`, its `command` is the fix; the usual ones:
 
    | `command` | Why |
@@ -291,7 +291,7 @@ it needs nothing. Anywhere else it needs a bearer token and acts as that token's
 2. On the other device, with Hildegard installed there too (the CLI is enough), pipe it in:
 
    ```sh
-   printf %s "$KEY" | hildegard connect claude-code --remote https://parish1.tail1234.ts.net --key-stdin --json
+   printf %s "$KEY" | hildegard connect claude-code --remote https://gpu-a.example.ts.net --key-stdin --json
    ```
 
    It checks the key against that Hildegard first, keeps it in the keychain, and links the app to

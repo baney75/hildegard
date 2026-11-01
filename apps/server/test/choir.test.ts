@@ -48,11 +48,11 @@ describe('keys', () => {
 describe('join codes', () => {
   const token = newToken();
   it('round-trip, and tolerate the line breaks a paste brings', () => {
-    const code = encodeJoinCode({ name: 'parish1', url: 'http://100.101.102.103:7341', token });
+    const code = encodeJoinCode({ name: 'gpu-a', url: 'http://100.64.0.1:7341', token });
     expect(code).toMatch(/^hgc1_[A-Za-z0-9_-]+$/);
     expect(parseJoinCode(`  ${code.slice(0, 20)}\n${code.slice(20)}\n`)).toEqual({
-      name: 'parish1',
-      url: 'http://100.101.102.103:7341',
+      name: 'gpu-a',
+      url: 'http://100.64.0.1:7341',
       token,
     });
   });
@@ -64,12 +64,12 @@ describe('join codes', () => {
       'hello',
       'hgc1_!!!',
       `hgc1_${'A'.repeat(2000)}`,
-      enc({ n: 'parish1', u: 'http://100.101.102.103:7341', t: 'short' }),
-      enc({ n: 'local', u: 'http://100.101.102.103:7341', t: token }),
-      enc({ n: 'bad name!', u: 'http://100.101.102.103:7341', t: token }),
+      enc({ n: 'gpu-a', u: 'http://100.64.0.1:7341', t: 'short' }),
+      enc({ n: 'local', u: 'http://100.64.0.1:7341', t: token }),
+      enc({ n: 'bad name!', u: 'http://100.64.0.1:7341', t: token }),
       enc({ n: 'p', u: 'file:///etc/passwd', t: token }),
-      enc({ n: 'p', u: 'http://100.101.102.103:7341/api/snapshot', t: token }),
-      enc({ n: 'p', u: 'http://user:pw@100.101.102.103:7341', t: token }),
+      enc({ n: 'p', u: 'http://100.64.0.1:7341/api/snapshot', t: token }),
+      enc({ n: 'p', u: 'http://user:pw@100.64.0.1:7341', t: token }),
     ])
       expect(() => parseJoinCode(bad), bad.slice(0, 40)).toThrow();
   });
@@ -78,7 +78,7 @@ describe('join codes', () => {
     for (const ok of [
       'http://100.64.0.1:7341',
       'http://100.127.255.1:7341',
-      'http://parish1.tail1234.ts.net:7341',
+      'http://gpu-a.example.ts.net:7341',
       'http://127.0.0.1:7341',
       'http://[::1]:7341',
       'http://[fd7a:115c:a1e0::1]:7341',
@@ -94,12 +94,12 @@ describe('join codes', () => {
     const status = JSON.stringify({
       BackendState: 'Running',
       Self: {
-        HostName: 'Parish1',
-        DNSName: 'parish1.tail1234.ts.net.',
-        TailscaleIPs: ['100.70.1.2', 'fd7a::1'],
+        HostName: 'Gpu-a',
+        DNSName: 'gpu-a.example.ts.net.',
+        TailscaleIPs: ['100.64.0.2', 'fd7a::1'],
       },
     });
-    expect(tailscaleSelf(() => status)).toEqual({ ip: '100.70.1.2', name: 'parish1' });
+    expect(tailscaleSelf(() => status)).toEqual({ ip: '100.64.0.2', name: 'gpu-a' });
     expect(tailscaleSelf(() => JSON.stringify({ BackendState: 'Stopped', Self: {} }))).toBeNull();
     expect(tailscaleSelf(() => null)).toBeNull();
   });
@@ -107,8 +107,8 @@ describe('join codes', () => {
 
 describe('renders from paired devices', () => {
   it('keep only a short, plain name from what the other device calls itself', () => {
-    expect(guestName('rectory1')).toBe('rectory1');
-    expect(guestName('  Donovan’s  MacBook\n')).toBe('Donovans MacBook');
+    expect(guestName('studio-1')).toBe('studio-1');
+    expect(guestName('  Alex’s  MacBook\n')).toBe('Alexs MacBook');
     expect(guestName('<img src=x onerror=alert(1)>')).toBe('img srcx onerroralert1');
     expect(guestName('\u202Eevil\u0000')).toBe('evil');
     expect(guestName('x'.repeat(500))).toBe('x'.repeat(40));
@@ -119,7 +119,7 @@ describe('renders from paired devices', () => {
   it('show directors that the GPU is busy, not which device sent the render', () => {
     const g: GuestTake = {
       id: 'g1',
-      from: 'rectory1',
+      from: 'studio-1',
       status: 'running',
       queuePosition: 0,
       progress: 0.42,
@@ -766,8 +766,8 @@ describe('the sharing device’s door', () => {
     expect(
       (await fetch(`${gpu.url}/api/node/info`, { headers: { authorization: `Bearer ${token}` } })).status,
     ).toBe(401);
-    const engine = new RemoteEngine({ name: 'parish1', url: gpu.url, token: () => token });
-    await expect(engine.info()).rejects.toThrow('parish1 no longer accepts this computer.');
+    const engine = new RemoteEngine({ name: 'gpu-a', url: gpu.url, token: () => token });
+    await expect(engine.info()).rejects.toThrow('gpu-a no longer accepts this computer.');
     await until(async () => {
       const s = (await (await fetch(`${mac.url}/api/choir`)).json()) as ChoirState;
       return !!s.devices[0]?.problem && !s.devices[0].online;

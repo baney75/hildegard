@@ -33,7 +33,7 @@ async function until(fn: () => boolean | Promise<boolean>, ms = 15_000) {
   throw new Error('timed out');
 }
 
-/** A stand-in `tailscale`: signed in as studio.tail1234.ts.net, doing whatever `serve` and `funnel` are told. */
+/** A stand-in `tailscale`: signed in as studio.example.ts.net, doing whatever `serve` and `funnel` are told. */
 function fakeTailscale() {
   const calls: string[][] = [];
   let fail: string | null = null;
@@ -45,8 +45,8 @@ function fakeTailscale() {
         out: JSON.stringify({
           BackendState: 'Running',
           Self: {
-            DNSName: 'studio.tail1234.ts.net.',
-            TailscaleIPs: ['100.101.102.103', 'fd7a:115c:a1e0::1'],
+            DNSName: 'studio.example.ts.net.',
+            TailscaleIPs: ['100.64.0.1', 'fd7a:115c:a1e0::1'],
           },
         }),
       };
@@ -153,11 +153,11 @@ describe('before anyone signs in', () => {
   });
 
   it('makes the owner account only on this computer', async () => {
-    expect((await send('/api/people/owner', 'POST', { name: 'Donovan', passphrase: PASS })).status).toBe(401);
+    expect((await send('/api/people/owner', 'POST', { name: 'Alex', passphrase: PASS })).status).toBe(401);
     const short = await send(
       '/api/people/owner',
       'POST',
-      { name: 'Donovan', passphrase: 'short' },
+      { name: 'Alex', passphrase: 'short' },
       undefined,
       srv.url,
     );
@@ -165,7 +165,7 @@ describe('before anyone signs in', () => {
     const res = await send(
       '/api/people/owner',
       'POST',
-      { name: 'Donovan', passphrase: PASS },
+      { name: 'Alex', passphrase: PASS },
       undefined,
       srv.url,
     );
@@ -176,7 +176,7 @@ describe('before anyone signs in', () => {
 
 describe('signing in', () => {
   it('sets an HttpOnly, SameSite=Strict session cookie, Secure over HTTPS', async () => {
-    const res = await send('/api/auth/signin', 'POST', { name: 'donovan', passphrase: PASS });
+    const res = await send('/api/auth/signin', 'POST', { name: 'alex', passphrase: PASS });
     expect(res.status).toBe(200);
     const set = res.headers.getSetCookie().join('\n');
     expect(set).toMatch(
@@ -186,12 +186,12 @@ describe('signing in', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
     owner = cookieFrom(res)!;
     const me = (await (await there('/api/auth/me', { cookie: owner })).json()) as AuthState;
-    expect(me.person).toMatchObject({ name: 'Donovan', role: 'owner' });
+    expect(me.person).toMatchObject({ name: 'Alex', role: 'owner' });
 
     const https = await fetch(`${remote}/api/auth/signin`, {
       method: 'POST',
       headers: { ...H, 'x-forwarded-proto': 'https' },
-      body: JSON.stringify({ name: 'Donovan', passphrase: PASS }),
+      body: JSON.stringify({ name: 'Alex', passphrase: PASS }),
     });
     expect(https.headers.getSetCookie().join('\n')).toMatch(
       /^__Host-hildegard=[A-Za-z0-9_-]{43}; Max-Age=2592000; Path=\/; HttpOnly; Secure; SameSite=Strict$/m,
@@ -200,8 +200,7 @@ describe('signing in', () => {
   });
 
   it('says nothing about which half was wrong, and slows down guessing', async () => {
-    const wrong = () =>
-      send('/api/auth/signin', 'POST', { name: 'Donovan', passphrase: 'not the passphrase' });
+    const wrong = () => send('/api/auth/signin', 'POST', { name: 'Alex', passphrase: 'not the passphrase' });
     const unknown = await send('/api/auth/signin', 'POST', { name: 'Nobody', passphrase: PASS });
     expect(unknown.status).toBe(401);
     const bad = await wrong();
@@ -211,7 +210,7 @@ describe('signing in', () => {
     await wrong();
     await wrong();
     await wrong();
-    const blocked = await send('/api/auth/signin', 'POST', { name: 'Donovan', passphrase: PASS });
+    const blocked = await send('/api/auth/signin', 'POST', { name: 'Alex', passphrase: PASS });
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThan(0);
     // A session already signed in is not affected.
@@ -222,13 +221,13 @@ describe('signing in', () => {
     const res = await fetch(`${remote}/api/auth/signin`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'Donovan', passphrase: PASS }),
+      body: JSON.stringify({ name: 'Alex', passphrase: PASS }),
     });
     expect(res.status).toBe(403);
     const cross = await fetch(`${remote}/api/auth/signin`, {
       method: 'POST',
       headers: { ...H, origin: 'https://evil.example' },
-      body: JSON.stringify({ name: 'Donovan', passphrase: PASS }),
+      body: JSON.stringify({ name: 'Alex', passphrase: PASS }),
     });
     expect(cross.status).toBe(403);
   });
@@ -259,7 +258,7 @@ describe('invites and roles', () => {
     expect((await there(`/api/auth/invite/${token}`)).status).toBe(404);
     const list = (await (await there('/api/people', { cookie: owner })).json()) as PeopleResponse;
     expect(list.people.map((p) => [p.name, p.role])).toEqual([
-      ['Donovan', 'owner'],
+      ['Alex', 'owner'],
       ['Ada', 'director'],
     ]);
     expect(list.invites).toEqual([]);
@@ -271,7 +270,7 @@ describe('invites and roles', () => {
       ['POST', '/api/models/wan-2-2-ti2v-5b/cancel'],
       ['POST', '/api/choir/use', { name: 'local' }],
       ['POST', '/api/choir/invite', {}],
-      ['POST', '/api/hf/token', { token: 'hf_xxxxxxxxxxxxxxxxxxxxxxxx' }],
+      ['POST', '/api/hf/token', { token: ['hf', 'x'.repeat(20)].join('_') }],
       ['POST', '/api/hf/unlink'],
       ['POST', '/api/hf/import'],
       ['POST', '/api/engine/pause'],
@@ -307,7 +306,7 @@ describe('invites and roles', () => {
 
     const theirs = await send('/api/shots', 'POST', { request: request('The owner’s own shot') }, owner);
     const o = (await theirs.json()) as { project: { id: string }; shot: { id: string }; takes: Take[] };
-    expect(o.takes[0]!.by).toMatchObject({ name: 'Donovan' });
+    expect(o.takes[0]!.by).toMatchObject({ name: 'Alex' });
 
     const snap = (await (await there('/api/snapshot', { cookie: director })).json()) as Snapshot;
     expect(snap.projects.map((p) => p.id)).toEqual([project.id]);
@@ -372,7 +371,7 @@ describe('invites and roles', () => {
     expect((await send(`/api/people/${directorId}`, 'PATCH', { role: 'director' }, owner)).status).toBe(200);
     expect((await there('/api/people', { cookie: director })).status).toBe(403);
     const list = (await (await here('/api/people')).json()) as PeopleResponse;
-    const me = list.people.find((p) => p.name === 'Donovan')!;
+    const me = list.people.find((p) => p.name === 'Alex')!;
     expect((await send(`/api/people/${me.id}`, 'DELETE', undefined, owner)).status).toBe(409);
   });
 
@@ -540,7 +539,7 @@ describe('host mode', () => {
       new Promise<number>((resolve) => {
         const u = new URL(`${remote}/api/auth/me`);
         req(
-          { host: u.hostname, port: u.port, path: u.pathname, headers: { host: 'studio.tail1234.ts.net' } },
+          { host: u.hostname, port: u.port, path: u.pathname, headers: { host: 'studio.example.ts.net' } },
           (r) => resolve(r.statusCode!),
         ).end();
       });
@@ -551,14 +550,14 @@ describe('host mode', () => {
     expect(state).toMatchObject({
       on: true,
       via: 'tailscale',
-      url: 'https://studio.tail1234.ts.net',
+      url: 'https://studio.example.ts.net',
       problem: null,
     });
     expect(ts.calls).toContainEqual(['serve', '--bg', '--https=443', remote]);
     expect(await asLink()).toBe(200);
     // An invite now points at the link.
     const { url } = (await (await send('/api/people/invites', 'POST', {}, owner)).json()) as NewInvite;
-    expect(url).toMatch(/^https:\/\/studio\.tail1234\.ts\.net\/#\/invite\/[A-Za-z0-9_-]{43}$/);
+    expect(url).toMatch(/^https:\/\/studio\.example\.ts\.net\/#\/invite\/[A-Za-z0-9_-]{43}$/);
   });
 
   it('goes on the public internet only when asked by name, and turns off cleanly', async () => {

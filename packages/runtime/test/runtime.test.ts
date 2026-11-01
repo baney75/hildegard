@@ -351,7 +351,7 @@ describe('linking agents', () => {
     expect(calls).toEqual([['claude', 'mcp', 'remove', '--scope', 'user', 'hildegard']]);
     const far = {
       command: '/opt/node',
-      args: ['/opt/hildegard.mjs', 'mcp', '--remote', 'https://abbey1.ts.net'],
+      args: ['/opt/hildegard.mjs', 'mcp', '--remote', 'https://render-1.ts.net'],
     };
     expect(connectAgent('claude-code', far, env).status).toBe('done');
     writeFileSync(
