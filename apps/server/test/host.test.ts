@@ -200,8 +200,7 @@ describe('signing in', () => {
   });
 
   it('says nothing about which half was wrong, and slows down guessing', async () => {
-    const wrong = () =>
-      send('/api/auth/signin', 'POST', { name: 'Alex', passphrase: 'not the passphrase' });
+    const wrong = () => send('/api/auth/signin', 'POST', { name: 'Alex', passphrase: 'not the passphrase' });
     const unknown = await send('/api/auth/signin', 'POST', { name: 'Nobody', passphrase: PASS });
     expect(unknown.status).toBe(401);
     const bad = await wrong();
