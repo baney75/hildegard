@@ -56,6 +56,17 @@ hildegard connect codex --no-skills
 The Codex plugin carries the skills only (`.codex-plugin/plugin.json`); the last line links the tools. The release's
 `hildegard-codex.zip` is the same plugin for OpenAI's plugin directory.
 
+If you linked Codex with `hildegard connect codex` before, its copies of the skills are still in `~/.agents/skills`,
+and Codex would list every skill twice. Take them out once you add the plugin:
+
+```sh
+hildegard skills remove --agent codex
+```
+
+This removes only the folders Hildegard put there, so skills of your own stay. Gemini CLI and OpenCode read the same
+folder, so they lose those copies too; linked with `hildegard connect`, they still reach the skills through
+Hildegard's tools (`list_skills` and `read_skill`).
+
 ## Claude Desktop
 
 1. `hildegard connect claude-desktop`, then quit and reopen Claude.

@@ -13,7 +13,7 @@
 // The zips are written here with no dependencies, and are the same bytes for the same files: entries in name order,
 // with a fixed date.
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
@@ -101,24 +101,47 @@ export function skillNames(skills = join(root, 'skills')) {
     .sort();
 }
 
+/** The files a manifest names as images, as [path inside the zip, bytes], so the zip carries whatever they point to. */
+export function icons(repo, paths) {
+  const names = [];
+  for (const p of paths.filter(Boolean)) {
+    if (typeof p !== 'string' || p.includes('\\') || p.includes('\0') || /^[A-Za-z]:/.test(p))
+      throw new Error(`${p} is outside the plugin.`);
+    const name = posix.normalize(p.replace(/^\.\//, ''));
+    if (name.startsWith('../') || name === '..' || posix.isAbsolute(name) || /^[A-Za-z]:/.test(name))
+      throw new Error(`${name} is outside the plugin.`);
+    const abs = resolve(repo, ...name.split('/'));
+    const rel = relative(resolve(repo), abs);
+    if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+      throw new Error(`${name} is outside the plugin.`);
+    names.push(name);
+  }
+  const unique = [...new Set(names)];
+  return unique.map((name) => [name, readFileSync(join(repo, ...name.split('/')))]);
+}
+
 /** Writes hildegard.plugin, hildegard-codex.zip and skill-<name>.zip into out, and returns their paths. */
 export function packSkills(out, version, repo = root) {
   const skills = join(repo, 'skills');
   const manifest = JSON.parse(readFileSync(join(repo, '.claude-plugin', 'plugin.json'), 'utf8'));
   delete manifest.mcpServers;
   manifest.version = version;
-  const plugin = [
-    ['.claude-plugin/plugin.json', Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)],
-    ['.claude-plugin/icon.png', readFileSync(join(repo, '.claude-plugin', 'icon.png'))],
+  const shared = [
     ['README.md', readFileSync(join(repo, 'plugin', 'README.md'))],
     ['LICENSE', readFileSync(join(repo, 'LICENSE'))],
     ...tree(skills, 'skills/'),
+  ];
+  const plugin = [
+    ['.claude-plugin/plugin.json', Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)],
+    ...icons(repo, [manifest.icon]),
+    ...shared,
   ];
   const codex = JSON.parse(readFileSync(join(repo, '.codex-plugin', 'plugin.json'), 'utf8'));
   codex.version = version;
   const codexPlugin = [
     ['.codex-plugin/plugin.json', Buffer.from(`${JSON.stringify(codex, null, 2)}\n`)],
-    ...plugin.filter(([name]) => name !== '.claude-plugin/plugin.json'),
+    ...icons(repo, [codex.interface?.composerIcon, codex.interface?.logo]),
+    ...shared,
   ];
   mkdirSync(out, { recursive: true });
   const written = [join(out, 'hildegard.plugin'), join(out, 'hildegard-codex.zip')];
