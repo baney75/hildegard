@@ -13,7 +13,7 @@
 // The zips are written here with no dependencies, and are the same bytes for the same files: entries in name order,
 // with a fixed date.
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, posix, relative, sep } from 'node:path';
+import { isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
@@ -102,11 +102,22 @@ export function skillNames(skills = join(root, 'skills')) {
 }
 
 /** The files a manifest names as images, as [path inside the zip, bytes], so the zip carries whatever they point to. */
-function icons(repo, paths) {
-  const names = [...new Set(paths.filter(Boolean).map((p) => posix.normalize(p.replace(/^\.\//, ''))))];
-  for (const name of names)
-    if (name.startsWith('../') || posix.isAbsolute(name)) throw new Error(`${name} is outside the plugin.`);
-  return names.map((name) => [name, readFileSync(join(repo, ...name.split('/')))]);
+export function icons(repo, paths) {
+  const names = [];
+  for (const p of paths.filter(Boolean)) {
+    if (typeof p !== 'string' || p.includes('\\') || p.includes('\0'))
+      throw new Error(`${p} is outside the plugin.`);
+    const name = posix.normalize(p.replace(/^\.\//, ''));
+    if (name.startsWith('../') || name === '..' || posix.isAbsolute(name))
+      throw new Error(`${name} is outside the plugin.`);
+    const abs = resolve(repo, ...name.split('/'));
+    const rel = relative(resolve(repo), abs);
+    if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+      throw new Error(`${name} is outside the plugin.`);
+    names.push(name);
+  }
+  const unique = [...new Set(names)];
+  return unique.map((name) => [name, readFileSync(join(repo, ...name.split('/')))]);
 }
 
 /** Writes hildegard.plugin, hildegard-codex.zip and skill-<name>.zip into out, and returns their paths. */

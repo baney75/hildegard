@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error: plain JavaScript, run by Node with no build
 import { answer, findHildegard, installText } from '../../../plugin/mcp.mjs';
 // @ts-expect-error: plain JavaScript, run by Node with no build
-import { packSkills, skillNames } from '../../../scripts/pack-skills.mjs';
+import { icons, packSkills, skillNames } from '../../../scripts/pack-skills.mjs';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const json = (p: string) => JSON.parse(readFileSync(join(root, p), 'utf8'));
@@ -194,6 +194,19 @@ describe('the skill packs', () => {
       expect(z.has(icon.replace(/^\.\//, '')), icon).toBe(true);
     expect(z.has('LICENSE')).toBe(true);
     for (const name of skillNames()) expect(z.has(`skills/${name}/SKILL.md`)).toBe(true);
+  });
+
+
+  it('refuses icon paths that climb out of the plugin', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'hg-repo-'));
+    for (const bad of [
+      '../outside.png',
+      '..\\outside.png',
+      '/outside.png',
+      'assets/..\\..\\outside.png',
+      'C:\\outside.png',
+    ])
+      expect(() => icons(repo, [bad]), bad).toThrow(/outside the plugin/);
   });
 
   it('packs the icons each manifest names, wherever they are', () => {
