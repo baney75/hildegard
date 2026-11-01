@@ -196,7 +196,6 @@ describe('the skill packs', () => {
     for (const name of skillNames()) expect(z.has(`skills/${name}/SKILL.md`)).toBe(true);
   });
 
-
   it('refuses icon paths that climb out of the plugin', () => {
     const repo = mkdtempSync(join(tmpdir(), 'hg-repo-'));
     for (const bad of [
@@ -205,6 +204,7 @@ describe('the skill packs', () => {
       '/outside.png',
       'assets/..\\..\\outside.png',
       'C:\\outside.png',
+      'C:/outside.png',
     ])
       expect(() => icons(repo, [bad]), bad).toThrow(/outside the plugin/);
   });

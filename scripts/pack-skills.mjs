@@ -105,10 +105,10 @@ export function skillNames(skills = join(root, 'skills')) {
 export function icons(repo, paths) {
   const names = [];
   for (const p of paths.filter(Boolean)) {
-    if (typeof p !== 'string' || p.includes('\\') || p.includes('\0'))
+    if (typeof p !== 'string' || p.includes('\\') || p.includes('\0') || /^[A-Za-z]:/.test(p))
       throw new Error(`${p} is outside the plugin.`);
     const name = posix.normalize(p.replace(/^\.\//, ''));
-    if (name.startsWith('../') || name === '..' || posix.isAbsolute(name))
+    if (name.startsWith('../') || name === '..' || posix.isAbsolute(name) || /^[A-Za-z]:/.test(name))
       throw new Error(`${name} is outside the plugin.`);
     const abs = resolve(repo, ...name.split('/'));
     const rel = relative(resolve(repo), abs);
