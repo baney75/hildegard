@@ -68,8 +68,10 @@ same head binding, so don't also run `gh pr merge`. The status is the only way a
    never loosens it), and the PR body has its Review block. Who sets it:
    - Tier 1: the author's agent, after the tier's one check passes (`tools/rsi_gate.py` for an rsi PR).
    - Tiers 2 and 3: the author's agent once the rule holds.
-   - Donovan, for `donovan_merges: true`, a tier 3 change with an open critical or high finding, or one settled over a
-     dispute. An agent may do it only under his dated written authority for that PR, quoted in the PR body.
+   - Donovan, for `donovan_merges: true`, a tier 3 change with an open critical or high finding, or a tier 2 or 3
+     change settled with any `disputed:` answer (skill Settled: "or Donovan after round 2"). An agent may do it only
+     under his dated written authority for that PR, quoted in the PR body. That Donovan override is the only
+     exception to the merge rule.
 3. Set it on `H`, the head every counted verdict reviewed, with the base those verdicts reviewed (from the review
    brief, not today's `origin/main`). A fix after a SHIP is a new head: review it first.
 
@@ -78,10 +80,10 @@ same head binding, so don't also run `gh pr merge`. The status is the only way a
      -f description="tier <n> <SHIP|settled r<round>|check <name> pass> base <reviewed base, 7 chars>"
    ```
 
-4. If the PR is updated from `main`, that is a new head. Re-status it without a new review only when the PR's own
-   change is byte-identical: `git diff <old base>...$H | git patch-id` equals `git diff <new base>...$NEW | git
-   patch-id`, and the picker on `$NEW` returns the same or a lower tier. Whoever could set it under step 2 sets it
-   again. Otherwise review again.
+4. If the PR is updated from `main`, that is a new head. Re-status it without a new review only when
+   `git diff <old base>...$H | git patch-id --verbatim` equals `git diff <new base>...$NEW | git patch-id --verbatim`
+   (both sides non-empty, both `git diff` commands exit 0 under `set -o pipefail`), and the picker on `$NEW` returns
+   the same or a lower tier. Whoever could set it under step 2 sets it again. Otherwise review again.
 5. To take approval back (a late finding, a verdict that turned), always set failure in the same context on the PR's
    current head, `gh pr view <n> --json headRefOid -q .headRefOid`; the latest status in `baney-review` wins:
 
@@ -90,9 +92,13 @@ same head binding, so don't also run `gh pr merge`. The status is the only way a
    ```
 
    `gh pr merge <n> --disable-auto` may follow, never replace it: `auto-merge.yml` turns auto-merge back on.
+   The status only merges when `auto-merge.yml` covers the PR (an owner PR). For other PRs, the agent enables
+   auto-merge with `gh pr merge <n> --auto --match-head-commit "$H"`, or Donovan merges. If the PR has already
+   merged, open a revert PR and an issue instead of re-statusing.
 
-Anyone with write access can set this status, so it is a record the reviewing agent keeps, not proof a review ran.
-Pinning it to a review-only GitHub App is the open step (#49).
+This gate is honor-system. Anyone with write access can set the status, so it records that the reviewing agent
+believes the tier rule held; it is not proof a review ran. A dedicated review-only GitHub App is out of scope for
+now (issue #49). PR CLAIMs that rely on this gate must say the same: honor-system, not cryptographic proof.
 
 ## Rules
 
