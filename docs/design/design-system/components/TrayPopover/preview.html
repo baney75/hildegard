@@ -1,0 +1,36 @@
+<!-- @dsCard group="Desktop shell" height=380 subtitle="Menu bar and system tray popover" -->
+<div class="hg-root" style="padding:24px;display:flex;gap:28px;align-items:flex-start;background:var(--canvas)">
+  <section class="hg-tray" aria-label="Hildegard on this Mac">
+    <div class="hg-tray__head">
+      <img src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" class="tray-mark-dark">
+      <img src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" class="tray-mark-light">
+      <div style="min-width:0">
+        <div class="hg-tray__title">This Mac · Opportunistic</div>
+        <div class="hg-tray__sub">Lends compute when you step away</div>
+      </div>
+      <button class="hg-btn hg-btn--icon hg-btn--ghost hg-btn--sm" aria-label="Open Hildegard" style="margin-left:auto"><i data-icon="desktop" data-size="16"></i></button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;padding:12px;border-radius:var(--radius-md);background:var(--canvas)">
+      <div class="hg-ring hg-ring--busy" style="--size:40px"><svg viewBox="0 0 48 48"><circle class="track" cx="24" cy="24" r="20"/><circle class="bar" cx="24" cy="24" r="20" pathLength="100"/><circle class="track" cx="24" cy="24" r="13"/><circle class="inner" cx="24" cy="24" r="13" pathLength="100"/><circle class="core" cx="24" cy="24" r="2.5"/></svg></div>
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Voice · Chapter 3 narration</div>
+        <div style="font-size:13px;color:var(--text-secondary)"><span class="hg-status hg-status--running">Running</span> · <span class="hg-num">42% GPU</span></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div><div style="font-weight:600">Lend compute</div><div class="hg-tray__sub">Pause to keep this Mac to yourself</div></div>
+      <button class="hg-switch" role="switch" aria-checked="true" aria-label="Lend compute"></button>
+    </div>
+    <hr class="hg-rule">
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)"><span>Saved this month</span><span class="hg-num" style="color:var(--state-saved)">+$214.60</span></div>
+  </section>
+  <div style="display:grid;gap:10px;font-size:13px;color:var(--text-secondary)">
+    <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 12px;border-radius:6px;background:#e9e6df"><img src="/_blob/b4bf03dbc08bde82df1c2738d99d2fe7" alt="" width="18" height="18"><span style="color:#1a1914">macOS menu bar (template)</span></div>
+    <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 12px;border-radius:6px;background:#202020"><img src="/_blob/659a223001a9e874bb46347f5fe519e3" alt="" width="18" height="18"><span style="color:#f2ecdd">Windows and Linux tray</span></div>
+  </div>
+</div>
+<style>.tray-mark-light{display:none}[data-theme="light"] .tray-mark-light{display:block}[data-theme="light"] .tray-mark-dark{display:none}.hg-tray__head img{width:20px;height:25px}</style>
+<script>
+Hildegard.hydrate(document);
+document.querySelector('.hg-switch').addEventListener('click', function () { this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true')); });
+</script>

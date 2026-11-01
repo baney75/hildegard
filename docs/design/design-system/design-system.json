@@ -1,0 +1,199 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "App icons": {
+      "files": {
+        "appicon-android-background.svg": {
+          "blob": "ac682446f72b0186813fb10e510530ea",
+          "name": "appicon-android-background.svg",
+          "size": 845,
+          "type": "image/svg+xml"
+        },
+        "appicon-android-foreground.svg": {
+          "blob": "020fccb185e1c55c99dce6c8007bc576",
+          "name": "appicon-android-foreground.svg",
+          "size": 4405,
+          "type": "image/svg+xml"
+        },
+        "appicon-android-monochrome.svg": {
+          "blob": "a8a3df2da362f571a23b9b09423b861a",
+          "name": "appicon-android-monochrome.svg",
+          "size": 4404,
+          "type": "image/svg+xml"
+        },
+        "appicon-ios.svg": {
+          "blob": "7c555d4d2a6393e755814148caca000e",
+          "name": "appicon-ios.svg",
+          "size": 4556,
+          "type": "image/svg+xml"
+        },
+        "appicon-linux-flat.svg": {
+          "blob": "e28a55839b292028c708ca63b67cf407",
+          "name": "appicon-linux-flat.svg",
+          "size": 4268,
+          "type": "image/svg+xml"
+        },
+        "appicon-linux-symbolic.svg": {
+          "blob": "0c672e341f196f39f069afebcf2a0013",
+          "name": "appicon-linux-symbolic.svg",
+          "size": 3405,
+          "type": "image/svg+xml"
+        },
+        "appicon-macos.svg": {
+          "blob": "64212540a160b5e7cd78cd2b581135af",
+          "name": "appicon-macos.svg",
+          "size": 13507,
+          "type": "image/svg+xml"
+        },
+        "appicon-windows.svg": {
+          "blob": "1bb4373685eaa77e45250b01dba71bda",
+          "name": "appicon-windows.svg",
+          "size": 4843,
+          "type": "image/svg+xml"
+        },
+        "favicon.svg": {
+          "blob": "49f65d525d4d6ff11e8d80c373c8f32a",
+          "name": "favicon.svg",
+          "size": 3733,
+          "type": "image/svg+xml"
+        },
+        "tray-light.svg": {
+          "blob": "659a223001a9e874bb46347f5fe519e3",
+          "name": "tray-light.svg",
+          "size": 3540,
+          "type": "image/svg+xml"
+        },
+        "tray-template.svg": {
+          "blob": "b4bf03dbc08bde82df1c2738d99d2fe7",
+          "name": "tray-template.svg",
+          "size": 3540,
+          "type": "image/svg+xml"
+        }
+      },
+      "name": "App icons",
+      "order": [
+        "appicon-macos.svg",
+        "appicon-ios.svg",
+        "appicon-android-foreground.svg",
+        "appicon-android-background.svg",
+        "appicon-android-monochrome.svg",
+        "appicon-windows.svg",
+        "appicon-linux-flat.svg",
+        "appicon-linux-symbolic.svg",
+        "tray-template.svg",
+        "tray-light.svg",
+        "favicon.svg"
+      ],
+      "tile": "m"
+    },
+    "Logos": {
+      "files": {
+        "lockup-horizontal-green.svg": {
+          "blob": "686a97e761299cd342aa0e861ea8ef8a",
+          "name": "lockup-horizontal-green.svg",
+          "size": 11453,
+          "type": "image/svg+xml"
+        },
+        "lockup-horizontal-vellum.svg": {
+          "blob": "cf2ebb6ce8a38fa872436268c957f464",
+          "name": "lockup-horizontal-vellum.svg",
+          "size": 11453,
+          "type": "image/svg+xml"
+        },
+        "lockup-stacked-green.svg": {
+          "blob": "741d8dd2f0485a9cc40267689ef57fbb",
+          "name": "lockup-stacked-green.svg",
+          "size": 11874,
+          "type": "image/svg+xml"
+        },
+        "lockup-stacked-vellum.svg": {
+          "blob": "0a495da4b2de23ca4b3409545726fc06",
+          "name": "lockup-stacked-vellum.svg",
+          "size": 11874,
+          "type": "image/svg+xml"
+        },
+        "mark-green.svg": {
+          "blob": "713b2ac385783744f1549b8bd359fc13",
+          "name": "mark-green.svg",
+          "size": 3799,
+          "type": "image/svg+xml"
+        },
+        "mark-mono-ink.svg": {
+          "blob": "37d8b4b458bbc34d7dde5cf63f2a4f6d",
+          "name": "mark-mono-ink.svg",
+          "size": 3794,
+          "type": "image/svg+xml"
+        },
+        "mark-mono-vellum.svg": {
+          "blob": "4d69758e780c44fe2647ac5873f5b675",
+          "name": "mark-mono-vellum.svg",
+          "size": 3794,
+          "type": "image/svg+xml"
+        },
+        "mark-vellum.svg": {
+          "blob": "7825c0dbb5e883c37b5838e0971f67d3",
+          "name": "mark-vellum.svg",
+          "size": 3799,
+          "type": "image/svg+xml"
+        },
+        "wordmark-green.svg": {
+          "blob": "5b3bf1e7112af49fe28991afbd972e24",
+          "name": "wordmark-green.svg",
+          "size": 7760,
+          "type": "image/svg+xml"
+        },
+        "wordmark-ink.svg": {
+          "blob": "b537edb18ad4498a713568ba2dea82c2",
+          "name": "wordmark-ink.svg",
+          "size": 7760,
+          "type": "image/svg+xml"
+        },
+        "wordmark-vellum.svg": {
+          "blob": "7199a976377ee3f5bd34f969a65186b8",
+          "name": "wordmark-vellum.svg",
+          "size": 7760,
+          "type": "image/svg+xml"
+        }
+      },
+      "name": "Logos",
+      "order": [
+        "lockup-horizontal-vellum.svg",
+        "lockup-horizontal-green.svg",
+        "lockup-stacked-vellum.svg",
+        "lockup-stacked-green.svg",
+        "mark-vellum.svg",
+        "mark-green.svg",
+        "mark-mono-vellum.svg",
+        "mark-mono-ink.svg",
+        "wordmark-vellum.svg",
+        "wordmark-green.svg",
+        "wordmark-ink.svg"
+      ],
+      "tile": "l"
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-10-16T18:17:23Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [
+    "Logos",
+    "App icons"
+  ],
+  "lastChange": {
+    "at": "2026-10-16T18:17:23Z",
+    "by": "Donovan",
+    "note": "First system: burning-egg mark, Hildegard's own palette, adaptive layout for desktop, iPad and phone",
+    "via": "Claude"
+  },
+  "layout": "files",
+  "libraries": [],
+  "namespace": "Hildegard",
+  "sections": {},
+  "title": "Hildegard"
+}

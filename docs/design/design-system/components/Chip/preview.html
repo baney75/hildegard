@@ -1,0 +1,39 @@
+<!-- @dsCard group="Inputs" height=200 subtitle="Modality chips and the segmented control" -->
+<div class="hg-root" style="padding:24px;display:grid;gap:22px;background:var(--canvas)">
+  <div class="hg-chips" role="group" aria-label="Kind of work">
+    <button class="hg-chip" aria-pressed="false"><i data-icon="transcribe" data-size="16"></i>Transcribe</button>
+    <button class="hg-chip" aria-pressed="false"><i data-icon="label" data-size="16"></i>Label</button>
+    <button class="hg-chip" aria-pressed="true"><i data-icon="image" data-size="16"></i>Image</button>
+    <button class="hg-chip" aria-pressed="false"><i data-icon="voice" data-size="16"></i>Voice</button>
+    <button class="hg-chip" aria-pressed="false"><i data-icon="music" data-size="16"></i>Music</button>
+    <button class="hg-chip" aria-pressed="false"><i data-icon="video" data-size="16"></i>Video</button>
+    <button class="hg-chip" aria-pressed="false"><i data-icon="model3d" data-size="16"></i>3D</button>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+    <div class="hg-seg" role="radiogroup" aria-label="Length">
+      <button role="radio" aria-checked="false">0:30</button>
+      <button role="radio" aria-checked="true">2:00</button>
+      <button role="radio" aria-checked="false">4:00</button>
+    </div>
+    <div class="hg-seg" role="tablist" aria-label="Library">
+      <button role="tab" aria-selected="true">My voices</button>
+      <button role="tab" aria-selected="false">Cloned</button>
+      <button role="tab" aria-selected="false">Library</button>
+    </div>
+  </div>
+</div>
+<script>
+Hildegard.hydrate(document);
+document.querySelectorAll('.hg-chip').forEach(function (c) {
+  c.addEventListener('click', function () {
+    document.querySelectorAll('.hg-chip').forEach(function (o) { o.setAttribute('aria-pressed', String(o === c)); });
+  });
+});
+document.querySelectorAll('.hg-seg').forEach(function (g) {
+  g.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var attr = b.hasAttribute('aria-selected') ? 'aria-selected' : 'aria-checked';
+    g.querySelectorAll('button').forEach(function (o) { o.setAttribute(attr, String(o === b)); });
+  });
+});
+</script>

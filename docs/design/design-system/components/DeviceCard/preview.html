@@ -1,0 +1,61 @@
+<!-- @dsCard group="Choir" height=420 width=980 subtitle="The Choir as concentric orbits, and one device in detail" -->
+<div class="hg-root" style="padding:24px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;background:var(--canvas)">
+  <div class="hg-card" style="position:relative;overflow:hidden;background:var(--sapphire-deep);min-height:360px">
+    <svg viewBox="0 0 440 360" style="width:100%;height:100%;display:block" role="img" aria-label="Choir: five devices around this one">
+      <style>
+        .orb{fill:none;stroke:var(--silver);stroke-opacity:.28;stroke-width:1}
+        .orb.g{stroke:var(--gold);stroke-opacity:.5;stroke-dasharray:2 5}
+        .node{fill:var(--panel);stroke:var(--border-control);stroke-width:1.5}
+        .node.live{stroke:var(--gold);stroke-width:2}
+        .node.q{stroke:var(--sapphire-text);stroke-width:2;stroke-dasharray:3 3}
+        .halo{fill:var(--gold);opacity:.16}
+        .lbl{font:600 12px var(--font-sans);fill:var(--text-primary)}
+        .sub{font:400 11px var(--font-mono);fill:var(--text-muted)}
+        .core{fill:var(--brand)}
+        .spin{transform-origin:220px 180px;animation:hg-spin 60s linear infinite}
+        @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+      </style>
+      <circle class="orb" cx="220" cy="180" r="62"/>
+      <circle class="orb g spin" cx="220" cy="180" r="112"/>
+      <circle class="orb" cx="220" cy="180" r="160"/>
+      <circle class="halo" cx="220" cy="180" r="34"/>
+      <circle class="core" cx="220" cy="180" r="22"/>
+      <text class="lbl" x="220" y="184" text-anchor="middle" style="fill:var(--on-brand)">You</text>
+      <!-- devices -->
+      <circle class="halo" cx="318" cy="126" r="22"/><circle class="node live" cx="318" cy="126" r="14"/>
+      <text class="lbl" x="340" y="122">Studio PC</text><text class="sub" x="340" y="137">RTX 4090 · 61%</text>
+      <circle class="node live" cx="128" cy="236" r="14"/><circle class="halo" cx="128" cy="236" r="22"/>
+      <text class="lbl" x="56" y="270">Studio Mac</text><text class="sub" x="56" y="285">M3 Max · 34%</text>
+      <circle class="node q" cx="160" cy="98" r="12"/>
+      <text class="lbl" x="142" y="94" text-anchor="end">Laptop</text><text class="sub" x="142" y="109" text-anchor="end">free ~11:40 pm</text>
+      <circle class="node" cx="374" cy="236" r="11"/>
+      <text class="lbl" x="318" y="276">Den NAS</text><text class="sub" x="318" y="291">idle · server</text>
+      <circle class="node" cx="236" cy="341" r="10"/>
+      <text class="lbl" x="256" y="345">Pixel 9</text>
+    </svg>
+  </div>
+  <article class="hg-card hg-card--live hg-device" aria-label="Studio PC">
+    <div class="hg-device__head">
+      <div class="hg-device__glyph"><i data-icon="server" data-size="22"></i></div>
+      <div style="min-width:0">
+        <div class="hg-device__name">Studio PC</div>
+        <div class="hg-device__sub">Windows 11 · studio-pc.local</div>
+      </div>
+      <span class="hg-status hg-status--server" style="margin-left:auto">Server</span>
+    </div>
+    <div class="hg-device__specs">
+      <div class="hg-spec"><span>GPU</span><span>RTX 4090</span></div>
+      <div class="hg-spec"><span>VRAM</span><span>24 GB</span></div>
+      <div class="hg-spec"><span>RAM</span><span>64 GB</span></div>
+    </div>
+    <div style="display:grid;gap:6px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)"><span class="hg-status hg-status--running">Running · Music</span><span class="hg-num">61%</span></div>
+      <div class="hg-meter hg-meter--live" style="--v:61%"><i></i></div>
+    </div>
+    <div class="hg-device__foot">
+      <span>Always available</span>
+      <button class="hg-btn hg-btn--sm hg-btn--ghost"><i data-icon="settings" data-size="16"></i>Settings</button>
+    </div>
+  </article>
+</div>
+<script>Hildegard.hydrate(document)</script>

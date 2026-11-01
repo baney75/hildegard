@@ -1,0 +1,54 @@
+<!-- @dsCard group="Layout" height=640 width=1100 subtitle="Auto follows the window; Desktop, Tablet and Phone are a person's choice, remembered on this device" -->
+<div class="hg-root" style="padding:28px;display:grid;gap:22px;background:var(--panel)">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;justify-content:space-between">
+    <div class="hg-seg" data-hg-layout-switch role="radiogroup" aria-label="Layout">
+      <button role="radio" data-mode="auto" aria-checked="true"><i data-icon="auto" data-size="16"></i>Auto</button>
+      <button role="radio" data-mode="desktop" aria-checked="false"><i data-icon="desktop" data-size="16"></i>Desktop</button>
+      <button role="radio" data-mode="tablet" aria-checked="false"><i data-icon="tablet" data-size="16"></i>Tablet</button>
+      <button role="radio" data-mode="phone" aria-checked="false"><i data-icon="phone" data-size="16"></i>Phone</button>
+    </div>
+    <span id="state" class="hg-num" style="font-size:13px;color:var(--text-secondary)"></span>
+  </div>
+  <div id="stage" style="height:500px;border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:auto;background:var(--canvas)">
+    <div class="hg-app" style="height:100%;min-height:0">
+      <nav class="hg-app__nav" aria-label="Main">
+        <div class="hg-app__brand"><img class="m-d" src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt="" style="height:28px"><img class="m-l" src="/_blob/713b2ac385783744f1549b8bd359fc13" alt="" style="height:28px"><img class="hg-wm m-d" src="/_blob/7199a976377ee3f5bd34f969a65186b8" alt="Hildegard"><img class="hg-wm m-l" src="/_blob/5b3bf1e7112af49fe28991afbd972e24" alt="Hildegard"></div>
+        <a class="hg-nav-item"><i data-icon="studio"></i><span>Studio</span></a>
+        <a class="hg-nav-item" aria-current="page"><i data-icon="choir"></i><span>Choir</span></a>
+        <a class="hg-nav-item"><i data-icon="queue"></i><span>Queue</span><span class="hg-nav-item__badge">3</span></a>
+        <a class="hg-nav-item"><i data-icon="models"></i><span>Models</span></a>
+        <a class="hg-nav-item"><i data-icon="costs"></i><span>Costs</span></a>
+      </nav>
+      <header class="hg-app__top"><img class="hg-app__topbrand m-d" src="/_blob/7825c0dbb5e883c37b5838e0971f67d3" alt=""><h1 class="hg-app__title">Choir</h1>
+        <div class="hg-app__topactions"><button class="hg-btn hg-btn--primary hg-btn--sm"><i data-icon="qr" data-size="16"></i>Add device</button></div></header>
+      <main class="hg-app__main">
+        <div class="cards">
+          <div class="hg-card" style="padding:16px"><span class="hg-status hg-status--running">Studio PC</span><div class="hg-meter hg-meter--live" style="--v:61%;margin-top:12px"><i></i></div></div>
+          <div class="hg-card" style="padding:16px"><span class="hg-status hg-status--running">Studio Mac</span><div class="hg-meter hg-meter--live" style="--v:34%;margin-top:12px"><i></i></div></div>
+          <div class="hg-card" style="padding:16px"><span class="hg-status hg-status--queued">Laptop</span><div class="hg-meter" style="--v:0%;margin-top:12px"><i></i></div></div>
+          <div class="hg-card" style="padding:16px"><span class="hg-status hg-status--idle">Den NAS</span><div class="hg-meter" style="--v:4%;margin-top:12px"><i></i></div></div>
+        </div>
+      </main>
+      <aside class="hg-app__aside"><span class="hg-overline">Inspector</span><div class="hg-card" style="padding:16px;font-size:13px;color:var(--text-secondary)">Docks here on wide windows, opens as a sheet below 1280px.</div></aside>
+      <nav class="hg-tabbar" aria-label="Main">
+        <a class="hg-tab"><i data-icon="studio" data-size="22"></i>Studio</a><a class="hg-tab" aria-current="page"><i data-icon="choir" data-size="22"></i>Choir</a><a class="hg-tab"><i data-icon="queue" data-size="22"></i>Queue</a><a class="hg-tab"><i data-icon="menu" data-size="22"></i>More</a>
+      </nav>
+    </div>
+  </div>
+</div>
+<style>
+  .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .m-l { display: none !important; } [data-theme="light"] .m-l { display: block !important; } [data-theme="light"] .m-d { display: none !important; }
+  [data-theme="light"] .hg-app[data-wc="compact"] .hg-app__topbrand.m-d { display: none !important; }
+  .hg-app[data-wc="medium"] .hg-app__brand .hg-wm { display: none !important; }
+  .hg-app__aside { display: none; }
+</style>
+<script>
+(function () {
+  Hildegard.hydrate(document);
+  var app = document.querySelector('.hg-app'), out = document.getElementById('state');
+  function show() { out.textContent = 'layout=' + app.getAttribute('data-layout') + ' → window class ' + app.getAttribute('data-wc') + (app.hasAttribute('data-forced') ? ' (forced)' : ''); }
+  Hildegard.watch(app, { mode: 'auto' }); show();
+  new MutationObserver(show).observe(app, { attributes: true });
+})();
+</script>
