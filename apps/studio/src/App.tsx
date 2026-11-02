@@ -236,11 +236,11 @@ function MoreTab({
         aria-controls={id}
         data-here={here ? '' : undefined}
         aria-current={here ? 'page' : undefined}
+        aria-label={here ? `${here.label}, more pages` : 'More'}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name={here?.icon ?? 'more'} size={22} />
         <span>{here?.label ?? 'More'}</span>
-        {here ? <span className="sr">, more pages</span> : null}
       </button>
       {open ? (
         <div className="hg-tab-more__list" id={id}>
