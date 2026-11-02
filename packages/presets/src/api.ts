@@ -374,9 +374,10 @@ export interface HostState {
   on: boolean;
   /**
    * How people reach it: Tailscale Serve (HTTPS on your tailnet), Tailscale Funnel (HTTPS on the public internet),
-   * or this computer's own Tailscale address (plain HTTP inside the tailnet, which WireGuard encrypts).
+   * this computer's own Tailscale address (plain HTTP inside the tailnet, which WireGuard encrypts), or the owner's
+   * own HTTPS front door (`custom`: a Cloudflare named tunnel, Caddy and the like) forwarding to the hosted listener.
    */
-  via: 'tailscale' | 'funnel' | 'address' | null;
+  via: 'tailscale' | 'funnel' | 'address' | 'custom' | null;
   /** The link to open, once it works. */
   url: string | null;
   /** Why the link doesn't work right now, in a sentence. */

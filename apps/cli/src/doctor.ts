@@ -7,6 +7,47 @@ import { hostStep } from './host.ts';
 import { type Result, result } from './output.ts';
 
 /**
+ * The owner's own front door, seen from this computer: its `/.well-known/oauth-protected-resource` should name
+ * `<url>/mcp`. When it can't be reached or answers wrongly this warns (a `skipped` step with the reason) and
+ * never fails: the door may be reachable only from outside this network.
+ */
+export async function frontDoorStep(url: string, get: typeof fetch = fetch): Promise<Step> {
+  const base = url.replace(/\/$/, '');
+  const warn = (detail: string): Step => ({
+    id: 'front-door',
+    title: 'Your own front door',
+    status: 'skipped',
+    detail,
+    command: 'hildegard host status',
+  });
+  try {
+    const res = await get(`${base}/.well-known/oauth-protected-resource`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok)
+      return warn(
+        `${base} answered ${res.status} instead of Hildegard’s sign-in details. Check that the tunnel or proxy forwards to this computer’s hosted port, with the Host header set to the public name.`,
+      );
+    const j = (await res.json().catch(() => null)) as { resource?: unknown } | null;
+    if (j?.resource !== `${base}/mcp`)
+      return warn(
+        `${base} answered, but not as this Hildegard (it named ${typeof j?.resource === 'string' ? j.resource : 'no resource'}, not ${base}/mcp). Check where the tunnel or proxy forwards to, and its Host header.`,
+      );
+    return {
+      id: 'front-door',
+      title: 'Your own front door',
+      status: 'done',
+      detail: `${base} reaches this Hildegard: its MCP is ${j.resource}.`,
+    };
+  } catch (e) {
+    return warn(
+      `Couldn’t reach ${base} from this computer (${(e as Error).message}). If the tunnel runs elsewhere and only the outside can see it, that may be fine; otherwise check that it is up.`,
+    );
+  }
+}
+
+/**
  * `hildegard doctor`: every part, whether it works, and the command that fixes it. Each step's `command` is the fix;
  * `needs-owner` steps are the owner's to do. It never changes anything.
  */
@@ -108,6 +149,7 @@ export async function doctor(ctx: Ctx): Promise<Result> {
   }
   const h = up ? await api<HostState>(c, '/api/host').catch(() => null) : null;
   if (h) steps.push(hostStep(h));
+  if (h?.on && h.via === 'custom' && h.url) steps.push(await frontDoorStep(h.url));
   // MCP from other devices: only once there is a link to reach it at.
   const g = h?.on ? await api<GrantsResponse>(c, '/api/auth/grants').catch(() => null) : null;
   if (h?.on && g) {
@@ -118,7 +160,7 @@ export async function doctor(ctx: Ctx): Promise<Result> {
       title: 'MCP for AI apps elsewhere',
       status: g.mcpUrl ? 'done' : 'skipped',
       detail: g.mcpUrl
-        ? `${g.mcpUrl} · ${keys === 1 ? '1 key' : `${keys} keys`}, ${bots === 1 ? '1 chatbot' : `${bots} chatbots`}${h.via === 'funnel' ? '' : '. Chatbots on the web need `hildegard host --funnel`'}.`
+        ? `${g.mcpUrl} · ${keys === 1 ? '1 key' : `${keys} keys`}, ${bots === 1 ? '1 chatbot' : `${bots} chatbots`}${h.via === 'funnel' || h.via === 'custom' ? '' : '. Chatbots on the web need `hildegard host --funnel` or your own front door (`hildegard host --public-url https://<name>`)'}.`
         : 'Waiting on the link.',
       ...(g.mcpUrl && !g.grants.length ? { command: 'hildegard host key "<app and device>"' } : {}),
     });

@@ -37,7 +37,15 @@ export interface HgEnv {
      */
     as?: Who;
   };
-  Variables: { who: Who | null; signedMedia?: boolean };
+  Variables: {
+    who: Who | null;
+    signedMedia?: boolean;
+    /**
+     * The owner's own front door (`hildegard host --public-url`), set only for a request that arrived on the hosted
+     * listener with that door's Host. Then the request counts as HTTPS and its origin is this URL.
+     */
+    publicUrl?: string;
+  };
 }
 export type Ctx = Context<HgEnv>;
 
@@ -64,10 +72,15 @@ export function clientKey(c: Ctx): string {
 
 /** Session cookies: `__Host-` on HTTPS, so no subdomain or plain-HTTP page can set or read them. */
 export const COOKIE = { secure: '__Host-hildegard', plain: 'hildegard_session' };
-export const secureRequest = (c: Ctx) => !!c.env?.hosted && c.req.header('x-forwarded-proto') === 'https';
+export const secureRequest = (c: Ctx) =>
+  !!c.env?.hosted && (c.req.header('x-forwarded-proto') === 'https' || !!c.get('publicUrl'));
 
-/** The address this request reached Hildegard at, as its sender sees it: the link's https name, or this computer. */
+/**
+ * The address this request reached Hildegard at, as its sender sees it: the link's https name, or this computer. On
+ * the owner's own front door it is the configured public URL, whatever else the request says.
+ */
 export const originOf = (c: Ctx) =>
+  (c.env?.hosted ? c.get('publicUrl') : undefined) ??
   `${secureRequest(c) ? 'https' : 'http'}://${c.req.header('host') ?? '127.0.0.1'}`;
 
 /**

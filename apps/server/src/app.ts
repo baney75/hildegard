@@ -269,8 +269,13 @@ export function createApp(deps: AppDeps) {
   app.use('*', async (c, next) => {
     // The server calling itself for an MCP call: no browser is involved, and the person was checked on the way in.
     if (c.env?.as) return next();
-    const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
-    if (!allowed(hostName)) return c.text('Unknown host', 421);
+    const hostHeader = (c.req.header('host') ?? '').toLowerCase();
+    const hostName = hostHeader.replace(/:\d+$/, '');
+    // The owner's own front door (a tunnel or proxy) is trusted on the hosted listener only. The same Host on any
+    // other listener is not this link: it falls through to the allowlist, which doesn't have it.
+    const door = host.current().custom;
+    if (door && c.env?.hosted && hostHeader === door.host) c.set('publicUrl', door.url);
+    else if (!allowed(hostName)) return c.text('Unknown host', 421);
     const method = c.req.method;
     // OAuth is called by AI apps, cross-site by design, with no cookie; its sign-in page checks its own origin.
     if (c.req.path.startsWith('/oauth/')) {
@@ -293,7 +298,8 @@ export function createApp(deps: AppDeps) {
       if (origin) {
         try {
           const o = new URL(origin);
-          if (!allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
+          const viaDoor = !!door && !!c.env?.hosted && o.host.toLowerCase() === door.host;
+          if (!viaDoor && !allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
             return c.json({ error: 'Cross-site request refused' }, 403);
         } catch {
           return c.json({ error: 'Bad origin' }, 403);
@@ -2152,11 +2158,12 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
     const body = z
       .object({
-        via: z.enum(['tailscale', 'funnel', 'address']).optional(),
+        via: z.enum(['tailscale', 'funnel', 'address', 'custom']).optional(),
         address: z.string().max(64).optional(),
+        url: z.string().max(300).optional(),
       })
       .safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ error: 'Choose tailscale, funnel or address.' }, 400);
+    if (!body.success) return c.json({ error: 'Choose tailscale, funnel, address or custom.' }, 400);
     try {
       return c.json(await host.on(body.data));
     } catch (e) {
