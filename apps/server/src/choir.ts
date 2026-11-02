@@ -14,11 +14,13 @@ import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
 import type { ChoirDevice, ChoirState, DeviceCapabilities, ModelState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
+import { CODE_LIMITS, CodeBook, looksLikeCode, normalizeCode } from './codes.ts';
 import type { SecretStore } from './hf.ts';
+import { Limiter } from './people.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
 
 export class ChoirError extends Error {
-  readonly status: 400 | 403 | 404 | 409 | 502;
+  readonly status: 400 | 403 | 404 | 409 | 429 | 502;
   constructor(status: ChoirError['status'], message: string) {
     super(message);
     this.name = 'ChoirError';
@@ -142,6 +144,52 @@ export interface TailscaleSelf {
   name: string;
 }
 
+/** Runs a command without a shell (host.ts's `Exec`, which tests give a stand-in for). */
+export type AsyncRun = (
+  cmd: string,
+  args: string[],
+  timeoutMs?: number,
+) => Promise<{ ok: boolean; out: string }>;
+
+/** A device on the tailnet, as `tailscale status --json` lists it. */
+export interface TailscalePeer {
+  name: string;
+  ip: string;
+  online: boolean;
+}
+
+/** The other devices on this tailnet that are online, each with one address (IPv4 first). */
+export async function tailscalePeers(run: AsyncRun): Promise<TailscalePeer[]> {
+  const cmds =
+    process.platform === 'darwin'
+      ? ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/Tailscale']
+      : ['tailscale'];
+  for (const cmd of cmds) {
+    const r = await run(cmd, ['status', '--json'], 5000);
+    if (!r.ok && !r.out.startsWith('{')) continue;
+    try {
+      const j = JSON.parse(r.out.slice(r.out.indexOf('{'))) as {
+        BackendState?: string;
+        Peer?: Record<
+          string,
+          { HostName?: string; DNSName?: string; TailscaleIPs?: string[]; Online?: boolean }
+        >;
+      };
+      if (j.BackendState !== 'Running') return [];
+      return Object.values(j.Peer ?? {})
+        .map((p) => ({
+          name: deviceName(p.DNSName || p.HostName || ''),
+          ip: p.TailscaleIPs?.find((x) => /^100\./.test(x)) ?? p.TailscaleIPs?.[0] ?? '',
+          online: p.Online === true,
+        }))
+        .filter((p) => p.online && p.ip);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 type Run = (cmd: string, args: string[]) => string | null;
 const run: Run = (cmd, args) => {
   try {
@@ -242,7 +290,13 @@ export function place(job: Job, local: Candidate | null, devices: Candidate[]): 
 interface SharingFile {
   name: string;
   url: string;
-  keys: Array<{ hash: string; createdAt: string }>;
+  /** `for` is the device a short code was redeemed by, as it named itself. */
+  keys: Array<{ hash: string; createdAt: string; for?: string }>;
+}
+/** What a short join code stands for: the address it is redeemed at and the name this device shares under. */
+interface ShortJoin {
+  url: string;
+  name: string;
 }
 /** How this computer shares its GPU; kept apart from the keys, so it outlasts revoking and inviting. */
 interface SettingsFile {
@@ -289,6 +343,13 @@ export class Choir {
   private readonly secrets: (account: string) => SecretStore;
   private readonly onChange: (s: ChoirState) => void;
   private readonly fetchFn: typeof fetch;
+  private readonly run: AsyncRun | null;
+  private readonly scanPort: () => number;
+  /** Short join codes made by `invite`, until they are used, expire, or sharing stops. */
+  private readonly shortCodes: CodeBook<ShortJoin>;
+  /** Wrong short codes, per source and across all of them. */
+  private readonly wrongBySource: Limiter;
+  private readonly wrongAnywhere: Limiter;
   sharingProblem: string | null = null;
   /** This computer's own capabilities, which the server looks up now and then; null until it has. */
   capabilities: DeviceCapabilities | null = null;
@@ -298,11 +359,22 @@ export class Choir {
     secrets: (account: string) => SecretStore;
     onChange: (s: ChoirState) => void;
     fetch?: typeof fetch;
+    /** Runs `tailscale`, to find the other devices a short code might belong to. */
+    exec?: AsyncRun;
+    /** The port Hildegard answers on at the other devices, which a short code is tried against. */
+    scanPort?: () => number;
+    now?: () => number;
   }) {
     this.dir = join(opts.dataDir, 'choir');
     this.secrets = opts.secrets;
     this.onChange = opts.onChange;
     this.fetchFn = opts.fetch ?? fetch;
+    this.run = opts.exec ?? null;
+    this.scanPort = opts.scanPort ?? (() => 7341);
+    const now = opts.now ?? Date.now;
+    this.shortCodes = new CodeBook<ShortJoin>({ file: join(this.dir, 'codes.json'), now });
+    this.wrongBySource = new Limiter(CODE_LIMITS.perSource, CODE_LIMITS.windowMs, now);
+    this.wrongAnywhere = new Limiter(CODE_LIMITS.global, CODE_LIMITS.windowMs, now);
     const idFile = join(this.dir, 'id');
     if (existsSync(idFile)) this.id = readFileSync(idFile, 'utf8').trim();
     else {
@@ -430,7 +502,7 @@ export class Choir {
    * other device made itself and handed over privately, as `hildegard cloud runpod` does when it starts a rented GPU:
    * that device then builds the same code without this one having to send it anything.
    */
-  invite(url: string, name: string, key?: string): { code: string; url: string } {
+  invite(url: string, name: string, key?: string, label?: string): { code: string; url: string } {
     const origin = checkUrl(url);
     if (key !== undefined && !TOKEN_RE.test(key))
       throw new ChoirError(400, 'A key is 32 random bytes in base64url: 43 letters, digits, - and _.');
@@ -439,12 +511,59 @@ export class Choir {
     this.sharing = {
       name: deviceName(name),
       url: origin,
-      keys: [...keys, { hash: hashToken(token), createdAt: new Date().toISOString() }],
+      keys: [
+        ...keys,
+        { hash: hashToken(token), createdAt: new Date().toISOString(), ...(label ? { for: label } : {}) },
+      ],
     };
     save(join(this.dir, 'sharing.json'), this.sharing);
     this.sharingProblem = null;
     this.emit();
     return { code: encodeJoinCode({ name: this.sharing.name, url: origin, token }), url: origin };
+  }
+
+  /**
+   * Turn sharing on and make the long code, as `invite` does, and also a short one (`HG-XXXX-XXXX`) for typing. The
+   * short code makes its key only when it is redeemed, so a code nobody uses leaves no key behind.
+   */
+  shortInvite(
+    url: string,
+    name: string,
+  ): { code: string; url: string; short: { code: string; expiresAt: string }; name: string } {
+    const r = this.invite(url, name);
+    const short = this.shortCodes.mint({ url: r.url, name: this.sharing!.name });
+    return {
+      ...r,
+      name: this.sharing!.name,
+      short: { code: short.code, expiresAt: new Date(short.expiresAt).toISOString() },
+    };
+  }
+
+  /**
+   * A joining device presents a short code. A wrong one counts against its source and against all sources; past
+   * either limit nothing is tried, so the code isn't even looked at. The live check reads memory only; taking the
+   * code is one synchronous step, so of two at once exactly one gets a key. Returns what a long code holds.
+   */
+  redeem(code: unknown, source: string, joiner?: string): JoinCode {
+    const key = `src:${source}`;
+    const wait = Math.max(this.wrongBySource.wait(key), this.wrongAnywhere.wait('all'));
+    if (wait)
+      throw new ChoirError(
+        429,
+        `Too many wrong codes. Wait ${wait > 90 ? `${Math.ceil(wait / 60)} minutes` : `${wait} seconds`}, then ask for a new one.`,
+      );
+    const norm = normalizeCode(code);
+    const rec = this.shortCodes.live(norm) ? this.shortCodes.take(norm) : null;
+    if (!rec || !this.sharing) {
+      this.wrongBySource.fail(key);
+      this.wrongAnywhere.fail('all');
+      throw new ChoirError(
+        403,
+        'That code isn’t good: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.',
+      );
+    }
+    const label = typeof joiner === 'string' && NAME_RE.test(joiner) ? joiner.toLowerCase() : undefined;
+    return parseJoinCode(this.invite(rec.url, rec.name, undefined, label).code);
   }
 
   /** Whether paired devices' renders yield to this computer's own work (see Scheduler.setOpportunistic). */
@@ -471,6 +590,7 @@ export class Choir {
   /** Stop sharing: every key goes, so no paired device can render here until it joins again. */
   revoke() {
     this.sharing = null;
+    this.shortCodes.clear();
     save(join(this.dir, 'sharing.json'), { name: '', url: '', keys: [] });
     this.emit();
   }
@@ -485,8 +605,11 @@ export class Choir {
    * Join a device from its code. Its key is checked with it first, so a mistyped or revoked code never gets kept.
    * `autoUse` sends renders there right away (when this computer has no GPU of its own to use).
    */
-  async join(code: string, opts: { name?: string; autoUse?: boolean } = {}): Promise<ChoirDevice> {
-    const c = parseJoinCode(code);
+  async join(
+    code: string,
+    opts: { name?: string; autoUse?: boolean; url?: string } = {},
+  ): Promise<ChoirDevice> {
+    const c = looksLikeCode(code) ? await this.redeemRemote(code, opts.url) : parseJoinCode(code);
     const name = opts.name ? opts.name.toLowerCase() : c.name;
     if (!NAME_RE.test(name) || name === 'local' || name === 'auto')
       throw new ChoirError(400, 'Name it with letters, digits and dashes.');
@@ -517,6 +640,68 @@ export class Choir {
     save(join(this.dir, 'devices.json'), this.joined);
     this.emit();
     return this.device(name, c.url);
+  }
+
+  /**
+   * Trade a short code for a long one at the sharing device: at `url` when given, else at each online device on the
+   * tailnet (and any device joined before) in turn, one try each, stopping at the first that takes it. A wrong code
+   * therefore costs one wrong try per device, not several.
+   */
+  private async redeemRemote(code: string, url?: string): Promise<JoinCode> {
+    const me = deviceName(hostname());
+    const origins: string[] = [];
+    if (url) origins.push(checkUrl(url));
+    else {
+      const peers = this.run ? await tailscalePeers(this.run) : [];
+      for (const p of peers.slice(0, 40))
+        try {
+          origins.push(checkUrl(`http://${p.ip.includes(':') ? `[${p.ip}]` : p.ip}:${this.scanPort()}`));
+        } catch {}
+      for (const d of this.joined.devices) origins.push(new URL(d.url).origin);
+    }
+    const tried = new Set<string>();
+    let refused = false;
+    for (const origin of origins) {
+      if (tried.has(origin)) continue;
+      tried.add(origin);
+      let res: Response;
+      try {
+        res = await this.fetchFn(`${origin}/api/choir/redeem`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-hildegard': '1' },
+          body: JSON.stringify({ code, name: me }),
+          signal: AbortSignal.timeout(url ? 10_000 : 3_000),
+        });
+      } catch (e) {
+        if (url) throw new ChoirError(502, `Couldn’t reach ${origin}: ${(e as Error).message}`);
+        continue;
+      }
+      if (res.status === 429) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new ChoirError(429, j.error ?? 'Too many wrong codes there. Wait, then ask for a new one.');
+      }
+      if (!res.ok) {
+        // 403: not this device's code. Anything else: not a Hildegard that takes codes.
+        if (res.status === 403) refused = true;
+        continue;
+      }
+      const j = (await res.json().catch(() => null)) as {
+        name?: unknown;
+        url?: unknown;
+        token?: unknown;
+      } | null;
+      if (typeof j?.name !== 'string' || typeof j.url !== 'string' || typeof j.token !== 'string')
+        throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.`);
+      return parseJoinCode(encodeJoinCode({ name: j.name, url: j.url, token: j.token }));
+    }
+    throw new ChoirError(
+      refused ? 403 : 404,
+      refused
+        ? 'No device accepted that code: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.'
+        : url
+          ? `Nothing at ${url} took that code.`
+          : 'No device on your tailnet answered to that code. Give the sharing device’s address: `hildegard choir join <code> --url http://<address>:7341`.',
+    );
   }
 
   leave(name: string) {

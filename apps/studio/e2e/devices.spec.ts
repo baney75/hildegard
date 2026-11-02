@@ -71,16 +71,45 @@ test('shares this GPU with a code to copy, and stops sharing', async ({ page, co
     await address.fill(new URL(page.url()).origin);
   }
   await share.click();
+  // A short code to type, large, with a countdown; the long one stays under it for older builds.
+  const short = page.getByRole('group', { name: 'Short join code' });
+  await expect(short.getByTestId('one-time-code')).toHaveText(
+    /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/,
+  );
+  await expect(page.getByRole('timer')).toHaveText(/Works once, for (9|10):\d\d more\./);
+  await short.getByRole('button', { name: 'Copy' }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^HG-/);
   const code = page.getByRole('region', { name: 'Join code' });
   await expect(code).toHaveText(/^hgc1_[A-Za-z0-9_-]+$/);
-  await page.getByRole('button', { name: 'Copy' }).click();
+  await page.getByRole('button', { name: 'Copy long code' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^hgc1_/);
+  // The countdown moves.
+  const first = await page.getByRole('timer').textContent();
+  await expect.poll(async () => page.getByRole('timer').textContent(), { timeout: 5000 }).not.toBe(first);
   await expectAccessible(page, 'sharing');
   await expectCurlyQuotes(page, 'sharing');
 
   await page.getByRole('button', { name: 'Stop sharing' }).click();
   await expect(code).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Share this GPU' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('adds a device by typing its short code and address', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const res = await request.post(`${node}/api/choir/invite`, { headers: H, data: { url: node } });
+  const inv = (await res.json()) as { short: { code: string } };
+  await page.goto('/#/settings/devices');
+  await page.getByLabel('Join code').fill(inv.short.code.toLowerCase());
+  await page.getByLabel(/Its address, if this computer can’t find it/).fill(node);
+  await page.getByRole('button', { name: 'Add device' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Use for renders' }).getByText('Online')).toBeVisible();
+  // Used: the same code does nothing the second time.
+  const again = await request.post(`${node}/api/choir/redeem`, {
+    headers: H,
+    data: { code: inv.short.code },
+  });
+  expect(again.status()).toBe(403);
   expect(errors).toEqual([]);
 });
 

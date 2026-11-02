@@ -15,6 +15,7 @@ import {
   type Catalog,
   type Character,
   type CharacterRef,
+  type ChoirInvite,
   CreateCharacter,
   type CreateShotBody,
   characterText,
@@ -70,6 +71,7 @@ import {
   type Who,
 } from './access.ts';
 import { type Choir, ChoirError } from './choir.ts';
+import { redeemRoutes } from './choir-redeem.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
@@ -156,7 +158,7 @@ export interface AppDeps {
    * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
    * the other device made (a rented GPU it started), instead of a fresh one.
    */
-  invite: (url?: string, key?: string) => Promise<{ code: string; url: string }>;
+  invite: (url?: string, key?: string) => Promise<ChoirInvite>;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
   /** Who may sign in from other devices. */
@@ -1480,6 +1482,8 @@ export function createApp(deps: AppDeps) {
     local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
   app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
+  // A device that isn't paired yet trades a short code for a key: no sign-in, the code is the proof.
+  app.route('/api/choir/redeem', redeemRoutes(deps.choir));
   app.post('/api/choir/invite', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;
@@ -1525,13 +1529,18 @@ export function createApp(deps: AppDeps) {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ code: z.string().max(2048), name: z.string().max(63).optional() })
+      .object({
+        code: z.string().max(2048),
+        name: z.string().max(63).optional(),
+        url: z.string().max(200).optional(),
+      })
       .safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Paste the join code from the other device.' }, 400);
     try {
       // With no ComfyUI of its own, this computer renders on the device it joins straight away.
       const device = await deps.choir.join(body.data.code, {
         name: body.data.name,
+        url: body.data.url,
         autoUse: scheduler.engineState().comfy === 'not-installed',
       });
       return c.json({ device, choir: deps.choir.state() }, 201);

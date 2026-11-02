@@ -7,6 +7,7 @@ import type {
   Character,
   CharacterView,
   ChoirDevice,
+  ChoirInvite,
   ChoirState,
   ConsentSessionView,
   DesignRequest,
@@ -235,10 +236,10 @@ export const api = {
   agents: () => call<AgentsResponse>('GET', '/api/agents'),
   choir: () => call<ChoirState>('GET', '/api/choir'),
   choirTailnet: () => call<{ url: string | null }>('GET', '/api/choir/tailnet'),
-  choirInvite: (url?: string) => call<{ code: string; url: string }>('POST', '/api/choir/invite', { url }),
+  choirInvite: (url?: string) => call<ChoirInvite>('POST', '/api/choir/invite', { url }),
   choirRevoke: () => call<ChoirState>('POST', '/api/choir/revoke'),
-  choirJoin: (code: string) =>
-    call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code }),
+  choirJoin: (code: string, url?: string) =>
+    call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code, url }),
   choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
   choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
   choirOpportunistic: (on: boolean) => call<ChoirState>('POST', '/api/choir/opportunistic', { on }),

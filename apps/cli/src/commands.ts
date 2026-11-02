@@ -5,7 +5,15 @@ import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import type { Catalog, ChoirDevice, ChoirState, HfState, HostState, Snapshot } from '@hildegard/presets';
+import type {
+  Catalog,
+  ChoirDevice,
+  ChoirInvite,
+  ChoirState,
+  HfState,
+  HostState,
+  Snapshot,
+} from '@hildegard/presets';
 import { videoModels } from '@hildegard/presets';
 import {
   AGENTS,
@@ -954,13 +962,15 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
       try {
         // --key-stdin: a key the joining device made itself (a rented GPU it started), never on the command line.
         const key = ctx.flags.has('key-stdin') ? await readStdin() : undefined;
-        const r = await api<{ code: string; url: string }>(c, '/api/choir/invite', {
+        const r = await api<ChoirInvite>(c, '/api/choir/invite', {
           method: 'POST',
           body: { url: ctx.opts.get('url'), key },
         });
         if (!ctx.json)
           console.log(
-            `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n`,
+            r.short
+              ? `This computer shares its GPU at ${r.url}.\nOn your other device, run:\n\n  ${r.command}\n\nThe code ${r.short.code} works once, for 10 minutes (until ${new Date(r.short.expiresAt).toLocaleTimeString()}).\nOr paste this long code instead (it works once per device; keep it private):\n\n${r.code}\n`
+              : `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n`,
           );
         return result(
           [
@@ -968,11 +978,18 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
               id: 'invite',
               title: 'Share this GPU',
               status: 'done',
-              detail: `Paired devices reach it at ${r.url}.`,
+              detail: r.short
+                ? `Paired devices reach it at ${r.url}. Short code ${r.short.code}, once, until ${r.short.expiresAt}.`
+                : `Paired devices reach it at ${r.url}.`,
+              ...(r.command ? { command: r.command } : {}),
             },
           ],
           'Stop sharing any time with `hildegard choir revoke`.',
-          { code: r.code, url: r.url },
+          {
+            code: r.code,
+            url: r.url,
+            ...(r.short ? { shortCode: r.short.code, expiresAt: r.short.expiresAt, command: r.command } : {}),
+          },
         );
       } catch (e) {
         if ((e as { status?: number }).status === 409)
@@ -1009,6 +1026,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
       let code = args[1] ?? '';
       if (!code && ctx.flags.has('code-stdin')) code = await readStdin();
       if (!code && process.stdin.isTTY && !ctx.json) code = await askSecret('Join code (it won’t show): ');
+      code = code.trim();
       if (!code)
         return result(
           [
@@ -1016,7 +1034,8 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
               id: 'join',
               title: 'Join a device',
               status: 'needs-owner',
-              detail: 'Run `hildegard choir invite` on the device with the GPU, then paste its code here.',
+              detail:
+                'Run `hildegard choir invite` on the device with the GPU, then give its code here: `hildegard choir join HG-XXXX-XXXX` (add `--url <address>` if it isn’t found on your tailnet), or the long code.',
               command: 'hildegard choir join',
             },
           ],
@@ -1025,7 +1044,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
       try {
         const r = await api<{ device: ChoirDevice; choir: ChoirState }>(c, '/api/choir/join', {
           method: 'POST',
-          body: { code, name: ctx.opts.get('name') },
+          body: { code, name: ctx.opts.get('name'), url: ctx.opts.get('url') },
         });
         const using = r.choir.use === r.device.name;
         return result(

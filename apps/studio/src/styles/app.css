@@ -325,6 +325,10 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-use[aria-checked="true"] { color: var(--text-primary); border-color: var(--brand-text); box-shadow: 0 0 0 1px var(--brand-text); cursor: default; }
 .hg-use[aria-checked="true"] .i { display: inline-block; color: var(--brand-text); }
 .hg-joincode { justify-self: stretch; margin-top: 0; }
+.hg-short { display: grid; gap: 4px; margin-top: 4px; }
+.hg-short__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--canvas); border: 1px solid var(--border-control); }
+.hg-short__code { font: 600 28px/1.2 var(--font-mono); letter-spacing: .12em; color: var(--text-primary); user-select: all; }
+.hg-mask { -webkit-text-security: disc; }
 .hg-joincode pre { white-space: pre-wrap; word-break: break-all; color: var(--text-primary); user-select: all; }
 .hg-app[data-wc="compact"] .hg-devices__row { grid-template-columns: auto minmax(0, 1fr); }
 .hg-app[data-wc="compact"] .hg-devices__act { grid-column: 2; }

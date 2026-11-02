@@ -427,6 +427,20 @@ export interface AgentGrant {
   expiresAt: string | null;
 }
 
+/** POST /api/choir/invite: what the sharing device hands the other one. */
+export interface ChoirInvite {
+  /** The long `hgc1_` code, for builds that don't take short ones. A secret. */
+  code: string;
+  /** Where the sharing device is reached. */
+  url: string;
+  /** What this device is called in the other's Choir. */
+  name: string;
+  /** A short code to type instead (`HG-XXXX-XXXX`), good once for 10 minutes; null when the caller brought its own key. */
+  short: { code: string; expiresAt: string } | null;
+  /** The command for the other device, with the short code and the address. */
+  command: string | null;
+}
+
 /** GET /api/auth/grants */
 export interface GrantsResponse {
   grants: AgentGrant[];

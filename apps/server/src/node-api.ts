@@ -22,6 +22,7 @@ import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { stream } from 'hono/streaming';
 import { z } from 'zod';
+import type { HgEnv } from './access.ts';
 import { sniffImage } from './app.ts';
 import { type Choir, TOKEN_RE } from './choir.ts';
 import type { NodeEvent, NodeInfo } from './remote-engine.ts';
@@ -354,7 +355,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
  * The app on the address paired devices reach (a Tailscale IP): /api/node/* and nothing else. The Studio and its API
  * are never served there, so the key can't reach them and nobody else on the tailnet can either.
  */
-export function nodeOnlyApp(routes: Hono, hosts: () => string[]): Hono {
+export function nodeOnlyApp(routes: Hono, hosts: () => string[], extra?: Hono<HgEnv>): Hono {
   const app = new Hono();
   app.use('*', async (c, next) => {
     const host = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
@@ -364,6 +365,8 @@ export function nodeOnlyApp(routes: Hono, hosts: () => string[]): Hono {
     c.header('referrer-policy', 'no-referrer');
   });
   app.route('/api/node', routes);
+  // The one thing a device that isn't paired yet may ask: to trade a short code for a key.
+  if (extra) app.route('/api/choir/redeem', extra);
   app.all('*', (c) => c.json({ error: 'Not here.' }, 404));
   app.onError((err, c) => {
     console.error(err.message);

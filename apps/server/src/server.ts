@@ -6,6 +6,7 @@ import { basename, dirname, join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import {
+  type ChoirInvite,
   type EngineState,
   type LoadedCatalog,
   loadCatalog,
@@ -20,7 +21,17 @@ import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
 import { localCapabilities, STUB_LLM } from './capabilities.ts';
-import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf, withRemoteFit } from './choir.ts';
+import {
+  type Candidate,
+  Choir,
+  ChoirError,
+  deviceName,
+  type Job,
+  place,
+  tailscaleSelf,
+  withRemoteFit,
+} from './choir.ts';
+import { redeemRoutes } from './choir-redeem.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
@@ -134,6 +145,10 @@ async function serveStudio(
     onStop?: () => void;
     /** Runs `tailscale`: tests give a stand-in. */
     exec?: Exec;
+    /** The port a short join code is tried at on each tailnet device; this server's own port by default. */
+    choirScanPort?: number;
+    /** The clock for short codes and their limits: tests give a fake one. */
+    now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
     /** Reads OAuth apps' metadata documents: tests give a stand-in. */
@@ -225,6 +240,9 @@ async function serveStudio(
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
+    exec: opts.exec,
+    scanPort: () => opts.choirScanPort ?? port,
+    now: opts.now,
     onChange: (s) => {
       store.emit({ type: 'choir', choir: s });
       route();
@@ -667,7 +685,18 @@ async function serveStudio(
           409,
           'Tailscale isn’t running on this computer, so other devices can’t reach it. Start Tailscale, or give the address they reach it at: `hildegard choir invite --url http://<address>:<port>`.',
         );
-      const r = choir.invite(target, ts?.name ?? hostname(), key);
+      const name = ts?.name ?? hostname();
+      let r: ChoirInvite;
+      if (key !== undefined) {
+        const k = choir.invite(target, name, key);
+        r = { ...k, name: deviceName(name), short: null, command: null };
+      } else {
+        const k = choir.shortInvite(target, name);
+        r = {
+          ...k,
+          command: `hildegard choir join ${k.short.code} --url ${k.url}`,
+        };
+      }
       await syncSharing();
       return r;
     },
@@ -737,7 +766,10 @@ async function serveStudio(
     }
     const hostHeader = h.includes(':') ? `[${h}]` : h;
     try {
-      share = { key, server: await listen(nodeOnlyApp(node, () => [hostHeader]).fetch, h, p) };
+      share = {
+        key,
+        server: await listen(nodeOnlyApp(node, () => [hostHeader], redeemRoutes(choir)).fetch, h, p),
+      };
       if (choir.sharingProblem) {
         choir.sharingProblem = null;
         choir.emit();
