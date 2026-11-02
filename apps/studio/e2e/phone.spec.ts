@@ -37,7 +37,30 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   expect(overflow).toBeLessThanOrEqual(0);
   await page.getByRole('link', { name: /Queue/ }).click();
   await expect(page).toHaveURL(/#\/queue/);
-  await page.getByRole('link', { name: /Settings/ }).click();
+  // Five tabs at most, as the design system says; the other pages are under More, which opens above the bar.
+  const tabbar = page.locator('.hg-tabbar');
+  await expect(tabbar.locator(':scope > .hg-tab, :scope > .hg-tab-more')).toHaveCount(5);
+  for (const tab of await tabbar.locator('.hg-tab').all()) {
+    const b = (await tab.boundingBox())!;
+    expect(b.width).toBeGreaterThanOrEqual(64);
+  }
+  const more = tabbar.getByRole('button', { name: 'More' });
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  for (const name of ['Sites', 'Agents', 'Settings'])
+    await expect(tabbar.getByRole('link', { name })).toBeInViewport();
+  await page.keyboard.press('Escape');
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await more.click();
+  await tabbar.getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL(/#\/settings/);
+  // On a page under More, the tab says which one, so you always know where you are.
+  const here = tabbar.getByRole('button', { name: /^Settings, more pages/ });
+  await expect(here).toHaveAttribute('aria-current', 'page');
+  // Choosing the page you're already on still closes the list.
+  await here.click();
+  await tabbar.getByRole('link', { name: 'Settings' }).click();
+  await expect(here).toHaveAttribute('aria-expanded', 'false');
   await page.getByRole('link', { name: /Hugging Face/ }).click();
   await expect(page.getByRole('heading', { name: 'Link Hugging Face' })).toBeVisible();
   expect(errors).toEqual([]);

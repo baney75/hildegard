@@ -99,6 +99,9 @@ test('invites a director, who joins with the link once and sees only their own f
   const link = (await owner.page.getByRole('region', { name: 'Invite link' }).textContent())!;
   expect(link).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#\/invite\/[A-Za-z0-9_-]{43}$/);
   await expect(owner.page.getByText('Invite for a director')).toBeVisible();
+  // A link only this computer can open gets no QR code: a phone would reach itself.
+  await expect(owner.page.getByRole('button', { name: 'Show as a QR code' })).toHaveCount(0);
+  await expect(owner.page.getByRole('img', { name: 'QR code for the invite link' })).toHaveCount(0);
   await expectAccessible(owner.page, 'people, invite made');
   await expectCurlyQuotes(owner.page, 'people, invite made');
 
@@ -144,6 +147,43 @@ test('invites a director, who joins with the link once and sees only their own f
   await expect(late.page.getByRole('heading', { name: 'This invite can’t be used.' })).toBeVisible();
   await expectCurlyQuotes(late.page, 'used invite');
   await Promise.all([owner.context.close(), ada.context.close(), late.context.close()]);
+});
+
+test('on a tailnet link, the studio’s QR shows, and an invite’s only when asked for', async ({ browser }) => {
+  const owner = await elsewhere(browser);
+  await signIn(owner.page, OWNER);
+  // As on a real tailnet: the links lead to an HTTPS name a phone can open, not to 127.0.0.1.
+  const tailnet = 'https://studio.example.ts.net';
+  await owner.page.route('**/api/host', async (route) => {
+    const res = await route.fetch();
+    const host = await res.json();
+    await route.fulfill({
+      response: res,
+      json: { ...host, on: true, via: 'tailscale', url: `${tailnet}/`, problem: null },
+    });
+  });
+  await owner.page.route('**/api/people/invites', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const res = await route.fetch();
+    const made = await res.json();
+    await route.fulfill({
+      response: res,
+      json: { ...made, url: made.url.replace(/^http:\/\/[^/]+/, tailnet) },
+    });
+  });
+
+  await owner.page.goto(`${hosted}/#/settings/sharing`);
+  await expect(owner.page.getByRole('img', { name: 'QR code for the link' })).toBeVisible();
+
+  await owner.page.goto(`${hosted}/#/settings/people`);
+  await owner.page.getByRole('radio', { name: 'Director' }).click();
+  await owner.page.getByRole('button', { name: 'Make an invite link' }).click();
+  await expect(owner.page.getByRole('region', { name: 'Invite link' })).toContainText(tailnet);
+  const qr = owner.page.getByRole('img', { name: 'QR code for the invite link' });
+  await expect(qr).toHaveCount(0);
+  await owner.page.getByRole('button', { name: 'Show as a QR code' }).click();
+  await expect(qr).toBeVisible();
+  await owner.context.close();
 });
 
 test('the owner limits a director’s waiting takes, and she is told when she reaches it', async ({

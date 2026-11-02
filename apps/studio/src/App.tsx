@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import markGreen from './assets/mark-green.svg';
 import markVellum from './assets/mark-vellum.svg';
 import { Icon, Toasts } from './components/ui.tsx';
@@ -28,6 +28,9 @@ const NAV = [
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
 ];
+/** A phone's tab bar holds five at most (the design system's rule); past that, these stay and the rest go under More. */
+const TABS = ['/', '/voice', '/characters', '/queue'];
+const MAX_TABS = 5;
 
 export function App() {
   const ready = useStore((s) => s.ready);
@@ -125,8 +128,14 @@ export function App() {
       />
     );
 
-  const item = (n: (typeof NAV)[number], cls: string, size?: 22) => (
-    <a key={n.to} className={cls} href={`#${n.to}`} aria-current={n.match.test(route) ? 'page' : undefined}>
+  const item = (n: (typeof NAV)[number], cls: string, size?: 22, onClick?: () => void) => (
+    <a
+      key={n.to}
+      className={cls}
+      href={`#${n.to}`}
+      aria-current={n.match.test(route) ? 'page' : undefined}
+      onClick={onClick}
+    >
       <Icon name={n.icon} size={size} />
       <span>{n.label}</span>
       {n.to === '/queue' && busy ? (
@@ -155,7 +164,18 @@ export function App() {
         </nav>
         {page}
         <nav className="hg-tabbar" aria-label="Main">
-          {nav.map((n) => item(n, 'hg-tab', 22))}
+          {nav.length <= MAX_TABS ? (
+            nav.map((n) => item(n, 'hg-tab', 22))
+          ) : (
+            <>
+              {nav.filter((n) => TABS.includes(n.to)).map((n) => item(n, 'hg-tab', 22))}
+              <MoreTab
+                items={nav.filter((n) => !TABS.includes(n.to))}
+                route={route}
+                render={(n, close) => item(n, 'hg-tab-more__item', undefined, close)}
+              />
+            </>
+          )}
         </nav>
       </div>
       {conn === 'down' ? (
@@ -166,6 +186,67 @@ export function App() {
         </div>
       ) : null}
       <Toasts />
+    </div>
+  );
+}
+
+/** The tab bar's last tab on a phone: the pages that don't fit as tabs, in a list that opens above it. */
+function MoreTab({
+  items,
+  route,
+  render,
+}: {
+  items: typeof NAV;
+  route: string;
+  render: (n: (typeof NAV)[number], close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const here = items.find((n) => n.match.test(route));
+  // A choice changes the route; the list closes with it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
+  useEffect(() => setOpen(false), [route]);
+  useEffect(() => {
+    if (!open) return;
+    // A tap outside, or focus moving outside (Tab past the list), closes it.
+    const off = (e: Event) => !root.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setOpen(false);
+      root.current?.querySelector<HTMLElement>('button')?.focus();
+    };
+    document.addEventListener('pointerdown', off);
+    document.addEventListener('focusin', off);
+    document.addEventListener('keydown', esc);
+    root.current?.querySelector<HTMLElement>('.hg-tab-more__list a')?.focus();
+    return () => {
+      document.removeEventListener('pointerdown', off);
+      document.removeEventListener('focusin', off);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  return (
+    <div className="hg-tab-more" ref={root}>
+      <button
+        type="button"
+        className="hg-tab"
+        aria-expanded={open}
+        aria-controls={id}
+        data-here={here ? '' : undefined}
+        aria-current={here ? 'page' : undefined}
+        aria-label={here ? `${here.label}, more pages` : 'More'}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name={here?.icon ?? 'more'} size={22} />
+        <span>{here?.label ?? 'More'}</span>
+      </button>
+      {open ? (
+        <div className="hg-tab-more__list" id={id}>
+          {items.map((n) => render(n, () => setOpen(false)))}
+        </div>
+      ) : null}
     </div>
   );
 }
