@@ -72,7 +72,11 @@ export function processStart(pid: number): string | null {
       return null;
     }
   }
-  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' });
+  // ps formats lstart in the reader's locale and time zone: pin both, so every reader writes the same string.
+  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+    encoding: 'utf8',
+    env: { ...process.env, LC_ALL: 'C', LANG: 'C', TZ: 'UTC' },
+  });
   return r.status === 0 ? r.stdout.trim() || null : null;
 }
 

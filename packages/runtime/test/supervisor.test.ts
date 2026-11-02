@@ -218,4 +218,20 @@ process.exit(1);
     expect(existsSync(pidFile(dir))).toBe(false);
     expect(r.state.status).toBe('stopped');
   });
+
+  it('reads the same start time whatever the reader’s locale and time zone', () => {
+    const saved = { TZ: process.env.TZ, LANG: process.env.LANG, LC_ALL: process.env.LC_ALL };
+    try {
+      process.env.TZ = 'America/New_York';
+      process.env.LANG = process.env.LC_ALL = 'C';
+      const here = processStart(process.pid);
+      process.env.TZ = 'Asia/Tokyo';
+      process.env.LANG = process.env.LC_ALL = 'de_DE.UTF-8';
+      expect(processStart(process.pid)).toBe(here);
+    } finally {
+      for (const [k, v] of Object.entries(saved))
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+    }
+  });
 });
