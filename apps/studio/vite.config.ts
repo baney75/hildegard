@@ -3,7 +3,40 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import react from '@vitejs/plugin-react';
+import { buildSync } from 'esbuild';
 import { defineConfig, type Plugin } from 'vite';
+
+/**
+ * The look the person chose, applied in <head> before the first paint. It is a classic script (a module would wait
+ * for the page), so it is bundled on its own from src/theme-init.ts and served as /theme-init.js, in dev and in the build.
+ */
+function themeInit(): Plugin {
+  const entry = join(import.meta.dirname, 'src/theme-init.ts');
+  const bundle = () =>
+    buildSync({
+      entryPoints: [entry],
+      bundle: true,
+      format: 'iife',
+      target: 'es2022',
+      minify: true,
+      write: false,
+    }).outputFiles[0]!.text;
+  return {
+    name: 'hildegard-theme-init',
+    transformIndexHtml: () => [
+      { tag: 'script', attrs: { src: '/theme-init.js' }, injectTo: 'head' as const },
+    ],
+    configureServer(dev) {
+      dev.middlewares.use('/theme-init.js', (_req, res) => {
+        res.setHeader('content-type', 'text/javascript');
+        res.end(bundle());
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'theme-init.js', source: bundle() });
+    },
+  };
+}
 
 const server = process.env.HILDEGARD_URL ?? 'http://127.0.0.1:7341';
 
@@ -37,7 +70,7 @@ function precompress(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), precompress()],
+  plugins: [react(), themeInit(), precompress()],
   build: { target: 'es2022', cssMinify: 'lightningcss', assetsInlineLimit: 0, reportCompressedSize: false },
   server: {
     host: '127.0.0.1',
