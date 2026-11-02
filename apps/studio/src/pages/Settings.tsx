@@ -1,13 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog, ChoirDevice, UpdateState } from '@hildegard/presets';
-import { useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useId, useState } from 'react';
 import { ModelRow } from '../components/sheets.tsx';
 import { Button, Icon, RadioGroup, Segmented, Status, Switch, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, isOwner, upsert, useStore } from '../lib/store.ts';
-import { setThemeMode, type ThemeMode, useTheme } from '../lib/theme.ts';
+import {
+  accentFromInput,
+  accentNote,
+  PRESETS,
+  presetById,
+  resolveAccent,
+  setAccent,
+  setThemeMode,
+  setThemePreset,
+  type ThemeMode,
+  useTheme,
+} from '../lib/theme.ts';
 import { Account, People, Sharing } from './Sharing.tsx';
 
 const ALL = [
@@ -436,13 +447,29 @@ function Computer() {
 }
 
 function Appearance() {
-  const { mode } = useTheme();
+  const { mode, theme, preset, accent } = useTheme();
+  const hexId = useId();
+  const noteId = useId();
+  // What is typed in the box, which may be half a color; the accent itself only changes for a whole, valid one.
+  const [typed, setTyped] = useState(accent ?? '');
+  // A half-typed color is not an error until the person leaves the box or has typed more than a color holds.
+  const [left, setLeft] = useState(false);
+  const palette = presetById(preset)[theme];
+  const resolved = accent ? resolveAccent(accent, palette) : null;
+  const note = resolved ? accentNote(resolved) : '';
+  const bad = typed.trim() !== '' && !accentFromInput(typed) && (left || typed.trim().length >= 7);
+  const choose = (v: string) => {
+    setTyped(v);
+    setLeft(false);
+    const hex = accentFromInput(v);
+    if (hex) setAccent(hex);
+  };
   return (
-    <div className="st-tile hg-hfway">
+    <div className="st-tile hg-hfway hg-look">
       <b id="ap-h">Appearance</b>
       <span className="body-sm muted">
         Hildegard opens dark, which is kindest to your films. Choose light, or follow this device’s own
-        setting. The choice is kept in this browser.
+        setting, then pick a theme and an accent color. The choice is kept in this browser.
       </span>
       <Segmented<ThemeMode>
         label="Appearance"
@@ -454,6 +481,88 @@ function Appearance() {
           { value: 'system', label: 'Match this device' },
         ]}
       />
+      <div className="hg-look__themes" role="group" aria-label="Theme">
+        {PRESETS.map((p) => {
+          const c = p[theme];
+          return (
+            <button
+              key={p.id}
+              type="button"
+              className="hg-look__theme"
+              aria-pressed={p.id === preset}
+              onClick={() => setThemePreset(p.id)}
+            >
+              <span
+                className="hg-look__swatch"
+                aria-hidden="true"
+                style={
+                  {
+                    '--sw-canvas': c.canvas,
+                    '--sw-panel': c.panel,
+                    '--sw-ink': c.textPrimary,
+                    '--sw-accent': c.brandText,
+                  } as CSSProperties
+                }
+              >
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="hg-look__name">
+                <b>{p.name}</b>
+                {p.id === preset ? <Icon name="check" size={16} /> : null}
+              </span>
+              <small>{p.blurb}</small>
+            </button>
+          );
+        })}
+      </div>
+      <div className="hg-look__accent">
+        <label htmlFor={hexId}>
+          <b>Accent color</b>
+        </label>
+        <div className="hg-look__row">
+          <input
+            type="color"
+            aria-label="Pick an accent color"
+            value={accent ?? palette.brandText}
+            onChange={(e) => choose(e.target.value)}
+          />
+          <input
+            id={hexId}
+            className="hg-look__hex num"
+            type="text"
+            inputMode="text"
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="#3a7bd5"
+            value={typed}
+            aria-invalid={bad}
+            aria-describedby={noteId}
+            onChange={(e) => choose(e.target.value)}
+            onBlur={() => {
+              setLeft(true);
+              const hex = accentFromInput(typed);
+              if (hex) setTyped(hex);
+            }}
+          />
+          <Button
+            kind="ghost"
+            disabled={!accent && !typed}
+            onClick={() => {
+              setTyped('');
+              setAccent(null);
+            }}
+          >
+            Use the theme’s own
+          </Button>
+        </div>
+        <p id={noteId} className="body-sm hg-look__note" role="status" data-bad={bad || undefined}>
+          {bad
+            ? 'Use a # and six digits, like #3a7bd5.'
+            : note || (accent ? 'Your color reads well on this theme.' : 'Each theme brings its own accent.')}
+        </p>
+      </div>
     </div>
   );
 }
