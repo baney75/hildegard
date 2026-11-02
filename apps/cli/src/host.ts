@@ -18,6 +18,9 @@ import { bold, type Result, result } from './output.ts';
 const FUNNEL_WARNING =
   'Funnel puts this Hildegard on the public internet: anyone who finds the link can reach its sign-in page and try passphrases (Hildegard slows them down). Only the people you invite can get in. Turn it off with `hildegard host off`.';
 
+const FRONT_DOOR_WARNING =
+  'Your own front door puts this Hildegard on the public internet: anyone who finds the address can reach its sign-in page and try passphrases (Hildegard slows them down). Only the people you invite can get in. Use a long passphrase, and keep the hosted port reachable only by your tunnel or proxy, never open to the internet itself. Turn it off with `hildegard host off`; the tunnel and its DNS record stay yours to remove.';
+
 /** Everything after the last newline is part of the passphrase, spaces included; one trailing newline is not. */
 async function readPassphrase(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -213,7 +216,8 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
         }
       }
       const via = publicUrl !== undefined ? 'custom' : funnel ? 'funnel' : address ? 'address' : 'tailscale';
-      if (funnel && !ctx.json) console.log(`${bold('Careful.')} ${FUNNEL_WARNING}\n`);
+      const warning = funnel ? FUNNEL_WARNING : publicUrl !== undefined ? FRONT_DOOR_WARNING : null;
+      if (warning && !ctx.json) console.log(`${bold('Careful.')} ${warning}\n`);
       let h = await api<HostState>(c, '/api/host');
       const steps: Step[] = [];
       if (!h.owner) {
@@ -241,7 +245,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
           url: h.url,
           mcpUrl: h.url ? `${h.url}/mcp` : null,
           ...(mcp ? { mcp: mcp.detail } : {}),
-          ...(funnel ? { warning: FUNNEL_WARNING } : {}),
+          ...(warning ? { warning } : {}),
         },
       );
     }
@@ -474,4 +478,4 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
   }
 }
 
-export { FUNNEL_WARNING, hostStep };
+export { FRONT_DOOR_WARNING, FUNNEL_WARNING, hostStep };

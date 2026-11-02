@@ -599,6 +599,8 @@ describe('host and doctor', () => {
         detail: expect.stringContaining('HTTPS through your own front door'),
       });
       expect(on.mcp).toMatch(/claude\.ai/);
+      expect(on.warning).toMatch(/public internet/);
+      expect(on.warning).toMatch(/front door/);
       expect(mutating()).toEqual([]);
 
       const status = await hildegard(home, 'host', 'status', ...at);

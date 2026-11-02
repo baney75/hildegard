@@ -157,7 +157,8 @@ behind the link.
    only: `https`, a real name, no path, no IP address, no `*.ts.net`; the CLI refuses bad ones before asking). It
    makes no Tailscale call, turns on the hosted listener (`--host-port`, else the main port plus one) and trusts that
    name on it and nowhere else. The `host` step's detail reads "HTTPS through your own front door" and `host.via` is
-   `custom`. You then set up the front door; Hildegard doesn't run it:
+   `custom`. The result carries a `warning` (it is on the public internet): show it to them, as with Funnel. You then
+   set up the front door; Hildegard doesn't run it:
    - Cloudflare: `cloudflared tunnel create hildegard`, then `cloudflared tunnel route dns hildegard
      hildegard.example.com`, then a config with `ingress: - hostname: hildegard.example.com`, `service:
      http://127.0.0.1:<hostPort>` and `originRequest: httpHostHeader: hildegard.example.com`, then `cloudflared
