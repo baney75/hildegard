@@ -269,13 +269,20 @@ export function createApp(deps: AppDeps) {
   app.use('*', async (c, next) => {
     // The server calling itself for an MCP call: no browser is involved, and the person was checked on the way in.
     if (c.env?.as) return next();
-    const hostHeader = (c.req.header('host') ?? '').toLowerCase();
-    const hostName = hostHeader.replace(/:\d+$/, '');
-    // The owner's own front door (a tunnel or proxy) is trusted on the hosted listener only. The same Host on any
-    // other listener is not this link: it falls through to the allowlist, which doesn't have it.
+    const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+    // The owner's own front door (a tunnel or proxy) is trusted on the hosted listener only, and only by its exact
+    // Host (a :443 the proxy adds to a door without a port is the same name). Its name is decided here, before the
+    // allowlist, so listing it with --allow-host can't open it on the Studio's own listener.
     const door = host.current().custom;
-    if (door && c.env?.hosted && hostHeader === door.host) c.set('publicUrl', door.url);
-    else if (!allowed(hostName)) return c.text('Unknown host', 421);
+    const doorName = door?.host.replace(/:\d+$/, '');
+    if (door && hostName === doorName) {
+      const raw = (c.req.header('host') ?? '').toLowerCase();
+      const same = door.host.includes(':')
+        ? raw === door.host
+        : raw === door.host || raw === `${door.host}:443`;
+      if (!c.env?.hosted || !same) return c.text('Unknown host', 421);
+      c.set('publicUrl', door.url);
+    } else if (!allowed(hostName)) return c.text('Unknown host', 421);
     const method = c.req.method;
     // OAuth is called by AI apps, cross-site by design, with no cookie; its sign-in page checks its own origin.
     if (c.req.path.startsWith('/oauth/')) {
@@ -298,8 +305,10 @@ export function createApp(deps: AppDeps) {
       if (origin) {
         try {
           const o = new URL(origin);
-          const viaDoor = !!door && !!c.env?.hosted && o.host.toLowerCase() === door.host;
-          if (!viaDoor && !allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
+          // The door's name as an Origin counts only for a request that came through the door, by its full origin.
+          if (door && o.hostname.toLowerCase() === doorName) {
+            if (o.origin !== c.get('publicUrl')) return c.json({ error: 'Cross-site request refused' }, 403);
+          } else if (!allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
             return c.json({ error: 'Cross-site request refused' }, 403);
         } catch {
           return c.json({ error: 'Bad origin' }, 403);

@@ -31,6 +31,8 @@ describe('parsePublicUrl', () => {
       'ftp://hildegard.example.com',
       'https://hildegard.example.com/mcp',
       'https://hildegard.example.com//',
+      'https://hildegard.example.com\\mcp',
+      'https://hildegard.example.com\\',
       'https://hildegard.example.com?',
       'https://hildegard.example.com/?a=1',
       'https://hildegard.example.com#x',

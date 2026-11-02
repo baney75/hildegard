@@ -282,7 +282,7 @@ hildegard doctor                                              # reads <link>/.we
 ```
 
 Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
-request signs in, and treats a request for that name there as HTTPS. The same name sent to the Studio's own port is
+request signs in, and treats a request for that name there as HTTPS. The name can't also be in `--allow-host`. The same name sent to the Studio's own port is
 refused. Set up the tunnel with `cloudflared`, on this computer or another:
 
 ```sh
@@ -313,7 +313,9 @@ tailscale serve --bg --tcp 8788 tcp://127.0.0.1:7342   # tailnet only; never Fun
 
 and in the tunnel's config use `service: http://<the GPU computer's tailnet IP>:8788`, with the same
 `httpHostHeader`. Then add `https://hildegard.example.com/mcp` as a custom connector in claude.ai or ChatGPT and sign
-in there with your name and passphrase. `hildegard host off` removes the name again; the tunnel and the DNS record are
+in there with your name and passphrase. Hildegard counts wrong passphrases by the address the last proxy in front of it
+saw (the right-most `X-Forwarded-For` entry), and by account name, so keep the hosted port reachable only by your
+tunnel. `hildegard host off` removes the name again; the tunnel and the DNS record are
 yours to remove with `cloudflared tunnel delete hildegard`.
 
 ## Render on another device

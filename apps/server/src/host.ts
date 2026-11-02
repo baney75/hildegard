@@ -92,6 +92,8 @@ export interface HostOptions {
   port: () => number;
   /** The listener Serve and Funnel forward to. */
   hostPort: () => number;
+  /** Host names the Studio's own listener is told to answer to (--allow-host): a front door can't share one. */
+  reserved?: () => string[];
   run?: Exec;
   onChange?: (s: HostState) => void;
   /** Whether the owner account exists. */
@@ -229,9 +231,25 @@ export class Host {
     if (via === 'custom') {
       const p = parsePublicUrl(opts.url);
       if (!p.ok) throw new HostError(400, p.error);
-      // Going from Serve or Funnel to a front door of one's own: stop forwarding the old way, so only one route leads in.
-      if (this.saved?.on && this.saved.httpsPort && ts)
-        await this.tailscaleOff(ts, this.saved.via, this.saved.httpsPort);
+      const name = new URL(p.url).hostname;
+      if ((this.opts.reserved?.() ?? []).some((h) => h.toLowerCase().replace(/:\d+$/, '') === name))
+        throw new HostError(
+          409,
+          `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,
+        );
+      // Going from Serve or Funnel to a front door of one's own: stop forwarding the old way first, so only one route
+      // leads in. If that can't be done, nothing changes: the old route stays recorded, to be turned off later.
+      const old = this.saved?.on && this.saved.httpsPort ? this.saved : null;
+      if (old) {
+        if (!ts)
+          throw new HostError(
+            409,
+            `Tailscale isn’t running on this computer, so Hildegard can’t turn off the old ${old.via === 'funnel' ? 'Funnel' : 'Serve'} link first. Start Tailscale, then try again.`,
+            'tailscale up',
+          );
+        const off = await this.tailscaleOff(ts, old.via, old.httpsPort!);
+        if (!off.ok) throw this.explainOff(off.out, old.via);
+      }
       this.save({ on: true, via, url: p.url });
       this.problem = null;
       this.fix = null;
@@ -330,9 +348,24 @@ export class Host {
     return new HostError(502, `Tailscale couldn’t set up the link: ${first.slice(0, 200)}`);
   }
 
-  private async tailscaleOff(ts: Tailnet, via: HostFile['via'], port: number) {
-    if (via === 'address' || via === 'custom') return;
-    await this.run(ts.cmd, [via === 'funnel' ? 'funnel' : 'serve', `--https=${port}`, 'off']);
+  private async tailscaleOff(
+    ts: Tailnet,
+    via: HostFile['via'],
+    port: number,
+  ): Promise<{ ok: boolean; out: string }> {
+    if (via === 'address' || via === 'custom') return { ok: true, out: '' };
+    return this.run(ts.cmd, [via === 'funnel' ? 'funnel' : 'serve', `--https=${port}`, 'off']);
+  }
+
+  /** Tailscale refused to turn the old link off: say why, and that nothing changed. */
+  private explainOff(out: string, via: HostFile['via']): HostError {
+    if (/access denied|permission|operator|sudo|https:\/\/login\.tailscale\.com/i.test(out))
+      return this.explain(out, via === 'funnel' ? 'funnel' : 'tailscale');
+    const first = out.split('\n').find((l) => l.trim()) ?? 'it gave no reason';
+    return new HostError(
+      502,
+      `Tailscale couldn’t turn off the old link, so nothing changed: ${first.slice(0, 200)}`,
+    );
   }
 
   /** Turn the link off. Accounts and sessions stay, for the next time. */

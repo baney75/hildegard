@@ -36,6 +36,7 @@ export function parsePublicUrl(input: unknown): PublicUrl {
         : 'Give an https address, such as https://hildegard.example.com.',
     );
   if (m[1]!.includes('@')) return BAD('Leave out any user name or password.');
+  if (m[1]!.includes('\\')) return BAD('Give only the address, with no path: https://hildegard.example.com.');
   let u: URL;
   try {
     u = new URL(`https://${m[1]}`);
@@ -43,6 +44,8 @@ export function parsePublicUrl(input: unknown): PublicUrl {
     return BAD('That isn’t a web address. Try https://hildegard.example.com.');
   }
   if (/:0+$/.test(m[1]!)) return BAD('Port 0 isn’t a port. Leave the port out for the usual 443.');
+  if (u.pathname !== '/' || u.search || u.hash)
+    return BAD('Give only the address, with no path, query or fragment: https://hildegard.example.com.');
   const name = u.hostname.toLowerCase();
   if (name.startsWith('[') || /^[\d.]+$/.test(name) || /^0x[0-9a-f]+$/i.test(name))
     return BAD('Use a name, not an IP address: https certificates are issued for names.');

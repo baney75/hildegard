@@ -274,6 +274,30 @@ describe('host --public-url: the owner’s own HTTPS front door', () => {
     expect(String(inner.issuer)).toBe(`http://127.0.0.1`);
   });
 
+  it('takes a :443 the proxy adds for a door without a port, and refuses other schemes and mismatched origins', async () => {
+    const meta = json(await asHost('hildegard.example.com:443', '/.well-known/oauth-authorization-server'));
+    expect(meta.issuer).toBe(DOOR);
+    const post = (host: string, origin: string) =>
+      asHost(host, '/api/auth/signin', {
+        method: 'POST',
+        headers: { ...H, origin },
+        body: JSON.stringify({ name: 'Ada', passphrase: PASS }),
+      });
+    expect((await post('hildegard.example.com', DOOR)).status).toBe(200);
+    // Plain http on the same name is not the door’s origin.
+    expect((await post('hildegard.example.com', 'http://hildegard.example.com')).status).toBe(403);
+    // Another Host on the hosted listener, with the door as its Origin, is cross-origin.
+    expect((await post('127.0.0.1', DOOR)).status).toBe(403);
+    // And so is the door’s name as an Origin on this computer’s own listener.
+    const here = await asHost('127.0.0.1', '/api/auth/signin', {
+      method: 'POST',
+      base: srv.url,
+      headers: { ...H, origin: DOOR },
+      body: JSON.stringify({ name: 'Ada', passphrase: PASS }),
+    });
+    expect(here.status).toBe(403);
+  });
+
   it('turns off cleanly: the name is removed and answers 421 again', async () => {
     const off = await local('/api/host/off');
     expect(off.status).toBe(200);
@@ -378,4 +402,187 @@ describe('host --public-url: the owner’s own HTTPS front door', () => {
       await s.close();
     }
   }, 30_000);
+});
+
+describe('host --public-url: guarding the door', () => {
+  const clients: Running[] = [];
+  const start = async (args: string[], limits?: { perName: number; perClient: number }, dir?: string) => {
+    const hostPort = await freePort();
+    const s = await startServer(
+      {
+        ...parseArgs(['--fake-gpu', '--data', dir ?? mkdtempSync(join(tmpdir(), 'hg-door-')), ...args]),
+        port: 0,
+        hostPort,
+      },
+      { fakeTickMs: 25, secrets: memoryStore(), exec: tailscale, ...(limits ? { limits } : {}) },
+    );
+    clients.push(s);
+    return s;
+  };
+  const api = (s: Running, path: string, body: unknown = {}) =>
+    fetch(s.url + path, { method: 'POST', headers: H, body: JSON.stringify(body) });
+  const withOwner = async (s: Running) => {
+    expect((await api(s, '/api/people/owner', { name: 'Ada', passphrase: PASS })).status).toBe(201);
+  };
+  const signin = (s: Running, headers: Record<string, string>, passphrase = 'wrong wrong wrong') =>
+    asHost('hildegard.example.com', '/api/auth/signin', {
+      base: s.hostedUrl()!,
+      method: 'POST',
+      headers: { ...H, ...headers },
+      body: JSON.stringify({ name: 'Ada', passphrase }),
+    });
+  afterAll(async () => {
+    for (const s of clients) await s.close();
+  });
+
+  it('counts sign-in tries by the proxy’s own X-Forwarded-For entry, not the leading ones a client can make up', async () => {
+    const s = await start([], { perName: 1000, perClient: 3 });
+    await withOwner(s);
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    // Different spoofed leading entries, the same entry appended by the proxy: one address, so the fourth is refused.
+    const seen: number[] = [];
+    for (let i = 0; i < 5; i++)
+      seen.push((await signin(s, { 'x-forwarded-for': `10.0.0.${i}, 198.51.100.7` })).status);
+    expect(seen).toEqual([401, 401, 401, 429, 429]);
+    // A different address at the proxy is a different bucket.
+    expect((await signin(s, { 'x-forwarded-for': '10.0.0.1, 198.51.100.8' })).status).toBe(401);
+    // No header at all: the socket’s own address, still one bucket.
+    for (let i = 0; i < 3; i++) await signin(s, {});
+    expect((await signin(s, {})).status).toBe(429);
+  });
+
+  it('caps guesses at one account whatever the address', async () => {
+    const s = await start([], { perName: 3, perClient: 1000 });
+    await withOwner(s);
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    const seen: number[] = [];
+    for (let i = 0; i < 5; i++) seen.push((await signin(s, { 'x-forwarded-for': `203.0.113.${i}` })).status);
+    expect(seen).toEqual([401, 401, 401, 429, 429]);
+    // Even the right passphrase waits, from yet another address.
+    expect((await signin(s, { 'x-forwarded-for': '203.0.113.99' }, PASS)).status).toBe(429);
+  });
+
+  it('keeps the Tailscale routes’ first-entry address', async () => {
+    const s = await start([], { perName: 1000, perClient: 2 });
+    await withOwner(s);
+    expect((await api(s, '/api/host')).status).toBe(200);
+    const via = (xff: string) =>
+      asHost('studio.example.ts.net', '/api/auth/signin', {
+        base: s.hostedUrl()!,
+        method: 'POST',
+        headers: { ...H, 'x-forwarded-for': xff },
+        body: JSON.stringify({ name: 'Ada', passphrase: 'wrong wrong wrong' }),
+      });
+    expect([(await via('100.64.0.9')).status, (await via('100.64.0.9')).status]).toEqual([401, 401]);
+    expect((await via('100.64.0.9')).status).toBe(429);
+    expect((await via('100.64.0.10')).status).toBe(401);
+  });
+
+  it('refuses a name that is also in --allow-host, and never serves it on the Studio’s listener', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-door-allow-'));
+    const s1 = await start([], undefined, dir);
+    await withOwner(s1);
+    expect((await api(s1, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    await s1.close();
+    clients.splice(clients.indexOf(s1), 1);
+
+    // The same data, started again with the name listed: the saved door is still decided before the allowlist.
+    const s2 = await start(['--allow-host', 'hildegard.example.com'], undefined, dir);
+    await until(() => s2.hostedUrl() !== null);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s2.url })).status).toBe(421);
+    expect((await asHost('hildegard.example.com:8080', '/api/health', { base: s2.url })).status).toBe(421);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s2.hostedUrl()! })).status).toBe(
+      200,
+    );
+    // On the hosted listener with a port the door doesn’t have, the allowlist doesn’t rescue it either.
+    expect(
+      (await asHost('hildegard.example.com:8080', '/api/health', { base: s2.hostedUrl()! })).status,
+    ).toBe(421);
+    // Its Origin is not allowed to write to this computer’s own listener either.
+    const write = await asHost('127.0.0.1', '/api/projects', {
+      base: s2.url,
+      method: 'POST',
+      headers: { ...H, origin: DOOR },
+      body: '{}',
+    });
+    expect(write.status).toBe(403);
+    // Turning the route on is refused while the name is listed.
+    const dir2 = mkdtempSync(join(tmpdir(), 'hg-door-allow2-'));
+    const s3 = await start(['--allow-host', 'Hildegard.Example.com:7341'], undefined, dir2);
+    await withOwner(s3);
+    const res = await api(s3, '/api/host', { via: 'custom', url: DOOR });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { error: string }).error).toMatch(/allow-host/);
+    expect(((await (await fetch(`${s3.url}/api/host`)).json()) as HostState).on).toBe(false);
+  });
+
+  it('keeps the old Serve route recorded when Tailscale is down or won’t turn it off', async () => {
+    let down = false;
+    let refuse: string | null = null;
+    const log: string[][] = [];
+    const run: Exec = async (c, a, t) => {
+      log.push(a);
+      if (down && a[0] === 'status') return { ok: false, out: '' };
+      if (refuse && a.includes('off')) return { ok: false, out: refuse };
+      return tailscale(c, a, t);
+    };
+    const hostPort = await freePort();
+    const s = await startServer(
+      {
+        ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-door-sw-'))]),
+        port: 0,
+        hostPort,
+      },
+      { fakeTickMs: 25, secrets: memoryStore(), exec: run },
+    );
+    clients.push(s);
+    await withOwner(s);
+    const state = async () => (await (await fetch(`${s.url}/api/host`)).json()) as HostState;
+    expect((await api(s, '/api/host')).status).toBe(200);
+
+    // Tailscale unreachable: refused before anything is saved.
+    down = true;
+    let res = await api(s, '/api/host', { via: 'custom', url: DOOR });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ fix: 'tailscale up' });
+    down = false;
+    expect(await state()).toMatchObject({ on: true, via: 'tailscale', url: 'https://studio.example.ts.net' });
+
+    // Tailscale refuses to turn it off: refused, and still recorded as Serve.
+    refuse =
+      'Access denied: serve config denied\nUse sudo tailscale serve, or tailscale set --operator=$USER';
+    res = await api(s, '/api/host', { via: 'custom', url: DOOR });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ fix: expect.stringContaining('--operator=$USER') });
+    refuse = 'something odd happened';
+    res = await api(s, '/api/host', { via: 'custom', url: DOOR });
+    expect(res.status).toBe(502);
+    expect(((await res.json()) as { error: string }).error).toMatch(/nothing changed/);
+    expect(await state()).toMatchObject({ on: true, via: 'tailscale' });
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s.hostedUrl()! })).status).toBe(421);
+
+    // Once it works, the switch goes through, and the old port was still known to turn off.
+    refuse = null;
+    log.length = 0;
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    expect(log).toContainEqual(['serve', '--https=443', 'off']);
+  });
+
+  it('starts the hosted listener on its own for the door, and closes it again when off', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-door-nohp-'));
+    const s = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0 },
+      { fakeTickMs: 25, secrets: memoryStore(), exec: tailscale },
+    );
+    clients.push(s);
+    expect(s.hostedUrl()).toBeNull();
+    await withOwner(s);
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    await until(() => s.hostedUrl() !== null);
+    const hosted = s.hostedUrl()!;
+    expect((await asHost('hildegard.example.com', '/api/health', { base: hosted })).status).toBe(200);
+    expect((await api(s, '/api/host/off')).status).toBe(200);
+    await until(() => s.hostedUrl() === null);
+    await expect(fetch(`${hosted}/api/health`)).rejects.toThrow();
+  });
 });
