@@ -3,9 +3,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  accentFromInput,
   accentNote,
   applyTheme,
   contrast,
+  forgetChoices,
+  fromHsl,
+  nudgeInto,
   nudgeLightness,
   type Palette,
   PRESETS,
@@ -18,6 +22,7 @@ import {
   setThemeMode,
   setThemePreset,
   type Theme,
+  toHsl,
 } from '../src/lib/theme-core.ts';
 
 const root = join(import.meta.dirname, '..', 'src', 'styles');
@@ -133,6 +138,14 @@ describe('accent', () => {
     for (const v of [null, undefined, 12, {}]) expect(parseAccent(v)).toBeNull();
   });
 
+  it('takes the box’s #rrggbb, or bare digits, with spaces around either', () => {
+    for (const v of ['#3A7BD5', ' #3a7bd5 ', '3a7bd5', ' 3A7BD5\n'])
+      expect(accentFromInput(v), v).toBe('#3a7bd5');
+    for (const v of ['', '#3a7bd', '3a7bd', '#3a7bd55', '3a7bd5f', '##3a7bd5', 'blue', '#3a 7bd5']) {
+      expect(accentFromInput(v), v).toBeNull();
+    }
+  });
+
   const awkward = [
     '#ffee00',
     '#ff0000',
@@ -143,6 +156,13 @@ describe('accent', () => {
     '#39ff14',
     '#2a0a3a',
     '#7ccda1',
+    // Close to a ground: dark presets' canvas, and the vellum and silver grounds of the light ones.
+    '#070a14',
+    '#0d0f11',
+    '#f4eedd',
+    '#fffcf3',
+    '#fffffe',
+    '#e6e8eb',
   ];
 
   it('nudges a failing accent until it reaches 4.5:1 for both its jobs, in every preset and mode', () => {
@@ -152,13 +172,17 @@ describe('accent', () => {
         for (const a of awkward) {
           const p = preset[t];
           const r = resolveAccent(a, p);
+          // Both hold for every preset we ship; fillConflict is for a palette whose ink sits between its grounds and fills.
+          expect(r.fillConflict, `${preset.id} ${t} ${a}`).toBe(false);
           expect(contrast(p.onBrand, r.fill), `${preset.id} ${t} fill ${a}`).toBeGreaterThanOrEqual(AA);
+          for (const g of grounds(p))
+            expect(contrast(r.fill, g), `${preset.id} ${t} fill ${a} on ${g}`).toBeGreaterThanOrEqual(3);
           for (const g of grounds(p))
             expect(contrast(r.text, g), `${preset.id} ${t} text ${a}`).toBeGreaterThanOrEqual(AA);
           if (r.fillMoved || r.textMoved) nudged++;
           expect(accentNote(r) !== '').toBe(!!(r.fillMoved || r.textMoved));
         }
-    expect(nudged).toBeGreaterThan(20);
+    expect(nudged).toBeGreaterThan(40);
   });
 
   it('leaves an accent that already passes exactly as chosen, and says nothing', () => {
@@ -169,26 +193,66 @@ describe('accent', () => {
     expect(nudgeLightness('#7ccda1', ['#0a0e13'], 'lighter')).toBe('#7ccda1');
   });
 
-  it('moves lightness only: the hue stays, and it moves as little as it can', () => {
-    const out = nudgeLightness('#ff0000', ['#0a0e13', '#0f151c', '#151d28'], 'lighter');
-    expect(contrast(out, '#151d28')).toBeGreaterThanOrEqual(AA);
-    expect(out.slice(1, 3)).toBe('ff');
-    // One half point less would not have been enough.
-    const r = Number.parseInt(out.slice(3, 5), 16);
-    expect(r).toBeLessThan(0x80);
-    expect(out).not.toBe('#ffffff');
+  it('moves lightness only: the hue stays, and it moves no further than it must', () => {
+    const against = ['#0a0e13', '#0f151c', '#151d28'];
+    const out = nudgeLightness('#ff0000', against, 'lighter');
+    expect(against.every((g) => contrast(out, g) >= AA)).toBe(true);
+    const [h0, s0, l0] = toHsl('#ff0000');
+    const [h, s, l] = toHsl(out);
+    expect(Math.abs(h - h0)).toBeLessThan(1);
+    expect(Math.abs(s - s0)).toBeLessThan(0.02);
+    expect(l).toBeGreaterThan(l0);
+    // Back one step (and a little more, for the rounding to eight bits) it would fail a ground, so it did not overshoot.
+    const back = fromHsl(h, s, l - 0.005 - 0.0025);
+    expect(against.some((g) => contrast(back, g) < AA)).toBe(true);
+    // A color that needs a nudge toward dark moves only that way.
+    const dark = nudgeLightness('#ffee00', ['#f4eedd', '#faf5e8', '#fffcf3'], 'darker');
+    const [, , ld] = toHsl(dark);
+    expect(ld).toBeLessThan(toHsl('#ffee00')[2]);
+    expect(
+      ['#f4eedd', '#faf5e8', '#fffcf3'].some(
+        (g) =>
+          contrast(fromHsl(...(toHsl(dark).slice(0, 2) as [number, number]), ld + 0.005 + 0.0025), g) < AA,
+      ),
+    ).toBe(true);
+  });
+
+  it('finds the nearest lightness that meets needs pulling both ways, or says there is none', () => {
+    const needs = [
+      { against: ['#f8f4ea'], min: 4.5 },
+      { against: ['#070a14', '#0c1120', '#131a2e'], min: 3 },
+    ];
+    for (const a of ['#000000', '#ffffff', '#ffee00']) {
+      const c = nudgeInto(a, needs)!;
+      expect(c, a).not.toBeNull();
+      expect(contrast(c, '#f8f4ea')).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(c, '#131a2e')).toBeGreaterThanOrEqual(3);
+    }
+    // Ink in the middle: no lightness is 4.5:1 from it and 3:1 from dark grounds.
+    expect(nudgeInto('#ff0000', [{ against: ['#989898'], min: 4.5 }, needs[1]!])).toBeNull();
+  });
+
+  it('keeps a fill visible against its grounds when the ink and the grounds conflict, and says so', () => {
+    const p: Palette = { ...PRESETS[2]!.dark, onBrand: '#989898' };
+    const r = resolveAccent('#000000', p);
+    expect(r.fillConflict).toBe(true);
+    for (const g of grounds(p)) expect(contrast(r.fill, g)).toBeGreaterThanOrEqual(3);
+    expect(accentNote(r)).toContain('may be harder to read');
   });
 
   it('says which way it moved', () => {
     const r = resolveAccent('#ffee00', PRESETS[0]!.light);
     expect(r.fillMoved).toBe('darker');
     expect(r.textMoved).toBe('darker');
-    expect(accentNote(r)).toMatch(/^Your color needed a nudge\. Buttons use a darker #[0-9a-f]{6}/);
+    expect(accentNote(r)).toMatch(
+      /^Your color needed a nudge\. Buttons use a darker #[0-9a-f]{6}, so they stand out/,
+    );
   });
 });
 
 /** Just enough of a browser for the storage and <html> code: a Map for localStorage and a root that records styles. */
-function fakeBrowser(light = false) {
+function fakeBrowser(light = false, storage: 'works' | 'cannot write' | 'blocked' = 'works') {
+  forgetChoices();
   const store = new Map<string, string>();
   const style = new Map<string, string>();
   const meta: Record<string, string> = { 'color-scheme': 'dark', 'theme-color': '#0a0e13' };
@@ -200,10 +264,13 @@ function fakeBrowser(light = false) {
       removeProperty: (k: string) => void style.delete(k),
     },
   };
+  const refuse = () => {
+    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+  };
   vi.stubGlobal('localStorage', {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
+    getItem: (k: string) => (storage === 'blocked' ? refuse() : (store.get(k) ?? null)),
+    setItem: (k: string, v: string) => (storage === 'works' ? void store.set(k, v) : refuse()),
+    removeItem: (k: string) => (storage === 'works' ? void store.delete(k) : refuse()),
   });
   vi.stubGlobal('window', { matchMedia: () => ({ matches: light }) });
   vi.stubGlobal('document', {
@@ -253,6 +320,7 @@ describe('stored look', () => {
     expect(setAccent('blue')).toBe(false);
     expect(b.store.get('hildegard.accent')).toBe('#3a7bd5');
     // A stored value that is not a known preset or a valid hex is ignored, not trusted.
+    forgetChoices();
     b.store.set('hildegard.themePreset', 'plaid');
     b.store.set('hildegard.accent', 'url(x)');
     expect(readPreset()).toBe('hildegard');
@@ -289,6 +357,30 @@ describe('stored look', () => {
     expect(b.style.get('--brand')).toBe(p.brand);
     expect(b.style.get('--brand-text')).toBe(p.brandText);
   });
+
+  for (const storage of ['cannot write', 'blocked'] as const)
+    it(`still changes the page when storage ${storage === 'blocked' ? 'is blocked' : 'cannot be written'}`, () => {
+      const b = fakeBrowser(false, storage);
+      setThemeMode('light');
+      expect(b.rootEl.dataset.theme).toBe('light');
+      expect(readThemeMode()).toBe('light');
+      setThemePreset('vellum');
+      const p = PRESETS.find((x) => x.id === 'vellum')!.light;
+      expect(b.rootEl.dataset).toEqual({ theme: 'light', preset: 'vellum' });
+      expect(b.style.get('--canvas')).toBe(p.canvas);
+      expect(readPreset()).toBe('vellum');
+      expect(setAccent('#3a7bd5')).toBe(true);
+      expect(readAccent()).toBe('#3a7bd5');
+      expect(b.style.get('--brand')).toBe(resolveAccent('#3a7bd5', p).fill);
+      // Each choice keeps the others: the mode and preset were not lost by the accent.
+      expect(b.rootEl.dataset).toEqual({ theme: 'light', preset: 'vellum' });
+      expect(setAccent(null)).toBe(true);
+      expect(readAccent()).toBeNull();
+      expect(b.style.get('--brand')).toBe(p.brand);
+      setThemeMode('dark');
+      expect(b.rootEl.dataset.theme).toBe('dark');
+      expect(b.store.size).toBe(0);
+    });
 
   it('follows the device while the mode is system', () => {
     const b = fakeBrowser(true);

@@ -3,8 +3,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import react from '@vitejs/plugin-react';
-import { buildSync } from 'esbuild';
-import { defineConfig, type Plugin } from 'vite';
+import { build, defineConfig, type Plugin, type Rollup } from 'vite';
 
 /**
  * The look the person chose, applied in <head> before the first paint. It is a classic script (a module would wait
@@ -12,15 +11,22 @@ import { defineConfig, type Plugin } from 'vite';
  */
 function themeInit(): Plugin {
   const entry = join(import.meta.dirname, 'src/theme-init.ts');
-  const bundle = () =>
-    buildSync({
-      entryPoints: [entry],
-      bundle: true,
-      format: 'iife',
-      target: 'es2022',
-      minify: true,
-      write: false,
-    }).outputFiles[0]!.text;
+  // Vite's own build, so no bundler of ours to declare: one entry, no config file, kept in memory.
+  const bundle = async () => {
+    const out = (await build({
+      configFile: false,
+      logLevel: 'silent',
+      publicDir: false,
+      build: {
+        write: false,
+        minify: true,
+        target: 'es2022',
+        lib: { entry, formats: ['iife'], name: 'hildegardThemeInit' },
+      },
+    })) as Rollup.RollupOutput | Rollup.RollupOutput[];
+    const chunk = (Array.isArray(out) ? out[0]! : out).output.find((o) => o.type === 'chunk');
+    return chunk && 'code' in chunk ? chunk.code : '';
+  };
   return {
     name: 'hildegard-theme-init',
     transformIndexHtml: () => [
@@ -28,12 +34,20 @@ function themeInit(): Plugin {
     ],
     configureServer(dev) {
       dev.middlewares.use('/theme-init.js', (_req, res) => {
-        res.setHeader('content-type', 'text/javascript');
-        res.end(bundle());
+        bundle().then(
+          (code) => {
+            res.setHeader('content-type', 'text/javascript');
+            res.end(code);
+          },
+          () => {
+            res.statusCode = 500;
+            res.end();
+          },
+        );
       });
     },
-    generateBundle() {
-      this.emitFile({ type: 'asset', fileName: 'theme-init.js', source: bundle() });
+    async generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'theme-init.js', source: await bundle() });
     },
   };
 }

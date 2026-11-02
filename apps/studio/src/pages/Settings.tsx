@@ -8,9 +8,9 @@ import { comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, isOwner, upsert, useStore } from '../lib/store.ts';
 import {
+  accentFromInput,
   accentNote,
   PRESETS,
-  parseAccent,
   presetById,
   resolveAccent,
   setAccent,
@@ -452,13 +452,16 @@ function Appearance() {
   const noteId = useId();
   // What is typed in the box, which may be half a color; the accent itself only changes for a whole, valid one.
   const [typed, setTyped] = useState(accent ?? '');
+  // A half-typed color is not an error until the person leaves the box or has typed more than a color holds.
+  const [left, setLeft] = useState(false);
   const palette = presetById(preset)[theme];
   const resolved = accent ? resolveAccent(accent, palette) : null;
   const note = resolved ? accentNote(resolved) : '';
-  const bad = typed !== '' && !parseAccent(typed);
+  const bad = typed.trim() !== '' && !accentFromInput(typed) && (left || typed.trim().length >= 7);
   const choose = (v: string) => {
     setTyped(v);
-    const hex = parseAccent(v);
+    setLeft(false);
+    const hex = accentFromInput(v);
     if (hex) setAccent(hex);
   };
   return (
@@ -532,12 +535,16 @@ function Appearance() {
             inputMode="text"
             spellCheck={false}
             autoComplete="off"
-            maxLength={7}
             placeholder="#3a7bd5"
             value={typed}
             aria-invalid={bad}
             aria-describedby={noteId}
-            onChange={(e) => choose(e.target.value.trim())}
+            onChange={(e) => choose(e.target.value)}
+            onBlur={() => {
+              setLeft(true);
+              const hex = accentFromInput(typed);
+              if (hex) setTyped(hex);
+            }}
           />
           <Button
             kind="ghost"

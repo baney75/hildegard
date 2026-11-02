@@ -24,17 +24,35 @@ test('a theme preset and an accent are picked in Settings and kept on reload', a
     '#070a14',
   );
 
-  // A bad hex is refused where it is typed and keeps the last good accent.
+  // Typing a color one key at a time is not an error until the box is left or holds more than a color can.
   const hex = page.getByRole('textbox', { name: 'Accent color', exact: true });
-  await hex.fill('#ffee00');
+  await hex.pressSequentially('#3a7bd');
+  await expect(hex).toHaveAttribute('aria-invalid', 'false');
+  expect(await page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBeNull();
+  await hex.pressSequentially('5');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBe('#3a7bd5');
+  await expect(hex).toHaveAttribute('aria-invalid', 'false');
+
+  // A paste with spaces, or the digits without the #, is a color too.
+  await hex.fill(' #FFEE00 ');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBe('#ffee00');
+  await hex.fill('3a7bd5');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBe('#3a7bd5');
+
+  // A bad one is refused once the box is left, or at once when it is too long, and keeps the last good accent.
   await hex.fill('#ffee0');
+  await expect(hex).toHaveAttribute('aria-invalid', 'false');
+  await hex.blur();
   await expect(hex).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('status').filter({ hasText: 'six digits' })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBe('#ffee00');
+  await hex.fill('#ffee00ff');
+  await expect(hex).toHaveAttribute('aria-invalid', 'true');
+  expect(await page.evaluate(() => localStorage.getItem('hildegard.accent'))).toBe('#3a7bd5');
 
   // Bright yellow can't carry button text on this theme, so it is nudged, and the page says so.
   await hex.fill('#ffee00');
+  await hex.blur();
+  await expect(hex).toHaveValue('#ffee00');
   const note = page.getByRole('status').filter({ hasText: 'needed a nudge' });
   await expect(note).toContainText('Buttons use a darker #');
   const brand = await page.evaluate(() => document.documentElement.style.getPropertyValue('--brand'));
@@ -66,17 +84,28 @@ test('the look is on the page before the Studio’s own script runs, so nothing 
     localStorage.setItem('hildegard.theme', 'light');
     localStorage.setItem('hildegard.themePreset', 'verdant');
     localStorage.setItem('hildegard.accent', '#3a7bd5');
+    // The page as it stands when parsing ends, before any module script has had its turn.
+    document.addEventListener('DOMContentLoaded', () => {
+      const h = document.documentElement;
+      (window as unknown as { atParsed: unknown }).atParsed = {
+        theme: h.dataset.theme,
+        preset: h.dataset.preset,
+        canvas: h.style.getPropertyValue('--canvas'),
+        bar: document.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+      };
+    });
   });
-  // Without the app bundle there is nothing but index.html and /theme-init.js to have set it.
-  await page.route('**/assets/*.js', (r) => r.abort());
+  // Nothing of the app can load, built or from the dev server, so only index.html and /theme-init.js can have set it.
+  await page.route(/\/(assets|src|@vite|@react-refresh|node_modules)\//, (r) => r.abort());
   await page.goto('/');
-  const html = page.locator('html');
-  await expect(html).toHaveAttribute('data-theme', 'light');
-  await expect(html).toHaveAttribute('data-preset', 'verdant');
-  expect(await page.evaluate(() => document.documentElement.style.getPropertyValue('--canvas'))).toBe(
-    '#e6edd8',
-  );
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#e6edd8');
+  await page.waitForFunction(() => 'atParsed' in window);
+  expect(await page.evaluate(() => (window as unknown as { atParsed: unknown }).atParsed)).toEqual({
+    theme: 'light',
+    preset: 'verdant',
+    canvas: '#e6edd8',
+    bar: '#e6edd8',
+  });
+  await expect(page.locator('#root')).toBeEmpty();
 });
 
 test('every preset is readable in dark and light', async ({ page }) => {

@@ -232,6 +232,12 @@ export function parseAccent(v: unknown): string | null {
   return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
 }
 
+/** What the accent box accepts: `#rrggbb`, or the six digits alone, with spaces around either. */
+export function accentFromInput(v: string): string | null {
+  const t = v.trim();
+  return parseAccent(/^[0-9a-fA-F]{6}$/.test(t) ? `#${t}` : t);
+}
+
 const rgb = (hex: string): [number, number, number] => {
   const n = Number.parseInt(hex.slice(1, 7), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -261,7 +267,8 @@ export function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-function hsl(hex: string): [number, number, number] {
+/** HSL of a `#rrggbb` color: hue in degrees, saturation and lightness 0 to 1. */
+export function toHsl(hex: string): [number, number, number] {
   const [r, g, b] = rgb(hex).map((v) => v / 255) as [number, number, number];
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -278,7 +285,7 @@ function hsl(hex: string): [number, number, number] {
   return [h, s, l];
 }
 
-function fromHsl(h: number, s: number, l: number): string {
+export function fromHsl(h: number, s: number, l: number): string {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;
@@ -297,6 +304,17 @@ function fromHsl(h: number, s: number, l: number): string {
   return toHex([(r! + m) * 255, (g! + m) * 255, (b! + m) * 255]);
 }
 
+/** How far one nudge step moves HSL lightness: half a point. */
+export const NUDGE_STEP = 0.005;
+
+/** A contrast the color must hold against every one of `against`. */
+export interface Need {
+  against: string[];
+  min: number;
+}
+const meets = (c: string, needs: Need[]) =>
+  needs.every((n) => n.against.every((g) => contrast(c, g) >= n.min));
+
 /**
  * Move a color's lightness, half a point at a time and no further than it must, until it holds `min`:1 against every
  * `against` color. Hue and saturation stay. `direction` is the way to move, away from the grounds it is read on.
@@ -308,41 +326,74 @@ export function nudgeLightness(
   direction: 'lighter' | 'darker',
   min = 4.5,
 ): string {
-  const ok = (c: string) => against.every((g) => contrast(c, g) >= min);
-  if (ok(hex)) return hex;
-  const [h, s, l0] = hsl(hex);
-  const step = direction === 'lighter' ? 0.005 : -0.005;
+  const needs = [{ against, min }];
+  if (meets(hex, needs)) return hex;
+  const [h, s, l0] = toHsl(hex);
+  const step = direction === 'lighter' ? NUDGE_STEP : -NUDGE_STEP;
   let best = hex;
   for (let l = l0 + step; l >= 0 && l <= 1; l += step) {
     best = fromHsl(h, s, l);
-    if (ok(best)) return best;
+    if (meets(best, needs)) return best;
   }
   return best;
 }
 
+/**
+ * The nearest color, in lightness and on either side of the chosen one, that meets every need; null when no
+ * lightness does. Needs that pull in opposite directions (ink on a fill, and the fill against its grounds) leave a
+ * band between them, and this finds it.
+ */
+export function nudgeInto(hex: string, needs: Need[]): string | null {
+  if (meets(hex, needs)) return hex;
+  const [h, s, l0] = toHsl(hex);
+  for (let i = 1; i * NUDGE_STEP <= 1; i++) {
+    for (const sign of [1, -1]) {
+      const l = l0 + sign * i * NUDGE_STEP;
+      if (l < 0 || l > 1) continue;
+      const c = fromHsl(h, s, l);
+      if (meets(c, needs)) return c;
+    }
+  }
+  return null;
+}
+
 export interface AccentResolved {
-  /** The accent as a fill, with the preset's on-accent ink on it at 4.5:1 or better. */
+  /** The accent as a fill: the on-accent ink reads on it at 4.5:1 and it stands out from the grounds at 3:1. */
   fill: string;
   /** The accent as text or an icon stroke, at 4.5:1 or better on canvas, panel and raised. */
   text: string;
-  /** How the fill and the text moved from the chosen color, if they had to. */
+  /** Which way the fill and the text moved from the chosen color, if they had to. */
   fillMoved: 'lighter' | 'darker' | null;
   textMoved: 'lighter' | 'darker' | null;
+  /**
+   * True when no lightness gives both the ink 4.5:1 and the grounds 3:1 (a preset whose ink sits between its grounds
+   * and its fills; none of ours). The fill then keeps to the grounds, so it stays visible, and the ink may read less well.
+   */
+  fillConflict: boolean;
 }
+
+const way = (from: string, to: string): 'lighter' | 'darker' | null =>
+  from === to ? null : luminance(to) > luminance(from) ? 'lighter' : 'darker';
 
 /** Hold a chosen accent to the contrast its preset needs, nudging lightness only where it falls short. */
 export function resolveAccent(accent: string, p: Palette): AccentResolved {
   const grounds = [p.canvas, p.panel, p.raised];
   const darkGround = grounds.every((g) => luminance(g) < 0.18);
-  const fillWay = luminance(p.onBrand) > 0.5 ? 'darker' : 'lighter';
   const textWay = darkGround ? 'lighter' : 'darker';
-  const fill = nudgeLightness(accent, [p.onBrand], fillWay);
+  // WCAG 1.4.11: a selected row or a button shape is told from its ground by 3:1, as well as its ink by 4.5:1.
+  const both: Need[] = [
+    { against: [p.onBrand], min: 4.5 },
+    { against: grounds, min: 3 },
+  ];
+  const together = nudgeInto(accent, both);
+  const fill = together ?? nudgeInto(accent, [both[1]!]) ?? accent;
   const text = nudgeLightness(accent, grounds, textWay);
   return {
     fill,
     text,
-    fillMoved: fill === accent ? null : fillWay,
+    fillMoved: way(accent, fill),
     textMoved: text === accent ? null : textWay,
+    fillConflict: together === null,
   };
 }
 
@@ -351,12 +402,12 @@ export function accentNote(r: AccentResolved): string {
   const parts: string[] = [];
   if (r.fillMoved)
     parts.push(
-      `Buttons use a ${r.fillMoved === 'darker' ? 'darker' : 'lighter'} ${r.fill}, so the words on them stay readable.`,
+      r.fillConflict
+        ? `Buttons use ${r.fill} so they stand out from the page; the words on them may be harder to read.`
+        : `Buttons use a ${r.fillMoved} ${r.fill}, so they stand out from the page and the words on them stay readable.`,
     );
   if (r.textMoved)
-    parts.push(
-      `Accent text and icons use a ${r.textMoved === 'darker' ? 'darker' : 'lighter'} ${r.text}, so they stay readable on this theme.`,
-    );
+    parts.push(`Accent text and icons use a ${r.textMoved} ${r.text}, so they stay readable on this theme.`);
   return parts.length ? `Your color needed a nudge. ${parts.join(' ')}` : '';
 }
 
@@ -382,12 +433,24 @@ const write = (key: string, value: string | null) => {
   } catch {}
 };
 
+// What was chosen in this page, kept even where storage refuses to hold it (blocked site data, a full quota), so a
+// choice still takes effect and reads back until the page closes. It wins over storage, which only this page writes.
+const chosen: { mode?: ThemeMode; preset?: string; accent?: string | null } = {};
+/** Forget what this page chose (for tests). */
+export const forgetChoices = () => {
+  delete chosen.mode;
+  delete chosen.preset;
+  delete chosen.accent;
+};
+
 export function readThemeMode(): ThemeMode {
+  if (chosen.mode) return chosen.mode;
   const v = read(MODE_KEY);
   return v === 'light' || v === 'system' ? v : 'dark';
 }
-export const readPreset = (): string => presetById(read(PRESET_KEY) ?? '').id;
-export const readAccent = (): string | null => parseAccent(read(ACCENT_KEY));
+export const readPreset = (): string => chosen.preset ?? presetById(read(PRESET_KEY) ?? '').id;
+export const readAccent = (): string | null =>
+  chosen.accent !== undefined ? chosen.accent : parseAccent(read(ACCENT_KEY));
 
 const systemLight = () => window.matchMedia?.('(prefers-color-scheme: light)').matches ?? false;
 
@@ -434,14 +497,17 @@ const notify = () => {
 };
 
 export function setThemeMode(mode: ThemeMode) {
+  chosen.mode = mode;
   write(MODE_KEY, mode);
-  applyTheme();
+  applyTheme(mode, readPreset(), readAccent());
   notify();
 }
 
 export function setThemePreset(id: string) {
-  write(PRESET_KEY, presetById(id).id);
-  applyTheme();
+  const preset = presetById(id).id;
+  chosen.preset = preset;
+  write(PRESET_KEY, preset);
+  applyTheme(readThemeMode(), preset, readAccent());
   notify();
 }
 
@@ -449,8 +515,9 @@ export function setThemePreset(id: string) {
 export function setAccent(value: string | null): boolean {
   const hex = value === null ? null : parseAccent(value);
   if (value !== null && hex === null) return false;
+  chosen.accent = hex;
   write(ACCENT_KEY, hex);
-  applyTheme();
+  applyTheme(readThemeMode(), readPreset(), hex);
   notify();
   return true;
 }
