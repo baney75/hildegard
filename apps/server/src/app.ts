@@ -272,15 +272,18 @@ export function createApp(deps: AppDeps) {
     const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
     // The owner's own front door (a tunnel or proxy) is trusted on the hosted listener only, and only by its exact
     // Host (a :443 the proxy adds to a door without a port is the same name). Its name is decided here, before the
-    // allowlist, so listing it with --allow-host can't open it on the Studio's own listener.
-    const door = host.current().custom;
-    const doorName = door?.host.replace(/:\d+$/, '');
-    if (door && hostName === doorName) {
+    // allowlist, so listing it with --allow-host can't open it on the Studio's own listener. A saved door keeps that
+    // name for good, off or on: after `host off` it is 421 everywhere.
+    const cur = host.current();
+    const door = cur.custom;
+    const kept = cur.door;
+    const doorName = kept?.host.replace(/:\d+$/, '');
+    if (kept && hostName === doorName) {
       const raw = (c.req.header('host') ?? '').toLowerCase();
-      const same = door.host.includes(':')
-        ? raw === door.host
-        : raw === door.host || raw === `${door.host}:443`;
-      if (!c.env?.hosted || !same) return c.text('Unknown host', 421);
+      const same = kept.host.includes(':')
+        ? raw === kept.host
+        : raw === kept.host || raw === `${kept.host}:443`;
+      if (!door || !c.env?.hosted || !same) return c.text('Unknown host', 421);
       c.set('publicUrl', door.url);
     } else if (!allowed(hostName)) return c.text('Unknown host', 421);
     const method = c.req.method;
@@ -306,7 +309,7 @@ export function createApp(deps: AppDeps) {
         try {
           const o = new URL(origin);
           // The door's name as an Origin counts only for a request that came through the door, by its full origin.
-          if (door && o.hostname.toLowerCase() === doorName) {
+          if (kept && o.hostname.toLowerCase() === doorName) {
             if (o.origin !== c.get('publicUrl')) return c.json({ error: 'Cross-site request refused' }, 403);
           } else if (!allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
             return c.json({ error: 'Cross-site request refused' }, 403);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -478,7 +478,7 @@ describe('host --public-url: guarding the door', () => {
     expect((await via('100.64.0.10')).status).toBe(401);
   });
 
-  it('refuses a name that is also in --allow-host, and never serves it on the Studio’s listener', async () => {
+  it('refuses a name that is also in --allow-host, and never serves it on the Studio’s listener, on or off', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-door-allow-'));
     const s1 = await start([], undefined, dir);
     await withOwner(s1);
@@ -486,26 +486,58 @@ describe('host --public-url: guarding the door', () => {
     await s1.close();
     clients.splice(clients.indexOf(s1), 1);
 
-    // The same data, started again with the name listed: the saved door is still decided before the allowlist.
-    const s2 = await start(['--allow-host', 'hildegard.example.com'], undefined, dir);
+    // The door is on and its name is also listed: Hildegard won’t start, and says why.
+    await expect(
+      startServer(
+        {
+          ...parseArgs(['--fake-gpu', '--data', dir, '--allow-host', 'Hildegard.Example.com:7341']),
+          port: 0,
+        },
+        { fakeTickMs: 25, secrets: memoryStore(), exec: tailscale },
+      ),
+    ).rejects.toThrow(/front door.*allow-host/);
+
+    // Without the list, then off: the name stays refused after off, even when it is listed on the next start.
+    const s2 = await start([], undefined, dir);
     await until(() => s2.hostedUrl() !== null);
-    expect((await asHost('hildegard.example.com', '/api/health', { base: s2.url })).status).toBe(421);
-    expect((await asHost('hildegard.example.com:8080', '/api/health', { base: s2.url })).status).toBe(421);
     expect((await asHost('hildegard.example.com', '/api/health', { base: s2.hostedUrl()! })).status).toBe(
       200,
     );
-    // On the hosted listener with a port the door doesn’t have, the allowlist doesn’t rescue it either.
-    expect(
-      (await asHost('hildegard.example.com:8080', '/api/health', { base: s2.hostedUrl()! })).status,
-    ).toBe(421);
+    expect((await api(s2, '/api/host/off')).status).toBe(200);
+    await s2.close();
+    clients.splice(clients.indexOf(s2), 1);
+
+    const s2b = await start(['--allow-host', 'hildegard.example.com'], undefined, dir);
+    const names = ['hildegard.example.com', 'hildegard.example.com:8080', 'Hildegard.Example.com:443'];
+    for (const n of names) {
+      expect((await asHost(n, '/api/health', { base: s2b.url })).status, `studio ${n}`).toBe(421);
+      expect((await asHost(n, '/api/health', { base: s2b.hostedUrl()! })).status, `hosted ${n}`).toBe(421);
+    }
+    expect((await asHost('127.0.0.1', '/api/health', { base: s2b.url })).status).toBe(200);
     // Its Origin is not allowed to write to this computer’s own listener either.
     const write = await asHost('127.0.0.1', '/api/projects', {
-      base: s2.url,
+      base: s2b.url,
       method: 'POST',
       headers: { ...H, origin: DOOR },
       body: '{}',
     });
     expect(write.status).toBe(403);
+    // Turning the route on again is refused while the name is listed.
+    const again = await api(s2b, '/api/host', { via: 'custom', url: DOOR });
+    expect(again.status).toBe(409);
+    await s2b.close();
+    clients.splice(clients.indexOf(s2b), 1);
+
+    // On, and not listed: served on the hosted listener with its exact Host, and on no other.
+    const s2c = await start([], undefined, dir);
+    expect((await api(s2c, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s2c.hostedUrl()! })).status).toBe(
+      200,
+    );
+    expect(
+      (await asHost('hildegard.example.com:8080', '/api/health', { base: s2c.hostedUrl()! })).status,
+    ).toBe(421);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s2c.url })).status).toBe(421);
     // Turning the route on is refused while the name is listed.
     const dir2 = mkdtempSync(join(tmpdir(), 'hg-door-allow2-'));
     const s3 = await start(['--allow-host', 'Hildegard.Example.com:7341'], undefined, dir2);
@@ -514,6 +546,67 @@ describe('host --public-url: guarding the door', () => {
     expect(res.status).toBe(409);
     expect(((await res.json()) as { error: string }).error).toMatch(/allow-host/);
     expect(((await (await fetch(`${s3.url}/api/host`)).json()) as HostState).on).toBe(false);
+  });
+
+  it('saves the door where builds from before it read "off", and reads the first version’s file', async () => {
+    // What a build before the door did with host.json: `saved?.on ? saved : null`, and routes by `via`.
+    const before = (file: string) => {
+      const saved = JSON.parse(readFileSync(file, 'utf8')) as {
+        on?: boolean;
+        via?: string;
+        httpsPort?: number;
+      };
+      const f = saved?.on ? saved : null;
+      return { on: !!f, via: f?.via ?? null, tailscaleCalls: f?.httpsPort ? 1 : 0 };
+    };
+    const dir = mkdtempSync(join(tmpdir(), 'hg-door-disk-'));
+    const file = join(dir, 'host.json');
+    const s = await start([], undefined, dir);
+    await withOwner(s);
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    expect(before(file)).toEqual({ on: false, via: null, tailscaleCalls: 0 });
+    const on = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+    expect(on).toMatchObject({ on: false, door: { url: DOOR, on: true } });
+    expect(on).not.toHaveProperty('via');
+    expect(on).not.toHaveProperty('url');
+    expect(((await (await fetch(`${s.url}/api/host`)).json()) as HostState).via).toBe('custom');
+    // Off: the name is remembered, switched off.
+    expect((await api(s, '/api/host/off')).status).toBe(200);
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ on: false, door: { url: DOOR, on: false } });
+    // Back to Serve: a route in the old fields, with the door still remembered off.
+    expect((await api(s, '/api/host')).status).toBe(200);
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toMatchObject({
+      on: true,
+      via: 'tailscale',
+      door: { url: DOOR, on: false },
+    });
+    await s.close();
+    clients.splice(clients.indexOf(s), 1);
+
+    // A host.json written by the first version of the door (`via: 'custom'`) still works, and is written again.
+    const old = mkdtempSync(join(tmpdir(), 'hg-door-old-'));
+    writeFileSync(join(old, 'host.json'), JSON.stringify({ on: true, via: 'custom', url: DOOR }));
+    const s2 = await start([], undefined, old);
+    const st = (await (await fetch(`${s2.url}/api/host`)).json()) as HostState;
+    expect(st).toMatchObject({ on: true, via: 'custom', url: DOOR });
+    expect(JSON.parse(readFileSync(join(old, 'host.json'), 'utf8'))).toEqual({
+      on: false,
+      door: { url: DOOR, on: true },
+    });
+    expect(before(join(old, 'host.json')).on).toBe(false);
+    await until(() => s2.hostedUrl() !== null);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s2.hostedUrl()! })).status).toBe(
+      200,
+    );
+    // And one that was off keeps the name.
+    const off = mkdtempSync(join(tmpdir(), 'hg-door-old2-'));
+    writeFileSync(join(off, 'host.json'), JSON.stringify({ on: false, via: 'custom', url: DOOR }));
+    const s3 = await start(['--allow-host', 'hildegard.example.com'], undefined, off);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: s3.url })).status).toBe(421);
+    expect(JSON.parse(readFileSync(join(off, 'host.json'), 'utf8'))).toEqual({
+      on: false,
+      door: { url: DOOR, on: false },
+    });
   });
 
   it('keeps the old Serve route recorded when Tailscale is down or won’t turn it off', async () => {
