@@ -86,6 +86,62 @@ interface HostFile {
   url: string;
 }
 
+/** A host name as every comparison sees it: lower case, no port, no one trailing dot (`example.com.` is `example.com`). */
+export const hostKey = (h: string) => h.toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
+
+/** host.json as it sits on disk. The door lives under `door`, a key builds before it ignore; see `readHostFile`. */
+interface HostDisk extends Partial<Omit<HostFile, 'via' | 'on'>> {
+  /** `0` while the door is on and no older build has touched the file: see `readHostFile`. */
+  on?: boolean | 0;
+  via?: HostFile['via'];
+  door?: { url: string; on: boolean };
+}
+
+/**
+ * Read host.json. The owner's front door is saved under `door: { url, on }` and its legacy fields say "off"
+ * (`on: 0`, no `via`), so a build from before the door existed reads the file as off instead of treating the door
+ * as a Tailscale route. While the door is on, `on` is the number `0`, not `false`: such a build's own `off()` writes
+ * the whole file back with `on: false`, which is how a door turned off there is told from one left alone (and
+ * read as off, not back on when the build comes forward again). The first version of the door wrote `via: 'custom'` into the legacy fields; that is read as
+ * the same thing, and `migrated` says the file should be written again in the new shape.
+ */
+export function readHostFile(file: string): {
+  saved: HostFile | null;
+  door: string | null;
+  migrated: boolean;
+} {
+  let raw: HostDisk | null = null;
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8')) as HostDisk | null;
+  } catch {}
+  if (!raw || typeof raw !== 'object') return { saved: null, door: null, migrated: false };
+  if (raw.via === 'custom' && typeof raw.url === 'string')
+    return {
+      saved: raw.on ? { on: true, via: 'custom', url: raw.url } : null,
+      door: raw.url,
+      migrated: true,
+    };
+  const door = raw.door && typeof raw.door.url === 'string' ? raw.door : null;
+  // `on: false` beside a door that says on: an older build turned the link off since; the door is off.
+  if (door?.on && raw.on === false) return { saved: null, door: door.url, migrated: true };
+  if (door?.on) return { saved: { on: true, via: 'custom', url: door.url }, door: door.url, migrated: false };
+  const { door: _door, ...legacy } = raw;
+  const saved =
+    legacy.via && legacy.via !== 'custom' && typeof legacy.url === 'string' ? (legacy as HostFile) : null;
+  return { saved, door: door?.url ?? null, migrated: false };
+}
+
+/** The front door saved in `dataDir`, for checks that must run before Hildegard opens anything. */
+export function savedDoor(dataDir: string): { url: string; host: string; on: boolean } | null {
+  const { saved, door } = readHostFile(join(dataDir, 'host.json'));
+  if (!door) return null;
+  try {
+    return { url: door, host: new URL(door).host.toLowerCase(), on: saved?.via === 'custom' && saved.on };
+  } catch {
+    return null;
+  }
+}
+
 export interface HostOptions {
   dataDir: string;
   /** Hildegard's own port: an `address` host answers on it. */
@@ -103,6 +159,8 @@ export interface HostOptions {
 export class Host {
   private readonly file: string;
   private saved: HostFile | null;
+  /** The front door's URL, once there has been one. Its name stays off the Studio's own listener from then on. */
+  private door: string | null;
   private readonly run: Exec;
   private readonly opts: HostOptions;
   private tailnet: Tailnet | null = null;
@@ -114,18 +172,34 @@ export class Host {
     this.opts = opts;
     this.run = opts.run ?? exec;
     this.file = join(opts.dataDir, 'host.json');
-    try {
-      this.saved = JSON.parse(readFileSync(this.file, 'utf8')) as HostFile;
-    } catch {
-      this.saved = null;
-    }
+    const read = readHostFile(this.file);
+    this.saved = read.saved;
+    this.door = read.door;
+    if (read.migrated)
+      try {
+        this.write();
+      } catch {}
   }
 
   private save(f: HostFile | null) {
     this.saved = f;
+    if (f?.via === 'custom') this.door = f.url;
+    this.write();
+  }
+
+  /** The file: the door (on or off) under `door`, and for it the legacy fields read "off". */
+  private write() {
+    const f = this.saved;
+    const route: Partial<HostFile> = f && f.via !== 'custom' ? f : { on: false };
+    const doorOn = f?.via === 'custom' && f.on;
+    const out: HostDisk = {
+      ...route,
+      on: doorOn ? 0 : (route.on ?? false),
+      ...(this.door ? { door: { url: this.door, on: doorOn } } : {}),
+    };
     mkdirSync(this.opts.dataDir, { recursive: true, mode: 0o700 });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify(f ?? { on: false }, null, 2), { mode: 0o600 });
+    writeFileSync(tmp, JSON.stringify(out, null, 2), { mode: 0o600 });
     chmodSync(tmp, 0o600);
     renameSync(tmp, this.file);
   }
@@ -150,6 +224,11 @@ export class Host {
      * port, when not 443). It is not in `names`: the app trusts it only on the hosted listener.
      */
     custom: { url: string; host: string } | null;
+    /**
+     * The front door's name, on or off: once saved it is never the Studio's own listener's to answer to, so
+     * `--allow-host` can't open it after `host off` either.
+     */
+    door: { url: string; host: string } | null;
   } {
     const f = this.saved?.on ? this.saved : null;
     const names: string[] = [];
@@ -165,7 +244,14 @@ export class Host {
       } catch {}
     }
     if (this.tailnet?.dns && f?.via !== 'custom') names.push(this.tailnet.dns);
+    let door: { url: string; host: string } | null = null;
+    if (this.door)
+      try {
+        const u = new URL(this.door);
+        door = { url: u.origin, host: u.host.toLowerCase() };
+      } catch {}
     return {
+      door,
       on: !!f,
       via: f?.via ?? null,
       address: f?.via === 'address' ? (f.address ?? null) : null,
@@ -232,7 +318,7 @@ export class Host {
       const p = parsePublicUrl(opts.url);
       if (!p.ok) throw new HostError(400, p.error);
       const name = new URL(p.url).hostname;
-      if ((this.opts.reserved?.() ?? []).some((h) => h.toLowerCase().replace(/:\d+$/, '') === name))
+      if ((this.opts.reserved?.() ?? []).some((h) => hostKey(h) === hostKey(name)))
         throw new HostError(
           409,
           `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,

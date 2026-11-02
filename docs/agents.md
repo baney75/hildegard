@@ -155,7 +155,8 @@ behind the link.
    **Your user's own domain** (a Cloudflare named tunnel, Caddy, or any HTTPS front door they run): only when they say
    they have one and give you the address. `hildegard host --public-url https://hildegard.example.com --json` (origin
    only: `https`, a real name, no path, no IP address, no `*.ts.net`; the CLI refuses bad ones before asking). It
-   makes no Tailscale call, turns on the hosted listener (`--host-port`, else the main port plus one) and trusts that
+   makes no Tailscale call, turns on the hosted listener (the port Hildegard was started with `--host-port`, which is a
+   flag of `hildegard start`, not of `hildegard host`; else the main port plus one) and trusts that
    name on it and nowhere else. The `host` step's detail reads "HTTPS through your own front door" and `host.via` is
    `custom`. The result carries a `warning` (it is on the public internet): show it to them, as with Funnel. You then
    set up the front door; Hildegard doesn't run it:
@@ -163,12 +164,29 @@ behind the link.
      hildegard.example.com`, then a config with `ingress: - hostname: hildegard.example.com`, `service:
      http://127.0.0.1:<hostPort>` and `originRequest: httpHostHeader: hildegard.example.com`, then `cloudflared
      tunnel run hildegard`. Logging in to Cloudflare is theirs to do (`cloudflared tunnel login`).
+   - The door must be **exactly one proxy hop** from the hosted listener: Hildegard counts wrong passphrases by the
+     right-most `X-Forwarded-For` entry, which must come from the proxy that connects to the hosted port. `cloudflared`
+     straight to it is right; a second proxy in between would make all visitors one address.
    - Tunnel on another computer: on the Hildegard computer, `tailscale serve --bg --tcp <port> tcp://127.0.0.1:<hostPort>`
      (tailnet only), and the tunnel's `service: http://<that computer's tailnet IP>:<port>`, same `httpHostHeader`.
+     That forward opens the port to the whole tailnet, so also give your user a Tailscale ACL that allows only the
+     tunnel computer to reach `<that computer>:<port>`: tag only the tunnel computer, and name this one by a `hosts`
+     alias for its tailnet IP (`"hosts": { "gpu": "<tailnet ip>" }`, rule `{ "action": "accept", "src":
+     ["tag:tunnel"], "dst": ["gpu:<port>"] }` in `acls`, with `tagOwners` for `tag:tunnel`). Never tag this
+     computer: it would leave `autogroup:self` and lose their own-devices rules. The policy file is theirs to edit;
+     show them the README's example and don't change their ACLs yourself.
    - Verify: `hildegard doctor --json` has a `front-door` step that reads `<url>/.well-known/oauth-protected-resource`
      and wants `resource` to be `<url>/mcp`. It only warns (`skipped`) when it can't reach it, since the door may be
      visible only from outside. A wrong answer usually means the tunnel points at the wrong port or sends another Host.
-   `hildegard host off --json` removes the name; the tunnel and DNS record stay theirs.
+   `hildegard host off --json` removes the name; the tunnel and DNS record stay theirs. The saved front door's name
+   stays refused on Hildegard's own Studio port, on or off, until a different door is set (to reset it, set another
+   door, or remove `door` from `host.json` while Hildegard is stopped), and Hildegard won't start with it in
+   `--allow-host` while the door is on.
+   Rolling back to a release from before this route: that release reads the door as off (the link is off there), and
+   if you run `hildegard host off` there, the door is still off when you come forward again. If you run `hildegard
+   host` there (a Tailscale route), it forgets the door and its name: set the door again with `--public-url` after
+   coming forward. If you only start and stop it, the door is on again when you come forward. To have it stay off, run
+   `hildegard host off` on the new release before rolling back.
 
 4. **Invite people**, when your user asks:
 
