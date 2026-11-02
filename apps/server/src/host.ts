@@ -86,16 +86,23 @@ interface HostFile {
   url: string;
 }
 
+/** A host name as every comparison sees it: lower case, no port, no one trailing dot (`example.com.` is `example.com`). */
+export const hostKey = (h: string) => h.toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
+
 /** host.json as it sits on disk. The door lives under `door`, a key builds before it ignore; see `readHostFile`. */
-interface HostDisk extends Partial<Omit<HostFile, 'via'>> {
+interface HostDisk extends Partial<Omit<HostFile, 'via' | 'on'>> {
+  /** `0` while the door is on and no older build has touched the file: see `readHostFile`. */
+  on?: boolean | 0;
   via?: HostFile['via'];
   door?: { url: string; on: boolean };
 }
 
 /**
  * Read host.json. The owner's front door is saved under `door: { url, on }` and its legacy fields say "off"
- * (`on: false`, no `via`), so a build from before the door existed reads the file as off instead of treating the door
- * as a Tailscale route. The first version of the door wrote `via: 'custom'` into the legacy fields; that is read as
+ * (`on: 0`, no `via`), so a build from before the door existed reads the file as off instead of treating the door
+ * as a Tailscale route. While the door is on, `on` is the number `0`, not `false`: such a build's own `off()` writes
+ * the whole file back with `on: false`, which is how a door turned off there is told from one left alone (and
+ * read as off, not back on when the build comes forward again). The first version of the door wrote `via: 'custom'` into the legacy fields; that is read as
  * the same thing, and `migrated` says the file should be written again in the new shape.
  */
 export function readHostFile(file: string): {
@@ -115,6 +122,8 @@ export function readHostFile(file: string): {
       migrated: true,
     };
   const door = raw.door && typeof raw.door.url === 'string' ? raw.door : null;
+  // `on: false` beside a door that says on: an older build turned the link off since; the door is off.
+  if (door?.on && raw.on === false) return { saved: null, door: door.url, migrated: true };
   if (door?.on) return { saved: { on: true, via: 'custom', url: door.url }, door: door.url, migrated: false };
   const { door: _door, ...legacy } = raw;
   const saved =
@@ -182,10 +191,11 @@ export class Host {
   private write() {
     const f = this.saved;
     const route: Partial<HostFile> = f && f.via !== 'custom' ? f : { on: false };
+    const doorOn = f?.via === 'custom' && f.on;
     const out: HostDisk = {
       ...route,
-      on: route.on ?? false,
-      ...(this.door ? { door: { url: this.door, on: f?.via === 'custom' && f.on } } : {}),
+      on: doorOn ? 0 : (route.on ?? false),
+      ...(this.door ? { door: { url: this.door, on: doorOn } } : {}),
     };
     mkdirSync(this.opts.dataDir, { recursive: true, mode: 0o700 });
     const tmp = `${this.file}.tmp`;
@@ -308,7 +318,7 @@ export class Host {
       const p = parsePublicUrl(opts.url);
       if (!p.ok) throw new HostError(400, p.error);
       const name = new URL(p.url).hostname;
-      if ((this.opts.reserved?.() ?? []).some((h) => h.toLowerCase().replace(/:\d+$/, '') === name))
+      if ((this.opts.reserved?.() ?? []).some((h) => hostKey(h) === hostKey(name)))
         throw new HostError(
           409,
           `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,

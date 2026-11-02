@@ -25,7 +25,7 @@ import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
 import type { FigmaFetch } from './figma.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
-import { type Exec, Host, savedDoor } from './host.ts';
+import { type Exec, Host, hostKey, savedDoor } from './host.ts';
 import { Likeness } from './likeness.ts';
 import { jsonFrom, LocalModels, type LocalModelsDeps } from './llm.ts';
 import { Loops } from './loop.ts';
@@ -104,10 +104,7 @@ export const COMFY_STARTING = 'ComfyUI is starting.';
 export async function startServer(config: Config, opts: ServeOptions = {}): Promise<Running> {
   // A front door that is on can't also be a name the Studio's own listener answers to: say so before opening anything.
   const door = savedDoor(config.dataDir);
-  if (
-    door?.on &&
-    config.allowedHosts.some((h) => h.toLowerCase().replace(/:\d+$/, '') === door.host.replace(/:\d+$/, ''))
-  )
+  if (door?.on && config.allowedHosts.some((h) => hostKey(h) === hostKey(door.host)))
     throw new Error(
       `${door.host} is your front door (hildegard host --public-url), and it is also in --allow-host or HILDEGARD_ALLOWED_HOSTS, which would let this computer’s own Studio answer to it. Take it out of that list, then start Hildegard again.`,
     );

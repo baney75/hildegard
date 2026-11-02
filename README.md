@@ -284,8 +284,9 @@ hildegard doctor                                              # reads <link>/.we
 
 Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
 request signs in, and treats a request for that name there as HTTPS. The name can't also be in `--allow-host`, and
-once it has been your front door the Studio's own port refuses it for good, even after `hildegard host off`. To use
-another port than the main port plus one, start Hildegard with it: `hildegard start --host-port 7500` (it is a flag of
+the saved front door's name stays refused on the Studio's own port, on or off, until you set a different door. (To
+use that name for the Studio again: set another door with `hildegard host --public-url`, or stop Hildegard and remove
+`door` from `host.json` in its data folder.) To use another port than the main port plus one, start Hildegard with it: `hildegard start --host-port 7500` (it is a flag of
 starting Hildegard, not of `hildegard host`). Set up the tunnel with `cloudflared`, on this computer or another:
 
 ```sh
@@ -316,18 +317,21 @@ tailscale serve --bg --tcp 8788 tcp://127.0.0.1:7342   # tailnet only; never Fun
 
 and in the tunnel's config use `service: http://<the GPU computer's tailnet IP>:8788`, with the same
 `httpHostHeader`. That forward opens port 8788 to **every device on your tailnet**, and each of them could reach the
-sign-in page, so limit it to the tunnel computer with a [Tailscale ACL](https://tailscale.com/kb/1018/acls). Tag the
-two computers (`tailscale up --advertise-tags=tag:tunnel`, and `tag:gpu` on this one; your admin owns the tags), then
-in the policy file (Access controls) allow only the tunnel to that port:
+sign-in page, so limit it to the tunnel computer with a [Tailscale ACL](https://tailscale.com/kb/1018/acls). Tag only
+the tunnel computer (`tailscale up --advertise-tags=tag:tunnel`; your admin owns the tag), and name the GPU computer
+by an alias for its tailnet IP (`tailscale ip -4` on it) in the policy file (Access controls):
 
 ```json
-"tagOwners": { "tag:tunnel": ["autogroup:admin"], "tag:gpu": ["autogroup:admin"] },
+"tagOwners": { "tag:tunnel": ["autogroup:admin"] },
+"hosts": { "gpu": "100.x.y.z" },
 "acls": [
-  { "action": "accept", "src": ["tag:tunnel"], "dst": ["tag:gpu:8788"] }
+  { "action": "accept", "src": ["tag:tunnel"], "dst": ["gpu:8788"] }
 ]
 ```
 
-(Keep your other `acls` rules for your own devices, but not an accept-everything rule that includes port 8788.) The
+Don't tag the GPU computer: a tagged computer is no longer yours in Tailscale's eyes, so it drops out of
+`autogroup:self`, and rules like `autogroup:member` to `autogroup:self:*` would stop reaching it. Keep your other `acls`
+rules for your own devices, but not an accept-everything rule that includes port 8788. The
 door must also be **exactly one proxy hop** from the hosted port: Hildegard takes the right-most `X-Forwarded-For`
 entry as the visitor, so the proxy that connects to the hosted port has to be the one that saw them. `cloudflared`
 straight to the port, as above, is right, and so is the `tailscale serve --tcp` forward, which passes bytes along and

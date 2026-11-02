@@ -497,6 +497,14 @@ describe('host --public-url: guarding the door', () => {
       ),
     ).rejects.toThrow(/front door.*allow-host/);
 
+    // The same name spelled with a trailing dot, or in capitals, is the same name.
+    await expect(
+      startServer(
+        { ...parseArgs(['--fake-gpu', '--data', dir, '--allow-host', 'HILDEGARD.example.com.']), port: 0 },
+        { fakeTickMs: 25, secrets: memoryStore(), exec: tailscale },
+      ),
+    ).rejects.toThrow(/front door.*allow-host/);
+
     // Without the list, then off: the name stays refused after off, even when it is listed on the next start.
     const s2 = await start([], undefined, dir);
     await until(() => s2.hostedUrl() !== null);
@@ -507,8 +515,14 @@ describe('host --public-url: guarding the door', () => {
     await s2.close();
     clients.splice(clients.indexOf(s2), 1);
 
-    const s2b = await start(['--allow-host', 'hildegard.example.com'], undefined, dir);
-    const names = ['hildegard.example.com', 'hildegard.example.com:8080', 'Hildegard.Example.com:443'];
+    const s2b = await start(['--allow-host', 'hildegard.example.com.'], undefined, dir);
+    const names = [
+      'hildegard.example.com',
+      'hildegard.example.com.',
+      'hildegard.example.com.:8080',
+      'hildegard.example.com:8080',
+      'Hildegard.Example.com:443',
+    ];
     for (const n of names) {
       expect((await asHost(n, '/api/health', { base: s2b.url })).status, `studio ${n}`).toBe(421);
       expect((await asHost(n, '/api/health', { base: s2b.hostedUrl()! })).status, `hosted ${n}`).toBe(421);
@@ -522,6 +536,16 @@ describe('host --public-url: guarding the door', () => {
       body: '{}',
     });
     expect(write.status).toBe(403);
+    expect(
+      (
+        await asHost('127.0.0.1', '/api/projects', {
+          base: s2b.url,
+          method: 'POST',
+          headers: { ...H, origin: 'https://hildegard.example.com.' },
+          body: '{}',
+        })
+      ).status,
+    ).toBe(403);
     // Turning the route on again is refused while the name is listed.
     const again = await api(s2b, '/api/host', { via: 'custom', url: DOOR });
     expect(again.status).toBe(409);
@@ -548,6 +572,76 @@ describe('host --public-url: guarding the door', () => {
     expect(((await (await fetch(`${s3.url}/api/host`)).json()) as HostState).on).toBe(false);
   });
 
+  it('refuses the saved door’s name on the Studio’s listener, until a different door is set', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-door-swap-'));
+    const A = 'https://a.example.com';
+    const B = 'https://b.example.com';
+    const s1 = await start([], undefined, dir);
+    await withOwner(s1);
+    expect((await api(s1, '/api/host', { via: 'custom', url: A })).status).toBe(200);
+    expect((await api(s1, '/api/host', { via: 'custom', url: B })).status).toBe(200);
+    await s1.close();
+    clients.splice(clients.indexOf(s1), 1);
+
+    // B is the saved door. A was replaced, so it may be listed for the Studio’s own listener, as it always could.
+    const s2 = await start(['--allow-host', 'a.example.com'], undefined, dir);
+    expect((await asHost('a.example.com', '/api/health', { base: s2.url })).status).toBe(200);
+    expect((await asHost('b.example.com', '/api/health', { base: s2.hostedUrl()! })).status).toBe(200);
+    await s2.close();
+    clients.splice(clients.indexOf(s2), 1);
+
+    // To use B’s name for the Studio again: set a different door, or take `door` out of host.json while stopped.
+    await expect(
+      startServer(
+        { ...parseArgs(['--fake-gpu', '--data', dir, '--allow-host', 'b.example.com']), port: 0 },
+        { fakeTickMs: 25, secrets: memoryStore(), exec: tailscale },
+      ),
+    ).rejects.toThrow(/front door/);
+    const file = join(dir, 'host.json');
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+    delete saved.door;
+    writeFileSync(file, JSON.stringify(saved));
+    const s3 = await start(['--allow-host', 'b.example.com'], undefined, dir);
+    expect((await asHost('b.example.com', '/api/health', { base: s3.url })).status).toBe(200);
+  });
+
+  it('reads a door that an older build turned off as off, when the build comes forward again', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-door-roundtrip-'));
+    const file = join(dir, 'host.json');
+    const s = await start([], undefined, dir);
+    await withOwner(s);
+    expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    await s.close();
+    clients.splice(clients.indexOf(s), 1);
+
+    // An older build's off(): `this.save(f ? { ...f, on: false } : null)`, with f the whole parsed file.
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+    expect(parsed.on).toBe(0);
+    writeFileSync(file, JSON.stringify({ ...parsed, on: false }, null, 2));
+
+    const back = await start([], undefined, dir);
+    expect(((await (await fetch(`${back.url}/api/host`)).json()) as HostState).on).toBe(false);
+    expect((await asHost('hildegard.example.com', '/api/health', { base: back.hostedUrl()! })).status).toBe(
+      421,
+    );
+    // The name is still the saved door’s, off; and the file says so for the next start.
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ on: false, door: { url: DOOR, on: false } });
+    await back.close();
+    clients.splice(clients.indexOf(back), 1);
+
+    // An older build that only ran and stopped, never turning anything off, leaves the door on.
+    const kept = mkdtempSync(join(tmpdir(), 'hg-door-roundtrip2-'));
+    const s2 = await start([], undefined, kept);
+    await withOwner(s2);
+    expect((await api(s2, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
+    await s2.close();
+    clients.splice(clients.indexOf(s2), 1);
+    const raw = readFileSync(join(kept, 'host.json'), 'utf8');
+    writeFileSync(join(kept, 'host.json'), JSON.stringify(JSON.parse(raw)));
+    const s3 = await start([], undefined, kept);
+    expect(((await (await fetch(`${s3.url}/api/host`)).json()) as HostState).on).toBe(true);
+  });
+
   it('saves the door where builds from before it read "off", and reads the first version’s file', async () => {
     // What a build before the door did with host.json: `saved?.on ? saved : null`, and routes by `via`.
     const before = (file: string) => {
@@ -566,7 +660,7 @@ describe('host --public-url: guarding the door', () => {
     expect((await api(s, '/api/host', { via: 'custom', url: DOOR })).status).toBe(200);
     expect(before(file)).toEqual({ on: false, via: null, tailscaleCalls: 0 });
     const on = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-    expect(on).toMatchObject({ on: false, door: { url: DOOR, on: true } });
+    expect(on).toMatchObject({ on: 0, door: { url: DOOR, on: true } });
     expect(on).not.toHaveProperty('via');
     expect(on).not.toHaveProperty('url');
     expect(((await (await fetch(`${s.url}/api/host`)).json()) as HostState).via).toBe('custom');
@@ -590,7 +684,7 @@ describe('host --public-url: guarding the door', () => {
     const st = (await (await fetch(`${s2.url}/api/host`)).json()) as HostState;
     expect(st).toMatchObject({ on: true, via: 'custom', url: DOOR });
     expect(JSON.parse(readFileSync(join(old, 'host.json'), 'utf8'))).toEqual({
-      on: false,
+      on: 0,
       door: { url: DOOR, on: true },
     });
     expect(before(join(old, 'host.json')).on).toBe(false);

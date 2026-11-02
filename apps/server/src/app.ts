@@ -74,7 +74,7 @@ import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
-import { type Host, HostError } from './host.ts';
+import { type Host, HostError, hostKey } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { Loops } from './loop.ts';
@@ -255,7 +255,7 @@ export function createApp(deps: AppDeps) {
   const bound = ['0.0.0.0', '::'].includes(config.host)
     ? []
     : [config.host.includes(':') ? `[${config.host}]` : config.host];
-  const fixedHosts = new Set([...LOOPBACK, ...bound, ...config.allowedHosts].map((h) => h.toLowerCase()));
+  const fixedHosts = new Set([...LOOPBACK, ...bound, ...config.allowedHosts].map(hostKey));
   // Host mode adds its link's name, and the Tailscale address it answers on, while it is on.
   const allowed = (h: string) => {
     if (fixedHosts.has(h)) return true;
@@ -269,7 +269,7 @@ export function createApp(deps: AppDeps) {
   app.use('*', async (c, next) => {
     // The server calling itself for an MCP call: no browser is involved, and the person was checked on the way in.
     if (c.env?.as) return next();
-    const hostName = (c.req.header('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+    const hostName = hostKey(c.req.header('host') ?? '');
     // The owner's own front door (a tunnel or proxy) is trusted on the hosted listener only, and only by its exact
     // Host (a :443 the proxy adds to a door without a port is the same name). Its name is decided here, before the
     // allowlist, so listing it with --allow-host can't open it on the Studio's own listener. A saved door keeps that
@@ -277,7 +277,7 @@ export function createApp(deps: AppDeps) {
     const cur = host.current();
     const door = cur.custom;
     const kept = cur.door;
-    const doorName = kept?.host.replace(/:\d+$/, '');
+    const doorName = kept ? hostKey(kept.host) : undefined;
     if (kept && hostName === doorName) {
       const raw = (c.req.header('host') ?? '').toLowerCase();
       const same = kept.host.includes(':')
@@ -309,9 +309,9 @@ export function createApp(deps: AppDeps) {
         try {
           const o = new URL(origin);
           // The door's name as an Origin counts only for a request that came through the door, by its full origin.
-          if (kept && o.hostname.toLowerCase() === doorName) {
+          if (kept && hostKey(o.hostname) === doorName) {
             if (o.origin !== c.get('publicUrl')) return c.json({ error: 'Cross-site request refused' }, 403);
-          } else if (!allowed(o.hostname.toLowerCase()) && !allowed(`[${o.hostname}]`))
+          } else if (!allowed(hostKey(o.hostname)) && !allowed(`[${o.hostname}]`))
             return c.json({ error: 'Cross-site request refused' }, 403);
         } catch {
           return c.json({ error: 'Bad origin' }, 403);
