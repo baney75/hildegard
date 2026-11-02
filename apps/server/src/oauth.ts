@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
-import { isIP } from 'node:net';
+import { isIP, type LookupFunction } from 'node:net';
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import { type Ctx, clientKey, type HgEnv, originOf } from './access.ts';
@@ -128,6 +128,35 @@ const cleanClientName = (raw: unknown, fallback: string) => {
   return (n || fallback).slice(0, 60);
 };
 
+type Resolved = { address: string; family: number };
+type LookupCallback = (err: Error | null, address: string | Resolved[], family?: number) => void;
+
+/**
+ * The DNS lookup the metadata fetch connects with: it refuses a name unless every address it resolves to is public.
+ * Node asks with `{ all: true }` when it races addresses (autoSelectFamily, the default since Node 20) and then wants
+ * the whole list back; answering with one address there makes Node read `undefined` and fail with "Invalid IP address".
+ */
+export function publicLookup(
+  resolve: (host: string) => Promise<Resolved[]> = (h) => lookup(h, { all: true }),
+) {
+  return (host: string, opts: unknown, cb: LookupCallback) => {
+    const all = typeof opts === 'object' && opts !== null && (opts as { all?: unknown }).all === true;
+    resolve(host)
+      .then((addrs) => {
+        if (addrs.length === 0 || addrs.some((a) => privateAddress(a.address)))
+          return cb(new Error(`${host} isn’t a public address.`), all ? [] : '', 4);
+        if (all)
+          return cb(
+            null,
+            addrs.map((a) => ({ address: a.address, family: a.family })),
+          );
+        const first = addrs[0]!;
+        cb(null, first.address, first.family);
+      })
+      .catch((e: Error) => cb(e, all ? [] : '', 4));
+  };
+}
+
 /**
  * Fetches a client metadata document over https from a public address only, at most 16 KB, without following
  * redirects. The address is checked as it is resolved for the connection itself, so a name can't change its answer
@@ -144,16 +173,7 @@ export const fetchMetadata: FetchMetadata = (url) =>
         method: 'GET',
         headers: { accept: 'application/json' },
         timeout: 5000,
-        lookup: (host, _opts, cb) => {
-          lookup(host, { all: true })
-            .then((addrs) => {
-              const ok = addrs.find((a) => !privateAddress(a.address));
-              if (!ok || addrs.some((a) => privateAddress(a.address)))
-                return cb(new Error(`${host} isn’t a public address.`), '', 4);
-              cb(null, ok.address, ok.family);
-            })
-            .catch((e: Error) => cb(e, '', 4));
-        },
+        lookup: publicLookup() as unknown as LookupFunction,
       },
       (res) => {
         if (res.statusCode !== 200) {
