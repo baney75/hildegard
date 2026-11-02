@@ -7,6 +7,7 @@ import {
   type Ctx,
   choir,
   connect,
+  ForegroundStartError,
   hf,
   install,
   models,
@@ -284,4 +285,5 @@ try {
   if (ctx.json) console.log(JSON.stringify({ ok: false, needsOwner: false, steps: [], message }, null, 2));
   else console.error(message);
   process.exitCode = 1;
+  if (e instanceof ForegroundStartError) process.exit(1);
 }

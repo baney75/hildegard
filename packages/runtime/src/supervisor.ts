@@ -44,25 +44,58 @@ export function comfyMemoryArgs(info: Pick<RuntimeInfo, 'backend' | 'unified' | 
 
 /**
  * Where each Hildegard process notes the ComfyUI and proxy it started, one file per process (`<pid>.json`), so a
- * later start can find any that a crash, a kill or a failed start left behind.
+ * later start can find any that a crash, a kill or a failed start left behind. POSIX only: on Windows nothing is
+ * noted or reaped, and only Node's exit event takes the children down.
  */
 export const pidDir = (dataDir: string) => join(dataDir, 'comfyui-pids');
 export const pidFile = (dataDir: string, owner = process.pid) => join(pidDir(dataDir), `${owner}.json`);
 
+/** A note: who wrote it and the children it started, each with its start time, so a reused number can't pass. */
+export interface PidNote {
+  started: string | null;
+  pids: Array<{ pid: number; started: string | null }>;
+}
+
 /**
- * Whether the Hildegard that wrote a pid note still runs. A process number can be reused after a crash, so a live
- * process counts only when its command line is Node's (Hildegard runs on Node). When the command line can't be read
- * (Windows, another user's process), a live process counts, to be safe.
+ * When a process started, as the OS keeps it: what tells a process from a later one given the same number. Linux
+ * reads /proc/<pid>/stat (start time in clock ticks since boot); macOS asks ps. Null when it isn't running or can't
+ * be read.
  */
-export function ownerAlive(pid: number, command: (pid: number) => string | null = commandLine): boolean {
+export function processStart(pid: number): string | null {
+  if (process.platform === 'win32') return null;
+  if (process.platform === 'linux') {
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      // The name (field 2) is in parentheses and may hold spaces; field 22 is the 20th after it.
+      return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19] ?? null;
+    } catch {
+      return null;
+    }
+  }
+  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() || null : null;
+}
+
+const exists = (pid: number) => {
   try {
     process.kill(pid, 0);
+    return true;
   } catch (e) {
     // EPERM: it exists, under another user.
-    if ((e as NodeJS.ErrnoException).code !== 'EPERM') return false;
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
   }
-  const cmd = command(pid);
-  return cmd === null || /(^|[\\/\s])node(\.exe)?(\s|$)|hildegard/i.test(cmd);
+};
+
+/** Whether the process a note names still runs: the same number, started at the same moment. */
+export function sameProcess(
+  pid: number,
+  started: string | null,
+  startOf: (pid: number) => string | null = processStart,
+): boolean {
+  if (!exists(pid)) return false;
+  const now = startOf(pid);
+  // A start time this computer can't read (or a note without one) can't prove a reuse: count it as the same.
+  return now === null || started === null || now === started;
 }
 
 /** A process's command line, or null when it isn't running or can't be read (Windows). */
@@ -82,14 +115,15 @@ export function commandLine(pid: number): string | null {
 /**
  * Stops the ComfyUI and comfy-api-proxy that earlier Hildegard processes in this folder left running, once those
  * processes are gone: one that crashed, was killed, or failed partway through starting. A Hildegard still running
- * keeps its own. Only a process whose command line runs this folder's Python is stopped, so a reused process number
- * is left alone. Returns the ones it stopped.
+ * keeps its own. A child is stopped only when it is the very process noted (same start time) and runs this folder's
+ * Python. Returns the ones it stopped.
  */
 export function reapStale(
   dataDir: string,
   command: (pid: number) => string | null = commandLine,
-  alive: (pid: number) => boolean = (pid) => ownerAlive(pid, command),
+  startOf: (pid: number) => string | null = processStart,
 ): number[] {
+  if (process.platform === 'win32') return [];
   let files: string[];
   try {
     files = readdirSync(pidDir(dataDir));
@@ -100,13 +134,16 @@ export function reapStale(
   const stopped: number[] = [];
   for (const f of files) {
     const owner = Number(/^(\d+)\.json$/.exec(f)?.[1]);
-    if (!Number.isInteger(owner) || owner === process.pid || alive(owner)) continue;
-    let pids: unknown;
+    if (!Number.isInteger(owner) || owner === process.pid) continue;
+    let note: Partial<PidNote> = {};
     try {
-      pids = JSON.parse(readFileSync(join(pidDir(dataDir), f), 'utf8'));
+      note = JSON.parse(readFileSync(join(pidDir(dataDir), f), 'utf8'));
     } catch {}
-    for (const pid of Array.isArray(pids) ? pids : []) {
+    if (sameProcess(owner, typeof note.started === 'string' ? note.started : null, startOf)) continue;
+    for (const child of Array.isArray(note.pids) ? note.pids : []) {
+      const pid = child?.pid;
       if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) continue;
+      if (!sameProcess(pid, typeof child.started === 'string' ? child.started : null, startOf)) continue;
       if (!command(pid)?.includes(python)) continue;
       try {
         process.kill(pid, 'SIGKILL');
@@ -155,8 +192,14 @@ export class ComfyRuntime {
 
   /** Notes every child still running, dying ones too, for a later start to reap if this process is killed. */
   private note() {
-    const pids = [...this.procs, ...this.dying].flatMap((p) => (p.pid && p.exitCode === null ? [p.pid] : []));
-    writeFileSync(pidFile(this.dataDir), JSON.stringify(pids), { mode: 0o600 });
+    if (process.platform === 'win32') return;
+    const pids = [...this.procs, ...this.dying].flatMap((p) =>
+      p.pid && p.exitCode === null && p.signalCode === null
+        ? [{ pid: p.pid, started: processStart(p.pid) }]
+        : [],
+    );
+    const note: PidNote = { started: processStart(process.pid), pids };
+    writeFileSync(pidFile(this.dataDir), JSON.stringify(note), { mode: 0o600 });
   }
 
   /** Whether `hildegard install` has finished here. */
@@ -192,7 +235,11 @@ export class ComfyRuntime {
       });
       closeSync(fd);
       child.on('exit', (code, signal) => this.exited(child, name, code, signal));
-      child.on('error', () => this.exited(child, name, null, null));
+      child.on('error', () => {
+        // One that never started (no pid) will never send exit: forget it now.
+        if (!child.pid) this.dying.delete(child);
+        this.exited(child, name, null, null);
+      });
       this.procs.push(child);
     };
     try {
@@ -266,9 +313,16 @@ export class ComfyRuntime {
     // One half down takes the other with it, then both come back together on fresh ports. One that ignores SIGTERM
     // gets SIGKILL after five seconds, as in stop().
     for (const p of this.procs) {
-      if (p.exitCode !== null || p.signalCode !== null) continue;
+      if (!p.pid || p.exitCode !== null || p.signalCode !== null) continue;
       this.dying.add(p);
-      p.once('exit', () => this.dying.delete(p));
+      p.once('exit', () => {
+        this.dying.delete(p);
+        // The note names only children still running, so a number reused later isn't taken for this one.
+        if (!this.stopping)
+          try {
+            this.note();
+          } catch {}
+      });
       setTimeout(() => {
         if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
       }, 5000).unref();
@@ -297,7 +351,7 @@ export class ComfyRuntime {
       [...this.procs, ...this.dying].map(
         (p) =>
           new Promise<void>((resolve) => {
-            if (p.exitCode !== null || p.signalCode !== null) return resolve();
+            if (!p.pid || p.exitCode !== null || p.signalCode !== null) return resolve();
             const force = setTimeout(() => p.kill('SIGKILL'), 5000);
             p.once('exit', () => {
               clearTimeout(force);

@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ComfyRuntime, layout, pidDir, pidFile, reapStale } from '../src/index.ts';
+import { ComfyRuntime, layout, pidDir, pidFile, processStart, reapStale } from '../src/index.ts';
 
 // A stand-in ComfyUI: this folder's "python" is a shell script that never ends, so its command line names the
 // folder's Python just as the real ComfyUI's does.
@@ -50,9 +50,16 @@ const started: ChildProcess[] = [];
 const forever = () => spawn('/bin/sh', ['-c', 'while :; do sleep 1; done'], { stdio: 'ignore' });
 /** A stand-in for another Hildegard: a Node process. */
 const hildegard = () => spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
-const note = (dir: string, owner: number, pids: (number | undefined)[]) => {
+/** Writes a note as `owner` would have: its start time (or one given) and its children's. */
+const note = (
+  dir: string,
+  owner: number,
+  pids: (number | undefined)[],
+  ownerStarted = processStart(owner),
+) => {
   mkdirSync(pidDir(dir), { recursive: true });
-  writeFileSync(pidFile(dir, owner), JSON.stringify(pids));
+  const children = pids.map((pid) => ({ pid, started: pid ? processStart(pid) : null }));
+  writeFileSync(pidFile(dir, owner), JSON.stringify({ started: ownerStarted, pids: children }));
 };
 afterEach(() => {
   for (const c of started.splice(0)) if (c.exitCode === null) c.kill('SIGKILL');
@@ -110,13 +117,38 @@ process.exit(1);
   it('takes a reused process number for what it is: not the Hildegard that wrote the note', async () => {
     const dir = fakeInstall();
     const leftover = spawn(layout(dir).python, ['main.py'], { stdio: 'ignore' });
-    const reused = forever(); // a shell now has the number the crashed Hildegard had
+    const reused = forever(); // a process started later now has the number the crashed Hildegard had
     started.push(leftover, reused);
     await new Promise((r) => setTimeout(r, 200));
-    note(dir, reused.pid!, [leftover.pid]);
+    note(dir, reused.pid!, [leftover.pid], 'the start time of the Hildegard that crashed');
 
     expect(reapStale(dir)).toEqual([leftover.pid]);
     expect(alive(reused.pid!)).toBe(true);
+  });
+
+  it('leaves a process that took a noted child’s number since', async () => {
+    const dir = fakeInstall();
+    const newer = spawn(layout(dir).python, ['main.py'], { stdio: 'ignore' }); // same Python, a later process
+    started.push(newer);
+    await new Promise((r) => setTimeout(r, 200));
+    mkdirSync(pidDir(dir), { recursive: true });
+    writeFileSync(
+      pidFile(dir, 2 ** 22 + 11),
+      JSON.stringify({ started: 'gone', pids: [{ pid: newer.pid, started: 'an earlier process' }] }),
+    );
+    expect(reapStale(dir)).toEqual([]);
+    expect(alive(newer.pid!)).toBe(true);
+  });
+
+  it('stops promptly when its Python can’t even start', async () => {
+    const dir = fakeInstall();
+    chmodSync(layout(dir).python, 0o644); // not executable: spawn fails, and no process ever exists
+    const r = new ComfyRuntime({ dataDir: dir });
+    await r.start();
+    await new Promise((ok) => setTimeout(ok, 300));
+    const t = Date.now();
+    await r.stop();
+    expect(Date.now() - t).toBeLessThan(1000);
   });
 
   it('reaps leftovers when it starts, notes its own processes, and forgets them when it stops', async () => {
@@ -161,9 +193,15 @@ process.exit(1);
     expect(fresh).toHaveLength(2);
     expect(alive(comfy)).toBe(true);
     // It shrugged off SIGTERM; SIGKILL follows five seconds after it, and the note keeps it until then.
-    expect(JSON.parse(readFileSync(pidFile(dir), 'utf8'))).toContain(comfy);
+    expect(JSON.parse(readFileSync(pidFile(dir), 'utf8')).pids.map((c: { pid: number }) => c.pid)).toContain(
+      comfy,
+    );
     for (let i = 0; i < 80 && alive(comfy); i++) await new Promise((ok) => setTimeout(ok, 100));
     expect(alive(comfy)).toBe(false);
+    // Gone, it leaves the note, which names only the pair running now.
+    await new Promise((ok) => setTimeout(ok, 100));
+    const noted = JSON.parse(readFileSync(pidFile(dir), 'utf8')).pids.map((c: { pid: number }) => c.pid);
+    expect(noted.sort()).toEqual([...r.pids()].sort());
     await new Promise((ok) => setTimeout(ok, 300));
     expect(r.pids()).toEqual(fresh);
     for (const pid of fresh) expect(alive(pid)).toBe(true);

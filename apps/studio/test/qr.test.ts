@@ -39,7 +39,11 @@ describe('loopbackOnly', () => {
       'not a url',
     ])
       expect(loopbackOnly(u)).toBe(true);
-    for (const u of ['https://parish1.tail2b1ef8.ts.net/#/invite/x', 'http://100.104.23.40:7341/'])
+    for (const u of [
+      'https://parish1.tail2b1ef8.ts.net/#/invite/x',
+      'http://100.104.23.40:7341/',
+      'http://localhost.example/',
+    ])
       expect(loopbackOnly(u)).toBe(false);
   });
 });

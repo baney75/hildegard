@@ -120,6 +120,9 @@ const moveNote = (r: Result, note: string): Result => ({
 
 // ── start / stop ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+/** A foreground start that failed: the CLI prints it like any error, then exits instead of idling. */
+export class ForegroundStartError extends Error {}
+
 /** Runs the server in this process until it's stopped: what the background start, and services, run. */
 export async function serveForeground(c: Config): Promise<never> {
   const uiDir = c.uiDir ?? tryResource('studio') ?? tryResource(join('apps', 'studio', 'dist'));
@@ -142,10 +145,12 @@ export async function serveForeground(c: Config): Promise<never> {
       },
     );
   } catch (e) {
-    // Exit, rather than return: a ComfyUI already started would keep this process alive, serving nothing, for good.
-    // Exiting takes ComfyUI down with it.
+    // startServer has stopped anything it started. The CLI reports this as it reports any error (JSON too), then
+    // exits: a foreground server that never came up has nothing to wait for.
     console.error(`${new Date().toISOString()} Couldn’t start: ${(e as Error).message}`);
-    process.exit(1);
+    if ((e as NodeJS.ErrnoException).code === 'EADDRINUSE')
+      throw new ForegroundStartError(`Port ${c.port} is in use. Is Hildegard already running? Try --port.`);
+    throw new ForegroundStartError((e as Error).message);
   }
   console.log(`Hildegard ${VERSION} is running at ${srv.url}`);
   guardProcess(stop);

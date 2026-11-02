@@ -23,11 +23,19 @@ export function qrPath(text: string, border = 4): { d: string; size: number } {
 
 /** Whether a link only works on this computer (a phone that opened it would reach itself). */
 export function loopbackOnly(url: string): boolean {
+  let host: string;
   try {
-    return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(new URL(url).hostname);
+    host = new URL(url).hostname.toLowerCase().replace(/\.$/, '');
   } catch {
     return true;
   }
+  // 127.0.0.0/8, ::1, the unspecified addresses, and localhost with its subdomains (RFC 6761).
+  return (
+    /^127\./.test(host) ||
+    ['[::1]', '[::]', '0.0.0.0', 'localhost'].includes(host) ||
+    host.endsWith('.localhost') ||
+    /^\[::ffff:7f/.test(host)
+  );
 }
 
 /**

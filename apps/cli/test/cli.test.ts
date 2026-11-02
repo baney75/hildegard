@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFile, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -978,4 +980,32 @@ describe('starting from Windows ssh', () => {
       `cmd.exe /d /s /c "set "HILDEGARD_ENTRY=D:\\Hildegard\\app\\hildegard.mjs" && "${process.execPath}" "D:\\Hildegard\\app\\hildegard.mjs" "start" "--foreground" "--port" "7341" >> "D:\\Hildegard\\logs\\server.log" 2>&1"`,
     );
   });
+});
+
+describe('a foreground start that fails', () => {
+  it('reports in JSON like any error, names the busy port, and exits instead of idling', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'hg-fg-'));
+    const busy = createServer().listen(0, '127.0.0.1');
+    await once(busy, 'listening');
+    const port = (busy.address() as AddressInfo).port;
+    try {
+      const t = Date.now();
+      const out = await hildegard(
+        home,
+        'start',
+        '--foreground',
+        '--port',
+        String(port),
+        '--data',
+        join(home, 'data'),
+      );
+      expect(out).toMatchObject({
+        ok: false,
+        message: `Port ${port} is in use. Is Hildegard already running? Try --port.`,
+      });
+      expect(Date.now() - t).toBeLessThan(30_000);
+    } finally {
+      busy.close();
+    }
+  }, 60_000);
 });
