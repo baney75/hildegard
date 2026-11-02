@@ -20,7 +20,7 @@ describe('qrPath', () => {
       `https://studio.example.ts.net/#/invite/${'A'.repeat(43)}`,
     ]) {
       const { d, size } = qrPath(url);
-      const want = encode(url, { ecc: 'M', border: 3 });
+      const want = encode(url, { ecc: 'M', border: 4 });
       expect(size).toBe(want.size);
       expect(paint(d, size)).toEqual(want.data);
       // The quiet zone is light all the way round, so a camera can find the code.

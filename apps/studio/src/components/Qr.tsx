@@ -2,8 +2,8 @@
 import { useMemo } from 'react';
 import { encode } from 'uqr';
 
-/** The dark modules of a QR code as one SVG path, one unit per module, inside a quiet zone of `border` modules. */
-export function qrPath(text: string, border = 3): { d: string; size: number } {
+/** The dark modules of a QR code as one SVG path, one unit per module, inside a quiet zone of `border` modules (four, as the QR standard asks). */
+export function qrPath(text: string, border = 4): { d: string; size: number } {
   const { data, size } = encode(text, { ecc: 'M', border });
   let d = '';
   for (let y = 0; y < size; y++) {

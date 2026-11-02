@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { layout, type RuntimeInfo, readRuntime } from './install.ts';
@@ -42,8 +42,22 @@ export function comfyMemoryArgs(info: Pick<RuntimeInfo, 'backend' | 'unified' | 
   return info.backend === 'cuda' && shared ? ['--disable-mmap', '--disable-dynamic-vram'] : [];
 }
 
-/** Where the runtime notes the processes it started, so a later start can find any a crash left behind. */
-export const pidFile = (dataDir: string) => join(dataDir, 'comfyui.pids');
+/**
+ * Where each Hildegard process notes the ComfyUI and proxy it started, one file per process (`<pid>.json`), so a
+ * later start can find any that a crash, a kill or a failed start left behind.
+ */
+export const pidDir = (dataDir: string) => join(dataDir, 'comfyui-pids');
+export const pidFile = (dataDir: string, owner = process.pid) => join(pidDir(dataDir), `${owner}.json`);
+
+const running = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM: it exists, under another user.
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
 
 /** A process's command line, or null when it isn't running or can't be read (Windows). */
 export function commandLine(pid: number): string | null {
@@ -60,29 +74,41 @@ export function commandLine(pid: number): string | null {
 }
 
 /**
- * Stops the ComfyUI and comfy-api-proxy an earlier Hildegard in this folder left running: one that crashed, was
- * killed, or failed partway through starting. Only a process whose command line runs this folder's Python is
- * stopped, so a reused process number is left alone. Returns the ones it stopped.
+ * Stops the ComfyUI and comfy-api-proxy that earlier Hildegard processes in this folder left running, once those
+ * processes are gone: one that crashed, was killed, or failed partway through starting. A Hildegard still running
+ * keeps its own. Only a process whose command line runs this folder's Python is stopped, so a reused process number
+ * is left alone. Returns the ones it stopped.
  */
-export function reapStale(dataDir: string, command: (pid: number) => string | null = commandLine): number[] {
-  const file = pidFile(dataDir);
-  let pids: unknown;
+export function reapStale(
+  dataDir: string,
+  command: (pid: number) => string | null = commandLine,
+  alive: (pid: number) => boolean = running,
+): number[] {
+  let files: string[];
   try {
-    pids = JSON.parse(readFileSync(file, 'utf8'));
+    files = readdirSync(pidDir(dataDir));
   } catch {
     return [];
   }
   const python = layout(dataDir).python;
   const stopped: number[] = [];
-  for (const pid of Array.isArray(pids) ? pids : []) {
-    if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) continue;
-    if (!command(pid)?.includes(python)) continue;
+  for (const f of files) {
+    const owner = Number(/^(\d+)\.json$/.exec(f)?.[1]);
+    if (!Number.isInteger(owner) || owner === process.pid || alive(owner)) continue;
+    let pids: unknown;
     try {
-      process.kill(pid, 'SIGKILL');
-      stopped.push(pid);
+      pids = JSON.parse(readFileSync(join(pidDir(dataDir), f), 'utf8'));
     } catch {}
+    for (const pid of Array.isArray(pids) ? pids : []) {
+      if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) continue;
+      if (!command(pid)?.includes(python)) continue;
+      try {
+        process.kill(pid, 'SIGKILL');
+        stopped.push(pid);
+      } catch {}
+    }
+    rmSync(join(pidDir(dataDir), f), { force: true });
   }
-  rmSync(file, { force: true });
   return stopped;
 }
 
@@ -94,7 +120,10 @@ export class ComfyRuntime {
   private failures = 0;
   private timer: NodeJS.Timeout | null = null;
   private ports: [comfy: number, proxy: number] | null = null;
-  /** Kills ComfyUI and the proxy when Hildegard's process ends any way but SIGKILL: they never outlive it. */
+  /**
+   * Kills ComfyUI and the proxy whenever Hildegard's process exits through Node's exit event (a return, a crash,
+   * process.exit). A signal Node has no handler for yet, or SIGKILL, skips it; the next start reaps those.
+   */
   private readonly onExit = () => {
     for (const p of this.procs) if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
   };
@@ -145,42 +174,53 @@ export class ComfyRuntime {
         env: { ...process.env, PYTHONUNBUFFERED: '1' },
       });
       closeSync(fd);
-      child.on('exit', (code, signal) => this.exited(name, code, signal));
-      child.on('error', () => this.exited(name, null, null));
+      child.on('exit', (code, signal) => this.exited(child, name, code, signal));
+      child.on('error', () => this.exited(child, name, null, null));
       this.procs.push(child);
     };
-    launch(
-      'comfyui',
-      [
-        'main.py',
-        '--listen',
-        '127.0.0.1',
-        '--port',
-        String(comfyPort),
-        '--disable-auto-launch',
-        '--preview-method',
-        'auto',
-        ...(info.backend === 'cpu' ? ['--cpu'] : []),
-        ...comfyMemoryArgs(info),
-      ],
-      L.comfyDir,
-    );
-    launch(
-      'comfy-api-proxy',
-      [
-        '-m',
-        'comfy_api_proxy.cli',
-        'run',
-        '--comfyui',
-        `http://127.0.0.1:${comfyPort}`,
-        '--port',
-        String(proxyPort),
-        '--comfyui-base-dir',
+    try {
+      launch(
+        'comfyui',
+        [
+          'main.py',
+          '--listen',
+          '127.0.0.1',
+          '--port',
+          String(comfyPort),
+          '--disable-auto-launch',
+          '--preview-method',
+          'auto',
+          ...(info.backend === 'cpu' ? ['--cpu'] : []),
+          ...comfyMemoryArgs(info),
+        ],
         L.comfyDir,
-      ],
-      L.comfyDir,
-    );
-    writeFileSync(pidFile(this.dataDir), JSON.stringify(this.pids()), { mode: 0o600 });
+      );
+      launch(
+        'comfy-api-proxy',
+        [
+          '-m',
+          'comfy_api_proxy.cli',
+          'run',
+          '--comfyui',
+          `http://127.0.0.1:${comfyPort}`,
+          '--port',
+          String(proxyPort),
+          '--comfyui-base-dir',
+          L.comfyDir,
+        ],
+        L.comfyDir,
+      );
+    } catch (e) {
+      // Half started is worse than not started: nothing would watch the half that runs.
+      for (const p of this.procs) if (p.exitCode === null) p.kill('SIGKILL');
+      this.procs = [];
+      throw e;
+    }
+    // Best effort: without the note, only a SIGKILL of Hildegard would leave these behind.
+    try {
+      mkdirSync(pidDir(this.dataDir), { recursive: true });
+      writeFileSync(pidFile(this.dataDir), JSON.stringify(this.pids()), { mode: 0o600 });
+    } catch {}
     void this.watchReady(comfyPort);
     return url;
   }
@@ -203,8 +243,9 @@ export class ComfyRuntime {
     }
   }
 
-  private exited(name: string, code: number | null, signal: NodeJS.Signals | null) {
-    if (this.stopping || this.timer) return;
+  private exited(child: ChildProcess, name: string, code: number | null, signal: NodeJS.Signals | null) {
+    // A child of an earlier start, ending late, says nothing about the ones running now.
+    if (this.stopping || this.timer || !this.procs.includes(child)) return;
     // One half down takes the other with it, then both come back together on fresh ports.
     for (const p of this.procs) if (p.exitCode === null) p.kill();
     this.procs = [];
@@ -242,7 +283,9 @@ export class ComfyRuntime {
     );
     this.procs = [];
     process.removeListener('exit', this.onExit);
-    rmSync(pidFile(this.dataDir), { force: true });
+    try {
+      rmSync(pidFile(this.dataDir), { force: true });
+    } catch {}
     this.set({ status: 'stopped', url: null, error: null });
   }
 

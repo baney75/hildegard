@@ -55,7 +55,12 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   await tabbar.getByRole('link', { name: 'Settings' }).click();
   await expect(page).toHaveURL(/#\/settings/);
   // On a page under More, the tab says which one, so you always know where you are.
-  await expect(tabbar.getByRole('button', { name: /^Settings, more pages/ })).toBeVisible();
+  const here = tabbar.getByRole('button', { name: /^Settings, more pages/ });
+  await expect(here).toHaveAttribute('aria-current', 'page');
+  // Choosing the page you're already on still closes the list.
+  await here.click();
+  await tabbar.getByRole('link', { name: 'Settings' }).click();
+  await expect(here).toHaveAttribute('aria-expanded', 'false');
   await page.getByRole('link', { name: /Hugging Face/ }).click();
   await expect(page.getByRole('heading', { name: 'Link Hugging Face' })).toBeVisible();
   expect(errors).toEqual([]);

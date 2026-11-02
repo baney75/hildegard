@@ -128,8 +128,14 @@ export function App() {
       />
     );
 
-  const item = (n: (typeof NAV)[number], cls: string, size?: 22) => (
-    <a key={n.to} className={cls} href={`#${n.to}`} aria-current={n.match.test(route) ? 'page' : undefined}>
+  const item = (n: (typeof NAV)[number], cls: string, size?: 22, onClick?: () => void) => (
+    <a
+      key={n.to}
+      className={cls}
+      href={`#${n.to}`}
+      aria-current={n.match.test(route) ? 'page' : undefined}
+      onClick={onClick}
+    >
       <Icon name={n.icon} size={size} />
       <span>{n.label}</span>
       {n.to === '/queue' && busy ? (
@@ -166,7 +172,7 @@ export function App() {
               <MoreTab
                 items={nav.filter((n) => !TABS.includes(n.to))}
                 route={route}
-                render={(n) => item(n, 'hg-tab-more__item')}
+                render={(n, close) => item(n, 'hg-tab-more__item', undefined, close)}
               />
             </>
           )}
@@ -192,7 +198,7 @@ function MoreTab({
 }: {
   items: typeof NAV;
   route: string;
-  render: (n: (typeof NAV)[number]) => React.ReactNode;
+  render: (n: (typeof NAV)[number], close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -203,7 +209,8 @@ function MoreTab({
   useEffect(() => setOpen(false), [route]);
   useEffect(() => {
     if (!open) return;
-    const off = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
+    // A tap outside, or focus moving outside (Tab past the list), closes it.
+    const off = (e: Event) => !root.current?.contains(e.target as Node) && setOpen(false);
     const esc = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
@@ -211,10 +218,12 @@ function MoreTab({
       root.current?.querySelector<HTMLElement>('button')?.focus();
     };
     document.addEventListener('pointerdown', off);
+    document.addEventListener('focusin', off);
     document.addEventListener('keydown', esc);
     root.current?.querySelector<HTMLElement>('.hg-tab-more__list a')?.focus();
     return () => {
       document.removeEventListener('pointerdown', off);
+      document.removeEventListener('focusin', off);
       document.removeEventListener('keydown', esc);
     };
   }, [open]);
@@ -226,6 +235,7 @@ function MoreTab({
         aria-expanded={open}
         aria-controls={id}
         data-here={here ? '' : undefined}
+        aria-current={here ? 'page' : undefined}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name={here?.icon ?? 'more'} size={22} />
@@ -234,7 +244,7 @@ function MoreTab({
       </button>
       {open ? (
         <div className="hg-tab-more__list" id={id}>
-          {items.map(render)}
+          {items.map((n) => render(n, () => setOpen(false)))}
         </div>
       ) : null}
     </div>
