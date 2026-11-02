@@ -16,6 +16,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
+import { frontDoorStep } from '../src/doctor.ts';
 import { printEvent, printResult, result } from '../src/output.ts';
 
 // HILDEGARD_CLI tests an installed release's hildegard.mjs instead of the source.
@@ -523,6 +524,121 @@ describe('host and doctor', () => {
       await srv.close();
     }
   }, 90_000);
+
+  it('hosts at the owner’s own front door: checks the address first, makes no Tailscale call, shows the route', async () => {
+    const calls: string[][] = [];
+    const tailscale: Exec = async (_cmd, args) => {
+      calls.push(args);
+      if (args[0] === 'status')
+        return {
+          ok: true,
+          out: JSON.stringify({
+            BackendState: 'Running',
+            Self: { DNSName: 'studio.example.ts.net.', TailscaleIPs: ['100.64.0.1'] },
+          }),
+        };
+      return { ok: true, out: args[0] === 'serve' && args[1] === 'status' ? '{}' : '' };
+    };
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-door-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')), exec: tailscale },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    const mutating = () => calls.filter((a) => a[0] === 'serve' || a[0] === 'funnel');
+    try {
+      // Bad addresses and mixed routes are refused before anything is asked of the server.
+      for (const bad of [
+        'http://hildegard.example.com',
+        'https://hildegard.example.com/mcp',
+        'https://hildegard.example.com?x=1',
+        'https://100.64.0.1',
+        'https://studio.example.ts.net',
+        'hildegard.example.com',
+      ]) {
+        const r = await hildegard(home, 'host', '--public-url', bad, ...at);
+        expect(r.ok, bad).toBe(false);
+        expect(r.steps[0], bad).toMatchObject({ id: 'host', status: 'failed' });
+        expect(r.message, bad).toBeTruthy();
+      }
+      const mixed = await hildegard(
+        home,
+        'host',
+        '--public-url',
+        'https://hildegard.example.com',
+        '--funnel',
+        ...at,
+      );
+      expect(mixed.ok).toBe(false);
+      expect(mixed.message).toMatch(/pick one route/);
+
+      // A good address still needs the owner account first.
+      const first = await hildegard(home, 'host', '--public-url', 'https://hildegard.example.com', ...at);
+      expect(first.needsOwner).toBe(true);
+      expect(first.steps[0]).toMatchObject({ id: 'owner', command: 'hildegard host owner' });
+      await hildegardWithStdin(
+        home,
+        'a long and private passphrase\n',
+        'host',
+        'owner',
+        '--name',
+        'Alex',
+        '--passphrase-stdin',
+        ...at,
+      );
+
+      const on = await hildegard(home, 'host', '--public-url=https://Hildegard.Example.com/', ...at);
+      expect(on.ok, on.message).toBe(true);
+      expect(on.url).toBe('https://hildegard.example.com');
+      expect(on.mcpUrl).toBe('https://hildegard.example.com/mcp');
+      expect(on.host).toMatchObject({ on: true, via: 'custom' });
+      expect(on.steps.at(-1)).toMatchObject({
+        id: 'host',
+        status: 'done',
+        detail: expect.stringContaining('HTTPS through your own front door'),
+      });
+      expect(on.mcp).toMatch(/claude\.ai/);
+      expect(on.warning).toMatch(/public internet/);
+      expect(on.warning).toMatch(/front door/);
+      expect(mutating()).toEqual([]);
+
+      const status = await hildegard(home, 'host', 'status', ...at);
+      expect(status.steps.find((x) => x.id === 'host')?.detail).toMatch(
+        /https:\/\/hildegard\.example\.com · HTTPS through your own front door/,
+      );
+      expect(status.mcpUrl).toBe('https://hildegard.example.com/mcp');
+
+      const off = await hildegard(home, 'host', 'off', ...at);
+      expect(off.host).toMatchObject({ on: false });
+      expect(mutating()).toEqual([]);
+    } finally {
+      await srv.close();
+    }
+  }, 90_000);
+
+  it('doctor checks the front door’s OAuth answer, and warns instead of failing when it can’t', async () => {
+    const url = 'https://hildegard.example.com';
+    const answer = (status: number, body: unknown) =>
+      (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+    const seen: string[] = [];
+    const spy = (async (input: string | URL | Request) => {
+      seen.push(String(input));
+      return new Response(JSON.stringify({ resource: `${url}/mcp` }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await frontDoorStep(url, spy)).toMatchObject({ id: 'front-door', status: 'done' });
+    expect(seen).toEqual([`${url}/.well-known/oauth-protected-resource`]);
+    // Somewhere else answers, or the door is down: a warning (skipped), never a failure.
+    const wrong = await frontDoorStep(url, answer(200, { resource: 'https://other.example.com/mcp' }));
+    expect(wrong).toMatchObject({ status: 'skipped' });
+    expect(wrong.detail).toContain('https://other.example.com/mcp');
+    expect(await frontDoorStep(url, answer(502, {}))).toMatchObject({ status: 'skipped' });
+    const down = await frontDoorStep(url, (async () => {
+      throw new Error('getaddrinfo ENOTFOUND');
+    }) as unknown as typeof fetch);
+    expect(down).toMatchObject({ status: 'skipped' });
+    expect(down.detail).toContain('ENOTFOUND');
+  });
 
   it('makes a key on one device and links an app on another to that Hildegard, key kept out of its config', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-key-'));

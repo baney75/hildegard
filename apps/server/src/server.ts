@@ -445,6 +445,7 @@ async function serveStudio(
     dataDir: config.dataDir,
     port: () => port,
     hostPort: () => hostedPort,
+    reserved: () => config.allowedHosts,
     run: opts.exec,
     owner: () => people.hasOwner(),
     onChange: (h) => {

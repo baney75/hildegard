@@ -3,6 +3,7 @@ export * from './api.ts';
 export * from './characters.ts';
 export * from './compose.ts';
 export * from './load.ts';
+export * from './public-url.ts';
 export * from './safety.ts';
 export * from './schema.ts';
 export * from './voice.ts';

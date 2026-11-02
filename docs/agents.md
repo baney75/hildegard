@@ -152,6 +152,24 @@ behind the link.
    "$(tailscale ip -4)" --json` answers on the Tailscale address over plain HTTP, which WireGuard encrypts; Hildegard
    refuses any address outside the tailnet.
 
+   **Your user's own domain** (a Cloudflare named tunnel, Caddy, or any HTTPS front door they run): only when they say
+   they have one and give you the address. `hildegard host --public-url https://hildegard.example.com --json` (origin
+   only: `https`, a real name, no path, no IP address, no `*.ts.net`; the CLI refuses bad ones before asking). It
+   makes no Tailscale call, turns on the hosted listener (`--host-port`, else the main port plus one) and trusts that
+   name on it and nowhere else. The `host` step's detail reads "HTTPS through your own front door" and `host.via` is
+   `custom`. The result carries a `warning` (it is on the public internet): show it to them, as with Funnel. You then
+   set up the front door; Hildegard doesn't run it:
+   - Cloudflare: `cloudflared tunnel create hildegard`, then `cloudflared tunnel route dns hildegard
+     hildegard.example.com`, then a config with `ingress: - hostname: hildegard.example.com`, `service:
+     http://127.0.0.1:<hostPort>` and `originRequest: httpHostHeader: hildegard.example.com`, then `cloudflared
+     tunnel run hildegard`. Logging in to Cloudflare is theirs to do (`cloudflared tunnel login`).
+   - Tunnel on another computer: on the Hildegard computer, `tailscale serve --bg --tcp <port> tcp://127.0.0.1:<hostPort>`
+     (tailnet only), and the tunnel's `service: http://<that computer's tailnet IP>:<port>`, same `httpHostHeader`.
+   - Verify: `hildegard doctor --json` has a `front-door` step that reads `<url>/.well-known/oauth-protected-resource`
+     and wants `resource` to be `<url>/mcp`. It only warns (`skipped`) when it can't reach it, since the door may be
+     visible only from outside. A wrong answer usually means the tunnel points at the wrong port or sends another Host.
+   `hildegard host off --json` removes the name; the tunnel and DNS record stay theirs.
+
 4. **Invite people**, when your user asks:
 
    ```sh
@@ -179,7 +197,7 @@ behind the link.
    | `host.url` | the link (null while it isn't working) |
    | `host.problem` | `null`; otherwise one sentence on what's wrong, with `host.fix` the command or page that fixes it |
    | `host.owner` | `true` |
-   | `host.via` | `tailscale` (Serve), `funnel` or `address` |
+   | `host.via` | `tailscale` (Serve), `funnel`, `address` or `custom` (their own front door) |
 
    Then ask your user to open the link on their phone and sign in. `hildegard status --json` also carries `host`.
 
@@ -301,7 +319,8 @@ it needs nothing. Anywhere else it needs a bearer token and acts as that token's
 An app that takes an MCP address and headers can skip step 2: `<link>/mcp` with `Authorization: Bearer <key>`.
 
 **A chatbot on the web** (claude.ai, ChatGPT) runs on its maker's servers, so it can't reach a tailnet. It needs the
-public link, which only your user may ask for: `hildegard host --funnel --json` (show them its `warning`). Then:
+public link, which only your user may ask for: `hildegard host --funnel --json` (show them its `warning`), or, if they
+have their own domain and front door, `hildegard host --public-url https://<their name> --json` (step B). Then:
 
 - **claude.ai:** Settings › Connectors › Add custom connector, with the address in `mcpUrl`.
 - **ChatGPT:** Settings › Apps › Developer mode, then Create, with that address. It needs Plus or
@@ -365,7 +384,8 @@ Every local model here is also one OpenAI-compatible API at `http://127.0.0.1:73
 | Tailscale permission or a Tailscale admin page | Run the command, or open the page and turn the feature on |
 | A Runpod or provider API key (`key`, `needs-owner`) | Make the key on the provider's site and hand it to you to pipe in; it's billed to them |
 | A chatbot's sign-in (claude.ai, ChatGPT) | They add the connector and type their own name and passphrase on Hildegard's page |
-| The public internet (`hildegard host --funnel`) | Only when they asked for it: chatbots on the web need it, AI apps on their own devices don't |
+| The public internet (`hildegard host --funnel`, or `--public-url` with their own domain) | Only when they asked for it: chatbots on the web need it, AI apps on their own devices don't |
+| A Cloudflare sign-in or a DNS change (`cloudflared tunnel login`, `route dns`) | Theirs: it's their account and their domain |
 
 ## If something fails
 

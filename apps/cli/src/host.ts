@@ -10,12 +10,16 @@ import type {
   Person,
   Role,
 } from '@hildegard/presets';
+import { parsePublicUrl } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
 import { api, askSecret, type Ctx, ensureRunning } from './commands.ts';
 import { bold, type Result, result } from './output.ts';
 
 const FUNNEL_WARNING =
   'Funnel puts this Hildegard on the public internet: anyone who finds the link can reach its sign-in page and try passphrases (Hildegard slows them down). Only the people you invite can get in. Turn it off with `hildegard host off`.';
+
+const FRONT_DOOR_WARNING =
+  'Your own front door puts this Hildegard on the public internet: anyone who finds the address can reach its sign-in page and try passphrases (Hildegard slows them down). Only the people you invite can get in. Use a long passphrase, and keep the hosted port reachable only by your tunnel or proxy, never open to the internet itself. Turn it off with `hildegard host off`; the tunnel and its DNS record stay yours to remove.';
 
 /** Everything after the last newline is part of the passphrase, spaces included; one trailing newline is not. */
 async function readPassphrase(): Promise<string> {
@@ -32,7 +36,7 @@ const hostStep = (h: HostState): Step =>
         id: 'host',
         title: 'Host at a link',
         status: 'done',
-        detail: `${h.url} · ${{ tailscale: 'HTTPS on your tailnet (Tailscale Serve)', funnel: 'HTTPS on the public internet (Tailscale Funnel)', address: 'plain HTTP on your tailnet, which WireGuard encrypts' }[h.via!]}. Everyone signs in there.`,
+        detail: `${h.url} · ${{ tailscale: 'HTTPS on your tailnet (Tailscale Serve)', funnel: 'HTTPS on the public internet (Tailscale Funnel)', address: 'plain HTTP on your tailnet, which WireGuard encrypts', custom: 'HTTPS through your own front door' }[h.via!]}. Everyone signs in there.`,
       }
     : h.on
       ? {
@@ -52,7 +56,7 @@ const hostStep = (h: HostState): Step =>
 
 /**
  * How AI apps on other devices reach the MCP at this link. Tailscale Serve is inside the tailnet, so only the owner's
- * own devices can; chatbots that live on the web (claude.ai, ChatGPT) need the public internet: Funnel.
+ * own devices can; chatbots that live on the web (claude.ai, ChatGPT) need the public internet: Funnel, or the owner's own front door.
  */
 const mcpStep = (h: HostState): Step | null =>
   h.on && h.url
@@ -61,9 +65,9 @@ const mcpStep = (h: HostState): Step | null =>
         title: 'MCP for AI apps elsewhere',
         status: 'done',
         detail:
-          h.via === 'funnel'
+          h.via === 'funnel' || h.via === 'custom'
             ? `${h.url}/mcp. Paste it into claude.ai (Settings › Connectors › Add custom connector) or ChatGPT (developer mode), then sign in there with your name and passphrase. Apps on your own devices use a key: \`hildegard host key "<app and device>"\`.`
-            : `${h.url}/mcp, for AI apps on your own devices, with a key: \`hildegard host key "<app and device>"\`. Chatbots on the web (claude.ai, ChatGPT) can't reach your tailnet: they need \`hildegard host --funnel\`.`,
+            : `${h.url}/mcp, for AI apps on your own devices, with a key: \`hildegard host key "<app and device>"\`. Chatbots on the web (claude.ai, ChatGPT) can't reach your tailnet: they need \`hildegard host --funnel\` or your own front door (\`hildegard host --public-url https://<name>\`).`,
       }
     : null;
 
@@ -194,8 +198,26 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
     case 'on': {
       const funnel = ctx.flags.has('funnel');
       const address = ctx.opts.get('address');
-      const via = funnel ? 'funnel' : address ? 'address' : 'tailscale';
-      if (funnel && !ctx.json) console.log(`${bold('Careful.')} ${FUNNEL_WARNING}\n`);
+      const publicUrl = ctx.opts.get('public-url');
+      if (ctx.flags.has('public-url') && publicUrl === undefined)
+        return result([], 'Say the address: `hildegard host --public-url https://hildegard.example.com`.', {
+          ok: false,
+        });
+      if (publicUrl !== undefined) {
+        // Checked here first, so a typo never reaches the server; the server checks again.
+        const p = parsePublicUrl(publicUrl);
+        if (!p.ok || funnel || address) {
+          const detail = !p.ok
+            ? p.error
+            : '`--public-url` can’t be combined with `--funnel` or `--address`: pick one route.';
+          return result([{ id: 'host', title: 'Host at a link', status: 'failed', detail }], detail, {
+            ok: false,
+          });
+        }
+      }
+      const via = publicUrl !== undefined ? 'custom' : funnel ? 'funnel' : address ? 'address' : 'tailscale';
+      const warning = funnel ? FUNNEL_WARNING : publicUrl !== undefined ? FRONT_DOOR_WARNING : null;
+      if (warning && !ctx.json) console.log(`${bold('Careful.')} ${warning}\n`);
       let h = await api<HostState>(c, '/api/host');
       const steps: Step[] = [];
       if (!h.owner) {
@@ -205,7 +227,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
         if (!made.ok || made.needsOwner) return { ...made, steps };
       }
       try {
-        h = await api<HostState>(c, '/api/host', { method: 'POST', body: { via, address } });
+        h = await api<HostState>(c, '/api/host', { method: 'POST', body: { via, address, url: publicUrl } });
       } catch (e) {
         const f = failure('host', 'Host at a link', e);
         return { ...f, steps: [...steps, ...f.steps] };
@@ -223,7 +245,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
           url: h.url,
           mcpUrl: h.url ? `${h.url}/mcp` : null,
           ...(mcp ? { mcp: mcp.detail } : {}),
-          ...(funnel ? { warning: FUNNEL_WARNING } : {}),
+          ...(warning ? { warning } : {}),
         },
       );
     }
@@ -456,4 +478,4 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
   }
 }
 
-export { FUNNEL_WARNING, hostStep };
+export { FRONT_DOOR_WARNING, FUNNEL_WARNING, hostStep };

@@ -3,13 +3,15 @@
  * Host mode: this Hildegard at a link, for the owner on their other devices and the people they invite. With
  * Tailscale it asks `tailscale serve` (HTTPS on the tailnet) or, only when the owner says so, `tailscale funnel`
  * (HTTPS on the public internet) to forward to a listener of its own on 127.0.0.1, where every request must sign in.
- * Without either it can answer on this computer's Tailscale address. Neither ComfyUI nor the paired-device API is
- * ever behind the link.
+ * Or the owner brings their own HTTPS front door (a Cloudflare named tunnel, Caddy): `custom` makes no Tailscale
+ * call, turns that same listener on, and answers to the front door's name on it and nowhere else. Without any of
+ * them it can answer on this computer's Tailscale address. Neither ComfyUI nor the paired-device API is ever
+ * behind the link.
  */
 import { execFile } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { HostState } from '@hildegard/presets';
+import { type HostState, parsePublicUrl } from '@hildegard/presets';
 import { privateLink } from './choir.ts';
 
 export class HostError extends Error {
@@ -76,7 +78,7 @@ const LOGIN_LINK = /https:\/\/login\.tailscale\.com\/\S+/;
 
 interface HostFile {
   on: boolean;
-  via: 'tailscale' | 'funnel' | 'address';
+  via: 'tailscale' | 'funnel' | 'address' | 'custom';
   /** The Tailscale HTTPS port, for Serve and Funnel. */
   httpsPort?: number;
   /** The address to answer on, for `address`. */
@@ -90,6 +92,8 @@ export interface HostOptions {
   port: () => number;
   /** The listener Serve and Funnel forward to. */
   hostPort: () => number;
+  /** Host names the Studio's own listener is told to answer to (--allow-host): a front door can't share one. */
+  reserved?: () => string[];
   run?: Exec;
   onChange?: (s: HostState) => void;
   /** Whether the owner account exists. */
@@ -136,20 +140,37 @@ export class Host {
   }
 
   /** What the main app needs: whether a link is on, and the names it answers to. */
-  current(): { on: boolean; via: HostFile['via'] | null; address: string | null; names: string[] } {
+  current(): {
+    on: boolean;
+    via: HostFile['via'] | null;
+    address: string | null;
+    names: string[];
+    /**
+     * The owner's own front door while that route is on: its origin, and its Host as a request carries it (with the
+     * port, when not 443). It is not in `names`: the app trusts it only on the hosted listener.
+     */
+    custom: { url: string; host: string } | null;
+  } {
     const f = this.saved?.on ? this.saved : null;
     const names: string[] = [];
-    if (f) {
+    let custom: { url: string; host: string } | null = null;
+    if (f?.via === 'custom') {
+      try {
+        const u = new URL(f.url);
+        custom = { url: u.origin, host: u.host.toLowerCase() };
+      } catch {}
+    } else if (f) {
       try {
         names.push(new URL(f.url).hostname.toLowerCase());
       } catch {}
     }
-    if (this.tailnet?.dns) names.push(this.tailnet.dns);
+    if (this.tailnet?.dns && f?.via !== 'custom') names.push(this.tailnet.dns);
     return {
       on: !!f,
       via: f?.via ?? null,
       address: f?.via === 'address' ? (f.address ?? null) : null,
       names,
+      custom,
     };
   }
 
@@ -195,7 +216,9 @@ export class Host {
   }
 
   /** Turn the link on. `via` defaults to Tailscale Serve; Funnel only ever when asked for by name. */
-  async on(opts: { via?: 'tailscale' | 'funnel' | 'address'; address?: string } = {}): Promise<HostState> {
+  async on(
+    opts: { via?: 'tailscale' | 'funnel' | 'address' | 'custom'; address?: string; url?: string } = {},
+  ): Promise<HostState> {
     if (!this.opts.owner())
       throw new HostError(
         409,
@@ -203,7 +226,36 @@ export class Host {
         'hildegard host owner',
       );
     const ts = await this.tailscale(true);
-    const via = opts.via ?? (opts.address ? 'address' : 'tailscale');
+    const via = opts.via ?? (opts.url ? 'custom' : opts.address ? 'address' : 'tailscale');
+
+    if (via === 'custom') {
+      const p = parsePublicUrl(opts.url);
+      if (!p.ok) throw new HostError(400, p.error);
+      const name = new URL(p.url).hostname;
+      if ((this.opts.reserved?.() ?? []).some((h) => h.toLowerCase().replace(/:\d+$/, '') === name))
+        throw new HostError(
+          409,
+          `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,
+        );
+      // Going from Serve or Funnel to a front door of one's own: stop forwarding the old way first, so only one route
+      // leads in. If that can't be done, nothing changes: the old route stays recorded, to be turned off later.
+      const old = this.saved?.on && this.saved.httpsPort ? this.saved : null;
+      if (old) {
+        if (!ts)
+          throw new HostError(
+            409,
+            `Tailscale isn’t running on this computer, so Hildegard can’t turn off the old ${old.via === 'funnel' ? 'Funnel' : 'Serve'} link first. Start Tailscale, then try again.`,
+            'tailscale up',
+          );
+        const off = await this.tailscaleOff(ts, old.via, old.httpsPort!);
+        if (!off.ok) throw this.explainOff(off.out, old.via);
+      }
+      this.save({ on: true, via, url: p.url });
+      this.problem = null;
+      this.fix = null;
+      this.emit();
+      return this.state();
+    }
 
     if (via === 'address') {
       const address = (opts.address ?? ts?.ip ?? '').replace(/^\[|\]$/g, '');
@@ -296,9 +348,24 @@ export class Host {
     return new HostError(502, `Tailscale couldn’t set up the link: ${first.slice(0, 200)}`);
   }
 
-  private async tailscaleOff(ts: Tailnet, via: HostFile['via'], port: number) {
-    if (via === 'address') return;
-    await this.run(ts.cmd, [via === 'funnel' ? 'funnel' : 'serve', `--https=${port}`, 'off']);
+  private async tailscaleOff(
+    ts: Tailnet,
+    via: HostFile['via'],
+    port: number,
+  ): Promise<{ ok: boolean; out: string }> {
+    if (via === 'address' || via === 'custom') return { ok: true, out: '' };
+    return this.run(ts.cmd, [via === 'funnel' ? 'funnel' : 'serve', `--https=${port}`, 'off']);
+  }
+
+  /** Tailscale refused to turn the old link off: say why, and that nothing changed. */
+  private explainOff(out: string, via: HostFile['via']): HostError {
+    if (/access denied|permission|operator|sudo|https:\/\/login\.tailscale\.com/i.test(out))
+      return this.explain(out, via === 'funnel' ? 'funnel' : 'tailscale');
+    const first = out.split('\n').find((l) => l.trim()) ?? 'it gave no reason';
+    return new HostError(
+      502,
+      `Tailscale couldn’t turn off the old link, so nothing changed: ${first.slice(0, 200)}`,
+    );
   }
 
   /** Turn the link off. Accounts and sessions stay, for the next time. */
@@ -319,7 +386,8 @@ export class Host {
   async resume(): Promise<void> {
     const f = this.saved;
     await this.tailscale(true);
-    if (!f?.on || f.via === 'address') {
+    // An address and a front door of one's own need nothing from Tailscale; the listeners follow the saved state.
+    if (!f?.on || f.via === 'address' || f.via === 'custom') {
       this.emit();
       return;
     }

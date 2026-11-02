@@ -37,7 +37,15 @@ export interface HgEnv {
      */
     as?: Who;
   };
-  Variables: { who: Who | null; signedMedia?: boolean };
+  Variables: {
+    who: Who | null;
+    signedMedia?: boolean;
+    /**
+     * The owner's own front door (`hildegard host --public-url`), set only for a request that arrived on the hosted
+     * listener with that door's Host. Then the request counts as HTTPS and its origin is this URL.
+     */
+    publicUrl?: string;
+  };
 }
 export type Ctx = Context<HgEnv>;
 
@@ -53,10 +61,16 @@ export function fromThisComputer(c: Ctx): boolean {
   return !FORWARDED.some((h) => c.req.header(h) !== undefined);
 }
 
-/** Who to count sign-in attempts against: the address Tailscale says the request came from, or the socket's. */
+/**
+ * Who to count sign-in attempts against. Through the owner's own front door, the right-most X-Forwarded-For entry:
+ * the one the adjacent proxy appended, since proxies append to what a client sent, so the leading entries are the
+ * client's to make up. Through Tailscale Serve and Funnel, which set the header themselves, the first entry. Else
+ * the socket's address.
+ */
 export function clientKey(c: Ctx): string {
   if (c.env?.hosted) {
-    const fwd = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+    const list = c.req.header('x-forwarded-for')?.split(',') ?? [];
+    const fwd = (c.get('publicUrl') ? list.at(-1) : list[0])?.trim();
     if (fwd) return fwd;
   }
   return c.env?.incoming?.socket?.remoteAddress ?? 'unknown';
@@ -64,10 +78,15 @@ export function clientKey(c: Ctx): string {
 
 /** Session cookies: `__Host-` on HTTPS, so no subdomain or plain-HTTP page can set or read them. */
 export const COOKIE = { secure: '__Host-hildegard', plain: 'hildegard_session' };
-export const secureRequest = (c: Ctx) => !!c.env?.hosted && c.req.header('x-forwarded-proto') === 'https';
+export const secureRequest = (c: Ctx) =>
+  !!c.env?.hosted && (c.req.header('x-forwarded-proto') === 'https' || !!c.get('publicUrl'));
 
-/** The address this request reached Hildegard at, as its sender sees it: the link's https name, or this computer. */
+/**
+ * The address this request reached Hildegard at, as its sender sees it: the link's https name, or this computer. On
+ * the owner's own front door it is the configured public URL, whatever else the request says.
+ */
 export const originOf = (c: Ctx) =>
+  (c.env?.hosted ? c.get('publicUrl') : undefined) ??
   `${secureRequest(c) ? 'https' : 'http'}://${c.req.header('host') ?? '127.0.0.1'}`;
 
 /**

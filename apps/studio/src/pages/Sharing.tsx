@@ -140,9 +140,11 @@ export function Sharing() {
               <span className="body-sm sec-text">
                 {host.via === 'funnel'
                   ? 'Anyone on the internet can reach its sign-in page. Only people you invite can get in.'
-                  : host.via === 'tailscale'
-                    ? 'Devices on your tailnet reach it over HTTPS. Invite people to your tailnet, or move it to the internet.'
-                    : 'Devices on your tailnet reach it at this computer’s Tailscale address.'}
+                  : host.via === 'custom'
+                    ? 'HTTPS through your own front door, such as a Cloudflare tunnel. Anyone who finds the link can reach its sign-in page; only people you invite can get in. Change it with hildegard host --public-url on the computer Hildegard runs on.'
+                    : host.via === 'tailscale'
+                      ? 'Devices on your tailnet reach it over HTTPS. Invite people to your tailnet, or move it to the internet.'
+                      : 'Devices on your tailnet reach it at this computer’s Tailscale address.'}
               </span>
               <Secret label="Link" value={host.url} />
               <Qr
@@ -167,7 +169,7 @@ export function Sharing() {
           )}
           {local ? (
             <div className="hg-devices__btns">
-              {!host.on || host.via !== 'tailscale' ? (
+              {!host.on || (host.via !== 'tailscale' && host.via !== 'custom') ? (
                 <Button
                   kind={host.on ? undefined : 'primary'}
                   icon="link"
@@ -178,7 +180,7 @@ export function Sharing() {
                   {host.via === 'funnel' ? 'Only on your tailnet' : 'Put Hildegard at a link'}
                 </Button>
               ) : null}
-              {host.via !== 'funnel' ? (
+              {host.via !== 'funnel' && host.via !== 'custom' ? (
                 <Button
                   kind="ghost"
                   disabled={!!busy || !host.tailscale.running}

@@ -61,7 +61,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard choir presence away|back
                              For idle hooks (hypridle): say you left or came back (--minutes it holds, a day)
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
-                             with sign-in: HTTPS on your tailnet (--funnel: the public internet)
+                             with sign-in: HTTPS on your tailnet (--funnel: the public internet;
+                             --public-url https://<name>: your own HTTPS front door, such as a Cloudflare tunnel)
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard host key <name>  A key for an AI app on another device (host keys: keys and chatbots;
@@ -125,6 +126,7 @@ const valued = new Set([
   'role',
   'hours',
   'address',
+  'public-url',
   'host-port',
   'accept-license',
   'remote',
