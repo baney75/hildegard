@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
 import { type FormEvent, useEffect, useId, useState } from 'react';
+import { Qr } from '../components/Qr.tsx';
 import { Button, Icon, Modal, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api } from '../lib/api.ts';
 import { setHost, signOut, useStore } from '../lib/store.ts';
@@ -123,6 +124,11 @@ export function Sharing() {
                     : 'Devices on your tailnet reach it at this computer’s Tailscale address.'}
               </span>
               <Secret label="Link" value={host.url} />
+              <Qr
+                value={host.url}
+                label="QR code for the link"
+                hint="On your phone, point the camera here to open Hildegard, then sign in."
+              />
             </>
           ) : host.on ? (
             <div className="hg-err body-sm" role="note">
@@ -418,6 +424,11 @@ export function People() {
               {when(invite.invite.expiresAt)}. Keep it private.
             </span>
             <Secret label="Invite link" value={invite.url} />
+            <Qr
+              value={invite.url}
+              label="QR code for the invite link"
+              hint="Next to them? They can point their phone’s camera here instead."
+            />
             <Button kind="ghost" onClick={() => setInvite(null)}>
               Invite someone else
             </Button>

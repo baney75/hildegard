@@ -130,15 +130,23 @@ export async function serveForeground(c: Config): Promise<never> {
     await srv.close();
     process.exit(0);
   };
-  const srv = await startServer(
-    { ...c, uiDir },
-    {
-      onStop: () => {
-        console.error(`${new Date().toISOString()} Stopping: asked to from this computer.`);
-        void stop();
+  let srv: Awaited<ReturnType<typeof startServer>>;
+  try {
+    srv = await startServer(
+      { ...c, uiDir },
+      {
+        onStop: () => {
+          console.error(`${new Date().toISOString()} Stopping: asked to from this computer.`);
+          void stop();
+        },
       },
-    },
-  );
+    );
+  } catch (e) {
+    // Exit, rather than return: a ComfyUI already started would keep this process alive, serving nothing, for good.
+    // Exiting takes ComfyUI down with it.
+    console.error(`${new Date().toISOString()} Couldn’t start: ${(e as Error).message}`);
+    process.exit(1);
+  }
   console.log(`Hildegard ${VERSION} is running at ${srv.url}`);
   guardProcess(stop);
   return new Promise<never>(() => {});

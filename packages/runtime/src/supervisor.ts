@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type ChildProcess, spawn } from 'node:child_process';
-import { closeSync, mkdirSync, openSync } from 'node:fs';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { layout, type RuntimeInfo, readRuntime } from './install.ts';
@@ -42,6 +42,50 @@ export function comfyMemoryArgs(info: Pick<RuntimeInfo, 'backend' | 'unified' | 
   return info.backend === 'cuda' && shared ? ['--disable-mmap', '--disable-dynamic-vram'] : [];
 }
 
+/** Where the runtime notes the processes it started, so a later start can find any a crash left behind. */
+export const pidFile = (dataDir: string) => join(dataDir, 'comfyui.pids');
+
+/** A process's command line, or null when it isn't running or can't be read (Windows). */
+export function commandLine(pid: number): string | null {
+  if (process.platform === 'win32') return null;
+  if (process.platform === 'linux') {
+    try {
+      return readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' ').trim() || null;
+    } catch {
+      return null;
+    }
+  }
+  const r = spawnSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() || null : null;
+}
+
+/**
+ * Stops the ComfyUI and comfy-api-proxy an earlier Hildegard in this folder left running: one that crashed, was
+ * killed, or failed partway through starting. Only a process whose command line runs this folder's Python is
+ * stopped, so a reused process number is left alone. Returns the ones it stopped.
+ */
+export function reapStale(dataDir: string, command: (pid: number) => string | null = commandLine): number[] {
+  const file = pidFile(dataDir);
+  let pids: unknown;
+  try {
+    pids = JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return [];
+  }
+  const python = layout(dataDir).python;
+  const stopped: number[] = [];
+  for (const pid of Array.isArray(pids) ? pids : []) {
+    if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) continue;
+    if (!command(pid)?.includes(python)) continue;
+    try {
+      process.kill(pid, 'SIGKILL');
+      stopped.push(pid);
+    } catch {}
+  }
+  rmSync(file, { force: true });
+  return stopped;
+}
+
 export class ComfyRuntime {
   readonly dataDir: string;
   private readonly onChange: (s: RuntimeState) => void;
@@ -50,6 +94,10 @@ export class ComfyRuntime {
   private failures = 0;
   private timer: NodeJS.Timeout | null = null;
   private ports: [comfy: number, proxy: number] | null = null;
+  /** Kills ComfyUI and the proxy when Hildegard's process ends any way but SIGKILL: they never outlive it. */
+  private readonly onExit = () => {
+    for (const p of this.procs) if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
+  };
   state: RuntimeState = { status: 'stopped', url: null, error: null };
 
   constructor(opts: { dataDir: string; onChange?: (s: RuntimeState) => void }) {
@@ -78,6 +126,10 @@ export class ComfyRuntime {
     if (!info) throw new Error('ComfyUI isn’t installed. Run `hildegard install`.');
     const L = layout(this.dataDir);
     mkdirSync(L.logs, { recursive: true });
+    // Whatever an earlier run here left behind holds memory and GPU memory and serves nothing: stop it first.
+    reapStale(this.dataDir);
+    process.removeListener('exit', this.onExit);
+    process.on('exit', this.onExit);
     // Same ports across restarts, so the URL stays put; fresh ones if a restart keeps failing (something took them).
     if (!this.ports || this.failures % 3 === 2) this.ports = [await freePort(), await freePort()];
     const [comfyPort, proxyPort] = this.ports;
@@ -128,6 +180,7 @@ export class ComfyRuntime {
       ],
       L.comfyDir,
     );
+    writeFileSync(pidFile(this.dataDir), JSON.stringify(this.pids()), { mode: 0o600 });
     void this.watchReady(comfyPort);
     return url;
   }
@@ -188,6 +241,8 @@ export class ComfyRuntime {
       ),
     );
     this.procs = [];
+    process.removeListener('exit', this.onExit);
+    rmSync(pidFile(this.dataDir), { force: true });
     this.set({ status: 'stopped', url: null, error: null });
   }
 

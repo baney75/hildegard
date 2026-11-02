@@ -36,6 +36,15 @@ textarea.hg-promptfield:focus-visible { outline: 0; }
 .hg-app .hg-tab { text-decoration: none; position: relative; }
 .hg-app .hg-tab .hg-nav-item__badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; font-size: 10px; line-height: 18px; padding: 0 5px; }
 .hg-app .hg-tab[aria-current="page"] .i { color: var(--brand-text); }
+/* More: the last tab, for pages past the tab bar's five. Its list opens upward, above the bar. */
+.hg-tab-more { position: relative; flex: 1; display: flex; }
+.hg-tab-more > .hg-tab { width: 100%; border: 0; background: transparent; }
+.hg-tab-more > .hg-tab[data-here], .hg-tab-more > .hg-tab[data-here] .i { color: var(--brand-text); }
+.hg-tab-more__list { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 30; min-width: 200px; display: grid; padding: 6px; border-radius: var(--radius-md); background: var(--raised); border: 1px solid var(--border-control); box-shadow: var(--shadow-2); }
+.hg-tab-more__item { display: flex; align-items: center; gap: 12px; min-height: var(--target-min); padding: 0 14px; border-radius: 8px; color: var(--text-primary); font-size: 15px; text-decoration: none; }
+.hg-tab-more__item:hover, .hg-tab-more__item:focus-visible { background: color-mix(in oklab, var(--raised), var(--text-primary) 7%); outline: 0; }
+.hg-tab-more__item[aria-current="page"], .hg-tab-more__item[aria-current="page"] .i { color: var(--brand-text); }
+.hg-tab-more__item .i { color: var(--text-secondary); }
 .hg-app.cs-v2 .hg-app__top { padding: 0 28px; }
 .hg-app.cs-v2 .hg-app__top .cs-crumb { min-width: 0; overflow: hidden; }
 .hg-app.cs-v2 .hg-app__top .cs-crumb .t { overflow: hidden; text-overflow: ellipsis; }
@@ -441,3 +450,9 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .st-agent small { margin-top: 2px; line-height: 18px; }
 .cs-insp__media.is-queued { background: color-mix(in oklab, var(--sapphire-deep), var(--canvas) 30%); }
 .cs-insp__media.is-queued::after { content: ""; position: absolute; inset: 14px; border: 1.5px dashed color-mix(in oklab, var(--sapphire-text), transparent 40%); border-radius: var(--radius-lg); pointer-events: none; }
+
+/* A link as a QR code, for a phone's camera. */
+.hg-qr { margin: 0; display: flex; align-items: center; gap: 16px; }
+.hg-qr svg { flex: none; width: 168px; height: 168px; border-radius: 10px; }
+.hg-qr figcaption { max-width: 32ch; }
+.hg-app[data-wc="compact"] .hg-qr { flex-direction: column; align-items: flex-start; }
