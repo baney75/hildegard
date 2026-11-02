@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
 import { type FormEvent, useEffect, useId, useState } from 'react';
-import { Qr } from '../components/Qr.tsx';
+import { loopbackOnly, Qr } from '../components/Qr.tsx';
 import { Button, Icon, Modal, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api } from '../lib/api.ts';
 import { setHost, signOut, useStore } from '../lib/store.ts';
@@ -69,6 +69,27 @@ export function Secret({ label, value }: { label: string; value: string }) {
         Copy
       </Button>
     </div>
+  );
+}
+
+/**
+ * An invite as a QR code, for someone sitting with you. The link signs up whoever opens it, so the code shows only
+ * when asked for (a screen share or a camera across the room can read one), and never for a link only this computer
+ * can open.
+ */
+function InviteQr({ url }: { url: string }) {
+  const [shown, setShown] = useState(false);
+  if (loopbackOnly(url)) return null;
+  return shown ? (
+    <Qr
+      value={url}
+      label="QR code for the invite link"
+      hint="Next to them? They can point their phone’s camera here instead."
+    />
+  ) : (
+    <Button kind="ghost" size="sm" icon="phone" onClick={() => setShown(true)}>
+      Show as a QR code
+    </Button>
   );
 }
 
@@ -424,11 +445,7 @@ export function People() {
               {when(invite.invite.expiresAt)}. Keep it private.
             </span>
             <Secret label="Invite link" value={invite.url} />
-            <Qr
-              value={invite.url}
-              label="QR code for the invite link"
-              hint="Next to them? They can point their phone’s camera here instead."
-            />
+            <InviteQr url={invite.url} />
             <Button kind="ghost" onClick={() => setInvite(null)}>
               Invite someone else
             </Button>

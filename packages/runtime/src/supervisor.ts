@@ -49,15 +49,21 @@ export function comfyMemoryArgs(info: Pick<RuntimeInfo, 'backend' | 'unified' | 
 export const pidDir = (dataDir: string) => join(dataDir, 'comfyui-pids');
 export const pidFile = (dataDir: string, owner = process.pid) => join(pidDir(dataDir), `${owner}.json`);
 
-const running = (pid: number) => {
+/**
+ * Whether the Hildegard that wrote a pid note still runs. A process number can be reused after a crash, so a live
+ * process counts only when its command line is Node's (Hildegard runs on Node). When the command line can't be read
+ * (Windows, another user's process), a live process counts, to be safe.
+ */
+export function ownerAlive(pid: number, command: (pid: number) => string | null = commandLine): boolean {
   try {
     process.kill(pid, 0);
-    return true;
   } catch (e) {
     // EPERM: it exists, under another user.
-    return (e as NodeJS.ErrnoException).code === 'EPERM';
+    if ((e as NodeJS.ErrnoException).code !== 'EPERM') return false;
   }
-};
+  const cmd = command(pid);
+  return cmd === null || /(^|[\\/\s])node(\.exe)?(\s|$)|hildegard/i.test(cmd);
+}
 
 /** A process's command line, or null when it isn't running or can't be read (Windows). */
 export function commandLine(pid: number): string | null {
@@ -82,7 +88,7 @@ export function commandLine(pid: number): string | null {
 export function reapStale(
   dataDir: string,
   command: (pid: number) => string | null = commandLine,
-  alive: (pid: number) => boolean = running,
+  alive: (pid: number) => boolean = (pid) => ownerAlive(pid, command),
 ): number[] {
   let files: string[];
   try {
@@ -116,6 +122,8 @@ export class ComfyRuntime {
   readonly dataDir: string;
   private readonly onChange: (s: RuntimeState) => void;
   private procs: ChildProcess[] = [];
+  /** Children a restart told to stop that haven't yet: killed outright after five seconds, or when Hildegard exits. */
+  private readonly dying = new Set<ChildProcess>();
   private stopping = false;
   private failures = 0;
   private timer: NodeJS.Timeout | null = null;
@@ -125,7 +133,8 @@ export class ComfyRuntime {
    * process.exit). A signal Node has no handler for yet, or SIGKILL, skips it; the next start reaps those.
    */
   private readonly onExit = () => {
-    for (const p of this.procs) if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
+    for (const p of [...this.procs, ...this.dying])
+      if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
   };
   state: RuntimeState = { status: 'stopped', url: null, error: null };
 
@@ -144,6 +153,12 @@ export class ComfyRuntime {
     return this.procs.flatMap((p) => (p.pid && p.exitCode === null ? [p.pid] : []));
   }
 
+  /** Notes every child still running, dying ones too, for a later start to reap if this process is killed. */
+  private note() {
+    const pids = [...this.procs, ...this.dying].flatMap((p) => (p.pid && p.exitCode === null ? [p.pid] : []));
+    writeFileSync(pidFile(this.dataDir), JSON.stringify(pids), { mode: 0o600 });
+  }
+
   /** Whether `hildegard install` has finished here. */
   static installed(dataDir: string): boolean {
     return readRuntime(dataDir) !== null;
@@ -157,12 +172,14 @@ export class ComfyRuntime {
     mkdirSync(L.logs, { recursive: true });
     // Whatever an earlier run here left behind holds memory and GPU memory and serves nothing: stop it first.
     reapStale(this.dataDir);
-    process.removeListener('exit', this.onExit);
-    process.on('exit', this.onExit);
     // Same ports across restarts, so the URL stays put; fresh ones if a restart keeps failing (something took them).
     if (!this.ports || this.failures % 3 === 2) this.ports = [await freePort(), await freePort()];
     const [comfyPort, proxyPort] = this.ports;
     const url = `http://127.0.0.1:${proxyPort}`;
+    // Stopped while finding ports: start nothing that nobody would stop.
+    if (this.stopping) return url;
+    process.removeListener('exit', this.onExit);
+    process.on('exit', this.onExit);
     this.set({ status: this.failures ? 'restarting' : 'starting', url, error: null });
 
     const launch = (name: string, args: string[], cwd: string) => {
@@ -219,7 +236,7 @@ export class ComfyRuntime {
     // Best effort: without the note, only a SIGKILL of Hildegard would leave these behind.
     try {
       mkdirSync(pidDir(this.dataDir), { recursive: true });
-      writeFileSync(pidFile(this.dataDir), JSON.stringify(this.pids()), { mode: 0o600 });
+      this.note();
     } catch {}
     void this.watchReady(comfyPort);
     return url;
@@ -246,8 +263,17 @@ export class ComfyRuntime {
   private exited(child: ChildProcess, name: string, code: number | null, signal: NodeJS.Signals | null) {
     // A child of an earlier start, ending late, says nothing about the ones running now.
     if (this.stopping || this.timer || !this.procs.includes(child)) return;
-    // One half down takes the other with it, then both come back together on fresh ports.
-    for (const p of this.procs) if (p.exitCode === null) p.kill();
+    // One half down takes the other with it, then both come back together on fresh ports. One that ignores SIGTERM
+    // gets SIGKILL after five seconds, as in stop().
+    for (const p of this.procs) {
+      if (p.exitCode !== null || p.signalCode !== null) continue;
+      this.dying.add(p);
+      p.once('exit', () => this.dying.delete(p));
+      setTimeout(() => {
+        if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
+      }, 5000).unref();
+      p.kill();
+    }
     this.procs = [];
     this.failures++;
     const wait = Math.min(30_000, 1000 * 2 ** (this.failures - 1));
@@ -268,7 +294,7 @@ export class ComfyRuntime {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     await Promise.all(
-      this.procs.map(
+      [...this.procs, ...this.dying].map(
         (p) =>
           new Promise<void>((resolve) => {
             if (p.exitCode !== null || p.signalCode !== null) return resolve();

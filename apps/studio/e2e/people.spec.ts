@@ -99,8 +99,9 @@ test('invites a director, who joins with the link once and sees only their own f
   const link = (await owner.page.getByRole('region', { name: 'Invite link' }).textContent())!;
   expect(link).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#\/invite\/[A-Za-z0-9_-]{43}$/);
   await expect(owner.page.getByText('Invite for a director')).toBeVisible();
-  // The same link as a QR code, for a phone held up to the screen.
-  await expect(owner.page.getByRole('img', { name: 'QR code for the invite link' })).toBeVisible();
+  // A link only this computer can open gets no QR code: a phone would reach itself.
+  await expect(owner.page.getByRole('button', { name: 'Show as a QR code' })).toHaveCount(0);
+  await expect(owner.page.getByRole('img', { name: 'QR code for the invite link' })).toHaveCount(0);
   await expectAccessible(owner.page, 'people, invite made');
   await expectCurlyQuotes(owner.page, 'people, invite made');
 

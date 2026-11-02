@@ -97,7 +97,23 @@ export interface Running {
 /** The engine problem while the managed ComfyUI is still loading: a wait, not a fault. */
 export const COMFY_STARTING = 'ComfyUI is starting.';
 
-export async function startServer(
+/**
+ * Starts Hildegard's server. When a step fails after the managed ComfyUI has started, ComfyUI is stopped again before
+ * the error goes on, so nothing keeps running for a server that never came up.
+ */
+export async function startServer(config: Config, opts: ServeOptions = {}): Promise<Running> {
+  const made: { runtime?: ComfyRuntime } = {};
+  try {
+    return await serveStudio(config, opts, made);
+  } catch (e) {
+    await made.runtime?.stop().catch(() => {});
+    throw e;
+  }
+}
+
+type ServeOptions = Parameters<typeof serveStudio>[1];
+
+async function serveStudio(
   config: Config,
   opts: {
     loaded?: LoadedCatalog;
@@ -145,7 +161,8 @@ export async function startServer(
     chrome?: string | null;
     /** Figma's API, for the tests. */
     figmaFetch?: FigmaFetch;
-  } = {},
+  },
+  made: { runtime?: ComfyRuntime },
 ): Promise<Running> {
   const { catalog, lock } = opts.loaded ?? loadCatalog();
   mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -185,6 +202,7 @@ export async function startServer(
         route();
       },
     });
+    made.runtime = runtime;
   }
   let localEngine: Engine = new ComfySdkEngine(comfyUrl);
   let localProblem: string | null =

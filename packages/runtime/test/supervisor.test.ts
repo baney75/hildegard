@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -48,6 +48,8 @@ async function gone(pid: number): Promise<boolean> {
 
 const started: ChildProcess[] = [];
 const forever = () => spawn('/bin/sh', ['-c', 'while :; do sleep 1; done'], { stdio: 'ignore' });
+/** A stand-in for another Hildegard: a Node process. */
+const hildegard = () => spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
 const note = (dir: string, owner: number, pids: (number | undefined)[]) => {
   mkdirSync(pidDir(dir), { recursive: true });
   writeFileSync(pidFile(dir, owner), JSON.stringify(pids));
@@ -95,7 +97,7 @@ process.exit(1);
   it('leaves a Hildegard that’s still running its ComfyUI', async () => {
     const dir = fakeInstall();
     const theirs = spawn(layout(dir).python, ['main.py'], { stdio: 'ignore' });
-    const owner = forever();
+    const owner = hildegard();
     started.push(theirs, owner);
     await new Promise((r) => setTimeout(r, 200));
     note(dir, owner.pid!, [theirs.pid]);
@@ -103,6 +105,18 @@ process.exit(1);
     expect(reapStale(dir)).toEqual([]);
     expect(alive(theirs.pid!)).toBe(true);
     expect(existsSync(pidFile(dir, owner.pid!))).toBe(true);
+  });
+
+  it('takes a reused process number for what it is: not the Hildegard that wrote the note', async () => {
+    const dir = fakeInstall();
+    const leftover = spawn(layout(dir).python, ['main.py'], { stdio: 'ignore' });
+    const reused = forever(); // a shell now has the number the crashed Hildegard had
+    started.push(leftover, reused);
+    await new Promise((r) => setTimeout(r, 200));
+    note(dir, reused.pid!, [leftover.pid]);
+
+    expect(reapStale(dir)).toEqual([leftover.pid]);
+    expect(alive(reused.pid!)).toBe(true);
   });
 
   it('reaps leftovers when it starts, notes its own processes, and forgets them when it stops', async () => {
@@ -146,11 +160,24 @@ process.exit(1);
     const fresh = r.pids();
     expect(fresh).toHaveLength(2);
     expect(alive(comfy)).toBe(true);
-    process.kill(comfy, 'SIGKILL');
-    expect(await gone(comfy)).toBe(true);
+    // It shrugged off SIGTERM; SIGKILL follows five seconds after it, and the note keeps it until then.
+    expect(JSON.parse(readFileSync(pidFile(dir), 'utf8'))).toContain(comfy);
+    for (let i = 0; i < 80 && alive(comfy); i++) await new Promise((ok) => setTimeout(ok, 100));
+    expect(alive(comfy)).toBe(false);
     await new Promise((ok) => setTimeout(ok, 300));
     expect(r.pids()).toEqual(fresh);
     for (const pid of fresh) expect(alive(pid)).toBe(true);
     await r.stop(); // its SIGTERM-proof ComfyUI takes the five-second SIGKILL path
-  }, 20_000);
+  }, 30_000);
+
+  it('starts nothing when stopped while it looks for ports', async () => {
+    const dir = fakeInstall();
+    const r = new ComfyRuntime({ dataDir: dir });
+    const starting = r.start();
+    await r.stop();
+    await starting;
+    expect(r.pids()).toEqual([]);
+    expect(existsSync(pidFile(dir))).toBe(false);
+    expect(r.state.status).toBe('stopped');
+  });
 });

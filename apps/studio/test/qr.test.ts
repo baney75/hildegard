@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { encode } from 'uqr';
 import { describe, expect, it } from 'vitest';
-import { qrPath } from '../src/components/Qr.tsx';
+import { loopbackOnly, qrPath } from '../src/components/Qr.tsx';
 
 // Paints the path's rectangles back onto a grid: what a phone's camera would see.
 function paint(d: string, size: number): boolean[][] {
@@ -27,5 +27,19 @@ describe('qrPath', () => {
       expect(want.data[0]!.some(Boolean)).toBe(false);
       expect(want.data.at(-1)!.some(Boolean)).toBe(false);
     }
+  });
+});
+
+describe('loopbackOnly', () => {
+  it('tells links only this computer can open from ones a phone can', () => {
+    for (const u of [
+      'http://127.0.0.1:7342/#/invite/x',
+      'http://localhost:7341/',
+      'http://[::1]:7341/',
+      'not a url',
+    ])
+      expect(loopbackOnly(u)).toBe(true);
+    for (const u of ['https://parish1.tail2b1ef8.ts.net/#/invite/x', 'http://100.104.23.40:7341/'])
+      expect(loopbackOnly(u)).toBe(false);
   });
 });

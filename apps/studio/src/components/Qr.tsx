@@ -21,6 +21,15 @@ export function qrPath(text: string, border = 4): { d: string; size: number } {
   return { d, size };
 }
 
+/** Whether a link only works on this computer (a phone that opened it would reach itself). */
+export function loopbackOnly(url: string): boolean {
+  try {
+    return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(new URL(url).hostname);
+  } catch {
+    return true;
+  }
+}
+
 /**
  * A link as a QR code, to open it on a phone by pointing its camera at the screen. Always dark on light, whatever the
  * theme: phone cameras read that reliably.
