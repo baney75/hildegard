@@ -48,6 +48,14 @@ async function gone(pid: number): Promise<boolean> {
 
 const started: ChildProcess[] = [];
 const forever = () => spawn('/bin/sh', ['-c', 'while :; do sleep 1; done'], { stdio: 'ignore' });
+/** A start time as an older Hildegard read it: in this shell's own locale and time zone (Linux: /proc, unchanged). */
+const startedHere = (pid: number) =>
+  process.platform === 'linux'
+    ? processStart(pid)
+    : spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+        encoding: 'utf8',
+        env: process.env,
+      }).stdout.trim();
 /** A stand-in for another Hildegard: a Node process. */
 const hildegard = () => spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
 /** Writes a note as `owner` would have: its start time (or one given) and its children's. */
@@ -180,11 +188,14 @@ process.exit(1);
 
   it('pays no attention to a child of an earlier start ending late', async () => {
     // This ComfyUI shrugs off SIGTERM, so it outlives the restart that replaces it.
-    const dir = fakeInstall("trap '' TERM; while :; do sleep 1; done");
+    const dir = fakeInstall('trap \'\' TERM; touch "$(dirname "$0")/ready-$$"; while :; do sleep 1; done');
     const r = new ComfyRuntime({ dataDir: dir });
     await r.start();
     const [comfy, proxy] = r.pids() as [number, number];
-    await new Promise((ok) => setTimeout(ok, 300)); // until the shell has set its trap
+    // Until the shell has set its trap: it says so with a file.
+    const ready = join(layout(dir).venv, 'bin', `ready-${comfy}`);
+    for (let i = 0; i < 100 && !existsSync(ready); i++) await new Promise((ok) => setTimeout(ok, 50));
+    expect(existsSync(ready)).toBe(true);
     process.kill(proxy, 'SIGKILL');
     // The proxy's exit restarts both after a second's back-off, on the same ports.
     for (let i = 0; i < 60 && !(r.pids().length === 2 && !r.pids().includes(comfy)); i++)
@@ -217,5 +228,50 @@ process.exit(1);
     expect(r.pids()).toEqual([]);
     expect(existsSync(pidFile(dir))).toBe(false);
     expect(r.state.status).toBe('stopped');
+  });
+
+  it('reads the same start time whatever the reader’s locale and time zone', () => {
+    const saved = { TZ: process.env.TZ, LANG: process.env.LANG, LC_ALL: process.env.LC_ALL };
+    try {
+      process.env.TZ = 'America/New_York';
+      process.env.LANG = process.env.LC_ALL = 'C';
+      const here = processStart(process.pid);
+      expect(here).not.toBeNull(); // a reader that can't see start times would pass this test for nothing
+      process.env.TZ = 'Asia/Tokyo';
+      process.env.LANG = process.env.LC_ALL = 'de_DE.UTF-8';
+      expect(processStart(process.pid)).toBe(here);
+    } finally {
+      for (const [k, v] of Object.entries(saved))
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+    }
+  });
+
+  it('still knows a live owner from a note written before start times were pinned', async () => {
+    const dir = fakeInstall();
+    const theirs = spawn(layout(dir).python, ['main.py'], { stdio: 'ignore' });
+    const owner = hildegard();
+    started.push(theirs, owner);
+    await new Promise((r) => setTimeout(r, 200));
+    const saved = process.env.TZ;
+    try {
+      process.env.TZ = 'America/Chicago';
+      // An older note: no version, times as its writer's own shell printed them.
+      mkdirSync(pidDir(dir), { recursive: true });
+      writeFileSync(
+        pidFile(dir, owner.pid!),
+        JSON.stringify({
+          started: startedHere(owner.pid!),
+          pids: [{ pid: theirs.pid, started: startedHere(theirs.pid!) }],
+        }),
+      );
+      expect(reapStale(dir)).toEqual([]);
+      expect(alive(theirs.pid!)).toBe(true);
+      // Taken for alive, its note stays, so its ComfyUI can still be reaped if it crashes later.
+      expect(existsSync(pidFile(dir, owner.pid!))).toBe(true);
+    } finally {
+      if (saved === undefined) delete process.env.TZ;
+      else process.env.TZ = saved;
+    }
   });
 });

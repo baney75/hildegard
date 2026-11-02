@@ -52,6 +52,8 @@ export const pidFile = (dataDir: string, owner = process.pid) => join(pidDir(dat
 
 /** A note: who wrote it and the children it started, each with its start time, so a reused number can't pass. */
 export interface PidNote {
+  /** 2: start times read with ps pinned to the C locale and UTC. Notes without it used the writer's own. */
+  v?: 2;
   started: string | null;
   pids: Array<{ pid: number; started: string | null }>;
 }
@@ -61,7 +63,7 @@ export interface PidNote {
  * reads /proc/<pid>/stat (start time in clock ticks since boot); macOS asks ps. Null when it isn't running or can't
  * be read.
  */
-export function processStart(pid: number): string | null {
+export function processStart(pid: number, pinned = true): string | null {
   if (process.platform === 'win32') return null;
   if (process.platform === 'linux') {
     try {
@@ -72,7 +74,12 @@ export function processStart(pid: number): string | null {
       return null;
     }
   }
-  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' });
+  // ps formats lstart in the reader's locale and time zone: pin both, so every reader writes the same string.
+  // (Unpinned reads only match notes written before the pin.)
+  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+    encoding: 'utf8',
+    env: pinned ? { ...process.env, LC_ALL: 'C', LANG: 'C', TZ: 'UTC' } : process.env,
+  });
   return r.status === 0 ? r.stdout.trim() || null : null;
 }
 
@@ -91,11 +98,14 @@ export function sameProcess(
   pid: number,
   started: string | null,
   startOf: (pid: number) => string | null = processStart,
+  /** For a note from before the pin: the start time as its writer read it, in this shell's locale and zone. */
+  startOfThen?: (pid: number) => string | null,
 ): boolean {
   if (!exists(pid)) return false;
   const now = startOf(pid);
   // A start time this computer can't read (or a note without one) can't prove a reuse: count it as the same.
-  return now === null || started === null || now === started;
+  if (now === null || started === null || now === started) return true;
+  return !!startOfThen && startOfThen(pid) === started;
 }
 
 /** A process's command line, or null when it isn't running or can't be read (Windows). */
@@ -139,11 +149,13 @@ export function reapStale(
     try {
       note = JSON.parse(readFileSync(join(pidDir(dataDir), f), 'utf8'));
     } catch {}
-    if (sameProcess(owner, typeof note.started === 'string' ? note.started : null, startOf)) continue;
+    const then = note.v === 2 ? undefined : (pid: number) => processStart(pid, false);
+    if (sameProcess(owner, typeof note.started === 'string' ? note.started : null, startOf, then)) continue;
     for (const child of Array.isArray(note.pids) ? note.pids : []) {
       const pid = child?.pid;
       if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) continue;
-      if (!sameProcess(pid, typeof child.started === 'string' ? child.started : null, startOf)) continue;
+      if (!sameProcess(pid, typeof child.started === 'string' ? child.started : null, startOf, then))
+        continue;
       if (!command(pid)?.includes(python)) continue;
       try {
         process.kill(pid, 'SIGKILL');
@@ -198,7 +210,7 @@ export class ComfyRuntime {
         ? [{ pid: p.pid, started: processStart(p.pid) }]
         : [],
     );
-    const note: PidNote = { started: processStart(process.pid), pids };
+    const note: PidNote = { v: 2, started: processStart(process.pid), pids };
     writeFileSync(pidFile(this.dataDir), JSON.stringify(note), { mode: 0o600 });
   }
 
