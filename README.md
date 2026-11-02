@@ -212,8 +212,10 @@ and asks who's calling:
   the key goes to the laptop's keychain, never into the app's config, and the app runs `hildegard mcp --remote`,
   which carries its messages to the other computer. Any app that takes an address and a header can use
   `<link>/mcp` with `Authorization: Bearer <key>` instead.
-- **Chatbots on the web** (claude.ai, ChatGPT) can't reach your tailnet, so they need the public link:
-  `hildegard host --funnel`. Then add `<link>/mcp` as a custom connector (claude.ai: Settings › Connectors; ChatGPT:
+- **Chatbots on the web** (claude.ai, ChatGPT) can't reach your tailnet, so they need a public link:
+  `hildegard host --funnel`, or your own domain through
+  [a Cloudflare tunnel](#your-own-domain-with-a-cloudflare-named-tunnel) (`hildegard host --public-url
+  https://hildegard.example.com`). Then add `<link>/mcp` as a custom connector (claude.ai: Settings › Connectors; ChatGPT:
   developer mode). They sign in on Hildegard's own page with your name and passphrase (OAuth 2.1 with PKCE), and act
   as you. A new passphrase disconnects them all.
 
@@ -259,10 +261,60 @@ Open the link anywhere on your tailnet and sign in. Settings › Sharing and Set
 - The link is `tailscale serve`: HTTPS, reachable only inside your tailnet. To share with people outside it,
   `hildegard host --funnel` puts it on the public internet with `tailscale funnel`. Anyone could then reach the sign-in
   page, so use a long passphrase; Hildegard slows down guessing. `hildegard host off` turns the link off.
+- Or bring your own HTTPS front door: `hildegard host --public-url https://hildegard.example.com` makes no Tailscale
+  call, turns on the same sign-in-only listener (`--host-port`, else the main port plus one) and answers to that name
+  on it, and only on it. See [your own domain](#your-own-domain-with-a-cloudflare-named-tunnel).
 - This computer itself never signs in: the Studio at `127.0.0.1`, the CLI and your linked AI apps work as before.
   Turning the link on, linking apps, pairing devices and stopping Hildegard stay possible only from here.
 - Passphrases are kept as scrypt hashes; sign-in cookies are HttpOnly, SameSite=Strict, Secure over HTTPS, and change
   every hour. Neither ComfyUI nor the device-pairing API is ever behind the link.
+
+### Your own domain, with a Cloudflare named tunnel
+
+If you own a domain on Cloudflare (the tunnel is free), `https://hildegard.example.com` can reach Hildegard without
+Tailscale Funnel. The address takes only an origin: `https`, a real name (no IP address, no `*.ts.net`), no path.
+
+```sh
+hildegard host owner                                          # first, as above
+hildegard host --public-url https://hildegard.example.com     # --host-port N to pick the port; this one is 7342
+hildegard host status                                         # "HTTPS through your own front door", and the link
+hildegard doctor                                              # reads <link>/.well-known/oauth-protected-resource
+```
+
+Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
+request signs in, and treats a request for that name there as HTTPS. The same name sent to the Studio's own port is
+refused. Set up the tunnel with `cloudflared`, on this computer or another:
+
+```sh
+cloudflared tunnel login
+cloudflared tunnel create hildegard
+cloudflared tunnel route dns hildegard hildegard.example.com   # the DNS record
+```
+
+`~/.cloudflared/config.yml`, on the computer that runs `cloudflared`:
+
+```yaml
+tunnel: hildegard
+credentials-file: /home/you/.cloudflared/<tunnel id>.json
+ingress:
+  - hostname: hildegard.example.com
+    service: http://127.0.0.1:7342            # cloudflared on the Hildegard computer itself
+    originRequest:
+      httpHostHeader: hildegard.example.com   # the name Hildegard trusts, with :port if your link has one
+  - service: http_status:404
+```
+
+Then `cloudflared tunnel run hildegard`. If the tunnel runs on **another computer**, reach the hosted port over your
+tailnet instead. On the GPU computer:
+
+```sh
+tailscale serve --bg --tcp 8788 tcp://127.0.0.1:7342   # tailnet only; never Funnel
+```
+
+and in the tunnel's config use `service: http://<the GPU computer's tailnet IP>:8788`, with the same
+`httpHostHeader`. Then add `https://hildegard.example.com/mcp` as a custom connector in claude.ai or ChatGPT and sign
+in there with your name and passphrase. `hildegard host off` removes the name again; the tunnel and the DNS record are
+yours to remove with `cloudflared tunnel delete hildegard`.
 
 ## Render on another device
 
@@ -329,7 +381,7 @@ hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
-hildegard host [--funnel] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
+hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin
 hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
