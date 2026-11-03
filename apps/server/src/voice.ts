@@ -414,6 +414,14 @@ export class VoiceStudio {
     return { name, url: `/media/voice/${name}`, seconds: wav.seconds };
   }
 
+  /**
+   * An uploaded recording's path, or a VoiceError when the name isn't one: consent recordings, voice references and
+   * anything else the studio keeps are refused, so Talk can't send them to another device.
+   */
+  uploadFile(name: string): string {
+    return this.uploadPath(name);
+  }
+
   private uploadPath(name: string): string {
     if (!/^[a-f0-9]{64}\.(wav|mp3|m4a|ogg|flac|webm|mp4|mov)$/.test(name))
       throw new VoiceError(400, 'upload', 'That isn’t an uploaded recording.');

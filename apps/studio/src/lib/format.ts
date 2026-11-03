@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, EngineState, GuestTake, Take } from '@hildegard/presets';
+import type { Catalog, ChoirDevice, EngineState, GuestTake, Take } from '@hildegard/presets';
 
 const ROMAN: Array<[number, string]> = [
   [1000, 'M'],
@@ -123,6 +123,19 @@ export function guestLine(g: GuestTake): string {
   const place = g.queuePosition && g.queuePosition > 1 ? `${ordinal(g.queuePosition)} in line` : 'up next';
   return `${guestFrom(g)} · waiting · ${place}`;
 }
+
+/** The speech model Talk's voice (kokoro-heart, TALK_VOICE in the server's talk.ts) speaks with. */
+export const TALK_SPEECH_MODEL = 'kokoro-82m';
+
+/**
+ * A joined device that says it can hear, answer and speak in Talk's voice, as the server's onDevice asks: another
+ * speech model alone won't do. The server checks again when a turn names it.
+ */
+export const talksThere = (d: ChoirDevice) =>
+  d.online &&
+  !!d.capabilities?.stt.length &&
+  !!d.capabilities.llm.length &&
+  d.capabilities.tts.includes(TALK_SPEECH_MODEL);
 
 /** Which device takes render on, for people: "gpu-a · RTX 4080 Laptop", "Stand-in GPU", "This computer". */
 export function deviceLabel(engine: EngineState | null): string {

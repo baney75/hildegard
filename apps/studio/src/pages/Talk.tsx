@@ -3,11 +3,12 @@
  * Talk: say something, and Hildegard answers out loud. Each turn goes to /api/talk/turn alone, which hears it,
  * answers and speaks; the page never calls the voice studio itself, so where each step runs can change behind it.
  */
-import type { ChoirDevice, DeviceCapabilities } from '@hildegard/presets';
+import type { DeviceCapabilities } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { Icon, toastError } from '../components/ui.tsx';
 import { Clip, DropAudio } from '../components/voice.tsx';
 import { api, type TalkStatus, type TalkTurn } from '../lib/api.ts';
+import { talksThere } from '../lib/format.ts';
 import { toggle, useRecorder } from '../lib/voice.ts';
 import { micProblem, RecordButton } from './voice/Clone.tsx';
 
@@ -22,10 +23,6 @@ function capsLine(c: DeviceCapabilities, llm: TalkStatus['llm']): string {
     c.compute === 'interactive' ? 'answers while you wait' : 'works in batches',
   ].join(', ');
 }
-
-/** A joined device that says it can hear, answer and speak; the server checks again when a turn names it. */
-const talksThere = (d: ChoirDevice) =>
-  d.online && !!d.capabilities?.stt.length && !!d.capabilities.llm.length && !!d.capabilities.tts.length;
 
 /** Where the reply's audio plays from: the URL the server gave, or the bytes it sent. */
 const replyUrl = (t: TalkTurn) =>

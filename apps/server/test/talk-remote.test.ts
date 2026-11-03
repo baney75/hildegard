@@ -17,6 +17,8 @@ import { memoryStore } from './helpers.ts';
 const FIXTURE = join(import.meta.dirname, 'fixtures', 'talk', 'lighthouse.wav');
 const LINE = readFileSync(`${FIXTURE}.txt`, 'utf8').trim();
 const H = { 'x-hildegard': '1' };
+/** Words the safety check refuses, as in voice.test.ts. */
+const BLOCKED = 'explicit porn scene';
 
 const memorySecrets = () => {
   const stores = new Map<string, SecretStore>();
@@ -121,6 +123,45 @@ describe('a Talk turn on a paired device', () => {
     expect(r.route).toEqual({ stt: 'local', llm: 'local', tts: 'local' });
   });
 
+  it('sends only Talk uploads: a consent recording or a voice preview is refused, as it is here', async () => {
+    // Both files exist on this computer, so only the name check stands between them and the other device.
+    const voiceDir = join(primary.config.dataDir, 'media', 'voice');
+    mkdirSync(voiceDir, { recursive: true });
+    for (const f of ['c-session1.wav', 'p-voice1.wav'])
+      writeFileSync(join(voiceDir, f), readFileSync(FIXTURE));
+    for (const uploadId of ['c-session1.wav', 'p-voice1.wav', '../voice/refs/v1.wav'])
+      for (const device of [name, undefined]) {
+        const res = await fetch(`${primary.url}/api/talk/turn`, {
+          method: 'POST',
+          headers: { ...H, 'content-type': 'application/json' },
+          body: JSON.stringify({ uploadId, ...(device ? { device } : {}) }),
+        });
+        expect(res.status, `${uploadId} ${device ? 'there' : 'here'}`).toBe(400);
+        expect(((await res.json()) as { code: string }).code).toBe('upload');
+      }
+  });
+
+  it('refuses a turn on another device whose words are sexual', async () => {
+    // A recording the worker's stand-in engine "hears" as blocked words.
+    const bytes = Buffer.from(readFileSync(FIXTURE));
+    bytes.writeUInt8(bytes.readUInt8(bytes.length - 1) ^ 1, bytes.length - 1);
+    writeFileSync(
+      join(
+        worker.config.dataDir,
+        'media',
+        'voice',
+        `${createHash('sha256').update(bytes).digest('hex')}.wav.txt`,
+      ),
+      BLOCKED,
+    );
+    const form = new FormData();
+    form.set('audio', new Blob([bytes], { type: 'audio/wav' }), 'turn.wav');
+    form.set('device', name);
+    const res = await fetch(`${primary.url}/api/talk/turn`, { method: 'POST', headers: H, body: form });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('content_blocked');
+  });
+
   it('refuses a device this computer hasn’t joined', async () => {
     const res = await turn({ device: 'nowhere' });
     expect(res.status).toBe(404);
@@ -176,6 +217,24 @@ describe('Talk on /api/node', () => {
         const res = await node(path, init, key);
         expect(res.status, `${path} with ${key ? 'a wrong' : 'no'} key`).toBe(401);
       }
+  });
+
+  it('refuses to answer sexual words', async () => {
+    for (const messages of [
+      [{ role: 'user', content: BLOCKED }],
+      [
+        { role: 'system', content: 'Be brief.' },
+        { role: 'assistant', content: BLOCKED },
+        { role: 'user', content: 'Go on.' },
+      ],
+    ]) {
+      const res = await node('complete', json({ messages }));
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { code: string }).code).toBe('content_blocked');
+    }
+    await expect(
+      remoteLlm({ url: shareUrl, token: () => token, name }).complete([{ role: 'user', content: BLOCKED }]),
+    ).rejects.toMatchObject({ code: 'content_blocked', status: 400 });
   });
 
   it('refuses what isn’t a turn, and voices it doesn’t lend', async () => {

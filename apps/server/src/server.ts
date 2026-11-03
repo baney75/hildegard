@@ -495,7 +495,8 @@ async function serveStudio(
     },
     files: {
       save: async (bytes: Uint8Array) => join(voiceMedia, (await voice.upload(bytes)).name),
-      find: (uploadId: string) => join(voiceMedia, basename(uploadId)),
+      // Only a Talk upload: a consent recording or a voice reference is refused here, before any step runs anywhere.
+      find: (uploadId: string) => voice.uploadFile(uploadId),
       url: (path: string) => (dirname(path) === voiceMedia ? `/media/voice/${basename(path)}` : null),
       read: async (path: string) => new Uint8Array(await readFile(path)),
     },
@@ -553,6 +554,7 @@ async function serveStudio(
     tts: (v) => localTts(voice, v),
     voices: () => voiceCatalog.voices.map((v) => v.id),
     files: talk.files,
+    safety: loadSafety(),
   };
   const host = new Host({
     dataDir: config.dataDir,

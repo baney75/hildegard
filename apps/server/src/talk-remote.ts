@@ -10,6 +10,7 @@ import { mkdtempSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
+import type { SafetyCheck } from '@hildegard/presets';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
@@ -50,6 +51,8 @@ export interface NodeTalkDeps {
   /** Built-in voices a paired device may ask for. A cloned voice is never one of them. */
   voices: () => string[];
   files: Pick<TalkFiles, 'save' | 'read'>;
+  /** Words a paired device sends to be answered pass this first, as words to be spoken do in the voice studio. */
+  safety: Pick<SafetyCheck, 'text'>;
 }
 
 const fail = (e: unknown) => {
@@ -107,8 +110,14 @@ export function nodeTalkRoutes(talk: () => NodeTalkDeps): Hono {
   app.post('/complete', tooBig('json'), async (c) => {
     const parsed = CompleteBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'Send the turn as { messages }.', code: 'bad_request' }, 400);
+    const d = talk();
+    if (parsed.data.messages.some((m) => !d.safety.text(m.content).ok))
+      return c.json(
+        { error: 'Hildegard doesn’t make sexual content, so it won’t answer this.', code: 'content_blocked' },
+        400,
+      );
     try {
-      const text = (await talk().llm.complete(parsed.data.messages)).trim();
+      const text = (await d.llm.complete(parsed.data.messages)).trim();
       c.header('cache-control', 'no-store');
       return c.json({ text });
     } catch (e) {

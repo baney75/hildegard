@@ -83,7 +83,7 @@ test('offers a joined device that can hear, answer and speak, and sends the turn
   await page.route('**/api/choir', async (route) => {
     const res = await route.fetch();
     const choir = await res.json();
-    const device = (name: string, online: boolean) => ({
+    const device = (name: string, online: boolean, tts = caps.tts) => ({
       name,
       url: 'http://100.64.0.9:7342',
       online,
@@ -97,11 +97,14 @@ test('offers a joined device that can hear, answer and speak, and sends the turn
       opportunistic: null,
       busy: null,
       queue: null,
-      capabilities: caps,
+      capabilities: { ...caps, tts },
     });
     await route.fulfill({
       response: res,
-      json: { ...choir, devices: [device('desk', true), device('attic', false)] },
+      json: {
+        ...choir,
+        devices: [device('desk', true), device('attic', false), device('porch', true, ['chatterbox'])],
+      },
     });
   });
   let sent: string | null = null;
@@ -120,7 +123,7 @@ test('offers a joined device that can hear, answer and speak, and sends the turn
   });
   await page.goto('/#/talk');
   const where = page.getByLabel('Hear and answer on');
-  // Only the device that is online and says it can do all three.
+  // Only the device that is online and says it can do all three in Kokoro's voice.
   await expect(where.locator('option')).toHaveText(['This computer', 'desk']);
   await where.selectOption('desk');
   await page

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { EngineState, GuestTake, Take } from '@hildegard/presets';
+import type { ChoirDevice, EngineState, GuestTake, Take } from '@hildegard/presets';
 import { describe, expect, it } from 'vitest';
 import { draftNote } from '../src/components/ExportDialog.tsx';
 import { fromRequest, toRequest } from '../src/lib/draft.ts';
@@ -16,6 +16,7 @@ import {
   leftMs,
   ordinal,
   roman,
+  talksThere,
 } from '../src/lib/format.ts';
 
 describe('format', () => {
@@ -203,5 +204,34 @@ describe('renders from paired devices', () => {
       'From studio-1 · waiting · 3rd in line',
     );
     expect(guestFrom({ ...g, from: null })).toBe('From another device');
+  });
+});
+
+describe('talksThere', () => {
+  const device = (online: boolean, caps: Partial<NonNullable<ChoirDevice['capabilities']>> | null) =>
+    ({
+      name: 'desk',
+      online,
+      capabilities: caps && {
+        mic: true,
+        speaker: true,
+        stt: ['whisper-small'],
+        tts: ['kokoro-82m'],
+        llm: [{ runtime: 'ollama', model: 'qwen3', vramGb: null }],
+        gpu: null,
+        compute: 'interactive',
+        ...caps,
+      },
+    }) as ChoirDevice;
+
+  it('offers only an online device that hears, answers and speaks with Kokoro', () => {
+    expect(talksThere(device(true, {}))).toBe(true);
+    expect(talksThere(device(true, { tts: ['chatterbox', 'kokoro-82m'] }))).toBe(true);
+    // Talk always answers in Kokoro's voice: another speech model alone won't do.
+    expect(talksThere(device(true, { tts: ['chatterbox'] }))).toBe(false);
+    expect(talksThere(device(true, { stt: [] }))).toBe(false);
+    expect(talksThere(device(true, { llm: [] }))).toBe(false);
+    expect(talksThere(device(false, {}))).toBe(false);
+    expect(talksThere(device(true, null))).toBe(false);
   });
 });
