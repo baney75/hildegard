@@ -52,7 +52,7 @@ import { Scheduler } from './scheduler.ts';
 import { importUrl } from './site-import.ts';
 import { Sites } from './sites.ts';
 import { Store } from './store.ts';
-import { localLlm, localStt, localTts, stubLlm } from './talk.ts';
+import { localLlm, localStt, localTts, pickTalkModel, stubLlm, talkReadiness } from './talk.ts';
 import type { TalkStatus } from './talk-routes.ts';
 import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, VoiceStudio } from './voice.ts';
@@ -488,22 +488,19 @@ async function serveStudio(
     },
     status: async (): Promise<TalkStatus> => {
       const caps = await capabilities();
-      const engine = voiceEngine.ready('speech');
       const answers = config.fake
         ? { runtime: STUB_LLM.runtime, model: STUB_LLM.model }
-        : await llm
-            .pick()
-            .then((p) => ({ runtime: p.endpoint.runtime, model: p.model }))
+        : await pickTalkModel(llm)
+            .then((p) => (p ? { runtime: p.endpoint.runtime, model: p.model } : null))
             .catch(() => null);
-      const missing = [caps.stt.length ? null : 'Whisper', caps.tts.length ? null : 'Kokoro'].filter(Boolean);
       return {
-        ready: engine && !missing.length,
+        ...talkReadiness({
+          engine: voiceEngine.ready('speech'),
+          caps,
+          catalog: voiceCatalog,
+          usable: (m) => voiceModels.usable(m),
+        }),
         fake: config.fake,
-        problem: !engine
-          ? 'The voice engine isn’t installed on this computer yet. Run `hildegard voice install`.'
-          : missing.length
-            ? `Talk needs ${missing.join(' and ')}. Install ${missing.length > 1 ? 'them' : 'it'} in Voice › Models.`
-            : null,
         llm: answers,
         capabilities: caps,
       };

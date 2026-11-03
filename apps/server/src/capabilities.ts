@@ -6,6 +6,7 @@
  */
 import type { DeviceCapabilities, LlmState, VoiceCatalog } from '@hildegard/presets';
 import { z } from 'zod';
+import { onThisComputer } from './llm.ts';
 
 const id = z.string().min(1).max(80);
 
@@ -58,7 +59,8 @@ export async function localCapabilities(d: CapabilityDeps): Promise<DeviceCapabi
   else if (d.llm) {
     const state = await d.llm().catch(() => null);
     llm = (state?.endpoints ?? [])
-      .filter((e) => e.online)
+      // Only models on this computer: an owner's endpoint elsewhere isn't something this device can do.
+      .filter((e) => e.online && onThisComputer(e))
       .flatMap((e) => e.models.map((m) => ({ runtime: e.runtime, model: m.id, vramGb: null })))
       .slice(0, 64);
   }

@@ -2,19 +2,22 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ChoirState } from '@hildegard/presets';
+import { type ChoirState, loadVoiceCatalog } from '@hildegard/presets';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { directorMay } from '../src/access.ts';
+import { localCapabilities } from '../src/capabilities.ts';
 import { parseArgs } from '../src/config.ts';
-import { LlmError } from '../src/llm.ts';
+import { LlmError, LocalModels, onThisComputer } from '../src/llm.ts';
 import { type Running, startServer } from '../src/server.ts';
 import {
   FAKE_HEARD,
   localLlm,
+  pickTalkModel,
   type TalkDeps,
   TalkError,
   type TalkFiles,
   type TalkTurnResult,
+  talkReadiness,
   talkTurn,
 } from '../src/talk.ts';
 import type { TalkStatus } from '../src/talk-routes.ts';
@@ -101,23 +104,134 @@ describe('one turn, with every step a port', () => {
   });
 
   it('answers with a stand-in, and says so, when no language model runs here', async () => {
-    const llm = localLlm({
+    const none = {
+      state: async () => ({ endpoints: [], use: null }),
       pick: async () => {
         throw new LlmError(404, 'No local model is running.');
       },
       chat: async () => ({ content: 'unused' }),
-    });
-    const reply = await llm.complete([{ role: 'user', content: 'Hello' }]);
+    };
+    const reply = await localLlm(none).complete([{ role: 'user', content: 'Hello' }]);
     expect(reply).toMatch(/stand-in answer/);
     expect(reply).toMatch(/You said: “Hello”/);
-    // A model that is there but fails is an error, not a stand-in.
+    // The owner's chosen model that is there but fails is an error, not a stand-in.
     const broken = localLlm({
+      ...none,
+      state: async () => ({
+        endpoints: [
+          {
+            id: 'ollama',
+            runtime: 'ollama',
+            name: 'Ollama',
+            url: 'http://127.0.0.1:11434/v1',
+            online: false,
+            models: [],
+            custom: false,
+            keyed: false,
+            error: 'nothing there',
+          },
+        ],
+        use: { endpoint: 'ollama', model: 'qwen3:8b' },
+      }),
       pick: async () => {
         throw new LlmError(502, 'Ollama isn’t answering.');
       },
-      chat: async () => ({ content: '' }),
     });
     await expect(broken.complete([{ role: 'user', content: 'Hi' }])).rejects.toThrow(/isn’t answering/);
+  });
+});
+
+describe('the model Talk answers with', () => {
+  const REMOTE = 'http://10.0.0.9:8000/v1';
+  const LLAMA = 'http://127.0.0.1:8080/v1';
+  /** The owner's endpoint on another computer, and llama.cpp here when `local` is on. */
+  const models = (local: boolean) => {
+    const chats: string[] = [];
+    const fetchFn = (async (input: string | URL | Request) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (url === `${REMOTE}/models`) return Response.json({ data: [{ id: 'far-70b' }] });
+      if (local && url === `${LLAMA}/models`) return Response.json({ data: [{ id: 'llama-4-scout-q4' }] });
+      if (local && url === 'http://127.0.0.1:8080/props')
+        return Response.json({ default_generation_settings: {} });
+      if (url.endsWith('/chat/completions')) {
+        chats.push(url);
+        return Response.json({ choices: [{ message: { role: 'assistant', content: `From ${url}` } }] });
+      }
+      throw new TypeError('fetch failed');
+    }) as typeof fetch;
+    const llm = new LocalModels({
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-talk-llm-')),
+      secrets: () => memoryStore(),
+      fetch: fetchFn,
+      env: {},
+      localAi: { gateways: async () => [], key: () => null },
+    });
+    return { llm, chats };
+  };
+
+  it('knows which endpoints are on this computer', () => {
+    const at = (url: string, custom = true, id = 'custom-x') => onThisComputer({ id, url, custom });
+    expect(at('http://127.0.0.1:9000/v1')).toBe(true);
+    expect(at('http://localhost:9000/v1')).toBe(true);
+    expect(at('http://[::1]:9000/v1')).toBe(true);
+    expect(at(REMOTE)).toBe(false);
+    expect(at('https://api.openai.com/v1')).toBe(false);
+    expect(at('http://localhost.example.com/v1')).toBe(false);
+    expect(at('http://172.18.0.2:12434/v1', false, 'local-ai-1')).toBe(true);
+    // An owner's endpoint doesn't pass as Local AI by its id.
+    expect(at('http://172.18.0.2:12434/v1', true, 'local-ai-1')).toBe(false);
+  });
+
+  it('never asks the owner’s endpoint on another computer, even when it is their choice', async () => {
+    const { llm, chats } = models(false);
+    await llm.add('Desk', REMOTE);
+    await llm.use('Desk');
+    // It would answer: the generic pick would choose it.
+    expect((await llm.pick()).endpoint.url).toBe(REMOTE);
+    expect(await pickTalkModel(llm)).toBeNull();
+    const reply = await localLlm(llm).complete([{ role: 'user', content: 'Hello' }]);
+    expect(reply).toMatch(/stand-in answer/);
+    expect(chats).toEqual([]);
+    // Nor does this computer claim it can run that model.
+    const caps = await localCapabilities({ fake: false, gpu: () => null, llm: () => llm.state() });
+    expect(caps.llm).toEqual([]);
+  });
+
+  it('answers with the model here instead, when there is one', async () => {
+    const { llm, chats } = models(true);
+    await llm.add('Desk', REMOTE);
+    await llm.use('Desk');
+    expect(await pickTalkModel(llm)).toMatchObject({ endpoint: { url: LLAMA }, model: 'llama-4-scout-q4' });
+    const reply = await localLlm(llm).complete([{ role: 'user', content: 'Hello' }]);
+    expect(reply).toBe(`From ${LLAMA}/chat/completions`);
+    expect(chats).toEqual([`${LLAMA}/chat/completions`]);
+    const caps = await localCapabilities({ fake: false, gpu: () => null, llm: () => llm.state() });
+    expect(caps.llm.map((m) => m.model)).toEqual(['llama-4-scout-q4']);
+  });
+});
+
+describe('when Talk is ready', () => {
+  const catalog = loadVoiceCatalog();
+  const stt = { stt: ['whisper-small'] };
+
+  it('needs the model Talk’s own voice speaks with, not just any speaking model', () => {
+    const chatterbox = catalog.models.find((m) => m.id !== 'kokoro-82m' && m.can.includes('speak'))!;
+    const usable = (id: string) => id === 'whisper-small' || id === chatterbox.id;
+    const r = talkReadiness({ engine: true, caps: stt, catalog, usable });
+    expect(r.ready).toBe(false);
+    expect(r.problem).toMatch(/Kokoro/);
+    expect(r.problem).not.toMatch(/Whisper/);
+    const both = talkReadiness({ engine: true, caps: { stt: [] }, catalog, usable });
+    expect(both.problem).toBe('Talk needs Whisper and Kokoro. Install them in Voice › Models.');
+  });
+
+  it('is ready with Whisper, Kokoro and the speech engine', () => {
+    const usable = (id: string) => id === 'whisper-small' || id === 'kokoro-82m';
+    expect(talkReadiness({ engine: true, caps: stt, catalog, usable })).toEqual({
+      ready: true,
+      problem: null,
+    });
+    expect(talkReadiness({ engine: false, caps: stt, catalog, usable }).problem).toMatch(/voice engine/);
   });
 });
 

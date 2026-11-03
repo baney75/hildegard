@@ -6,9 +6,9 @@
  * local language models. docs/architecture/talk-caps.md has the plan.
  */
 import { basename } from 'node:path';
-import type { LlmEndpoint } from '@hildegard/presets';
+import type { DeviceCapabilities, LlmEndpoint, LlmState, VoiceCatalog } from '@hildegard/presets';
 import { z } from 'zod';
-import { LlmError } from './llm.ts';
+import { LlmError, onThisComputer } from './llm.ts';
 import { VoiceError, type VoiceStudio, type Who } from './voice.ts';
 
 export type TalkTurnRequest = {
@@ -176,24 +176,47 @@ export function stubLlm(note = ''): TalkLlm {
 
 const NO_MODEL = 'No local language model is running here, so this is a stand-in answer. ';
 
+/** What Talk needs from llm.ts. */
+export interface TalkModels {
+  state(): Promise<LlmState>;
+  pick(endpoint?: string): Promise<{ endpoint: LlmEndpoint; model: string }>;
+  chat(e: LlmEndpoint, body: Record<string, unknown>, ms?: number): Promise<{ content?: string | null }>;
+}
+
+/**
+ * The model Talk answers with: the owner's choice when it runs on this computer, else the first one here that does,
+ * picked as `llm.pick` picks. Null when none does, so the turn gives the stand-in answer. Talk's route says `local`,
+ * so an owner's endpoint on another computer or a paid API is never asked.
+ */
+export async function pickTalkModel(
+  llm: TalkModels,
+): Promise<{ endpoint: LlmEndpoint; model: string } | null> {
+  const state = await llm.state();
+  const here = state.endpoints.filter(onThisComputer);
+  const chosen = here.find((e) => e.id === state.use?.endpoint);
+  // The owner's choice is asked even when it is down, so the turn says why rather than quietly answering elsewhere.
+  const e = chosen ?? here.find((x) => x.online && x.models.length);
+  if (!e) return null;
+  let picked: { endpoint: LlmEndpoint; model: string };
+  try {
+    picked = await llm.pick(e.id);
+  } catch (err) {
+    if (err instanceof LlmError && err.status === 404) return null;
+    throw err;
+  }
+  return onThisComputer(picked.endpoint) ? picked : null;
+}
+
 /**
  * Answers with a language model running here (llm.ts). With none running, it gives the stand-in answer and says so,
  * so a turn still finishes.
  */
-export function localLlm(llm: {
-  pick(): Promise<{ endpoint: LlmEndpoint; model: string }>;
-  chat(e: LlmEndpoint, body: Record<string, unknown>, ms?: number): Promise<{ content?: string | null }>;
-}): TalkLlm {
+export function localLlm(llm: TalkModels): TalkLlm {
   const stub = stubLlm(NO_MODEL);
   return {
     async complete(messages) {
-      let picked: { endpoint: LlmEndpoint; model: string };
-      try {
-        picked = await llm.pick();
-      } catch (e) {
-        if (e instanceof LlmError && e.status === 404) return stub.complete(messages);
-        throw e;
-      }
+      const picked = await pickTalkModel(llm);
+      if (!picked) return stub.complete(messages);
       const msg = await llm.chat(
         picked.endpoint,
         { model: picked.model, temperature: 0.6, messages },
@@ -201,6 +224,35 @@ export function localLlm(llm: {
       );
       return msg.content ?? '';
     },
+  };
+}
+
+/**
+ * Whether a turn can run, and why not: the speech engine, a transcription model, and the model Talk's own voice
+ * speaks with. Another speaking model doesn't count, since Talk always answers in TALK_VOICE.
+ */
+export function talkReadiness(d: {
+  engine: boolean;
+  caps: Pick<DeviceCapabilities, 'stt'>;
+  catalog: Pick<VoiceCatalog, 'models' | 'voices'>;
+  usable: (model: string) => boolean;
+  voice?: string;
+}): { ready: boolean; problem: string | null } {
+  if (!d.engine)
+    return {
+      ready: false,
+      problem: 'The voice engine isn’t installed on this computer yet. Run `hildegard voice install`.',
+    };
+  const modelId = d.catalog.voices.find((v) => v.id === (d.voice ?? TALK_VOICE))?.model;
+  const model = d.catalog.models.find((m) => m.id === modelId);
+  const speaks = model ? d.usable(model.id) : false;
+  const missing = [d.caps.stt.length ? null : 'Whisper', speaks ? null : (model?.name ?? 'Kokoro')].filter(
+    (x): x is string => !!x,
+  );
+  if (!missing.length) return { ready: true, problem: null };
+  return {
+    ready: false,
+    problem: `Talk needs ${missing.join(' and ')}. Install ${missing.length > 1 ? 'them' : 'it'} in Voice › Models.`,
   };
 }
 

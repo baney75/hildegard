@@ -42,7 +42,9 @@ an earlier voice upload (`{ "uploadId": "<sha256>.wav" }`). `apps/server/src/tal
 
 1. Keep the recording with the voice studio's uploads.
 2. `TalkStt.transcribe` hears it (Whisper, through a voice studio transcribe job).
-3. `TalkLlm.complete` answers it (the first running local model, through `LocalModels`).
+3. `TalkLlm.complete` answers it (the first running local model, through `LocalModels`). Only a model on this
+   computer counts: one Hildegard found, Local AI's gateway, or an owner's endpoint at a loopback address. An
+   owner's endpoint anywhere else is never asked, and capabilities don't list it.
 4. `TalkTts.speak` says the answer (Kokoro's Heart voice, through a voice studio speak job).
 
 The result is the transcript, the answer, and the answer's audio as a `/media/voice/...` URL, the same kind of URL
