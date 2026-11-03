@@ -9,6 +9,7 @@ import type {
   ChoirDevice,
   ChoirInvite,
   ChoirState,
+  ConnectCode,
   ConsentSessionView,
   DesignRequest,
   DeviceCapabilities,
@@ -237,6 +238,8 @@ export const api = {
   choir: () => call<ChoirState>('GET', '/api/choir'),
   choirTailnet: () => call<{ url: string | null }>('GET', '/api/choir/tailnet'),
   choirInvite: (url?: string) => call<ChoirInvite>('POST', '/api/choir/invite', { url }),
+  /** A one-time code to approve a chatbot's connection (owners). */
+  connectCode: () => call<ConnectCode>('POST', '/api/auth/codes'),
   choirRevoke: () => call<ChoirState>('POST', '/api/choir/revoke'),
   choirJoin: (code: string, url?: string) =>
     call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code, url }),

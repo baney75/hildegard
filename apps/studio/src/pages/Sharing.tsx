@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
+import type { ConnectCode, NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
 import { type FormEvent, useEffect, useId, useState } from 'react';
+import { OneTimeCode } from '../components/OneTimeCode.tsx';
 import { loopbackOnly, Qr } from '../components/Qr.tsx';
 import { Button, Icon, Modal, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api } from '../lib/api.ts';
-import { setHost, signOut, useStore } from '../lib/store.ts';
+import { isOwner, setHost, signOut, useStore } from '../lib/store.ts';
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -100,6 +101,7 @@ export function Sharing() {
   const local = !!auth?.local;
   const { busy, error, run } = useRunner();
   const [funnel, setFunnel] = useState(false);
+  const [connect, setConnect] = useState<ConnectCode | null>(null);
 
   useEffect(() => {
     api
@@ -208,6 +210,36 @@ export function Sharing() {
           ) : (
             <span className="body-sm muted">Turn the link on or off on the computer Hildegard runs on.</span>
           )}
+        </div>
+      ) : null}
+      {host?.owner && isOwner(auth) ? (
+        <div className="st-tile hg-hfway">
+          <b>Connect claude.ai, ChatGPT or Grok</b>
+          <span className="body-sm muted">
+            {host.on && host.url
+              ? 'Add this address as a custom connector, then on Hildegard’s page choose Use a connect code and type the code. Only use a code you made yourself, for a connection you are making.'
+              : 'Put Hildegard at a link first (above); a chatbot needs an address to connect to.'}
+          </span>
+          {host.on && host.url ? <Secret label="Connector address" value={`${host.url}/mcp`} /> : null}
+          {connect ? (
+            <OneTimeCode
+              code={connect.code}
+              expiresAt={connect.expiresAt}
+              label="Connect code"
+              onExpired={() => setConnect(null)}
+            />
+          ) : null}
+          <div className="hg-devices__btns">
+            <Button
+              kind={connect ? undefined : 'primary'}
+              icon="link"
+              busy={busy === 'connect'}
+              disabled={!!busy}
+              onClick={() => run('connect', async () => setConnect(await api.connectCode()))}
+            >
+              {connect ? 'New connect code' : 'Get a connect code'}
+            </Button>
+          </div>
         </div>
       ) : null}
       {host?.owner && local ? (
