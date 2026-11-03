@@ -192,6 +192,8 @@ function choirFor(who: Who | null, s: ChoirState): ChoirState {
   return {
     use: s.use,
     rendering: s.rendering,
+    // Talk is the owner's; directors never see which computer answers it.
+    primary: 'local',
     devices: s.devices
       .filter((d) => d.name === s.rendering)
       .map((d) => ({ ...d, url: '', busy: null, capabilities: null })),

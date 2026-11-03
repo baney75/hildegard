@@ -3,12 +3,13 @@
  * Talk: say something, and Hildegard answers out loud. Each turn goes to /api/talk/turn alone, which hears it,
  * answers and speaks; the page never calls the voice studio itself, so where each step runs can change behind it.
  */
-import type { DeviceCapabilities } from '@hildegard/presets';
+import type { ChoirState, DeviceCapabilities } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
 import { Icon, toastError } from '../components/ui.tsx';
 import { Clip, DropAudio } from '../components/voice.tsx';
 import { api, type TalkStatus, type TalkTurn } from '../lib/api.ts';
-import { talksThere } from '../lib/format.ts';
+import { talkMeter, talksThere } from '../lib/format.ts';
+import { useStore } from '../lib/store.ts';
 import { toggle, useRecorder } from '../lib/voice.ts';
 import { micProblem, RecordButton } from './voice/Clone.tsx';
 
@@ -24,6 +25,25 @@ function capsLine(c: DeviceCapabilities, llm: TalkStatus['llm']): string {
   ].join(', ');
 }
 
+/** How long each step of a turn took, as one bar in three parts, and where it ran. */
+function Timing({ t }: { t: TalkTurn }) {
+  if (!t.ms) return null;
+  const m = talkMeter(t.ms);
+  const where = t.device && t.device !== 'local' ? t.device : 'this computer';
+  return (
+    <div className="hg-talk-meter" data-testid="talk-timing">
+      <div className="hg-talk-meter__bar" aria-hidden="true">
+        {m.steps.map((s) => (
+          <i key={s.id} className={`is-${s.id}`} style={{ flexGrow: s.share }} />
+        ))}
+      </div>
+      <p className="body-sm muted">
+        {m.steps.map((s) => `${s.label} in ${s.text}`).join(' · ')} · {m.total} in all, on {where}
+      </p>
+    </div>
+  );
+}
+
 /** Where the reply's audio plays from: the URL the server gave, or the bytes it sent. */
 const replyUrl = (t: TalkTurn) =>
   t.audio.url ?? (t.audio.data ? `data:${t.audio.contentType};base64,${t.audio.data}` : null);
@@ -33,9 +53,16 @@ export function Talk() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState<Array<TalkTurn & { n: number }>>([]);
-  /** Joined devices a turn can run on, and the one chosen ('' for this computer). */
-  const [devices, setDevices] = useState<string[]>([]);
-  const [device, setDevice] = useState('');
+  const stored = useStore((s) => s.choir);
+  // What the page asked for when it opened, else what the store last heard.
+  const [fetched, setFetched] = useState<ChoirState | null>(null);
+  const choir = fetched ?? stored;
+  /** Joined devices a turn can run on now, and the one chosen; null follows the primary. */
+  const devices = (choir?.devices ?? []).filter(talksThere).map((d) => d.name);
+  const primary = choir?.primary ?? status?.primary ?? 'local';
+  const primaryReady = primary === 'local' || devices.includes(primary);
+  const [picked, setPicked] = useState<string | null>(null);
+  const device = picked ?? (primaryReady ? primary : 'local');
 
   useEffect(() => {
     let live = true;
@@ -45,7 +72,7 @@ export function Talk() {
       .catch((e) => live && setError((e as Error).message));
     api
       .choir()
-      .then((c) => live && setDevices(c.devices.filter(talksThere).map((d) => d.name)))
+      .then((c) => live && setFetched(c))
       .catch(() => {});
     return () => {
       live = false;
@@ -55,7 +82,7 @@ export function Talk() {
   const send = async (clip: Blob) => {
     setBusy(true);
     try {
-      const t = await api.talkTurn(clip, { device: device || undefined });
+      const t = await api.talkTurn(clip, { device });
       setTurns((all) => [{ ...t, n: (all[0]?.n ?? 0) + 1 }, ...all].slice(0, 20));
       const url = replyUrl(t);
       if (url) toggle(url);
@@ -94,7 +121,8 @@ export function Talk() {
               Say something
             </h2>
             <p className="body-sm muted">
-              Record what you want to say. Hildegard hears it, answers, and says the answer back.
+              Record what you want to say. Hildegard hears it, answers, and says the answer back. Need lines
+              to read? Open the <a href="#/talk/script">demo script</a>.
             </p>
             <RecordButton rec={rec} label="Record what you want to say" />
             {mic ? <p className="body-sm muted">{mic}</p> : null}
@@ -108,15 +136,22 @@ export function Talk() {
             {devices.length ? (
               <label className="hg-field--block">
                 Hear and answer on
-                <select className="hg-select" value={device} onChange={(e) => setDevice(e.target.value)}>
-                  <option value="">This computer</option>
+                <select className="hg-select" value={device} onChange={(e) => setPicked(e.target.value)}>
+                  <option value="local">This computer{primary === 'local' ? ' (primary)' : ''}</option>
                   {devices.map((n) => (
                     <option key={n} value={n}>
                       {n}
+                      {primary === n ? ' (primary)' : ''}
                     </option>
                   ))}
                 </select>
               </label>
+            ) : null}
+            {!primaryReady ? (
+              <p className="body-sm muted" role="status">
+                {primary} is your primary, but it can’t hear and answer right now, so turns run on this
+                computer until it can.
+              </p>
             ) : null}
             {status ? <p className="body-sm muted">{capsLine(status.capabilities, status.llm)}.</p> : null}
           </section>
@@ -137,6 +172,7 @@ export function Talk() {
                   <p data-testid="talk-reply">{t.replyText}</p>
                 </div>
                 {url ? <Clip url={url} label="Hildegard’s answer" /> : null}
+                <Timing t={t} />
               </section>
             );
           })}

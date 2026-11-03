@@ -49,6 +49,10 @@ test('records a turn, and shows what was heard and the answer, with audio to pla
   await expect(turn.getByTestId('talk-transcript')).toHaveText(HEARD, { timeout: 15_000 });
   await expect(turn.getByTestId('talk-reply')).toHaveText(`You said: “${HEARD}”`);
   await expect(turn.getByRole('button', { name: /Hildegard’s answer/ })).toBeVisible();
+  // How long each step took, without betting on the numbers.
+  await expect(turn.getByTestId('talk-timing')).toHaveText(
+    /^Heard in [\d.]+ s · Answered in [\d.]+ s · Spoke in [\d.]+ s · [\d.]+ s in all, on this computer$/,
+  );
   await expectCurlyQuotes(page, 'talk');
   // Talk goes through /api/talk only.
   expect(voiceCalls).toEqual([]);
@@ -118,13 +122,15 @@ test('offers a joined device that can hear, answer and speak, and sends the turn
         replyText: `You said: “${HEARD}”`,
         audio: { contentType: 'audio/wav', data: wav(0.2).toString('base64') },
         route: { stt: 'remote', llm: 'remote', tts: 'remote' },
+        ms: { stt: 400, llm: 1200, tts: 600, total: 2300 },
+        device: sent || 'local',
       },
     });
   });
   await page.goto('/#/talk');
   const where = page.getByLabel('Hear and answer on');
   // Only the device that is online and says it can do all three in Kokoro's voice.
-  await expect(where.locator('option')).toHaveText(['This computer', 'desk']);
+  await expect(where.locator('option')).toHaveText(['This computer (primary)', 'desk']);
   await where.selectOption('desk');
   await page
     .getByLabel('Or upload a recording')
@@ -133,5 +139,104 @@ test('offers a joined device that can hear, answer and speak, and sends the turn
     HEARD,
   );
   expect(sent).toBe('desk');
+  await expect(page.getByTestId('talk-timing')).toHaveText(
+    'Heard in 0.4 s · Answered in 1.2 s · Spoke in 0.6 s · 2.3 s in all, on desk',
+  );
+  expect(errors).toEqual([]);
+});
+
+test('starts on the primary device, and says when the primary can’t answer', async ({ page }) => {
+  const errors = watchErrors(page);
+  let primary = 'desk';
+  let online = true;
+  await page.route('**/api/choir', async (route) => {
+    const res = await route.fetch();
+    const choir = await res.json();
+    const here = choir.capabilities ?? {
+      mic: true,
+      speaker: true,
+      stt: ['whisper-small'],
+      tts: ['kokoro-82m'],
+      llm: [{ runtime: 'stub', model: 'hildegard-echo', vramGb: null }],
+      gpu: null,
+      compute: 'interactive',
+    };
+    await route.fulfill({
+      response: res,
+      json: {
+        ...choir,
+        primary,
+        devices: [
+          {
+            name: 'desk',
+            url: 'http://100.64.0.9:7342',
+            online,
+            gpu: null,
+            version: null,
+            models: [],
+            fit: {},
+            fitWhy: {},
+            problem: online ? null : 'It isn’t answering.',
+            update: null,
+            opportunistic: null,
+            busy: null,
+            queue: null,
+            capabilities: here,
+          },
+        ],
+      },
+    });
+  });
+  let sent: string | null = null;
+  await page.route('**/api/talk/turn', async (route) => {
+    sent =
+      /name="device"\r\n\r\n([^\r]*)/.exec(route.request().postDataBuffer()?.toString('latin1') ?? '')?.[1] ??
+      '';
+    await route.fulfill({
+      json: {
+        transcript: HEARD,
+        replyText: 'Yes.',
+        audio: { contentType: 'audio/wav', data: wav(0.2).toString('base64') },
+        route: { stt: 'remote', llm: 'remote', tts: 'remote' },
+        ms: { stt: 1, llm: 1, tts: 1, total: 3 },
+        device: sent,
+      },
+    });
+  });
+  await page.goto('/#/talk');
+  await expect(page.getByLabel('Hear and answer on')).toHaveValue('desk');
+  await page
+    .getByLabel('Or upload a recording')
+    .setInputFiles({ name: 'q.wav', mimeType: 'audio/wav', buffer: wav() });
+  await expect(page.getByTestId('talk-timing')).toContainText('on desk');
+  expect(sent).toBe('desk');
+
+  // The primary went quiet: the turn runs here, and the page says why.
+  online = false;
+  primary = 'desk';
+  await page.reload();
+  await expect(page.getByText(/desk is your primary, but it can’t hear and answer right now/)).toBeVisible();
+  await page
+    .getByLabel('Or upload a recording')
+    .setInputFiles({ name: 'q.wav', mimeType: 'audio/wav', buffer: wav() });
+  await expect(page.getByTestId('talk-timing').first()).toContainText('on this computer');
+  expect(sent).toBe('local');
+  expect(errors).toEqual([]);
+});
+
+test('steps through the demo script, invented lines only', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/#/talk');
+  await page.getByRole('link', { name: 'demo script' }).click();
+  await expect(page.getByRole('heading', { name: /^Beat 1 of \d+$/ })).toBeVisible();
+  await expect(page.getByTestId('script-line')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByTestId('script-line')).toHaveText('Plan a short film about a lighthouse keeper.');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: /^Beat 3 of/ })).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('heading', { name: /^Beat 2 of/ })).toBeVisible();
+  await expectAccessible(page, 'talk script');
+  await expectCurlyQuotes(page, 'talk script');
   expect(errors).toEqual([]);
 });

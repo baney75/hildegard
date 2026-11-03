@@ -1608,6 +1608,18 @@ export function createApp(deps: AppDeps) {
       return choirFail(c, e);
     }
   });
+  app.post('/api/choir/primary', async (c) => {
+    // Where this owner's Talk turns run by default: the owner's choice, like opportunistic. It changes no listener.
+    if (!isOwner(c)) return c.json({ error: 'Only the owner can do that here.', code: 'owner' }, 403);
+    const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'Say which device, or “local”.' }, 400);
+    try {
+      deps.choir.setPrimary(body.data.name);
+      return c.json(deps.choir.state());
+    } catch (e) {
+      return choirFail(c, e);
+    }
+  });
   app.post('/api/choir/use', async (c) => {
     const body = z.object({ name: z.string().max(63) }).safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Say which device, “local”, or “auto”.' }, 400);

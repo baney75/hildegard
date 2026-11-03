@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -398,6 +398,63 @@ describe('rendering on another device', () => {
     expect(lists.at(-1)).toEqual([]);
     expect((await snap()).guests).toEqual([]);
     await until(() => gpu.store.takes.get(ownTake.id)?.status === 'done');
+  });
+});
+
+describe('the primary for Talk', () => {
+  /** A computer that joined two devices, written as join leaves it, so nothing needs the network. */
+  const joinedTwo = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-primary-'));
+    mkdirSync(join(dir, 'choir'), { recursive: true });
+    const devices = ['parlor', 'attic'].map((name) => ({
+      name,
+      url: `http://100.64.0.${name.length}:7342`,
+      joinedAt: '2026-11-02T00:00:00Z',
+    }));
+    writeFileSync(join(dir, 'choir', 'devices.json'), JSON.stringify({ use: 'local', devices }));
+    return dir;
+  };
+  const open = (dir: string, onChange: (s: ChoirState) => void = () => {}) =>
+    new Choir({ dataDir: dir, secrets: memorySecrets(), onChange });
+
+  it('is this computer until the owner names a joined device, and says so in its state', () => {
+    const seen: string[] = [];
+    const c = open(joinedTwo(), (s) => seen.push(s.primary));
+    expect(c.state().primary).toBe('local');
+    c.setPrimary('attic');
+    expect(c.state().primary).toBe('attic');
+    expect(seen).toEqual(['attic']);
+    // Naming it again changes nothing, so nobody hears about it twice.
+    c.setPrimary('attic');
+    expect(seen).toEqual(['attic']);
+    expect(() => c.setPrimary('cellar')).toThrow(/hasn’t joined a device called cellar/);
+    expect(c.state().primary).toBe('attic');
+  });
+
+  it('outlasts a restart, and keeps the opportunistic setting beside it', () => {
+    const dir = joinedTwo();
+    const c = open(dir);
+    c.setOpportunistic(true);
+    c.setPrimary('parlor');
+    const again = open(dir);
+    expect(again.primary).toBe('parlor');
+    expect(again.opportunistic).toBe(true);
+    again.setOpportunistic(false);
+    expect(open(dir).primary).toBe('parlor');
+  });
+
+  it('goes back to this computer when that device is removed, and a stale file reads as this computer', () => {
+    const dir = joinedTwo();
+    const c = open(dir);
+    c.setPrimary('parlor');
+    c.leave('attic');
+    expect(c.primary).toBe('parlor');
+    c.leave('parlor');
+    expect(c.primary).toBe('local');
+    expect(open(dir).primary).toBe('local');
+    const stale = joinedTwo();
+    writeFileSync(join(stale, 'choir', 'settings.json'), JSON.stringify({ primary: 'cellar' }));
+    expect(open(stale).primary).toBe('local');
   });
 });
 

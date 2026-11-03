@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { Catalog, ChoirDevice, EngineState, GuestTake, Take } from '@hildegard/presets';
+import type {
+  Catalog,
+  ChoirDevice,
+  DeviceCapabilities,
+  EngineState,
+  GuestTake,
+  Take,
+} from '@hildegard/presets';
 
 const ROMAN: Array<[number, string]> = [
   [1000, 'M'],
@@ -136,6 +143,53 @@ export const talksThere = (d: ChoirDevice) =>
   !!d.capabilities?.stt.length &&
   !!d.capabilities.llm.length &&
   d.capabilities.tts.includes(TALK_SPEECH_MODEL);
+
+/**
+ * What a device says it can do for Talk, in one line: "Hears with whisper-small · Answers with qwen3:4b · Speaks with
+ * kokoro-82m · Microphone and speaker". Null when it hasn't said (versions before 0.1.14).
+ */
+export function capsLine(c: DeviceCapabilities | null): string | null {
+  if (!c) return null;
+  const io = [c.mic && 'Microphone', c.speaker && (c.mic ? 'speaker' : 'Speaker')]
+    .filter(Boolean)
+    .join(' and ');
+  return [
+    c.stt.length ? `Hears with ${c.stt.join(', ')}` : 'Can’t hear yet',
+    c.llm.length ? `Answers with ${c.llm.map((m) => m.model).join(', ')}` : 'No language model running',
+    c.tts.length ? `Speaks with ${c.tts.join(', ')}` : 'Can’t speak yet',
+    io || null,
+    c.compute === 'batch' ? 'Works in batches' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** Seconds for a Talk step: "0.4 s" under ten seconds, "12 s" past it. */
+export function stepSeconds(ms: number): string {
+  const s = Math.max(0, ms) / 1000;
+  return s < 10 ? `${s.toFixed(1)} s` : `${Math.round(s)} s`;
+}
+
+/**
+ * A Talk turn's timing as meter segments: each step's share of the whole turn (0 to 1), and its label. The shares
+ * come from the steps alone, so the bar fills however long the turn took.
+ */
+export function talkMeter(ms: { stt: number; llm: number; tts: number; total: number }) {
+  const steps = [
+    { id: 'stt' as const, label: 'Heard', ms: ms.stt },
+    { id: 'llm' as const, label: 'Answered', ms: ms.llm },
+    { id: 'tts' as const, label: 'Spoke', ms: ms.tts },
+  ];
+  const sum = steps.reduce((a, s) => a + Math.max(0, s.ms), 0);
+  return {
+    steps: steps.map((s) => ({
+      ...s,
+      share: sum ? Math.max(0, s.ms) / sum : 1 / 3,
+      text: stepSeconds(s.ms),
+    })),
+    total: stepSeconds(ms.total),
+  };
+}
 
 /** Which device takes render on, for people: "gpu-a · RTX 4080 Laptop", "Stand-in GPU", "This computer". */
 export function deviceLabel(engine: EngineState | null): string {

@@ -170,6 +170,74 @@ describe('a Talk turn on a paired device', () => {
   });
 });
 
+describe('the primary device', () => {
+  const primaryIs = async (n: string) => {
+    const res = await fetch(`${primary.url}/api/choir/primary`, {
+      method: 'POST',
+      headers: { ...H, 'content-type': 'application/json' },
+      body: JSON.stringify({ name: n }),
+    });
+    return res;
+  };
+  afterAll(async () => {
+    await primaryIs('local');
+  });
+
+  it('starts as this computer, and Talk says so', async () => {
+    const s = (await (await fetch(`${primary.url}/api/talk`, { headers: H })).json()) as { primary: string };
+    expect(s.primary).toBe('local');
+    expect(primary.choir.state().primary).toBe('local');
+  });
+
+  it('runs turns that name no device on the primary, and “local” still here', async () => {
+    expect((await primaryIs(name)).status).toBe(200);
+    expect(primary.choir.state().primary).toBe(name);
+    const there = (await (await turn({})).json()) as TalkTurnResult & { device: string };
+    expect(there.transcript).toBe(LINE);
+    expect(there.route).toEqual({ stt: 'remote', llm: 'remote', tts: 'remote' });
+    expect(there.device).toBe(name);
+    const here = (await (await turn({ device: 'local' })).json()) as TalkTurnResult & { device: string };
+    expect(here.transcript).toBe(FAKE_HEARD);
+    expect(here.device).toBe('local');
+    // Switching back is just as visible.
+    expect(((await (await primaryIs('local')).json()) as { primary: string }).primary).toBe('local');
+    expect(((await (await turn({})).json()) as TalkTurnResult).route.stt).toBe('local');
+  });
+
+  it('times every step of a turn, and the steps fit inside the whole', async () => {
+    const r = (await (await turn({ device: name })).json()) as TalkTurnResult;
+    for (const k of ['stt', 'llm', 'tts', 'total'] as const) {
+      expect(Number.isInteger(r.ms[k]), k).toBe(true);
+      expect(r.ms[k], k).toBeGreaterThanOrEqual(0);
+    }
+    expect(r.ms.stt + r.ms.llm + r.ms.tts).toBeLessThanOrEqual(r.ms.total + 3);
+  });
+
+  it('refuses a device this computer hasn’t joined, and keeps the one it had', async () => {
+    const res = await primaryIs('nowhere');
+    expect(res.status).toBe(404);
+    expect(primary.choir.state().primary).toBe('local');
+    expect((await primaryIs('')).status).toBe(404);
+  });
+
+  it('is saved, so it outlasts a restart', async () => {
+    expect((await primaryIs(name)).status).toBe(200);
+    const file = JSON.parse(readFileSync(join(primary.config.dataDir, 'choir', 'settings.json'), 'utf8')) as {
+      primary: string;
+    };
+    expect(file.primary).toBe(name);
+  });
+
+  it('never turns on a public link: Funnel stays off', async () => {
+    const h = (await (await fetch(`${primary.url}/api/host`, { headers: H })).json()) as {
+      on: boolean;
+      via: string | null;
+    };
+    expect(h.via).not.toBe('funnel');
+    expect(h.on).toBe(false);
+  });
+});
+
 describe('Talk with a second serving device', () => {
   /** A second worker, joined under its own name, that "hears" a different line in the same recording. */
   const SECOND = 'second-server';

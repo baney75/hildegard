@@ -16,6 +16,7 @@ import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
 import { Sites } from './pages/Sites.tsx';
 import { Talk } from './pages/Talk.tsx';
+import { TalkScript } from './pages/TalkScript.tsx';
 import { Voice } from './pages/Voice.tsx';
 import { ConsentPhone } from './pages/voice/ConsentPhone.tsx';
 import { Welcome } from './pages/Welcome.tsx';
@@ -119,6 +120,7 @@ export function App() {
   else if (parts[0] === 'sites' && isOwner(auth))
     page = <Sites wc={wc} go={go} siteParam={parts[1] ?? null} />;
   else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;
+  else if (parts[0] === 'talk' && parts[1] === 'script' && isOwner(auth)) page = <TalkScript />;
   else if (parts[0] === 'talk' && isOwner(auth)) page = <Talk />;
   else if (parts[0] === 'settings')
     page = <Settings catalog={catalog} wc={wc} section={parts[1] ?? null} go={go} />;

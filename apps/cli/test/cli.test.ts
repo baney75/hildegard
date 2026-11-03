@@ -251,7 +251,25 @@ describe('hildegard', () => {
         'Takes render on this computer.',
       );
       expect((await hildegard(home, 'choir', 'use', 'nowhere', ...mac)).ok).toBe(false);
+
+      // The primary for Talk is its own choice, and the list says which it is.
+      const made = await hildegard(home, 'choir', 'primary', name, ...mac);
+      expect(made.message).toBe(
+        `Talk hears and answers on ${name} by default. The microphone and speaker stay where you talk.`,
+      );
+      expect(made.choir).toMatchObject({ primary: name, use: 'local' });
+      const listed = await hildegard(home, 'choir', 'list', ...mac);
+      expect(listed.steps.find((x) => x.id === `device-${name}`)!.detail).toMatch(/^Primary for Talk\. /);
+      expect(listed.steps.find((x) => x.id === 'local')!.detail).not.toContain('Primary');
+      expect((await hildegard(home, 'choir', 'primary', 'nowhere', ...mac)).ok).toBe(false);
+      expect((await hildegard(home, 'choir', 'primary', ...mac)).ok).toBe(false);
+      expect((await hildegard(home, 'choir', 'primary', 'local', ...mac)).message).toBe(
+        'Talk hears and answers on this computer by default.',
+      );
+      await hildegard(home, 'choir', 'primary', name, ...mac);
       expect((await hildegard(home, 'choir', 'leave', name, ...mac)).ok).toBe(true);
+      // Removing the primary hands Talk back to this computer.
+      expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ primary: 'local' });
       expect((await hildegard(home, 'choir', 'list', ...mac)).choir).toMatchObject({ devices: [] });
 
       expect((await hildegard(home, 'choir', 'revoke', '--port', nodePort, '--data', nodeData)).ok).toBe(

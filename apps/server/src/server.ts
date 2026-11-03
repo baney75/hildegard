@@ -532,6 +532,7 @@ async function serveStudio(
         fake: config.fake,
         llm: answers,
         capabilities: caps,
+        primary: choir.primary,
       };
     },
   };
@@ -649,7 +650,7 @@ async function serveStudio(
     },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
-    talk: { ...talk, onDevice },
+    talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,
     config,
