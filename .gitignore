@@ -12,3 +12,4 @@ test-results/
 /.hildegard-dev/
 __pycache__/
 *.pyc
+/.runs/

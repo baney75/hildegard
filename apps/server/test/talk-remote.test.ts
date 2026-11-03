@@ -170,6 +170,60 @@ describe('a Talk turn on a paired device', () => {
   });
 });
 
+describe('Talk with a second serving device', () => {
+  /** A second worker, joined under its own name, that "hears" a different line in the same recording. */
+  const SECOND = 'second-server';
+  const SECOND_LINE = 'Cut the storm scene down to three shots.';
+  let second: Running;
+
+  beforeAll(async () => {
+    second = await start(mkdtempSync(join(tmpdir(), 'hg-talk-second-')));
+    const invite = await fetch(`${second.url}/api/choir/invite`, {
+      method: 'POST',
+      headers: { ...H, 'content-type': 'application/json' },
+      body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}` }),
+    });
+    const { code } = (await invite.json()) as { code: string };
+    const joined = await fetch(`${primary.url}/api/choir/join`, {
+      method: 'POST',
+      headers: { ...H, 'content-type': 'application/json' },
+      body: JSON.stringify({ code, name: SECOND }),
+    });
+    expect(joined.status).toBe(201);
+    const voiceDir = join(second.config.dataDir, 'media', 'voice');
+    mkdirSync(voiceDir, { recursive: true });
+    writeFileSync(
+      join(voiceDir, `${createHash('sha256').update(readFileSync(FIXTURE)).digest('hex')}.wav.txt`),
+      SECOND_LINE,
+    );
+  }, 30_000);
+  afterAll(async () => {
+    await second?.close();
+  });
+
+  it('runs each turn on the device it names, switching between the two', async () => {
+    expect(SECOND).not.toBe(name);
+    for (const [device, heard] of [
+      [name, LINE],
+      [SECOND, SECOND_LINE],
+      [name, LINE],
+    ] as const) {
+      const res = await turn({ device });
+      expect(res.status, device).toBe(200);
+      const r = (await res.json()) as TalkTurnResult;
+      expect(r.transcript, device).toBe(heard);
+      expect(r.route).toEqual({ stt: 'remote', llm: 'remote', tts: 'remote' });
+    }
+  });
+
+  it('lists both devices as able to talk', async () => {
+    const res = await fetch(`${primary.url}/api/choir`, { headers: H });
+    const s = (await res.json()) as { devices: Array<{ name: string; online: boolean }> };
+    expect(s.devices.map((d) => d.name).sort()).toEqual([name, SECOND].sort());
+    expect(s.devices.every((d) => d.online)).toBe(true);
+  });
+});
+
 describe('Talk on /api/node', () => {
   const node = (path: string, init: RequestInit, key: string | null = token) =>
     fetch(`${shareUrl}/api/node/${path}`, {

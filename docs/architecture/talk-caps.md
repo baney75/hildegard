@@ -108,7 +108,9 @@ three, and sends its choice as `device`.
 - Only the turn's own recording and the words of the turn leave the primary. Voice samples, consent recordings and
   cloned voices never do; the speak route only lends built-in voices.
 - The serving device keeps a recording it was sent with its voice uploads, as a local turn does.
-- The first serving device is the owner's GPU desktop. A second one waits until this path works there.
+- More than one device may serve. The first remote path works on the owner's GPU desktop, so a second serving
+  device (a Linux or WSL server on the tailnet) is supported the same way. Each turn names its device, and the
+  primary can switch between them turn to turn. Every rule here holds for each of them.
 - Funnel stays off: the routes are only on the Choir address, which is on the tailnet or https.
 
 ### Checking it
@@ -116,7 +118,13 @@ three, and sends its choice as `device`.
 `apps/server/test/talk-remote.test.ts` pairs two stand-in servers and runs a turn on the worker, calls each route
 with good, missing and wrong keys, and checks the adapters alone. `node apps/server/scripts/talk-remote-harness.mjs`
 does the same turn once with the staged fixture (`apps/server/test/fixtures/talk/lighthouse.wav` and its `.txt`
-line) and writes `.runs/talk-remote-latency.json`: `{ transcript, replyText, ms, route, sha }`.
+line) and writes `.runs/talk-remote-latency.json`: `{ transcript, replyText, ms, route, sha }`. The test also joins
+a second stand-in worker under another name and switches turns between the two.
+
+With `HILDEGARD_SECOND_CODE` set (a join code from a live sharing device), or `HILDEGARD_SECOND_URL` and
+`HILDEGARD_SECOND_TOKEN`, the harness starts only the primary, joins that device and runs the turn there. It writes
+`.runs/talk-second-server-latency.json`, which adds `server` (the device's name and host) and `heardStagedLine`.
+[The second-server runbook](../runbooks/second-server.md) walks through it.
 
 ## Where this differs from the plan
 
