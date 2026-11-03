@@ -1486,12 +1486,18 @@ export function createApp(deps: AppDeps) {
     local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
   app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
-  // Only for a sharing address this server's own listener covers, reached from this computer. Never through a link
-  // (the access check above answers those 401 first), and never from the network: the sharing device's own address
-  // (the node-only app) is where other devices redeem.
-  app.use('/api/choir/redeem', async (c, next) =>
-    local(c) ? next() : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403),
-  );
+  // When the sharing address is this server's own port (an https name that Tailscale Serve forwards here, or the
+  // Studio's own address), devices redeem here: from this computer, or with the sharing address as Host. Never on
+  // the hosted listener behind the public link or front door. Otherwise the node-only app at the sharing address
+  // takes redeems.
+  app.use('/api/choir/redeem', async (c, next) => {
+    const share = deps.choir.listen();
+    const host = (c.req.header('host') ?? '').toLowerCase();
+    const viaShare = !!share && host === share.host.toLowerCase();
+    return !c.env?.hosted && (local(c) || viaShare)
+      ? next()
+      : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+  });
   app.route('/api/choir/redeem', redeemRoutes(deps.choir));
   app.post('/api/choir/invite', async (c) => {
     const refused = pairLocal(c);

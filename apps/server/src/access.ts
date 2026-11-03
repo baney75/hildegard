@@ -151,6 +151,9 @@ export function open(method: string, path: string): boolean {
   if (path === '/api/health') return true;
   if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
+  // A device not paired yet redeeming a short code. The route itself refuses the public link and any address but
+  // this computer's or the sharing one's.
+  if (method === 'POST' && path === '/api/choir/redeem') return true;
   // A speaker reading their consent line on their own phone: the link's token is the key.
   if (/^\/api\/consent\/[^/]+(\/recording)?$/.test(path)) return true;
   // A real person giving (or taking back) consent for a character of them: the one-time link is their key.

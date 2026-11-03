@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -382,7 +384,60 @@ describe('joining with a short code between two servers', () => {
     running.push(gpu);
     const hosted = gpu.hostedUrl()!;
     expect((await post(hosted, '/api/choir/invite', {})).status).toBe(401);
-    // Redeeming is not offered on the public link at all.
-    expect((await post(hosted, '/api/choir/redeem', { code: 'HG-0000-0000' })).status).toBe(401);
+    // Redeeming is not offered on the public link at all, and a refused try there counts nothing.
+    expect((await post(hosted, '/api/choir/redeem', { code: 'HG-0000-0000' })).status).toBe(403);
+  });
+
+  it('takes redeems on the Studio port when the sharing address is an https name forwarded there', async () => {
+    const gpu = await startServer(
+      {
+        ...parseArgs([
+          '--fake-gpu',
+          '--data',
+          mkdtempSync(join(tmpdir(), 'hg-sc-')),
+          '--allow-host',
+          'gpu.tail1234.ts.net',
+        ]),
+        port: 0,
+      },
+      { fakeTickMs: 30, secrets: memoryStore(), choirSecrets: secrets() },
+    );
+    running.push(gpu);
+    // An https sharing address means Tailscale Serve (or similar) forwards to this server's own port: no listener of
+    // its own starts, so devices redeem here with that name as Host. fetch can't set Host, so this uses http.request.
+    const inv = await shareFrom(gpu, 'https://gpu.tail1234.ts.net');
+    const viaServe = (hostName: string, body: unknown) =>
+      new Promise<{ status: number; body: string }>((done, fail) => {
+        const u = new URL(`${gpu.url}/api/choir/redeem`);
+        const req = httpRequest(
+          {
+            host: u.hostname,
+            port: u.port,
+            path: u.pathname,
+            method: 'POST',
+            headers: {
+              ...H,
+              host: hostName,
+              'x-forwarded-for': '100.64.0.9',
+              'tailscale-user-login': 'a@b',
+            },
+          },
+          (res) => {
+            let b = '';
+            res.on('data', (c) => (b += c));
+            res.on('end', () => done({ status: res.statusCode ?? 0, body: b }));
+          },
+        );
+        req.on('error', fail);
+        req.end(JSON.stringify(body));
+      });
+    const ok = await viaServe('gpu.tail1234.ts.net', { code: inv.short!.code, name: 'laptop' });
+    expect(ok.status, ok.body).toBe(200);
+    expect((JSON.parse(ok.body) as { url: string }).url).toBe('https://gpu.tail1234.ts.net');
+    // From the network under any other allowed name (here this computer's own), the guard refuses before the code
+    // is looked at.
+    const other = await viaServe(new URL(gpu.url).host, { code: 'HG-0000-0000' });
+    expect(other.status).toBe(403);
+    expect(other.body).toMatch(/sharing device’s own address/);
   });
 });
