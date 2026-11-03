@@ -2,8 +2,8 @@
 /**
  * Talk: one spoken turn. The owner speaks, a transcription model hears it, a language model answers, and a speech
  * model says the answer. Each step is a port (TalkStt, TalkLlm, TalkTts), so a step can run on another of the owner's
- * devices later without the turn changing; today all three run on this computer, through the voice studio and the
- * local language models. docs/architecture/talk-caps.md has the plan.
+ * devices without the turn changing: here through the voice studio and the local language models, or on a paired
+ * device through talk-remote.ts. docs/architecture/talk-caps.md has the plan.
  */
 import { basename } from 'node:path';
 import type { DeviceCapabilities, LlmEndpoint, LlmState, VoiceCatalog } from '@hildegard/presets';
@@ -16,6 +16,8 @@ export type TalkTurnRequest = {
   audio: Uint8Array | { uploadId: string };
   /** Optional language hint for STT. */
   language?: string;
+  /** A joined Choir device to hear, answer and speak on; left out, every step runs here. */
+  device?: string;
 };
 
 export type TalkTurnResult = {
@@ -23,20 +25,25 @@ export type TalkTurnResult = {
   replyText: string;
   /** Audio the primary should play (wav bytes or a job/media URL the Studio already knows how to fetch). */
   audio: { contentType: string; bytes?: Uint8Array; url?: string };
-  /** Which local caps were used (for Wed routing meters). */
-  route: { stt: 'local'; llm: 'local'; tts: 'local' };
+  /** Where each step ran: this computer, or the paired device the turn named. */
+  route: { stt: TalkWhere; llm: TalkWhere; tts: TalkWhere };
 };
+
+export type TalkWhere = 'local' | 'remote';
 
 export type TalkMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-/** Provider ports a remote device can implement too. Keep these pure. */
+/** Provider ports a remote device can implement too. Keep these pure. `where` is left out for this computer. */
 export interface TalkStt {
+  readonly where?: TalkWhere;
   transcribe(audioPath: string, language?: string): Promise<{ text: string }>;
 }
 export interface TalkLlm {
+  readonly where?: TalkWhere;
   complete(messages: TalkMessage[]): Promise<string>;
 }
 export interface TalkTts {
+  readonly where?: TalkWhere;
   speak(text: string): Promise<{ path: string; contentType: string }>;
 }
 
@@ -58,7 +65,7 @@ export interface TalkFiles {
 }
 
 export class TalkError extends Error {
-  readonly status: 400 | 409 | 502;
+  readonly status: 400 | 404 | 409 | 502;
   readonly code: string;
   constructor(status: TalkError['status'], code: string, message: string) {
     super(message);
@@ -103,7 +110,7 @@ export async function talkTurn(
     audio: url
       ? { contentType: said.contentType, url }
       : { contentType: said.contentType, bytes: await files.read(said.path) },
-    route: { stt: 'local', llm: 'local', tts: 'local' },
+    route: { stt: deps.stt.where ?? 'local', llm: deps.llm.where ?? 'local', tts: deps.tts.where ?? 'local' },
   };
 }
 

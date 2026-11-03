@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { homedir, hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -52,10 +53,20 @@ import { Scheduler } from './scheduler.ts';
 import { importUrl } from './site-import.ts';
 import { Sites } from './sites.ts';
 import { Store } from './store.ts';
-import { localLlm, localStt, localTts, pickTalkModel, stubLlm, talkReadiness } from './talk.ts';
+import {
+  localLlm,
+  localStt,
+  localTts,
+  pickTalkModel,
+  stubLlm,
+  TALK_VOICE,
+  TalkError,
+  talkReadiness,
+} from './talk.ts';
+import { type NodeTalkDeps, remoteLlm, remoteStt, remoteTts } from './talk-remote.ts';
 import type { TalkStatus } from './talk-routes.ts';
 import { runUpdate, Updates } from './update.ts';
-import { llmTranslator, VoiceStudio } from './voice.ts';
+import { llmTranslator, sniffAudio, VoiceError, VoiceStudio } from './voice.ts';
 import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
 import { VoiceModels } from './voice-models.ts';
 import { webReviewer } from './web-review.ts';
@@ -401,6 +412,8 @@ async function serveStudio(
     updates: () => updates,
     // The claim looked up every 30 s: paired devices give /info 4 s, and finding language models can take longer.
     capabilities: async () => choir.capabilities ?? capabilities(),
+    // Made further down too: Talk's own steps, lent to paired devices.
+    talk: () => nodeTalk,
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
@@ -482,7 +495,8 @@ async function serveStudio(
     },
     files: {
       save: async (bytes: Uint8Array) => join(voiceMedia, (await voice.upload(bytes)).name),
-      find: (uploadId: string) => join(voiceMedia, basename(uploadId)),
+      // Only a Talk upload: a consent recording or a voice reference is refused here, before any step runs anywhere.
+      find: (uploadId: string) => voice.uploadFile(uploadId),
       url: (path: string) => (dirname(path) === voiceMedia ? `/media/voice/${basename(path)}` : null),
       read: async (path: string) => new Uint8Array(await readFile(path)),
     },
@@ -505,6 +519,42 @@ async function serveStudio(
         capabilities: caps,
       };
     },
+  };
+  // A recording or an answer kept as a voice upload without decoding it, so a computer whose turns run on another
+  // device needs no voice engine of its own.
+  const keepAudio = async (bytes: Uint8Array) => {
+    const kind = sniffAudio(bytes);
+    if (!kind) throw new VoiceError(415, 'type', 'Use a WAV, MP3, M4A, OGG, FLAC or WebM recording.');
+    const path = join(voiceMedia, `${createHash('sha256').update(bytes).digest('hex')}.${kind}`);
+    mkdirSync(voiceMedia, { recursive: true });
+    if (!existsSync(path)) writeFileSync(path, bytes);
+    return path;
+  };
+  const onDevice = (name: string) => {
+    const peer = choir.peer(name);
+    if (!peer) throw new TalkError(404, 'device', `This computer hasn’t joined a device called ${name}.`);
+    const caps = peer.device.capabilities;
+    const voiceModel = voiceCatalog.voices.find((v) => v.id === TALK_VOICE)?.model;
+    if (!peer.device.online)
+      throw new TalkError(
+        409,
+        'device',
+        `${name} isn’t answering right now. ${peer.device.problem ?? ''}`.trim(),
+      );
+    if (!caps?.stt.length || !caps.llm.length || !(voiceModel && caps.tts.includes(voiceModel)))
+      throw new TalkError(409, 'device', `${name} can’t hear, answer and speak for Talk yet.`);
+    const o = { url: peer.url, token: peer.token, name };
+    return {
+      talk: { stt: remoteStt(o), llm: remoteLlm(o), tts: remoteTts({ ...o, save: keepAudio }) },
+      files: { ...talk.files, save: keepAudio },
+    };
+  };
+  const nodeTalk: NodeTalkDeps = {
+    ...talk.talk,
+    tts: (v) => localTts(voice, v),
+    voices: () => voiceCatalog.voices.map((v) => v.id),
+    files: talk.files,
+    safety: loadSafety(),
   };
   const host = new Host({
     dataDir: config.dataDir,
@@ -584,7 +634,7 @@ async function serveStudio(
     },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
-    talk,
+    talk: { ...talk, onDevice },
     likeness: new Likeness(config.dataDir),
     exporter,
     config,

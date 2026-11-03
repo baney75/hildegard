@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Icon, toastError } from '../components/ui.tsx';
 import { Clip, DropAudio } from '../components/voice.tsx';
 import { api, type TalkStatus, type TalkTurn } from '../lib/api.ts';
+import { talksThere } from '../lib/format.ts';
 import { toggle, useRecorder } from '../lib/voice.ts';
 import { micProblem, RecordButton } from './voice/Clone.tsx';
 
@@ -32,6 +33,9 @@ export function Talk() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState<Array<TalkTurn & { n: number }>>([]);
+  /** Joined devices a turn can run on, and the one chosen ('' for this computer). */
+  const [devices, setDevices] = useState<string[]>([]);
+  const [device, setDevice] = useState('');
 
   useEffect(() => {
     let live = true;
@@ -39,6 +43,10 @@ export function Talk() {
       .talk()
       .then((s) => live && setStatus(s))
       .catch((e) => live && setError((e as Error).message));
+    api
+      .choir()
+      .then((c) => live && setDevices(c.devices.filter(talksThere).map((d) => d.name)))
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -47,7 +55,7 @@ export function Talk() {
   const send = async (clip: Blob) => {
     setBusy(true);
     try {
-      const t = await api.talkTurn(clip);
+      const t = await api.talkTurn(clip, { device: device || undefined });
       setTurns((all) => [{ ...t, n: (all[0]?.n ?? 0) + 1 }, ...all].slice(0, 20));
       const url = replyUrl(t);
       if (url) toggle(url);
@@ -96,6 +104,19 @@ export function Talk() {
                 <span className="body-sm muted">Listening and answering…</span>
                 <span className="hg-spin" aria-hidden="true" />
               </div>
+            ) : null}
+            {devices.length ? (
+              <label className="hg-field--block">
+                Hear and answer on
+                <select className="hg-select" value={device} onChange={(e) => setDevice(e.target.value)}>
+                  <option value="">This computer</option>
+                  {devices.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
             ) : null}
             {status ? <p className="body-sm muted">{capsLine(status.capabilities, status.llm)}.</p> : null}
           </section>

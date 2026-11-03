@@ -6,7 +6,14 @@
 import type { DeviceCapabilities } from '@hildegard/presets';
 import { Hono } from 'hono';
 import type { Ctx, HgEnv } from './access.ts';
-import { explainTalk, type TalkDeps, type TalkFiles, type TalkTurnRequest, talkTurn } from './talk.ts';
+import {
+  explainTalk,
+  type TalkDeps,
+  TalkError,
+  type TalkFiles,
+  type TalkTurnRequest,
+  talkTurn,
+} from './talk.ts';
 
 const MAX_TURN = 25 * 1024 * 1024;
 
@@ -29,12 +36,22 @@ export interface TalkRouteDeps {
   status: () => Promise<TalkStatus>;
   /** Refuses anyone but the owner (or this computer); null to go on. */
   ownerOnly: (c: Ctx) => Response | null;
+  /**
+   * A turn on a joined Choir device: ports that call it, and files that keep the recording and the answer here.
+   * Throws a TalkError when that device isn't joined or can't hear, answer and speak.
+   */
+  onDevice?: (name: string) => { talk: TalkDeps; files: TalkFiles };
 }
 
-/** The turn's recording: a multipart upload (`audio`, and `language`), or JSON naming a voice upload. */
+/**
+ * The turn's recording: a multipart upload (`audio`, and `language`), or JSON naming a voice upload. Either may name a
+ * joined `device` to run the turn on.
+ */
 async function readTurn(c: Ctx): Promise<TalkTurnRequest | Response> {
   const type = c.req.header('content-type') ?? '';
   const lang = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 12) : undefined);
+  const device = (v: unknown) =>
+    typeof v === 'string' && v.trim() ? v.trim().toLowerCase().slice(0, 64) : undefined;
   if (Number(c.req.header('content-length') ?? 0) > MAX_TURN)
     return c.json({ error: 'Talk takes recordings up to 25 MB.', code: 'size' }, 413);
   if (type.startsWith('multipart/form-data')) {
@@ -44,13 +61,13 @@ async function readTurn(c: Ctx): Promise<TalkTurnRequest | Response> {
     if (f.size > MAX_TURN) return c.json({ error: 'Talk takes recordings up to 25 MB.', code: 'size' }, 413);
     const audio = new Uint8Array(await f.arrayBuffer());
     if (!audio.length) return c.json({ error: 'That recording is empty.', code: 'empty' }, 400);
-    return { audio, language: lang(form?.language) };
+    return { audio, language: lang(form?.language), device: device(form?.device) };
   }
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   const uploadId = body?.uploadId;
   if (typeof uploadId !== 'string' || !uploadId)
     return c.json({ error: 'Send a recording, or the id of one you uploaded.', code: 'empty' }, 400);
-  return { audio: { uploadId }, language: lang(body?.language) };
+  return { audio: { uploadId }, language: lang(body?.language), device: device(body?.device) };
 }
 
 export function talkRoutes(d: TalkRouteDeps) {
@@ -66,7 +83,10 @@ export function talkRoutes(d: TalkRouteDeps) {
     const req = await readTurn(c);
     if (req instanceof Response) return req;
     try {
-      const r = await talkTurn(d.talk, d.files, req);
+      const there = req.device && req.device !== 'local' ? d.onDevice?.(req.device) : null;
+      if (req.device && req.device !== 'local' && !there)
+        throw new TalkError(404, 'device', `This computer hasn’t joined a device called ${req.device}.`);
+      const r = await talkTurn(there?.talk ?? d.talk, there?.files ?? d.files, req);
       c.header('cache-control', 'no-store');
       return c.json({
         ...r,

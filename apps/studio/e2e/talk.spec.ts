@@ -68,3 +68,70 @@ test('takes an uploaded recording when the microphone can’t be used', async ({
   await expect(turn.getByTestId('talk-reply')).toContainText('You said:');
   expect(errors).toEqual([]);
 });
+
+test('offers a joined device that can hear, answer and speak, and sends the turn there', async ({ page }) => {
+  const errors = watchErrors(page);
+  const caps = {
+    mic: true,
+    speaker: true,
+    stt: ['whisper-small'],
+    tts: ['kokoro-82m'],
+    llm: [{ runtime: 'stub', model: 'hildegard-echo', vramGb: null }],
+    gpu: null,
+    compute: 'interactive',
+  };
+  await page.route('**/api/choir', async (route) => {
+    const res = await route.fetch();
+    const choir = await res.json();
+    const device = (name: string, online: boolean, tts = caps.tts) => ({
+      name,
+      url: 'http://100.64.0.9:7342',
+      online,
+      gpu: null,
+      version: null,
+      models: [],
+      fit: {},
+      fitWhy: {},
+      problem: null,
+      update: null,
+      opportunistic: null,
+      busy: null,
+      queue: null,
+      capabilities: { ...caps, tts },
+    });
+    await route.fulfill({
+      response: res,
+      json: {
+        ...choir,
+        devices: [device('desk', true), device('attic', false), device('porch', true, ['chatterbox'])],
+      },
+    });
+  });
+  let sent: string | null = null;
+  await page.route('**/api/talk/turn', async (route) => {
+    sent =
+      /name="device"\r\n\r\n([^\r]*)/.exec(route.request().postDataBuffer()?.toString('latin1') ?? '')?.[1] ??
+      '';
+    await route.fulfill({
+      json: {
+        transcript: HEARD,
+        replyText: `You said: “${HEARD}”`,
+        audio: { contentType: 'audio/wav', data: wav(0.2).toString('base64') },
+        route: { stt: 'remote', llm: 'remote', tts: 'remote' },
+      },
+    });
+  });
+  await page.goto('/#/talk');
+  const where = page.getByLabel('Hear and answer on');
+  // Only the device that is online and says it can do all three in Kokoro's voice.
+  await expect(where.locator('option')).toHaveText(['This computer', 'desk']);
+  await where.selectOption('desk');
+  await page
+    .getByLabel('Or upload a recording')
+    .setInputFiles({ name: 'q.wav', mimeType: 'audio/wav', buffer: wav() });
+  await expect(page.getByRole('region', { name: 'Latest turn' }).getByTestId('talk-transcript')).toHaveText(
+    HEARD,
+  );
+  expect(sent).toBe('desk');
+  expect(errors).toEqual([]);
+});
