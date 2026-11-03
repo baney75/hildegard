@@ -27,6 +27,8 @@ import { bold, dim, printResult, type Result } from './output.ts';
 const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own GPU.
 
   hildegard install          Install ComfyUI and PyTorch for this GPU, then start Hildegard
+                             (--server: for a computer that serves your other devices: speech and transcription
+                             too, and a service that starts it when you sign in: user systemd, or a LaunchAgent)
   hildegard setup            Pick a model that fits and link your AI apps
   hildegard start | stop     Run Hildegard in the background, or stop it
   hildegard status           What's installed and running

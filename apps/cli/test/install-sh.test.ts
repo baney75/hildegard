@@ -27,7 +27,7 @@ const fakeNode = (version: string) =>
 /** A fake app: logs each command, and installs with which bundle paths it was given; a command fails when told to. */
 const fakeApp = (version: string, fails: string | null) =>
   [
-    `if [ "$1" = install ]; then echo "${version} install resources=\${HILDEGARD_RESOURCES:-unset} presets=\${HILDEGARD_PRESETS_DIR:-unset} commit=\${HILDEGARD_COMMIT:-unset}" >> "$HG_LOG"; else echo "${version} $1" >> "$HG_LOG"; fi`,
+    `if [ "$1" = install ]; then echo "${version} install resources=\${HILDEGARD_RESOURCES:-unset} presets=\${HILDEGARD_PRESETS_DIR:-unset} commit=\${HILDEGARD_COMMIT:-unset}" >> "$HG_LOG"; echo "$*" >> "$HG_LOG.args"; else echo "${version} $1" >> "$HG_LOG"; fi`,
     `if [ "$1" = "${fails ?? ''}" ]; then echo "PyTorch download timed out" >&2; exit 3; fi`,
     'exit 0',
   ].join('\n');
@@ -89,8 +89,8 @@ function world(opts: { installFails: boolean; newNode: boolean; oldStartFails?: 
     .replaceAll(`@NODE_SHA_${key}@`, nodeSha);
   const file = join(t, 'install.sh');
   writeFileSync(file, script);
-  const run = (env: Record<string, string> = {}) =>
-    spawnSync('sh', [file], {
+  const run = (env: Record<string, string> = {}, args: string[] = []) =>
+    spawnSync('sh', [file, ...args], {
       encoding: 'utf8',
       input: 'echo this line must never run\n',
       env: {
@@ -113,7 +113,9 @@ function world(opts: { installFails: boolean; newNode: boolean; oldStartFails?: 
   const nodeVersion = () =>
     spawnSync(join(home, 'node', 'bin', 'node'), ['--version'], { encoding: 'utf8' }).stdout.trim();
   const report = () => (existsSync(join(t, 'report')) ? readFileSync(join(t, 'report'), 'utf8') : null);
-  return { home, bin, tools, run, said, nodeVersion, report };
+  const setupArgs = () =>
+    existsSync(`${log}.args`) ? readFileSync(`${log}.args`, 'utf8').trim().split('\n') : [];
+  return { home, bin, tools, run, said, nodeVersion, report, setupArgs };
 }
 
 describe.skipIf(process.platform === 'win32')('install.sh', () => {
@@ -182,6 +184,28 @@ describe.skipIf(process.platform === 'win32')('install.sh', () => {
     expect(w.nodeVersion()).toBe('v1.2.2');
     expect(existsSync(join(w.home, 'node.prev'))).toBe(false);
     expect(r.stderr.trim().split('\n').at(-1)).toMatch(/^hildegard: .*so 0\.1\.5 runs again/);
+  });
+
+  it('hands --server to setup, as `curl | sh -s -- --server` passes it', () => {
+    const w = world({ installFails: false, newNode: false });
+    const r = w.run({}, ['--server']);
+    expect(r.status).toBe(0);
+    expect(w.setupArgs()).toEqual(['install --yes --server']);
+    // Setup says what's next itself; the script adds nothing.
+    expect(r.stderr).not.toMatch(/install --yes --server/);
+  });
+
+  it('says how to finish a server when setup is skipped', () => {
+    const w = world({ installFails: false, newNode: false });
+    const r = w.run({ HILDEGARD_SKIP_SETUP: '1' }, ['--server']);
+    expect(r.status).toBe(0);
+    expect(w.setupArgs()).toEqual([]);
+    expect(r.stderr.trim().split('\n').at(-1)).toBe(
+      `To set it up to serve your other devices, run: ${w.bin}/hildegard install --yes --server`,
+    );
+    // Without --server it says nothing of the kind.
+    const plain = world({ installFails: false, newNode: false }).run({ HILDEGARD_SKIP_SETUP: '1' });
+    expect(plain.stderr).not.toMatch(/serve your other devices/);
   });
 
   it('says why it can’t run on another system', () => {

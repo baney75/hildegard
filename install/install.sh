@@ -5,6 +5,9 @@
 #
 #   curl -fsSL https://github.com/baney75/hildegard/releases/download/v@VERSION@/install.sh | sh
 #   curl -fsSL .../install.sh | sh -s -- --json         for agents: the last step prints JSON
+#   curl -fsSL .../install.sh | sh -s -- --server       a computer that serves your other devices: speech and
+#                                                       transcription too, and a service that starts Hildegard when
+#                                                       you sign in (a user systemd unit; on macOS, a LaunchAgent)
 #
 # What it does, in order:
 #   1. Downloads Node.js @NODE@ from nodejs.org and Hildegard @VERSION@ from GitHub, and checks each against the
@@ -100,6 +103,12 @@ arm64 | aarch64) arch=arm64 ;;
 *) die "there's no Hildegard build for $(uname -m) yet." ;;
 esac
 target=$os-$arch
+
+# --server goes on to setup with the rest; this script only needs to know, to say what's next when setup is skipped.
+server=
+for a in "$@"; do
+  case $a in --server) server=1 ;; esac
+done
 
 app_sha() {
   case $1 in
@@ -225,6 +234,8 @@ if [ "${HILDEGARD_SKIP_SETUP:-}" != 1 ]; then
     failure="setting up $VERSION failed (exit $status)"
     exit $status
   }
+elif [ -n "$server" ]; then
+  say "To set it up to serve your other devices, run: $bin/hildegard install --yes --server"
 fi
 committed=1
 rm -rf "$home/node.prev"
