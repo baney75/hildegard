@@ -27,6 +27,7 @@ import { type Choir, TOKEN_RE } from './choir.ts';
 import type { NodeEvent, NodeInfo } from './remote-engine.ts';
 import type { Scheduler } from './scheduler.ts';
 import { explain } from './scheduler.ts';
+import { type NodeTalkDeps, nodeTalkRoutes } from './talk-remote.ts';
 import type { Updates } from './update.ts';
 
 /** A start frame is up to 20 MB and each of four reference images up to 10 MB: their base64 and the graph fit in this. */
@@ -83,6 +84,8 @@ export interface NodeDeps {
   updates?: () => Pick<Updates, 'state' | 'request'>;
   /** What this computer can do for Talk and rendering (capabilities.ts); left out by older callers. */
   capabilities?: () => Promise<DeviceCapabilities>;
+  /** Talk's steps, lent to paired devices on /transcribe, /complete and /speak (talk-remote.ts). */
+  talk?: () => NodeTalkDeps;
 }
 
 /** Bearer auth with a paired device's key. Wrong, missing or revoked keys all get the same 401. */
@@ -125,6 +128,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
 
   const app = new Hono();
   app.use('*', pairedOnly(choir));
+  if (deps.talk) app.route('/', nodeTalkRoutes(deps.talk));
 
   app.get('/info', async (c) => {
     const states = deps.models();

@@ -543,6 +543,14 @@ export class Choir {
     this.emit();
   }
 
+  /** A joined device by name, with how to reach it, for work other than renders (Talk); null when not joined. */
+  peer(name: string): { device: ChoirDevice; url: string; token: () => string | null } | null {
+    const d = this.joined.devices.find((x) => x.name === name);
+    if (!d) return null;
+    const secret = this.secret(d.name);
+    return { device: this.device(d.name, d.url), url: d.url, token: () => secret.get() };
+  }
+
   /** The device renders go to, when it isn't this computer. */
   active(): ChoirDevice | null {
     const name = this.target();

@@ -355,10 +355,12 @@ export const api = {
   voiceUses: (id: string) => call<VoiceUse[]>('GET', `/api/voice/voices/${id}/uses`),
   talk: () => call<TalkStatus>('GET', '/api/talk'),
   /** One spoken turn: the recording goes up, the transcript, the answer and its audio come back. */
-  talkTurn: (audio: Blob, language?: string) => {
+  /** One turn; `device` names a joined device to hear, answer and speak on instead of this computer. */
+  talkTurn: (audio: Blob, opts: { language?: string; device?: string } = {}) => {
     const form = new FormData();
     form.set('audio', audio, 'turn');
-    if (language) form.set('language', language);
+    if (opts.language) form.set('language', opts.language);
+    if (opts.device) form.set('device', opts.device);
     return call<TalkTurn>('POST', '/api/talk/turn', undefined, form);
   },
   uploadAudio: (file: Blob) => call<AudioUpload>('POST', '/api/voice/uploads', undefined, file),
