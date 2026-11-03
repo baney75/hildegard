@@ -677,6 +677,7 @@ async function serveStudio(
       const ts = tailnet();
       return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
     },
+    clock: opts.now,
     invite: async (url, key) => {
       const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);

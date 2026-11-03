@@ -425,6 +425,19 @@ export interface AgentGrant {
   lastUsedAt: string | null;
   /** When it stops working on its own; null for a key that lasts until it is revoked. */
   expiresAt: string | null;
+  /** A chatbot: approved with a passphrase, or with a one-time connect code the person made. */
+  approval?: 'passphrase' | 'code';
+}
+
+/** POST /api/auth/codes: a one-time code to approve a chatbot's connection. */
+export interface ConnectCode {
+  /** `HG-XXXX-XXXX`, good once for 10 minutes. */
+  code: string;
+  expiresAt: string;
+  /** Who it approves as: the owner who made it. */
+  person: { id: string; name: string };
+  /** The address to give the chatbot, once Hildegard is at a link. */
+  mcpUrl: string | null;
 }
 
 /** POST /api/choir/invite: what the sharing device hands the other one. */

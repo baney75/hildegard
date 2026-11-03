@@ -16,6 +16,7 @@ import {
   type Character,
   type CharacterRef,
   type ChoirInvite,
+  type ConnectCode,
   CreateCharacter,
   type CreateShotBody,
   characterText,
@@ -72,6 +73,7 @@ import {
 } from './access.ts';
 import { type Choir, ChoirError } from './choir.ts';
 import { redeemRoutes } from './choir-redeem.ts';
+import { CodeBook } from './codes.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
@@ -159,6 +161,8 @@ export interface AppDeps {
    * the other device made (a rented GPU it started), instead of a fresh one.
    */
   invite: (url?: string, key?: string) => Promise<ChoirInvite>;
+  /** The clock for connect codes and their limits: tests give a fake one. */
+  clock?: () => number;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
   /** Who may sign in from other devices. */
@@ -1895,6 +1899,11 @@ export function createApp(deps: AppDeps) {
 
   // ── Keys and chatbots: what AI apps on other devices use the MCP with ───────────────────────────────────────
   const { grants } = deps;
+  /** One-time codes an owner makes to approve a chatbot: hashes only, good once for 10 minutes. */
+  const connectCodes = new CodeBook<{ personId: string }>({
+    file: join(config.dataDir, 'people', 'connect-codes.json'),
+    now: deps.clock,
+  });
   people.onPassphrase((personId) => grants.endChatbots(personId));
   const mcpUrl = () => {
     const u = host.state().url;
@@ -1913,6 +1922,31 @@ export function createApp(deps: AppDeps) {
       grants: grants.list(isOwner(c) ? null : (personOf(c)?.id ?? null)),
       mcpUrl: mcpUrl(),
     } satisfies GrantsResponse);
+  });
+  app.post('/api/auth/codes', (c) => {
+    c.header('cache-control', 'no-store');
+    // Owners only: a code approves a chatbot as the owner who made it. This computer counts as the owner here.
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    const me = personOf(c) ?? people.list().find((p) => p.role === 'owner');
+    if (!me)
+      return c.json(
+        {
+          error: 'Make the owner account first, so a code has someone to approve as.',
+          fix: 'hildegard host owner',
+        },
+        409,
+      );
+    const { code, expiresAt } = connectCodes.mint({ personId: me.id });
+    return c.json(
+      {
+        code,
+        expiresAt: new Date(expiresAt).toISOString(),
+        person: { id: me.id, name: me.name },
+        mcpUrl: mcpUrl(),
+      } satisfies ConnectCode,
+      201,
+    );
   });
   app.post('/api/auth/keys', async (c) => {
     c.header('cache-control', 'no-store');
@@ -2162,7 +2196,16 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── MCP over HTTP, and the OAuth that lets chatbots sign in to it ───────────────────────────────────────────
-  oauthRoutes(app, { grants, people, limited, failed, perName, fetchMetadata: deps.fetchMetadata });
+  oauthRoutes(app, {
+    grants,
+    people,
+    limited,
+    failed,
+    perName,
+    connectCodes,
+    fetchMetadata: deps.fetchMetadata,
+    now: deps.clock,
+  });
   remoteMcpRoutes(app, { grants, signer: deps.signer, fetch: (r, env) => app.fetch(r, env) });
   llmProxyRoutes(app, { llm: deps.llm, grants });
 
