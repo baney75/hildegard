@@ -48,20 +48,26 @@ loopback only.
 
 ## 4. Pair it
 
-On the server, make a join code. The server then also listens on its own Tailscale address, for `/api/node/*`
+On the server, make a long join code. The server then also listens on its own Tailscale address, for `/api/node/*`
 only. The code holds a key: write it to a file only you can read, and never paste it into a log or a chat.
 
 ```sh
 ssh abbey1 '
   d=~/.local/share/hildegard-abbey1-talk; umask 077
-  curl -s -X POST -H "x-hildegard: 1" -H "content-type: application/json" -d "{}" \
+  curl -s -X POST -H "x-hildegard: 1" -H "content-type: application/json" -d "{\"long\": true}" \
     http://127.0.0.1:47341/api/choir/invite > $d/invite.json'
 ```
 
-`invite.json` has `code` and `url`. Keep `code` in its own 0600 file (`$d/code`) and delete `invite.json`.
+`invite.json` has `code` (the long `hgc1_` code) and `url`. Keep `code` in its own 0600 file (`$d/code`) and
+delete `invite.json`. Without `"long": true` the invite gives only a short `HG-XXXX-XXXX` code under `short` and
+`code` is `null`, so there is nothing to keep.
 
-On an installed Hildegard the same step is `hildegard choir invite --json`, and the primary joins with
+On an installed Hildegard the same step is `hildegard choir invite --long --json`, and the primary joins with
 `printf %s "$CODE" | hildegard choir join --code-stdin --json`.
+
+A short code is for typing on the other device. It works once, for 10 minutes, and names no address, so the harness
+needs the invite's `url` with it: set `HILDEGARD_SECOND_URL` next to `HILDEGARD_SECOND_CODE`. Given a short code
+alone, the harness stops and says so.
 
 ## 5. Run one Talk turn there
 

@@ -7,8 +7,9 @@
  * the worker. Writes `.runs/talk-remote-latency.json` at the repository root.
  *
  * With a live sharing device in the environment, it starts only the primary, joins that device, and runs the turn
- * there. Give the device's join code as `HILDEGARD_SECOND_CODE`, or its address and key as `HILDEGARD_SECOND_URL`
- * and `HILDEGARD_SECOND_TOKEN` (with `HILDEGARD_SECOND_NAME`, default `second`). Writes
+ * there. Give the device's long `hgc1_` join code as `HILDEGARD_SECOND_CODE`; a short `HG-XXXX-XXXX` code there also
+ * needs the device's address as `HILDEGARD_SECOND_URL`. Or give its address and key as `HILDEGARD_SECOND_URL` and
+ * `HILDEGARD_SECOND_TOKEN` (with `HILDEGARD_SECOND_NAME`, default `second`). Writes
  * `.runs/talk-second-server-latency.json`. The key is never printed or written.
  *
  *   node apps/server/scripts/talk-remote-harness.mjs [--fixture path/to/recording.wav]
@@ -24,7 +25,8 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs as cli } from 'node:util';
-import { encodeJoinCode, parseJoinCode } from '../src/choir.ts';
+import { encodeJoinCode } from '../src/choir.ts';
+import { looksLikeCode } from '../src/codes.ts';
 import { parseArgs } from '../src/config.ts';
 import { startServer } from '../src/server.ts';
 
@@ -51,6 +53,14 @@ const second = env.HILDEGARD_SECOND_CODE
     : null;
 if (!second && (env.HILDEGARD_SECOND_URL || env.HILDEGARD_SECOND_TOKEN)) {
   console.error('Set both HILDEGARD_SECOND_URL and HILDEGARD_SECOND_TOKEN, or HILDEGARD_SECOND_CODE.');
+  process.exit(2);
+}
+// A short code names no address, so the primary needs one to redeem it.
+const secondUrl = second && looksLikeCode(second) ? env.HILDEGARD_SECOND_URL : undefined;
+if (second && looksLikeCode(second) && !secondUrl) {
+  console.error(
+    'A short HG- code needs the device’s address too: set HILDEGARD_SECOND_URL to the `url` its invite gave, or make a long code with `{"long": true}` (`hildegard choir invite --long`).',
+  );
   process.exit(2);
 }
 
@@ -97,17 +107,15 @@ const start = (dir) =>
   );
 const H = { 'x-hildegard': '1' };
 
-const pair = async (primary, code) => {
+const pair = async (primary, code, url) => {
   const joined = await fetch(`${primary.url}/api/choir/join`, {
     method: 'POST',
     headers: { ...H, 'content-type': 'application/json' },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, ...(url ? { url } : {}) }),
   });
-  if (joined.status !== 201) {
-    const why = await joined.json().catch(() => ({}));
-    throw new Error(`join: HTTP ${joined.status} ${why.error ?? ''}`);
-  }
-  return parseJoinCode(code);
+  const r = await joined.json().catch(() => ({}));
+  if (joined.status !== 201) throw new Error(`join: HTTP ${joined.status} ${r.error ?? ''}`);
+  return r.device;
 };
 
 /** Ask the primary for a turn on `name`, fetch the answer it plays, and time both. */
@@ -147,7 +155,7 @@ const primary = await start(mkdtempSync(join(tmpdir(), 'hg-harness-primary-')));
 let worker = null;
 try {
   if (second) {
-    const { name, url } = await pair(primary, second);
+    const { name, url } = await pair(primary, second, secondUrl);
     const { r, ms, audioBytes } = await turn(primary, name);
     save('talk-second-server-latency.json', {
       transcript: r.transcript,
