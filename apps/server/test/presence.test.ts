@@ -266,6 +266,7 @@ describe('who sees why a GPU is busy', () => {
           opportunistic: true,
           busy: 'ollama is using the GPU.',
           queue: 0,
+          capabilities: null,
         },
       ],
       sharing: {
@@ -278,6 +279,7 @@ describe('who sees why a GPU is busy', () => {
         busy: 'llama-server is using the GPU.',
         seesOwner: true,
       },
+      capabilities: null,
     };
     const director: Who = {
       kind: 'person',

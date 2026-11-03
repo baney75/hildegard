@@ -8,6 +8,7 @@ import type { ChoirDevice, ChoirState, GuestTake, Snapshot, Take } from '@hildeg
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eventFilter, snapshotFor, type Who } from '../src/access.ts';
 import { busyCheck, busyFrom, nvidiaPercent } from '../src/busy.ts';
+import { readCapabilities } from '../src/capabilities.ts';
 import {
   Choir,
   checkUrl,
@@ -22,7 +23,7 @@ import {
 import { parseArgs } from '../src/config.ts';
 import type { SecretStore } from '../src/hf.ts';
 import { guestName, MAX_RENDER_BODY } from '../src/node-api.ts';
-import { RemoteEngine } from '../src/remote-engine.ts';
+import { type NodeInfo, RemoteEngine } from '../src/remote-engine.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -692,7 +693,17 @@ describe('the sharing device’s door', () => {
     fetch(shareUrl + path, { ...init, headers: { authorization: `Bearer ${key}`, ...(init.headers ?? {}) } });
 
   it('answers a paired device, and a wrong or missing key gets 401', async () => {
-    expect((await node('/api/node/info')).status).toBe(200);
+    const info = (await (await node('/api/node/info')).json()) as NodeInfo;
+    // What it can do for Talk, and the joined device shows the same claim.
+    expect(readCapabilities(info.capabilities)).toMatchObject({
+      mic: true,
+      stt: ['whisper-small'],
+      llm: [{ runtime: 'stub' }],
+      gpu: { name: 'Stand-in GPU' },
+      compute: 'interactive',
+    });
+    const joined = (await (await fetch(`${mac.url}/api/choir`, { headers: H })).json()) as ChoirState;
+    expect(joined.devices[0]!.capabilities).toEqual(info.capabilities);
     expect((await node('/api/node/info', {}, newToken())).status).toBe(401);
     expect((await fetch(`${shareUrl}/api/node/info`)).status).toBe(401);
     expect(

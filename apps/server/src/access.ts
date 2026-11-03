@@ -186,7 +186,11 @@ function choirFor(who: Who | null, s: ChoirState): ChoirState {
   return {
     use: s.use,
     rendering: s.rendering,
-    devices: s.devices.filter((d) => d.name === s.rendering).map((d) => ({ ...d, url: '', busy: null })),
+    devices: s.devices
+      .filter((d) => d.name === s.rendering)
+      .map((d) => ({ ...d, url: '', busy: null, capabilities: null })),
+    // What the owner's computers run is the owner's business.
+    capabilities: null,
     sharing: {
       on: false,
       url: null,

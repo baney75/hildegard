@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { homedir, hostname } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import {
@@ -18,6 +19,7 @@ import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
+import { localCapabilities, STUB_LLM } from './capabilities.ts';
 import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf, withRemoteFit } from './choir.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
@@ -50,6 +52,8 @@ import { Scheduler } from './scheduler.ts';
 import { importUrl } from './site-import.ts';
 import { Sites } from './sites.ts';
 import { Store } from './store.ts';
+import { localLlm, localStt, localTts, stubLlm } from './talk.ts';
+import type { TalkStatus } from './talk-routes.ts';
 import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, VoiceStudio } from './voice.ts';
 import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
@@ -395,6 +399,8 @@ async function serveStudio(
     fake: config.fake,
     // Made further down, and only asked once requests arrive.
     updates: () => updates,
+    // The claim looked up every 30 s: paired devices give /info 4 s, and finding language models can take longer.
+    capabilities: async () => choir.capabilities ?? capabilities(),
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
@@ -447,6 +453,62 @@ async function serveStudio(
     translate: llmTranslator(llm, jsonFrom),
     device: () => hostname(),
   });
+  // What this computer can do for Talk and rendering: paired devices read it, and so does the Studio, in choir state.
+  const capabilities = () =>
+    localCapabilities({
+      fake: config.fake,
+      gpu,
+      voice: { catalog: voiceCatalog, usable: (m) => voiceModels.usable(m) },
+      llm: () => llm.state(),
+    });
+  const lookCapabilities = async () => {
+    const c = await capabilities().catch(() => null);
+    if (c && JSON.stringify(c) !== JSON.stringify(choir.capabilities)) {
+      choir.capabilities = c;
+      // Only the Studio's view changes: nothing about where takes go or what is shared.
+      store.emit({ type: 'choir', choir: choir.state() });
+    }
+  };
+  void lookCapabilities();
+  setInterval(() => void lookCapabilities(), 30_000).unref();
+
+  // Talk: every step on this computer for now; each is a port another device can fill later.
+  const voiceMedia = join(mediaDir, 'voice');
+  const talk = {
+    talk: {
+      stt: localStt(voice, { fake: config.fake }),
+      llm: config.fake ? stubLlm() : localLlm(llm),
+      tts: localTts(voice),
+    },
+    files: {
+      save: async (bytes: Uint8Array) => join(voiceMedia, (await voice.upload(bytes)).name),
+      find: (uploadId: string) => join(voiceMedia, basename(uploadId)),
+      url: (path: string) => (dirname(path) === voiceMedia ? `/media/voice/${basename(path)}` : null),
+      read: async (path: string) => new Uint8Array(await readFile(path)),
+    },
+    status: async (): Promise<TalkStatus> => {
+      const caps = await capabilities();
+      const engine = voiceEngine.ready('speech');
+      const answers = config.fake
+        ? { runtime: STUB_LLM.runtime, model: STUB_LLM.model }
+        : await llm
+            .pick()
+            .then((p) => ({ runtime: p.endpoint.runtime, model: p.model }))
+            .catch(() => null);
+      const missing = [caps.stt.length ? null : 'Whisper', caps.tts.length ? null : 'Kokoro'].filter(Boolean);
+      return {
+        ready: engine && !missing.length,
+        fake: config.fake,
+        problem: !engine
+          ? 'The voice engine isn’t installed on this computer yet. Run `hildegard voice install`.'
+          : missing.length
+            ? `Talk needs ${missing.join(' and ')}. Install ${missing.length > 1 ? 'them' : 'it'} in Voice › Models.`
+            : null,
+        llm: answers,
+        capabilities: caps,
+      };
+    },
+  };
   const host = new Host({
     dataDir: config.dataDir,
     port: () => port,
@@ -525,6 +587,7 @@ async function serveStudio(
     },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
+    talk,
     likeness: new Likeness(config.dataDir),
     exporter,
     config,

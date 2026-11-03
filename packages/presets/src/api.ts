@@ -217,6 +217,23 @@ export interface ExportState {
   createdAt: string;
 }
 
+/**
+ * What a device says it can do for Talk and for rendering: its own microphone and speaker, the speech and language
+ * models it runs, its GPU, and whether it serves people as they wait or works through batches.
+ */
+export interface DeviceCapabilities {
+  mic: boolean;
+  speaker: boolean;
+  /** Transcription models it can run now, by voice model id, such as "whisper-small". */
+  stt: string[];
+  /** Speech models it can run now, by voice model id, such as "kokoro-82m". */
+  tts: string[];
+  /** Language models running on it. */
+  llm: Array<{ runtime: string; model: string; vramGb: number | null }>;
+  gpu: { name: string; vramGb: number | null } | null;
+  compute: 'interactive' | 'batch';
+}
+
 /** A device this computer joined, to render on its GPU. */
 export interface ChoirDevice {
   name: string;
@@ -242,6 +259,8 @@ export interface ChoirDevice {
   busy: string | null;
   /** Renders queued or running there, as it last said. */
   queue: number | null;
+  /** What it says it can do; null until it says (versions before 0.1.14 don't). */
+  capabilities: DeviceCapabilities | null;
 }
 
 /** Choir: rendering on another of your devices, and sharing this one's GPU with them. */
@@ -251,6 +270,8 @@ export interface ChoirState {
   /** Where the take rendering now, or next, goes: "local" or a device's name. The same as `use` unless that's "auto". */
   rendering: string;
   devices: ChoirDevice[];
+  /** What this computer says it can do, as its joined devices see it in theirs; null until the server has looked. */
+  capabilities: DeviceCapabilities | null;
   /** This computer shares its GPU: paired devices may render here. */
   sharing: {
     on: boolean;
