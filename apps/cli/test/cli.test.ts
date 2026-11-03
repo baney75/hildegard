@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFile, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtempSync, readFileSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -714,6 +715,168 @@ describe('host and doctor', () => {
       await node.close();
     }
   }, 120_000);
+
+  it('makes a one-time connect code for a chatbot, and lists the chatbot as approved by code', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-code-'));
+    const hostPort = 7800 + Math.floor(Math.random() * 400);
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 'secret.json')),
+        exec: async (_c, a) => ({
+          ok: true,
+          out:
+            a[0] === 'status'
+              ? JSON.stringify({
+                  BackendState: 'Running',
+                  Self: { DNSName: 'studio.example.ts.net.', TailscaleIPs: ['100.64.0.1'] },
+                })
+              : a[1] === 'status'
+                ? '{}'
+                : '',
+        }),
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    const link = srv.hostedUrl()!;
+    try {
+      // No owner yet: nobody to approve as.
+      const none = await hildegard(home, 'host', 'code', ...at);
+      expect(none.needsOwner).toBe(true);
+      expect(none.steps[0]).toMatchObject({ id: 'code', command: 'hildegard host owner' });
+      await hildegardWithStdin(
+        home,
+        'a long and private passphrase\n',
+        'host',
+        'owner',
+        '--name',
+        'Alex',
+        '--passphrase-stdin',
+        ...at,
+      );
+
+      // Before there is a link, the code exists but the chatbot has nowhere to go.
+      const early = await hildegard(home, 'host', 'code', ...at);
+      expect(early.code).toMatch(/^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
+      expect(early.mcpUrl).toBeNull();
+      expect(early.steps[0]).toMatchObject({ status: 'needs-owner', command: 'hildegard host' });
+
+      expect((await hildegard(home, 'host', ...at)).ok).toBe(true);
+      const made = await hildegard(home, 'host', 'code', ...at);
+      expect(made.ok).toBe(true);
+      expect(made.mcpUrl).toBe('https://studio.example.ts.net/mcp');
+      expect(made.person).toMatchObject({ name: 'Alex' });
+      expect(Date.parse(made.expiresAt as string) - Date.now()).toBeGreaterThan(9 * 60_000);
+      expect(made.steps[0]).toMatchObject({
+        id: 'code',
+        status: 'done',
+        detail: expect.stringContaining(made.code as string),
+      });
+
+      // A chatbot uses it on Hildegard’s page (through the link’s listener, as Tailscale would forward it).
+      const redirect = 'https://chat.example/oauth/callback';
+      const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk-0123456789';
+      const reg = await fetch(`${link}/oauth/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ client_name: 'Chat Example', redirect_uris: [redirect] }),
+      });
+      const clientId = ((await reg.json()) as { client_id: string }).client_id;
+      const challenge = createHash('sha256').update(verifier).digest('base64url');
+      const q = new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: redirect,
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        resource: 'https://studio.example.ts.net/mcp',
+      });
+      const authz = `${link}/oauth/authorize?${q}`;
+      // The page is served for the link’s own name, as Tailscale would present it.
+      const page = await new Promise<string>((resolve, reject) => {
+        const u = new URL(authz);
+        httpRequest(
+          {
+            host: u.hostname,
+            port: u.port,
+            path: u.pathname + u.search,
+            headers: { host: 'studio.example.ts.net', 'x-forwarded-proto': 'https' },
+          },
+          (r) => {
+            let b = '';
+            r.on('data', (d) => (b += d));
+            r.on('end', () => resolve(b));
+          },
+        )
+          .on('error', reject)
+          .end();
+      });
+      const request = /name="request" value="([^"]+)"/.exec(page)![1]!;
+      const posted = await new Promise<{ status: number; location: string }>((resolve, reject) => {
+        const body = new URLSearchParams({
+          request,
+          decision: 'allow',
+          code: made.code as string,
+        }).toString();
+        const u = new URL(`${link}/oauth/authorize`);
+        const req = httpRequest(
+          {
+            host: u.hostname,
+            port: u.port,
+            path: u.pathname,
+            method: 'POST',
+            headers: {
+              host: 'studio.example.ts.net',
+              'x-forwarded-proto': 'https',
+              origin: 'https://studio.example.ts.net',
+              'content-type': 'application/x-www-form-urlencoded',
+            },
+          },
+          (r) => resolve({ status: r.statusCode!, location: String(r.headers.location ?? '') }),
+        );
+        req.on('error', reject);
+        req.end(body);
+      });
+      expect(posted.status).toBe(303);
+      const authCode = new URL(posted.location).searchParams.get('code')!;
+      const tok = await new Promise<number>((resolve, reject) => {
+        const u = new URL(`${link}/oauth/token`);
+        const req = httpRequest(
+          {
+            host: u.hostname,
+            port: u.port,
+            path: u.pathname,
+            method: 'POST',
+            headers: {
+              host: 'studio.example.ts.net',
+              'x-forwarded-proto': 'https',
+              'content-type': 'application/x-www-form-urlencoded',
+            },
+          },
+          (r) => resolve(r.statusCode!),
+        );
+        req.on('error', reject);
+        req.end(
+          new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: authCode,
+            client_id: clientId,
+            redirect_uri: redirect,
+            code_verifier: verifier,
+          }).toString(),
+        );
+      });
+      expect(tok).toBe(200);
+
+      const keys = await hildegard(home, 'host', 'keys', ...at);
+      expect(keys.steps[0]!.detail).toContain('approved by code from Alex');
+      expect(keys.grants).toMatchObject([{ kind: 'chatbot', approval: 'code', person: { name: 'Alex' } }]);
+    } finally {
+      await srv.close();
+    }
+  }, 90_000);
 
   it('makes a key on one device and links an app on another to that Hildegard, key kept out of its config', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-key-'));

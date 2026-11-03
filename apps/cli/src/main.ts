@@ -49,9 +49,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard disconnect <app>
   hildegard hf login         Link your Hugging Face account (hf status, hf logout). The token goes to
                              your system keychain; pipe one in with --token-stdin
-  hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a join code
+  hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a short code (HG-XXXX-XXXX)
                              (--url to give the address yourself; choir revoke stops sharing)
-  hildegard choir join       On a computer without a big GPU: paste that code, and takes render there
+  hildegard choir join       On a computer without a big GPU: give that code (join HG-XXXX-XXXX [--url <address>]), and takes render there
   hildegard choir list       Devices, and which one renders (choir use <device|local|auto>, choir leave <device>);
                              use auto sends each take to the device free for it, this one included
   hildegard choir opportunistic on|off
@@ -65,6 +65,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              --public-url https://<name>: your own HTTPS front door, such as a Cloudflare tunnel)
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
+  hildegard host code        A one-time code (HG-XXXX-XXXX, 10 minutes) to approve claude.ai or ChatGPT
+                             on Hildegard's page instead of typing your name and passphrase
   hildegard host key <name>  A key for an AI app on another device (host keys: keys and chatbots;
                              host keys revoke <id|name>). Chatbots sign in at the link's /mcp themselves
   hildegard llm              Local models running here (Ollama, LM Studio, llama.cpp, vLLM, MLX, Jan, Local AI),
