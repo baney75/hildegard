@@ -12,7 +12,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
-import type { ChoirDevice, ChoirState, ModelState, Priority } from '@hildegard/presets';
+import type { ChoirDevice, ChoirState, DeviceCapabilities, ModelState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
 import type { SecretStore } from './hf.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
@@ -290,6 +290,8 @@ export class Choir {
   private readonly onChange: (s: ChoirState) => void;
   private readonly fetchFn: typeof fetch;
   sharingProblem: string | null = null;
+  /** This computer's own capabilities, which the server looks up now and then; null until it has. */
+  capabilities: DeviceCapabilities | null = null;
 
   constructor(opts: {
     dataDir: string;
@@ -332,6 +334,7 @@ export class Choir {
       use: this.joined.use,
       rendering: this.target(),
       devices: this.joined.devices.map((d) => this.device(d.name, d.url)),
+      capabilities: this.capabilities,
       sharing: {
         on: !!this.sharing,
         url: this.sharing?.url ?? null,
@@ -362,6 +365,7 @@ export class Choir {
       opportunistic: i?.opportunistic ?? null,
       busy: i?.busy ?? null,
       queue: i?.queue ?? null,
+      capabilities: i?.capabilities ?? null,
     };
   }
 

@@ -263,7 +263,7 @@ function Whose({
 }
 
 /** The live meter while recording, and the record button. */
-function RecordButton({ rec, label }: { rec: ReturnType<typeof useRecorder>; label: string }) {
+export function RecordButton({ rec, label }: { rec: ReturnType<typeof useRecorder>; label: string }) {
   const on = rec.state === 'recording';
   return (
     <div className="hg-recbar">
@@ -290,7 +290,7 @@ function RecordButton({ rec, label }: { rec: ReturnType<typeof useRecorder>; lab
   );
 }
 
-function micProblem(state: ReturnType<typeof useRecorder>['state']): string | null {
+export function micProblem(state: ReturnType<typeof useRecorder>['state']): string | null {
   if (state === 'denied')
     return 'Hildegard can’t use the microphone. Allow it in your browser’s site settings, or upload a recording instead.';
   if (state === 'unsupported') return 'This browser can’t record here. Upload a recording instead.';

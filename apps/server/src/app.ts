@@ -97,6 +97,7 @@ import type { Scheduler } from './scheduler.ts';
 import { previewRoutes, type SiteRouteDeps, siteRoutes } from './site-routes.ts';
 import type { Sites } from './sites.ts';
 import type { Store } from './store.ts';
+import { type TalkRouteDeps, talkRoutes } from './talk-routes.ts';
 import type { Updates } from './update.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
@@ -180,6 +181,8 @@ export interface AppDeps {
   updates: Updates;
   /** The voice studio: speech, voices, consent. */
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
+  /** Talk: one spoken turn, heard, answered and said back on this computer. */
+  talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
   likeness: Likeness;
   /** Generate, render, critique, refine: agents iterating on 3D models and other media. */
@@ -2204,6 +2207,7 @@ export function createApp(deps: AppDeps) {
     );
     app.route('/api/consent', consentLinkRoutes(v.studio));
   }
+  if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 
   // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────
   if (deps.loops)

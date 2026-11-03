@@ -12,6 +12,7 @@ import { Readable } from 'node:stream';
 import { type BuiltGraph, catalogFiles, EngineError, graphSafety, vetGraph } from '@hildegard/comfy';
 import {
   type Catalog,
+  type DeviceCapabilities,
   loadSafety,
   type ModelState,
   REFUSAL_MESSAGE,
@@ -80,6 +81,8 @@ export interface NodeDeps {
   fake: boolean;
   /** This computer's updates, which the owner's other devices may see and start. */
   updates?: () => Pick<Updates, 'state' | 'request'>;
+  /** What this computer can do for Talk and rendering (capabilities.ts); left out by older callers. */
+  capabilities?: () => Promise<DeviceCapabilities>;
 }
 
 /** Bearer auth with a paired device's key. Wrong, missing or revoked keys all get the same 401. */
@@ -123,8 +126,9 @@ export function nodeRoutes(deps: NodeDeps): Hono {
   const app = new Hono();
   app.use('*', pairedOnly(choir));
 
-  app.get('/info', (c) => {
+  app.get('/info', async (c) => {
     const states = deps.models();
+    const capabilities = await deps.capabilities?.().catch(() => undefined);
     const info: NodeInfo = {
       id: choir.id,
       name: choir.sharingName(),
@@ -144,6 +148,7 @@ export function nodeRoutes(deps: NodeDeps): Hono {
       busy: choir.state().sharing.busy,
       auto: choir.state().use === 'auto',
       update: deps.updates?.().state(),
+      ...(capabilities ? { capabilities } : {}),
     };
     c.header('cache-control', 'no-store');
     return c.json(info);

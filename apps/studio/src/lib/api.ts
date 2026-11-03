@@ -10,6 +10,7 @@ import type {
   ChoirState,
   ConsentSessionView,
   DesignRequest,
+  DeviceCapabilities,
   ExportState,
   HfState,
   HostState,
@@ -164,6 +165,23 @@ export type NewSite =
   | { from: 'pen'; pen: string; images?: Record<string, string>; title?: string }
   | { from: 'url'; url: string; title?: string }
   | { from: 'zip'; data: string; title: string };
+
+/** GET /api/talk */
+export interface TalkStatus {
+  ready: boolean;
+  fake: boolean;
+  problem: string | null;
+  llm: { runtime: string; model: string } | null;
+  capabilities: DeviceCapabilities;
+}
+
+/** POST /api/talk/turn */
+export interface TalkTurn {
+  transcript: string;
+  replyText: string;
+  audio: { contentType: string; url?: string; data?: string };
+  route: { stt: 'local' | 'remote'; llm: 'local' | 'remote'; tts: 'local' | 'remote' };
+}
 
 export const api = {
   sites: () =>
@@ -335,6 +353,14 @@ export const api = {
   deleteVoice: (id: string) => call<void>('DELETE', `/api/voice/voices/${id}`),
   revokeVoice: (id: string) => call<Voice>('POST', `/api/voice/voices/${id}/revoke`),
   voiceUses: (id: string) => call<VoiceUse[]>('GET', `/api/voice/voices/${id}/uses`),
+  talk: () => call<TalkStatus>('GET', '/api/talk'),
+  /** One spoken turn: the recording goes up, the transcript, the answer and its audio come back. */
+  talkTurn: (audio: Blob, language?: string) => {
+    const form = new FormData();
+    form.set('audio', audio, 'turn');
+    if (language) form.set('language', language);
+    return call<TalkTurn>('POST', '/api/talk/turn', undefined, form);
+  },
   uploadAudio: (file: Blob) => call<AudioUpload>('POST', '/api/voice/uploads', undefined, file),
   isOurs: (source: string) => call<MarkCheck>('POST', '/api/voice/check', { source }),
   installVoiceModel: (id: string, acceptLicense = false) =>

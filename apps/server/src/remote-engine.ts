@@ -10,7 +10,8 @@ import {
   type EngineErrorCode,
   type RenderOptions,
 } from '@hildegard/comfy';
-import type { UpdateState } from '@hildegard/presets';
+import type { DeviceCapabilities, UpdateState } from '@hildegard/presets';
+import { readCapabilities } from './capabilities.ts';
 
 /** The detail on the error a device gives when it refuses this computer's key. */
 export const REFUSED = 'key refused';
@@ -44,6 +45,8 @@ export interface NodeInfo {
   busy?: string | null;
   /** It sends each of its own takes to any free device ("auto") itself; missing from versions before 0.1.11. */
   auto?: boolean;
+  /** What it can do for Talk and rendering; missing from versions before 0.1.14. */
+  capabilities?: DeviceCapabilities;
 }
 
 /** POST /api/node/render streams these, one JSON object per line. */
@@ -197,6 +200,10 @@ export class RemoteEngine implements Engine {
     if (res.status === 401) throw this.refused();
     if (!res.ok) throw this.offline(`HTTP ${res.status}`);
     const info = (await res.json()) as NodeInfo;
+    // A claim that isn't the right shape counts as none, like a device too old to make one.
+    const caps = readCapabilities(info.capabilities);
+    if (caps) info.capabilities = caps;
+    else delete info.capabilities;
     this.last = info;
     return info;
   }

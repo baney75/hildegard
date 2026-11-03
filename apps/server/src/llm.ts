@@ -171,6 +171,21 @@ const SUBSCRIPTION_HOSTS = [
 const SUBSCRIPTION_ONLY =
   'That address serves a Claude, ChatGPT or Copilot plan, which may only be used in its own app. Use an API key’s address (such as https://api.openai.com/v1) or a model on your own computer.';
 
+/**
+ * Whether an endpoint's model runs on this computer: one Hildegard found (on loopback), Local AI's gateway, or one
+ * the owner added at a loopback address. An owner's endpoint anywhere else may be another computer or a paid API.
+ */
+export function onThisComputer(e: Pick<LlmEndpoint, 'id' | 'url' | 'custom'>): boolean {
+  if (!e.custom && e.id.startsWith('local-ai-')) return true;
+  let host: string;
+  try {
+    host = new URL(e.url).hostname;
+  } catch {
+    return false;
+  }
+  return ['127.0.0.1', 'localhost', '[::1]'].includes(host);
+}
+
 /** A plan's sign-in token, not an API key: Claude Code's OAuth tokens. Used anywhere else, it can get the account banned. */
 export const looksLikePlanToken = (key: string) => /^sk-ant-oat\d*-/.test(key.trim());
 
