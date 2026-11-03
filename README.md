@@ -217,9 +217,14 @@ and asks who's calling:
   [a Cloudflare tunnel](#your-own-domain-with-a-cloudflare-named-tunnel) (`hildegard host --public-url
   https://hildegard.example.com`). Then add `<link>/mcp` as a custom connector (claude.ai: Settings › Connectors; ChatGPT:
   developer mode). They sign in on Hildegard's own page with your name and passphrase (OAuth 2.1 with PKCE), and act
-  as you. A new passphrase disconnects them all.
+  as you. A new passphrase disconnects them all. Or skip the passphrase: `hildegard host code` (or **Get a connect
+  code** in Settings › Sharing, owners only) makes a one-time code, `HG-XXXX-XXXX`, good once for 10 minutes. On
+  Hildegard's page choose **Use a connect code** and type it; the chatbot is approved as you, the owner who made it.
+  Only type a code you made yourself for this connection. Wrong codes count toward the same sign-in limits as wrong
+  passphrases, plus a cap of 60 wrong codes in 15 minutes across all addresses, past which no code is tried for a
+  while (a passphrase still works).
 
-`hildegard host keys` lists keys and chatbots, and `hildegard host keys revoke <name>` disconnects one at once.
+`hildegard host keys` lists keys and chatbots (a chatbot approved with a code reads “approved by code from <you>”), and `hildegard host keys revoke <name>` disconnects one at once.
 Results for apps elsewhere carry links to the videos (signed, good for a day) instead of paths on this computer.
 
 ## Your local models
@@ -352,12 +357,21 @@ A Mac or laptop without a big GPU can render on one of your other computers. Put
 hildegard choir invite
 ```
 
-It prints a one-line join code. On the other computer:
+It prints a short code, `HG-XXXX-XXXX` (good once, for 10 minutes), the address it is redeemed at, and the one command
+for the other computer; Settings › Devices › **Share this GPU** shows the same, large, with Copy and a countdown. It
+also prints the long `hgc1_…` code under “or paste this”, so older builds can still join. On the other computer:
 
 ```sh
-hildegard choir join        # paste the code when asked; it doesn't show
+hildegard choir join HG-XXXX-XXXX                       # finds gpu-a on your tailnet
+hildegard choir join HG-XXXX-XXXX --url http://100.x.y.z:7341   # or give its address
 hildegard choir list        # gpu-a · RTX 4080 Laptop, online, with its models
 ```
+
+Without `--url`, `join` tries each online Tailscale peer once (and gpu-a's public link, if you joined one before), so
+a wrong code costs one failed try per device. gpu-a counts wrong codes: 5 per source in 15 minutes, and 60 across all
+sources, past which nobody can enroll for a while (a device already paired is not affected). In the Studio, Settings ›
+Devices › **Add a device** takes the code and an optional address. The long code still works pasted in
+(`hildegard choir join` asks for it, hidden).
 
 Takes now render on gpu-a, and the Studio says so ("Rendering on gpu-a · RTX 4080 Laptop"). Models count as
 installed when they are installed there, so nothing downloads twice. Settings › Devices does the same with buttons:
@@ -373,7 +387,7 @@ installed when they are installed there, so nothing downloads twice. Settings �
   waiting on each other.
 - `hildegard choir leave gpu-a` forgets the device; `hildegard choir revoke` on gpu-a stops sharing and turns
   every paired device away.
-- The code holds a fresh 256-bit key. gpu-a keeps only its hash; the other computer keeps it in the system
+- A short code is 40 random bits and gpu-a keeps only its SHA-256. Redeeming it makes a fresh 256-bit key. gpu-a keeps only that key's hash; the other computer keeps it in the system
   keychain. Treat the code like a password, and make a new one for each device.
 - Sharing opens one more door on gpu-a, on its Tailscale address only: renders from paired devices, and nothing
   else. The Studio and its API stay on 127.0.0.1 as before. Paired devices can only run graphs Hildegard itself
@@ -408,7 +422,7 @@ hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
 hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
-hildegard host key <name> | keys [revoke <name>]
+hildegard host code | key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin
 hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
 hildegard mcp [--remote <link>]   The MCP server, on stdio (AI apps run this); also at /mcp over HTTP

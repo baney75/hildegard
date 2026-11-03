@@ -234,7 +234,9 @@ in on each.
    hildegard choir invite --json
    ```
 
-   `code` is a one-time join code holding a key. Hand it straight to the next step; never log it. Without Tailscale it
+   `shortCode` is a one-time code, `HG-XXXX-XXXX`, good for 10 minutes (`expiresAt`), and `command` is what to run on
+   the other device. `code` is the long `hgc1_…` join code holding a key, for older builds. Hand either straight to the
+   next step; never log them. Without Tailscale it
    returns `needs-owner` with `tailscale up`; pass `--url http://<tailscale-ip>:7341` only with an address on the
    tailnet.
 
@@ -243,6 +245,8 @@ in on each.
    ```sh
    printf %s "$CODE" | hildegard choir join --code-stdin --json
    ```
+
+   For a short code, add `--url <address from the invite>`; without it, `join` tries each online Tailscale peer once.
 
    A device without ComfyUI switches to rendering there at once. Otherwise `hildegard choir use <device> --json`, or
    `hildegard choir use auto --json` to send each take to whichever device is free for it, this one included.
@@ -352,7 +356,12 @@ Every app's steps, the Claude Code plugin and the skill uploads are in `docs/cha
 The chatbot opens Hildegard's sign-in page, where **your user** types their own name and passphrase. Never do it for
 them. It then acts as them, until they revoke it or change their passphrase.
 
-`hildegard host keys --json` lists every key and chatbot (`grants[]`, with `kind`, `person` and `lastUsedAt`);
+Or give them a one-time connect code: run `hildegard host code --json` (owners only; `code`, `expiresAt`, `mcpUrl`) and
+hand the code back to your user. They choose **Use a connect code** on that page and type it, which approves the
+chatbot as the owner who made it. A code works once, for 10 minutes; make it only when your user is making the
+connection now, and never type it into the page yourself. You never choose passphrases.
+
+`hildegard host keys --json` lists every key and chatbot (`grants[]`, with `kind`, `person`, `approval` (`code` or `passphrase`, for chatbots) and `lastUsedAt`);
 `hildegard host keys revoke <id|name> --json` ends one at once. `hildegard doctor --json` has an `mcp` step.
 
 What a remote app gets differs in two ways: videos and stills come as links (signed, good for a day) instead of paths,
@@ -401,7 +410,7 @@ Every local model here is also one OpenAI-compatible API at `http://127.0.0.1:73
 | The owner account (`command`: `hildegard host owner`) | Run it in a terminal here and choose a passphrase, or use Settings › Sharing |
 | Tailscale permission or a Tailscale admin page | Run the command, or open the page and turn the feature on |
 | A Runpod or provider API key (`key`, `needs-owner`) | Make the key on the provider's site and hand it to you to pipe in; it's billed to them |
-| A chatbot's sign-in (claude.ai, ChatGPT) | They add the connector and type their own name and passphrase on Hildegard's page |
+| A chatbot's sign-in (claude.ai, ChatGPT) | They add the connector and type their own name and passphrase on Hildegard's page, or a connect code you got from `hildegard host code` |
 | The public internet (`hildegard host --funnel`, or `--public-url` with their own domain) | Only when they asked for it: chatbots on the web need it, AI apps on their own devices don't |
 | A Cloudflare sign-in or a DNS change (`cloudflared tunnel login`, `route dns`) | Theirs: it's their account and their domain |
 
