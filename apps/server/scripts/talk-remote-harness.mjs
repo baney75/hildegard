@@ -169,7 +169,7 @@ try {
     const invite = await fetch(`${worker.url}/api/choir/invite`, {
       method: 'POST',
       headers: { ...H, 'content-type': 'application/json' },
-      body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}` }),
+      body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}`, long: true }),
     });
     if (!invite.ok) throw new Error(`invite: HTTP ${invite.status}`);
     const { code } = await invite.json();

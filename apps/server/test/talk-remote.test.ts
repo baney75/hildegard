@@ -181,7 +181,7 @@ describe('Talk with a second serving device', () => {
     const invite = await fetch(`${second.url}/api/choir/invite`, {
       method: 'POST',
       headers: { ...H, 'content-type': 'application/json' },
-      body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}` }),
+      body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}`, long: true }),
     });
     const { code } = (await invite.json()) as { code: string };
     const joined = await fetch(`${primary.url}/api/choir/join`, {
