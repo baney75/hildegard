@@ -5,8 +5,19 @@ there. The example is abbey1, a WSL server on the tailnet with no NVIDIA GPU. Th
 [talk-caps.md](../architecture/talk-caps.md#policy): the microphone and speaker stay on the primary, Funnel stays off,
 and no consent recording, voice sample or cloned voice leaves the primary.
 
-`install.sh --server` and a systemd unit come later. Until then the server runs from a source checkout with its own
-data folder.
+On a server with its own release install, one command does sections 2 and 3, and starts Hildegard from a user
+systemd unit (a LaunchAgent on macOS):
+
+```sh
+curl -fsSL https://github.com/baney75/hildegard/releases/latest/download/install.sh | sh -s -- --server
+hildegard doctor            # service, voice, llm and sharing are done, or each says its fix
+hildegard choir invite --long --json
+```
+
+Then go on at [section 4](#4-pair-it) with `hildegard choir invite --long --json` in place of the `curl`, and
+`loginctl enable-linger $USER` if it should keep serving after you sign out (the installer asks; it's the owner's
+choice). The rest of this page runs the server from a source checkout with its own data folder, beside an install
+that's already there.
 
 ## 1. Before you start
 

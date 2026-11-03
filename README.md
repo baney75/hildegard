@@ -69,6 +69,29 @@ hildegard open      # opens the Studio
 | A Mac with Apple silicon | Nothing yet: on Apple's GPU Wan 2.2 came out blurred after an hour, and LTX needs int8 or fp8 kernels Apple lacks. Pair it with a computer that has an NVIDIA or AMD GPU (`hildegard choir join`) |
 | Less, or no GPU | Nothing yet. The Studio works; pair it with a computer that has a GPU |
 
+### A server for your other devices
+
+On a Linux box (or a Mac) that serves your other devices, with no Studio open on it:
+
+```sh
+curl -fsSL https://github.com/baney75/hildegard/releases/latest/download/install.sh | sh -s -- --server
+```
+
+It installs as above, adds speech and transcription (`hildegard voice install --env speech`), and writes a service
+that starts Hildegard when you sign in: `~/.config/systemd/user/hildegard.service` on Linux, turned on with
+`systemctl --user enable --now`, or `~/Library/LaunchAgents/io.github.baney75.hildegard.plist` on macOS. Where user
+systemd isn't running, the unit is still written and the installer prints the command that turns it on. To keep it
+serving after you sign out and start it at boot, run `loginctl enable-linger $USER`; that changes the computer's
+login settings, so the installer asks you to run it instead of running it for you. Language models come from Ollama,
+LM Studio, llama.cpp or vLLM running there, which Hildegard finds by itself. From then on `hildegard start`,
+`restart` and updates go through the service. `hildegard install --yes --server` does the same on an installed
+Hildegard. Then pair it (see [Render on another device](#render-on-another-device)):
+
+```sh
+hildegard choir invite      # the code to type on your other device; --long for the long code, for scripts
+hildegard doctor            # service, voice, llm and sharing, each with the command that fixes it
+```
+
 ### NVIDIA DGX Spark
 
 Hildegard supports the DGX Spark (GB10, Arm Linux); it hasn't been tried on a real one yet. The GB10 shares its

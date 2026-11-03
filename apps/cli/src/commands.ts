@@ -12,6 +12,7 @@ import type {
   ChoirState,
   HfState,
   HostState,
+  LlmState,
   Snapshot,
 } from '@hildegard/presets';
 import { videoModels } from '@hildegard/presets';
@@ -25,6 +26,7 @@ import {
   fitWhy,
   type Gpu,
   installRuntime,
+  installVoice,
   layout,
   listAgents,
   mcpCommand,
@@ -37,6 +39,7 @@ import { type Config, guardProcess, homeId, startServer, VERSION } from '@hildeg
 import { installSkillsFor } from './agents.ts';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
+import { installService, managedService, serverArgs, startService } from './service.ts';
 
 export interface Ctx {
   config: Config;
@@ -121,6 +124,21 @@ const tryResource = (rel: string) => {
   }
 };
 
+/**
+ * Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
+ * server remembers in its folder for later commands and the app. `note` is empty when the port was free.
+ */
+async function settlePort(c: Config, up: Health | null): Promise<{ note: string } | { failed: string }> {
+  if (!up && (await portFree(c.port))) return { note: '' };
+  const p = await nextFreePort(c.port + 2);
+  const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
+  if (p === null)
+    return { failed: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.` };
+  const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
+  c.port = p;
+  return { note };
+}
+
 const moveNote = (r: Result, note: string): Result => ({
   ...r,
   steps: r.steps.map((s) => (s.id === 'start' ? { ...s, detail: `${s.detail}${note}` } : s)),
@@ -182,38 +200,23 @@ export async function start(ctx: Ctx): Promise<Result> {
       `Hildegard is running at ${url}`,
       { url },
     );
-  // Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
-  // server remembers in its folder for later commands and the app.
-  if (up || !(await portFree(c.port))) {
-    const p = await nextFreePort(c.port + 2);
-    const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
-    if (p === null)
-      return result(
-        [
-          {
-            id: 'start',
-            title: 'Start Hildegard',
-            status: 'failed',
-            detail: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.`,
-          },
-        ],
-        'Hildegard didn’t start.',
-      );
-    const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
-    c.port = p;
-    return moveNote(await start(ctx), note);
-  }
+  const moved = await settlePort(c, up);
+  if ('failed' in moved)
+    return result(
+      [{ id: 'start', title: 'Start Hildegard', status: 'failed', detail: moved.failed }],
+      'Hildegard didn’t start.',
+    );
+  if (moved.note) return moveNote(await start(ctx), moved.note);
   const L = layout(c.dataDir);
   mkdirSync(L.logs, { recursive: true });
   const log = join(L.logs, 'server.log');
-  const fd = openSync(log, 'a');
-  const args = [entry(), 'start', '--foreground', '--port', String(c.port), '--data', c.dataDir];
-  if (c.fake) args.push('--fake-gpu');
+  // With the server profile's service written for this port and folder, it starts Hildegard, and starts it again after
+  // a crash or a reboot. Where its manager can't (no user systemd here), Hildegard starts as it would without one.
+  const svc = managedService(c, entry());
+  if (svc && startService(svc)) return waitForStart(c, null, false, log, svc.file);
   // The background server gets the same choices as this command.
-  if (c.host !== '127.0.0.1') args.push('--host', c.host);
-  if (c.allowedHosts.length) args.push('--allow-host', c.allowedHosts.join(','));
-  if (c.hostPort !== null) args.push('--host-port', String(c.hostPort));
-  if (c.comfyExternal) args.push('--comfy', c.comfyUrl);
+  const args = [entry(), ...serverArgs(c)];
+  const fd = openSync(log, 'a');
   // Windows' OpenSSH ends every process of a session when it closes, detached or not, so from ssh the server is
   // started by Windows itself (WMI), outside the session.
   const viaWmi = process.platform === 'win32' && !!(process.env.SSH_CONNECTION || process.env.SSH_CLIENT);
@@ -244,15 +247,27 @@ export async function start(ctx: Ctx): Promise<Result> {
     closeSync(fd);
     child.unref();
   }
+  return waitForStart(c, child, viaWmi, log, null);
+}
+
+async function waitForStart(
+  c: Config,
+  child: ReturnType<typeof spawn> | null,
+  viaWmi: boolean,
+  log: string,
+  service: string | null,
+): Promise<Result> {
+  const url = baseUrl(c);
+  const by = service ? `, from ${service}` : '';
   for (let i = 0; i < 120; i++) {
     if (await running(c))
       return result(
-        [{ id: 'start', title: 'Start Hildegard', status: 'done', detail: `Running at ${url}.` }],
+        [{ id: 'start', title: 'Start Hildegard', status: 'done', detail: `Running at ${url}${by}.` }],
         `Hildegard is running at ${url}`,
         { url },
       );
     // Through WMI, the launcher exits at once; only a launch it couldn't make ends the wait early.
-    if (child.exitCode !== null && (!viaWmi || child.exitCode !== 0)) break;
+    if (child && child.exitCode !== null && (!viaWmi || child.exitCode !== 0)) break;
     await new Promise((r) => setTimeout(r, 250));
   }
   return result(
@@ -314,25 +329,88 @@ export async function install(ctx: Ctx): Promise<Result> {
         ? undefined
         : (l) => console.log(`    ${l}`),
   });
+  const stuck = (s: Step) => s.status === 'failed' || s.status === 'needs-owner';
+  let failed = steps.find(stuck);
+  // The server profile: speech and transcription for Talk, from the same voice install as `hildegard voice install`.
+  const server = ctx.flags.has('server');
+  if (!failed && server) {
+    steps.push(
+      ...(await installVoice({
+        dataDir: c.dataDir,
+        envs: ['speech'],
+        cpu: ctx.flags.has('cpu'),
+        onStep: events ? (step) => printEvent({ step }) : ctx.json ? undefined : printStep,
+        onLog: events
+          ? (log) => printEvent({ log })
+          : ctx.json || !ctx.flags.has('verbose')
+            ? undefined
+            : (l) => console.log(`    ${l}`),
+      })),
+    );
+    failed = steps.find(stuck);
+  }
   const printed = ctx.json ? 0 : steps.length;
-  const failed = steps.find((s) => s.status === 'failed' || s.status === 'needs-owner');
   if (failed)
     return { ...result(steps, failed.status === 'failed' ? 'The install stopped.' : failed.detail), printed };
   // Restart, so the server runs the ComfyUI it just installed: this folder's server only, never another home's.
   if (await running(c)) await stop(ctx);
-  const s = await start(ctx);
-  if (events) for (const step of s.steps) printEvent({ step });
-  steps.push(...s.steps);
+  const more: Step[] = [];
+  let note = '';
+  if (server) {
+    const w = await writeService(c);
+    more.push(...w.steps);
+    note = w.note;
+  }
+  const s = moveNote(await start(ctx), note);
+  more.push(...s.steps);
+  if (server && s.ok) more.push(await llmStep(c));
+  if (events) for (const step of more) printEvent({ step });
+  steps.push(...more);
   return {
     ...result(
       steps,
-      s.ok
-        ? `Hildegard is installed and running at ${baseUrl(c)}. Next: \`hildegard setup\` picks a model and links your AI apps.`
-        : 'ComfyUI is installed, but Hildegard didn’t start.',
+      !s.ok
+        ? 'ComfyUI is installed, but Hildegard didn’t start.'
+        : server
+          ? `Hildegard serves from this computer at ${baseUrl(c)}. Next: run \`hildegard choir invite\` here and type its code on your other device (\`--long\` gives the long code, for scripts).`
+          : `Hildegard is installed and running at ${baseUrl(c)}. Next: \`hildegard setup\` picks a model and links your AI apps.`,
       { url: baseUrl(c) },
     ),
     printed,
   };
+}
+
+/**
+ * The server profile's service, written while nothing runs here for the port Hildegard will start on: when another
+ * program or home has the port, it moves first, so `start` then starts through the service and not beside it.
+ */
+export async function writeService(
+  c: Config,
+  opts?: Parameters<typeof installService>[2],
+): Promise<{ steps: Step[]; note: string }> {
+  const moved = await settlePort(c, await health(c));
+  // No free port: `start` says so; a service for a taken port would only fail.
+  if ('failed' in moved) return { steps: [], note: '' };
+  return { steps: installService(c, entry(), opts), note: moved.note };
+}
+
+/** The language models a server answers Talk with: found, never installed (Ollama and the rest are the owner’s). */
+async function llmStep(c: Config): Promise<Step> {
+  const title = 'Language model';
+  const s = await api<LlmState>(c, '/api/llm?fresh', { timeoutMs: 30_000 }).catch(() => null);
+  const models = (s?.endpoints ?? [])
+    .filter((e) => e.online)
+    .flatMap((e) => e.models.map((m) => `${m.id} (${e.name})`));
+  return models.length
+    ? { id: 'llm', title, status: 'done', detail: `Talk can answer with ${models.slice(0, 4).join(', ')}.` }
+    : {
+        id: 'llm',
+        title,
+        status: 'skipped',
+        detail:
+          'No language model runs here yet. Start Ollama, LM Studio, llama.cpp, vLLM or another OpenAI-compatible server and Hildegard finds it, or add one with the command.',
+        command: 'hildegard llm add <name> <address>',
+      };
 }
 
 // ── models ───────────────────────────────────────────────────────────────────────────────────────────────────────
