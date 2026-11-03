@@ -66,7 +66,8 @@ beforeAll(async () => {
   const invite = await fetch(`${worker.url}/api/choir/invite`, {
     method: 'POST',
     headers: { ...H, 'content-type': 'application/json' },
-    body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}` }),
+    // The long hgc1_ code is made only on request since short codes (#95); this test pairs with it directly.
+    body: JSON.stringify({ url: `http://127.0.0.1:${await freePort()}`, long: true }),
   });
   expect(invite.status).toBe(200);
   const { code, url } = (await invite.json()) as { code: string; url: string };
