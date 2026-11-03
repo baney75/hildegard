@@ -2,9 +2,16 @@
 """faster-whisper (MIT, SYSTRAN) running OpenAI's Whisper weights (MIT) converted for CTranslate2: transcripts with
 word timings, for the transcript editor, dubbing and the consent check."""
 import os
+import sys
 
+from .. import audio
 from ..errors import VoiceError
 from . import pick_device
+
+
+def _cuda_library_missing(e):
+    m = str(e).lower()
+    return "cublas" in m or "cudnn" in m or "cuda" in m and ("library" in m or "cannot be loaded" in m)
 
 
 class Backend:
@@ -23,14 +30,24 @@ class Backend:
                 raise VoiceError("model_missing", "The transcription model isn’t installed.")
             from faster_whisper import WhisperModel
 
-            self._model = WhisperModel(
-                self.dir, device=self.device, compute_type="float16" if self.device == "cuda" else "int8"
-            )
+            if self.device == "cuda":
+                try:
+                    self._model = WhisperModel(self.dir, device="cuda", compute_type="float16")
+                except Exception as e:
+                    if not _cuda_library_missing(e):
+                        raise
+                    # e.g. ctranslate2 wants libcublas.so.12 on a CUDA 13 host: run on the CPU instead.
+                    print(f"whisper: CUDA unavailable ({e}); using the CPU.", file=sys.stderr, flush=True)
+                    self.device = "cpu"
+            if self._model is None:
+                self._model = WhisperModel(self.dir, device="cpu", compute_type="int8")
         return self._model
 
     def transcribe(self, path, language=None, words=True):
+        # Decode here, so faster-whisper never calls av.open (PyAV 19 dropped the metadata_errors it passes).
+        wav, _ = audio.read(path, sr=self.sample_rate)
         segments, info = self._load().transcribe(
-            path, language=language or None, word_timestamps=words, vad_filter=True, beam_size=5
+            wav, language=language or None, word_timestamps=words, vad_filter=True, beam_size=5
         )
         out = []
         for s in segments:
