@@ -158,12 +158,16 @@ export class FileFetcher {
     let url = `${this.endpoint}/${f.repo}/resolve/${revision}/${f.path.split('/').map(encodeURIComponent).join('/')}`;
     const head = (u: string) =>
       this.fetchFn(u, { method: 'HEAD', redirect: 'manual', headers: this.headers(token), signal });
-    let res = await head(url);
-    // A renamed repo answers 307 or 308 to its new name on the same host; the file's hash is on that answer's answer.
-    const moved = res.headers.get('location');
-    if ((res.status === 307 || res.status === 308) && moved) {
+    const first = await head(url);
+    let res = first;
+    // A renamed repo answers 307 or 308 to `/{owner}/{name}/resolve/...` on the same host. Git-stored files answer 307 to
+    // `/api/resolve-cache/...` instead, whose answer has no size; that one is not followed, since the first answer
+    // already carries the hash and size. Only redirects to another `/{owner}/{name}/resolve/` path are followed, so a
+    // rename that also moves the file within the repo is not.
+    const moved = first.headers.get('location');
+    if ((first.status === 307 || first.status === 308) && moved) {
       const next = new URL(moved, url);
-      if (next.origin === new URL(url).origin) {
+      if (next.origin === new URL(url).origin && /^\/(?!api\/)[^/]+\/[^/]+\/resolve\//.test(next.pathname)) {
         url = next.href;
         res = await head(url);
       }
@@ -182,17 +186,19 @@ export class FileFetcher {
       );
     if (res.status === 404) throw new ModelError('missing', `${f.repo} no longer has ${basename(f.path)}.`);
     if (res.status >= 400) throw new Error(`Hugging Face answered ${res.status}`);
-    const linked = res.headers.get('x-linked-etag');
+    // Only the hub's own metadata headers fall back to the first answer; etag and content-length come from `res`.
+    const hubHeader = (name: string) => res.headers.get(name) ?? first.headers.get(name);
+    const linked = hubHeader('x-linked-etag');
     const etag = (linked ?? res.headers.get('etag') ?? '').replace(/^W\//, '').replace(/"/g, '');
-    const size = Number(res.headers.get('x-linked-size') ?? res.headers.get('content-length') ?? 0) || null;
+    const size = Number(hubHeader('x-linked-size') ?? res.headers.get('content-length') ?? 0) || null;
     return {
       url,
       // Where the repo lives now, which differs from the catalog's name after a rename.
       repoUrl: url.slice(0, url.indexOf('/resolve/')),
-      commit: res.headers.get('x-repo-commit') ?? revision,
+      commit: hubHeader('x-repo-commit') ?? revision,
       sha256: /^[0-9a-f]{64}$/.test(etag) ? etag : null,
       // A file kept in git: its etag is the git object id, which is a hash of its bytes too.
-      gitId: !linked && /^[0-9a-f]{40}$/.test(etag) ? etag : null,
+      gitId: /^[0-9a-f]{40}$/.test(etag) ? etag : null,
       size,
     };
   }

@@ -16,7 +16,8 @@ let srv: Running;
 let client: Client;
 
 const call = async (name: string, args: Record<string, unknown> = {}) =>
-  (await client.callTool({ name, arguments: args })) as CallToolResult;
+  // The MCP default request timeout is 60 s; slow macOS runners need the suite's budget.
+  (await client.callTool({ name, arguments: args }, undefined, { timeout: 180_000 })) as CallToolResult;
 const textOf = (r: CallToolResult) =>
   r.content
     .filter((c) => c.type === 'text')
