@@ -757,7 +757,12 @@ describe('host and doctor', () => {
       expect(early.steps[0]).toMatchObject({ status: 'needs-owner', command: 'hildegard host' });
 
       expect((await hildegard(home, 'host', ...at)).ok).toBe(true);
-      const made = await hildegard(home, 'host', 'code', ...at);
+      // The link's address can lag `host` by a moment under load; wait for it rather than race it.
+      let made = await hildegard(home, 'host', 'code', ...at);
+      for (let i = 0; i < 40 && !made.mcpUrl; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        made = await hildegard(home, 'host', 'code', ...at);
+      }
       expect(made.ok).toBe(true);
       expect(made.mcpUrl).toBe('https://studio.example.ts.net/mcp');
       expect(made.person).toMatchObject({ name: 'Alex' });
