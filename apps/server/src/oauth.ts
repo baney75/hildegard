@@ -132,13 +132,30 @@ type Resolved = { address: string; family: number };
 type LookupCallback = (err: Error | null, address: string | Resolved[], family?: number) => void;
 
 /**
+ * Caps how many lookups run at once. The system resolver runs on libuv's small threadpool and can't be cancelled, so a
+ * client id on a domain whose nameserver never answers would otherwise hold threads the rest of the server needs. A
+ * slot frees when the lookup itself ends, not when the fetch gives up.
+ */
+export function cappedResolve(resolve: (host: string) => Promise<Resolved[]>, max: number) {
+  let running = 0;
+  return (host: string): Promise<Resolved[]> => {
+    if (running >= max)
+      return Promise.reject(new Error('Too many apps are connecting at once. Try again shortly.'));
+    running++;
+    return resolve(host).finally(() => {
+      running--;
+    });
+  };
+}
+
+const systemLookup = cappedResolve((h) => lookup(h, { all: true }), 2);
+
+/**
  * The DNS lookup the metadata fetch connects with: it refuses a name unless every address it resolves to is public.
  * Node asks with `{ all: true }` when it races addresses (autoSelectFamily, the default since Node 20) and then wants
  * the whole list back; answering with one address there makes Node read `undefined` and fail with "Invalid IP address".
  */
-export function publicLookup(
-  resolve: (host: string) => Promise<Resolved[]> = (h) => lookup(h, { all: true }),
-) {
+export function publicLookup(resolve: (host: string) => Promise<Resolved[]> = systemLookup) {
   return (host: string, opts: unknown, answer: LookupCallback) => {
     const all = typeof opts === 'object' && opts !== null && (opts as { all?: unknown }).all === true;
     // Answer once. Node's callback can throw (it connects on a socket that was destroyed while we resolved); that
@@ -193,6 +210,16 @@ export const fetchMetadataWith = (
       isIP(u.hostname.replace(/^\[|\]$/g, ''))
     )
       return reject(new Error('A client id must be an https address on a name, on port 443.'));
+    // Every way out goes through here: it settles once, stops the deadline and drops the connection.
+    let settled = false;
+    const done = (err: Error | null, value?: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      req.destroy();
+      if (err) reject(err);
+      else resolve(value);
+    };
     const req = request(
       u,
       {
@@ -203,35 +230,36 @@ export const fetchMetadataWith = (
         ...(test ? { ca: test.ca } : {}),
       },
       (res) => {
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`The client's metadata answered ${res.statusCode}.`));
-        }
+        if (res.statusCode !== 200)
+          return done(new Error(`The client's metadata answered ${res.statusCode}.`));
         const chunks: Buffer[] = [];
         let size = 0;
         res.on('data', (c: Buffer) => {
           size += c.length;
-          if (size > 16_384) {
-            req.destroy();
-            reject(new Error('The client’s metadata is over 16 KB.'));
-          } else chunks.push(c);
+          if (size > 16_384) done(new Error('The client’s metadata is over 16 KB.'));
+          else chunks.push(c);
         });
         res.on('end', () => {
           try {
-            resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+            done(null, JSON.parse(Buffer.concat(chunks).toString('utf8')));
           } catch {
-            reject(new Error('The client’s metadata isn’t JSON.'));
+            done(new Error('The client’s metadata isn’t JSON.'));
           }
+        });
+        res.on('error', (e) => done(e));
+        // A server that closes partway through the body never sends 'end' or 'error'.
+        res.on('close', () => {
+          if (!res.complete) done(new Error('The client’s metadata stopped partway.'));
         });
       },
     );
     // `timeout` above is only an idle timeout: a server that sends a byte every few seconds never trips it. This is
     // the total deadline.
-    const late = () => req.destroy(new Error('The client’s metadata didn’t answer in time.'));
+    const late = () => done(new Error('The client’s metadata didn’t answer in time.'));
     const deadline = setTimeout(late, deadlineMs);
     req.on('timeout', late);
-    req.on('error', reject);
-    req.on('close', () => clearTimeout(deadline));
+    req.on('error', (e) => done(e));
+    req.on('close', () => done(new Error('The client’s metadata connection closed early.')));
     req.end();
   });
 

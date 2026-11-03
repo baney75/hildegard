@@ -3,7 +3,7 @@ import { connect, type LookupFunction } from 'node:net';
 import { createServer } from 'node:tls';
 import { describe, expect, it } from 'vitest';
 import { testCert } from '../../../packages/link/test/cert.ts';
-import { fetchMetadataWith, publicLookup } from '../src/oauth.ts';
+import { cappedResolve, fetchMetadataWith, publicLookup } from '../src/oauth.ts';
 
 type Answer = { err: Error | null; address: unknown; family?: number };
 const ask = (resolved: { address: string; family: number }[], opts: unknown) =>
@@ -103,5 +103,51 @@ describe('publicLookup when Node’s callback throws', () => {
     });
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toBe(1);
+  });
+});
+
+describe('fetchMetadata against a server that stops partway', () => {
+  it('rejects promptly when the body is cut short', async () => {
+    const { cert, key } = testCert();
+    const server = createServer({ cert, key }, (sock) => {
+      sock.on('error', () => {});
+      sock.on('data', () => {
+        sock.write('HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 1000\r\n\r\n{');
+        setTimeout(() => sock.end(), 50);
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as { port: number }).port;
+    const local = (_h: string, opts: unknown, cb: (e: Error | null, a: unknown, f?: number) => void) =>
+      (opts as { all?: boolean })?.all
+        ? cb(null, [{ address: '127.0.0.1', family: 4 }])
+        : cb(null, '127.0.0.1', 4);
+    const started = Date.now();
+    try {
+      await expect(
+        fetchMetadataWith(`https://link.test:${port}/x`, local as never, 3000, { port, ca: cert }),
+      ).rejects.toThrow(/stopped partway|closed early|aborted/);
+      expect(Date.now() - started).toBeLessThan(1500);
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('cappedResolve', () => {
+  it('runs at most max lookups at once and frees a slot only when a lookup ends', async () => {
+    const pending: (() => void)[] = [];
+    const slow = () =>
+      new Promise<{ address: string; family: number }[]>((r) => pending.push(() => r(PUBLIC)));
+    const capped = cappedResolve(slow, 2);
+    const a = capped('a.example');
+    const b = capped('b.example');
+    await expect(capped('c.example')).rejects.toThrow(/Too many apps/);
+    pending.shift()!();
+    await a;
+    const d = capped('d.example');
+    for (const f of pending) f();
+    await expect(d).resolves.toEqual(PUBLIC);
+    await b;
   });
 });
