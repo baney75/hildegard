@@ -7,7 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { layout, type Step } from '@hildegard/runtime';
 import type { Config } from '@hildegard/server';
 
@@ -29,13 +29,14 @@ export interface Service {
 /** Where this system keeps a user's service, or null where Hildegard has none (Windows). */
 export function serviceFile(platform: NodeJS.Platform = process.platform, env = process.env): Service | null {
   const home = env.HOME || homedir();
+  // Both are POSIX systems, so their paths join with `/` whatever computer asks.
   if (platform === 'linux')
     return {
       kind: 'systemd',
-      file: join(env.XDG_CONFIG_HOME || join(home, '.config'), 'systemd', 'user', UNIT),
+      file: posix.join(env.XDG_CONFIG_HOME || posix.join(home, '.config'), 'systemd', 'user', UNIT),
     };
   if (platform === 'darwin')
-    return { kind: 'launchd', file: join(home, 'Library', 'LaunchAgents', `${LABEL}.plist`) };
+    return { kind: 'launchd', file: posix.join(home, 'Library', 'LaunchAgents', `${LABEL}.plist`) };
   return null;
 }
 

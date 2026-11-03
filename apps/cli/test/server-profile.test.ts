@@ -66,9 +66,12 @@ describe('the user systemd unit', () => {
       c.dataDir,
       '--fake-gpu',
     ]);
-    expect(u).toContain(`Environment="HILDEGARD_ENTRY=${entry}"`);
-    expect(u).toContain('Environment="HILDEGARD_HOME=/h"');
-    expect(u).toContain('Environment="PATH=/usr/bin"');
+    // Each value as systemd reads it back, backslashes in a Windows-style path included.
+    const env = u
+      .split('\n')
+      .filter((l) => l.startsWith('Environment='))
+      .map((l) => words(l));
+    expect(env).toEqual([['HILDEGARD_HOME=/h'], [`HILDEGARD_ENTRY=${entry}`], ['PATH=/usr/bin']]);
     // A clean `hildegard stop` stays stopped; a crash comes back; an update the server started survives it.
     expect(u).toMatch(/^Restart=on-failure$/m);
     expect(u).toMatch(/^KillMode=process$/m);
@@ -83,6 +86,14 @@ describe('the user systemd unit', () => {
       .find((l) => l.startsWith('ExecStart='))!;
     expect(exec).toContain('"/srv/a \\"b\\" 100%%/$$HOME"');
     expect(words(exec)).toContain('/srv/a "b" 100%/$HOME');
+  });
+
+  it('doubles backslashes, so a path with them reaches the server whole', () => {
+    const u = unitFile(launch(parseArgs(['--port', '7341', '--data', 'C:\\data'], {}), 'D:\\a\\main.ts', {}));
+    expect(u).toContain('Environment="HILDEGARD_ENTRY=D:\\\\a\\\\main.ts"');
+    const exec = u.split('\n').find((l) => l.startsWith('ExecStart='))!;
+    expect(exec).toContain('"C:\\\\data"');
+    expect(words(exec)).toContain('C:\\data');
   });
 });
 
