@@ -233,7 +233,10 @@ beforeAll(async () => {
   );
   await until(() => gpu.scheduler.engineState().online);
   // Paired devices reach the GPU on its own listener, as they would on its Tailscale address.
-  const res = await post(gpu, '/api/choir/invite', { url: `http://127.0.0.1:${await freePort()}` });
+  const res = await post(gpu, '/api/choir/invite', {
+    url: `http://127.0.0.1:${await freePort()}`,
+    long: true,
+  });
   expect(res.status).toBe(200);
   const invite = (await res.json()) as { code: string; url: string };
   shareUrl = invite.url;
@@ -794,7 +797,9 @@ describe('the sharing device’s door', () => {
 
 describe('pairing', () => {
   it('says a code with the wrong key was never good, and pairs nothing', async () => {
-    const real = (await (await post(gpu, '/api/choir/invite', { url: shareUrl })).json()) as { code: string };
+    const real = (await (await post(gpu, '/api/choir/invite', { url: shareUrl, long: true })).json()) as {
+      code: string;
+    };
     const forged = encodeJoinCode({ ...parseJoinCode(real.code), token: newToken() });
     const r = await post(mac, '/api/choir/join', { code: forged });
     expect(r.status).toBe(403);
@@ -818,7 +823,9 @@ describe('pairing', () => {
   });
 
   it('refuses a computer’s own code, and addresses outside the tailnet', async () => {
-    const own = (await (await post(gpu, '/api/choir/invite', { url: shareUrl })).json()) as { code: string };
+    const own = (await (await post(gpu, '/api/choir/invite', { url: shareUrl, long: true })).json()) as {
+      code: string;
+    };
     const r = await post(gpu, '/api/choir/join', { code: own.code });
     expect(r.status).toBe(409);
     expect(((await r.json()) as { error: string }).error).toContain('own code');

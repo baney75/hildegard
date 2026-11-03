@@ -15,6 +15,8 @@ import {
   type Catalog,
   type Character,
   type CharacterRef,
+  type ChoirInvite,
+  type ConnectCode,
   CreateCharacter,
   type CreateShotBody,
   characterText,
@@ -61,6 +63,7 @@ import {
   eventFilter,
   fromThisComputer,
   type HgEnv,
+  LOOPBACK_ADDR,
   open,
   ownAuth,
   secureRequest,
@@ -70,6 +73,8 @@ import {
   type Who,
 } from './access.ts';
 import { type Choir, ChoirError } from './choir.ts';
+import { redeemRoutes } from './choir-redeem.ts';
+import { CodeBook } from './codes.ts';
 import type { Config } from './config.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
@@ -156,7 +161,9 @@ export interface AppDeps {
    * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
    * the other device made (a rented GPU it started), instead of a fresh one.
    */
-  invite: (url?: string, key?: string) => Promise<{ code: string; url: string }>;
+  invite: (url?: string, key?: string, long?: boolean, short?: boolean) => Promise<ChoirInvite>;
+  /** The clock for connect codes and their limits: tests give a fake one. */
+  clock?: () => number;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
   tailnet: () => string | null;
   /** Who may sign in from other devices. */
@@ -1480,16 +1487,51 @@ export function createApp(deps: AppDeps) {
     local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
   app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
+  // When the sharing address is this server's own port (an https name that Tailscale Serve forwards here, or the
+  // Studio's own address), devices redeem here: from this computer, or by way of the sharing address. A Host header
+  // is whatever a client sends, so it counts only from Serve itself (a loopback socket), or, for a plain http
+  // address, on a socket that was opened to that very address. Never on the hosted listener behind the public link or
+  // front door. Otherwise the node-only app at the sharing address takes redeems.
+  app.use('/api/choir/redeem', async (c, next) => {
+    if (c.env?.hosted) return c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+    const share = deps.choir.listen();
+    const host = (c.req.header('host') ?? '').toLowerCase();
+    if (!local(c) && share && host === share.host.toLowerCase()) {
+      const sock = c.env?.incoming?.socket;
+      const viaServe = !!sock?.remoteAddress && LOOPBACK_ADDR.test(sock.remoteAddress);
+      const bare = (a?: string) => (a ?? '').replace(/^::ffff:/i, '').toLowerCase();
+      const direct =
+        share.protocol === 'http:' &&
+        !!sock?.localAddress &&
+        bare(sock.localAddress) === share.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+      if (viaServe) {
+        // Serve connects from this computer for everyone: tell the people apart by what it adds.
+        const fwd = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+        const login = c.req.header('tailscale-user-login')?.trim();
+        c.set('source', login ? `login:${login}` : fwd ? `fwd:${fwd}` : `src:${sock?.remoteAddress}`);
+        return next();
+      }
+      if (direct) return next();
+      return c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+    }
+    return local(c) ? next() : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+  });
+  app.route('/api/choir/redeem', redeemRoutes(deps.choir));
   app.post('/api/choir/invite', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ url: z.string().max(200).optional(), key: z.string().max(100).optional() })
+      .object({
+        url: z.string().max(200).optional(),
+        key: z.string().max(100).optional(),
+        long: z.boolean().optional(),
+        short: z.boolean().optional(),
+      })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give an address like http://100.64.0.1:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
-      return c.json(await deps.invite(body.data.url, body.data.key));
+      return c.json(await deps.invite(body.data.url, body.data.key, body.data.long, body.data.short));
     } catch (e) {
       return choirFail(c, e);
     }
@@ -1525,13 +1567,18 @@ export function createApp(deps: AppDeps) {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ code: z.string().max(2048), name: z.string().max(63).optional() })
+      .object({
+        code: z.string().max(2048),
+        name: z.string().max(63).optional(),
+        url: z.string().max(200).optional(),
+      })
       .safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: 'Paste the join code from the other device.' }, 400);
     try {
       // With no ComfyUI of its own, this computer renders on the device it joins straight away.
       const device = await deps.choir.join(body.data.code, {
         name: body.data.name,
+        url: body.data.url,
         autoUse: scheduler.engineState().comfy === 'not-installed',
       });
       return c.json({ device, choir: deps.choir.state() }, 201);
@@ -1886,7 +1933,17 @@ export function createApp(deps: AppDeps) {
 
   // ── Keys and chatbots: what AI apps on other devices use the MCP with ───────────────────────────────────────
   const { grants } = deps;
-  people.onPassphrase((personId) => grants.endChatbots(personId));
+  /** One-time codes an owner makes to approve a chatbot: hashes only, good once for 10 minutes. */
+  const connectCodes = new CodeBook<{ personId: string }>({
+    file: join(config.dataDir, 'people', 'connect-codes.json'),
+    now: deps.clock,
+  });
+  people.onPassphrase((personId) => {
+    grants.endChatbots(personId);
+    connectCodes.dropWhere((d) => d.personId === personId);
+  });
+  // Removed or demoted: their outstanding connect codes go too.
+  people.on(() => connectCodes.dropWhere((d) => people.get(d.personId)?.role !== 'owner'));
   const mcpUrl = () => {
     const u = host.state().url;
     return u ? `${u.replace(/\/$/, '')}/mcp` : null;
@@ -1904,6 +1961,50 @@ export function createApp(deps: AppDeps) {
       grants: grants.list(isOwner(c) ? null : (personOf(c)?.id ?? null)),
       mcpUrl: mcpUrl(),
     } satisfies GrantsResponse);
+  });
+  app.post('/api/auth/codes', async (c) => {
+    c.header('cache-control', 'no-store');
+    // Owners only: a code approves a chatbot as the owner who made it. With no session (this computer), the one
+    // owner counts; with several, the caller says which.
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    let me: { id: string; name: string } | null | undefined = personOf(c);
+    if (!me) {
+      const owners = people.list().filter((p) => p.role === 'owner');
+      const asked = await c.req
+        .json()
+        .then((j) => (typeof j?.person === 'string' ? (j.person as string) : null))
+        .catch(() => null);
+      if (!owners.length)
+        return c.json(
+          {
+            error: 'Make the owner account first, so a code has someone to approve as.',
+            fix: 'hildegard host owner',
+          },
+          409,
+        );
+      if (asked) me = owners.find((p) => p.name.toLowerCase() === asked.trim().toLowerCase());
+      else if (owners.length === 1) me = owners[0];
+      else
+        return c.json(
+          {
+            error: `There is more than one owner (${owners.map((o) => o.name).join(', ')}). Say whose code it is: \`hildegard host code --as <name>\`.`,
+            owners: owners.map((o) => o.name),
+          },
+          409,
+        );
+      if (!me) return c.json({ error: `${asked} isn’t an owner here.` }, 404);
+    }
+    const { code, expiresAt } = connectCodes.mint({ personId: me.id });
+    return c.json(
+      {
+        code,
+        expiresAt: new Date(expiresAt).toISOString(),
+        person: { id: me.id, name: me.name },
+        mcpUrl: mcpUrl(),
+      } satisfies ConnectCode,
+      201,
+    );
   });
   app.post('/api/auth/keys', async (c) => {
     c.header('cache-control', 'no-store');
@@ -2153,7 +2254,16 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── MCP over HTTP, and the OAuth that lets chatbots sign in to it ───────────────────────────────────────────
-  oauthRoutes(app, { grants, people, limited, failed, perName, fetchMetadata: deps.fetchMetadata });
+  oauthRoutes(app, {
+    grants,
+    people,
+    limited,
+    failed,
+    perName,
+    connectCodes,
+    fetchMetadata: deps.fetchMetadata,
+    now: deps.clock,
+  });
   remoteMcpRoutes(app, { grants, signer: deps.signer, fetch: (r, env) => app.fetch(r, env) });
   llmProxyRoutes(app, { llm: deps.llm, grants });
 

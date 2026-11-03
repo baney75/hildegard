@@ -14,11 +14,16 @@ import { join } from 'node:path';
 import { EngineError } from '@hildegard/comfy';
 import type { ChoirDevice, ChoirState, DeviceCapabilities, ModelState, Priority } from '@hildegard/presets';
 import type { BusyCheck } from './busy.ts';
+import { CODE_LIMITS, CodeBook, looksLikeCode, normalizeCode } from './codes.ts';
 import type { SecretStore } from './hf.ts';
+import { Limiter } from './people.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
 
+/** Said on a refusal after the sharing device answered 200: it has taken the code by then. */
+const USED_UP = ' The short code was used up; ask for a new one with `hildegard choir invite`.';
+
 export class ChoirError extends Error {
-  readonly status: 400 | 403 | 404 | 409 | 502;
+  readonly status: 400 | 403 | 404 | 409 | 429 | 502;
   constructor(status: ChoirError['status'], message: string) {
     super(message);
     this.name = 'ChoirError';
@@ -242,8 +247,11 @@ export function place(job: Job, local: Candidate | null, devices: Candidate[]): 
 interface SharingFile {
   name: string;
   url: string;
-  keys: Array<{ hash: string; createdAt: string }>;
+  /** `for` is the device a short code was redeemed by, as it named itself. */
+  keys: Array<{ hash: string; createdAt: string; for?: string }>;
 }
+/** What a short join code stands for: nothing but itself. The address and name are the sharing record's, as they are when it is redeemed. */
+type ShortJoin = Record<string, never>;
 /** How this computer shares its GPU; kept apart from the keys, so it outlasts revoking and inviting. */
 interface SettingsFile {
   /** Paired devices' renders go behind this computer's own work and wait while it's busy. */
@@ -289,6 +297,12 @@ export class Choir {
   private readonly secrets: (account: string) => SecretStore;
   private readonly onChange: (s: ChoirState) => void;
   private readonly fetchFn: typeof fetch;
+  private readonly clock: () => number;
+  /** Short join codes made by `invite`, until they are used, expire, or sharing stops. */
+  private readonly shortCodes: CodeBook<ShortJoin>;
+  /** Wrong short codes, per source and across all of them. */
+  private readonly wrongBySource: Limiter;
+  private readonly wrongAnywhere: Limiter;
   sharingProblem: string | null = null;
   /** This computer's own capabilities, which the server looks up now and then; null until it has. */
   capabilities: DeviceCapabilities | null = null;
@@ -298,11 +312,17 @@ export class Choir {
     secrets: (account: string) => SecretStore;
     onChange: (s: ChoirState) => void;
     fetch?: typeof fetch;
+    now?: () => number;
   }) {
     this.dir = join(opts.dataDir, 'choir');
     this.secrets = opts.secrets;
     this.onChange = opts.onChange;
     this.fetchFn = opts.fetch ?? fetch;
+    const now = opts.now ?? Date.now;
+    this.clock = now;
+    this.shortCodes = new CodeBook<ShortJoin>({ file: join(this.dir, 'codes.json'), now });
+    this.wrongBySource = new Limiter(CODE_LIMITS.perSource, CODE_LIMITS.windowMs, now);
+    this.wrongAnywhere = new Limiter(CODE_LIMITS.global, CODE_LIMITS.windowMs, now);
     const idFile = join(this.dir, 'id');
     if (existsSync(idFile)) this.id = readFileSync(idFile, 'utf8').trim();
     else {
@@ -311,7 +331,7 @@ export class Choir {
       writeFileSync(idFile, this.id, { mode: 0o600 });
     }
     const sharing = load<SharingFile | null>(join(this.dir, 'sharing.json'), null);
-    this.sharing = sharing?.keys?.length ? sharing : null;
+    this.sharing = sharing?.url && Array.isArray(sharing.keys) ? sharing : null;
     this.joined = load<DevicesFile>(join(this.dir, 'devices.json'), { use: 'local', devices: [] });
     const settings = load<Partial<SettingsFile>>(join(this.dir, 'settings.json'), {});
     this.settings = { opportunistic: settings.opportunistic === true };
@@ -336,10 +356,10 @@ export class Choir {
       devices: this.joined.devices.map((d) => this.device(d.name, d.url)),
       capabilities: this.capabilities,
       sharing: {
-        on: !!this.sharing,
-        url: this.sharing?.url ?? null,
+        on: this.sharingOn(),
+        url: this.sharingOn() ? this.sharing!.url : null,
         paired: this.sharing?.keys.length ?? 0,
-        problem: this.sharing ? this.sharingProblem : null,
+        problem: this.sharingOn() ? this.sharingProblem : null,
         opportunistic: this.settings.opportunistic,
         busyCheck: this.busyCheck,
         busy: this.settings.opportunistic ? this.busy : null,
@@ -407,7 +427,22 @@ export class Choir {
 
   /** Where the sharing device listens for paired devices, or null when it isn't sharing. */
   listen(): URL | null {
-    return this.sharing ? new URL(this.sharing.url) : null;
+    return this.sharingOn() ? new URL(this.sharing!.url) : null;
+  }
+
+  /**
+   * Whether sharing counts as on: an address with a paired device, or with a short code still live. An invite nobody
+   * used leaves a record with no keys; once its codes lapse that is off, so the listener closes and the Studio says so.
+   */
+  sharingOn(): boolean {
+    return !!this.sharing && (this.sharing.keys.length > 0 || this.shortCodes.size() > 0);
+  }
+
+  /** Milliseconds until sharing lapses for want of a live code (see `sharingOn`); null when it isn't waiting on one. */
+  lapsesIn(): number | null {
+    if (!this.sharing || this.sharing.keys.length > 0) return null;
+    const at = this.shortCodes.lastExpiry();
+    return at === null ? null : Math.max(0, at - this.clock()) + 50;
   }
 
   /** Paired devices' keys, hashed. */
@@ -430,21 +465,104 @@ export class Choir {
    * other device made itself and handed over privately, as `hildegard cloud runpod` does when it starts a rented GPU:
    * that device then builds the same code without this one having to send it anything.
    */
-  invite(url: string, name: string, key?: string): { code: string; url: string } {
+  invite(url: string, name: string, key?: string, label?: string): { code: string; url: string } {
     const origin = checkUrl(url);
     if (key !== undefined && !TOKEN_RE.test(key))
       throw new ChoirError(400, 'A key is 32 random bytes in base64url: 43 letters, digits, - and _.');
-    const token = key ?? newToken();
+    this.shareAt(origin, name);
+    const j = this.addKey(label, key);
+    return { code: encodeJoinCode(j), url: origin };
+  }
+
+  /** Sharing on at `origin` under `name`, keeping the keys already paired when the address is the same. No key is made. */
+  private shareAt(origin: string, name: string) {
     const keys = this.sharing?.url === origin ? this.sharing.keys : [];
-    this.sharing = {
-      name: deviceName(name),
-      url: origin,
-      keys: [...keys, { hash: hashToken(token), createdAt: new Date().toISOString() }],
-    };
+    this.sharing = { name: deviceName(name), url: origin, keys };
     save(join(this.dir, 'sharing.json'), this.sharing);
     this.sharingProblem = null;
     this.emit();
-    return { code: encodeJoinCode({ name: this.sharing.name, url: origin, token }), url: origin };
+  }
+
+  /**
+   * Add a key to the sharing record as it is now, without touching its address or name, and return what a long code
+   * holds. `key` is one the other device made itself.
+   */
+  private addKey(label?: string, key?: string): JoinCode {
+    const sharing = this.sharing;
+    if (!sharing) throw new ChoirError(409, 'This computer isn’t sharing its GPU.');
+    const token = key ?? newToken();
+    this.sharing = {
+      ...sharing,
+      keys: [
+        ...sharing.keys,
+        { hash: hashToken(token), createdAt: new Date().toISOString(), ...(label ? { for: label } : {}) },
+      ],
+    };
+    save(join(this.dir, 'sharing.json'), this.sharing);
+    this.emit();
+    return { name: sharing.name, url: sharing.url, token };
+  }
+
+  /**
+   * Turn sharing on and make a short code (`HG-XXXX-XXXX`) for typing. It makes no key: the key is made only when the
+   * code is redeemed, so a code nobody uses leaves none behind. The long `hgc1_` code is made only when asked for
+   * (`long`), and that one does leave a key.
+   */
+  shortInvite(
+    url: string,
+    name: string,
+    opts: { long?: boolean; short?: boolean } = {},
+  ): {
+    code: string | null;
+    url: string;
+    short: { code: string; expiresAt: string } | null;
+    name: string;
+  } {
+    const origin = checkUrl(url);
+    this.shareAt(origin, name);
+    const long = opts.long ? encodeJoinCode(this.addKey()) : null;
+    // `short: false` is for asking for the long code alone, which mints no short code to leave live.
+    const short = opts.short === false && opts.long ? null : this.shortCodes.mint({});
+    return {
+      code: long,
+      url: origin,
+      name: this.sharing!.name,
+      short: short ? { code: short.code, expiresAt: new Date(short.expiresAt).toISOString() } : null,
+    };
+  }
+
+  /**
+   * A joining device presents a short code. A wrong one counts against its source and against all sources. Past its
+   * source's limit nothing is tried, so the code isn't even looked at. Past the all-sources limit no code is looked at, right
+   * or wrong, until the window clears (checking right ones there would leave guessing unbounded); a long hgc1_ code
+   * still joins meanwhile. The live check reads memory only; taking the code is one synchronous step, so of two at once
+   * exactly one gets a key. Returns what a long code holds, from the sharing record as it is now.
+   */
+  redeem(code: unknown, source: string, joiner?: string): JoinCode {
+    const key = `src:${source}`;
+    const tooMany = (wait: number) =>
+      new ChoirError(
+        429,
+        `Too many wrong codes. Wait ${wait > 90 ? `${Math.ceil(wait / 60)} minutes` : `${wait} seconds`}, then ask for a new one.`,
+      );
+    const mine = this.wrongBySource.wait(key);
+    if (mine) throw tooMany(mine);
+    // Past the cap across every source, no code is looked at, right or wrong, until the window clears; checking them
+    // would leave guessing unbounded. A long code still joins meanwhile.
+    const all = this.wrongAnywhere.wait('all');
+    if (all) throw tooMany(all);
+    const norm = normalizeCode(code);
+    const rec = this.sharingOn() && this.shortCodes.live(norm) ? this.shortCodes.take(norm) : null;
+    if (!rec || !this.sharing) {
+      this.wrongBySource.fail(key);
+      this.wrongAnywhere.fail('all');
+      throw new ChoirError(
+        403,
+        'That code isn’t good: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.',
+      );
+    }
+    const label = typeof joiner === 'string' && NAME_RE.test(joiner) ? joiner.toLowerCase() : undefined;
+    return this.addKey(label);
   }
 
   /** Whether paired devices' renders yield to this computer's own work (see Scheduler.setOpportunistic). */
@@ -471,6 +589,7 @@ export class Choir {
   /** Stop sharing: every key goes, so no paired device can render here until it joins again. */
   revoke() {
     this.sharing = null;
+    this.shortCodes.clear();
     save(join(this.dir, 'sharing.json'), { name: '', url: '', keys: [] });
     this.emit();
   }
@@ -485,11 +604,29 @@ export class Choir {
    * Join a device from its code. Its key is checked with it first, so a mistyped or revoked code never gets kept.
    * `autoUse` sends renders there right away (when this computer has no GPU of its own to use).
    */
-  async join(code: string, opts: { name?: string; autoUse?: boolean } = {}): Promise<ChoirDevice> {
-    const c = parseJoinCode(code);
+  async join(
+    code: string,
+    opts: { name?: string; autoUse?: boolean; url?: string } = {},
+  ): Promise<ChoirDevice> {
+    const short = looksLikeCode(code);
+    const badName = (n: string) => !NAME_RE.test(n) || n === 'local' || n === 'auto';
+    const nameError = new ChoirError(400, 'Name it with letters, digits and dashes.');
+    // Everything that can be checked before a short code is spent is checked first.
+    if (short) {
+      if (opts.name && badName(opts.name.toLowerCase())) throw nameError;
+      if (opts.url && this.sharing && this.sharing.url === checkUrl(opts.url))
+        throw new ChoirError(409, 'That’s this computer’s own address. Run this on your other device.');
+    }
+    const c = short ? await this.redeemRemote(code, opts.url) : parseJoinCode(code);
+    const spent = (e: ChoirError) =>
+      short
+        ? new ChoirError(
+            e.status,
+            `${e.message} The short code was used up, so ask ${c.name} for a new one with \`hildegard choir invite\`.`,
+          )
+        : e;
     const name = opts.name ? opts.name.toLowerCase() : c.name;
-    if (!NAME_RE.test(name) || name === 'local' || name === 'auto')
-      throw new ChoirError(400, 'Name it with letters, digits and dashes.');
+    if (badName(name)) throw spent(nameError);
     const engine = new RemoteEngine({ name, url: c.url, token: () => c.token, fetch: this.fetchFn });
     let info: NodeInfo;
     try {
@@ -498,15 +635,17 @@ export class Choir {
       // At join, a refused key means the code was never good (mistyped, or revoked before use), not that a pairing
       // ended.
       const refused = e instanceof EngineError && e.detail === REFUSED;
-      throw new ChoirError(
-        refused ? 403 : 502,
-        refused
-          ? `${c.name} doesn’t accept that code. On ${c.name}, open Settings › Devices and share its GPU for a new one.`
-          : (e as Error).message,
+      throw spent(
+        new ChoirError(
+          refused ? 403 : 502,
+          refused
+            ? `${c.name} doesn’t accept that code. On ${c.name}, open Settings › Devices and share its GPU for a new one.`
+            : (e as Error).message,
+        ),
       );
     }
     if (info.id === this.id)
-      throw new ChoirError(409, 'That’s this computer’s own code. Paste it on your other device.');
+      throw spent(new ChoirError(409, 'That’s this computer’s own code. Paste it on your other device.'));
     this.secret(name).set(c.token);
     const devices = this.joined.devices.filter((d) => d.name !== name);
     devices.push({ name, url: c.url, joinedAt: new Date().toISOString() });
@@ -517,6 +656,63 @@ export class Choir {
     save(join(this.dir, 'devices.json'), this.joined);
     this.emit();
     return this.device(name, c.url);
+  }
+
+  /**
+   * Trade a short code for a long one at the sharing device, at `url` and nowhere else: a short code is a secret, so it
+   * is sent to the one address the person gave, never to devices found on the network. What comes back must say it is
+   * that same address.
+   */
+  private async redeemRemote(code: string, url?: string): Promise<JoinCode> {
+    if (!url)
+      throw new ChoirError(
+        400,
+        'A short code needs the sharing device’s address: `hildegard choir join HG-XXXX-XXXX --url http://<address>:7341`. The sharing device prints the whole command.',
+      );
+    const origin = checkUrl(url);
+    const me = deviceName(hostname());
+    let res: Response;
+    try {
+      res = await this.fetchFn(`${origin}/api/choir/redeem`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-hildegard': '1' },
+        body: JSON.stringify({ code, name: me }),
+        // A redirect would forward the code to wherever it points, so any 3xx fails without a second request.
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (e) {
+      throw new ChoirError(502, `Couldn’t reach ${origin}: ${(e as Error).message}`);
+    }
+    if (res.status === 429) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new ChoirError(429, j.error ?? 'Too many wrong codes there. Wait, then ask for a new one.');
+    }
+    if (res.status === 403)
+      throw new ChoirError(
+        403,
+        'That device didn’t accept the code: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.',
+      );
+    if (!res.ok) throw new ChoirError(404, `Nothing at ${origin} took that code.`);
+    const j = (await res.json().catch(() => null)) as {
+      name?: unknown;
+      url?: unknown;
+      token?: unknown;
+    } | null;
+    if (typeof j?.name !== 'string' || typeof j.url !== 'string' || typeof j.token !== 'string')
+      throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.${USED_UP}`);
+    let answered: string;
+    try {
+      answered = new URL(j.url).origin;
+    } catch {
+      answered = '';
+    }
+    if (answered !== origin)
+      throw new ChoirError(
+        502,
+        `${origin} answered with a different address (${j.url}), so Hildegard didn’t keep it.${USED_UP}`,
+      );
+    return parseJoinCode(encodeJoinCode({ name: j.name, url: j.url, token: j.token }));
   }
 
   leave(name: string) {

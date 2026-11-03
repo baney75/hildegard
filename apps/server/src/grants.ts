@@ -67,6 +67,8 @@ interface StoredGrant {
   clientId?: string;
   resource?: string;
   tokens?: StoredToken[];
+  /** chatbot: it was approved with a connect code the person made, not by typing a passphrase. */
+  viaCode?: boolean;
 }
 /** An app that registered itself (RFC 7591). Apps that publish a metadata document (CIMD) are never stored. */
 export interface StoredClient {
@@ -87,6 +89,8 @@ interface Code {
   challenge: string;
   personId: string;
   resource: string;
+  /** Approved with a one-time connect code (made by `personId`) rather than a passphrase. */
+  viaCode?: boolean;
   expiresAt: number;
   /** Set once exchanged: a second try means the code was stolen, and the grant it made ends. */
   grantId?: string;
@@ -191,6 +195,7 @@ export class Grants {
       createdAt: new Date(g.createdAt).toISOString(),
       lastUsedAt: g.lastUsedAt ? new Date(g.lastUsedAt).toISOString() : null,
       expiresAt: expires ? new Date(expires).toISOString() : null,
+      ...(g.kind === 'chatbot' ? { approval: g.viaCode ? ('code' as const) : ('passphrase' as const) } : {}),
     };
   }
 
@@ -416,6 +421,7 @@ export class Grants {
       expiresAt: null,
       clientId: c.clientId,
       resource: c.resource,
+      ...(c.viaCode ? { viaCode: true } : {}),
     };
     // Approving the same app again replaces its last grant, so reconnecting doesn't pile them up.
     this.data.grants = this.data.grants.filter(

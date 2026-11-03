@@ -425,6 +425,33 @@ export interface AgentGrant {
   lastUsedAt: string | null;
   /** When it stops working on its own; null for a key that lasts until it is revoked. */
   expiresAt: string | null;
+  /** A chatbot: approved with a passphrase, or with a one-time connect code the person made. */
+  approval?: 'passphrase' | 'code';
+}
+
+/** POST /api/auth/codes: a one-time code to approve a chatbot's connection. */
+export interface ConnectCode {
+  /** `HG-XXXX-XXXX`, good once for 10 minutes. */
+  code: string;
+  expiresAt: string;
+  /** Who it approves as: the owner who made it. */
+  person: { id: string; name: string };
+  /** The address to give the chatbot, once Hildegard is at a link. */
+  mcpUrl: string | null;
+}
+
+/** POST /api/choir/invite: what the sharing device hands the other one. */
+export interface ChoirInvite {
+  /** The long `hgc1_` code, made only when asked for (it leaves a key behind); a secret. Null for a short invite. */
+  code: string | null;
+  /** Where the sharing device is reached. */
+  url: string;
+  /** What this device is called in the other's Choir. */
+  name: string;
+  /** A short code to type instead (`HG-XXXX-XXXX`), good once for 10 minutes; null when the caller brought its own key. */
+  short: { code: string; expiresAt: string } | null;
+  /** The command for the other device, with the short code and the address. */
+  command: string | null;
 }
 
 /** GET /api/auth/grants */

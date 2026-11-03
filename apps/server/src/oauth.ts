@@ -16,6 +16,7 @@ import { isIP, type LookupFunction } from 'node:net';
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import { type Ctx, clientKey, type HgEnv, originOf } from './access.ts';
+import { CODE_LIMITS, type CodeBook, normalizeCode } from './codes.ts';
 import { GrantError, type Grants, SCOPE } from './grants.ts';
 import { Limiter, type People } from './people.ts';
 
@@ -274,7 +275,7 @@ function page(title: string, body: string): string {
 @media (prefers-color-scheme:light){:root{--bg:#f4efe6;--card:#fffdf8;--ink:#1d1916;--muted:#625a50;--line:#ddd3c4;--accent:#8a5a14;--green:#3f6b3a;--bad:#a8402c}}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,sans-serif;padding:16px}
 main{width:100%;max-width:26rem;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px}
-h1{font:600 1.6rem/1.2 "Cormorant Garamond",Georgia,serif;margin:0 0 8px}p{margin:0 0 14px;color:var(--muted)}strong{color:var(--ink)}
+h1{font:600 1.6rem/1.2 "Cormorant Garamond",Georgia,serif;margin:0 0 8px}h2{font:600 1rem/1.3 inherit;margin:18px 0 0;color:var(--ink)}p{margin:0 0 14px;color:var(--muted)}strong{color:var(--ink)}
 ul{margin:0 0 18px;padding-left:1.2rem;color:var(--muted)}label{display:block;font-size:.9rem;margin:12px 0 4px}
 input{width:100%;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -302,6 +303,8 @@ export interface OAuthDeps {
   limited: (c: Ctx, keys: string[]) => Response | null;
   failed: (keys: string[]) => void;
   perName: Limiter;
+  /** One-time connect codes an owner made, to approve a chatbot without typing a passphrase. */
+  connectCodes: CodeBook<{ personId: string }>;
   fetchMetadata?: FetchMetadata;
   now?: () => number;
 }
@@ -322,6 +325,8 @@ export function oauthRoutes(app: Hono<HgEnv>, deps: OAuthDeps) {
   const metadataCache = new Map<string, { info: ClientInfo; until: number }>();
   /** Registrations per address: an app registers once, so a flood is someone filling the list. */
   const registrations: Limiter = new Limiter(20, 3600_000);
+  /** Wrong connect codes across every address: past it, no wrong guess is tried from anywhere for a while. */
+  const codeTries = new Limiter(CODE_LIMITS.global, CODE_LIMITS.windowMs, now);
 
   const cors = (c: Ctx) => {
     for (const [k, v] of Object.entries(CORS)) c.header(k, v);
@@ -511,13 +516,20 @@ export function oauthRoutes(app: Hono<HgEnv>, deps: OAuthDeps) {
         `<h1>Connect ${esc(p.client.name)}?</h1>
 <p><strong>${esc(p.client.name)}</strong>${p.client.verified ? '' : ' (as it calls itself)'} wants to use this Hildegard as you, and will return to <strong>${esc(back)}</strong>.</p>
 <ul><li>It can direct shots, follow and cancel takes, and export films, on your GPU.</li><li>It sees the films you see, and does only what your role here allows.</li><li>You can disconnect it any time in Settings › Sharing, or with <code>hildegard host keys</code>.</li></ul>
+${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}${who}
 <form method="post" action="/oauth/authorize" autocomplete="on">
 <input type="hidden" name="request" value="${esc(requestId)}">
+<h2>Sign in with your name and passphrase</h2>
 <label for="n">Your name here</label><input id="n" name="name" autocomplete="username" required maxlength="40" value="${esc(name)}">
 <label for="p">Your passphrase</label><input id="p" name="passphrase" type="password" autocomplete="current-password" required maxlength="256">
-${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}${who}
 <div class="row"><button name="decision" value="deny" formnovalidate>Don’t allow</button><button class="go" name="decision" value="allow">Allow</button></div>
-</form><p class="small" style="margin-top:16px">Only type your passphrase here, at this Hildegard’s own address, never into a chatbot.</p>`,
+</form><p class="small" style="margin-top:16px">Only type your passphrase here, at this Hildegard’s own address, never into a chatbot.</p>
+<form method="post" action="/oauth/authorize" autocomplete="off" style="margin-top:20px">
+<input type="hidden" name="request" value="${esc(requestId)}">
+<h2>Use a connect code</h2>
+<label for="c">Connect code</label><input id="c" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" required maxlength="20" placeholder="HG-XXXX-XXXX">
+<div class="row"><button name="decision" value="deny" formnovalidate>Don’t allow</button><button class="go" name="decision" value="allow">Allow with this code</button></div>
+</form><p class="small" style="margin-top:16px">Only type a code you made yourself for this connection (in Settings › Sharing, or with <code>hildegard host code</code>). It works once, for 10 minutes. Never use one someone else, or the chatbot, gave you.</p>`,
       ),
       error ? 401 : 200,
     );
@@ -600,6 +612,46 @@ ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}${who}
         state: p.state,
         iss: p.issuer,
       });
+    }
+    if (field('code')) {
+      // A connect code the owner made: it approves as that owner, as their passphrase would. Wrong ones count with
+      // wrong passphrases (per address), and against a cap across every address. Once the cap is reached no code is
+      // even looked at, right or wrong, until the window clears: checking codes there would leave guessing unbounded.
+      // A passphrase still approves meanwhile.
+      const ckeys = [`client:${clientKey(c)}`];
+      if (deps.limited(c, ckeys))
+        return consent(c, requestId, p, 'Too many tries. Wait a few minutes, then try again.');
+      if (codeTries.wait('all'))
+        return consent(
+          c,
+          requestId,
+          p,
+          'Too many wrong codes have been tried here. Use your name and passphrase, or wait a few minutes.',
+        );
+      const norm = normalizeCode(field('code'));
+      const rec = deps.connectCodes.live(norm) ? deps.connectCodes.take(norm) : null;
+      const who = rec ? people.get(rec.personId) : undefined;
+      if (!rec || who?.role !== 'owner') {
+        deps.failed(ckeys);
+        codeTries.fail('all');
+        return consent(
+          c,
+          requestId,
+          p,
+          'That code isn’t good: it was mistyped, used already, or has expired.',
+        );
+      }
+      pending.delete(requestId);
+      const authCode = grants.issueCode({
+        clientId: p.client.id,
+        clientName: p.client.name,
+        redirectUri: p.redirectUri,
+        challenge: p.challenge,
+        personId: who.id,
+        resource: p.resource,
+        viaCode: true,
+      });
+      return redirectWith(c, p.redirectUri, { code: authCode, state: p.state, iss: p.issuer });
     }
     const name = field('name').slice(0, 200);
     const keys = [`client:${clientKey(c)}`, `name:${name.trim().toLocaleLowerCase()}`];

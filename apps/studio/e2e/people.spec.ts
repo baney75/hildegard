@@ -87,6 +87,58 @@ test('the owner makes their account here, and signs in elsewhere', async ({ page
   await other.context.close();
 });
 
+test('the owner gets a one-time connect code in Settings › Sharing', async ({ page, context }) => {
+  const errors = watchErrors(page);
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/#/settings/sharing');
+  await expect(page.getByText('Connect claude.ai, ChatGPT or Grok', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Get a connect code' }).click();
+  const code = page.getByRole('group', { name: 'Connect code' });
+  await expect(code.getByTestId('one-time-code')).toHaveText(
+    /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/,
+  );
+  await expect(page.getByRole('timer')).toHaveText(/Works once, for (9|10):\d\d more\./);
+  await code.getByRole('button', { name: 'Copy' }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^HG-/);
+  const first = await page.getByRole('timer').textContent();
+  await expect.poll(async () => page.getByRole('timer').textContent(), { timeout: 5000 }).not.toBe(first);
+  await expectAccessible(page, 'sharing, connect code');
+  await expectCurlyQuotes(page, 'sharing, connect code');
+  // A new one replaces it on the screen.
+  const before = await code.getByTestId('one-time-code').textContent();
+  await page.getByRole('button', { name: 'New connect code' }).click();
+  await expect(code.getByTestId('one-time-code')).not.toHaveText(before ?? '');
+  expect(errors).toEqual([]);
+});
+
+test('with several owners and no session, the connect code asks whose it is and retries with the answer', async ({
+  page,
+}) => {
+  const asked: unknown[] = [];
+  await page.route('**/api/auth/codes', async (route) => {
+    const body = route.request().postDataJSON() as { person?: string };
+    asked.push(body.person ?? null);
+    if (!body.person)
+      return route.fulfill({
+        status: 409,
+        json: { error: 'There is more than one owner (Ada, Grace).', owners: ['Ada', 'Grace'] },
+      });
+    return route.fulfill({
+      json: {
+        code: 'HG-2345-6789',
+        expiresAt: new Date(Date.now() + 600_000).toISOString(),
+        person: { id: 'p2', name: 'Grace' },
+      },
+    });
+  });
+  await page.goto('/#/settings/sharing');
+  await page.getByRole('button', { name: 'Get a connect code' }).click();
+  await page.getByRole('combobox', { name: 'Owner' }).selectOption('Grace');
+  await page.getByRole('button', { name: 'Get the code' }).click();
+  await expect(page.getByTestId('one-time-code')).toHaveText('HG-2345-6789');
+  expect(asked).toEqual([null, 'Grace']);
+});
+
 test('invites a director, who joins with the link once and sees only their own films', async ({
   browser,
   page,

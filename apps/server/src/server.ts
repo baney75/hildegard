@@ -2,11 +2,13 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { isIP } from 'node:net';
 import { homedir, hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import {
+  type ChoirInvite,
   type EngineState,
   type LoadedCatalog,
   loadCatalog,
@@ -21,7 +23,17 @@ import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
 import { localCapabilities, STUB_LLM } from './capabilities.ts';
-import { type Candidate, Choir, ChoirError, type Job, place, tailscaleSelf, withRemoteFit } from './choir.ts';
+import {
+  type Candidate,
+  Choir,
+  ChoirError,
+  deviceName,
+  type Job,
+  place,
+  tailscaleSelf,
+  withRemoteFit,
+} from './choir.ts';
+import { redeemRoutes } from './choir-redeem.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
@@ -145,6 +157,8 @@ async function serveStudio(
     onStop?: () => void;
     /** Runs `tailscale`: tests give a stand-in. */
     exec?: Exec;
+    /** The clock for short codes and their limits: tests give a fake one. */
+    now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
     /** Reads OAuth apps' metadata documents: tests give a stand-in. */
@@ -236,6 +250,7 @@ async function serveStudio(
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
+    now: opts.now,
     onChange: (s) => {
       store.emit({ type: 'choir', choir: s });
       route();
@@ -709,7 +724,8 @@ async function serveStudio(
       const ts = tailnet();
       return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
     },
-    invite: async (url, key) => {
+    clock: opts.now,
+    invite: async (url, key, long, short) => {
       const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);
       if (!target)
@@ -717,7 +733,27 @@ async function serveStudio(
           409,
           'Tailscale isn’t running on this computer, so other devices can’t reach it. Start Tailscale, or give the address they reach it at: `hildegard choir invite --url http://<address>:<port>`.',
         );
-      const r = choir.invite(target, ts?.name ?? hostname(), key);
+      {
+        const t = new URL(target);
+        const h = t.hostname.replace(/^\[|\]$/g, '');
+        if (t.protocol === 'http:' && !isIP(h) && covered(h, Number(t.port || 80)))
+          throw new ChoirError(
+            400,
+            `Share at this computer’s Tailscale IP (http://<ip>:${port}) or an https name in front of it, not ${t.host}: other devices couldn’t redeem a code there.`,
+          );
+      }
+      const name = ts?.name ?? hostname();
+      let r: ChoirInvite;
+      if (key !== undefined) {
+        const k = choir.invite(target, name, key);
+        r = { ...k, name: deviceName(name), short: null, command: null };
+      } else {
+        const k = choir.shortInvite(target, name, { long, short });
+        r = {
+          ...k,
+          command: k.short ? `hildegard choir join ${k.short.code} --url ${k.url}` : null,
+        };
+      }
       await syncSharing();
       return r;
     },
@@ -758,7 +794,31 @@ async function serveStudio(
     syncingSharing = syncingSharing.then(syncSharingNow, syncSharingNow);
     return syncingSharing;
   };
+  // An invite nobody used leaves sharing on only until its last code lapses: look again then, so the listener closes
+  // and the Studio stops saying "Sharing".
+  let lapseTimer: NodeJS.Timeout | null = null;
+  const watchLapse = () => {
+    if (lapseTimer) clearTimeout(lapseTimer);
+    lapseTimer = null;
+    const ms = choir.lapsesIn();
+    if (ms === null || closing) return;
+    lapseTimer = setTimeout(
+      () => {
+        lapseTimer = null;
+        // Nothing awaits this timer, so a failed sync must not become an unhandled rejection that ends the process.
+        void syncSharing()
+          .then(() => choir.emit())
+          .catch((e: Error) => {
+            choir.sharingProblem = `Sharing couldn’t update: ${e.message}`;
+            choir.emit();
+          });
+      },
+      Math.min(ms, 2 ** 31 - 1),
+    );
+    lapseTimer.unref();
+  };
   const syncSharingNow = async (): Promise<void> => {
+    watchLapse();
     const want = choir.listen();
     const h = want?.hostname.replace(/^\[|\]$/g, '') ?? '';
     const p = want ? Number(want.port || 80) : 0;
@@ -787,7 +847,10 @@ async function serveStudio(
     }
     const hostHeader = h.includes(':') ? `[${h}]` : h;
     try {
-      share = { key, server: await listen(nodeOnlyApp(node, () => [hostHeader]).fetch, h, p) };
+      share = {
+        key,
+        server: await listen(nodeOnlyApp(node, () => [hostHeader], redeemRoutes(choir)).fetch, h, p),
+      };
       if (choir.sharingProblem) {
         choir.sharingProblem = null;
         choir.emit();
@@ -929,6 +992,7 @@ async function serveStudio(
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
+      if (lapseTimer) clearTimeout(lapseTimer);
       scheduler.stop();
       voice.close();
       await voiceEngine.close();

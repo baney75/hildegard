@@ -382,7 +382,10 @@ beforeAll(async () => {
     },
   );
   await until(() => laptop.scheduler.engineState().online && spark.scheduler.engineState().online);
-  const invite = await post(spark, '/api/choir/invite', { url: `http://127.0.0.1:${await freePort()}` });
+  const invite = await post(spark, '/api/choir/invite', {
+    url: `http://127.0.0.1:${await freePort()}`,
+    long: true,
+  });
   expect(invite.status).toBe(200);
   const { code } = (await invite.json()) as { code: string };
   expect((await post(laptop, '/api/choir/join', { code, name: 'spark' })).status).toBe(201);
@@ -515,7 +518,10 @@ describe('any free device', () => {
   });
 
   it('refuses “auto” as a device’s name', async () => {
-    const invite = await post(spark, '/api/choir/invite', { url: `http://127.0.0.1:${await freePort()}` });
+    const invite = await post(spark, '/api/choir/invite', {
+      url: `http://127.0.0.1:${await freePort()}`,
+      long: true,
+    });
     const { code } = (await invite.json()) as { code: string };
     expect((await post(laptop, '/api/choir/join', { code, name: 'auto' })).status).toBe(400);
   });

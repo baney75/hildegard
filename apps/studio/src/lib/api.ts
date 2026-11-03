@@ -7,7 +7,9 @@ import type {
   Character,
   CharacterView,
   ChoirDevice,
+  ChoirInvite,
   ChoirState,
+  ConnectCode,
   ConsentSessionView,
   DesignRequest,
   DeviceCapabilities,
@@ -39,8 +41,17 @@ export class ApiError extends Error {
   readonly field: string | undefined;
   /** What the owner can do about it, when the server says: a command or a page. */
   readonly fix: string | null;
-  constructor(status: number, message: string, field?: string, fix?: string | null) {
+  /** When the server needs to know which owner is meant: their names. */
+  readonly owners: string[] | null;
+  constructor(
+    status: number,
+    message: string,
+    field?: string,
+    fix?: string | null,
+    owners?: string[] | null,
+  ) {
     super(message);
+    this.owners = owners ?? null;
     this.status = status;
     this.field = field;
     this.fix = fix ?? null;
@@ -71,6 +82,7 @@ async function call<T>(method: string, path: string, body?: unknown, raw?: BodyI
     field?: string;
     code?: string;
     fix?: string | null;
+    owners?: unknown;
   };
   if (res.status === 401 && data.code === 'signin') window.dispatchEvent(new Event(SIGNED_OUT));
   if (!res.ok)
@@ -79,6 +91,7 @@ async function call<T>(method: string, path: string, body?: unknown, raw?: BodyI
       data.error ?? `Something went wrong (${res.status}).`,
       data.field,
       data.fix,
+      Array.isArray(data.owners) ? data.owners.filter((o): o is string => typeof o === 'string') : null,
     );
   return data;
 }
@@ -235,10 +248,17 @@ export const api = {
   agents: () => call<AgentsResponse>('GET', '/api/agents'),
   choir: () => call<ChoirState>('GET', '/api/choir'),
   choirTailnet: () => call<{ url: string | null }>('GET', '/api/choir/tailnet'),
-  choirInvite: (url?: string) => call<{ code: string; url: string }>('POST', '/api/choir/invite', { url }),
+  /** With `long`, only the long code is made: no short code is left live and unseen. */
+  choirInvite: (url?: string, long?: boolean) =>
+    call<ChoirInvite>('POST', '/api/choir/invite', {
+      url,
+      ...(long ? { long: true, short: false } : {}),
+    }),
+  /** A one-time code to approve a chatbot's connection (owners). */
+  connectCode: (person?: string) => call<ConnectCode>('POST', '/api/auth/codes', person ? { person } : {}),
   choirRevoke: () => call<ChoirState>('POST', '/api/choir/revoke'),
-  choirJoin: (code: string) =>
-    call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code }),
+  choirJoin: (code: string, url?: string) =>
+    call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code, url }),
   choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
   choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
   choirOpportunistic: (on: boolean) => call<ChoirState>('POST', '/api/choir/opportunistic', { on }),

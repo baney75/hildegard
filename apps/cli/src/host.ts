@@ -2,6 +2,7 @@
 import { createInterface } from 'node:readline/promises';
 import type {
   AgentGrant,
+  ConnectCode,
   GrantsResponse,
   HostState,
   NewInvite,
@@ -75,7 +76,7 @@ const grantStep = (g: AgentGrant): Step => ({
   id: `grant-${g.id}`,
   title: g.name,
   status: 'done',
-  detail: `${g.kind === 'key' ? 'Key' : 'Chatbot'} · acts as ${g.person.name} · ${g.lastUsedAt ? `last used ${g.lastUsedAt}` : 'not used yet'}${g.expiresAt ? ` · until ${g.expiresAt}` : ''} · id ${g.id}`,
+  detail: `${g.kind === 'key' ? 'Key' : 'Chatbot'}${g.approval === 'code' ? ` (approved by code from ${g.person.name})` : ''} · acts as ${g.person.name} · ${g.lastUsedAt ? `last used ${g.lastUsedAt}` : 'not used yet'}${g.expiresAt ? ` · until ${g.expiresAt}` : ''} · id ${g.id}`,
 });
 
 const ownerStep = (): Step => ({
@@ -429,6 +430,35 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
       }
     }
 
+    case 'code': {
+      // A one-time code the owner types on a chatbot's approval page instead of a name and passphrase.
+      try {
+        const r = await api<ConnectCode>(c, '/api/auth/codes', {
+          method: 'POST',
+          body: { person: ctx.opts.get('as') },
+        });
+        if (!ctx.json)
+          console.log(
+            `Connect code (works once, for 10 minutes, as ${r.person.name}):\n\n  ${r.code}\n\n${r.mcpUrl ? `Add ${r.mcpUrl} as a custom connector in claude.ai or ChatGPT,\nthen choose “Use a connect code” on Hildegard’s page and type it.` : 'Turn host mode on first (`hildegard host`), so a chatbot has an address to connect to.'}\nOnly use it for a connection you are making yourself.\n`,
+          );
+        return result(
+          [
+            {
+              id: 'code',
+              title: 'Connect code',
+              status: r.mcpUrl ? 'done' : 'needs-owner',
+              detail: `${r.code} approves a chatbot as ${r.person.name}, once, until ${r.expiresAt}. ${r.mcpUrl ? `Connector address: ${r.mcpUrl}` : 'Hildegard isn’t at a link yet, so there is no address to connect to.'}`,
+              ...(r.mcpUrl ? {} : { command: 'hildegard host' }),
+            },
+          ],
+          '',
+          { code: r.code, expiresAt: r.expiresAt, mcpUrl: r.mcpUrl, person: r.person },
+        );
+      } catch (e) {
+        return failure('code', 'Connect code', e);
+      }
+    }
+
     case 'keys': {
       const r = await api<GrantsResponse>(c, '/api/auth/grants');
       if (args[1] === 'revoke') {
@@ -472,7 +502,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
     default:
       return result(
         [],
-        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>`, `host role <name> <role>`, `host limit [<takes>]`, `host key <name>` or `host keys [revoke <id|name>]`.',
+        'Use `hildegard host`, `host off`, `host status`, `host owner`, `host invite`, `host people`, `host revoke <name>`, `host role <name> <role>`, `host limit [<takes>]`, `host code`, `host key <name>` or `host keys [revoke <id|name>]`.',
         { ok: false },
       );
   }
