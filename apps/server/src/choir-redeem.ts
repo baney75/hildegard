@@ -5,7 +5,7 @@ import { clientKey, type HgEnv } from './access.ts';
 import { type Choir, ChoirError } from './choir.ts';
 
 /**
- * POST / (mounted at /api/choir/redeem, on the Studio's app and on the sharing device's own address): a device that
+ * POST / (mounted at /api/choir/redeem, on the sharing device's own address only, never on the Studio app or its public link): a device that
  * isn't paired yet trades a short code for a key. No sign-in: the code is the proof, and wrong ones are counted.
  */
 export function redeemRoutes(choir: Choir): Hono<HgEnv> {

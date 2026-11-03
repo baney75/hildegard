@@ -228,6 +228,7 @@ describe('hildegard', () => {
         nodeData,
         '--url',
         node.url,
+        '--long',
       );
       expect(invite.ok).toBe(true);
       expect(invite.code).toMatch(/^hgc1_/);
@@ -641,27 +642,19 @@ describe('host and doctor', () => {
     expect(down.detail).toContain('ENOTFOUND');
   });
 
-  it('joins with a short code: given its address, and found among the tailnet’s peers', async () => {
+  it('joins with a short code only at the address given, and with a long code on request', async () => {
     const nodeData = mkdtempSync(join(tmpdir(), 'hg-cli-short-node-'));
     const node = await startServer(
       { ...parseArgs(['--fake-gpu', '--data', nodeData]), port: 0 },
       { fakeTickMs: 20, secrets: fileStore(join(tmpdir(), `hg-cli-short-${process.pid}.json`)) },
     );
     const nodePort = new URL(node.url).port;
-    // The other computer, in this process so `tailscale status --json` can be stood in for: one peer, which is the GPU.
     const macData = mkdtempSync(join(tmpdir(), 'hg-cli-short-mac-'));
-    const status = JSON.stringify({
-      BackendState: 'Running',
-      Self: { DNSName: 'mac.example.ts.net.', TailscaleIPs: ['100.64.0.9'] },
-      Peer: { p: { HostName: 'gpu-box', TailscaleIPs: ['127.0.0.1'], Online: true } },
-    });
     const mac = await startServer(
       { ...parseArgs(['--data', macData]), port: 0 },
       {
         secrets: fileStore(join(macData, 'secret.json')),
         choirSecrets: () => fileStore(join(macData, 'choir-secret.json')),
-        choirScanPort: Number(nodePort),
-        exec: async (_c, a) => ({ ok: true, out: a[0] === 'status' ? status : '' }),
       },
     );
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
@@ -672,13 +665,13 @@ describe('host and doctor', () => {
       expect(invite.ok).toBe(true);
       expect(invite.shortCode).toMatch(/^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
       expect(invite.command).toBe(`hildegard choir join ${invite.shortCode} --url ${node.url}`);
-      expect(invite.code).toMatch(/^hgc1_/);
+      expect(invite.code).toBeUndefined();
       expect(Date.parse(invite.expiresAt as string) - Date.now()).toBeGreaterThan(9 * 60_000);
 
       // A wrong code with the address: refused, nothing kept.
       const wrong = await hildegard(home, 'choir', 'join', 'HG-0000-0000', '--url', node.url, ...onMac);
       expect(wrong.ok).toBe(false);
-      expect(wrong.steps[0]!.detail).toMatch(/isn’t good|No device accepted/);
+      expect(wrong.steps[0]!.detail).toMatch(/isn’t good|didn’t accept the code/);
       expect(mac.choir.state().devices).toEqual([]);
 
       // The right one with the address, typed the way people type it.
@@ -700,15 +693,15 @@ describe('host and doctor', () => {
       ).toBe(false);
       expect((await hildegard(home, 'choir', 'leave', name, ...onMac)).ok).toBe(true);
 
-      // With no address, the tailnet’s peers are tried: the stand-in lists the GPU as one.
+      // With no address, nothing is sent anywhere: it says the command to run.
       const second = await hildegard(home, 'choir', 'invite', '--url', node.url, ...at);
-      const found = await hildegard(home, 'choir', 'join', second.shortCode as string, ...onMac);
-      expect(found.ok, found.message).toBe(true);
-      expect(mac.choir.state().devices).toMatchObject([{ name, online: true }]);
+      const bare = await hildegard(home, 'choir', 'join', second.shortCode as string, ...onMac);
+      expect(bare.ok).toBe(false);
+      expect(bare.steps[0]!.detail).toContain('--url');
+      expect(mac.choir.state().devices).toEqual([]);
 
-      // The long code still joins.
-      expect((await hildegard(home, 'choir', 'leave', name, ...onMac)).ok).toBe(true);
-      const third = await hildegard(home, 'choir', 'invite', '--url', node.url, ...at);
+      // The long code still joins, when asked for.
+      const third = await hildegard(home, 'choir', 'invite', '--url', node.url, '--long', ...at);
       expect((await hildegard(home, 'choir', 'join', third.code as string, ...onMac)).ok).toBe(true);
     } finally {
       await mac.close();

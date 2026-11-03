@@ -221,8 +221,10 @@ and asks who's calling:
   code** in Settings › Sharing, owners only) makes a one-time code, `HG-XXXX-XXXX`, good once for 10 minutes. On
   Hildegard's page choose **Use a connect code** and type it; the chatbot is approved as you, the owner who made it.
   Only type a code you made yourself for this connection. Wrong codes count toward the same sign-in limits as wrong
-  passphrases, plus a cap of 60 wrong codes in 15 minutes across all addresses, past which no code is tried for a
-  while (a passphrase still works).
+  passphrases, plus a cap of 60 wrong codes in 15 minutes across all addresses. The cap holds back only an address that has
+  already missed once; an address with no wrong tries is never blocked by it, and a passphrase still works. With
+  several owners and no session (this computer), name whose code it is: `hildegard host code --as <name>`. A new
+  passphrase, or removing or demoting the owner, drops that owner's unused codes.
 
 `hildegard host keys` lists keys and chatbots (a chatbot approved with a code reads “approved by code from <you>”), and `hildegard host keys revoke <name>` disconnects one at once.
 Results for apps elsewhere carry links to the videos (signed, good for a day) instead of paths on this computer.
@@ -358,20 +360,21 @@ hildegard choir invite
 ```
 
 It prints a short code, `HG-XXXX-XXXX` (good once, for 10 minutes), the address it is redeemed at, and the one command
-for the other computer; Settings › Devices › **Share this GPU** shows the same, large, with Copy and a countdown. It
-also prints the long `hgc1_…` code under “or paste this”, so older builds can still join. On the other computer:
+for the other computer; Settings › Devices › **Share this GPU** shows the same, large, with Copy and a countdown. A
+short code makes no key until it is used. For the long `hgc1_…` code (older builds, or pasting), run
+`hildegard choir invite --long` or press **Show long code**. On the other computer:
 
 ```sh
-hildegard choir join HG-XXXX-XXXX                       # finds gpu-a on your tailnet
-hildegard choir join HG-XXXX-XXXX --url http://100.x.y.z:7341   # or give its address
+hildegard choir join HG-XXXX-XXXX --url http://100.x.y.z:7341   # gpu-a's address, as the invite prints it
 hildegard choir list        # gpu-a · RTX 4080 Laptop, online, with its models
 ```
 
-Without `--url`, `join` tries each online Tailscale peer once (and gpu-a's public link, if you joined one before), so
-a wrong code costs one failed try per device. gpu-a counts wrong codes: 5 per source in 15 minutes, and 60 across all
-sources, past which nobody can enroll for a while (a device already paired is not affected). In the Studio, Settings ›
-Devices › **Add a device** takes the code and an optional address. The long code still works pasted in
-(`hildegard choir join` asks for it, hidden).
+A short code is a secret, so `join` sends it to the one address you give with `--url` and nowhere else: it never
+searches your tailnet, and without `--url` it sends nothing and tells you the command to run. It also refuses an
+answer that names a different address. gpu-a counts wrong codes: 5 per source in 15 minutes, and 60 across all
+sources, which holds back only a source that has already missed once (a device already paired is not affected). In the
+Studio, Settings › Devices › **Add a device** takes the short code with the address. The long code still works pasted
+in (`hildegard choir join` asks for it, hidden).
 
 Takes now render on gpu-a, and the Studio says so ("Rendering on gpu-a · RTX 4080 Laptop"). Models count as
 installed when they are installed there, so nothing downloads twice. Settings › Devices does the same with buttons:

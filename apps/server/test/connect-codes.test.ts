@@ -300,19 +300,85 @@ describe('wrong connect codes and the limits', () => {
     expect(fine.status).toBe(303);
   });
 
-  it('stop all codes after the global cap, a valid one included, until the window passes', async () => {
+  it('hold back only an address that already missed once, after the global cap, until the window passes', async () => {
     const s = await start({ perName: 50, perClient: 10_000 });
     const base = s.hostedUrl()!;
     const bot = await chatbot(base);
     const { request } = await bot.open();
     for (let i = 0; i < CODE_LIMITS.global; i++)
       await bot.post(request, { code: 'HG-0000-0000' }, `10.1.${Math.floor(i / 200)}.${i % 200}`);
+    // An address that never missed is not held back by other people's guessing, and its code works.
     const minted = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
-    const blocked = await bot.post(request, { code: minted.code }, '192.0.2.250');
+    const clean = await bot.post(request, { code: minted.code }, '192.0.2.250');
+    expect(clean.status).toBe(303);
+    // One that has missed once is: its next try, a valid code included, waits.
+    const bot2 = await chatbot(base);
+    const second = await bot2.open();
+    const again = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
+    expect((await bot2.post(second.request, { code: 'HG-1111-1111' }, '192.0.2.240')).status).toBe(401);
+    const blocked = await bot2.post(second.request, { code: again.code }, '192.0.2.240');
     expect(blocked.status).toBe(401);
     expect(await blocked.text()).toMatch(/Too many tries/);
     // The page still takes a passphrase: the cap is for codes only.
-    const pass = await bot.post(request, { name: 'Ada', passphrase: PASS }, '192.0.2.251');
+    const pass = await bot2.post(second.request, { name: 'Ada', passphrase: PASS }, '192.0.2.251');
     expect(pass.status).toBe(303);
+  });
+});
+
+describe('who a connect code is for', () => {
+  const addOwner = async (s: Running, name: string) => {
+    const base = s.hostedUrl()!;
+    const ada = await signIn(base, 'Ada');
+    const inv = (await (
+      await at(base, '/api/people/invites', {
+        method: 'POST',
+        cookie: ada,
+        body: JSON.stringify({ role: 'owner' }),
+      })
+    ).json()) as NewInvite;
+    await at(base, `/api/auth/invite/${inv.url.split('/#/invite/')[1]}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ name, passphrase: PASS }),
+    });
+  };
+
+  it('with no session and several owners, asks whose it is and lists them', async () => {
+    const s = await start();
+    // One owner: this computer means them.
+    expect(((await (await local(s, '/api/auth/codes')).json()) as ConnectCode).person.name).toBe('Ada');
+    await addOwner(s, 'Bob');
+    const unsure = await local(s, '/api/auth/codes');
+    expect(unsure.status).toBe(409);
+    const j = (await unsure.json()) as { error: string; owners: string[] };
+    expect(j.owners.sort()).toEqual(['Ada', 'Bob']);
+    expect(j.error).toContain('--as');
+    const bob = await local(s, '/api/auth/codes', 'POST', { person: 'bob' });
+    expect(bob.status).toBe(201);
+    expect(((await bob.json()) as ConnectCode).person.name).toBe('Bob');
+    expect((await local(s, '/api/auth/codes', 'POST', { person: 'Nobody' })).status).toBe(404);
+  });
+});
+
+describe('connect codes that outlive what they were made for', () => {
+  it('fail after their owner’s passphrase changes', async () => {
+    const s = await start();
+    const minted = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
+    const keep = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
+    const changed = await local(s, '/api/people/owner', 'POST', {
+      name: 'Ada',
+      passphrase: 'a different long private passphrase',
+    });
+    expect(changed.status).toBeLessThan(300);
+    const base = s.hostedUrl()!;
+    const bot = await chatbot(base);
+    const { request } = await bot.open();
+    for (const code of [minted.code, keep.code]) {
+      const r = await bot.post(request, { code }, '198.51.100.9');
+      expect(r.status).toBe(401);
+      expect(await r.text()).toMatch(/isn’t good/);
+    }
+    // A code made after the change works.
+    const fresh = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
+    expect((await bot.post(request, { code: fresh.code }, '198.51.100.10')).status).toBe(303);
   });
 });

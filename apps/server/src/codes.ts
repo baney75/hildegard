@@ -16,8 +16,8 @@ export const CODE_RE = /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/;
 
 /**
  * Wrong tries allowed in 15 minutes: per source address, and across every source (so a spread-out guesser is
- * stopped too). The global cap means someone can lock out enrolling for 15 minutes with 60 bad guesses; a code that
- * is already valid works until then, and enrolling is the only thing that stops, never anything already paired.
+ * stopped too). The global cap applies only to a source that has already had a wrong try in the window, so a clean source
+ * (the owner with a good code) is never blocked by someone else's guessing, and nothing already paired ever stops.
  */
 export const CODE_LIMITS = { perSource: 5, global: 60, windowMs: 15 * 60_000 } as const;
 
@@ -130,6 +130,13 @@ export class CodeBook<T> {
     const [c] = this.codes.splice(i, 1);
     this.persist();
     return c!.expiresAt > t ? c!.data : null;
+  }
+
+  /** Forget the codes whose data `pred` picks (a person's passphrase changed, say). */
+  dropWhere(pred: (data: T) => boolean) {
+    const before = this.codes.length;
+    this.codes = this.codes.filter((c) => !pred(c.data));
+    if (this.codes.length !== before) this.persist();
   }
 
   /** Forget every code (sharing stopped, say). */

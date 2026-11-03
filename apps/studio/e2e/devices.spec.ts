@@ -7,7 +7,10 @@ const node = `http://127.0.0.1:${process.env.E2E_NODE_PORT}`;
 
 /** A join code from the second Hildegard, as its owner would get from Share this GPU. */
 async function inviteFromNode(request: APIRequestContext) {
-  const res = await request.post(`${node}/api/choir/invite`, { headers: H, data: { url: node } });
+  const res = await request.post(`${node}/api/choir/invite`, {
+    headers: H,
+    data: { url: node, long: true },
+  });
   expect(res.status()).toBe(200);
   const { code } = (await res.json()) as { code: string };
   const name = JSON.parse(Buffer.from(code.slice(5), 'base64url').toString('utf8')).n as string;
@@ -35,6 +38,7 @@ test('adds a device by its code, renders there, and removes it', async ({ page, 
 
   const { code, name } = await inviteFromNode(request);
   await page.getByLabel('Join code').fill(code);
+  await expect(page.getByLabel('Join code')).toHaveAttribute('type', 'password');
   await page.getByRole('button', { name: 'Add device' }).click();
   await expect(use.getByText('Online')).toBeVisible();
   await expect(use.getByText(/Stand-in/)).toBeVisible();
@@ -71,7 +75,7 @@ test('shares this GPU with a code to copy, and stops sharing', async ({ page, co
     await address.fill(new URL(page.url()).origin);
   }
   await share.click();
-  // A short code to type, large, with a countdown; the long one stays under it for older builds.
+  // A short code to type, large, with a countdown; the long one only on request.
   const short = page.getByRole('group', { name: 'Short join code' });
   await expect(short.getByTestId('one-time-code')).toHaveText(
     /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/,
@@ -79,6 +83,9 @@ test('shares this GPU with a code to copy, and stops sharing', async ({ page, co
   await expect(page.getByRole('timer')).toHaveText(/Works once, for (9|10):\d\d more\./);
   await short.getByRole('button', { name: 'Copy' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^HG-/);
+  // The long one is made only on request.
+  await expect(page.getByRole('region', { name: 'Join code' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show long code' }).click();
   const code = page.getByRole('region', { name: 'Join code' });
   await expect(code).toHaveText(/^hgc1_[A-Za-z0-9_-]+$/);
   await page.getByRole('button', { name: 'Copy long code' }).click();
@@ -101,7 +108,7 @@ test('adds a device by typing its short code and address', async ({ page, reques
   const inv = (await res.json()) as { short: { code: string } };
   await page.goto('/#/settings/devices');
   await page.getByLabel('Join code').fill(inv.short.code.toLowerCase());
-  await page.getByLabel(/Its address, if this computer can’t find it/).fill(node);
+  await page.getByLabel(/Its address, as the invite shows it/).fill(node);
   await page.getByRole('button', { name: 'Add device' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Use for renders' }).getByText('Online')).toBeVisible();
   // Used: the same code does nothing the second time.
@@ -120,7 +127,7 @@ test('shows a paired device’s render in this computer’s queue, by the name i
 }) => {
   const errors = watchErrors(page);
   // This computer shares its GPU, and the second Hildegard renders here.
-  const res = await request.post('/api/choir/invite', { headers: H, data: { url: baseURL } });
+  const res = await request.post('/api/choir/invite', { headers: H, data: { url: baseURL, long: true } });
   expect(res.status()).toBe(200);
   const { code } = (await res.json()) as { code: string };
   const here = JSON.parse(Buffer.from(code.slice(5), 'base64url').toString('utf8')).n as string;

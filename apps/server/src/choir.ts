@@ -144,52 +144,6 @@ export interface TailscaleSelf {
   name: string;
 }
 
-/** Runs a command without a shell (host.ts's `Exec`, which tests give a stand-in for). */
-export type AsyncRun = (
-  cmd: string,
-  args: string[],
-  timeoutMs?: number,
-) => Promise<{ ok: boolean; out: string }>;
-
-/** A device on the tailnet, as `tailscale status --json` lists it. */
-export interface TailscalePeer {
-  name: string;
-  ip: string;
-  online: boolean;
-}
-
-/** The other devices on this tailnet that are online, each with one address (IPv4 first). */
-export async function tailscalePeers(run: AsyncRun): Promise<TailscalePeer[]> {
-  const cmds =
-    process.platform === 'darwin'
-      ? ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/Tailscale']
-      : ['tailscale'];
-  for (const cmd of cmds) {
-    const r = await run(cmd, ['status', '--json'], 5000);
-    if (!r.ok && !r.out.startsWith('{')) continue;
-    try {
-      const j = JSON.parse(r.out.slice(r.out.indexOf('{'))) as {
-        BackendState?: string;
-        Peer?: Record<
-          string,
-          { HostName?: string; DNSName?: string; TailscaleIPs?: string[]; Online?: boolean }
-        >;
-      };
-      if (j.BackendState !== 'Running') return [];
-      return Object.values(j.Peer ?? {})
-        .map((p) => ({
-          name: deviceName(p.DNSName || p.HostName || ''),
-          ip: p.TailscaleIPs?.find((x) => /^100\./.test(x)) ?? p.TailscaleIPs?.[0] ?? '',
-          online: p.Online === true,
-        }))
-        .filter((p) => p.online && p.ip);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
 type Run = (cmd: string, args: string[]) => string | null;
 const run: Run = (cmd, args) => {
   try {
@@ -293,11 +247,8 @@ interface SharingFile {
   /** `for` is the device a short code was redeemed by, as it named itself. */
   keys: Array<{ hash: string; createdAt: string; for?: string }>;
 }
-/** What a short join code stands for: the address it is redeemed at and the name this device shares under. */
-interface ShortJoin {
-  url: string;
-  name: string;
-}
+/** What a short join code stands for: nothing but itself. The address and name are the sharing record's, as they are when it is redeemed. */
+type ShortJoin = Record<string, never>;
 /** How this computer shares its GPU; kept apart from the keys, so it outlasts revoking and inviting. */
 interface SettingsFile {
   /** Paired devices' renders go behind this computer's own work and wait while it's busy. */
@@ -343,8 +294,6 @@ export class Choir {
   private readonly secrets: (account: string) => SecretStore;
   private readonly onChange: (s: ChoirState) => void;
   private readonly fetchFn: typeof fetch;
-  private readonly run: AsyncRun | null;
-  private readonly scanPort: () => number;
   /** Short join codes made by `invite`, until they are used, expire, or sharing stops. */
   private readonly shortCodes: CodeBook<ShortJoin>;
   /** Wrong short codes, per source and across all of them. */
@@ -359,18 +308,12 @@ export class Choir {
     secrets: (account: string) => SecretStore;
     onChange: (s: ChoirState) => void;
     fetch?: typeof fetch;
-    /** Runs `tailscale`, to find the other devices a short code might belong to. */
-    exec?: AsyncRun;
-    /** The port Hildegard answers on at the other devices, which a short code is tried against. */
-    scanPort?: () => number;
     now?: () => number;
   }) {
     this.dir = join(opts.dataDir, 'choir');
     this.secrets = opts.secrets;
     this.onChange = opts.onChange;
     this.fetchFn = opts.fetch ?? fetch;
-    this.run = opts.exec ?? null;
-    this.scanPort = opts.scanPort ?? (() => 7341);
     const now = opts.now ?? Date.now;
     this.shortCodes = new CodeBook<ShortJoin>({ file: join(this.dir, 'codes.json'), now });
     this.wrongBySource = new Limiter(CODE_LIMITS.perSource, CODE_LIMITS.windowMs, now);
@@ -383,7 +326,7 @@ export class Choir {
       writeFileSync(idFile, this.id, { mode: 0o600 });
     }
     const sharing = load<SharingFile | null>(join(this.dir, 'sharing.json'), null);
-    this.sharing = sharing?.keys?.length ? sharing : null;
+    this.sharing = sharing?.url && Array.isArray(sharing.keys) ? sharing : null;
     this.joined = load<DevicesFile>(join(this.dir, 'devices.json'), { use: 'local', devices: [] });
     const settings = load<Partial<SettingsFile>>(join(this.dir, 'settings.json'), {});
     this.settings = { opportunistic: settings.opportunistic === true };
@@ -506,34 +449,57 @@ export class Choir {
     const origin = checkUrl(url);
     if (key !== undefined && !TOKEN_RE.test(key))
       throw new ChoirError(400, 'A key is 32 random bytes in base64url: 43 letters, digits, - and _.');
-    const token = key ?? newToken();
+    this.shareAt(origin, name);
+    const j = this.addKey(label, key);
+    return { code: encodeJoinCode(j), url: origin };
+  }
+
+  /** Sharing on at `origin` under `name`, keeping the keys already paired when the address is the same. No key is made. */
+  private shareAt(origin: string, name: string) {
     const keys = this.sharing?.url === origin ? this.sharing.keys : [];
+    this.sharing = { name: deviceName(name), url: origin, keys };
+    save(join(this.dir, 'sharing.json'), this.sharing);
+    this.sharingProblem = null;
+    this.emit();
+  }
+
+  /**
+   * Add a key to the sharing record as it is now, without touching its address or name, and return what a long code
+   * holds. `key` is one the other device made itself.
+   */
+  private addKey(label?: string, key?: string): JoinCode {
+    const sharing = this.sharing;
+    if (!sharing) throw new ChoirError(409, 'This computer isn’t sharing its GPU.');
+    const token = key ?? newToken();
     this.sharing = {
-      name: deviceName(name),
-      url: origin,
+      ...sharing,
       keys: [
-        ...keys,
+        ...sharing.keys,
         { hash: hashToken(token), createdAt: new Date().toISOString(), ...(label ? { for: label } : {}) },
       ],
     };
     save(join(this.dir, 'sharing.json'), this.sharing);
-    this.sharingProblem = null;
     this.emit();
-    return { code: encodeJoinCode({ name: this.sharing.name, url: origin, token }), url: origin };
+    return { name: sharing.name, url: sharing.url, token };
   }
 
   /**
-   * Turn sharing on and make the long code, as `invite` does, and also a short one (`HG-XXXX-XXXX`) for typing. The
-   * short code makes its key only when it is redeemed, so a code nobody uses leaves no key behind.
+   * Turn sharing on and make a short code (`HG-XXXX-XXXX`) for typing. It makes no key: the key is made only when the
+   * code is redeemed, so a code nobody uses leaves none behind. The long `hgc1_` code is made only when asked for
+   * (`long`), and that one does leave a key.
    */
   shortInvite(
     url: string,
     name: string,
-  ): { code: string; url: string; short: { code: string; expiresAt: string }; name: string } {
-    const r = this.invite(url, name);
-    const short = this.shortCodes.mint({ url: r.url, name: this.sharing!.name });
+    opts: { long?: boolean } = {},
+  ): { code: string | null; url: string; short: { code: string; expiresAt: string }; name: string } {
+    const origin = checkUrl(url);
+    this.shareAt(origin, name);
+    const long = opts.long ? encodeJoinCode(this.addKey()) : null;
+    const short = this.shortCodes.mint({});
     return {
-      ...r,
+      code: long,
+      url: origin,
       name: this.sharing!.name,
       short: { code: short.code, expiresAt: new Date(short.expiresAt).toISOString() },
     };
@@ -541,12 +507,15 @@ export class Choir {
 
   /**
    * A joining device presents a short code. A wrong one counts against its source and against all sources; past
-   * either limit nothing is tried, so the code isn't even looked at. The live check reads memory only; taking the
-   * code is one synchronous step, so of two at once exactly one gets a key. Returns what a long code holds.
+   * either limit nothing is tried, so the code isn't even looked at. The all-sources cap holds back only a source
+   * that has already had a wrong try in the window: one that hasn't is never blocked by other people's guessing. The
+   * live check reads memory only; taking the code is one synchronous step, so of two at once exactly one gets a key.
+   * Returns what a long code holds, from the sharing record as it is now.
    */
   redeem(code: unknown, source: string, joiner?: string): JoinCode {
     const key = `src:${source}`;
-    const wait = Math.max(this.wrongBySource.wait(key), this.wrongAnywhere.wait('all'));
+    const missed = this.wrongBySource.count(key) > 0;
+    const wait = Math.max(this.wrongBySource.wait(key), missed ? this.wrongAnywhere.wait('all') : 0);
     if (wait)
       throw new ChoirError(
         429,
@@ -563,7 +532,7 @@ export class Choir {
       );
     }
     const label = typeof joiner === 'string' && NAME_RE.test(joiner) ? joiner.toLowerCase() : undefined;
-    return parseJoinCode(this.invite(rec.url, rec.name, undefined, label).code);
+    return this.addKey(label);
   }
 
   /** Whether paired devices' renders yield to this computer's own work (see Scheduler.setOpportunistic). */
@@ -643,65 +612,58 @@ export class Choir {
   }
 
   /**
-   * Trade a short code for a long one at the sharing device: at `url` when given, else at each online device on the
-   * tailnet (and any device joined before) in turn, one try each, stopping at the first that takes it. A wrong code
-   * therefore costs one wrong try per device, not several.
+   * Trade a short code for a long one at the sharing device, at `url` and nowhere else: a short code is a secret, so it
+   * is sent to the one address the person gave, never to devices found on the network. What comes back must say it is
+   * that same address.
    */
   private async redeemRemote(code: string, url?: string): Promise<JoinCode> {
+    if (!url)
+      throw new ChoirError(
+        400,
+        'A short code needs the sharing device’s address: `hildegard choir join HG-XXXX-XXXX --url http://<address>:7341`. The sharing device prints the whole command.',
+      );
+    const origin = checkUrl(url);
     const me = deviceName(hostname());
-    const origins: string[] = [];
-    if (url) origins.push(checkUrl(url));
-    else {
-      const peers = this.run ? await tailscalePeers(this.run) : [];
-      for (const p of peers.slice(0, 40))
-        try {
-          origins.push(checkUrl(`http://${p.ip.includes(':') ? `[${p.ip}]` : p.ip}:${this.scanPort()}`));
-        } catch {}
-      for (const d of this.joined.devices) origins.push(new URL(d.url).origin);
+    let res: Response;
+    try {
+      res = await this.fetchFn(`${origin}/api/choir/redeem`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-hildegard': '1' },
+        body: JSON.stringify({ code, name: me }),
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (e) {
+      throw new ChoirError(502, `Couldn’t reach ${origin}: ${(e as Error).message}`);
     }
-    const tried = new Set<string>();
-    let refused = false;
-    for (const origin of origins) {
-      if (tried.has(origin)) continue;
-      tried.add(origin);
-      let res: Response;
-      try {
-        res = await this.fetchFn(`${origin}/api/choir/redeem`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-hildegard': '1' },
-          body: JSON.stringify({ code, name: me }),
-          signal: AbortSignal.timeout(url ? 10_000 : 3_000),
-        });
-      } catch (e) {
-        if (url) throw new ChoirError(502, `Couldn’t reach ${origin}: ${(e as Error).message}`);
-        continue;
-      }
-      if (res.status === 429) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new ChoirError(429, j.error ?? 'Too many wrong codes there. Wait, then ask for a new one.');
-      }
-      if (!res.ok) {
-        // 403: not this device's code. Anything else: not a Hildegard that takes codes.
-        if (res.status === 403) refused = true;
-        continue;
-      }
-      const j = (await res.json().catch(() => null)) as {
-        name?: unknown;
-        url?: unknown;
-        token?: unknown;
-      } | null;
-      if (typeof j?.name !== 'string' || typeof j.url !== 'string' || typeof j.token !== 'string')
-        throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.`);
-      return parseJoinCode(encodeJoinCode({ name: j.name, url: j.url, token: j.token }));
+    if (res.status === 429) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new ChoirError(429, j.error ?? 'Too many wrong codes there. Wait, then ask for a new one.');
     }
-    throw new ChoirError(
-      refused ? 403 : 404,
-      refused
-        ? 'No device accepted that code: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.'
-        : url
-          ? `Nothing at ${url} took that code.`
-          : 'No device on your tailnet answered to that code. Give the sharing device’s address: `hildegard choir join <code> --url http://<address>:7341`.',
-    );
+    if (res.status === 403)
+      throw new ChoirError(
+        403,
+        'That device didn’t accept the code: it was mistyped, used already, or has expired. Ask for a new one with `hildegard choir invite`.',
+      );
+    if (!res.ok) throw new ChoirError(404, `Nothing at ${origin} took that code.`);
+    const j = (await res.json().catch(() => null)) as {
+      name?: unknown;
+      url?: unknown;
+      token?: unknown;
+    } | null;
+    if (typeof j?.name !== 'string' || typeof j.url !== 'string' || typeof j.token !== 'string')
+      throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.`);
+    let answered: string;
+    try {
+      answered = new URL(j.url).origin;
+    } catch {
+      answered = '';
+    }
+    if (answered !== origin)
+      throw new ChoirError(
+        502,
+        `${origin} answered with a different address (${j.url}), so Hildegard didn’t keep it.`,
+      );
+    return parseJoinCode(encodeJoinCode({ name: j.name, url: j.url, token: j.token }));
   }
 
   leave(name: string) {

@@ -160,7 +160,7 @@ export interface AppDeps {
    * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
    * the other device made (a rented GPU it started), instead of a fresh one.
    */
-  invite: (url?: string, key?: string) => Promise<ChoirInvite>;
+  invite: (url?: string, key?: string, long?: boolean) => Promise<ChoirInvite>;
   /** The clock for connect codes and their limits: tests give a fake one. */
   clock?: () => number;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
@@ -1486,18 +1486,27 @@ export function createApp(deps: AppDeps) {
     local(c) ? null : c.json({ error: 'Pair devices from the computer Hildegard runs on.' }, 403);
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
   app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
-  // A device that isn't paired yet trades a short code for a key: no sign-in, the code is the proof.
+  // Only for a sharing address this server's own listener covers, reached from this computer. Never through a link
+  // (the access check above answers those 401 first), and never from the network: the sharing device's own address
+  // (the node-only app) is where other devices redeem.
+  app.use('/api/choir/redeem', async (c, next) =>
+    local(c) ? next() : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403),
+  );
   app.route('/api/choir/redeem', redeemRoutes(deps.choir));
   app.post('/api/choir/invite', async (c) => {
     const refused = pairLocal(c);
     if (refused) return refused;
     const body = z
-      .object({ url: z.string().max(200).optional(), key: z.string().max(100).optional() })
+      .object({
+        url: z.string().max(200).optional(),
+        key: z.string().max(100).optional(),
+        long: z.boolean().optional(),
+      })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give an address like http://100.64.0.1:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
-      return c.json(await deps.invite(body.data.url, body.data.key));
+      return c.json(await deps.invite(body.data.url, body.data.key, body.data.long));
     } catch (e) {
       return choirFail(c, e);
     }
@@ -1904,7 +1913,12 @@ export function createApp(deps: AppDeps) {
     file: join(config.dataDir, 'people', 'connect-codes.json'),
     now: deps.clock,
   });
-  people.onPassphrase((personId) => grants.endChatbots(personId));
+  people.onPassphrase((personId) => {
+    grants.endChatbots(personId);
+    connectCodes.dropWhere((d) => d.personId === personId);
+  });
+  // Removed or demoted: their outstanding connect codes go too.
+  people.on(() => connectCodes.dropWhere((d) => people.get(d.personId)?.role !== 'owner'));
   const mcpUrl = () => {
     const u = host.state().url;
     return u ? `${u.replace(/\/$/, '')}/mcp` : null;
@@ -1923,20 +1937,39 @@ export function createApp(deps: AppDeps) {
       mcpUrl: mcpUrl(),
     } satisfies GrantsResponse);
   });
-  app.post('/api/auth/codes', (c) => {
+  app.post('/api/auth/codes', async (c) => {
     c.header('cache-control', 'no-store');
-    // Owners only: a code approves a chatbot as the owner who made it. This computer counts as the owner here.
+    // Owners only: a code approves a chatbot as the owner who made it. With no session (this computer), the one
+    // owner counts; with several, the caller says which.
     const refused = ownerOnly(c);
     if (refused) return refused;
-    const me = personOf(c) ?? people.list().find((p) => p.role === 'owner');
-    if (!me)
-      return c.json(
-        {
-          error: 'Make the owner account first, so a code has someone to approve as.',
-          fix: 'hildegard host owner',
-        },
-        409,
-      );
+    let me: { id: string; name: string } | null | undefined = personOf(c);
+    if (!me) {
+      const owners = people.list().filter((p) => p.role === 'owner');
+      const asked = await c.req
+        .json()
+        .then((j) => (typeof j?.person === 'string' ? (j.person as string) : null))
+        .catch(() => null);
+      if (!owners.length)
+        return c.json(
+          {
+            error: 'Make the owner account first, so a code has someone to approve as.',
+            fix: 'hildegard host owner',
+          },
+          409,
+        );
+      if (asked) me = owners.find((p) => p.name.toLowerCase() === asked.trim().toLowerCase());
+      else if (owners.length === 1) me = owners[0];
+      else
+        return c.json(
+          {
+            error: `There is more than one owner (${owners.map((o) => o.name).join(', ')}). Say whose code it is: \`hildegard host code --as <name>\`.`,
+            owners: owners.map((o) => o.name),
+          },
+          409,
+        );
+      if (!me) return c.json({ error: `${asked} isn’t an owner here.` }, 404);
+    }
     const { code, expiresAt } = connectCodes.mint({ personId: me.id });
     return c.json(
       {

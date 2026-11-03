@@ -442,8 +442,8 @@ export interface ConnectCode {
 
 /** POST /api/choir/invite: what the sharing device hands the other one. */
 export interface ChoirInvite {
-  /** The long `hgc1_` code, for builds that don't take short ones. A secret. */
-  code: string;
+  /** The long `hgc1_` code, made only when asked for (it leaves a key behind); a secret. Null for a short invite. */
+  code: string | null;
   /** Where the sharing device is reached. */
   url: string;
   /** What this device is called in the other's Choir. */

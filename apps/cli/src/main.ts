@@ -50,8 +50,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard hf login         Link your Hugging Face account (hf status, hf logout). The token goes to
                              your system keychain; pipe one in with --token-stdin
   hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a short code (HG-XXXX-XXXX)
-                             (--url to give the address yourself; choir revoke stops sharing)
-  hildegard choir join       On a computer without a big GPU: give that code (join HG-XXXX-XXXX [--url <address>]), and takes render there
+                             (--url to give the address yourself, --long for the long code too; choir revoke stops sharing)
+  hildegard choir join       On a computer without a big GPU: give that code (join HG-XXXX-XXXX --url <address>; the invite prints the whole command), and takes render there
   hildegard choir list       Devices, and which one renders (choir use <device|local|auto>, choir leave <device>);
                              use auto sends each take to the device free for it, this one included
   hildegard choir opportunistic on|off
@@ -133,6 +133,7 @@ const valued = new Set([
   'accept-license',
   'remote',
   'person',
+  'as',
   'days',
   'film',
   'endpoint',

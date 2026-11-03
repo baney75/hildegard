@@ -433,7 +433,10 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
     case 'code': {
       // A one-time code the owner types on a chatbot's approval page instead of a name and passphrase.
       try {
-        const r = await api<ConnectCode>(c, '/api/auth/codes', { method: 'POST' });
+        const r = await api<ConnectCode>(c, '/api/auth/codes', {
+          method: 'POST',
+          body: { person: ctx.opts.get('as') },
+        });
         if (!ctx.json)
           console.log(
             `Connect code (works once, for 10 minutes, as ${r.person.name}):\n\n  ${r.code}\n\n${r.mcpUrl ? `Add ${r.mcpUrl} as a custom connector in claude.ai or ChatGPT,\nthen choose “Use a connect code” on Hildegard’s page and type it.` : 'Turn host mode on first (`hildegard host`), so a chatbot has an address to connect to.'}\nOnly use it for a connection you are making yourself.\n`,

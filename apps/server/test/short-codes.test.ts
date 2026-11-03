@@ -130,24 +130,43 @@ describe('redeeming a short join code', () => {
   });
   const URL_ = 'http://100.64.0.1:7341';
 
-  it('gives what the long code holds, once, and a key that works', () => {
+  it('makes no key until redeemed, then gives one that works, once', () => {
     const r = choir.shortInvite(URL_, 'gpu-a');
     expect(r.short.code).toMatch(CODE_RE);
+    expect(r.code).toBeNull();
     expect(Date.parse(r.short.expiresAt) - t).toBe(CODE_TTL_MS);
-    const keysBefore = JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8')).keys.length;
+    const file = () => JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8'));
+    expect(file().keys).toEqual([]);
     const joined = choir.redeem(r.short.code.toLowerCase(), 'peer-1', 'laptop');
     expect(joined).toMatchObject({ name: 'gpu-a', url: URL_ });
     expect(choir.accepts(joined.token)).toBe(true);
-    // The long code made with it still works.
-    expect(choir.accepts(parseJoinCode(r.code).token)).toBe(true);
-    const keys = JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8')).keys as {
-      hash: string;
-      for?: string;
-    }[];
-    expect(keys.length).toBe(keysBefore + 1);
-    expect(keys.at(-1)?.for).toBe('laptop');
+    const keys = file().keys as { hash: string; for?: string }[];
+    expect(keys.length).toBe(1);
+    expect(keys[0]?.for).toBe('laptop');
     expect(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8')).not.toContain(joined.token);
     expect(() => choir.redeem(r.short.code, 'peer-1')).toThrow(/isn’t good/);
+  });
+
+  it('makes the long code only when asked, and that one leaves a key', () => {
+    const before = JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8')).keys.length;
+    const r = choir.shortInvite(URL_, 'gpu-a', { long: true });
+    expect(r.code).toMatch(/^hgc1_/);
+    expect(choir.accepts(parseJoinCode(r.code!).token)).toBe(true);
+    expect(JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8')).keys.length).toBe(before + 1);
+  });
+
+  it('answers with the sharing address and name as they are now, not as they were when the code was made', () => {
+    const a = choir.shortInvite(URL_, 'gpu-a');
+    choir.shortInvite('http://100.64.0.7:7341', 'gpu-b');
+    const joined = choir.redeem(a.short.code, 'peer-7');
+    expect(joined).toMatchObject({ name: 'gpu-b', url: 'http://100.64.0.7:7341' });
+    expect(choir.accepts(joined.token)).toBe(true);
+    // Redeeming changed neither the address nor the name.
+    expect(JSON.parse(readFileSync(join(dir, 'choir', 'sharing.json'), 'utf8'))).toMatchObject({
+      name: 'gpu-b',
+      url: 'http://100.64.0.7:7341',
+    });
+    choir.shortInvite(URL_, 'gpu-a');
   });
 
   it('refuses an expired code, and stops sharing taking its codes with it', () => {
@@ -159,7 +178,7 @@ describe('redeeming a short join code', () => {
     expect(() => choir.redeem(b.short.code, 'peer-2')).toThrow(/isn’t good/);
   });
 
-  it('counts wrong codes per source and across all sources, and says what that does to a valid code', () => {
+  it('counts wrong codes per source, and across all sources only against a source that already missed', () => {
     const wrong = (src: string) => {
       try {
         choir.redeem('HG-0000-0000', src);
@@ -174,81 +193,63 @@ describe('redeeming a short join code', () => {
     for (let i = 0; i < CODE_LIMITS.perSource; i++) expect(wrong('src-a')).toBe(403);
     expect(wrong('src-a')).toBe(429);
     expect(() => choir.redeem(mine, 'src-a')).toThrow(/Too many wrong codes/);
-    // Other sources' failures don't stop a valid code from another source...
-    for (let i = 0; i < 12; i++) for (let j = 0; j < 4; j++) wrong(`spread-${i}-${j}`);
+    // After 60 wrong tries from anywhere, a source that never missed still gets a valid code through...
+    for (let i = 0; i < 15; i++) for (let j = 0; j < 4; j++) wrong(`spread-${i}-${j}`);
     const s = choir.shortInvite(URL_, 'gpu-a').short.code;
     expect(choir.redeem(s, 'src-good').name).toBe('gpu-a');
-    // ...until the global cap: after 60 wrong tries from anywhere, even a valid code waits.
+    // ...while one that has missed once is held back, valid code or not.
+    expect(wrong('src-missed')).toBe(403);
     const last = choir.shortInvite(URL_, 'gpu-a').short.code;
-    for (let i = 0; i < 12; i++) for (let j = 0; j < 4; j++) wrong(`more-${i}-${j}`);
-    expect(() => choir.redeem(last, 'src-fresh')).toThrow(/Too many wrong codes/);
+    expect(() => choir.redeem(last, 'src-missed')).toThrow(/Too many wrong codes/);
     // The window passes and enrolling opens again.
     t += CODE_LIMITS.windowMs + 1;
-    const again = choir.shortInvite(URL_, 'gpu-a').short.code;
-    expect(choir.redeem(again, 'src-fresh').name).toBe('gpu-a');
+    const later = choir.shortInvite(URL_, 'gpu-a').short.code;
+    expect(choir.redeem(later, 'src-missed').name).toBe('gpu-a');
   });
 });
 
-describe('looking for the sharing device', () => {
-  const status = JSON.stringify({
-    BackendState: 'Running',
-    Self: { DNSName: 'mac.example.ts.net.', TailscaleIPs: ['100.64.0.9'] },
-    Peer: {
-      a: { HostName: 'asleep', TailscaleIPs: ['100.64.0.1'], Online: false },
-      b: { HostName: 'phone', TailscaleIPs: ['100.64.0.2'], Online: true },
-      c: { HostName: 'nas', TailscaleIPs: ['100.64.0.3', 'fd7a:115c:a1e0::3'], Online: true },
-      d: { HostName: 'gpu-box', TailscaleIPs: ['100.64.0.4'], Online: true },
-    },
-  });
+describe('sending a short code', () => {
   const make = (answer: (url: string) => Response) => {
     const urls: string[] = [];
     const choir = new Choir({
-      dataDir: mkdtempSync(join(tmpdir(), 'hg-scan-')),
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-send-')),
       secrets: secrets(),
       onChange: () => {},
-      exec: async (_c, a) => ({ ok: true, out: a[0] === 'status' ? status : '' }),
-      scanPort: () => 7341,
       fetch: (async (input: string | URL | Request) => {
-        const u = String(input);
-        urls.push(u);
-        if (u.includes('100.64.0.4')) throw new Error('not reached in this test');
-        return answer(u);
+        urls.push(String(input));
+        return answer(String(input));
       }) as typeof fetch,
     });
     return { choir, urls };
   };
 
-  it('tries each online peer once, on the Hildegard port, and none that is offline', async () => {
-    const { choir, urls } = make(() => Response.json({ error: 'no' }, { status: 403 }));
-    await expect(choir.join('HG-0000-0000')).rejects.toMatchObject({ status: 403 });
-    expect(urls).toEqual([
-      'http://100.64.0.2:7341/api/choir/redeem',
-      'http://100.64.0.3:7341/api/choir/redeem',
-      'http://100.64.0.4:7341/api/choir/redeem',
-    ]);
+  it('sends nothing without an address, and says the command to run', async () => {
+    const { choir, urls } = make(() => Response.json({}, { status: 200 }));
+    await expect(choir.join('HG-0000-0000')).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining('--url http://<address>:7341'),
+    });
+    expect(urls).toEqual([]);
   });
 
-  it('stops at once when a peer says too many wrong codes, and when one takes it', async () => {
-    const { choir, urls } = make((u) =>
-      u.includes('100.64.0.2')
-        ? Response.json({ error: 'Too many wrong codes. Wait 9 minutes.' }, { status: 429 })
-        : Response.json({}, { status: 403 }),
+  it('sends it to the one address given, and nowhere else', async () => {
+    const { choir, urls } = make(() => Response.json({}, { status: 403 }));
+    await expect(choir.join('HG-0000-0000', { url: 'http://100.64.0.2:7341' })).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(urls).toEqual(['http://100.64.0.2:7341/api/choir/redeem']);
+  });
+
+  it('refuses an answer that names a different address', async () => {
+    const { choir, urls } = make(() =>
+      Response.json({ name: 'evil', url: 'http://100.64.0.66:7341', token: 'A'.repeat(43) }),
     );
-    await expect(choir.join('HG-0000-0000')).rejects.toMatchObject({ status: 429 });
-    expect(urls).toHaveLength(1);
-    // A peer that answers with a join stops the search; its key is then checked at the address it names.
-    const ok = make((u) =>
-      u.includes('100.64.0.3') && u.endsWith('/redeem')
-        ? Response.json({ name: 'nas', url: 'http://100.64.0.3:7341', token: 'A'.repeat(43) })
-        : Response.json({}, { status: u.endsWith('/redeem') ? 404 : 401 }),
-    );
-    // (The key it holds is not one the stand-in knows, so the join is refused after the search ends.)
-    await expect(ok.choir.join('HG-0000-0000')).rejects.toMatchObject({ status: 403 });
-    expect(ok.urls.slice(0, 2)).toEqual([
-      'http://100.64.0.2:7341/api/choir/redeem',
-      'http://100.64.0.3:7341/api/choir/redeem',
-    ]);
-    expect(ok.urls.some((u) => u.includes('100.64.0.4'))).toBe(false);
+    await expect(choir.join('HG-0000-0000', { url: 'http://100.64.0.2:7341' })).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining('different address'),
+    });
+    expect(urls).toEqual(['http://100.64.0.2:7341/api/choir/redeem']);
+    expect(choir.state().devices).toEqual([]);
   });
 });
 
@@ -271,14 +272,19 @@ describe('joining with a short code between two servers', () => {
     return (await res.json()) as ChoirInvite;
   };
 
-  it('shows the short code, the address, the command, and the long code too', async () => {
+  it('shows the short code, the address and the command, and the long code only when asked', async () => {
     const gpu = await start();
     const shareUrl = `http://127.0.0.1:${await freePort()}`;
     const inv = await shareFrom(gpu, shareUrl);
     expect(inv.short?.code).toMatch(CODE_RE);
     expect(inv.url).toBe(shareUrl);
     expect(inv.command).toBe(`hildegard choir join ${inv.short?.code} --url ${shareUrl}`);
-    expect(inv.code).toMatch(/^hgc1_/);
+    // The long code is made only on request.
+    expect(inv.code).toBeNull();
+    const longInv = (await (
+      await post(gpu.url, '/api/choir/invite', { url: shareUrl, long: true })
+    ).json()) as ChoirInvite;
+    expect(longInv.code).toMatch(/^hgc1_/);
     // A key the other device made itself gets no short code.
     const k = (await (
       await post(gpu.url, '/api/choir/invite', { url: shareUrl, key: 'A'.repeat(43) })
@@ -286,7 +292,7 @@ describe('joining with a short code between two servers', () => {
     expect(k.short).toBeNull();
   });
 
-  it('joins a second server: through the Studio route and the sharing address, once, and the old code still works', async () => {
+  it('joins a second server through the sharing address, once, and a long code still works', async () => {
     const gpu = await start();
     const shareUrl = `http://127.0.0.1:${await freePort()}`;
     const inv = await shareFrom(gpu, shareUrl);
@@ -306,12 +312,10 @@ describe('joining with a short code between two servers', () => {
     expect(other.choir.state().devices).toEqual([]);
     // The long code made with it works on yet another.
     const old = await start();
-    expect((await post(old.url, '/api/choir/join', { code: inv.code })).status).toBe(201);
-    // The Studio's own route on the sharing device takes the code too.
-    const inv2 = await shareFrom(gpu, shareUrl);
-    const viaStudio = await post(gpu.url, '/api/choir/redeem', { code: inv2.short!.code, name: 'laptop' });
-    expect(viaStudio.status).toBe(200);
-    expect(((await viaStudio.json()) as { token: string }).token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const longInv = (await (
+      await post(gpu.url, '/api/choir/invite', { url: shareUrl, long: true })
+    ).json()) as ChoirInvite;
+    expect((await post(old.url, '/api/choir/join', { code: longInv.code })).status).toBe(201);
   });
 
   it('lets only one of many redemptions at once have the code', async () => {
@@ -345,39 +349,12 @@ describe('joining with a short code between two servers', () => {
     expect((await post(shareUrl, '/api/choir/redeem')).status).toBe(400);
   });
 
-  it('finds the sharing device among the tailnet’s peers, one try each, and says so when none has it', async () => {
-    const gpu = await start();
-    const port = await freePort();
-    const shareUrl = `http://127.0.0.1:${port}`;
-    const inv = await shareFrom(gpu, shareUrl);
-    const status = JSON.stringify({
-      BackendState: 'Running',
-      Self: { DNSName: 'mac.example.ts.net.', TailscaleIPs: ['100.64.0.9'] },
-      Peer: {
-        a: { HostName: 'asleep', TailscaleIPs: ['127.0.0.9'], Online: false },
-        b: { HostName: 'phone', TailscaleIPs: ['127.0.0.1'], Online: true },
-      },
-    });
-    const mac = await start({
-      choirScanPort: port,
-      exec: async (_c, a) => ({ ok: true, out: a[0] === 'status' ? status : '' }),
-    });
-    // The first online peer is the sharing device's address; the offline one is never tried.
-    const r = await post(mac.url, '/api/choir/join', { code: inv.short!.code });
-    expect(r.status, await r.clone().text()).toBe(201);
-    expect(mac.choir.state().devices).toHaveLength(1);
-    // Wrong code with no --url: every peer tried once, then a sentence.
-    const none = await start({
-      choirScanPort: port,
-      exec: async (_c, a) => ({ ok: true, out: a[0] === 'status' ? status : '' }),
-    });
-    const bad = await post(none.url, '/api/choir/join', { code: 'HG-0000-0000' });
-    expect(bad.status).toBe(403);
-    // And without Tailscale, it asks for the address.
-    const lone = await start({ exec: async () => ({ ok: false, out: '' }) });
-    const ask = await post(lone.url, '/api/choir/join', { code: 'HG-0000-0000' });
-    expect(ask.status).toBe(404);
-    expect(((await ask.json()) as { error: string }).error).toContain('--url');
+  it('sends no request for a short code without an address', async () => {
+    const mac = await start();
+    const r = await post(mac.url, '/api/choir/join', { code: 'HG-0000-0000' });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toContain('--url');
+    expect(mac.choir.state().devices).toEqual([]);
   });
 
   it('refuses a code address outside a private link, and only this computer may share', async () => {
@@ -405,7 +382,7 @@ describe('joining with a short code between two servers', () => {
     running.push(gpu);
     const hosted = gpu.hostedUrl()!;
     expect((await post(hosted, '/api/choir/invite', {})).status).toBe(401);
-    // Redeeming is open through the link, as it must be for a device not yet paired.
-    expect((await post(hosted, '/api/choir/redeem', { code: 'HG-0000-0000' })).status).toBe(403);
+    // Redeeming is not offered on the public link at all.
+    expect((await post(hosted, '/api/choir/redeem', { code: 'HG-0000-0000' })).status).toBe(401);
   });
 });

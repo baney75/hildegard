@@ -145,8 +145,6 @@ async function serveStudio(
     onStop?: () => void;
     /** Runs `tailscale`: tests give a stand-in. */
     exec?: Exec;
-    /** The port a short join code is tried at on each tailnet device; this server's own port by default. */
-    choirScanPort?: number;
     /** The clock for short codes and their limits: tests give a fake one. */
     now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
@@ -240,8 +238,6 @@ async function serveStudio(
   const choir = new Choir({
     dataDir: config.dataDir,
     secrets: secretsFor,
-    exec: opts.exec,
-    scanPort: () => opts.choirScanPort ?? port,
     now: opts.now,
     onChange: (s) => {
       store.emit({ type: 'choir', choir: s });
@@ -678,7 +674,7 @@ async function serveStudio(
       return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
     },
     clock: opts.now,
-    invite: async (url, key) => {
+    invite: async (url, key, long) => {
       const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);
       if (!target)
@@ -692,7 +688,7 @@ async function serveStudio(
         const k = choir.invite(target, name, key);
         r = { ...k, name: deviceName(name), short: null, command: null };
       } else {
-        const k = choir.shortInvite(target, name);
+        const k = choir.shortInvite(target, name, { long });
         r = {
           ...k,
           command: `hildegard choir join ${k.short.code} --url ${k.url}`,

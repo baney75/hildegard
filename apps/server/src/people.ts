@@ -117,6 +117,11 @@ export class Limiter {
     return list;
   }
 
+  /** How many failures `key` has in the window. */
+  count(key: string): number {
+    return this.recent(key).length;
+  }
+
   /** Seconds until `key` may try again; 0 when it may now. */
   wait(key: string): number {
     const list = this.recent(key);

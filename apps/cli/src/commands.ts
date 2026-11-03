@@ -964,12 +964,12 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         const key = ctx.flags.has('key-stdin') ? await readStdin() : undefined;
         const r = await api<ChoirInvite>(c, '/api/choir/invite', {
           method: 'POST',
-          body: { url: ctx.opts.get('url'), key },
+          body: { url: ctx.opts.get('url'), key, ...(ctx.flags.has('long') ? { long: true } : {}) },
         });
         if (!ctx.json)
           console.log(
             r.short
-              ? `This computer shares its GPU at ${r.url}.\nOn your other device, run:\n\n  ${r.command}\n\nThe code ${r.short.code} works once, for 10 minutes (until ${new Date(r.short.expiresAt).toLocaleTimeString()}).\nOr paste this long code instead (it works once per device; keep it private):\n\n${r.code}\n`
+              ? `This computer shares its GPU at ${r.url}.\nOn your other device, run:\n\n  ${r.command}\n\nThe code ${r.short.code} works once, for 10 minutes (until ${new Date(r.short.expiresAt).toLocaleTimeString()}).\n${r.code ? `Or paste this long code instead (it works once per device; keep it private):\n\n${r.code}\n` : 'Need a code to paste instead? Run `hildegard choir invite --long`.\n'}`
               : `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n`,
           );
         return result(
@@ -986,7 +986,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
           ],
           'Stop sharing any time with `hildegard choir revoke`.',
           {
-            code: r.code,
+            ...(r.code ? { code: r.code } : {}),
             url: r.url,
             ...(r.short ? { shortCode: r.short.code, expiresAt: r.short.expiresAt, command: r.command } : {}),
           },
@@ -1035,7 +1035,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
               title: 'Join a device',
               status: 'needs-owner',
               detail:
-                'Run `hildegard choir invite` on the device with the GPU, then give its code here: `hildegard choir join HG-XXXX-XXXX` (add `--url <address>` if it isn’t found on your tailnet), or the long code.',
+                'Run `hildegard choir invite` on the device with the GPU, then give its code here: `hildegard choir join HG-XXXX-XXXX` with `--url http://<address>:7341` (the invite prints the whole command), or the long code.',
               command: 'hildegard choir join',
             },
           ],

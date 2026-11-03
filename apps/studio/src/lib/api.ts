@@ -237,7 +237,8 @@ export const api = {
   agents: () => call<AgentsResponse>('GET', '/api/agents'),
   choir: () => call<ChoirState>('GET', '/api/choir'),
   choirTailnet: () => call<{ url: string | null }>('GET', '/api/choir/tailnet'),
-  choirInvite: (url?: string) => call<ChoirInvite>('POST', '/api/choir/invite', { url }),
+  choirInvite: (url?: string, long?: boolean) =>
+    call<ChoirInvite>('POST', '/api/choir/invite', { url, ...(long ? { long: true } : {}) }),
   /** A one-time code to approve a chatbot's connection (owners). */
   connectCode: () => call<ConnectCode>('POST', '/api/auth/codes'),
   choirRevoke: () => call<ChoirState>('POST', '/api/choir/revoke'),

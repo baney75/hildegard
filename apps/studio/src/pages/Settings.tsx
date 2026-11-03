@@ -771,6 +771,11 @@ function Devices({ catalog }: { catalog: Catalog }) {
     run('share', async () => {
       setInvite(await api.choirInvite(askUrl ? url.trim() : undefined));
     });
+  const showLong = () =>
+    run('long', async () => {
+      const r = await api.choirInvite(invite?.url ?? (askUrl ? url.trim() : undefined), true);
+      setInvite((i) => (i ? { ...i, code: r.code } : r));
+    });
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(invite?.code ?? '');
@@ -947,14 +952,13 @@ function Devices({ catalog }: { catalog: Catalog }) {
         <b>Add a device</b>
         <span className="body-sm muted">
           On the device with the GPU, open Settings › Devices and choose Share this GPU, or run{' '}
-          <code>hildegard choir invite</code>. Then type its short code here (like <code>HG-7K2M-9QXD</code>),
-          or paste its long one.
+          <code>hildegard choir invite</code>. Then type its short code here (like <code>HG-7K2M-9QXD</code>)
+          with its address, or paste its long code. A short code is sent only to the address you give.
         </span>
         <label className="hg-field hg-field--block">
           <span className="sr">Join code</span>
           <input
-            type="text"
-            className={code.trim().startsWith('hgc1_') ? 'hg-mask' : undefined}
+            type={code.trim().startsWith('hgc1_') ? 'password' : 'text'}
             value={code}
             placeholder="HG-XXXX-XXXX"
             autoComplete="off"
@@ -965,7 +969,7 @@ function Devices({ catalog }: { catalog: Catalog }) {
         </label>
         {code.trim() && !code.trim().startsWith('hgc1_') ? (
           <label className="hg-field hg-field--block">
-            Its address, if this computer can’t find it on your tailnet
+            Its address, as the invite shows it
             <input
               type="url"
               value={joinUrl}
@@ -976,7 +980,11 @@ function Devices({ catalog }: { catalog: Catalog }) {
             />
           </label>
         ) : null}
-        <Button type="submit" busy={busy === 'join'} disabled={!code.trim()}>
+        <Button
+          type="submit"
+          busy={busy === 'join'}
+          disabled={!code.trim() || (!code.trim().toLowerCase().startsWith('hgc1_') && !joinUrl.trim())}
+        >
           Add device
         </Button>
       </form>
@@ -997,25 +1005,30 @@ function Devices({ catalog }: { catalog: Catalog }) {
                   label="Short join code"
                   onExpired={() => setInvite((i) => (i ? { ...i, short: null, command: null } : i))}
                 />
-                <span className="body-sm muted">
-                  Reached at {invite.url}. An older Hildegard that takes only the long code can paste this
-                  instead; keep it private:
-                </span>
+                <span className="body-sm muted">Reached at {invite.url}.</span>
               </>
             ) : (
               <span className="body-sm sec-text">
                 Paste this code on your other device. It pairs one device; keep it private.
               </span>
             )}
-            <div className="hg-code hg-joincode">
-              {/* biome-ignore lint/a11y/noNoninteractiveTabindex: it scrolls sideways, so keyboards must be able to reach it. */}
-              <pre role="region" tabIndex={0} aria-label="Join code">
-                {invite.code}
-              </pre>
-              <Button kind="ghost" size="sm" icon="copy" onClick={copy}>
-                Copy long code
-              </Button>
-            </div>
+            {invite.code ? (
+              <div className="hg-code hg-joincode">
+                {/* biome-ignore lint/a11y/noNoninteractiveTabindex: it scrolls sideways, so keyboards must be able to reach it. */}
+                <pre role="region" tabIndex={0} aria-label="Join code">
+                  {invite.code}
+                </pre>
+                <Button kind="ghost" size="sm" icon="copy" onClick={copy}>
+                  Copy long code
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <Button kind="ghost" size="sm" busy={busy === 'long'} onClick={showLong}>
+                  Show long code
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <span className="body-sm muted">
