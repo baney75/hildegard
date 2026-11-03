@@ -544,11 +544,13 @@ export class Choir {
       );
     const mine = this.wrongBySource.wait(key);
     if (mine) throw tooMany(mine);
+    // Past the cap across every source, no code is looked at, right or wrong, until the window clears; checking them
+    // would leave guessing unbounded. A long code still joins meanwhile.
+    const all = this.wrongAnywhere.wait('all');
+    if (all) throw tooMany(all);
     const norm = normalizeCode(code);
     const rec = this.sharingOn() && this.shortCodes.live(norm) ? this.shortCodes.take(norm) : null;
     if (!rec || !this.sharing) {
-      const all = this.wrongAnywhere.wait('all');
-      if (all) throw tooMany(all);
       this.wrongBySource.fail(key);
       this.wrongAnywhere.fail('all');
       throw new ChoirError(

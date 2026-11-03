@@ -615,17 +615,23 @@ ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}${who}
     }
     if (field('code')) {
       // A connect code the owner made: it approves as that owner, as their passphrase would. Wrong ones count with
-      // wrong passphrases (per address), and against a cap across every address that refuses any wrong guess once
-      // reached, while a code that is exactly right still works.
+      // wrong passphrases (per address), and against a cap across every address. Once the cap is reached no code is
+      // even looked at, right or wrong, until the window clears: checking codes there would leave guessing unbounded.
+      // A passphrase still approves meanwhile.
       const ckeys = [`client:${clientKey(c)}`];
       if (deps.limited(c, ckeys))
         return consent(c, requestId, p, 'Too many tries. Wait a few minutes, then try again.');
+      if (codeTries.wait('all'))
+        return consent(
+          c,
+          requestId,
+          p,
+          'Too many wrong codes have been tried here. Use your name and passphrase, or wait a few minutes.',
+        );
       const norm = normalizeCode(field('code'));
       const rec = deps.connectCodes.live(norm) ? deps.connectCodes.take(norm) : null;
       const who = rec ? people.get(rec.personId) : undefined;
       if (!rec || who?.role !== 'owner') {
-        if (codeTries.wait('all'))
-          return consent(c, requestId, p, 'Too many tries. Wait a few minutes, then try again.');
         deps.failed(ckeys);
         codeTries.fail('all');
         return consent(

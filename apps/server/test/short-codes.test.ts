@@ -185,7 +185,7 @@ describe('redeeming a short join code', () => {
     expect(() => choir.redeem(b.short!.code, 'peer-2')).toThrow(/isn’t good/);
   });
 
-  it('counts wrong codes per source, and across all sources for every source, but lets an exact code in', () => {
+  it('counts wrong codes per source, and across all sources, past which no code is looked at', () => {
     const wrong = (src: string) => {
       try {
         choir.redeem('HG-0000-0000', src);
@@ -203,10 +203,12 @@ describe('redeeming a short join code', () => {
     // After 60 wrong tries from anywhere, a wrong guess from a source that never missed is refused too...
     for (let i = 0; i < 15; i++) for (let j = 0; j < 4; j++) wrong(`spread-${i}-${j}`);
     expect(wrong('src-fresh')).toBe(429);
-    // ...and that refusal is not counted against it, but an exact code from it still works.
+    // ...and so is an exact code, unspent: checking right codes past the cap would leave guessing unbounded.
     const s = choir.shortInvite(URL_, 'gpu-a').short!.code;
-    expect(choir.redeem(s, 'src-fresh').name).toBe('gpu-a');
-    // The window passes and guessing opens again.
+    expect(() => choir.redeem(s, 'src-fresh')).toThrow(/Too many wrong codes/);
+    // The window passes (that code has expired by now) and codes work again.
+    t += CODE_LIMITS.windowMs + 1;
+    expect(choir.redeem(choir.shortInvite(URL_, 'gpu-a').short!.code, 'src-fresh').name).toBe('gpu-a');
     t += CODE_LIMITS.windowMs + 1;
     expect(wrong('src-fresh')).toBe(403);
     const later = choir.shortInvite(URL_, 'gpu-a').short!.code;

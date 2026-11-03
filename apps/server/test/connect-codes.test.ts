@@ -300,21 +300,23 @@ describe('wrong connect codes and the limits', () => {
     expect(fine.status).toBe(303);
   });
 
-  it('refuse every wrong guess after the global cap, from any address, but still take an exact code', async () => {
+  it('stop taking any code after the global cap, from any address, while a passphrase still works', async () => {
     const s = await start({ perName: 50, perClient: 10_000 });
     const base = s.hostedUrl()!;
     const bot = await chatbot(base);
     const { request } = await bot.open();
     for (let i = 0; i < CODE_LIMITS.global; i++)
       await bot.post(request, { code: 'HG-0000-0000' }, `10.1.${Math.floor(i / 200)}.${i % 200}`);
-    // A fresh address's wrong guess is refused, with the same answer as a limited one...
+    // A fresh address's guess is refused before it is looked at...
     const fresh = await bot.post(request, { code: 'HG-1111-1111' }, '192.0.2.240');
     expect(fresh.status).toBe(401);
-    expect(await fresh.text()).toMatch(/Too many tries/);
-    // ...while an exact code still goes through, even from an address that never missed.
+    expect(await fresh.text()).toMatch(/Too many wrong codes/);
+    // ...and so is an exact code: if right codes were checked past the cap, guessing would have no bound. The code
+    // isn't spent by the refusal.
     const minted = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
-    const clean = await bot.post(request, { code: minted.code }, '192.0.2.250');
-    expect(clean.status).toBe(303);
+    const held = await bot.post(request, { code: minted.code }, '192.0.2.250');
+    expect(held.status).toBe(401);
+    expect(await held.text()).toMatch(/Use your name and passphrase/);
     // The page still takes a passphrase: the cap is for codes only.
     const bot2 = await chatbot(base);
     const second = await bot2.open();
