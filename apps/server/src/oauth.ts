@@ -56,7 +56,7 @@ export function privateAddress(ip: string): boolean {
     v6 === '::' ||
     v6 === '::1' ||
     /^f[cd]/.test(v6) ||
-    /^fe[89ab]/.test(v6) ||
+    /^fe[89a-f]/.test(v6) ||
     /^ff/.test(v6) ||
     v6.startsWith('64:ff9b:') ||
     v6.startsWith('2001:db8')
@@ -139,10 +139,23 @@ type LookupCallback = (err: Error | null, address: string | Resolved[], family?:
 export function publicLookup(
   resolve: (host: string) => Promise<Resolved[]> = (h) => lookup(h, { all: true }),
 ) {
-  return (host: string, opts: unknown, cb: LookupCallback) => {
+  return (host: string, opts: unknown, answer: LookupCallback) => {
     const all = typeof opts === 'object' && opts !== null && (opts as { all?: unknown }).all === true;
-    resolve(host)
-      .then((addrs) => {
+    // Answer once. Node's callback can throw (it connects on a socket that was destroyed while we resolved); that
+    // throw must neither reach the error branch, which would answer a second time, nor escape as an unhandled
+    // rejection that takes the server down.
+    let answered = false;
+    const cb: LookupCallback = (...a) => {
+      if (answered) return;
+      answered = true;
+      try {
+        answer(...a);
+      } catch {
+        /* the request is already gone */
+      }
+    };
+    resolve(host).then(
+      (addrs) => {
         if (addrs.length === 0 || addrs.some((a) => privateAddress(a.address)))
           return cb(new Error(`${host} isn’t a public address.`), all ? [] : '', 4);
         if (all)
@@ -152,8 +165,9 @@ export function publicLookup(
           );
         const first = addrs[0]!;
         cb(null, first.address, first.family);
-      })
-      .catch((e: Error) => cb(e, all ? [] : '', 4));
+      },
+      (e: Error) => cb(e, all ? [] : '', 4),
+    );
   };
 }
 
@@ -162,18 +176,31 @@ export function publicLookup(
  * redirects. The address is checked as it is resolved for the connection itself, so a name can't change its answer
  * between the check and the request.
  */
-export const fetchMetadata: FetchMetadata = (url) =>
+export const fetchMetadata: FetchMetadata = (url) => fetchMetadataWith(url, publicLookup(), 5000);
+
+/** fetchMetadata with its resolver and total deadline passed in, so tests can reach a local server. */
+export const fetchMetadataWith = (
+  url: string,
+  resolver: (host: string, opts: unknown, cb: LookupCallback) => void,
+  deadlineMs: number,
+  test?: { port: number; ca: string },
+): Promise<unknown> =>
   new Promise((resolve, reject) => {
     const u = new URL(url);
-    if (u.protocol !== 'https:' || (u.port && u.port !== '443') || isIP(u.hostname.replace(/^\[|\]$/g, '')))
+    if (
+      u.protocol !== 'https:' ||
+      (u.port && u.port !== '443' && Number(u.port) !== test?.port) ||
+      isIP(u.hostname.replace(/^\[|\]$/g, ''))
+    )
       return reject(new Error('A client id must be an https address on a name, on port 443.'));
     const req = request(
       u,
       {
         method: 'GET',
         headers: { accept: 'application/json' },
-        timeout: 5000,
-        lookup: publicLookup() as unknown as LookupFunction,
+        timeout: deadlineMs,
+        lookup: resolver as unknown as LookupFunction,
+        ...(test ? { ca: test.ca } : {}),
       },
       (res) => {
         if (res.statusCode !== 200) {
@@ -198,8 +225,13 @@ export const fetchMetadata: FetchMetadata = (url) =>
         });
       },
     );
-    req.on('timeout', () => req.destroy(new Error('The client’s metadata didn’t answer in time.')));
+    // `timeout` above is only an idle timeout: a server that sends a byte every few seconds never trips it. This is
+    // the total deadline.
+    const late = () => req.destroy(new Error('The client’s metadata didn’t answer in time.'));
+    const deadline = setTimeout(late, deadlineMs);
+    req.on('timeout', late);
     req.on('error', reject);
+    req.on('close', () => clearTimeout(deadline));
     req.end();
   });
 

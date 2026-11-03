@@ -119,6 +119,7 @@ describe('addresses and redirects', () => {
       '::1',
       'fd7a:115c::1',
       'fe80::1',
+      'fec0::1',
       '::ffff:10.0.0.1',
     ])
       expect(privateAddress(ip), ip).toBe(true);

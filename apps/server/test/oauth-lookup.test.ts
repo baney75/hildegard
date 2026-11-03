@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { connect, type LookupFunction } from 'node:net';
+import { createServer } from 'node:tls';
 import { describe, expect, it } from 'vitest';
-import { publicLookup } from '../src/oauth.ts';
+import { testCert } from '../../../packages/link/test/cert.ts';
+import { fetchMetadataWith, publicLookup } from '../src/oauth.ts';
 
 type Answer = { err: Error | null; address: unknown; family?: number };
 const ask = (resolved: { address: string; family: number }[], opts: unknown) =>
@@ -51,5 +53,55 @@ describe('publicLookup (the client metadata fetch connects through it)', () => {
       socket.on('error', (e: NodeJS.ErrnoException) => done(`error ${e.code ?? ''} ${e.message}`));
     });
     expect(outcome).toBe('attempt 203.0.113.7');
+  });
+});
+
+describe('fetchMetadata', () => {
+  it('goes through the public-address guard', async () => {
+    const guard = publicLookup(async () => [{ address: '10.0.0.5', family: 4 }]);
+    await expect(fetchMetadataWith('https://client.example/x', guard, 2000)).rejects.toThrow(
+      /isn’t a public address/,
+    );
+  });
+
+  it('gives up after its total deadline even when the server keeps dripping bytes', async () => {
+    const { cert, key } = testCert();
+    const drips: NodeJS.Timeout[] = [];
+    const server = createServer({ cert, key }, (sock) => {
+      const line = 'HTTP/1.1 200 OK\r\ncontent-type: application/json\r\n';
+      let i = 0;
+      const t = setInterval(() => (i < line.length ? sock.write(line[i++]!) : clearInterval(t)), 100);
+      drips.push(t);
+      sock.on('error', () => {});
+      sock.on('close', () => clearInterval(t));
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as { port: number }).port;
+    const local = (_h: string, opts: unknown, cb: (e: Error | null, a: unknown, f?: number) => void) =>
+      (opts as { all?: boolean })?.all
+        ? cb(null, [{ address: '127.0.0.1', family: 4 }])
+        : cb(null, '127.0.0.1', 4);
+    const started = Date.now();
+    try {
+      await expect(
+        fetchMetadataWith(`https://link.test:${port}/x`, local as never, 600, { port, ca: cert }),
+      ).rejects.toThrow(/didn’t answer in time/);
+      expect(Date.now() - started).toBeLessThan(2000);
+    } finally {
+      drips.forEach(clearInterval);
+      server.close();
+    }
+  });
+});
+
+describe('publicLookup when Node’s callback throws', () => {
+  it('answers once and lets nothing escape', async () => {
+    let calls = 0;
+    publicLookup(async () => PUBLIC)('client.example', { all: true }, () => {
+      calls++;
+      throw new TypeError("Cannot read properties of null (reading 'connect')");
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls).toBe(1);
   });
 });
