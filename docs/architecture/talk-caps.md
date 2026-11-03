@@ -102,6 +102,33 @@ language model and the model Talk's voice speaks with. The primary still keeps t
 The Talk page shows a "Hear and answer on" select when at least one joined device is online and says it can do all
 three, and sends its choice as `device`.
 
+### The primary
+
+`ChoirState.primary` names the device a turn runs on when it names none: `local` (the default) or a joined device.
+Set it with `hildegard choir primary <device|local>`, `POST /api/choir/primary` (`{ "name": "..." }`, owner only, like
+`opportunistic`), or Make primary on Settings › Devices. It is kept in `<data>/choir/settings.json` beside
+`opportunistic`, so it outlasts a restart, and it goes back to `local` when that device is removed or the file names a
+device this computer hasn't joined. `GET /api/talk` reports it too. Directors see `local`.
+
+Primary is separate from `choir use`, which says where takes render. The microphone and speaker stay with the Studio
+someone talks into: the primary moves only STT, LLM and TTS. A turn with `device: "local"` always runs here, and the
+Talk page always sends its choice. Its select starts on the primary, marked "(primary)". When the primary can't hear and
+answer (offline, or missing a step), the page says so and starts on this computer.
+
+### Timing
+
+Every turn's answer carries `ms: { stt, llm, tts, total }`, measured on the primary around each port (so a remote step
+includes the trip across the tailnet), and `device`, where it ran. The Talk page draws them as one bar in three parts
+under each turn: "Heard in 0.4 s · Answered in 1.2 s · Spoke in 0.6 s · 2.3 s in all, on desk". Tests check the shape
+and a fixed clock, never real milliseconds.
+
+### The demo script
+
+`#/talk/script` (linked from Talk) steps through `apps/studio/src/lib/demo-script.ts`: a cue for the person running the
+demo and an invented line to say, one beat at a time, with the arrow keys or Next. The first line is the staged
+fixture's ("Plan a short film about a lighthouse keeper."). `format.test.ts` keeps the script free of addresses,
+links, numbers and the fleet's host names, and keeps it from asking for a public link.
+
 ### Policy
 
 - Microphone and speaker stay on the primary. Only STT, LLM and TTS move, and only when `device` is set.
@@ -111,7 +138,8 @@ three, and sends its choice as `device`.
 - More than one device may serve. The first remote path works on the owner's GPU desktop, so a second serving
   device (a Linux or WSL server on the tailnet) is supported the same way. Each turn names its device, and the
   primary can switch between them turn to turn. Every rule here holds for each of them.
-- Funnel stays off: the routes are only on the Choir address, which is on the tailnet or https.
+- Funnel stays off: the routes are only on the Choir address, which is on the tailnet or https. Setting the primary
+  or running a turn on it starts no link; `talk-remote.test.ts` checks `/api/host` stays off and never `funnel`.
 
 ### Checking it
 

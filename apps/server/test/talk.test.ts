@@ -80,11 +80,52 @@ describe('one turn, with every step a port', () => {
       replyText: 'Nearly supper.',
       audio: { contentType: 'audio/wav', url: '/media/voice/reply.wav' },
       route: { stt: 'local', llm: 'local', tts: 'local' },
-    } satisfies TalkTurnResult);
+      ms: expect.objectContaining({ stt: expect.any(Number) }),
+    } satisfies Omit<TalkTurnResult, 'ms'> & { ms: unknown });
     // An earlier upload goes by its id, and audio nobody serves comes back as bytes.
     const r2 = await talkTurn(deps, { ...f, url: () => null }, { audio: { uploadId: 'abc.wav' } });
     expect(calls.at(-3)).toBe('stt /tmp/abc.wav undefined');
     expect(r2.audio).toEqual({ contentType: 'audio/wav', bytes: new Uint8Array([1, 2, 3]) });
+  });
+
+  it('times each step and the whole turn with the clock it is given', async () => {
+    let t = 1000;
+    const deps: TalkDeps = {
+      stt: {
+        transcribe: async () => {
+          t += 400;
+          return { text: 'Plan a short film about a lighthouse keeper.' };
+        },
+      },
+      llm: {
+        complete: async () => {
+          t += 1250;
+          return 'Open on the lamp.';
+        },
+      },
+      tts: {
+        speak: async () => {
+          t += 300;
+          return { path: '/tmp/reply.wav', contentType: 'audio/wav' };
+        },
+      },
+    };
+    const f = files();
+    const save = f.save;
+    // Keeping the recording counts toward the whole turn, not toward hearing it.
+    const r = await talkTurn(
+      deps,
+      {
+        ...f,
+        save: async (b) => {
+          t += 50;
+          return save(b);
+        },
+      },
+      { audio: new Uint8Array([1]) },
+      () => t,
+    );
+    expect(r.ms).toEqual({ stt: 400, llm: 1250, tts: 300, total: 2000 });
   });
 
   it('stops before answering when nothing was heard', async () => {

@@ -186,6 +186,8 @@ export interface TalkStatus {
   problem: string | null;
   llm: { runtime: string; model: string } | null;
   capabilities: DeviceCapabilities;
+  /** Where a turn that names no device runs: "local" or a joined device. */
+  primary: string;
 }
 
 /** POST /api/talk/turn */
@@ -194,6 +196,10 @@ export interface TalkTurn {
   replyText: string;
   audio: { contentType: string; url?: string; data?: string };
   route: { stt: 'local' | 'remote'; llm: 'local' | 'remote'; tts: 'local' | 'remote' };
+  /** How long each step took, and the whole turn, in milliseconds. */
+  ms: { stt: number; llm: number; tts: number; total: number };
+  /** Where it ran: "local" or a joined device's name. */
+  device: string;
 }
 
 export const api = {
@@ -261,6 +267,7 @@ export const api = {
     call<{ device: ChoirDevice; choir: ChoirState }>('POST', '/api/choir/join', { code, url }),
   choirLeave: (name: string) => call<ChoirState>('POST', '/api/choir/leave', { name }),
   choirUse: (name: string) => call<ChoirState>('POST', '/api/choir/use', { name }),
+  choirPrimary: (name: string) => call<ChoirState>('POST', '/api/choir/primary', { name }),
   choirOpportunistic: (on: boolean) => call<ChoirState>('POST', '/api/choir/opportunistic', { on }),
   /** Update a joined device to the newest release. */
   choirUpdate: (name: string) =>

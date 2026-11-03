@@ -5,7 +5,7 @@ import { OneTimeCode } from '../components/OneTimeCode.tsx';
 import { ModelRow } from '../components/sheets.tsx';
 import { Button, Icon, RadioGroup, Segmented, Status, Switch, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
-import { comfyDown } from '../lib/format.ts';
+import { capsLine, comfyDown } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, isOwner, upsert, useStore } from '../lib/store.ts';
 import {
@@ -789,6 +789,28 @@ function Devices({ catalog }: { catalog: Catalog }) {
   const auto = use === 'auto';
   const rendering = choir?.rendering ?? use;
   const sharing = choir?.sharing;
+  const primary = choir?.primary ?? 'local';
+  /** "Primary" where Talk runs by default, or the button that makes it so. */
+  const primaryControl = (name: string, label: string) =>
+    primary === name ? (
+      <Status kind="done">Primary</Status>
+    ) : (
+      <Button
+        kind="ghost"
+        size="sm"
+        busy={busy === `primary-${name}`}
+        aria-label={`Make primary for Talk: ${label}`}
+        onClick={() =>
+          run(`primary-${name}`, async () => {
+            await api.choirPrimary(name);
+            toast(`Talk now hears and answers on ${label} by default`);
+          })
+        }
+      >
+        Make primary
+      </Button>
+    );
+  const localCaps = capsLine(choir?.capabilities ?? null);
 
   return (
     <section className="hg-section" aria-labelledby="dv-h">
@@ -797,7 +819,8 @@ function Devices({ catalog }: { catalog: Catalog }) {
       </h2>
       <p className="body-sm sec-text">
         Render on another computer you own, such as a desktop with a big GPU. Devices pair over Tailscale, and
-        prompts and takes travel only between them.
+        prompts and takes travel only between them. The primary is where Talk hears and answers by default;
+        the microphone and speaker stay with the Studio you talk into.
       </p>
       {error ? (
         <p className="hg-err body-sm" role="alert">
@@ -822,8 +845,10 @@ function Devices({ catalog }: { catalog: Catalog }) {
                   : 'Standing by'}
               {sharing?.on ? ' · Shares its GPU' : ''}
             </small>
+            {localCaps ? <small className="body-sm hg-devices__caps">{localCaps}</small> : null}
           </span>
           <span className="hg-devices__act">
+            {choir?.devices.length ? primaryControl('local', 'this computer') : null}
             <button
               type="button"
               role="radio"
@@ -878,8 +903,12 @@ function Devices({ catalog }: { catalog: Catalog }) {
                   <Status kind={d.online ? 'done' : 'error'}>{d.online ? 'Online' : 'Not answering'}</Status>
                 </b>
                 <small className="body-sm muted">{deviceDetail(d, catalog)}</small>
+                {d.online && capsLine(d.capabilities) ? (
+                  <small className="body-sm hg-devices__caps">{capsLine(d.capabilities)}</small>
+                ) : null}
               </span>
               <span className="hg-devices__act">
+                {primaryControl(d.name, d.name)}
                 <button
                   type="button"
                   role="radio"

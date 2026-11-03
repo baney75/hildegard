@@ -256,6 +256,8 @@ type ShortJoin = Record<string, never>;
 interface SettingsFile {
   /** Paired devices' renders go behind this computer's own work and wait while it's busy. */
   opportunistic: boolean;
+  /** Where Talk runs by default: "local" or a joined device's name (ChoirState.primary). */
+  primary: string;
 }
 interface DevicesFile {
   use: string;
@@ -334,7 +336,13 @@ export class Choir {
     this.sharing = sharing?.url && Array.isArray(sharing.keys) ? sharing : null;
     this.joined = load<DevicesFile>(join(this.dir, 'devices.json'), { use: 'local', devices: [] });
     const settings = load<Partial<SettingsFile>>(join(this.dir, 'settings.json'), {});
-    this.settings = { opportunistic: settings.opportunistic === true };
+    this.settings = {
+      opportunistic: settings.opportunistic === true,
+      primary:
+        typeof settings.primary === 'string' && this.joined.devices.some((d) => d.name === settings.primary)
+          ? settings.primary
+          : 'local',
+    };
     if (
       this.joined.use !== 'local' &&
       this.joined.use !== 'auto' &&
@@ -353,6 +361,7 @@ export class Choir {
     return {
       use: this.joined.use,
       rendering: this.target(),
+      primary: this.settings.primary,
       devices: this.joined.devices.map((d) => this.device(d.name, d.url)),
       capabilities: this.capabilities,
       sharing: {
@@ -579,6 +588,21 @@ export class Choir {
     this.emit();
   }
 
+  /** Where Talk hears, answers and speaks by default: this computer ("local") or a joined device. */
+  get primary(): string {
+    return this.settings.primary;
+  }
+
+  setPrimary(name: string) {
+    if (name !== 'local' && !this.joined.devices.some((d) => d.name === name))
+      throw new ChoirError(404, `This computer hasn’t joined a device called ${name}.`);
+    if (name === this.settings.primary) return;
+    const next = { ...this.settings, primary: name };
+    save(join(this.dir, 'settings.json'), next);
+    this.settings = next;
+    this.emit();
+  }
+
   /** What opportunistic sharing can tell about this computer being busy; set once the server has looked. */
   busyCheck: BusyCheck | null = null;
   /** Why this computer is busy for paired devices now, as the server last saw it; shown only while opportunistic. */
@@ -724,6 +748,10 @@ export class Choir {
       devices: this.joined.devices.filter((d) => d.name !== name),
     };
     if (this.engine?.name === name) this.engine = null;
+    if (this.settings.primary === name) {
+      this.settings = { ...this.settings, primary: 'local' };
+      save(join(this.dir, 'settings.json'), this.settings);
+    }
     this.info.delete(name);
     this.problems.delete(name);
     save(join(this.dir, 'devices.json'), this.joined);

@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ChoirDevice, EngineState, GuestTake, Take } from '@hildegard/presets';
 import { describe, expect, it } from 'vitest';
 import { draftNote } from '../src/components/ExportDialog.tsx';
+import { DEMO_SCRIPT } from '../src/lib/demo-script.ts';
 import { fromRequest, toRequest } from '../src/lib/draft.ts';
 import {
   about,
   bytes,
+  capsLine,
   clock,
   comfyDown,
   deviceLabel,
@@ -16,6 +20,8 @@ import {
   leftMs,
   ordinal,
   roman,
+  stepSeconds,
+  talkMeter,
   talksThere,
 } from '../src/lib/format.ts';
 
@@ -233,5 +239,76 @@ describe('talksThere', () => {
     expect(talksThere(device(true, { llm: [] }))).toBe(false);
     expect(talksThere(device(false, {}))).toBe(false);
     expect(talksThere(device(true, null))).toBe(false);
+  });
+});
+
+describe('Talk on the Devices page and under each turn', () => {
+  const caps = {
+    mic: true,
+    speaker: true,
+    stt: ['whisper-small'],
+    tts: ['kokoro-82m'],
+    llm: [{ runtime: 'ollama', model: 'qwen3:4b', vramGb: null }],
+    gpu: null,
+    compute: 'interactive' as const,
+  };
+  it('says what a device can do in one line, and nothing for one that hasn’t said', () => {
+    expect(capsLine(caps)).toBe(
+      'Hears with whisper-small · Answers with qwen3:4b · Speaks with kokoro-82m · Microphone and speaker',
+    );
+    expect(
+      capsLine({ ...caps, stt: [], llm: [], tts: [], mic: false, speaker: false, compute: 'batch' }),
+    ).toBe('Can’t hear yet · No language model running · Can’t speak yet · Works in batches');
+    expect(capsLine({ ...caps, mic: false })).toMatch(/· Speaker$/);
+    expect(capsLine(null)).toBeNull();
+  });
+
+  it('writes step times in seconds, to a tenth under ten', () => {
+    expect([0, 49, 420, 9949, 12_400, -5].map(stepSeconds)).toEqual([
+      '0.0 s',
+      '0.0 s',
+      '0.4 s',
+      '9.9 s',
+      '12 s',
+      '0.0 s',
+    ]);
+  });
+
+  it('splits the meter by each step’s share of the turn, whatever its length', () => {
+    const m = talkMeter({ stt: 500, llm: 1500, tts: 2000, total: 4100 });
+    expect(m.steps.map((s) => [s.label, s.share, s.text])).toEqual([
+      ['Heard', 0.125, '0.5 s'],
+      ['Answered', 0.375, '1.5 s'],
+      ['Spoke', 0.5, '2.0 s'],
+    ]);
+    expect(m.total).toBe('4.1 s');
+    // A turn too quick to time still draws three equal parts.
+    expect(talkMeter({ stt: 0, llm: 0, tts: 0, total: 0 }).steps.map((s) => s.share)).toEqual([
+      1 / 3,
+      1 / 3,
+      1 / 3,
+    ]);
+  });
+});
+
+describe('the demo script', () => {
+  const lines = DEMO_SCRIPT.flatMap((b) => (b.line ? [b.line] : []));
+  it('opens with the staged test recording’s line', () => {
+    const staged = readFileSync(
+      join(import.meta.dirname, '../../server/test/fixtures/talk/lighthouse.wav.txt'),
+      'utf8',
+    ).trim();
+    expect(lines[0]).toBe(staged);
+  });
+
+  it('is invented: no addresses, links, numbers or host names in anything it shows', () => {
+    const shown = DEMO_SCRIPT.flatMap((b) => [b.cue, b.line ?? '']).join('\n');
+    expect(shown).not.toMatch(/@|https?:|\.com|\d|rectory|parish|abbey|chapel|donovan|baney/i);
+    expect(lines.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(DEMO_SCRIPT.map((b) => b.cue)).size).toBe(DEMO_SCRIPT.length);
+  });
+
+  it('never asks for a public link', () => {
+    expect(DEMO_SCRIPT.map((b) => b.cue).join(' ')).not.toMatch(/funnel|public/i);
   });
 });

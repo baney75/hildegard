@@ -251,6 +251,7 @@ describe('who sees why a GPU is busy', () => {
     const choir: ChoirState = {
       use: 'auto',
       rendering: 'spark',
+      primary: 'spark',
       devices: [
         {
           name: 'spark',
@@ -302,6 +303,9 @@ describe('who sees why a GPU is busy', () => {
     expect(seen.rendering).toBe('spark');
     expect(seen.devices[0]).toMatchObject({ name: 'spark', url: '', busy: null });
     expect(seen.sharing.busy).toBeNull();
+    // Which computer answers Talk is the owner's business too.
+    expect(seen.primary).toBe('local');
+    expect(snapshotFor({ kind: 'local' }, snap).choir.primary).toBe('spark');
     expect(snapshotFor({ kind: 'local' }, snap).choir.sharing.busy).toBe('llama-server is using the GPU.');
   });
 });

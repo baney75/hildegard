@@ -28,6 +28,8 @@ export interface TalkStatus {
   /** The language model that answers, or null for the stand-in answer. */
   llm: { runtime: string; model: string } | null;
   capabilities: DeviceCapabilities;
+  /** Where a turn that names no device runs: "local" or a joined device (ChoirState.primary). */
+  primary: string;
 }
 
 export interface TalkRouteDeps {
@@ -41,6 +43,8 @@ export interface TalkRouteDeps {
    * Throws a TalkError when that device isn't joined or can't hear, answer and speak.
    */
   onDevice?: (name: string) => { talk: TalkDeps; files: TalkFiles };
+  /** Where a turn that names no device runs: "local" or a joined device; "local" when left out. */
+  primary?: () => string;
 }
 
 /**
@@ -83,13 +87,16 @@ export function talkRoutes(d: TalkRouteDeps) {
     const req = await readTurn(c);
     if (req instanceof Response) return req;
     try {
-      const there = req.device && req.device !== 'local' ? d.onDevice?.(req.device) : null;
-      if (req.device && req.device !== 'local' && !there)
-        throw new TalkError(404, 'device', `This computer hasn’t joined a device called ${req.device}.`);
+      // A turn that names no device runs on the primary; "local" always runs here.
+      const name = req.device ?? d.primary?.() ?? 'local';
+      const there = name !== 'local' ? d.onDevice?.(name) : null;
+      if (name !== 'local' && !there)
+        throw new TalkError(404, 'device', `This computer hasn’t joined a device called ${name}.`);
       const r = await talkTurn(there?.talk ?? d.talk, there?.files ?? d.files, req);
       c.header('cache-control', 'no-store');
       return c.json({
         ...r,
+        device: name,
         // Bytes travel as base64 in JSON; a file this computer serves goes as its URL.
         audio: {
           contentType: r.audio.contentType,

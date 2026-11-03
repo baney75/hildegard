@@ -27,7 +27,11 @@ export type TalkTurnResult = {
   audio: { contentType: string; bytes?: Uint8Array; url?: string };
   /** Where each step ran: this computer, or the paired device the turn named. */
   route: { stt: TalkWhere; llm: TalkWhere; tts: TalkWhere };
+  /** How long each step took, and the whole turn, in milliseconds as this computer measured them. */
+  ms: TalkTiming;
 };
+
+export type TalkTiming = { stt: number; llm: number; tts: number; total: number };
 
 export type TalkWhere = 'local' | 'remote';
 
@@ -85,9 +89,21 @@ export async function talkTurn(
   deps: TalkDeps,
   files: TalkFiles,
   req: TalkTurnRequest,
+  now: () => number = performance.now.bind(performance),
 ): Promise<TalkTurnResult> {
+  const start = now();
+  let mark = start;
+  /** Milliseconds since the last lap. */
+  const lap = () => {
+    const t = now();
+    const ms = Math.max(0, Math.round(t - mark));
+    mark = t;
+    return ms;
+  };
   const path = req.audio instanceof Uint8Array ? await files.save(req.audio) : files.find(req.audio.uploadId);
+  lap();
   const transcript = (await deps.stt.transcribe(path, req.language)).text.trim();
+  const sttMs = lap();
   if (!transcript)
     throw new TalkError(
       400,
@@ -100,9 +116,11 @@ export async function talkTurn(
       { role: 'user', content: transcript },
     ])
   ).trim();
+  const llmMs = lap();
   if (!replyText) throw new TalkError(502, 'no_reply', 'The language model gave no answer. Try again.');
   // A speech job takes up to 5000 characters; a spoken answer is far shorter than that.
   const said = await deps.tts.speak(replyText.slice(0, MAX_REPLY));
+  const ttsMs = lap();
   const url = files.url(said.path);
   return {
     transcript,
@@ -111,6 +129,7 @@ export async function talkTurn(
       ? { contentType: said.contentType, url }
       : { contentType: said.contentType, bytes: await files.read(said.path) },
     route: { stt: deps.stt.where ?? 'local', llm: deps.llm.where ?? 'local', tts: deps.tts.where ?? 'local' },
+    ms: { stt: sttMs, llm: llmMs, tts: ttsMs, total: Math.max(0, Math.round(now() - start)) },
   };
 }
 

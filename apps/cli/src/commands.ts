@@ -1017,11 +1017,11 @@ export const dataExists = (c: Config) => existsSync(c.dataDir);
 
 // ── Choir: render on another of your devices ─────────────────────────────────────────────────────────────────────
 
-const deviceStep = (d: ChoirDevice, rendering: string): Step => ({
+const deviceStep = (d: ChoirDevice, rendering: string, primary: string): Step => ({
   id: `device-${d.name}`,
   title: d.name,
   status: d.online ? 'done' : 'skipped',
-  detail: `${d.name === rendering ? 'Takes render here. ' : ''}${d.online ? `Online${d.gpu ? ` · ${d.gpu}` : ''}${d.models.length ? ` · ${d.models.join(', ')}` : ''}${d.busy ? ` · busy: ${d.busy.replace(/\.$/, '')}` : d.opportunistic ? ' · only when it’s free' : ''}.` : (d.problem ?? 'Not answering.')} ${d.url}`,
+  detail: `${d.name === primary ? 'Primary for Talk. ' : ''}${d.name === rendering ? 'Takes render here. ' : ''}${d.online ? `Online${d.gpu ? ` · ${d.gpu}` : ''}${d.models.length ? ` · ${d.models.join(', ')}` : ''}${d.busy ? ` · busy: ${d.busy.replace(/\.$/, '')}` : d.opportunistic ? ' · only when it’s free' : ''}.` : (d.problem ?? 'Not answering.')} ${d.url}`,
 });
 
 /**
@@ -1128,7 +1128,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         return result(
           [
             {
-              ...deviceStep(r.device, r.choir.rendering),
+              ...deviceStep(r.device, r.choir.rendering, r.choir.primary),
               id: 'join',
               status: 'done',
               title: `Join ${r.device.name}`,
@@ -1203,6 +1203,23 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         return fail('Choose where takes render', e);
       }
     }
+    case 'primary': {
+      const name = args[1];
+      if (!name)
+        return result([], 'Say which: `hildegard choir primary <device>` or `primary local`.', { ok: false });
+      try {
+        const s = await api<ChoirState>(c, '/api/choir/primary', { method: 'POST', body: { name } });
+        return result(
+          [],
+          name === 'local'
+            ? 'Talk hears and answers on this computer by default.'
+            : `Talk hears and answers on ${name} by default. The microphone and speaker stay where you talk.`,
+          { choir: s },
+        );
+      } catch (e) {
+        return fail('Choose the primary', e);
+      }
+    }
     case 'leave': {
       const name = args[1];
       if (!name) return result([], 'Say which device: `hildegard choir leave <device>`.', { ok: false });
@@ -1231,7 +1248,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
           id: 'local',
           title: 'This computer',
           status: s.rendering === 'local' ? 'done' : 'skipped',
-          detail: `${s.rendering === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}${s.sharing.opportunistic ? `, when it’s free${s.sharing.busy ? ` (busy now: ${s.sharing.busy.replace(/\.$/, '')})` : ''}` : ''}.` : 'Not sharing its GPU.'}`,
+          detail: `${s.primary === 'local' ? 'Primary for Talk. ' : ''}${s.rendering === 'local' ? 'Takes render here. ' : ''}${s.sharing.on ? `Shares its GPU at ${s.sharing.url}${s.sharing.problem ? `, but ${s.sharing.problem}` : ''}${s.sharing.opportunistic ? `, when it’s free${s.sharing.busy ? ` (busy now: ${s.sharing.busy.replace(/\.$/, '')})` : ''}` : ''}.` : 'Not sharing its GPU.'}`,
         },
         ...(s.devices.length
           ? [
@@ -1246,7 +1263,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
               },
             ]
           : []),
-        ...s.devices.map((d) => deviceStep(d, s.rendering)),
+        ...s.devices.map((d) => deviceStep(d, s.rendering, s.primary)),
       ];
       return result(
         steps,
@@ -1257,7 +1274,7 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
     default:
       return result(
         [],
-        'Use `hildegard choir invite`, `join`, `list`, `use`, `leave`, `opportunistic`, `presence` or `revoke`.',
+        'Use `hildegard choir invite`, `join`, `list`, `use`, `primary`, `leave`, `opportunistic`, `presence` or `revoke`.',
         {
           ok: false,
         },

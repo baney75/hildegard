@@ -20,6 +20,7 @@ async function inviteFromNode(request: APIRequestContext) {
 // One server for the whole run: leave it rendering here, paired with nothing, and sharing nothing.
 test.afterEach(async ({ request }) => {
   await request.post('/api/choir/use', { headers: H, data: { name: 'local' } });
+  await request.post('/api/choir/primary', { headers: H, data: { name: 'local' } });
   const s = (await (await request.get('/api/snapshot')).json()) as { choir: { devices: { name: string }[] } };
   for (const d of s.choir.devices)
     await request.post('/api/choir/leave', { headers: H, data: { name: d.name } });
@@ -42,6 +43,23 @@ test('adds a device by its code, renders there, and removes it', async ({ page, 
   await page.getByRole('button', { name: 'Add device' }).click();
   await expect(use.getByText('Online')).toBeVisible();
   await expect(use.getByText(/Stand-in/)).toBeVisible();
+
+  // What each device says it can do for Talk, this computer included.
+  await expect(use.getByText(/^Hears with whisper-small · Answers with hildegard-echo/)).toHaveCount(2);
+
+  // The primary for Talk is its own choice, apart from where takes render.
+  await expect(use.getByText('Primary', { exact: true })).toHaveCount(1);
+  await use.getByRole('button', { name: `Make primary for Talk: ${name}` }).click();
+  await expect(use.getByRole('button', { name: 'Make primary for Talk: this computer' })).toBeVisible();
+  await expect(use.getByRole('button', { name: `Make primary for Talk: ${name}` })).toHaveCount(0);
+  await page.goto('/#/talk');
+  await expect(page.getByLabel('Hear and answer on')).toHaveValue(name);
+  await expect(page.getByLabel('Hear and answer on').locator('option:checked')).toHaveText(
+    `${name} (primary)`,
+  );
+  await page.goto('/#/settings/devices');
+  await use.getByRole('button', { name: 'Make primary for Talk: this computer' }).click();
+  await expect(use.getByRole('button', { name: `Make primary for Talk: ${name}` })).toBeVisible();
 
   await use.getByRole('radio', { name: `Use ${name} for renders` }).click();
   await expect(use.getByRole('radio', { name: `Use ${name} for renders` })).toBeChecked();

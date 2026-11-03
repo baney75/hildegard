@@ -269,6 +269,12 @@ export interface ChoirState {
   use: string;
   /** Where the take rendering now, or next, goes: "local" or a device's name. The same as `use` unless that's "auto". */
   rendering: string;
+  /**
+   * The device Talk hears, answers and speaks on by default this session: "local" or a joined device's name. The
+   * microphone and speaker stay with the Studio you talk into either way. Kept across restarts; back to "local" when
+   * that device is removed.
+   */
+  primary: string;
   devices: ChoirDevice[];
   /** What this computer says it can do, as its joined devices see it in theirs; null until the server has looked. */
   capabilities: DeviceCapabilities | null;

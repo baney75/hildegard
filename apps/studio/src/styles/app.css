@@ -331,6 +331,19 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-joincode pre { white-space: pre-wrap; word-break: break-all; color: var(--text-primary); user-select: all; }
 .hg-app[data-wc="compact"] .hg-devices__row { grid-template-columns: auto minmax(0, 1fr); }
 .hg-app[data-wc="compact"] .hg-devices__act { grid-column: 2; }
+.hg-devices__caps { color: var(--text-secondary); }
+
+/* Talk */
+.hg-talk-meter { display: grid; gap: 6px; }
+.hg-talk-meter__bar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--hairline); }
+.hg-talk-meter__bar i { flex-basis: 0; min-width: 4px; }
+.hg-talk-meter__bar .is-stt { background: var(--sapphire-text); }
+.hg-talk-meter__bar .is-llm { background: var(--brand-text); }
+.hg-talk-meter__bar .is-tts { background: var(--gold-text); }
+.hg-script { display: grid; gap: 4px; margin: 0; padding-left: 22px; }
+.hg-script__beat { display: grid; gap: 2px; width: 100%; padding: 8px 10px; text-align: left; font: inherit; color: var(--text-primary); background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
+.hg-script__beat:hover { border-color: var(--hairline); }
+.hg-script [aria-current="step"] .hg-script__beat { border-color: var(--brand-text); }
 
 /* ── Welcome ─────────────────────────────────────────────────────────────────────────────────── */
 .hg-welcome { position: fixed; inset: 0; overflow: auto; background: var(--canvas); color: var(--text-primary); font-family: var(--font-sans); }

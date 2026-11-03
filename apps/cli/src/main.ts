@@ -56,6 +56,7 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard choir join       On a computer without a big GPU: give that code (join HG-XXXX-XXXX --url <address>; the invite prints the whole command), and takes render there
   hildegard choir list       Devices, and which one renders (choir use <device|local|auto>, choir leave <device>);
                              use auto sends each take to the device free for it, this one included
+  hildegard choir primary    Where Talk hears and answers by default: choir primary <device|local>
   hildegard choir opportunistic on|off
                              On: your other devices’ renders here yield to this computer’s own work and wait
                              while it’s busy: in use, or another program on the GPU. Off (the default): they
