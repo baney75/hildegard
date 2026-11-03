@@ -358,7 +358,7 @@ describe('sending a short code', () => {
     );
     await expect(choir.join('HG-0000-0000', { url: 'http://100.64.0.2:7341' })).rejects.toMatchObject({
       status: 502,
-      message: expect.stringContaining('different address'),
+      message: expect.stringMatching(/different address.*short code was used up/s),
     });
     expect(urls).toEqual(['http://100.64.0.2:7341/api/choir/redeem']);
     expect(choir.state().devices).toEqual([]);
@@ -383,6 +383,21 @@ describe('joining with a short code between two servers', () => {
     expect(res.status).toBe(200);
     return (await res.json()) as ChoirInvite;
   };
+
+  it('refuses to share at a plain-http name this server’s own port covers, where nobody could redeem', async () => {
+    const gpu = await startServer(
+      {
+        ...parseArgs(['--fake-gpu', '--data', mkdtempSync(join(tmpdir(), 'hg-sc-')), '--host', '0.0.0.0']),
+        port: 0,
+      },
+      { fakeTickMs: 30, secrets: memoryStore(), choirSecrets: secrets() },
+    );
+    running.push(gpu);
+    const port = new URL(gpu.url).port;
+    const r = await post(gpu.url, '/api/choir/invite', { url: `http://gpu-a.tail1234.ts.net:${port}` });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toMatch(/Tailscale IP/);
+  });
 
   it('shows the short code, the address and the command, and the long code only when asked', async () => {
     const gpu = await start();

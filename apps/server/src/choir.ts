@@ -19,6 +19,9 @@ import type { SecretStore } from './hf.ts';
 import { Limiter } from './people.ts';
 import { type NodeInfo, REFUSED, RemoteEngine, shortGpu } from './remote-engine.ts';
 
+/** Said on a refusal after the sharing device answered 200: it has taken the code by then. */
+const USED_UP = ' The short code was used up; ask for a new one with `hildegard choir invite`.';
+
 export class ChoirError extends Error {
   readonly status: 400 | 403 | 404 | 409 | 429 | 502;
   constructor(status: ChoirError['status'], message: string) {
@@ -530,9 +533,9 @@ export class Choir {
 
   /**
    * A joining device presents a short code. A wrong one counts against its source and against all sources. Past its
-   * source's limit nothing is tried, so the code isn't even looked at. Past the all-sources limit a wrong guess is
-   * refused whoever it comes from, but a code that is exactly right still goes through, so a flood of guesses can't
-   * lock the owner out. The live check reads memory only; taking the code is one synchronous step, so of two at once
+   * source's limit nothing is tried, so the code isn't even looked at. Past the all-sources limit no code is looked at, right
+   * or wrong, until the window clears (checking right ones there would leave guessing unbounded); a long hgc1_ code
+   * still joins meanwhile. The live check reads memory only; taking the code is one synchronous step, so of two at once
    * exactly one gets a key. Returns what a long code holds, from the sharing record as it is now.
    */
   redeem(code: unknown, source: string, joiner?: string): JoinCode {
@@ -697,7 +700,7 @@ export class Choir {
       token?: unknown;
     } | null;
     if (typeof j?.name !== 'string' || typeof j.url !== 'string' || typeof j.token !== 'string')
-      throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.`);
+      throw new ChoirError(502, `${origin} answered, but not as a Hildegard sharing its GPU.${USED_UP}`);
     let answered: string;
     try {
       answered = new URL(j.url).origin;
@@ -707,7 +710,7 @@ export class Choir {
     if (answered !== origin)
       throw new ChoirError(
         502,
-        `${origin} answered with a different address (${j.url}), so Hildegard didn’t keep it.`,
+        `${origin} answered with a different address (${j.url}), so Hildegard didn’t keep it.${USED_UP}`,
       );
     return parseJoinCode(encodeJoinCode({ name: j.name, url: j.url, token: j.token }));
   }

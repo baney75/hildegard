@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { isIP } from 'node:net';
 import { homedir, hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
@@ -682,6 +683,15 @@ async function serveStudio(
           409,
           'Tailscale isn’t running on this computer, so other devices can’t reach it. Start Tailscale, or give the address they reach it at: `hildegard choir invite --url http://<address>:<port>`.',
         );
+      {
+        const t = new URL(target);
+        const h = t.hostname.replace(/^\[|\]$/g, '');
+        if (t.protocol === 'http:' && !isIP(h) && covered(h, Number(t.port || 80)))
+          throw new ChoirError(
+            400,
+            `Share at this computer’s Tailscale IP (http://<ip>:${port}) or an https name in front of it, not ${t.host}: other devices couldn’t redeem a code there.`,
+          );
+      }
       const name = ts?.name ?? hostname();
       let r: ChoirInvite;
       if (key !== undefined) {
@@ -745,7 +755,13 @@ async function serveStudio(
     lapseTimer = setTimeout(
       () => {
         lapseTimer = null;
-        void syncSharing().then(() => choir.emit());
+        // Nothing awaits this timer, so a failed sync must not become an unhandled rejection that ends the process.
+        void syncSharing()
+          .then(() => choir.emit())
+          .catch((e: Error) => {
+            choir.sharingProblem = `Sharing couldn’t update: ${e.message}`;
+            choir.emit();
+          });
       },
       Math.min(ms, 2 ** 31 - 1),
     );

@@ -16,9 +16,9 @@ export const CODE_RE = /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/;
 
 /**
  * Wrong tries allowed in 15 minutes: per source address, and across every source (so a spread-out guesser is
- * stopped too). The global cap refuses every wrong guess, from any source, once it is reached; a code that is exactly
- * right still goes through, so the owner is not locked out by someone else's guessing, and nothing already paired
- * ever stops.
+ * stopped too). Once the global cap is reached, no code is looked at, right or wrong, from any source, until the
+ * window clears; checking right ones there would leave guessing unbounded. A passphrase (chatbots) and a long hgc1_
+ * code (devices) still work meanwhile, and nothing already paired ever stops.
  */
 export const CODE_LIMITS = { perSource: 5, global: 60, windowMs: 15 * 60_000 } as const;
 
