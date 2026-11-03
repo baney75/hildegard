@@ -300,26 +300,24 @@ describe('wrong connect codes and the limits', () => {
     expect(fine.status).toBe(303);
   });
 
-  it('hold back only an address that already missed once, after the global cap, until the window passes', async () => {
+  it('refuse every wrong guess after the global cap, from any address, but still take an exact code', async () => {
     const s = await start({ perName: 50, perClient: 10_000 });
     const base = s.hostedUrl()!;
     const bot = await chatbot(base);
     const { request } = await bot.open();
     for (let i = 0; i < CODE_LIMITS.global; i++)
       await bot.post(request, { code: 'HG-0000-0000' }, `10.1.${Math.floor(i / 200)}.${i % 200}`);
-    // An address that never missed is not held back by other people's guessing, and its code works.
+    // A fresh address's wrong guess is refused, with the same answer as a limited one...
+    const fresh = await bot.post(request, { code: 'HG-1111-1111' }, '192.0.2.240');
+    expect(fresh.status).toBe(401);
+    expect(await fresh.text()).toMatch(/Too many tries/);
+    // ...while an exact code still goes through, even from an address that never missed.
     const minted = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
     const clean = await bot.post(request, { code: minted.code }, '192.0.2.250');
     expect(clean.status).toBe(303);
-    // One that has missed once is: its next try, a valid code included, waits.
+    // The page still takes a passphrase: the cap is for codes only.
     const bot2 = await chatbot(base);
     const second = await bot2.open();
-    const again = (await (await local(s, '/api/auth/codes')).json()) as ConnectCode;
-    expect((await bot2.post(second.request, { code: 'HG-1111-1111' }, '192.0.2.240')).status).toBe(401);
-    const blocked = await bot2.post(second.request, { code: again.code }, '192.0.2.240');
-    expect(blocked.status).toBe(401);
-    expect(await blocked.text()).toMatch(/Too many tries/);
-    // The page still takes a passphrase: the cap is for codes only.
     const pass = await bot2.post(second.request, { name: 'Ada', passphrase: PASS }, '192.0.2.251');
     expect(pass.status).toBe(303);
   });

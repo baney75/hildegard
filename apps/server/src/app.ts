@@ -63,6 +63,7 @@ import {
   eventFilter,
   fromThisComputer,
   type HgEnv,
+  LOOPBACK_ADDR,
   open,
   ownAuth,
   secureRequest,
@@ -160,7 +161,7 @@ export interface AppDeps {
    * Share this computer's GPU: a join code for another device. `url` overrides the Tailscale address; `key` is one
    * the other device made (a rented GPU it started), instead of a fresh one.
    */
-  invite: (url?: string, key?: string, long?: boolean) => Promise<ChoirInvite>;
+  invite: (url?: string, key?: string, long?: boolean, short?: boolean) => Promise<ChoirInvite>;
   /** The clock for connect codes and their limits: tests give a fake one. */
   clock?: () => number;
   /** Where other devices would reach this one on its tailnet, if Tailscale is up here. */
@@ -1487,16 +1488,33 @@ export function createApp(deps: AppDeps) {
   app.get('/api/choir', async (c) => c.json(await deps.choir.refresh()));
   app.get('/api/choir/tailnet', (c) => c.json({ url: deps.tailnet() }));
   // When the sharing address is this server's own port (an https name that Tailscale Serve forwards here, or the
-  // Studio's own address), devices redeem here: from this computer, or with the sharing address as Host. Never on
-  // the hosted listener behind the public link or front door. Otherwise the node-only app at the sharing address
-  // takes redeems.
+  // Studio's own address), devices redeem here: from this computer, or by way of the sharing address. A Host header
+  // is whatever a client sends, so it counts only from Serve itself (a loopback socket), or, for a plain http
+  // address, on a socket that was opened to that very address. Never on the hosted listener behind the public link or
+  // front door. Otherwise the node-only app at the sharing address takes redeems.
   app.use('/api/choir/redeem', async (c, next) => {
+    if (c.env?.hosted) return c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
     const share = deps.choir.listen();
     const host = (c.req.header('host') ?? '').toLowerCase();
-    const viaShare = !!share && host === share.host.toLowerCase();
-    return !c.env?.hosted && (local(c) || viaShare)
-      ? next()
-      : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+    if (!local(c) && share && host === share.host.toLowerCase()) {
+      const sock = c.env?.incoming?.socket;
+      const viaServe = !!sock?.remoteAddress && LOOPBACK_ADDR.test(sock.remoteAddress);
+      const bare = (a?: string) => (a ?? '').replace(/^::ffff:/i, '').toLowerCase();
+      const direct =
+        share.protocol === 'http:' &&
+        !!sock?.localAddress &&
+        bare(sock.localAddress) === share.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+      if (viaServe) {
+        // Serve connects from this computer for everyone: tell the people apart by what it adds.
+        const fwd = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+        const login = c.req.header('tailscale-user-login')?.trim();
+        c.set('source', login ? `login:${login}` : fwd ? `fwd:${fwd}` : `src:${sock?.remoteAddress}`);
+        return next();
+      }
+      if (direct) return next();
+      return c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
+    }
+    return local(c) ? next() : c.json({ error: 'Redeem a code at the sharing device’s own address.' }, 403);
   });
   app.route('/api/choir/redeem', redeemRoutes(deps.choir));
   app.post('/api/choir/invite', async (c) => {
@@ -1507,12 +1525,13 @@ export function createApp(deps: AppDeps) {
         url: z.string().max(200).optional(),
         key: z.string().max(100).optional(),
         long: z.boolean().optional(),
+        short: z.boolean().optional(),
       })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'Give an address like http://100.64.0.1:7341.' }, 400);
     try {
       c.header('cache-control', 'no-store');
-      return c.json(await deps.invite(body.data.url, body.data.key, body.data.long));
+      return c.json(await deps.invite(body.data.url, body.data.key, body.data.long, body.data.short));
     } catch (e) {
       return choirFail(c, e);
     }

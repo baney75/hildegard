@@ -16,8 +16,9 @@ export const CODE_RE = /^HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/;
 
 /**
  * Wrong tries allowed in 15 minutes: per source address, and across every source (so a spread-out guesser is
- * stopped too). The global cap applies only to a source that has already had a wrong try in the window, so a clean source
- * (the owner with a good code) is never blocked by someone else's guessing, and nothing already paired ever stops.
+ * stopped too). The global cap refuses every wrong guess, from any source, once it is reached; a code that is exactly
+ * right still goes through, so the owner is not locked out by someone else's guessing, and nothing already paired
+ * ever stops.
  */
 export const CODE_LIMITS = { perSource: 5, global: 60, windowMs: 15 * 60_000 } as const;
 
@@ -110,6 +111,18 @@ export class CodeBook<T> {
     while (this.codes.length > this.max) this.codes.shift();
     this.persist();
     return { code, expiresAt };
+  }
+
+  /** How many codes are live now. */
+  size(): number {
+    this.prune();
+    return this.codes.length;
+  }
+
+  /** When the last live code expires, or null with none. */
+  lastExpiry(): number | null {
+    this.prune();
+    return this.codes.length ? Math.max(...this.codes.map((c) => c.expiresAt)) : null;
   }
 
   /** Whether `code` is live, without using it. */

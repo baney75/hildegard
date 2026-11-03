@@ -102,6 +102,23 @@ export function Sharing() {
   const { busy, error, run } = useRunner();
   const [funnel, setFunnel] = useState(false);
   const [connect, setConnect] = useState<ConnectCode | null>(null);
+  // With several owners and no session (this computer), the server asks whose code it is.
+  const [owners, setOwners] = useState<string[] | null>(null);
+  const [asOwner, setAsOwner] = useState('');
+  const getConnectCode = (person?: string) =>
+    run('connect', async () => {
+      try {
+        setConnect(await api.connectCode(person));
+        setOwners(null);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409 && e.owners?.length) {
+          setOwners(e.owners);
+          setAsOwner((cur) => (e.owners?.includes(cur) ? cur : e.owners![0]!));
+          return;
+        }
+        throw e;
+      }
+    });
 
   useEffect(() => {
     api
@@ -229,15 +246,27 @@ export function Sharing() {
               onExpired={() => setConnect(null)}
             />
           ) : null}
+          {owners ? (
+            <label className="body-sm">
+              Whose code is it?{' '}
+              <select value={asOwner} onChange={(e) => setAsOwner(e.target.value)} aria-label="Owner">
+                {owners.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <div className="hg-devices__btns">
             <Button
               kind={connect ? undefined : 'primary'}
               icon="link"
               busy={busy === 'connect'}
               disabled={!!busy}
-              onClick={() => run('connect', async () => setConnect(await api.connectCode()))}
+              onClick={() => getConnectCode(owners ? asOwner : undefined)}
             >
-              {connect ? 'New connect code' : 'Get a connect code'}
+              {owners ? 'Get the code' : connect ? 'New connect code' : 'Get a connect code'}
             </Button>
           </div>
         </div>

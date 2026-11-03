@@ -221,8 +221,8 @@ and asks who's calling:
   code** in Settings › Sharing, owners only) makes a one-time code, `HG-XXXX-XXXX`, good once for 10 minutes. On
   Hildegard's page choose **Use a connect code** and type it; the chatbot is approved as you, the owner who made it.
   Only type a code you made yourself for this connection. Wrong codes count toward the same sign-in limits as wrong
-  passphrases, plus a cap of 60 wrong codes in 15 minutes across all addresses. The cap holds back only an address that has
-  already missed once; an address with no wrong tries is never blocked by it, and a passphrase still works. With
+  passphrases, plus a cap of 60 wrong codes in 15 minutes across all addresses. Once it is reached, every wrong guess is
+  refused, from any address, new or not; a code that is exactly right still works, and so does a passphrase. With
   several owners and no session (this computer), name whose code it is: `hildegard host code --as <name>`. A new
   passphrase, or removing or demoting the owner, drops that owner's unused codes.
 
@@ -371,8 +371,12 @@ hildegard choir list        # gpu-a · RTX 4080 Laptop, online, with its models
 
 A short code is a secret, so `join` sends it to the one address you give with `--url` and nowhere else: it never
 searches your tailnet, and without `--url` it sends nothing and tells you the command to run. It also refuses an
-answer that names a different address. gpu-a counts wrong codes: 5 per source in 15 minutes, and 60 across all
-sources, which holds back only a source that has already missed once (a device already paired is not affected). In the
+answer that names a different address, and it fails on any redirect rather than send the code on. gpu-a counts wrong
+codes: 5 per source in 15 minutes, and 60 across all sources, after which every wrong guess is refused whatever its
+source (a code that is exactly right still works, and a device already paired is not affected). Behind Tailscale Serve,
+a source is the person Serve names (their Tailscale login, else the address it forwards for), so one peer's wrong
+codes don't block another. Sharing with no device paired and no short code left live counts as off: the sharing
+address stops answering when the last code expires. In the
 Studio, Settings › Devices › **Add a device** takes the short code with the address. The long code still works pasted
 in (`hildegard choir join` asks for it, hidden).
 

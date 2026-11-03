@@ -674,7 +674,7 @@ async function serveStudio(
       return ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null;
     },
     clock: opts.now,
-    invite: async (url, key, long) => {
+    invite: async (url, key, long, short) => {
       const ts = tailnet();
       const target = url ?? (ts ? `http://${ts.ip.includes(':') ? `[${ts.ip}]` : ts.ip}:${port}` : null);
       if (!target)
@@ -688,10 +688,10 @@ async function serveStudio(
         const k = choir.invite(target, name, key);
         r = { ...k, name: deviceName(name), short: null, command: null };
       } else {
-        const k = choir.shortInvite(target, name, { long });
+        const k = choir.shortInvite(target, name, { long, short });
         r = {
           ...k,
-          command: `hildegard choir join ${k.short.code} --url ${k.url}`,
+          command: k.short ? `hildegard choir join ${k.short.code} --url ${k.url}` : null,
         };
       }
       await syncSharing();
@@ -734,7 +734,25 @@ async function serveStudio(
     syncingSharing = syncingSharing.then(syncSharingNow, syncSharingNow);
     return syncingSharing;
   };
+  // An invite nobody used leaves sharing on only until its last code lapses: look again then, so the listener closes
+  // and the Studio stops saying "Sharing".
+  let lapseTimer: NodeJS.Timeout | null = null;
+  const watchLapse = () => {
+    if (lapseTimer) clearTimeout(lapseTimer);
+    lapseTimer = null;
+    const ms = choir.lapsesIn();
+    if (ms === null || closing) return;
+    lapseTimer = setTimeout(
+      () => {
+        lapseTimer = null;
+        void syncSharing().then(() => choir.emit());
+      },
+      Math.min(ms, 2 ** 31 - 1),
+    );
+    lapseTimer.unref();
+  };
   const syncSharingNow = async (): Promise<void> => {
+    watchLapse();
     const want = choir.listen();
     const h = want?.hostname.replace(/^\[|\]$/g, '') ?? '';
     const p = want ? Number(want.port || 80) : 0;
@@ -908,6 +926,7 @@ async function serveStudio(
       updates.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
+      if (lapseTimer) clearTimeout(lapseTimer);
       scheduler.stop();
       voice.close();
       await voiceEngine.close();

@@ -111,6 +111,34 @@ test('the owner gets a one-time connect code in Settings › Sharing', async ({ 
   expect(errors).toEqual([]);
 });
 
+test('with several owners and no session, the connect code asks whose it is and retries with the answer', async ({
+  page,
+}) => {
+  const asked: unknown[] = [];
+  await page.route('**/api/auth/codes', async (route) => {
+    const body = route.request().postDataJSON() as { person?: string };
+    asked.push(body.person ?? null);
+    if (!body.person)
+      return route.fulfill({
+        status: 409,
+        json: { error: 'There is more than one owner (Ada, Grace).', owners: ['Ada', 'Grace'] },
+      });
+    return route.fulfill({
+      json: {
+        code: 'HG-2345-6789',
+        expiresAt: new Date(Date.now() + 600_000).toISOString(),
+        person: { id: 'p2', name: 'Grace' },
+      },
+    });
+  });
+  await page.goto('/#/settings/sharing');
+  await page.getByRole('button', { name: 'Get a connect code' }).click();
+  await page.getByRole('combobox', { name: 'Owner' }).selectOption('Grace');
+  await page.getByRole('button', { name: 'Get the code' }).click();
+  await expect(page.getByTestId('one-time-code')).toHaveText('HG-2345-6789');
+  expect(asked).toEqual([null, 'Grace']);
+});
+
 test('invites a director, who joins with the link once and sees only their own films', async ({
   browser,
   page,

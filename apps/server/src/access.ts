@@ -45,11 +45,13 @@ export interface HgEnv {
      * listener with that door's Host. Then the request counts as HTTPS and its origin is this URL.
      */
     publicUrl?: string;
+    /** Who a redeem counts against when something forwards for every device (Tailscale Serve), set by the redeem guard. */
+    source?: string;
   };
 }
 export type Ctx = Context<HgEnv>;
 
-const LOOPBACK_ADDR = /^(127\.\d+\.\d+\.\d+|::1|::ffff:127\.\d+\.\d+\.\d+)$/;
+export const LOOPBACK_ADDR = /^(127\.\d+\.\d+\.\d+|::1|::ffff:127\.\d+\.\d+\.\d+)$/;
 /** Headers a proxy adds. A request carrying one came from somewhere else, whatever socket it arrived on. */
 const FORWARDED = ['forwarded', 'x-forwarded-for', 'x-forwarded-host', 'x-real-ip', 'tailscale-user-login'];
 
@@ -151,8 +153,9 @@ export function open(method: string, path: string): boolean {
   if (path === '/api/health') return true;
   if (ownAuth(path)) return true;
   if (path.startsWith('/api/auth/')) return true;
-  // A device not paired yet redeeming a short code. The route itself refuses the public link and any address but
-  // this computer's or the sharing one's.
+  // A device not paired yet redeeming a short code. No sign-in: the code is the proof. The route's own guard (app.ts)
+  // refuses the hosted listener, and any request that is not from this computer, from Tailscale Serve on a loopback
+  // socket with the sharing address as Host, or on a socket opened to the sharing address itself.
   if (method === 'POST' && path === '/api/choir/redeem') return true;
   // A speaker reading their consent line on their own phone: the link's token is the key.
   if (/^\/api\/consent\/[^/]+(\/recording)?$/.test(path)) return true;

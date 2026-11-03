@@ -325,10 +325,8 @@ export function oauthRoutes(app: Hono<HgEnv>, deps: OAuthDeps) {
   const metadataCache = new Map<string, { info: ClientInfo; until: number }>();
   /** Registrations per address: an app registers once, so a flood is someone filling the list. */
   const registrations: Limiter = new Limiter(20, 3600_000);
-  /** Wrong connect codes across every address: past it, an address that has already missed isn't tried again for a while. */
+  /** Wrong connect codes across every address: past it, no wrong guess is tried from anywhere for a while. */
   const codeTries = new Limiter(CODE_LIMITS.global, CODE_LIMITS.windowMs, now);
-  /** Wrong connect codes per address, to tell a clean address (never held back by the cap above) from one that missed. */
-  const codeMisses = new Limiter(CODE_LIMITS.perSource, CODE_LIMITS.windowMs, now);
 
   const cors = (c: Ctx) => {
     for (const [k, v] of Object.entries(CORS)) c.header(k, v);
@@ -617,19 +615,19 @@ ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}${who}
     }
     if (field('code')) {
       // A connect code the owner made: it approves as that owner, as their passphrase would. Wrong ones count with
-      // wrong passphrases (per address), and against a cap across every address.
+      // wrong passphrases (per address), and against a cap across every address that refuses any wrong guess once
+      // reached, while a code that is exactly right still works.
       const ckeys = [`client:${clientKey(c)}`];
-      const refusedCode = deps.limited(c, ckeys);
-      const waitGlobal = codeMisses.count(ckeys[0]!) > 0 ? codeTries.wait('all') : 0;
-      if (refusedCode || waitGlobal)
+      if (deps.limited(c, ckeys))
         return consent(c, requestId, p, 'Too many tries. Wait a few minutes, then try again.');
       const norm = normalizeCode(field('code'));
       const rec = deps.connectCodes.live(norm) ? deps.connectCodes.take(norm) : null;
       const who = rec ? people.get(rec.personId) : undefined;
       if (!rec || who?.role !== 'owner') {
+        if (codeTries.wait('all'))
+          return consent(c, requestId, p, 'Too many tries. Wait a few minutes, then try again.');
         deps.failed(ckeys);
         codeTries.fail('all');
-        codeMisses.fail(ckeys[0]!);
         return consent(
           c,
           requestId,

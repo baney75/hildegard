@@ -132,9 +132,15 @@ export class Limiter {
   fail(key: string) {
     const list = this.recent(key);
     list.push(this.now());
+    // Re-inserted, so the map runs from least to most recently failed.
+    this.hits.delete(key);
     this.hits.set(key, list);
-    // Keep memory bounded however many addresses knock.
-    if (this.hits.size > 10_000) for (const k of [...this.hits.keys()].slice(0, 1000)) this.hits.delete(k);
+    // Keep memory bounded however many addresses knock: first drop the keys with nothing left in the window, and
+    // only then, if it is still too many, the least recently failed.
+    if (this.hits.size > 10_000) {
+      for (const k of [...this.hits.keys()]) this.recent(k);
+      if (this.hits.size > 10_000) for (const k of [...this.hits.keys()].slice(0, 1000)) this.hits.delete(k);
+    }
   }
 
   clear(key: string) {
