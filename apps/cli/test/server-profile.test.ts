@@ -3,12 +3,14 @@
 // managers are test doubles; one test starts the unit's own command line and waits for /api/health.
 import { type ChildProcess, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DeviceCapabilities, Snapshot } from '@hildegard/presets';
 import { parseArgs } from '@hildegard/server';
 import { afterEach, describe, expect, it } from 'vitest';
+import { writeService } from '../src/commands.ts';
 import { serveSteps } from '../src/doctor.ts';
 import {
   installService,
@@ -182,6 +184,56 @@ describe('turning the service on', () => {
     expect(readFileSync(svc.file, 'utf8')).toContain('<string>--foreground</string>');
   });
 
+  it('leaves another folder’s service alone and asks the owner', () => {
+    for (const platform of ['linux', 'darwin'] as const) {
+      const svc = serviceFile(platform, { HOME: home() })!;
+      const first = config(7371);
+      installService(first, entry, { run: manager().run, svc });
+      const before = readFileSync(svc.file, 'utf8');
+      const m = manager();
+      const [step] = installService(config(7373), entry, { run: m.run, svc });
+      expect(step).toMatchObject({ id: 'service', status: 'needs-owner' });
+      expect(step!.detail).toContain(first.dataDir);
+      // Neither rewritten nor booted out or restarted: the first profile keeps serving.
+      expect(readFileSync(svc.file, 'utf8')).toBe(before);
+      expect(m.asked).toEqual([]);
+      expect(managedService(first, entry, svc)).toEqual(svc);
+    }
+  });
+
+  it('rewrites its own folder’s service for a new port', () => {
+    const svc = serviceFile('linux', { HOME: home() })!;
+    const c = config(7375);
+    installService(c, entry, { run: manager().run, svc });
+    const moved = { ...c, port: 7377 };
+    expect(installService(moved, entry, { run: manager().run, svc })[0]).toMatchObject({ status: 'done' });
+    expect(managedService(moved, entry, svc)).toEqual(svc);
+  });
+
+  it('picks the port before writing the service, so it starts what the service runs', async () => {
+    const port = 7700 + 2 * Math.floor(Math.random() * 100);
+    const taken = createServer();
+    await new Promise<void>((r) => taken.listen(port, '127.0.0.1', r));
+    try {
+      const c = config(port);
+      const svc = serviceFile('linux', { HOME: home() })!;
+      const { steps, note } = await writeService(c, { run: manager().run, svc });
+      expect(steps[0]).toMatchObject({ status: 'done' });
+      expect(c.port).toBeGreaterThan(port);
+      expect(note).toContain(`Port ${port} is in use by another program`);
+      expect(managedService(c, entry, svc)).toEqual(svc);
+      expect(
+        words(
+          readFileSync(svc.file, 'utf8')
+            .split('\n')
+            .find((l) => l.startsWith('ExecStart='))!,
+        ),
+      ).toContain(String(c.port));
+    } finally {
+      taken.close();
+    }
+  });
+
   it('says there’s none on Windows', () => {
     expect(installService(config(), entry, { svc: null })).toMatchObject([
       { id: 'service', status: 'skipped' },
@@ -216,6 +268,22 @@ describe('which Hildegard the service runs', () => {
       status: 'skipped',
       command: 'hildegard install --yes --server --json',
     });
+  });
+
+  it('doctor on macOS: done only while the LaunchAgent’s process runs, not just while it’s loaded', () => {
+    const c = config(7369);
+    const svc = serviceFile('darwin', { HOME: home() })!;
+    installService(c, entry, { run: manager().run, svc });
+    const print = (stdout: string) => manager({ 'launchctl print': { status: 0, stdout } }).run;
+    const running = '\tstate = running\n\tpid = 4242\n';
+    expect(serviceStep(c, entry, { run: print(running), svc })).toMatchObject({ status: 'done' });
+    const stopped = '\tstate = not running\n\tlast exit code = 0\n';
+    expect(serviceStep(c, entry, { run: print(stopped), svc })).toMatchObject({
+      status: 'failed',
+      command: 'hildegard restart --json',
+    });
+    const gone = manager({ 'launchctl print': { status: 113 } }).run;
+    expect(serviceStep(c, entry, { run: gone, svc })).toMatchObject({ status: 'failed' });
   });
 });
 

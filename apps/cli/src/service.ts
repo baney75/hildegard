@@ -153,6 +153,32 @@ export function managedService(c: Config, entry: string, svc = serviceFile()): S
   return readFileSync(svc.file, 'utf8').includes(line) ? svc : null;
 }
 
+const unxml = (s: string) =>
+  s
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+
+/** The data folder an existing unit or LaunchAgent serves, or null when it names none (not one Hildegard wrote). */
+export function serviceData(svc: Service): string | null {
+  const text = readFileSync(svc.file, 'utf8');
+  const argv =
+    svc.kind === 'systemd'
+      ? [
+          ...(text.split('\n').find((l) => l.startsWith('ExecStart=')) ?? '').matchAll(
+            /"((?:[^"\\]|\\.)*)"/g,
+          ),
+        ].map((m) => m[1]!.replace(/\\(.)/g, '$1').replace(/%%/g, '%').replace(/\$\$/g, '$'))
+      : [
+          ...(text.split('<key>ProgramArguments</key>')[1]?.split('</array>')[0] ?? '').matchAll(
+            /<string>(.*)<\/string>/g,
+          ),
+        ].map((m) => unxml(m[1]!));
+  const i = argv.indexOf('--data');
+  return i >= 0 ? (argv[i + 1] ?? null) : null;
+}
+
 const uid = () => process.getuid?.() ?? 0;
 
 /** Starts the service; false when its manager can't (no user systemd here), so the caller starts Hildegard itself. */
@@ -186,6 +212,21 @@ export function installService(
         status: 'skipped',
         detail: 'There’s no service for Windows yet. Run `hildegard start` after you sign in.',
         command: 'hildegard start --json',
+      },
+    ];
+  // One service per user: another folder's is the owner's to turn off, never this install's to take over.
+  const other = existsSync(svc.file) ? serviceData(svc) : c.dataDir;
+  if (other !== c.dataDir)
+    return [
+      {
+        id: 'service',
+        title,
+        status: 'needs-owner',
+        detail: `${svc.file} already starts ${other ? `the Hildegard in ${other}` : 'something else'}, so this one starts without a service and that one keeps serving. To serve this folder instead, turn that one off and remove it with the command, then run \`hildegard install --yes --server\` here again.`,
+        command:
+          svc.kind === 'systemd'
+            ? `systemctl --user disable --now ${UNIT} && rm ${JSON.stringify(svc.file)}`
+            : `launchctl bootout gui/$(id -u)/${LABEL}; rm ${JSON.stringify(svc.file)}`,
       },
     ];
   const l = launch(c, entry);
@@ -263,7 +304,10 @@ export function serviceStep(c: Config, entry: string, { run = sh, svc = serviceF
   const active =
     svc.kind === 'systemd'
       ? run('systemctl', ['--user', 'is-active', UNIT]).stdout.trim() === 'active'
-      : run('launchctl', ['print', `gui/${uid()}/${LABEL}`]).status === 0;
+      : // Loaded isn't running: a LaunchAgent that exited cleanly stays loaded, with `state = not running`.
+        (({ status, stdout }) => status === 0 && /^\s*state = running$/m.test(stdout))(
+          run('launchctl', ['print', `gui/${uid()}/${LABEL}`]),
+        );
   return active
     ? { id: 'service', title, status: 'done', detail: `Runs from ${svc.file}.` }
     : {

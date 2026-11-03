@@ -124,6 +124,21 @@ const tryResource = (rel: string) => {
   }
 };
 
+/**
+ * Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
+ * server remembers in its folder for later commands and the app. `note` is empty when the port was free.
+ */
+async function settlePort(c: Config, up: Health | null): Promise<{ note: string } | { failed: string }> {
+  if (!up && (await portFree(c.port))) return { note: '' };
+  const p = await nextFreePort(c.port + 2);
+  const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
+  if (p === null)
+    return { failed: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.` };
+  const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
+  c.port = p;
+  return { note };
+}
+
 const moveNote = (r: Result, note: string): Result => ({
   ...r,
   steps: r.steps.map((s) => (s.id === 'start' ? { ...s, detail: `${s.detail}${note}` } : s)),
@@ -185,27 +200,13 @@ export async function start(ctx: Ctx): Promise<Result> {
       `Hildegard is running at ${url}`,
       { url },
     );
-  // Another Hildegard (another home), or another program, has the port: this one takes the next free one, which the
-  // server remembers in its folder for later commands and the app.
-  if (up || !(await portFree(c.port))) {
-    const p = await nextFreePort(c.port + 2);
-    const whose = up ? 'another Hildegard’s (a different home)' : 'in use by another program';
-    if (p === null)
-      return result(
-        [
-          {
-            id: 'start',
-            title: 'Start Hildegard',
-            status: 'failed',
-            detail: `Port ${c.port} is ${whose}, and no port near it is free. Pick one with --port.`,
-          },
-        ],
-        'Hildegard didn’t start.',
-      );
-    const note = ` Port ${c.port} is ${whose}, so this one uses ${p}.`;
-    c.port = p;
-    return moveNote(await start(ctx), note);
-  }
+  const moved = await settlePort(c, up);
+  if ('failed' in moved)
+    return result(
+      [{ id: 'start', title: 'Start Hildegard', status: 'failed', detail: moved.failed }],
+      'Hildegard didn’t start.',
+    );
+  if (moved.note) return moveNote(await start(ctx), moved.note);
   const L = layout(c.dataDir);
   mkdirSync(L.logs, { recursive: true });
   const log = join(L.logs, 'server.log');
@@ -354,9 +355,13 @@ export async function install(ctx: Ctx): Promise<Result> {
   // Restart, so the server runs the ComfyUI it just installed: this folder's server only, never another home's.
   if (await running(c)) await stop(ctx);
   const more: Step[] = [];
-  // Written while nothing runs here, so the service gets the port; `start` below then starts through it.
-  if (server) more.push(...installService(c, entry()));
-  const s = await start(ctx);
+  let note = '';
+  if (server) {
+    const w = await writeService(c);
+    more.push(...w.steps);
+    note = w.note;
+  }
+  const s = moveNote(await start(ctx), note);
   more.push(...s.steps);
   if (server && s.ok) more.push(await llmStep(c));
   if (events) for (const step of more) printEvent({ step });
@@ -373,6 +378,20 @@ export async function install(ctx: Ctx): Promise<Result> {
     ),
     printed,
   };
+}
+
+/**
+ * The server profile's service, written while nothing runs here for the port Hildegard will start on: when another
+ * program or home has the port, it moves first, so `start` then starts through the service and not beside it.
+ */
+export async function writeService(
+  c: Config,
+  opts?: Parameters<typeof installService>[2],
+): Promise<{ steps: Step[]; note: string }> {
+  const moved = await settlePort(c, await health(c));
+  // No free port: `start` says so; a service for a taken port would only fail.
+  if ('failed' in moved) return { steps: [], note: '' };
+  return { steps: installService(c, entry(), opts), note: moved.note };
 }
 
 /** The language models a server answers Talk with: found, never installed (Ollama and the rest are the owner’s). */
