@@ -186,18 +186,18 @@ def _whisper_backend(monkeypatch, tmp_path, models, device="cuda"):
 
     class Model:
         def __init__(self, d, device, compute_type):
+            self.device = device
             models.append((device, compute_type))
-            if device == "cuda":
-                raise RuntimeError("Library libcublas.so.12 is not found or cannot be loaded")
 
         def transcribe(self, audio_in, **kw):
+            # CTranslate2 only finds out libcublas is missing on the first encode, not at construction.
+            if self.device == "cuda":
+                raise RuntimeError("Library libcublas.so.12 is not found or cannot be loaded")
             models.append(audio_in)
             return [Seg()], types.SimpleNamespace(language="en", duration=1.0)
 
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=Model))
-    b = wb.Backend(str(tmp_path), device=None)
-    b.device = device
-    return b
+    return wb.Backend(str(tmp_path), device=device)
 
 
 def test_whisper_passes_an_array_and_falls_back_to_cpu_on_cublas(monkeypatch, tmp_path, capsys):
@@ -207,6 +207,7 @@ def test_whisper_passes_an_array_and_falls_back_to_cpu_on_cublas(monkeypatch, tm
     sf.write(str(wav), tone(1, sr=24000), 24000)
     seen = []
     b = _whisper_backend(monkeypatch, tmp_path, seen)
+    b.device = "cuda"  # pick_device gives "cpu" on hosts without CUDA; the fallback needs a CUDA attempt
     out = b.transcribe(str(wav))
     assert seen[:2] == [("cuda", "float16"), ("cpu", "int8")]
     arr = seen[2]
@@ -216,6 +217,28 @@ def test_whisper_passes_an_array_and_falls_back_to_cpu_on_cublas(monkeypatch, tm
     assert capsys.readouterr().err.count("CUDA unavailable") == 1
     b.transcribe(str(wav))
     assert capsys.readouterr().err == ""
+
+
+def test_cuda_library_missing_matches_loader_failures_only():
+    from hildegard_voice.backends.whisper import _cuda_library_missing as miss
+
+    assert miss(RuntimeError("Library libcublas.so.12 is not found or cannot be loaded"))
+    assert miss(RuntimeError("libcudnn_ops.so.9: cannot open shared object file, not found"))
+    assert not miss(RuntimeError("CUBLAS_STATUS_ALLOC_FAILED"))
+    assert not miss(RuntimeError("CUDA out of memory"))
+
+
+def test_whisper_reads_stereo_as_one_channel(monkeypatch, tmp_path):
+    import soundfile as sf
+
+    stereo = np.stack([tone(1, sr=16000), tone(1, sr=16000)], axis=1)
+    sf.write(str(tmp_path / "s.wav"), stereo, 16000)
+    arr, sr = audio.read(str(tmp_path / "s.wav"), sr=16000)
+    assert arr.ndim == 1 and sr == 16000
+    seen = []
+    b = _whisper_backend(monkeypatch, tmp_path, seen, device="cpu")
+    b.transcribe(str(tmp_path / "s.wav"))
+    assert seen[1].ndim == 1
 
 
 def test_whisper_cpu_override_never_tries_cuda(monkeypatch, tmp_path):

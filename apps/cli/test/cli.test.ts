@@ -24,6 +24,15 @@ import { printEvent, printResult, result } from '../src/output.ts';
 const main = process.env.HILDEGARD_CLI ?? fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const run = promisify(execFile);
 
+/** An OS-allocated free port, for the hosted listener (otherwise `port + 1` can collide with a parallel worker). */
+const freePort = () =>
+  new Promise<number>((resolve) => {
+    const s = createServer().listen(0, '127.0.0.1', () => {
+      const { port } = s.address() as AddressInfo;
+      s.close(() => resolve(port));
+    });
+  });
+
 const cliEnv = (home: string) => ({
   ...process.env,
   HOME: home,
@@ -458,8 +467,9 @@ describe('host and doctor', () => {
       return { ok: true, out: args[0] === 'serve' && args[1] === 'status' ? '{}' : '' };
     };
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-host-'));
+    const hostPort = await freePort();
     const srv = await startServer(
-      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
       { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')), exec: tailscale },
     );
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
@@ -560,8 +570,9 @@ describe('host and doctor', () => {
       return { ok: true, out: args[0] === 'serve' && args[1] === 'status' ? '{}' : '' };
     };
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-door-'));
+    const hostPort = await freePort();
     const srv = await startServer(
-      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0 },
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
       { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')), exec: tailscale },
     );
     const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
@@ -729,7 +740,7 @@ describe('host and doctor', () => {
 
   it('makes a one-time connect code for a chatbot, and lists the chatbot as approved by code', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-code-'));
-    const hostPort = 7800 + Math.floor(Math.random() * 400);
+    const hostPort = await freePort();
     const srv = await startServer(
       { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
       {
@@ -896,7 +907,7 @@ describe('host and doctor', () => {
 
   it('makes a key on one device and links an app on another to that Hildegard, key kept out of its config', async () => {
     const data = mkdtempSync(join(tmpdir(), 'hg-cli-key-'));
-    const hostPort = 7800 + Math.floor(Math.random() * 400);
+    const hostPort = await freePort();
     const srv = await startServer(
       { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort },
       {

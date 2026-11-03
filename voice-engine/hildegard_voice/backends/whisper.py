@@ -2,7 +2,10 @@
 """faster-whisper (MIT, SYSTRAN) running OpenAI's Whisper weights (MIT) converted for CTranslate2: transcripts with
 word timings, for the transcript editor, dubbing and the consent check."""
 import os
+import re
 import sys
+
+import numpy as np
 
 from .. import audio
 from ..errors import VoiceError
@@ -10,8 +13,13 @@ from . import pick_device
 
 
 def _cuda_library_missing(e):
+    # Loader failures only (libcublas.so.12 is not found or cannot be loaded); a CUBLAS_STATUS_* error is a real fault.
     m = str(e).lower()
-    return "cublas" in m or "cudnn" in m or "cuda" in m and ("library" in m or "cannot be loaded" in m)
+    if "cublas_status" in m or "cudnn_status" in m:
+        return False
+    return re.search(r"lib(cublas|cudnn|cudart)[\w.]*\.so", m) is not None and (
+        "not found" in m or "cannot be loaded" in m or "cannot open" in m
+    )
 
 
 class Backend:
@@ -32,7 +40,10 @@ class Backend:
 
             if self.device == "cuda":
                 try:
-                    self._model = WhisperModel(self.dir, device="cuda", compute_type="float16")
+                    model = WhisperModel(self.dir, device="cuda", compute_type="float16")
+                    # CTranslate2 loads cuBLAS lazily, on the first encode, so run one now while we can still fall back.
+                    list(model.transcribe(np.zeros(self.sample_rate, np.float32), vad_filter=False)[0])
+                    self._model = model
                 except Exception as e:
                     if not _cuda_library_missing(e):
                         raise
