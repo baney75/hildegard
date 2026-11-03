@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
-import { isIP } from 'node:net';
+import { isIP, type LookupFunction } from 'node:net';
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import { type Ctx, clientKey, type HgEnv, originOf } from './access.ts';
@@ -56,7 +56,7 @@ export function privateAddress(ip: string): boolean {
     v6 === '::' ||
     v6 === '::1' ||
     /^f[cd]/.test(v6) ||
-    /^fe[89ab]/.test(v6) ||
+    /^fe[89a-f]/.test(v6) ||
     /^ff/.test(v6) ||
     v6.startsWith('64:ff9b:') ||
     v6.startsWith('2001:db8')
@@ -128,58 +128,138 @@ const cleanClientName = (raw: unknown, fallback: string) => {
   return (n || fallback).slice(0, 60);
 };
 
+type Resolved = { address: string; family: number };
+type LookupCallback = (err: Error | null, address: string | Resolved[], family?: number) => void;
+
+/**
+ * Caps how many lookups run at once. The system resolver runs on libuv's small threadpool and can't be cancelled, so a
+ * client id on a domain whose nameserver never answers would otherwise hold threads the rest of the server needs. A
+ * slot frees when the lookup itself ends, not when the fetch gives up.
+ */
+export function cappedResolve(resolve: (host: string) => Promise<Resolved[]>, max: number) {
+  let running = 0;
+  return (host: string): Promise<Resolved[]> => {
+    if (running >= max)
+      return Promise.reject(new Error('Too many apps are connecting at once. Try again shortly.'));
+    running++;
+    return resolve(host).finally(() => {
+      running--;
+    });
+  };
+}
+
+const systemLookup = cappedResolve((h) => lookup(h, { all: true }), 2);
+
+/**
+ * The DNS lookup the metadata fetch connects with: it refuses a name unless every address it resolves to is public.
+ * Node asks with `{ all: true }` when it races addresses (autoSelectFamily, the default since Node 20) and then wants
+ * the whole list back; answering with one address there makes Node read `undefined` and fail with "Invalid IP address".
+ */
+export function publicLookup(resolve: (host: string) => Promise<Resolved[]> = systemLookup) {
+  return (host: string, opts: unknown, answer: LookupCallback) => {
+    const all = typeof opts === 'object' && opts !== null && (opts as { all?: unknown }).all === true;
+    // Answer once. Node's callback can throw (it connects on a socket that was destroyed while we resolved); that
+    // throw must neither reach the error branch, which would answer a second time, nor escape as an unhandled
+    // rejection that takes the server down.
+    let answered = false;
+    const cb: LookupCallback = (...a) => {
+      if (answered) return;
+      answered = true;
+      try {
+        answer(...a);
+      } catch {
+        /* the request is already gone */
+      }
+    };
+    resolve(host).then(
+      (addrs) => {
+        if (addrs.length === 0 || addrs.some((a) => privateAddress(a.address)))
+          return cb(new Error(`${host} isn’t a public address.`), all ? [] : '', 4);
+        if (all)
+          return cb(
+            null,
+            addrs.map((a) => ({ address: a.address, family: a.family })),
+          );
+        const first = addrs[0]!;
+        cb(null, first.address, first.family);
+      },
+      (e: Error) => cb(e, all ? [] : '', 4),
+    );
+  };
+}
+
 /**
  * Fetches a client metadata document over https from a public address only, at most 16 KB, without following
  * redirects. The address is checked as it is resolved for the connection itself, so a name can't change its answer
  * between the check and the request.
  */
-export const fetchMetadata: FetchMetadata = (url) =>
+export const fetchMetadata: FetchMetadata = (url) => fetchMetadataWith(url, publicLookup(), 5000);
+
+/** fetchMetadata with its resolver and total deadline passed in, so tests can reach a local server. */
+export const fetchMetadataWith = (
+  url: string,
+  resolver: (host: string, opts: unknown, cb: LookupCallback) => void,
+  deadlineMs: number,
+  test?: { port: number; ca: string },
+): Promise<unknown> =>
   new Promise((resolve, reject) => {
     const u = new URL(url);
-    if (u.protocol !== 'https:' || (u.port && u.port !== '443') || isIP(u.hostname.replace(/^\[|\]$/g, '')))
+    if (
+      u.protocol !== 'https:' ||
+      (u.port && u.port !== '443' && Number(u.port) !== test?.port) ||
+      isIP(u.hostname.replace(/^\[|\]$/g, ''))
+    )
       return reject(new Error('A client id must be an https address on a name, on port 443.'));
+    // Every way out goes through here: it settles once, stops the deadline and drops the connection.
+    let settled = false;
+    const done = (err: Error | null, value?: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      req.destroy();
+      if (err) reject(err);
+      else resolve(value);
+    };
     const req = request(
       u,
       {
         method: 'GET',
         headers: { accept: 'application/json' },
-        timeout: 5000,
-        lookup: (host, _opts, cb) => {
-          lookup(host, { all: true })
-            .then((addrs) => {
-              const ok = addrs.find((a) => !privateAddress(a.address));
-              if (!ok || addrs.some((a) => privateAddress(a.address)))
-                return cb(new Error(`${host} isn’t a public address.`), '', 4);
-              cb(null, ok.address, ok.family);
-            })
-            .catch((e: Error) => cb(e, '', 4));
-        },
+        timeout: deadlineMs,
+        lookup: resolver as unknown as LookupFunction,
+        ...(test ? { ca: test.ca } : {}),
       },
       (res) => {
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`The client's metadata answered ${res.statusCode}.`));
-        }
+        if (res.statusCode !== 200)
+          return done(new Error(`The client's metadata answered ${res.statusCode}.`));
         const chunks: Buffer[] = [];
         let size = 0;
         res.on('data', (c: Buffer) => {
           size += c.length;
-          if (size > 16_384) {
-            req.destroy();
-            reject(new Error('The client’s metadata is over 16 KB.'));
-          } else chunks.push(c);
+          if (size > 16_384) done(new Error('The client’s metadata is over 16 KB.'));
+          else chunks.push(c);
         });
         res.on('end', () => {
           try {
-            resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+            done(null, JSON.parse(Buffer.concat(chunks).toString('utf8')));
           } catch {
-            reject(new Error('The client’s metadata isn’t JSON.'));
+            done(new Error('The client’s metadata isn’t JSON.'));
           }
+        });
+        res.on('error', (e) => done(e));
+        // A server that closes partway through the body never sends 'end' or 'error'.
+        res.on('close', () => {
+          if (!res.complete) done(new Error('The client’s metadata stopped partway.'));
         });
       },
     );
-    req.on('timeout', () => req.destroy(new Error('The client’s metadata didn’t answer in time.')));
-    req.on('error', reject);
+    // `timeout` above is only an idle timeout: a server that sends a byte every few seconds never trips it. This is
+    // the total deadline.
+    const late = () => done(new Error('The client’s metadata didn’t answer in time.'));
+    const deadline = setTimeout(late, deadlineMs);
+    req.on('timeout', late);
+    req.on('error', (e) => done(e));
+    req.on('close', () => done(new Error('The client’s metadata connection closed early.')));
     req.end();
   });
 
