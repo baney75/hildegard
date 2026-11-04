@@ -8,8 +8,10 @@ import { ComfyRuntime, layout, pidDir, pidFile, processStart, reapStale } from '
 
 // A stand-in ComfyUI: this folder's "python" is a shell script that never ends, so its command line names the
 // folder's Python just as the real ComfyUI's does.
+const installs: string[] = [];
 function fakeInstall(script = 'while :; do sleep 1; done'): string {
   const dir = mkdtempSync(join(tmpdir(), 'hildegard-supervisor-'));
+  installs.push(dir);
   const L = layout(dir);
   mkdirSync(join(L.venv, 'bin'), { recursive: true });
   mkdirSync(L.comfyDir, { recursive: true });
@@ -71,6 +73,37 @@ const note = (
 };
 afterEach(() => {
   for (const c of started.splice(0)) if (c.exitCode === null) c.kill('SIGKILL');
+  for (const dir of installs) {
+    // What the crash script noted of its children as soon as ComfyUI was up, with the start time they had then:
+    // only that process is killed, not whatever the OS has since given the number to.
+    try {
+      const noted = JSON.parse(readFileSync(join(dir, 'pids.json'), 'utf8')) as {
+        pid: number;
+        started: string;
+      }[];
+      for (const { pid, started: at } of noted)
+        if (at && processStart(pid) === at)
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch {}
+    } catch {}
+  }
+  // A test that died before it could note its processes leaves them by name only: anything whose command line is in
+  // one of the fake installs. -ww: BSD ps cuts the command short without a terminal.
+  if (process.platform !== 'win32' && installs.length) {
+    const ps = spawnSync('ps', ['-axww', '-o', 'pid=,command='], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (ps.error) console.warn('ps failed, so fake installs’ processes are not swept:', ps.error);
+    for (const line of (ps.stdout ?? '').split('\n')) {
+      const m = line.trim().match(/^(\d+)\s+(.*)$/);
+      if (!m || Number(m[1]) === process.pid || !installs.some((d) => m[2]!.includes(d))) continue;
+      try {
+        process.kill(Number(m[1]), 'SIGKILL');
+      } catch {}
+    }
+  }
 });
 
 describe.skipIf(process.platform === 'win32')('ComfyRuntime processes', () => {
@@ -80,9 +113,11 @@ describe.skipIf(process.platform === 'win32')('ComfyRuntime processes', () => {
     const entry = resolve(import.meta.dirname, '../src/index.ts');
     writeFileSync(
       script,
-      `import { ComfyRuntime } from ${JSON.stringify(entry)};
+      `import { writeFileSync } from 'node:fs';
+import { ComfyRuntime, processStart } from ${JSON.stringify(entry)};
 const r = new ComfyRuntime({ dataDir: process.argv[2] });
 await r.start();
+writeFileSync(${JSON.stringify(join(dir, 'pids.json'))}, JSON.stringify(r.pids().map((pid) => ({ pid, started: processStart(pid) }))));
 await new Promise((ok) => setTimeout(ok, 300));
 console.log(JSON.stringify(r.pids()));
 process.exit(1);
