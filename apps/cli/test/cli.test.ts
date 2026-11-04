@@ -15,7 +15,7 @@ import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegar
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
 import { frontDoorStep } from '../src/doctor.ts';
 import { printEvent, printResult, result } from '../src/output.ts';
@@ -54,8 +54,57 @@ type Out = {
   [k: string]: unknown;
 };
 
+/**
+ * The homes and data folders of every command a test ran. Many of them (start, setup, open, models) can start a
+ * background server that outlives the command, and a test that fails or times out never reaches its own `stop`.
+ */
+const touched = new Map<string, { home: string; data: string }>();
+function track(home: string, args: string[]) {
+  const at = args.findIndex((a) => a === '--data' || a.startsWith('--data='));
+  if (at < 0) return;
+  const data = args[at] === '--data' ? args[at + 1] : args[at]!.slice('--data='.length);
+  if (data) touched.set(`${home}\0${data}`, { home, data });
+}
+
+/** The background servers (`… start --foreground …`) still running on this data folder. Not on Windows. */
+async function serversOn(data: string) {
+  if (process.platform === 'win32') return [];
+  const { stdout } = await run('ps', ['-axo', 'pid=,command=']).catch(() => ({ stdout: '' }));
+  return stdout
+    .split('\n')
+    .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
+    .filter((m): m is RegExpMatchArray => !!m)
+    .filter(
+      (m) => Number(m[1]) !== process.pid && m[2]!.includes('start --foreground') && m[2]!.includes(data),
+    )
+    .map((m) => Number(m[1]));
+}
+
+// Whatever a test started is stopped, passed or failed: `hildegard stop` first, then the process (and its group,
+// since it starts detached) for a server that didn't answer it.
+afterEach(async () => {
+  const left = [...touched.values()];
+  touched.clear();
+  await Promise.all(
+    left.map(({ home, data }) =>
+      run(process.execPath, [main, 'stop', '--data', data, '--json'], {
+        env: cliEnv(home),
+        timeout: 30_000,
+      }).catch(() => {}),
+    ),
+  );
+  for (const { data } of left)
+    for (const pid of await serversOn(data)) {
+      for (const target of [-pid, pid])
+        try {
+          process.kill(target, 'SIGKILL');
+        } catch {}
+    }
+}, 60_000);
+
 /** Runs `hildegard …` in its own home folder, so no real app config is ever touched. */
 async function hildegard(home: string, ...args: string[]) {
+  track(home, args);
   const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
     env: cliEnv(home),
     timeout: 60_000,
@@ -65,6 +114,7 @@ async function hildegard(home: string, ...args: string[]) {
 
 /** The same, with more environment (test doubles for outside services). */
 async function hildegardEnv(home: string, env: Record<string, string>, ...args: string[]) {
+  track(home, args);
   const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
     env: { ...cliEnv(home), ...env },
     timeout: 60_000,
@@ -74,6 +124,7 @@ async function hildegardEnv(home: string, env: Record<string, string>, ...args: 
 
 /** The same, with something piped to its stdin, as an agent pipes a secret the owner gave it. */
 function hildegardWithStdin(home: string, input: string, ...args: string[]) {
+  track(home, args);
   return new Promise<Out>((resolve, reject) => {
     const child = spawn(process.execPath, [main, ...args, '--json'], { env: cliEnv(home) });
     let out = '';

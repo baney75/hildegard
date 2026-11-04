@@ -69,8 +69,14 @@ const note = (
   const children = pids.map((pid) => ({ pid, started: pid ? processStart(pid) : null }));
   writeFileSync(pidFile(dir, owner), JSON.stringify({ started: ownerStarted, pids: children }));
 };
+/** Processes a test found by number only: killed after it, so a failed expect leaves none behind. */
+const strays: number[] = [];
 afterEach(() => {
   for (const c of started.splice(0)) if (c.exitCode === null) c.kill('SIGKILL');
+  for (const pid of strays.splice(0))
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {}
 });
 
 describe.skipIf(process.platform === 'win32')('ComfyRuntime processes', () => {
@@ -90,6 +96,7 @@ process.exit(1);
     );
     const out = spawnSync(process.execPath, [script, dir], { encoding: 'utf8', timeout: 20_000 });
     const pids = JSON.parse(out.stdout.trim().split('\n').at(-1)!) as number[];
+    strays.push(...pids);
     expect(pids).toHaveLength(2);
     for (const pid of pids) expect(await gone(pid)).toBe(true);
   });
