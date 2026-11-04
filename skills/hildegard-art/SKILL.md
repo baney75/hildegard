@@ -12,7 +12,9 @@ Treat the model as a fast, literal studio assistant and do the art direction you
 
 Call `hildegard_status` and `list_presets`.
 
-- If an **image model** is listed, use it for stills.
+- If an **image model** is listed, use it for stills. Hildegard’s own `make_image` tool draws and edits images locally,
+  from words or up to four reference images, with the camera and look from `list_presets`. It never makes sexual
+  content, and `no_real_person` is yours to set only when the references show no real person.
 - If only **video models** are installed (LTX, Wan), make stills from video: direct a short shot that holds still
   (`motion: ["static"]`, `seconds: 2`, `quality: "final"`), review it, then take the sharpest frame from the finished
   file on the computer Hildegard runs on:

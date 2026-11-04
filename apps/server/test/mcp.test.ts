@@ -67,6 +67,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'loop_status',
       'loop_submit',
       'make_character_stills',
+      'make_image',
       'make_sequence',
       'openscad_status',
       'printer_profile',
@@ -160,6 +161,75 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     // The words a character carries are checked like any prompt.
     const refused = await call('create_character', { name: 'X', description: 'nude', portraits: 0 });
     expect(refused.isError).toBe(true);
+  });
+
+  it('draws an image from words, returns it inline, and reports the recent images', async () => {
+    const made = await call('make_image', {
+      prompt: 'A lighthouse on a basalt headland under a green evening sky',
+      aspect: '16:9',
+      quality: 'draft',
+      count: 2,
+      seed: 7,
+      camera: { body: 'vintage-16mm', aperture: 2.8 },
+      wait_seconds: 60,
+    });
+    expect(made.isError).toBeFalsy();
+    expect(made.content.filter((c) => c.type === 'image')).toHaveLength(2);
+    expect(made.content.find((c) => c.type === 'image')).toMatchObject({ mimeType: 'image/png' });
+    expect(textOf(made)).toMatch(/- \w{16} image \(seed 7\): done/);
+    expect(textOf(made)).not.toContain('keep_still');
+    const ours = [...srv.store.stills.values()].filter((s) => s.prompt.startsWith('A lighthouse'));
+    expect(ours).toHaveLength(2);
+    expect(ours[0]).toMatchObject({
+      characterId: null,
+      view: null,
+      aspect: '16:9',
+      quality: 'draft',
+      source: { kind: 'agent', name: 'test-agent' },
+    });
+
+    const recent = await call('make_image');
+    expect(recent.isError).toBeFalsy();
+    expect(textOf(recent)).toContain('Recent images:');
+    expect(textOf(recent)).toContain(ours[0]!.id);
+    expect(recent.content.filter((c) => c.type === 'image').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('edits from reference images only when the agent says they show no real person', async () => {
+    const png = join(dir, 'reference.png');
+    writeFileSync(
+      png,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64',
+      ),
+    );
+    const before = srv.store.stills.size;
+    const refused = await call('make_image', { prompt: 'Make the sky green', references: [png] });
+    expect(refused.isError).toBe(true);
+    expect(textOf(refused)).toContain('no real person');
+    const falsy = await call('make_image', {
+      prompt: 'Make the sky green',
+      references: [png],
+      no_real_person: false,
+    });
+    expect(falsy.isError).toBe(true);
+    expect(srv.store.stills.size).toBe(before);
+
+    const ok = await call('make_image', {
+      prompt: 'Make the sky green',
+      references: [png],
+      no_real_person: true,
+      wait_seconds: 60,
+    });
+    expect(ok.isError).toBeFalsy();
+    expect(ok.content.filter((c) => c.type === 'image')).toHaveLength(1);
+    const edit = [...srv.store.stills.values()].find((s) => s.prompt.startsWith('Make the sky green'))!;
+    expect(edit.references).toHaveLength(1);
+    expect(edit.references[0]).toMatch(/^[a-f0-9]{64}\.png$/);
+    // Words are checked like any prompt.
+    const bad = await call('make_image', { prompt: 'nude' });
+    expect(bad.isError).toBe(true);
   });
 
   it('corrects a wrong id with the ids that would work', async () => {

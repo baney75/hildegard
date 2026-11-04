@@ -91,7 +91,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 |---|---|---|
 | Film, shots, sequences | `direct_shot`, `make_sequence`, `export_film`, then `review_take` on every take | `hildegard-film`, `hildegard-video-edit` |
 | Characters who stay the same across shots | `create_character`, `make_character_stills`, `keep_still`, then cast them in `direct_shot` | `hildegard-film` |
-| Stills, key art, covers | `make_character_stills`, or a held shot; `review_take` | `hildegard-art`, `hildegard-photo-edit` |
+| Stills, key art, covers | `make_image` (words to image, or an edit of up to four references, in Cinema’s camera language), or a held shot; `review_take` | `hildegard-art`, `hildegard-photo-edit` |
 | Voice, narration, dubbing | `speak`, `design_voice`, `dub`, `transcribe` (never a clone without the person's consent session) | `hildegard-sound` |
 | Sculpture, 3D models, prints | `loop_start` kind `model`, then `loop_submit`, `loop_critique`, `loop_finish` | `hildegard-3d` |
 | Iterating any image, video or sound until it is right | `loop_start` with that kind, then the same loop | `hildegard-loop` |

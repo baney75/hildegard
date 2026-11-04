@@ -192,7 +192,7 @@ function describeTake(t: Take, video: string | undefined): string {
 
 const filmOf = (f: { id: string; title: string }) => `film ${f.id} "${f.title}"`;
 
-/** Models that make shots; the stills model draws characters. */
+/** Models that make shots; the stills model draws images and characters. */
 const videoModels = (c: Catalog) => c.models.filter((m) => m.kind !== 'image');
 
 /** Whether a character can be drawn now, and why not. */
@@ -212,7 +212,7 @@ function describeCharacter(c: Character): string {
 }
 
 function describeStill(s: Still): string {
-  const head = `- ${s.id} ${s.view} (seed ${s.seed}): `;
+  const head = `- ${s.id} ${s.view ?? 'image'} (seed ${s.seed}): `;
   if (s.status === 'done') return `${head}done${s.kept ? ', kept as a reference' : ''}`;
   if (s.status === 'failed') return `${head}failed: ${s.error?.message ?? 'unknown error'}`;
   if (s.status === 'running') return `${head}drawing, ${Math.round((s.progress?.value ?? 0) * 100)}%`;
@@ -395,7 +395,7 @@ export function registerTools(
             : st?.downloading
               ? `downloading ${Math.round((st.downloading.done / Math.max(1, st.downloading.total)) * 100)}%`
               : `not installed (${(m.files.reduce((n, f) => n + f.size, 0) / 1e9).toFixed(0)} GB${m.gated ? ', needs a linked Hugging Face account' : ''})`;
-          return `- ${m.id}: ${m.name}${m.kind === 'image' ? ' (stills, for characters)' : ''}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
+          return `- ${m.id}: ${m.name}${m.kind === 'image' ? ' (stills, for images and characters)' : ''}, ${m.license}, ${m.minVramGb} GB GPU, ${state}${st?.error ? `. Last error: ${st.error}` : ''}`;
         }),
         ...recentTakes(s, a.recent_takes ?? 10),
       ];
@@ -435,7 +435,7 @@ export function registerTools(
               })),
             ),
             list(
-              'stills model (draws characters; install it with install_model to use characters)',
+              'stills model (draws images and characters; install it with install_model to use make_image or characters)',
               c.models.filter((m) => m.kind === 'image'),
             ),
           ].join('\n\n'),
@@ -828,7 +828,13 @@ export function registerTools(
 
   // ── Characters ─────────────────────────────────────────────────────────────────────────────────────────────────
   /** Stills drawn, with each finished one as an image, after waiting up to `seconds` for them. */
-  const stillsResult = async (ids: string[], seconds: number, extra: Extra, head: string) => {
+  const stillsResult = async (
+    ids: string[],
+    seconds: number,
+    extra: Extra,
+    head: string,
+    kind: 'character' | 'image' = 'character',
+  ) => {
     const until = Date.now() + seconds * 1000;
     let stills: Still[] = [];
     for (;;) {
@@ -847,15 +853,21 @@ export function registerTools(
     stills.forEach((s, i) => {
       const img = images[i];
       if (!img) return;
-      content.push({ type: 'text', text: `Still ${s.id} (${s.view}):` });
+      content.push({
+        type: 'text',
+        text: s.view === null ? `Image ${s.id}:` : `Still ${s.id} (${s.view}):`,
+      });
       content.push({ type: 'image', data: img.data, mimeType: img.mimeType });
     });
     const pending = stills.filter((s) => !DONE.includes(s.status)).length;
+    const noun = kind === 'image' ? 'image' : 'still';
     content.push({
       type: 'text',
       text: pending
-        ? `${pending} still${pending === 1 ? ' is' : 's are'} still drawing; call make_character_stills with wait_seconds and no view later, or look in the Studio.`
-        : 'Look at each still. Keep the one that best matches the description with keep_still: the first portrait you keep becomes their face, and every later still and cast shot starts from it.',
+        ? `${pending} ${noun}${pending === 1 ? ' is' : 's are'} still drawing; call ${kind === 'image' ? 'make_image' : 'make_character_stills'} with wait_seconds and ${kind === 'image' ? 'no prompt' : 'no view'} later, or look in the Studio.`
+        : kind === 'image'
+          ? 'Look at each image against the prompt before you offer it. The files are in the Studio’s Images page, where your user can use one as a start frame or edit it.'
+          : 'Look at each still. Keep the one that best matches the description with keep_still: the first portrait you keep becomes their face, and every later still and cast shot starts from it.',
     });
     return { content };
   };
@@ -938,6 +950,137 @@ export function registerTools(
         a.wait_seconds ?? 0,
         extra,
         `Made character ${c.id} "${c.name}" and queued ${n} portrait${n === 1 ? '' : 's'}:`,
+      );
+    }),
+  );
+
+  // ── Images ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  server.registerTool(
+    'make_image',
+    {
+      title: 'Draw or edit an image',
+      description:
+        'Text-to-image and image editing on the computer Hildegard runs on, in Cinema’s camera language: a body, a lens, a focal length, an aperture, lighting, a palette, a genre and an era, each optional (ids from list_presets). Give a prompt to draw, and up to four references to edit or draw from ("reference image 1" is the first). With no prompt, reports on the recent images. Uses the stills model, so install it first (install_model). Never sexual content: Hildegard refuses it, and checks every image it makes and every reference. Never real people: references must show no real person; a real person is drawn only as a character who has consented.',
+      inputSchema: {
+        prompt: z
+          .string()
+          .max(2000)
+          .optional()
+          .describe(
+            'What to draw, or what to change when you give references, in concrete words. Leave it out to report on the recent images.',
+          ),
+        aspect: z.string().optional().describe('16:9, 2.39:1, 9:16, 1:1 or 4:3. Default 1:1.'),
+        quality: z
+          .enum(['draft', 'final'])
+          .optional()
+          .describe(
+            'draft draws fast at a lower size so you can choose; final draws at full size. Default final.',
+          ),
+        count: z
+          .number()
+          .int()
+          .min(1)
+          .max(4)
+          .optional()
+          .describe('Images to draw, each with its own seed. Default 1.'),
+        seed: z
+          .number()
+          .int()
+          .min(0)
+          .max(4294967295)
+          .optional()
+          .describe('Fix the seed to draw the same image again with other settings.'),
+        camera: z
+          .object({
+            body: z.string().optional().describe('Camera body id from list_presets.'),
+            lens: z.string().optional().describe('Lens id from list_presets.'),
+            focal: z
+              .number()
+              .int()
+              .optional()
+              .describe('Focal length in mm, one of focal_mm in list_presets.'),
+            aperture: z.number().min(1).max(22).optional().describe('f-number, e.g. 2.8.'),
+          })
+          .optional()
+          .describe('The camera, as direct_shot rigs it. Any part may be left out.'),
+        look: z
+          .object({
+            lighting: z.string().optional().describe('Lighting id from list_presets.'),
+            palette: z.string().optional().describe('Colour palette id from list_presets.'),
+            genre: z.string().optional().describe('Genre id from list_presets.'),
+            era: z.string().optional().describe('Era id from list_presets.'),
+          })
+          .optional()
+          .describe('The look. Any part may be left out.'),
+        references: z
+          .array(z.string())
+          .max(4)
+          .optional()
+          .describe(
+            'Absolute paths to up to four PNG, JPEG or WebP files on the computer Hildegard runs on, to edit or draw from. Needs no_real_person.',
+          ),
+        no_real_person: z
+          .boolean()
+          .optional()
+          .describe(
+            'Required with references. Set it true only if you know the references show no real person, or only artwork your user has the rights to. Never set it for a photo of a real person, and don’t guess: if you can’t tell, ask your user. Setting it falsely breaks Hildegard’s rules.',
+          ),
+        wait_seconds: z
+          .number()
+          .int()
+          .min(0)
+          .max(600)
+          .optional()
+          .describe('Wait up to this long and return the images. Default 0.'),
+      },
+    },
+    guard(async (a, extra) => {
+      if (!a.prompt) {
+        const { stills = [] } = await client.snapshot();
+        const recent = stills
+          .filter((s) => s.characterId === null)
+          .sort((x, y) => y.createdAt.localeCompare(x.createdAt))
+          .slice(0, 8);
+        if (!recent.length) return text('No images yet. Draw one with make_image and a prompt.');
+        return stillsResult(
+          recent.map((s) => s.id),
+          a.wait_seconds ?? 0,
+          extra,
+          'Recent images:',
+          'image',
+        );
+      }
+      const references = a.references ?? [];
+      if (references.length && a.no_real_person !== true)
+        throw new HildegardError(
+          422,
+          'Say that the references show no real person (no_real_person: true), and only if that is so. A real person is drawn only as a character they consented to.',
+        );
+      if (references.length && remote)
+        throw new HildegardError(
+          422,
+          'Hildegard runs on another computer, so it can’t read a path on yours. Draw from words instead, or ask your user to add the images in the Studio.',
+        );
+      const names: string[] = [];
+      for (const path of references) names.push(await client.upload(path));
+      const { stills } = await client.makeImages({
+        prompt: a.prompt,
+        aspect: a.aspect,
+        quality: a.quality,
+        count: a.count,
+        seed: a.seed,
+        references: names.length ? names : undefined,
+        noRealPerson: names.length ? true : undefined,
+        camera: a.camera,
+        look: a.look,
+        agent: agentName(),
+      });
+      return stillsResult(
+        stills.map((s) => s.id),
+        a.wait_seconds ?? 0,
+        extra,
+        `Queued ${stills.length} image${stills.length === 1 ? '' : 's'}${names.length ? ` from ${names.length} reference${names.length === 1 ? '' : 's'}` : ''}:`,
+        'image',
       );
     }),
   );

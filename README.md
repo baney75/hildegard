@@ -4,8 +4,8 @@
 
 ### Your own AI studio, on your own GPU.
 
-Films, voices, characters and 3D, made on computers you own. A free, open source alternative to Higgsfield and
-ElevenLabs that runs locally on Windows, macOS and Linux, with music on the way.
+Films, images, voices, characters and 3D, made on computers you own. A free, open source alternative to Higgsfield
+and ElevenLabs that runs locally on Windows, macOS and Linux, with music on the way.
 
 [![Latest release](https://img.shields.io/github/v/release/baney75/hildegard?include_prereleases&label=release&color=2c7350)](https://github.com/baney75/hildegard/releases/latest)
 [![CI](https://github.com/baney75/hildegard/actions/workflows/ci.yml/badge.svg)](https://github.com/baney75/hildegard/actions/workflows/ci.yml)
