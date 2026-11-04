@@ -101,6 +101,56 @@ describe('images', () => {
     await until(() => still(stills[0]!.id).status === 'done');
   });
 
+  it('draws with another stills model when asked, on the fake GPU', async () => {
+    const res = await post('/api/images', { prompt: 'A pear on a slate', model: 'z-image-turbo', seed: 5 });
+    expect(res.status).toBe(201);
+    const { stills } = await json<{ stills: Still[] }>(res);
+    expect(stills[0]).toMatchObject({ model: 'z-image-turbo', seed: 5, references: [] });
+    await until(() => still(stills[0]!.id).status === 'done');
+    const img = await api(still(stills[0]!.id).image!);
+    expect(img.headers.get('content-type')).toBe('image/png');
+    // The one that edits renders too, with up to three references.
+    const up = await upload(Buffer.concat([PNG, Buffer.from('edit-with-qwen')]));
+    const edit = await post('/api/images', {
+      prompt: 'Make the sky in image 1 a winter dawn',
+      model: 'qwen-image-edit-2511',
+      references: [up.name],
+      noRealPerson: true,
+    });
+    expect(edit.status).toBe(201);
+    const made = await json<{ stills: Still[] }>(edit);
+    expect(made.stills[0]).toMatchObject({ model: 'qwen-image-edit-2511', references: [up.name] });
+    await until(() => still(made.stills[0]!.id).status === 'done');
+  });
+
+  it('refuses references for a model that draws from words only', async () => {
+    const up = await upload(Buffer.concat([PNG, Buffer.from('words-only')]));
+    const res = await post('/api/images', {
+      prompt: 'Make the sky in image 1 a winter dawn',
+      model: 'z-image-turbo',
+      references: [up.name],
+      noRealPerson: true,
+    });
+    expect(res.status).toBe(422);
+    expect(await json<{ field: string; error: string }>(res)).toMatchObject({
+      field: 'references',
+      error: expect.stringMatching(
+        /Z-Image Turbo draws from words only\. Pick FLUX\.2 \[klein\] 4B or Qwen-Image-Edit 2511/,
+      ),
+    });
+    const four = await Promise.all(
+      [1, 2, 3, 4].map((n) => upload(Buffer.concat([PNG, Buffer.from(`ref-${n}`)]))),
+    );
+    const tooMany = await post('/api/images', {
+      prompt: 'Blend them',
+      model: 'qwen-image-edit-2511',
+      references: four.map((u) => u.name),
+      noRealPerson: true,
+    });
+    expect(tooMany.status).toBe(422);
+    expect(await json<{ field: string }>(tooMany)).toMatchObject({ field: 'references' });
+  });
+
   it('refuses a missing reference, a real person’s consent photo, and sexual words', async () => {
     const missing = await post('/api/images', {
       prompt: 'Recolour it',

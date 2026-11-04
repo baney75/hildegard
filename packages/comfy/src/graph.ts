@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { basename } from 'node:path';
-import type { Catalog, ComposedShot, ComposedStill, Model, SafetyCheck } from '@hildegard/presets';
+import {
+  type Catalog,
+  type ComposedShot,
+  type ComposedStill,
+  type Model,
+  referencesOf,
+  type SafetyCheck,
+} from '@hildegard/presets';
 
 /** A link to another node's output: `[nodeId, outputIndex]`, as ComfyUI's API format writes it. */
 export type Link = [string, number];
@@ -224,15 +231,196 @@ export interface StillInput {
   prefix: string;
 }
 
+/** Loads one reference image and checks it, as every graph does before anything reads it. */
+function loadReference(g: GraphBuilder, still: ComposedStill, i: number): { load: string; checked: Link } {
+  const load = g.add('LoadImage', { image: referenceName(i) }, `Reference ${i + 1}`);
+  return { load, checked: guard(g, still, out(load), 'reference') };
+}
+
+/** A model that reads fewer reference images than it was given can't be drawn with them quietly left out. */
+function fitReferences(still: ComposedStill): void {
+  const reads = referencesOf(still.model);
+  if (still.references.length > reads)
+    throw new Error(`${still.model.name} reads ${reads} reference images, not ${still.references.length}`);
+}
+
+/**
+ * Z-Image Turbo: one still from words, in 8 steps. ComfyUI's "Text to Image (Z-Image-Turbo)" blueprint: Qwen3-4B read
+ * as a lumina2 text encoder, the flow shifted by 3, res_multistep on the simple schedule, and a zeroed negative.
+ */
+function zImage(g: GraphBuilder, still: ComposedStill, seed: number): { image: Link; nodes: string[] } {
+  const m = still.model;
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /z_image/), weight_dtype: 'default' },
+    'Stills model',
+  );
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /qwen_3/), type: 'lumina2', device: 'default' },
+    'Stills text encoder',
+  );
+  const vae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /\/ae\./) }, 'Stills VAE');
+  const shifted = g.add('ModelSamplingAuraFlow', { model: out(unet), shift: 3 });
+  const text = g.add('CLIPTextEncode', { text: still.prompt, clip: out(clip) }, 'Still prompt');
+  const none = g.add('ConditioningZeroOut', { conditioning: out(text) });
+  const latent = g.add('EmptySD3LatentImage', { width: still.width, height: still.height, batch_size: 1 });
+  const sampled = g.add(
+    'KSampler',
+    {
+      model: out(shifted),
+      seed,
+      steps: still.steps,
+      cfg: still.cfg,
+      sampler_name: 'res_multistep',
+      scheduler: 'simple',
+      positive: out(text),
+      negative: out(none),
+      latent_image: out(latent),
+      denoise: 1,
+    },
+    'Still sampler',
+  );
+  return { image: out(g.add('VAEDecode', { samples: out(sampled), vae: out(vae) })), nodes: [] };
+}
+
+/** What ComfyUI's Qwen-Image blueprints steer away from, as they write it. */
+const QWEN_NEGATIVE =
+  '低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲';
+
+/**
+ * Qwen-Image 2512: one still from words. ComfyUI's "Text to Image (Qwen-Image 2512)" blueprint: Qwen2.5-VL as the
+ * text encoder, the flow shifted by 3.1, euler on the simple schedule with true CFG and the blueprint's negative
+ * prompt. Its Lightning 4-step LoRA stays off.
+ */
+function qwenImage(g: GraphBuilder, still: ComposedStill, seed: number): { image: Link; nodes: string[] } {
+  const m = still.model;
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /qwen_image_2512/), weight_dtype: 'default' },
+    'Stills model',
+  );
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /qwen_2\.5_vl/), type: 'qwen_image', device: 'default' },
+    'Stills text encoder',
+  );
+  const vae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /qwen_image_vae/) }, 'Stills VAE');
+  const shifted = g.add('ModelSamplingAuraFlow', { model: out(unet), shift: 3.1 });
+  const text = g.add('CLIPTextEncode', { text: still.prompt, clip: out(clip) }, 'Still prompt');
+  const negative = g.add('CLIPTextEncode', { text: QWEN_NEGATIVE, clip: out(clip) }, 'Still negative prompt');
+  const latent = g.add('EmptySD3LatentImage', { width: still.width, height: still.height, batch_size: 1 });
+  const sampled = g.add(
+    'KSampler',
+    {
+      model: out(shifted),
+      seed,
+      steps: still.steps,
+      cfg: still.cfg,
+      sampler_name: 'euler',
+      scheduler: 'simple',
+      positive: out(text),
+      negative: out(negative),
+      latent_image: out(latent),
+      denoise: 1,
+    },
+    'Still sampler',
+  );
+  return { image: out(g.add('VAEDecode', { samples: out(sampled), vae: out(vae) })), nodes: [] };
+}
+
+/**
+ * Qwen-Image-Edit 2511: an edit of up to three reference images, in order ("image 1" is the first). ComfyUI's
+ * "Image Edit (Qwen 2511)" blueprint: every reference is checked, the first is scaled to a size the model likes and
+ * becomes the starting latent (so the edit keeps its shape), and the encoder reads all of them for both the prompt
+ * and the empty negative. With none, it draws from an empty latent at the size asked.
+ */
+function qwenEdit(
+  g: GraphBuilder,
+  still: ComposedStill,
+  seed: number,
+  refs: string[],
+): { image: Link; nodes: string[] } {
+  const m = still.model;
+  const unet = g.add(
+    'UNETLoader',
+    { unet_name: fileIn(m, 'diffusion_models', /qwen_image_edit_2511/), weight_dtype: 'default' },
+    'Stills model',
+  );
+  const clip = g.add(
+    'CLIPLoader',
+    { clip_name: fileIn(m, 'text_encoders', /qwen_2\.5_vl/), type: 'qwen_image', device: 'default' },
+    'Stills text encoder',
+  );
+  const vae = g.add('VAELoader', { vae_name: fileIn(m, 'vae', /qwen_image_vae/) }, 'Stills VAE');
+  const shifted = g.add('ModelSamplingAuraFlow', { model: out(unet), shift: 3.1 });
+  const patched = g.add('CFGNorm', { model: out(shifted), strength: 1 });
+  const nodes: string[] = [];
+  const checked = refs.map((_, i) => {
+    const r = loadReference(g, still, i);
+    nodes.push(r.load);
+    return r.checked;
+  });
+  const first = checked[0] ? out(g.add('FluxKontextImageScale', { image: checked[0] })) : undefined;
+  const seen: Record<string, InputValue> = {};
+  if (first) seen.image1 = first;
+  if (checked[1]) seen.image2 = checked[1];
+  if (checked[2]) seen.image3 = checked[2];
+  const encode = (prompt: string) =>
+    out(
+      g.add('FluxKontextMultiReferenceLatentMethod', {
+        conditioning: out(
+          g.add('TextEncodeQwenImageEditPlus', { clip: out(clip), vae: out(vae), ...seen, prompt }),
+        ),
+        reference_latents_method: 'index_timestep_zero',
+      }),
+    );
+  const positive = encode(still.prompt);
+  const negative = encode('');
+  const latent = first
+    ? g.add('VAEEncode', { pixels: first, vae: out(vae) })
+    : g.add('EmptySD3LatentImage', { width: still.width, height: still.height, batch_size: 1 });
+  const sampled = g.add(
+    'KSampler',
+    {
+      model: out(patched),
+      seed,
+      steps: still.steps,
+      cfg: still.cfg,
+      sampler_name: 'euler',
+      scheduler: 'simple',
+      positive,
+      negative,
+      latent_image: out(latent),
+      denoise: 1,
+    },
+    'Still sampler',
+  );
+  return { image: out(g.add('VAEDecode', { samples: out(sampled), vae: out(vae) })), nodes };
+}
+
+/** Draws a still with whichever graph the stills model names. Returns the decoded image, not yet checked. */
+function drawStill(g: GraphBuilder, still: ComposedStill, seed: number): { image: Link; nodes: string[] } {
+  fitReferences(still);
+  const refs = still.references.map((_, i) => referenceName(i));
+  switch (still.model.graph) {
+    case 'flux-2-klein':
+      return klein(g, still, seed, refs);
+    case 'z-image':
+      return zImage(g, still, seed);
+    case 'qwen-image':
+      return qwenImage(g, still, seed);
+    case 'qwen-image-edit':
+      return qwenEdit(g, still, seed, refs);
+    default:
+      throw new Error(`${still.model.name} makes video, not stills`);
+  }
+}
+
 /** One still, checked, then saved as a PNG. */
 export function buildStillGraph({ still, seed, prefix }: StillInput): BuiltGraph {
   const g = new GraphBuilder();
-  const { image, nodes } = klein(
-    g,
-    still,
-    seed,
-    still.references.map((_, i) => referenceName(i)),
-  );
+  const { image, nodes } = drawStill(g, still, seed);
   const save = g.add(
     'SaveImage',
     { images: guard(g, still, image, 'still'), filename_prefix: prefix },
@@ -255,12 +443,7 @@ function startImage(
   }
   if (shot.cast) {
     const k = shot.cast.keyframe;
-    const { image, nodes } = klein(
-      g,
-      k,
-      seed,
-      k.references.map((_, i) => referenceName(i)),
-    );
+    const { image, nodes } = drawStill(g, k, seed);
     return { image, referenceNodes: nodes };
   }
   return {};
@@ -479,6 +662,7 @@ export function checkLinks(graph: ApiGraph): string[] {
  */
 export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'CFGGuider',
+  'CFGNorm',
   'CLIPLoader',
   'CLIPTextEncode',
   'CheckpointLoaderSimple',
@@ -486,7 +670,10 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'CreateVideo',
   'EmptyFlux2LatentImage',
   'EmptyLTXVLatentVideo',
+  'EmptySD3LatentImage',
   'Flux2Scheduler',
+  'FluxKontextImageScale',
+  'FluxKontextMultiReferenceLatentMethod',
   'HildegardGuard',
   'HildegardLook',
   'ImageScale',
@@ -507,12 +694,14 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'LoadImage',
   'LoraLoaderModelOnly',
   'ManualSigmas',
+  'ModelSamplingAuraFlow',
   'ModelSamplingSD3',
   'RandomNoise',
   'ReferenceLatent',
   'SamplerCustomAdvanced',
   'SaveImage',
   'SaveVideo',
+  'TextEncodeQwenImageEditPlus',
   'UNETLoader',
   'VAEDecode',
   'VAEDecodeTiled',
@@ -521,7 +710,7 @@ export const GRAPH_NODE_CLASSES: ReadonlySet<string> = new Set([
   'Wan22ImageToVideoLatent',
 ]);
 
-/** Most reference images a graph may load (FLUX.2 [klein]'s budget, MAX_REFERENCES in presets). */
+/** Most reference images a graph may load (the most any stills model reads, FLUX.2 [klein]'s four; MAX_REFERENCES in presets). */
 const MAX_REFERENCE_NODES = 4;
 
 /** Inputs that name a model file; on a shared GPU they may only name files from the catalog. */
@@ -607,6 +796,13 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
       typeof node.inputs.text === 'string' &&
       !negatives.has(id) &&
       !safety.text(node.inputs.text).ok
+    )
+      problems.push(`node ${id} asks for sexual content`);
+    // Qwen-Image-Edit's encoder holds the prompt itself, for the positive and the (empty) negative alike.
+    if (
+      node.class_type === 'TextEncodeQwenImageEditPlus' &&
+      typeof node.inputs.prompt === 'string' &&
+      !safety.text(node.inputs.prompt).ok
     )
       problems.push(`node ${id} asks for sexual content`);
   }

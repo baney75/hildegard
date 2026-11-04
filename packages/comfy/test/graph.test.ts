@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import {
   type Character,
   composeCharacterStill,
+  composeImage,
   composeShot,
+  ImageRequest,
   loadCatalog,
   loadSafety,
   ShotRequest,
@@ -67,6 +69,27 @@ const shot = (over: Record<string, unknown> = {}, cast: Character[] = []) =>
     cast,
   );
 const classes = (g: Record<string, { class_type: string }>) => Object.values(g).map((n) => n.class_type);
+
+const upload = (n: number) => `${String(n).repeat(64).slice(0, 64)}.png`;
+/** A still of `model` as the Images route composes it, with this many reference images. */
+const drawn = (model: string, refs: number) =>
+  composeImage(
+    catalog,
+    ImageRequest.parse({
+      prompt: 'A cellist in an empty chapel, window light',
+      model,
+      references: Array.from({ length: refs }, (_, i) => upload(i + 1)),
+      ...(refs ? { noRealPerson: true } : {}),
+    }),
+  );
+/** The stills models beyond FLUX.2 [klein], with references each reads (klein is covered by the characters). */
+const MODEL_STILLS = [
+  { model: 'z-image-turbo', refs: 0 },
+  { model: 'qwen-image-2512', refs: 0 },
+  { model: 'qwen-image-edit-2511', refs: 0 },
+  { model: 'qwen-image-edit-2511', refs: 1 },
+  { model: 'qwen-image-edit-2511', refs: 3 },
+];
 
 describe('buildWanGraph', () => {
   const wan = (over: Record<string, unknown> = {}) => shot({ model: 'wan-2-2-ti2v-5b', ...over });
@@ -403,6 +426,9 @@ describe('vetGraph', () => {
         buildStillGraph({ still: composeCharacterStill(catalog, c, view), seed: 4, prefix: 's' }),
       ),
     ),
+    ...MODEL_STILLS.map(({ model, refs }) =>
+      buildStillGraph({ still: drawn(model, refs), seed: 4, prefix: 's' }),
+    ),
   ];
 
   it('accepts every graph the builders make, and the allowlist names only classes they use', () => {
@@ -460,7 +486,11 @@ describe('vetGraph', () => {
   });
 
   it('checks every reference image before the stills model reads it', () => {
-    const cast = variants.filter((v) => v.referenceNodes?.length);
+    const cast = variants.filter(
+      (v) =>
+        v.referenceNodes?.length &&
+        Object.values(v.graph).some((n) => n.class_type === 'ImageScaleToTotalPixels'),
+    );
     // Two characters' references in every cast shot, and the still that keeps to Mara's.
     expect(cast.length).toBe(videoModels(catalog).length * 2 + 2);
     for (const b of cast) {
@@ -535,5 +565,191 @@ describe('progressOf', () => {
   it('says nothing outside sampling, where the proxy’s own numbers read 100% too early', () => {
     expect(progressOf({ step: null, steps: null })).toBeNull();
     expect(progressOf({ step: 0, steps: 0 })).toBeNull();
+  });
+});
+
+describe('stills models', () => {
+  type Node = { class_type: string; inputs: Record<string, unknown> };
+  const nodes = (g: Record<string, Node>, cls: string) =>
+    Object.entries(g).filter(([, n]) => n.class_type === cls);
+  const one = (g: Record<string, Node>, cls: string) => nodes(g, cls)[0]![1];
+  const files = catalogFiles(catalog.models);
+  const safety = graphSafety(catalog, loadSafety());
+  const build = (model: string, refs = 0) =>
+    buildStillGraph({ still: drawn(model, refs), seed: 11, prefix: 'p' });
+  /** The node a link points at. */
+  const at = (g: Record<string, Node>, link: unknown) => g[(link as [string, number])[0]]!;
+  /** Follow `images` back from SaveImage: it must come through a HildegardGuard 'still'. */
+  const guardedSave = (b: ReturnType<typeof build>) => {
+    expect(b.output).toBe('image');
+    const save = b.graph[b.outputNode]!;
+    expect(save.class_type).toBe('SaveImage');
+    const check = at(b.graph, save.inputs.images);
+    expect(check).toMatchObject({ class_type: 'HildegardGuard', inputs: { what: 'still' } });
+    expect(at(b.graph, check.inputs.images).class_type).toBe('VAEDecode');
+  };
+
+  it('lists FLUX.2 [klein] first, so it stays the default, and says how many images each model reads', () => {
+    const stills = catalog.models.filter((m) => m.kind === 'image');
+    expect(stills.map((m) => [m.id, m.references])).toEqual([
+      ['flux-2-klein-4b', 4],
+      ['z-image-turbo', 0],
+      ['qwen-image-2512', 0],
+      ['qwen-image-edit-2511', 3],
+    ]);
+    expect(composeImage(catalog, ImageRequest.parse({ prompt: 'A pear' })).model.id).toBe('flux-2-klein-4b');
+  });
+
+  it('draws with Z-Image Turbo as ComfyUI’s blueprint does: lumina2, shift 3, res_multistep, 8 steps', () => {
+    const b = build('z-image-turbo');
+    expect(checkLinks(b.graph)).toEqual([]);
+    expect(b.referenceNodes).toEqual([]);
+    guardedSave(b);
+    expect(one(b.graph, 'UNETLoader').inputs.unet_name).toBe('z_image_turbo_bf16.safetensors');
+    expect(one(b.graph, 'CLIPLoader').inputs).toMatchObject({
+      clip_name: 'qwen_3_4b.safetensors',
+      type: 'lumina2',
+    });
+    expect(one(b.graph, 'VAELoader').inputs.vae_name).toBe('ae.safetensors');
+    expect(one(b.graph, 'ModelSamplingAuraFlow').inputs.shift).toBe(3);
+    expect(one(b.graph, 'KSampler').inputs).toMatchObject({
+      seed: 11,
+      steps: 8,
+      cfg: 1,
+      sampler_name: 'res_multistep',
+      scheduler: 'simple',
+      denoise: 1,
+    });
+    // The negative is the positive, zeroed.
+    const ks = one(b.graph, 'KSampler');
+    expect(at(b.graph, ks.inputs.negative).class_type).toBe('ConditioningZeroOut');
+    expect(at(b.graph, ks.inputs.model).class_type).toBe('ModelSamplingAuraFlow');
+    expect(nodes(b.graph, 'HildegardGuard')).toHaveLength(1);
+  });
+
+  it('draws with Qwen-Image 2512 as the blueprint does: qwen_image encoder, shift 3.1, euler, 50 steps, cfg 4', () => {
+    const b = build('qwen-image-2512');
+    expect(checkLinks(b.graph)).toEqual([]);
+    guardedSave(b);
+    expect(one(b.graph, 'UNETLoader').inputs.unet_name).toBe('qwen_image_2512_fp8_e4m3fn.safetensors');
+    expect(one(b.graph, 'CLIPLoader').inputs).toMatchObject({
+      clip_name: 'qwen_2.5_vl_7b_fp8_scaled.safetensors',
+      type: 'qwen_image',
+    });
+    expect(one(b.graph, 'VAELoader').inputs.vae_name).toBe('qwen_image_vae.safetensors');
+    expect(one(b.graph, 'ModelSamplingAuraFlow').inputs.shift).toBe(3.1);
+    expect(one(b.graph, 'KSampler').inputs).toMatchObject({
+      steps: 50,
+      cfg: 4,
+      sampler_name: 'euler',
+      scheduler: 'simple',
+    });
+    expect(nodes(b.graph, 'CLIPTextEncode')).toHaveLength(2);
+    const ks = one(b.graph, 'KSampler');
+    expect(at(b.graph, ks.inputs.negative).inputs.text).not.toBe(at(b.graph, ks.inputs.positive).inputs.text);
+    expect(nodes(b.graph, 'LoraLoaderModelOnly')).toHaveLength(0);
+  });
+
+  it('edits with Qwen-Image-Edit 2511 as the blueprint does, binding references in order', () => {
+    const b = build('qwen-image-edit-2511', 3);
+    expect(checkLinks(b.graph)).toEqual([]);
+    guardedSave(b);
+    expect(b.referenceNodes).toHaveLength(3);
+    // Each reference is loaded, then checked as a reference, and nothing else reads the load.
+    const checks = nodes(b.graph, 'HildegardGuard').filter(([, n]) => n.inputs.what === 'reference');
+    expect(checks).toHaveLength(3);
+    b.referenceNodes!.forEach((load, i) => {
+      expect(b.graph[load]).toMatchObject({
+        class_type: 'LoadImage',
+        inputs: { image: `reference-${i + 1}.png` },
+      });
+      expect(checks[i]![1].inputs.images).toEqual([load, 0]);
+      for (const [, n] of Object.entries(b.graph))
+        if (n.class_type !== 'HildegardGuard')
+          expect(Object.values(n.inputs).some((v) => Array.isArray(v) && v[0] === load)).toBe(false);
+    });
+    // The encoder reads image 1 (scaled), 2 and 3, in order, for the prompt and for the empty negative.
+    const encoders = nodes(b.graph, 'TextEncodeQwenImageEditPlus').map(([, n]) => n);
+    expect(encoders.map((n) => n.inputs.prompt).sort()).toEqual(
+      ['', expect.stringMatching(/cellist/)].sort(),
+    );
+    for (const enc of encoders) {
+      expect(at(b.graph, enc.inputs.image1).class_type).toBe('FluxKontextImageScale');
+      expect(enc.inputs.image2).toEqual([checks[1]![0], 0]);
+      expect(enc.inputs.image3).toEqual([checks[2]![0], 0]);
+      expect(at(b.graph, enc.inputs.image1).inputs.image).toEqual([checks[0]![0], 0]);
+    }
+    expect(one(b.graph, 'CLIPLoader').inputs.type).toBe('qwen_image');
+    expect(one(b.graph, 'UNETLoader').inputs.unet_name).toBe('qwen_image_edit_2511_fp8mixed.safetensors');
+    expect(one(b.graph, 'ModelSamplingAuraFlow').inputs.shift).toBe(3.1);
+    expect(one(b.graph, 'CFGNorm').inputs.strength).toBe(1);
+    const ks = one(b.graph, 'KSampler');
+    expect(ks.inputs).toMatchObject({
+      steps: 40,
+      cfg: 4,
+      sampler_name: 'euler',
+      scheduler: 'simple',
+      denoise: 1,
+    });
+    expect(at(b.graph, ks.inputs.model).class_type).toBe('CFGNorm');
+    for (const k of ['positive', 'negative'])
+      expect(at(b.graph, ks.inputs[k]).class_type).toBe('FluxKontextMultiReferenceLatentMethod');
+    // It starts from the first reference, so the edit keeps its shape.
+    expect(at(b.graph, ks.inputs.latent_image).class_type).toBe('VAEEncode');
+  });
+
+  it('leaves out images the edit wasn’t given, and draws from an empty latent with none', () => {
+    const one1 = build('qwen-image-edit-2511', 1);
+    const enc = nodes(one1.graph, 'TextEncodeQwenImageEditPlus')[0]![1];
+    expect(enc.inputs).toHaveProperty('image1');
+    expect(enc.inputs).not.toHaveProperty('image2');
+    const none = build('qwen-image-edit-2511', 0);
+    expect(none.referenceNodes).toEqual([]);
+    expect(nodes(none.graph, 'FluxKontextImageScale')).toHaveLength(0);
+    const latent = at(none.graph, one(none.graph, 'KSampler').inputs.latent_image);
+    expect(latent.class_type).toBe('EmptySD3LatentImage');
+    expect(latent.inputs).toMatchObject({ width: 1024, height: 1024 });
+  });
+
+  it('refuses to build a still from more images than its model reads, or a take’s model', () => {
+    const still = {
+      ...drawn('qwen-image-edit-2511', 3),
+      references: [upload(1), upload(2), upload(3), upload(4)],
+    };
+    expect(() => buildStillGraph({ still, seed: 1, prefix: 'p' })).toThrow(/reads 3 reference images/);
+    const words = { ...drawn('z-image-turbo', 0), references: [upload(1)] };
+    expect(() => buildStillGraph({ still: words, seed: 1, prefix: 'p' })).toThrow(/reads 0 reference images/);
+    const video = {
+      ...drawn('z-image-turbo', 0),
+      model: catalog.models.find((m) => m.id === 'wan-2-2-ti2v-5b')!,
+    };
+    expect(() => buildStillGraph({ still: video, seed: 1, prefix: 'p' })).toThrow(/makes video, not stills/);
+  });
+
+  it('is accepted on a shared GPU, and refused when its check is skipped or its words are sexual', () => {
+    for (const { model, refs } of MODEL_STILLS) {
+      const b = build(model, refs);
+      expect(vetGraph(b, files, safety)).toEqual([]);
+      const skip = structuredClone(b);
+      const save = skip.graph[skip.outputNode]!;
+      save.inputs.images = at(skip.graph, save.inputs.images).inputs.images as [string, number];
+      expect(vetGraph(skip, files, safety).join()).toMatch(/saved without the safety check/);
+      const bad = structuredClone(b);
+      const [, enc] =
+        Object.entries(bad.graph).find(([, n]) => n.class_type === 'TextEncodeQwenImageEditPlus') ??
+        Object.entries(bad.graph).find(([, n]) => n.class_type === 'CLIPTextEncode')!;
+      enc.inputs[enc.class_type === 'CLIPTextEncode' ? 'text' : 'prompt'] = 'a nude portrait';
+      expect(vetGraph(bad, files, safety).join()).toMatch(/sexual content/);
+    }
+  });
+
+  it('checks the edit’s references before anything reads them', () => {
+    const b = structuredClone(build('qwen-image-edit-2511', 2));
+    const [id, check] = Object.entries(b.graph).find(([, n]) => n.inputs.what === 'reference')!;
+    const scale = Object.values(b.graph).find(
+      (n) => n.class_type === 'FluxKontextImageScale' && (n.inputs.image as [string, number])[0] === id,
+    )!;
+    scale.inputs.image = check.inputs.images!;
+    expect(vetGraph(b, files, safety).join()).toMatch(/reference image is used before the safety check/);
   });
 });

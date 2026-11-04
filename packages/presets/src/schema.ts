@@ -162,7 +162,20 @@ const ModelObject = z
     /** The license's main conditions in plain words, shown before the first download. */
     terms: z.array(Text).min(1),
     /** Which graph builder in @hildegard/comfy renders this model. */
-    graph: z.enum(['ltx-2.5-distilled', 'ltx-2-distilled', 'wan-2.2-ti2v', 'flux-2-klein']),
+    graph: z.enum([
+      'ltx-2.5-distilled',
+      'ltx-2-distilled',
+      'wan-2.2-ti2v',
+      'flux-2-klein',
+      'z-image',
+      'qwen-image',
+      'qwen-image-edit',
+    ]),
+    /**
+     * Stills models only: how many reference images it reads (0 or left out: words only). Characters draw from
+     * references, so they use the first stills model that reads some.
+     */
+    references: z.number().int().min(0).max(8).optional(),
     /** Final quality renders at half size and upsamples the latent (LTX's two-stage recipe). */
     twoStageFinal: z.boolean().default(true),
     minVramGb: z.number().positive(),

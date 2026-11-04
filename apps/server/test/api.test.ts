@@ -288,6 +288,9 @@ describe('shots and takes', () => {
       'ltx-2-distilled',
       'wan-2-2-ti2v-5b',
       'flux-2-klein-4b',
+      'z-image-turbo',
+      'qwen-image-2512',
+      'qwen-image-edit-2511',
     ]);
     expect(s.hf).toEqual({ linked: false, user: null, storage: null, oauth: false, found: false });
   });

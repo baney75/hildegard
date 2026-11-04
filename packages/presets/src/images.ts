@@ -5,9 +5,9 @@
  * an aperture, lighting, a palette, a genre and an era, each optional.
  */
 import { z } from 'zod';
-import { type ComposedStill, MAX_REFERENCES, pickStillModel } from './characters.ts';
+import { type ComposedStill, MAX_REFERENCES, pickStillModel, referencesOf } from './characters.ts';
 import { apertureWords, fmtF, frameSize, PresetError } from './compose.ts';
-import { type Catalog, Id } from './schema.ts';
+import { type Catalog, Id, type Model } from './schema.ts';
 
 /** An upload in the uploads folder, named by its SHA-256. */
 const Upload = z.string().regex(/^[a-f0-9]{64}\.(png|jpg|webp)$/, 'Unknown reference image');
@@ -68,6 +68,14 @@ function find<T>(list: readonly T[], match: (x: T) => boolean, field: string, wh
   return x;
 }
 
+/** "A or B", "A, B or C": the names of the models that read at least this many images, for a refusal. */
+function readers(catalog: Catalog, count: number): string {
+  const names = catalog.models
+    .filter((m): m is Model => m.kind === 'image' && referencesOf(m) >= count)
+    .map((m) => m.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names.at(-1)}` : (names[0] ?? '');
+}
+
 const cap = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
 /**
@@ -77,6 +85,17 @@ const cap = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
  */
 export function composeImage(catalog: Catalog, req: ImageRequest): ComposedImage {
   const model = pickStillModel(catalog, req.model);
+  const reads = referencesOf(model);
+  if (req.references.length > reads) {
+    const others = readers(catalog, req.references.length);
+    const pick = others ? ` Pick ${others}.` : '';
+    throw new PresetError(
+      reads === 0
+        ? `${model.name} draws from words only.${others ? ` Pick ${others} to edit images.` : ' No model here edits images.'}`
+        : `${model.name} reads up to ${reads} reference ${reads === 1 ? 'image' : 'images'}, and you gave ${req.references.length}. Use fewer.${pick}`,
+      'references',
+    );
+  }
   const aspect = find(catalog.aspects, (a) => a.id === req.aspect, 'aspect', 'aspect ratio');
   const { camera, look } = req;
   const body = camera.body
