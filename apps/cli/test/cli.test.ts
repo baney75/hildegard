@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { execFile, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -15,7 +15,7 @@ import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegar
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
 import { frontDoorStep } from '../src/doctor.ts';
 import { printEvent, printResult, result } from '../src/output.ts';
@@ -59,17 +59,33 @@ type Out = {
  * background server that outlives the command, and a test that fails or times out never reaches its own `stop`.
  */
 const touched = new Map<string, { home: string; data: string }>();
+/** The same, never cleared: the last sweep, after all tests, covers anything an earlier one missed. */
+const everTouched = new Map<string, { home: string; data: string }>();
+/** Commands still running. A test that times out leaves its command going, and its server starts later. */
+const inflight = new Set<{ child: ChildProcess; done: Promise<unknown> }>();
+
 function track(home: string, args: string[]) {
   const at = args.findIndex((a) => a === '--data' || a.startsWith('--data='));
   if (at < 0) return;
   const data = args[at] === '--data' ? args[at + 1] : args[at]!.slice('--data='.length);
-  if (data) touched.set(`${home}\0${data}`, { home, data });
+  if (!data) return;
+  touched.set(`${home}\0${data}`, { home, data });
+  everTouched.set(`${home}\0${data}`, { home, data });
+}
+
+/** Keeps a running command where the cleanup below can end it. */
+function watch<T extends Promise<unknown> & { child: ChildProcess }>(p: T): T {
+  const entry = { child: p.child, done: p.catch(() => {}) };
+  inflight.add(entry);
+  void entry.done.then(() => inflight.delete(entry));
+  return p;
 }
 
 /** The background servers (`… start --foreground …`) still running on this data folder. Not on Windows. */
 async function serversOn(data: string) {
   if (process.platform === 'win32') return [];
-  const { stdout } = await run('ps', ['-axo', 'pid=,command=']).catch(() => ({ stdout: '' }));
+  // -ww: without a terminal, BSD ps cuts the command at about 80 characters, before the --data folder.
+  const { stdout } = await run('ps', ['-axww', '-o', 'pid=,command=']).catch(() => ({ stdout: '' }));
   return stdout
     .split('\n')
     .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
@@ -80,11 +96,8 @@ async function serversOn(data: string) {
     .map((m) => Number(m[1]));
 }
 
-// Whatever a test started is stopped, passed or failed: `hildegard stop` first, then the process (and its group,
-// since it starts detached) for a server that didn't answer it.
-afterEach(async () => {
-  const left = [...touched.values()];
-  touched.clear();
+/** `hildegard stop` for each, then the process (and its group, since it starts detached) of a server that didn't answer. */
+async function sweep(left: { home: string; data: string }[]) {
   await Promise.all(
     left.map(({ home, data }) =>
       run(process.execPath, [main, 'stop', '--data', data, '--json'], {
@@ -100,39 +113,66 @@ afterEach(async () => {
           process.kill(target, 'SIGKILL');
         } catch {}
     }
+}
+
+// Whatever a test started is stopped, passed or failed. A command a timed-out test left running is ended first, so
+// it can't start a server after the sweep.
+afterEach(async () => {
+  const going = [...inflight];
+  for (const { child } of going) child.kill('SIGKILL');
+  await Promise.all(going.map((c) => c.done));
+  const left = [...touched.values()];
+  touched.clear();
+  await sweep(left);
 }, 60_000);
+
+afterAll(() => sweep([...everTouched.values()]), 60_000);
 
 /** Runs `hildegard …` in its own home folder, so no real app config is ever touched. */
 async function hildegard(home: string, ...args: string[]) {
   track(home, args);
-  const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
-    env: cliEnv(home),
-    timeout: 60_000,
-  }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
+  const { stdout } = await watch(
+    run(process.execPath, [main, ...args, '--json'], {
+      env: cliEnv(home),
+      timeout: 60_000,
+    }),
+  ).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
   return JSON.parse(stdout) as Out;
 }
 
 /** The same, with more environment (test doubles for outside services). */
 async function hildegardEnv(home: string, env: Record<string, string>, ...args: string[]) {
   track(home, args);
-  const { stdout } = await run(process.execPath, [main, ...args, '--json'], {
-    env: { ...cliEnv(home), ...env },
-    timeout: 60_000,
-  }).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
+  const { stdout } = await watch(
+    run(process.execPath, [main, ...args, '--json'], {
+      env: { ...cliEnv(home), ...env },
+      timeout: 60_000,
+    }),
+  ).catch((e: { stdout: string }) => ({ stdout: e.stdout }));
   return JSON.parse(stdout) as Out;
 }
 
 /** The same, with something piped to its stdin, as an agent pipes a secret the owner gave it. */
 function hildegardWithStdin(home: string, input: string, ...args: string[]) {
   track(home, args);
-  return new Promise<Out>((resolve, reject) => {
-    const child = spawn(process.execPath, [main, ...args, '--json'], { env: cliEnv(home) });
+  const child = spawn(process.execPath, [main, ...args, '--json'], { env: cliEnv(home) });
+  const done = new Promise<Out>((resolve, reject) => {
     let out = '';
     child.stdout.on('data', (d) => (out += d));
     child.on('error', reject);
-    child.on('close', () => resolve(JSON.parse(out) as Out));
+    child.on('close', () => {
+      try {
+        resolve(JSON.parse(out) as Out);
+      } catch (e) {
+        reject(e);
+      }
+    });
     child.stdin.end(input);
   });
+  const entry = { child, done: done.catch(() => {}) };
+  inflight.add(entry);
+  void entry.done.then(() => inflight.delete(entry));
+  return done;
 }
 
 describe('hildegard', () => {

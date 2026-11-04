@@ -8,8 +8,10 @@ import { ComfyRuntime, layout, pidDir, pidFile, processStart, reapStale } from '
 
 // A stand-in ComfyUI: this folder's "python" is a shell script that never ends, so its command line names the
 // folder's Python just as the real ComfyUI's does.
+const installs: string[] = [];
 function fakeInstall(script = 'while :; do sleep 1; done'): string {
   const dir = mkdtempSync(join(tmpdir(), 'hildegard-supervisor-'));
+  installs.push(dir);
   const L = layout(dir);
   mkdirSync(join(L.venv, 'bin'), { recursive: true });
   mkdirSync(L.comfyDir, { recursive: true });
@@ -69,14 +71,29 @@ const note = (
   const children = pids.map((pid) => ({ pid, started: pid ? processStart(pid) : null }));
   writeFileSync(pidFile(dir, owner), JSON.stringify({ started: ownerStarted, pids: children }));
 };
-/** Processes a test found by number only: killed after it, so a failed expect leaves none behind. */
-const strays: number[] = [];
+/** Processes a test found by number only, with the start time they had then: killed after it, so a failed expect leaves none behind. */
+const strays: { pid: number; started: string | null }[] = [];
+const stray = (pids: number[]) => strays.push(...pids.map((pid) => ({ pid, started: processStart(pid) })));
 afterEach(() => {
   for (const c of started.splice(0)) if (c.exitCode === null) c.kill('SIGKILL');
-  for (const pid of strays.splice(0))
-    try {
-      process.kill(pid, 'SIGKILL');
-    } catch {}
+  // Only the process that was noted: a number the OS has handed to something else since is not ours to kill.
+  for (const { pid, started: at } of strays.splice(0))
+    if (at && processStart(pid) === at)
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {}
+  // A test that died before it could note its processes (the crash script's timeout, say) leaves them by name only:
+  // anything whose command line is in one of the fake installs. -ww: BSD ps cuts the command short without a terminal.
+  if (process.platform !== 'win32' && installs.length) {
+    const ps = spawnSync('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8' }).stdout ?? '';
+    for (const line of ps.split('\n')) {
+      const m = line.trim().match(/^(\d+)\s+(.*)$/);
+      if (!m || Number(m[1]) === process.pid || !installs.some((d) => m[2]!.includes(d))) continue;
+      try {
+        process.kill(Number(m[1]), 'SIGKILL');
+      } catch {}
+    }
+  }
 });
 
 describe.skipIf(process.platform === 'win32')('ComfyRuntime processes', () => {
@@ -96,7 +113,7 @@ process.exit(1);
     );
     const out = spawnSync(process.execPath, [script, dir], { encoding: 'utf8', timeout: 20_000 });
     const pids = JSON.parse(out.stdout.trim().split('\n').at(-1)!) as number[];
-    strays.push(...pids);
+    stray(pids);
     expect(pids).toHaveLength(2);
     for (const pid of pids) expect(await gone(pid)).toBe(true);
   });
