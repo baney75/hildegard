@@ -675,16 +675,14 @@ export class Scheduler {
   }
 
   /** Local paths of reference images, which must all still be there. */
-  private async referencePaths(files: readonly string[]): Promise<string[]> {
+  private async referencePaths(
+    files: readonly string[],
+    fix = 'Add the character’s references again, then retry.',
+  ): Promise<string[]> {
     const paths = files.map((f) => join(this.mediaDir, 'uploads', f));
     for (const p of paths)
       await stat(p).catch(() => {
-        throw new EngineError(
-          'character',
-          'A reference image is missing.',
-          '',
-          'Add the character’s references again, then retry.',
-        );
+        throw new EngineError('character', 'A reference image is missing.', '', fix);
       });
     return paths;
   }
@@ -851,7 +849,10 @@ export class Scheduler {
     }
   }
 
-  /** Render one still of a character, from its record: the words and references fixed when it was asked for. */
+  /**
+   * Render one still, a character's or an image on its own, from its record: the words and references fixed when it
+   * was asked for.
+   */
   private async runStill(still: Still) {
     const abort = new AbortController();
     this.running = { id: still.id, priority: still.priority, abort, requeue: false };
@@ -870,10 +871,12 @@ export class Scheduler {
     const dir = join(this.mediaDir, 'stills');
     const dest = join(dir, `${still.id}.png`);
     try {
-      const c = this.store.characters.get(still.characterId);
-      if (!c) throw new EngineError('character', 'This character was deleted.');
-      const ok = usable(c);
-      if (!ok.ok) throw new EngineError('character', ok.why);
+      if (still.characterId !== null) {
+        const c = this.store.characters.get(still.characterId);
+        if (!c) throw new EngineError('character', 'This character was deleted.');
+        const ok = usable(c);
+        if (!ok.ok) throw new EngineError('character', ok.why);
+      }
       const words = this.safety.text(still.prompt);
       if (!words.ok) throw new EngineError('content_blocked', words.message);
       const model = pickStillModel(this.catalog, still.model);
@@ -895,7 +898,10 @@ export class Scheduler {
         seed: still.seed,
         prefix: `hildegard/still-${still.id}`,
       });
-      const references = await this.referencePaths(still.references);
+      const references = await this.referencePaths(
+        still.references,
+        still.characterId === null ? 'Upload the reference images again, then retry.' : undefined,
+      );
       await mkdir(dir, { recursive: true });
       let lastProgressAt = 0;
       await this.engine.render(built, {

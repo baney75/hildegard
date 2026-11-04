@@ -127,11 +127,21 @@ export interface Character {
   updatedAt: string;
 }
 
-/** A still Hildegard renders: a character's portrait or one view of their sheet. */
+/**
+ * A still Hildegard renders: a character's portrait or one view of their sheet, or an image on its own from the
+ * Images studio (no character and no view).
+ */
 export interface Still {
   id: string;
-  characterId: string;
-  view: CharacterView;
+  /** The character it draws; null for an image on its own. */
+  characterId: string | null;
+  view: CharacterView | null;
+  /** For an image on its own: the person, signed in from another device, whose image it is; absent for the owner's. */
+  owner?: string;
+  /** For an image on its own: its aspect ratio id, its quality and the camera and look it was drawn with. */
+  aspect?: string;
+  quality?: 'draft' | 'final';
+  summary?: string;
   status: TakeStatus;
   priority: Priority;
   source: { kind: 'studio' } | { kind: 'agent'; name: string };
