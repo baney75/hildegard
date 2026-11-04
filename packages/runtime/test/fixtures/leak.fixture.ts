@@ -23,5 +23,7 @@ setInterval(() => {}, 1000);
   );
   // As the crash test does, but the script never ends: the timeout kills it, and its children are not told.
   const out = spawnSync(process.execPath, [script, dir], { encoding: 'utf8', timeout: 4000 });
+  // ComfyUI really was up (the script printed its processes' numbers) before the script was lost.
+  expect(out.stdout).toMatch(/^\[\d+,\d+\]$/m);
   expect(out.status).toBe(0);
 });

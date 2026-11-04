@@ -104,7 +104,9 @@ function watch<T extends Promise<unknown> & { child: ChildProcess }>(p: T): T {
  */
 async function leftOn(data: string) {
   if (process.platform === 'win32') return [];
-  const found = await run('pgrep', ['-f', '--', data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')])
+  // The folder's name ends at a path boundary, so one folder (`…/h`) never matches another that starts with it (`…/hg-…`).
+  const named = `${data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/|[[:space:]]|$)`;
+  const found = await run('pgrep', ['-f', '--', named])
     .then((r) => r.stdout.split('\n').filter((l) => /^\d+$/.test(l.trim())))
     .catch((e: { code?: number }) => {
       if (e.code !== 1) console.warn('pgrep failed, so servers left on', data, 'are not swept:', e);
