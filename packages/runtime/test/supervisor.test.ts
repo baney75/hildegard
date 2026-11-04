@@ -71,22 +71,32 @@ const note = (
   const children = pids.map((pid) => ({ pid, started: pid ? processStart(pid) : null }));
   writeFileSync(pidFile(dir, owner), JSON.stringify({ started: ownerStarted, pids: children }));
 };
-/** Processes a test found by number only, with the start time they had then: killed after it, so a failed expect leaves none behind. */
-const strays: { pid: number; started: string | null }[] = [];
-const stray = (pids: number[]) => strays.push(...pids.map((pid) => ({ pid, started: processStart(pid) })));
 afterEach(() => {
   for (const c of started.splice(0)) if (c.exitCode === null) c.kill('SIGKILL');
-  // Only the process that was noted: a number the OS has handed to something else since is not ours to kill.
-  for (const { pid, started: at } of strays.splice(0))
-    if (at && processStart(pid) === at)
-      try {
-        process.kill(pid, 'SIGKILL');
-      } catch {}
-  // A test that died before it could note its processes (the crash script's timeout, say) leaves them by name only:
-  // anything whose command line is in one of the fake installs. -ww: BSD ps cuts the command short without a terminal.
+  for (const dir of installs) {
+    // What the crash script noted of its children as soon as ComfyUI was up, with the start time they had then:
+    // only that process is killed, not whatever the OS has since given the number to.
+    try {
+      const noted = JSON.parse(readFileSync(join(dir, 'pids.json'), 'utf8')) as {
+        pid: number;
+        started: string;
+      }[];
+      for (const { pid, started: at } of noted)
+        if (at && processStart(pid) === at)
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch {}
+    } catch {}
+  }
+  // A test that died before it could note its processes leaves them by name only: anything whose command line is in
+  // one of the fake installs. -ww: BSD ps cuts the command short without a terminal.
   if (process.platform !== 'win32' && installs.length) {
-    const ps = spawnSync('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8' }).stdout ?? '';
-    for (const line of ps.split('\n')) {
+    const ps = spawnSync('ps', ['-axww', '-o', 'pid=,command='], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (ps.error) console.warn('ps failed, so fake installs’ processes are not swept:', ps.error);
+    for (const line of (ps.stdout ?? '').split('\n')) {
       const m = line.trim().match(/^(\d+)\s+(.*)$/);
       if (!m || Number(m[1]) === process.pid || !installs.some((d) => m[2]!.includes(d))) continue;
       try {
@@ -103,9 +113,11 @@ describe.skipIf(process.platform === 'win32')('ComfyRuntime processes', () => {
     const entry = resolve(import.meta.dirname, '../src/index.ts');
     writeFileSync(
       script,
-      `import { ComfyRuntime } from ${JSON.stringify(entry)};
+      `import { writeFileSync } from 'node:fs';
+import { ComfyRuntime, processStart } from ${JSON.stringify(entry)};
 const r = new ComfyRuntime({ dataDir: process.argv[2] });
 await r.start();
+writeFileSync(${JSON.stringify(join(dir, 'pids.json'))}, JSON.stringify(r.pids().map((pid) => ({ pid, started: processStart(pid) }))));
 await new Promise((ok) => setTimeout(ok, 300));
 console.log(JSON.stringify(r.pids()));
 process.exit(1);
@@ -113,7 +125,6 @@ process.exit(1);
     );
     const out = spawnSync(process.execPath, [script, dir], { encoding: 'utf8', timeout: 20_000 });
     const pids = JSON.parse(out.stdout.trim().split('\n').at(-1)!) as number[];
-    stray(pids);
     expect(pids).toHaveLength(2);
     for (const pid of pids) expect(await gone(pid)).toBe(true);
   });
