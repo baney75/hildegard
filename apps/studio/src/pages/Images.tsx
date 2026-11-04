@@ -80,7 +80,10 @@ export function Images({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass;
   const form: Form = useMemo(() => ({ ...FORM, ...saved }), [saved]);
   const patch = (p: Partial<Form>) => setSaved((prev) => ({ ...prev, ...p }));
   const [refs, setRefs] = useState<UploadResult[]>([]);
-  const [sure, setSure] = useState(false);
+  // The attestation covers the exact images it was given for: any change to the set asks again.
+  const refKey = refs.map((r) => r.name).join(',');
+  const [sureFor, setSureFor] = useState<string | null>(null);
+  const sure = refs.length > 0 && sureFor === refKey;
   const [uploading, setUploading] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -496,7 +499,7 @@ export function Images({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass;
                       checked={sure}
                       aria-describedby={error?.group === 'references' ? 'im-err-references' : undefined}
                       onChange={(e) => {
-                        setSure(e.target.checked);
+                        setSureFor(e.target.checked ? refKey : null);
                         if (error?.group === 'references') setError(null);
                       }}
                     />

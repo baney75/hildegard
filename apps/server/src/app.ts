@@ -1252,12 +1252,24 @@ export function createApp(deps: AppDeps) {
     if (!body.success) return zodFail(c, body.error);
     const v = safety.text(body.data.prompt);
     if (!v.ok) return c.json({ error: v.message, field: 'prompt', code: 'content_blocked' }, 422);
+    // A real person's photos, and every still drawn of them, kept or not: uploads are named by their SHA-256, so
+    // the same bytes uploaded again carry the same name.
+    const realStills = new Set<string>();
+    if (body.data.references.length)
+      for (const st of store.stills.values()) {
+        const ch = st.characterId ? store.characters.get(st.characterId) : undefined;
+        if (ch?.likeness !== 'real' || st.status !== 'done') continue;
+        const bytes = await readFile(join(mediaDir, 'stills', `${st.id}.png`)).catch(() => null);
+        if (bytes) realStills.add(createHash('sha256').update(bytes).digest('hex'));
+      }
     for (const ref of body.data.references) {
       if (!existsSync(uploadPath(ref)))
         return c.json({ error: 'A reference image is missing. Upload it again.', field: 'references' }, 422);
-      const real = [...store.characters.values()].some(
-        (ch) => ch.likeness === 'real' && ch.references.some((r) => r.file === ref),
-      );
+      const real =
+        realStills.has(ref.replace(/\.[a-z]+$/, '')) ||
+        [...store.characters.values()].some(
+          (ch) => ch.likeness === 'real' && ch.references.some((r) => r.file === ref),
+        );
       if (real)
         return c.json(
           {

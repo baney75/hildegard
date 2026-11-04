@@ -63,6 +63,17 @@ test('makes two images from words, edits one with a reference, and the edit need
   await edited.getByRole('button', { name: /^Open\./ }).click();
   await expect(page.getByRole('dialog', { name: 'Image' }).getByText('1 reference image')).toBeVisible();
   await page.keyboard.press('Escape');
+
+  // A new image in the set needs the box checked again: the attestation covers only the images it was given for.
+  await expect(make).toBeEnabled();
+  await first
+    .nth(1)
+    .getByRole('button', { name: /^Open\./ })
+    .click();
+  await page.getByRole('dialog', { name: 'Image' }).getByRole('button', { name: 'Edit' }).click();
+  await expect(page.getByText('References · 2 of 4')).toBeVisible();
+  await expect(make).toBeDisabled();
+  await expect(page.getByLabel(/^This image shows no real person/)).not.toBeChecked();
   expect(errors).toEqual([]);
 });
 

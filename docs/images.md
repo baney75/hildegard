@@ -14,7 +14,7 @@ draws it on your GPU, in the same camera language as Cinema. Or hand it up to fo
 - **Camera and look.** Everything in Cinema’s rig is optional here: a camera body, a lens, a focal length, an
   aperture, then lighting, a palette, a genre and an era. Your words come first and stand as you wrote them. The rig
   follows as sentences, and only the parts you picked. Leave all of it out and the image is your words alone.
-- **Draft or final.** A draft is 768 pixels high and a final is 1,024; both take four steps. Draft a few, pick one,
+- **Draft or final.** A draft is 768 pixels on its short side and a final is 1,024, so wide and tall shapes have more pixels and take longer; both take four steps. Draft a few, pick one,
   then draw it final with the same seed.
 - **Use as start frame.** On any finished image, Use as start frame opens the composer in Cinema with that image as a
   shot’s first frame, so the video starts from exactly that picture.
@@ -60,7 +60,7 @@ images and where each one stands. `list_presets` has the ids for `camera` and `l
 - **No real people, except as characters.** Adding references means attesting they show no real person. Hildegard can’t
   check a face against a name, so that word is yours to give truthfully; an agent gives it only for what it knows. To
   draw a real person, make them a character: they give their own consent on their own device, and only then can they
-  be drawn ([characters.md](characters.md)). A photo already kept as a real person’s reference is refused here.
+  be drawn ([characters.md](characters.md)). A real person’s photo, or any still drawn of them, is refused here when it comes back byte for byte. Hildegard doesn’t match faces, so a photo of them from anywhere else rests on your word.
 - **No other models.** Images use the one stills model. A model or LoRA you add goes through the same hash and tag
   checks as any other.
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Character, Snapshot, Still } from '@hildegard/presets';
@@ -133,6 +133,26 @@ describe('images', () => {
     });
     expect(theirs.status).toBe(422);
     expect(await json<{ code: string }>(theirs)).toMatchObject({ code: 'character' });
+
+    // A still drawn of them, never kept, uploaded again byte for byte, is theirs too.
+    const drawn = Buffer.concat([PNG, Buffer.from('drawn-of-them')]);
+    mkdirSync(join(dir, 'media', 'stills'), { recursive: true });
+    writeFileSync(join(dir, 'media', 'stills', 'eeeeeeeeeeeeeeee.png'), drawn);
+    srv.store.putStill({
+      id: 'eeeeeeeeeeeeeeee',
+      characterId: real.id,
+      view: 'portrait',
+      status: 'done',
+      image: '/media/stills/eeeeeeeeeeeeeeee.png',
+    } as Still);
+    const again = await upload(drawn);
+    const laundered = await post('/api/images', {
+      prompt: 'Them in a garden',
+      references: [again.name],
+      noRealPerson: true,
+    });
+    expect(laundered.status).toBe(422);
+    expect(await json<{ code: string }>(laundered)).toMatchObject({ code: 'character' });
 
     const bad = await post('/api/images', { prompt: 'nude, explicit' });
     expect(bad.status).toBe(422);
