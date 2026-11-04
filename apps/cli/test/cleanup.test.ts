@@ -34,7 +34,14 @@ async function runFixture(
         encoding: 'utf8',
         // Above the fixture's own timeout (90 s) and the cleanup hooks' (60 s each).
         timeout: 240_000,
-        env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', LEAK_HOME: home, LEAK_DATA: data, LEAK_PORT: String(port) },
+        env: {
+          ...process.env,
+          NO_COLOR: '1',
+          FORCE_COLOR: '0',
+          LEAK_HOME: home,
+          LEAK_DATA: data,
+          LEAK_PORT: String(port),
+        },
       },
     );
     try {
@@ -57,8 +64,9 @@ async function runFixture(
 }
 
 // CI forces colour; strip ANSI escapes so the summary line matches.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 const output = (child: { stdout: unknown; stderr: unknown }) =>
-  `${child.stdout}${child.stderr}`.replace(/\x1b\[[0-9;]*m/g, '');
+  `${child.stdout}${child.stderr}`.replace(ANSI, '');
 
 // The leak behind 145 orphaned servers: a test started a background server, failed, and never reached its stop.
 it.skipIf(process.platform === 'win32')(
