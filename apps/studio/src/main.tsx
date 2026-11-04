@@ -7,6 +7,7 @@ import { applyTheme } from './lib/theme.ts';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/cinema.css';
+import './styles/images.css';
 import './styles/studio.css';
 import './styles/app.css';
 import './styles/sites.css';

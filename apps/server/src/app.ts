@@ -21,9 +21,11 @@ import {
   type CreateShotBody,
   characterText,
   composeCharacterStill,
+  composeImage,
   composeShot,
   EditCharacter,
   type GrantsResponse,
+  ImageRequest,
   loadSafety,
   MAX_CHARACTER_REFS,
   type ModelState,
@@ -69,6 +71,7 @@ import {
   secureRequest,
   seesCharacter,
   seesProject,
+  seesStill,
   snapshotFor,
   type Who,
 } from './access.ts';
@@ -619,7 +622,7 @@ export function createApp(deps: AppDeps) {
    * The stills model must render where renders go: refused before the queue when this computer's own ComfyUI renders
    * and it isn't installed here, or when it won't run on this Mac.
    */
-  const stillModelRefused = (c: Context, modelId: string, field: string) => {
+  const stillModelRefused = (c: Context, modelId: string, field: string, what = 'Characters are') => {
     const st = deps.modelStates().find((m) => m.id === modelId);
     const name = catalog.models.find((m) => m.id === modelId)?.name ?? modelId;
     if (st?.fitWhy === 'apple-gpu')
@@ -634,7 +637,7 @@ export function createApp(deps: AppDeps) {
     if (scheduler.engineState().comfy === 'managed' && !st?.installed)
       return c.json(
         {
-          error: `Characters are drawn with ${name}, which isn’t installed on this computer. Install it in Settings › Models.`,
+          error: `${what} drawn with ${name}, which isn’t installed on this computer. Install it in Settings › Models.`,
           field,
           code: 'missing_model',
         },
@@ -1233,11 +1236,107 @@ export function createApp(deps: AppDeps) {
     return c.json({ character: ch, stills }, 201);
   });
 
+  /**
+   * Images on their own, from words or as edits of up to four reference images: each a still on the queue with no
+   * character. A reference must be an upload the person says shows no real person, and never a real person's photo
+   * from their consent: a real person is drawn only as the character they agreed to.
+   */
+  app.post('/api/images', async (c) => {
+    const parsed = z
+      .object({ agent: z.string().trim().min(1).max(60).optional() })
+      .passthrough()
+      .safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'Malformed request' }, 400);
+    const { agent, ...rest } = parsed.data;
+    const body = ImageRequest.safeParse(rest);
+    if (!body.success) return zodFail(c, body.error);
+    const v = safety.text(body.data.prompt);
+    if (!v.ok) return c.json({ error: v.message, field: 'prompt', code: 'content_blocked' }, 422);
+    // A real person's photos, and every still drawn of them, kept or not: uploads are named by their SHA-256, so
+    // the same bytes uploaded again carry the same name.
+    const realStills = new Set<string>();
+    if (body.data.references.length)
+      for (const st of store.stills.values()) {
+        const ch = st.characterId ? store.characters.get(st.characterId) : undefined;
+        if (ch?.likeness !== 'real' || st.status !== 'done') continue;
+        const bytes = await readFile(join(mediaDir, 'stills', `${st.id}.png`)).catch(() => null);
+        if (bytes) realStills.add(createHash('sha256').update(bytes).digest('hex'));
+      }
+    for (const ref of body.data.references) {
+      if (!existsSync(uploadPath(ref)))
+        return c.json({ error: 'A reference image is missing. Upload it again.', field: 'references' }, 422);
+      const real =
+        realStills.has(ref.replace(/\.[a-z]+$/, '')) ||
+        [...store.characters.values()].some(
+          (ch) => ch.likeness === 'real' && ch.references.some((r) => r.file === ref),
+        );
+      if (real)
+        return c.json(
+          {
+            error:
+              'That reference is a real person’s photo. Draw them as their character instead, on their consent.',
+            field: 'references',
+            code: 'character',
+          },
+          422,
+        );
+    }
+    let image: ReturnType<typeof composeImage>;
+    try {
+      image = composeImage(catalog, body.data);
+    } catch (e) {
+      if (e instanceof PresetError) return c.json({ error: e.message, field: e.field }, 422);
+      throw e;
+    }
+    const modelRefused = stillModelRefused(c, image.model.id, 'model', 'Images are');
+    if (modelRefused) return modelRefused;
+    const full = queueFull(c, body.data.count);
+    if (full) return full;
+    const person = personOf(c);
+    const priority: Priority = body.data.priority ?? (agent ? 'agent' : 'interactive');
+    const stills = takeSeeds(body.data.count, body.data.seed).map((seed) => {
+      const st: Still = {
+        id: id(),
+        characterId: null,
+        view: null,
+        ...(person ? { owner: person.id } : {}),
+        aspect: image.aspect,
+        quality: image.quality,
+        summary: image.summary,
+        status: 'queued',
+        priority,
+        source: agent ? { kind: 'agent', name: agent } : { kind: 'studio' },
+        ...(person ? { by: { id: person.id, name: person.name } } : {}),
+        seed,
+        model: image.model.id,
+        prompt: image.prompt,
+        references: image.references,
+        width: image.width,
+        height: image.height,
+        queuePosition: null,
+        progress: null,
+        previewVersion: 0,
+        createdAt: now(),
+        startedAt: null,
+        finishedAt: null,
+        renderMs: null,
+        error: null,
+        image: null,
+      };
+      scheduler.enqueueStill(st);
+      return st;
+    });
+    return c.json({ stills }, 201);
+  });
+
+  /** A still the person may see, and its character; an image on its own has none. */
   const stillAction =
-    (fn: (st: Still, ch: Character, c: Context) => Promise<Response> | Response) => async (c: Context) => {
+    (fn: (st: Still, ch: Character | undefined, c: Context) => Promise<Response> | Response) =>
+    async (c: Context) => {
       const st = store.stills.get(c.req.param('id') ?? '');
-      const ch = st ? store.characters.get(st.characterId) : undefined;
-      if (!st || !ch || !seesCharacter(whoOf(c), ch)) return c.json({ error: 'No such still' }, 404);
+      const ch = st?.characterId ? store.characters.get(st.characterId) : undefined;
+      if (!st || (st.characterId && !ch) || !seesStill(whoOf(c), st, (x) => store.characters.get(x)))
+        return c.json({ error: 'No such still' }, 404);
       return fn(st, ch, c);
     };
   app.post(
@@ -1273,6 +1372,7 @@ export function createApp(deps: AppDeps) {
   app.post(
     '/api/stills/:id/keep',
     stillAction(async (st, ch, c) => {
+      if (!ch) return c.json({ error: 'This image has no character to keep it for' }, 409);
       if (st.status !== 'done') return c.json({ error: 'Only a finished still can be kept' }, 409);
       const ok = usable(ch);
       if (!ok.ok) return c.json({ error: ok.why, code: 'character' }, 409);
@@ -1288,7 +1388,7 @@ export function createApp(deps: AppDeps) {
             { error: `A character keeps up to ${MAX_CHARACTER_REFS} references. Remove one first.` },
             409,
           );
-        const ref: CharacterRef = { file, view: st.view, source: 'still', addedAt: now() };
+        const ref: CharacterRef = { file, view: st.view ?? 'portrait', source: 'still', addedAt: now() };
         ch.references.push(ref);
       }
       // The first portrait kept is their face from now on.
@@ -1314,7 +1414,7 @@ export function createApp(deps: AppDeps) {
   );
   app.get('/api/stills/:id/preview', (c) => {
     const st = store.stills.get(c.req.param('id'));
-    if (!st || !seesCharacter(whoOf(c), store.characters.get(st.characterId))) return c.body(null, 404);
+    if (!st || !seesStill(whoOf(c), st, (x) => store.characters.get(x))) return c.body(null, 404);
     const p = scheduler.previews.get(st.id);
     if (!p) return st.image ? c.redirect(st.image, 307) : c.body(null, 404);
     c.header('cache-control', 'no-store');
@@ -2451,7 +2551,7 @@ export function createApp(deps: AppDeps) {
     // by their own SHA-256, so only someone who has the image can ask for it.
     if (!isOwner(c) && !c.get('signedMedia') && rel.startsWith('stills/')) {
       const st = store.stills.get(rel.slice('stills/'.length).replace(/\.png$/, ''));
-      if (!st || !seesCharacter(whoOf(c), store.characters.get(st.characterId))) return c.body(null, 404);
+      if (!st || !seesStill(whoOf(c), st, (x) => store.characters.get(x))) return c.body(null, 404);
     } else if (!isOwner(c) && !c.get('signedMedia') && !rel.startsWith('uploads/')) {
       const name = rel.replace(/^exports\//, '').replace(/\.[a-z0-9]+$/, '');
       const projectId = rel.startsWith('exports/')

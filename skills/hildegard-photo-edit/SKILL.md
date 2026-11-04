@@ -80,7 +80,14 @@ magick in.jpg -unsharp 0x1+0.5+0.02 -quality 95 print.jpg
 
 Sharpen last and once. Halos along edges mean too much.
 
-## 6. Bring a photo to life (Hildegard)
+## 6. Change it with words (Hildegard)
+
+To change a photo with words (a new sky, another colour, an object removed) rather than by hand, Hildegard’s own
+`make_image` tool edits up to four reference images locally. Set `no_real_person` only when the photo shows no real
+person; a real person is drawn only as a character who has consented. It draws a new image from the photo, so use
+steps 1 to 5 when the pixels must stay exactly yours.
+
+## 7. Bring a photo to life (Hildegard)
 
 A photo can be the first frame of a video shot: the camera starts on exactly that image.
 
@@ -92,7 +99,7 @@ A photo can be the first frame of a video shot: the camera starts on exactly tha
 
 Only animate photos of people who agreed to it. Never make someone appear to do or say what they didn't.
 
-## 7. Deliver
+## 8. Deliver
 
 Run `hildegard review` on the export (`--final` for the delivery bar), look at it at 100% and at phone size, and tell
 your user what you changed. If you couldn't fix something (motion blur, focus missed), say so.

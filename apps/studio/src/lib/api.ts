@@ -43,15 +43,19 @@ export class ApiError extends Error {
   readonly fix: string | null;
   /** When the server needs to know which owner is meant: their names. */
   readonly owners: string[] | null;
+  /** The server's machine-readable reason, such as `missing_model`, when it gives one. */
+  readonly code: string | null;
   constructor(
     status: number,
     message: string,
     field?: string,
     fix?: string | null,
     owners?: string[] | null,
+    code?: string | null,
   ) {
     super(message);
     this.owners = owners ?? null;
+    this.code = code ?? null;
     this.status = status;
     this.field = field;
     this.fix = fix ?? null;
@@ -92,8 +96,22 @@ async function call<T>(method: string, path: string, body?: unknown, raw?: BodyI
       data.field,
       data.fix,
       Array.isArray(data.owners) ? data.owners.filter((o): o is string => typeof o === 'string') : null,
+      typeof data.code === 'string' ? data.code : null,
     );
   return data;
+}
+
+/** What POST /api/images takes; the server checks every part. */
+export interface ImageBody {
+  prompt: string;
+  aspect: string;
+  quality: 'draft' | 'final';
+  count: number;
+  seed?: number;
+  references?: string[];
+  noRealPerson?: true;
+  camera?: { body?: string; lens?: string; focal?: number; aperture?: number };
+  look?: { lighting?: string; palette?: string; genre?: string; era?: string };
 }
 
 export interface UploadResult {
@@ -317,6 +335,9 @@ export const api = {
     call<Character>('DELETE', `/api/characters/${id}/references/${file}`),
   makeStills: (id: string, body: { view: CharacterView; count?: number; note?: string }) =>
     call<{ character: Character; stills: Still[] }>('POST', `/api/characters/${id}/stills`, body),
+  /** Images on their own: from words, or edits of up to four uploaded reference images. */
+  makeImages: (body: ImageBody) => call<{ stills: Still[] }>('POST', '/api/images', body),
+  forceStill: (id: string) => call<Still>('POST', `/api/stills/${id}/force`),
   keepStill: (id: string) => call<Character>('POST', `/api/stills/${id}/keep`),
   cancelStill: (id: string) => call<Still>('POST', `/api/stills/${id}/cancel`),
   retryStill: (id: string) => call<Still>('POST', `/api/stills/${id}/retry`),

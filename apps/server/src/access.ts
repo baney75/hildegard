@@ -127,6 +127,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/consent\/[^/]+\/recording$/,
     /^\/api\/characters$/,
     /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
+    /^\/api\/images$/,
     /^\/api\/stills\/[^/]+\/(cancel|force|retry|keep)$/,
     /^\/api\/report\/(draft|file)$/,
   ],
@@ -182,6 +183,21 @@ export function seesCharacter(who: Who | null, c: Character | undefined): boolea
   return c.owner === who.person.id;
 }
 
+/**
+ * A still a person may see: a character's, as they see that character; an image on its own, as they see a film: the
+ * owner and this computer see all of them, a director their own.
+ */
+export function seesStill(
+  who: Who | null,
+  st: Pick<Still, 'characterId' | 'owner'> | undefined,
+  character: (id: string) => Character | undefined,
+): boolean {
+  if (!who || !st) return false;
+  if (st.characterId !== null) return seesCharacter(who, character(st.characterId));
+  if (who.kind === 'local' || who.person.role === 'owner') return true;
+  return st.owner === who.person.id;
+}
+
 /** ComfyUI's address is this computer's business; the engine's state is everyone's. */
 const engineFor = (who: Who | null, e: EngineState): EngineState =>
   who?.kind === 'local' ? e : { ...e, url: '' };
@@ -233,12 +249,7 @@ export function snapshotFor(who: Who | null, s: Snapshot): Snapshot {
     choir: choirFor(who, s.choir),
     guests: guestsFor(who, s.guests),
     characters: s.characters.filter((c) => seesCharacter(who, c)),
-    stills: s.stills.filter((x) =>
-      seesCharacter(
-        who,
-        s.characters.find((c) => c.id === x.characterId),
-      ),
-    ),
+    stills: s.stills.filter((x) => seesStill(who, x, (id) => s.characters.find((c) => c.id === id))),
   };
 }
 
@@ -262,6 +273,11 @@ export function eventFilter(
       sent.add(id);
       return true;
     };
+    const seeStill = (st: Still) => {
+      if (!seesStill(who, st, characters)) return false;
+      sent.add(st.id);
+      return true;
+    };
     switch (e.type) {
       case 'take':
         return see((e.take as Take).projectId, e.take.id) ? e : null;
@@ -274,7 +290,7 @@ export function eventFilter(
       case 'character':
         return seeCharacter(e.character.id, e.character.id) ? e : null;
       case 'still':
-        return seeCharacter((e.still as Still).characterId, e.still.id) ? e : null;
+        return seeStill(e.still as Still) ? e : null;
       case 'removed':
         return who?.kind === 'local' ||
           (who?.kind === 'person' && who.person.role === 'owner') ||

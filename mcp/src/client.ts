@@ -241,6 +241,19 @@ export class HildegardClient {
       `/api/characters/${encodeURIComponent(id)}/stills`,
       body,
     );
+  /** Draws images on their own, from words or as an edit of up to four uploaded references. */
+  makeImages = (body: {
+    prompt: string;
+    aspect?: string;
+    quality?: 'draft' | 'final';
+    count?: number;
+    seed?: number;
+    references?: string[];
+    noRealPerson?: true;
+    camera?: { body?: string; lens?: string; focal?: number; aperture?: number };
+    look?: { lighting?: string; palette?: string; genre?: string; era?: string };
+    agent: string;
+  }) => this.call<{ stills: Still[] }>('POST', '/api/images', body);
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
   updateNow = () => this.call<UpdateState>('POST', '/api/update');
