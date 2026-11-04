@@ -23,7 +23,7 @@ it.skipIf(process.platform === 'win32')(
       const child = spawnSync(
         process.execPath,
         [vitest, 'run', '--config', here('./fixtures/vitest.config.ts'), '--root', here('./fixtures/')],
-        { encoding: 'utf8', timeout: 120_000, env: { ...process.env, LEAK_OUT: out } },
+        { encoding: 'utf8', timeout: 120_000, env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', LEAK_OUT: out } },
       );
       dir = readFileSync(out, 'utf8');
       // The fixture failed where it should: after ComfyUI was up (it asserts the script printed its processes), on
