@@ -880,7 +880,8 @@ export class Scheduler {
       const words = this.safety.text(still.prompt);
       if (!words.ok) throw new EngineError('content_blocked', words.message);
       const model = pickStillModel(this.catalog, still.model);
-      const q = model.final;
+      // A character's still is always final; an image renders at the quality it was asked for.
+      const q = model[still.quality ?? 'final'];
       const built = buildStillGraph({
         still: {
           model,

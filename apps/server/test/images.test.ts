@@ -123,6 +123,18 @@ describe('images', () => {
     await until(() => still(made.stills[0]!.id).status === 'done');
   });
 
+  it('samples a draft at the model’s draft steps, and a final at its final steps', async () => {
+    const steps = async (quality: 'draft' | 'final') => {
+      const { stills } = await json<{ stills: Still[] }>(
+        post('/api/images', { prompt: 'A pear on a slate', model: 'qwen-image-2512', quality }),
+      );
+      await until(() => still(stills[0]!.id).status === 'done');
+      return still(stills[0]!.id).progress?.steps;
+    };
+    expect(await steps('draft')).toBe(25);
+    expect(await steps('final')).toBe(50);
+  });
+
   it('refuses references for a model that draws from words only', async () => {
     const up = await upload(Buffer.concat([PNG, Buffer.from('words-only')]));
     const res = await post('/api/images', {
