@@ -10,6 +10,7 @@ import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
 import { Characters } from './pages/Characters.tsx';
 import { Cinema } from './pages/Cinema.tsx';
+import { Images } from './pages/Images.tsx';
 import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
 import { Settings } from './pages/Settings.tsx';
@@ -23,6 +24,7 @@ import { Welcome } from './pages/Welcome.tsx';
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
+  { to: '/images', match: /^\/images/, label: 'Images', icon: 'image' },
   { to: '/voice', match: /^\/voice/, label: 'Voice', icon: 'voice' },
   { to: '/talk', match: /^\/talk/, label: 'Talk', icon: 'mic' },
   { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
@@ -115,6 +117,7 @@ export function App() {
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
+  else if (parts[0] === 'images') page = <Images catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
   else if (parts[0] === 'sites' && isOwner(auth))

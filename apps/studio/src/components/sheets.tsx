@@ -87,7 +87,18 @@ function Check() {
 }
 
 // ── Camera rig ────────────────────────────────────────────────────────────────────────────────────────────────
-export function RigSheet({ open, onClose, catalog, draft, variant }: SheetProps) {
+/**
+ * The camera rig. It sets the Cinema draft unless `onApply` takes the choice instead (Images keeps its own), and then
+ * the words say it is for images.
+ */
+export function RigSheet({
+  open,
+  onClose,
+  catalog,
+  draft,
+  variant,
+  onApply,
+}: SheetProps & { onApply?: (rig: Draft['rig'], aspect: string) => void }) {
   const [rig, setRig] = useState(draft.rig);
   const [aspect, setAspect] = useState(draft.format.aspect);
   const body = catalog.bodies.find((b) => b.id === rig.body);
@@ -211,7 +222,9 @@ export function RigSheet({ open, onClose, catalog, draft, variant }: SheetProps)
           <div className="body-sm muted">
             {aspect !== draft.format.aspect
               ? `Frame changes to ${aspect}`
-              : 'Works with every installed video model'}
+              : onApply
+                ? 'Used for the images you make next'
+                : 'Works with every installed video model'}
           </div>
         </div>
         <Button kind="ghost" onClick={onClose}>
@@ -220,7 +233,8 @@ export function RigSheet({ open, onClose, catalog, draft, variant }: SheetProps)
         <Button
           kind="primary"
           onClick={() => {
-            setDraft((d) => ({ rig, format: { ...d.format, aspect } }));
+            if (onApply) onApply(rig, aspect);
+            else setDraft((d) => ({ rig, format: { ...d.format, aspect } }));
             onClose();
           }}
         >
@@ -393,7 +407,15 @@ export function MotionSheet({ open, onClose, catalog, draft, variant }: SheetPro
 }
 
 // ── Look ──────────────────────────────────────────────────────────────────────────────────────────────────────
-export function LookSheet({ open, onClose, catalog, draft, variant }: SheetProps) {
+/** The look. It sets the Cinema draft unless `onApply` takes the choice instead. */
+export function LookSheet({
+  open,
+  onClose,
+  catalog,
+  draft,
+  variant,
+  onApply,
+}: SheetProps & { onApply?: (look: Draft['look']) => void }) {
   const [look, setLook] = useState(draft.look);
   const pick = <K extends keyof Draft['look']>(k: K, v: string) =>
     setLook({ ...look, [k]: look[k] === v ? undefined : v });
@@ -408,7 +430,7 @@ export function LookSheet({ open, onClose, catalog, draft, variant }: SheetProps
       <SheetHead
         id="look-t"
         title="Look"
-        sub="Lighting, colour and period for the shots you make next. Seeds stay put, so only the look changes."
+        sub={`Lighting, colour and period for the ${onApply ? 'images' : 'shots'} you make next. Seeds stay put, so only the look changes.`}
         onClose={onClose}
       />
       <div className="hg-sheet__body">
@@ -500,7 +522,7 @@ export function LookSheet({ open, onClose, catalog, draft, variant }: SheetProps
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="body-strong">{lookSummary(catalog, look) || 'No look set'}</div>
           <div className="body-sm muted">
-            Choose again to clear a choice. Takes already made keep their look.
+            Choose again to clear a choice. {onApply ? 'Images' : 'Takes'} already made keep their look.
           </div>
         </div>
         <Button kind="ghost" onClick={() => setLook({})} disabled={!Object.values(look).some(Boolean)}>
@@ -509,7 +531,8 @@ export function LookSheet({ open, onClose, catalog, draft, variant }: SheetProps
         <Button
           kind="primary"
           onClick={() => {
-            setDraft({ look });
+            if (onApply) onApply(look);
+            else setDraft({ look });
             onClose();
           }}
         >
