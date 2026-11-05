@@ -53,7 +53,8 @@ export function blankNonProse(text: string): string {
     .replace(/^---\n[\s\S]*?\n---\n/, blank)
     .replace(/```[\s\S]*?```/g, blank)
     .replace(/~~~[\s\S]*?~~~/g, blank)
-    .replace(/`[^`]{0,400}?`/g, blank)
+    // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.
+    .replace(/`[^`]{0,400}?`/g, (m) => `x${blank(m.slice(1))}`)
     .replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, blank)
     .replace(/<(script|style|code|pre)\b[\s\S]*?<\/\1>/gi, blank)
     .replace(/<[^>\n]+>/g, blank)
