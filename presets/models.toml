@@ -182,6 +182,7 @@ terms = [
   "You are responsible for what you make with it. Hildegard draws a real person only with their consent.",
 ]
 graph = "flux-2-klein"
+references = 4
 minVramGb = 13
 draft = { height = 768, steps = 4, cfg = 1.0 }
 final = { height = 1024, steps = 4, cfg = 1.0 }
@@ -203,3 +204,123 @@ repo = "Comfy-Org/Flux-2-Klein-4B"
 path = "split_files/vae/flux2-vae.safetensors"
 dir = "vae"
 size = 336211292
+
+# More stills models, all Apache-2.0. `references` is how many reference images a model reads: Z-Image Turbo and
+# Qwen-Image draw from words only, so characters (which draw from references) always use the first model that reads
+# some. Hildegard's graphs follow ComfyUI's own blueprints for each (see packages/comfy/src/graph.ts).
+[[models]]
+id = "z-image-turbo"
+name = "Z-Image Turbo"
+kind = "image"
+family = "z-image"
+blurb = "Alibaba’s fast open image model: sharp photographs from words in 8 steps. Draws from words only, no edits."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Its text encoder, Qwen3-4B, is Apache-2.0 too.",
+  "You are responsible for what you make with it, and for following the law where you publish it.",
+]
+graph = "z-image"
+references = 0
+minVramGb = 16
+draft = { height = 768, steps = 8, cfg = 1.0 }
+final = { height = 1024, steps = 8, cfg = 1.0 }
+
+[[models.files]]
+repo = "Comfy-Org/Z-Image-Turbo"
+path = "split_files/diffusion_models/z_image_turbo_bf16.safetensors"
+dir = "diffusion_models"
+size = 12309866400
+
+# The same file FLUX.2 [klein] uses, so a computer with one already has it.
+[[models.files]]
+repo = "Comfy-Org/Z-Image-Turbo"
+path = "split_files/text_encoders/qwen_3_4b.safetensors"
+dir = "text_encoders"
+size = 8044982048
+
+[[models.files]]
+repo = "Comfy-Org/Z-Image-Turbo"
+path = "split_files/vae/ae.safetensors"
+dir = "vae"
+size = 335304388
+
+[[models]]
+id = "qwen-image-2512"
+name = "Qwen-Image 2512"
+kind = "image"
+family = "qwen-image"
+blurb = "Alibaba’s large open image model: strong with text in the picture and with detailed scenes. Words only, no edits."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/Qwen/Qwen-Image-2512"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Its text encoder, Qwen2.5-VL, is Apache-2.0 too.",
+  "You are responsible for what you make with it, and for following the law where you publish it.",
+]
+graph = "qwen-image"
+references = 0
+minVramGb = 24
+# Its fp8 weights: PyTorch on Apple's GPU has no float8 type to load them into.
+mps = false
+draft = { height = 928, steps = 25, cfg = 4.0 }
+final = { height = 1280, steps = 50, cfg = 4.0 }
+
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image"
+path = "split_files/diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors"
+dir = "diffusion_models"
+size = 20430679144
+
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image"
+path = "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
+dir = "text_encoders"
+size = 9384670680
+
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image"
+path = "split_files/vae/qwen_image_vae.safetensors"
+dir = "vae"
+size = 253806246
+
+[[models]]
+id = "qwen-image-edit-2511"
+name = "Qwen-Image-Edit 2511"
+kind = "image"
+family = "qwen-image"
+blurb = "Edit pictures with words: change a sky, an outfit or a style, keeping what you didn’t ask to change. Reads up to three images."
+license = "Apache-2.0"
+licenseUrl = "https://huggingface.co/Qwen/Qwen-Image-Edit-2511"
+terms = [
+  "Use it for anything, commercial work included, with no revenue limit.",
+  "Its text encoder, Qwen2.5-VL, is Apache-2.0 too.",
+  "You are responsible for what you make with it. Hildegard draws a real person only with their consent.",
+]
+graph = "qwen-image-edit"
+references = 3
+minVramGb = 24
+# Its fp8 weights: PyTorch on Apple's GPU has no float8 type to load them into.
+mps = false
+draft = { height = 768, steps = 20, cfg = 4.0 }
+final = { height = 1024, steps = 40, cfg = 4.0 }
+
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image-Edit"
+path = "split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors"
+dir = "diffusion_models"
+size = 20533762817
+
+# The text encoder and VAE are the ones Qwen-Image 2512 uses, so a computer with one already has them.
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image"
+path = "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
+dir = "text_encoders"
+size = 9384670680
+
+[[models.files]]
+repo = "Comfy-Org/Qwen-Image"
+path = "split_files/vae/qwen_image_vae.safetensors"
+dir = "vae"
+size = 253806246

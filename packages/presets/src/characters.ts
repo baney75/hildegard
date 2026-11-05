@@ -182,11 +182,25 @@ export interface ComposedStill {
   guard: { classifier: string; threshold: number };
 }
 
+/** How many reference images a stills model reads; one that doesn't say reads none. */
+export const referencesOf = (m: Model): number => m.references ?? 0;
+
 /** The stills model: the one named, or the first in the catalog. */
 export function pickStillModel(catalog: Catalog, id?: string): Model {
   const stills = catalog.models.filter((m) => m.kind === 'image');
   const m = id ? stills.find((x) => x.id === id) : stills[0];
   if (!m) throw new PresetError(id ? 'Unknown stills model' : 'This catalog has no stills model', 'model');
+  return m;
+}
+
+/**
+ * The stills model characters draw with: the one named, or the first that reads reference images, since a character
+ * is kept from shot to shot by its references. A model listed before it that draws from words alone can't break them.
+ */
+export function pickCharacterModel(catalog: Catalog, id?: string): Model {
+  if (id) return pickStillModel(catalog, id);
+  const m = catalog.models.find((x) => x.kind === 'image' && referencesOf(x) > 0);
+  if (!m) throw new PresetError('This catalog has no stills model that reads reference images', 'model');
   return m;
 }
 
@@ -205,11 +219,12 @@ export function composeCharacterStill(
   view: CharacterView,
   opts: { note?: string; quality?: 'draft' | 'final'; model?: string } = {},
 ): ComposedStill {
-  const model = pickStillModel(catalog, opts.model);
+  const model = pickCharacterModel(catalog, opts.model);
   const words = VIEW_WORDS[view];
   const aspect = catalog.aspects.find((a) => a.id === words.aspect) ?? catalog.aspects[0]!;
   const q = model[opts.quality ?? 'final'];
-  const refs = pickRefs(c, MAX_REFERENCES).map((r) => r.file);
+  // A model named outright may read fewer references than a character keeps.
+  const refs = pickRefs(c, Math.min(MAX_REFERENCES, referencesOf(model))).map((r) => r.file);
   const keep = refs.length
     ? `The same person as in reference ${imageWords(1, refs.length)}: keep their face, hair, build and clothes exactly`
     : '';
@@ -243,7 +258,7 @@ export function composeKeyframe(
   shot: { action: string; look: string; aspect: { width: number; height: number } },
   cast: readonly Character[],
 ): ComposedStill {
-  const model = pickStillModel(catalog);
+  const model = pickCharacterModel(catalog);
   const q = model.final;
   let at = 1;
   const references: string[] = [];
