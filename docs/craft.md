@@ -31,6 +31,8 @@ sentences), fewer than 12 words, stock phrases in words, lyrics and voice ("tape
 Warns: camera words in the prompt when the camera field sets them, more than 140 words, negations (models draw what
 they're told not to), too many beats for one shot, dashes, mood without anything visible, a named living artist.
 
+The words a person will read (a post, an email, a page) have their own lint: see [writing.md](writing.md).
+
 ### Technical checks
 
 | Check | Fails when | Warns when |

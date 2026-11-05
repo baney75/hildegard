@@ -98,6 +98,11 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard loop             Loops and their rounds (loop show <id>; loop submit <id> <file> --note;
                              loop critique <id> <round> --stdin; loop finish <id> <round> --note)
 
+  hildegard lint <file...>   Check writing for the tells that make it read as machine-made (a blog post, an email,
+                             a page): each one with where it is and what to do. A file of - reads standard input.
+                             Fix every fail, fix each warn unless it is your voice, and lint again. Exits 1 when
+                             any file fails (--json: the lint itself; --max N: places shown for each)
+
   hildegard report bug "<what broke>" --what "<what you did, expected, got>"
   hildegard report idea "<what you want>" --what "<the work you want to make>"
   hildegard report skill "<what to change>" --skill <name> [--model <model>] --what "<what happened>"
@@ -169,6 +174,7 @@ const valued = new Set([
   'change',
   'change-file',
   'figma',
+  'max',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);
@@ -248,6 +254,9 @@ async function main(): Promise<Result | null> {
       return skills(ctx, rest);
     case 'review':
       return review(ctx, rest);
+    case 'lint':
+      await (await import('./lint.ts')).lint(ctx, rest);
+      return null;
     case 'loop':
       return loop(ctx, rest);
     case 'cloud':
