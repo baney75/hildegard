@@ -698,6 +698,9 @@ export function registerTools(
         prose = await readFile(a.path, 'utf8').catch(() => {
           throw new HildegardError(0, `Cannot read ${a.path}`);
         });
+        // The byte limit lets multi-byte text through; the limit that counts is characters, and the server's.
+        if (prose.length > 200_000)
+          throw new HildegardError(422, `${a.path} isn’t a text file of up to 200,000 characters.`);
       }
       return text(describeProseLint(await client.lintWriting(prose!), a.max ?? 6));
     }),
