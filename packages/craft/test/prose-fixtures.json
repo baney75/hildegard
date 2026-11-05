@@ -163,6 +163,32 @@
       "warns": ["not-but"]
     },
     {
+      "name": "second-F6: a phrase starting with I after a comma is not a name",
+      "text": "Sure, I'd be happy to help.",
+      "fails": ["chatbot"]
+    },
+    {
+      "name": "second-F6: a phrase starting with I after a comma is not a name (typographic apostrophe)",
+      "text": "Look, I’ll be honest.",
+      "fails": ["throat-clearing"]
+    },
+    {
+      "name": "first-F1: a title-case heading is not a name",
+      "text": "# Why We Delve Into The Tapestry",
+      "fails": ["stock-words"]
+    },
+    {
+      "name": "first-F1: the name exemption does not apply on a heading line",
+      "text": "# How To Foster Growth\n\nThe program runs on Tuesdays at the church hall.",
+      "warns": ["loaded-words"],
+      "ok": true
+    },
+    {
+      "name": "names stay clean outside headings",
+      "clean": true,
+      "text": "Pastor Mike Foster will bless the food.\n\nThe shop on Beacon Street opens at nine."
+    },
+    {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
       "warns": ["fragments"]

@@ -181,6 +181,7 @@
     },
     "loaded-words": {
       "severity": "warn",
+      "exemptNames": true,
       "why": "Words generated text overuses that also have ordinary senses.",
       "fix": "Keep it if it means exactly what you say; otherwise use the plain word.",
       "patterns": [

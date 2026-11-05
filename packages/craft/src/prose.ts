@@ -39,6 +39,8 @@ interface PhraseRule {
   fix: string;
   patterns: string[];
   density?: number;
+  /** A capital in mid-sentence is a name, not the word (off a heading line): only for words with ordinary senses. */
+  exemptNames?: boolean;
 }
 
 const PHRASES = RULES.phrases as Record<string, PhraseRule>;
@@ -110,7 +112,8 @@ export function blankNonProse(text: string): string {
 
 /** Where each line starts, for the text being linted: one pass, then every match is a binary search. */
 let lines: { text: string; breaks: number[] } = { text: '', breaks: [] };
-function locate(text: string, index: number, match: string): ProseMatch {
+/** The number of line breaks before `index`: the 0-based line it is on. */
+function lineOf(text: string, index: number): number {
   if (lines.text !== text) {
     const breaks: number[] = [];
     for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) breaks.push(i);
@@ -124,12 +127,23 @@ function locate(text: string, index: number, match: string): ProseMatch {
     if (breaks[mid]! < index) lo = mid + 1;
     else hi = mid;
   }
+  return lo;
+}
+function locate(text: string, index: number, match: string): ProseMatch {
+  const lo = lineOf(text, index);
   return {
     text: match,
     index,
     line: lo + 1,
-    column: index - (lo ? breaks[lo - 1]! : -1),
+    column: index - (lo ? lines.breaks[lo - 1]! : -1),
   };
+}
+
+/** True when the line `index` is on is a Markdown heading. The marker is at most ten characters in. */
+function onHeading(text: string, prose: string, index: number): boolean {
+  const lo = lineOf(text, index);
+  const start = lo ? lines.breaks[lo - 1]! + 1 : 0;
+  return /^[^\S\n]{0,3}#{1,6}\s/.test(prose.slice(start, start + 10));
 }
 
 function all(
@@ -147,7 +161,8 @@ function all(
 
 /**
  * A match that starts with a capital in the middle of a sentence (after a lowercase letter, a comma or a semicolon and
- * a space, as SPECIFIC reads it) is a name, not the word: “Pastor Mike Foster”, “Beacon Street”.
+ * a space, as SPECIFIC reads it) is a name, not the word: “Pastor Mike Foster”, “Beacon Street”. Only the
+ * `exemptNames` rules use it, and never on a heading, where Title Case capitalises every word.
  */
 const isName = (prose: string, index: number, match: string) =>
   /^\p{Lu}/u.test(match) && /[\p{Ll},;] $/u.test(prose.slice(Math.max(0, index - 3), index));
@@ -239,9 +254,10 @@ export function lintProse(text: string): ProseLint {
   };
 
   const unquoted = unquote(prose);
+  const nameOrHeading = (p: string, i: number, m: string) => isName(p, i, m) && !onHeading(text, p, i);
   for (const [id, rule] of Object.entries(PHRASES)) {
     const matches = rule.patterns
-      .flatMap((p) => all(bounded(p), unquoted, text, isName))
+      .flatMap((p) => all(bounded(p), unquoted, text, rule.exemptNames ? nameOrHeading : undefined))
       .sort((a, b) => a.index - b.index);
     if (rule.density !== undefined && matches.length / Math.max(1, words) <= rule.density) continue;
     add(id, rule.severity, rule.why, rule.fix, matches);

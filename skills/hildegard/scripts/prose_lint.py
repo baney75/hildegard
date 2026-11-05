@@ -84,6 +84,12 @@ class Text:
     def u16(self, i):
         return i + bisect_left(self.astral, i) if self.astral else i
 
+    def on_heading(self, prose, index):
+        """True when the line `index` is on is a Markdown heading. The marker is at most ten characters in."""
+        before = bisect_left(self.nl, index)
+        start = self.nl[before - 1] + 1 if before else 0
+        return LINE_HEADING.match(prose[start : start + 10]) is not None
+
     def locate(self, index, match):
         before = bisect_left(self.nl, index)
         last = self.u16(self.nl[before - 1]) if before else -1
@@ -164,7 +170,8 @@ def unquote(prose):
 
 def is_name(prose, index, match):
     """A match that starts with a capital in the middle of a sentence (after a lowercase letter, a comma or a
-    semicolon and a space, as count_specifics reads it) is a name, not the word: "Pastor Mike Foster", "Beacon Street"."""
+    semicolon and a space, as count_specifics reads it) is a name, not the word: "Pastor Mike Foster", "Beacon Street".
+    Only the exemptNames rules use it, and never on a heading, where Title Case capitalises every word."""
     return (
         unicodedata.category(match[0]) == "Lu"
         and index >= 2
@@ -193,6 +200,7 @@ def paragraphs(prose):
 
 
 HEADING = rx(rf"\A{S}{{0,3}}#{{1,6}}{S}")
+LINE_HEADING = rx(rf"\A{SNL}{{0,3}}#{{1,6}}{S}")
 LIST = rx(rf"\A{S}{{0,3}}(?:[-*+]|\d+[.)]){S}")
 # One sentence: its first character, then up to the first whole run of . ! or ? that ends a word. After the first
 # character the run must start where it begins, or a greedy run is retried from every character of 'a!!!!...!b'.
@@ -285,9 +293,11 @@ def lint_prose(text):
             findings.append({"id": id_, "severity": severity, "why": why, "fix": fix, "matches": matches})
 
     unquoted = unquote(prose)
+    name_not_heading = lambda p, i, m: is_name(p, i, m) and not t.on_heading(p, i)
     for id_, rule in RULES["phrases"].items():
+        skip = name_not_heading if rule.get("exemptNames") else None
         matches = sorted(
-            [m for p in rule["patterns"] for m in t.all(bounded(p), unquoted, is_name)], key=lambda m: m["index"]
+            [m for p in rule["patterns"] for m in t.all(bounded(p), unquoted, skip)], key=lambda m: m["index"]
         )
         if "density" in rule and len(matches) / max(1, words) <= rule["density"]:
             continue
