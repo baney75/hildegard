@@ -136,7 +136,9 @@ describe('images', () => {
   });
 
   it('draws a character’s still at final steps, whatever quality its record carries', async () => {
-    const c = await json<{ id: string }>(post('/api/characters', { name: 'Mara', description: 'A carpenter' }));
+    const c = await json<{ id: string }>(
+      post('/api/characters', { name: 'Mara', description: 'A carpenter' }),
+    );
     const st = {
       id: 'aaaaaaaaaaaaaaa1',
       characterId: c.id,
