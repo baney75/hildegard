@@ -104,7 +104,8 @@ def blank_non_prose(text):
     text = rx(r"\A---\n[\s\S]*?\n---\n").sub(b, text)
     text = rx(r"```[\s\S]*?```").sub(b, text)
     text = rx(r"~~~[\s\S]*?~~~").sub(b, text)
-    text = rx(r"`[^`]{0,400}?`").sub(b, text)
+    # Inline code reads as one word in its sentence: "call `lint_writing` on it" is not a fragment.
+    text = rx(r"`[^`]{0,400}?`").sub(lambda m: "x" + blank(m.group(0)[1:]), text)
     text = rx(r"!\[[^\]\n]*\]\([^)\n]*\)").sub(b, text)
     text = rx(r"<(script|style|code|pre)\b[\s\S]*?</\1>", re.I).sub(b, text)
     text = rx(r"<[^>\n]+>").sub(b, text)

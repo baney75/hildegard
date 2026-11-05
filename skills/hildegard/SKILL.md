@@ -69,6 +69,7 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
 | sculpture, 3D models, printing, renders | `sculpture-3d.md` |
 | fiction, poetry, scripts, prayer, speech | `writing-craft.md` |
 | essays, nonfiction, research, APA, Chicago or MLA | `nonfiction-academic.md` |
+| blog posts, newsletters, web pages, announcements, long posts | `blog.md` |
 | a whole book | `books.md` |
 | which masters, books, journals and tools to learn from | `masters-and-sources.md` |
 
@@ -96,6 +97,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 | Sculpture, 3D models, prints | `loop_start` kind `model`, then `loop_submit`, `loop_critique`, `loop_finish` | `hildegard-3d` |
 | Iterating any image, video or sound until it is right | `loop_start` with that kind, then the same loop | `hildegard-loop` |
 | Any prompt, before it renders | `review_prompt` | `hildegard-craft` |
+| Any prose a person will read, before anyone sees it | `lint_writing` (without Hildegard: `scripts/prose_lint.py`) | `references/blog.md` |
 
 **The loop is step 6 made mechanical.** Every round comes back measured and drawn (a turntable with silhouettes for a model, a contact sheet for media); answer every question by pointing at a view or a check, change one thing, and send the next round. Hildegard won't take round two before the critique of round one, and it keeps every round so the user can see how the work got there.
 
@@ -147,6 +149,7 @@ Before building anything, read `references/pitfalls.md`: the numbered pitfalls f
 **Scale the interview to the work.** It always matters; its depth changes:
 - **Craft service** (remove a background, color-match two shots, cut a podcast to length, format references in APA, fix a Suno take): no Socratic interview. Ask only what changes the result: the destination, the style guide and its edition, the look to match, the deadline. Then work.
 - **Made to a brief** (an essay for a prompt, a thumbnail, a lyric video, a chapter edit, a podcast episode): a short intake of two or three questions. What it's for, who it's for, what must be true, what the user already has. Then the false-idol test once, on the angle.
+- **Everyday prose under the writer's name** (a blog post, a newsletter, an about page): the material interview in `references/blog.md`. Don't draft until you hold at least five concrete things only this writer knows: their story, numbers, names and phrases. Prose drafted from a topic alone reads as AI however well the sentences are made.
 - **A serious work of the user's own** (a painting, a song, a film, a novel, a sermon, a memoir): the full midwifery below.
 
 When unsure, start light and deepen if the answers reveal the user carries something more.
@@ -283,7 +286,7 @@ Read `references/sculpture-3d.md` (the blockout-to-detail pipeline, SDF and Blen
 
 #### 5e. Writing, every kind
 
-Read `references/writing-craft.md` for fiction, poetry, scripts, prayer and speeches; `references/nonfiction-academic.md` for essays, nonfiction, research and academic papers with APA, Chicago or MLA citations; and `references/books.md` for anything book-length. The machine-voice purge and the line-level rules apply to every kind of writing. A short piece can live in the reply; a piece to keep goes in a document (a Docs artifact or a canvas); a formatted paper or book goes to the file format it needs (.docx through pandoc for coursework, PDF or EPUB for books).
+Read `references/blog.md` for blog posts, newsletters and web pages (interview for the writer's own material before drafting a word); `references/writing-craft.md` for fiction, poetry, scripts, prayer and speeches; `references/nonfiction-academic.md` for essays, nonfiction, research and academic papers with APA, Chicago or MLA citations; and `references/books.md` for anything book-length. The machine-voice purge and the line-level rules apply to every kind of writing. A short piece can live in the reply; a piece to keep goes in a document (a Docs artifact or a canvas); a formatted paper or book goes to the file format it needs (.docx through pandoc for coursework, PDF or EPUB for books).
 
 #### 5f. Working with given media and editing images
 
@@ -349,7 +352,7 @@ Run the check for the medium, view everything it writes, and fix the problems be
 
 **3D:** with Hildegard connected, run the model loop (`hildegard-3d`): every round is measured and drawn from eight sides. Otherwise run `inspect_3d.py` from `references/sculpture-3d.md` (Checks), then real renders from four to eight angles.
 
-**Writing:** run the checks in `references/writing-craft.md`; for academic work, also the checklist in `references/nonfiction-academic.md` (every source verified and every citation generated, never invented).
+**Writing:** lint every draft before anyone sees it: `lint_writing` with Hildegard connected, otherwise `python3 scripts/prose_lint.py draft.md`. Fix every fail, fix each warn unless it is the writer's deliberate voice, and lint again after each fix. Then run the checks in `references/writing-craft.md` (or `references/blog.md` for everyday prose); for academic work, also the checklist in `references/nonfiction-academic.md` (every source verified and every citation generated, never invented). Report the lint result in the delivery.
 
 **Interactive.** Take screenshots of the first, middle and explored states, and check the console for errors.
 
