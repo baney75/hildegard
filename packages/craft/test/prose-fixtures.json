@@ -1,0 +1,86 @@
+{
+  "_about": "Shared cases for both prose lint engines (prose.ts and skills/hildegard/scripts/prose_lint.py). `fails` lists rule ids that must fail; `warns` ids that must warn; `clean: true` means no finding at all.",
+  "cases": [
+    {
+      "name": "the stock blog opener",
+      "text": "In today's fast-paced digital landscape, content creators face a myriad of challenges. Let's dive in and explore how AI tools can help you unlock the full potential of your workflow, seamlessly streamlining every step. It's important to note that these tools are a game-changer.",
+      "fails": ["stock-words", "empty-phrases"]
+    },
+    {
+      "name": "dashes in short copy",
+      "text": "We fixed the oven — the real problem was the thermostat. Dinner was late.",
+      "fails": ["dashes"]
+    },
+    {
+      "name": "one dash in a long piece warns",
+      "text": "The barn went up in a week. We set the posts on Monday, after two days of rain had softened the ground enough to dig without the auger jamming on every rock. Tuesday we framed the walls on the slab and stood them with the tractor, which took four of us and more shouting than it should have.\n\nWednesday was rafters. My brother cut every one from a single pattern he drew on the shop floor in chalk, and only one came out short, which we used for the lean-to on the north side. By Thursday afternoon the purlins were on and the metal roofing was stacked on the trailer.\n\nFriday we hung the roof. The wind picked up after lunch, so we screwed down the last six sheets with one person holding each corner, and nobody let go. My father, who built the old barn in 1979, walked through it that evening and said the doors would stick in August — he was right, and we planed them in September.",
+      "warns": ["dashes"]
+    },
+    {
+      "name": "not X but Y, twice",
+      "text": "The problem isn't the model, it's the eval. Good writing is not about rules, but about the reader. Our app is not just a tool but a partner.",
+      "fails": ["not-but"]
+    },
+    {
+      "name": "negative listing and fragments",
+      "text": "Not a framework. Not a library. A way of working. That's it. That's the whole thing. Really.",
+      "fails": ["negative-list"],
+      "warns": ["fragments"]
+    },
+    {
+      "name": "ing tail and puffery",
+      "text": "The library added offline search, highlighting the team's commitment to users. The release marks a pivotal moment for the project and plays a vital role in its future.",
+      "fails": ["ing-tail", "puffery"]
+    },
+    {
+      "name": "summary ending",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents straight out through the old chimney chase.\n\nIn conclusion, the new layout makes the kitchen better in every way.",
+      "fails": ["summary-ending", "summary-openers"]
+    },
+    {
+      "name": "emoji headings and placeholders",
+      "text": "## 🚀 Getting started\n\nInstall the app and open it. TODO: add the screenshot.\n\n## ✅ Next steps\n\nSign in with your email.",
+      "fails": ["emoji-heading", "unfinished"]
+    },
+    {
+      "name": "chatbot leftovers",
+      "text": "Great question! Here is the recipe you asked for. Let me know if you have any other questions.",
+      "fails": ["chatbot"]
+    },
+    {
+      "name": "faux insight and throat clearing",
+      "text": "Here's the thing. Most people don't realize that pricing is a design decision.",
+      "fails": ["throat-clearing", "faux-insight"]
+    },
+    {
+      "name": "colon reveal",
+      "text": "We tried every fix the forum suggested. The detail that made it work: a separate ground wire for the pump.",
+      "warns": ["colon-reveal"]
+    },
+    {
+      "name": "a plain post with code and links",
+      "clean": true,
+      "text": "# Moving the shop to Postgres\n\nWe ran the store on SQLite for three years. It handled about 40 orders a day without complaint, and backups were a single file we copied to a USB drive every Friday.\n\nIn March the order count tripled after a feature in a woodworking magazine, and writes started to queue behind each other at lunch. We moved to Postgres over one weekend.\n\n```js\n// leverage the pool — robust and seamless\nconst pool = new Pool({ max: 10 });\n```\n\nThe migration script is in [our notes](https://example.com/delve-into-the-tapestry), and it took 14 minutes to copy 212,000 rows. The only surprise was time zones: SQLite stored them as text, so we converted each one by hand before the copy."
+    },
+    {
+      "name": "a plain email",
+      "clean": true,
+      "text": "Hi Ruth,\n\nThe trailer is ready. I replaced both bearings on the left side and the brake light on the right, and it held air overnight. You can pick it up Saturday after nine, or I can drop it off Sunday afternoon if that's easier.\n\nThe bill is $184, mostly parts. Pay whenever you come by.\n\nThanks,\nDon"
+    },
+    {
+      "name": "a plain essay paragraph with varied rhythm",
+      "clean": true,
+      "text": "My grandmother kept bees for forty years. She never wore a veil, and she was stung maybe twice a summer, always on the hands, always when she rushed. Her rule was simple enough to fit on the inside of the hive lid, where she wrote it in pencil: move slow, smell like nothing, and work when the field bees are out. I have broken all three. The bees taught me the rule faster than she did, and with a lot more swelling. Last June I opened the hive at seven in the morning, wearing aftershave, in a hurry to get to work. I counted eleven stings before I reached the truck."
+    },
+    {
+      "name": "a 2026 default model blog post (Claude Haiku, no house rules)",
+      "text": "# Why Homeschooling Works for Rural Families\n\nLiving far from town has real costs. The nearest library may be an hour's drive, the closest specialized tutor might be across a county line, and the school bus can mean a long morning ride. Homeschooling turns many of those obstacles into advantages.\n\n**Learning fits the land.** A rural child can study soil chemistry by testing the garden, learn biology by tracking the creek's wildlife, and practice math by calculating feed quantities or fencing needs. Lessons grounded in real work stick, and they show children that what they learn has a purpose beyond the page.\n\n**Schedules bend to real life.** Farm work, weather, and seasonal demands don't follow a bell schedule. Homeschooling lets families front-load lessons during a quiet winter and ease off during planting or harvest. A child can finish a history unit at the kitchen table in the morning and help move cattle in the afternoon, without missing anything essential.\n\n**Time is reclaimed.** Rural bus routes can add hours to a child's day. Those hours go back to sleep, reading, play, or a family dinner. Many rural homeschoolers finish their core lessons by midday, leaving the afternoon for music lessons, 4-H projects, or simply being a kid outdoors.\n\n**Children get more one-on-one attention.** In a small rural family, a parent can notice when a child struggles with fractions or loses interest in reading and adjust right away. There is no waiting weeks for a parent-teacher conference, and no child gets lost in a crowded classroom.\n\n**Community takes a different shape.** Rural homeschooling families often build their own networks: co-ops that share teaching duties, field trips to a neighbor's dairy, and weekly gatherings at the church hall. These connections can be just as rich as a school social life, and they often include adults of all ages, teaching children how to talk, work, and help one another.\n\n**Independence grows naturally.** Rural life asks children to take responsibility early. Homeschooled kids often learn to manage their own time, complete long projects, and solve problems on their own. Those habits serve them whether they head to college, a trade, or the family farm.\n\nHomeschooling is not the right choice for every family, and it asks a great deal of parents. But for many rural households, it offers something hard to find elsewhere: an education that uses the land, honors the family's rhythm, and keeps children close to the people and places they love.\n",
+      "warns": ["bold-leads", "specifics"]
+    },
+    {
+      "name": "a default post leaning on lists of three",
+      "text": "# Choosing Your First Pickup Truck\n\nBuying a first pickup is exciting. Trucks have a reputation for toughness and utility, but the right one for you depends far more on how you'll use it than on how it looks on the lot. Before you walk into a dealership, take a few minutes to get honest about your needs.\n\n## Start With the Work, Not the Wish List\n\nAsk yourself what you'll actually haul. If you're mostly carrying groceries, a bike, or a few bags of mulch, a compact truck with a short bed may serve you perfectly well. If you tow a boat, a camper, or a utility trailer every weekend, you'll need a full-size truck with a higher towing rating and a stronger frame. Be realistic. Buying a larger truck than you need means paying more for fuel, insurance, and parking every month.\n\n## Size Matters More Than You Think\n\nCompact trucks are easier to park, cheaper to buy, and often more economical on gas. Full-size trucks offer more cabin room, a longer bed, and greater capability, but they can be a handful in tight city streets and parking garages. Measure your garage and your most common parking spots before you fall in love with a model.\n\n## Cab and Bed Configurations\n\nMost trucks come in regular, extended, and crew cab layouts. A regular cab is the lightest and least expensive. An extended cab adds small rear seats for occasional passengers. A crew cab gives you full rear seating, which is ideal if you carry people often but means a shorter bed on many models. Choose the bed length that fits your typical loads, since a bed that's too short can make sheets of plywood a puzzle.\n\n## Four-Wheel Drive: Do You Really Need It?\n\nFour-wheel drive adds cost, weight, and maintenance, and it reduces fuel economy. It's essential if you drive on snow, mud, or unpaved roads regularly. If your driving is mostly paved and dry, a two-wheel-drive truck with good tires will save you money without sacrificing much day-to-day capability.\n\n## Budget Beyond the Sticker Price\n\nThe purchase price is only the beginning. Factor in fuel, insurance, registration, routine maintenance, and tires. Trucks often carry higher insurance premiums than sedans. Get quotes before you sign, and compare the total cost of ownership across two or three models rather than focusing on the monthly payment alone.\n\n## Buy Used, or Buy New?\n\nA two- or three-year-old truck often sheds its steepest depreciation while still offering modern features and a warranty remainder. Used trucks also make a forgiving first purchase, since a scratch in the bed matters less when the truck is already a working tool. Get a pre-purchase inspection from an independent mechanic, especially for a truck that has been used for towing or off-road work.\n\n## Test Drive With a Purpose\n\nBring your real cargo, or something close to it. Drive on the highway, in traffic, and on the roads you use most. Check visibility, turning radius, and how the seats feel after thirty minutes. The truck that suits your life will feel comfortable in the ordinary moments, not just the showroom.\n\nChoose deliberately, and your first pickup can serve you well for many years.\n",
+      "warns": ["triads"]
+    }
+  ]
+}
