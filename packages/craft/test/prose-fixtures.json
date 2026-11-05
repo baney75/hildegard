@@ -195,6 +195,50 @@
       "ok": true
     },
     {
+      "name": "second-F9: rhythm reports the sentence as written, with its inline code and link",
+      "text": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now. The barn roof went up in a single windy week with help. Our neighbors brought lumber and sandwiches from the diner. Every rafter was cut from one pattern drawn on the floor. The doors stuck in August and we planed them later. Grandmother kept bees behind the old shed for years. The trailer needed new bearings and a brake light too. Dinner was late again because the oven would not heat.",
+      "warns": ["rhythm"],
+      "reports": {
+        "rhythm": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now."
+      }
+    },
+    {
+      "name": "second-F9: fragments report the sentences as written",
+      "text": "Run `lint_writing` now. See [the docs](https://example.com/docs). Fix it fast.",
+      "warns": ["fragments"],
+      "reports": {
+        "fragments": "Run `lint_writing` now. See [the docs](https://example.com/docs). Fix it fast."
+      }
+    },
+    {
+      "name": "second-F9: summary-ending reports the paragraph as written",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nOverall, run `lint_writing` and read [the guide](https://example.com/guide).",
+      "fails": ["summary-ending"],
+      "reports": {
+        "summary-ending": "Overall, run `lint_writing` and read [the guide](https://example.com/guide)."
+      }
+    },
+    {
+      "name": "second-F9: bold-leads report the label as written",
+      "text": "**Step 1 with `x_1` done.** Then we moved on to the next job around the farm.\n\n**Step 2 with `x_2` done.** Then we moved on to the next job around the farm.\n\n**Step 3 with `x_3` done.** Then we moved on to the next job around the farm.\n\n**Step 4 with `x_4` done.** Then we moved on to the next job around the farm.",
+      "warns": ["bold-leads"],
+      "reports": { "bold-leads": "**Step 1 with `x_1` done.**" }
+    },
+    {
+      "name": "second-F9: bold reports the span as written",
+      "text": "Use **`lint_writing` first** and then **the draft** again.",
+      "warns": ["bold"],
+      "reports": { "bold": "**`lint_writing` first**" }
+    },
+    {
+      "name": "second-F9: specifics reports the first sentence as written",
+      "text": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door.",
+      "warns": ["specifics"],
+      "reports": {
+        "specifics": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now."
+      }
+    },
+    {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
       "warns": ["fragments"]

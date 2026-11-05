@@ -12,6 +12,8 @@ interface Case {
   warns?: string[];
   clean?: boolean;
   ok?: boolean;
+  /** The first place a finding reports, exactly as written in the text. */
+  reports?: Record<string, string>;
 }
 
 interface Attack {
@@ -37,6 +39,8 @@ describe('prose lint', () => {
       for (const id of c.fails ?? []) expect(ids('fail')).toContain(id);
       for (const id of c.warns ?? []) expect(ids('warn')).toContain(id);
       if (c.fails?.length) expect(l.ok).toBe(false);
+      for (const [id, at] of Object.entries(c.reports ?? {}))
+        expect(l.findings.find((f) => f.id === id)?.matches[0]?.text).toBe(at);
     });
   }
 

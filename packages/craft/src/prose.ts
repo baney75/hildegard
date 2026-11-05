@@ -195,8 +195,11 @@ const isList = (p: string) => /^\s{0,3}(?:[-*+]|\d+[.)])\s/.test(p);
 const SENTENCE =
   /\S(?:(?:[.!?]+(?![.!?])["”’)]*(?=\s|$)|$)|[\s\S]*?(?:(?<![.!?])[.!?]+(?![.!?])["”’)]*(?=\s|$)|$))/g;
 
-/** Sentences of running prose (not headings or list items), with offsets. */
-function sentences(prose: string): Array<{ text: string; index: number; words: number }> {
+/**
+ * Sentences of running prose (not headings or list items), with offsets. `text` is the sentence as written (read from
+ * the text as given, so code and links show), `words` counts the blanked copy.
+ */
+function sentences(prose: string, original: string): Array<{ text: string; index: number; words: number }> {
   const out: Array<{ text: string; index: number; words: number }> = [];
   for (const p of paragraphs(prose)) {
     if (isHeading(p.text) || isList(p.text)) continue;
@@ -204,9 +207,11 @@ function sentences(prose: string): Array<{ text: string; index: number; words: n
       const t = m[0].trim();
       if (!t) continue;
       const lead = m[0].length - m[0].trimStart().length;
+      const at = p.index + m.index + lead;
       out.push({
-        text: t,
-        index: p.index + m.index + lead,
+        // Trimmed after slicing: the blanked copy ends in spaces where the sentence ends in a link or a URL.
+        text: original.slice(at, p.index + m.index + m[0].length).trim(),
+        index: at,
         words: countWords(t),
       });
     }
@@ -323,7 +328,7 @@ export function lintProse(text: string): ProseLint {
       }),
   );
 
-  const said = sentences(prose);
+  const said = sentences(prose, text);
   const { run, maxWords } = RULES.fragments;
   const frags: ProseMatch[] = [];
   let start = -1;
@@ -375,7 +380,16 @@ export function lintProse(text: string): ProseLint {
       'fail',
       'The last paragraph sums up what the reader just read.',
       'End on the last concrete point, or on what to do next.',
-      [locate(text, last.index, last.text.trim().split('\n')[0]!)],
+      [
+        locate(
+          text,
+          last.index,
+          text
+            .slice(last.index, last.index + last.text.length)
+            .trim()
+            .split('\n')[0]!,
+        ),
+      ],
     );
 
   const triads = all(TRIAD, prose, text);
@@ -395,7 +409,10 @@ export function lintProse(text: string): ProseLint {
       'warn',
       'Paragraph after paragraph opens on a bold label, like slides.',
       'Write paragraphs that lead with their point, or use real headings if it is a reference page.',
-      leads.map((p) => locate(text, p.index, p.text.match(BOLD_LEAD)![0].trim())),
+      leads.map((p) => {
+        const lead = p.text.match(BOLD_LEAD)![0];
+        return locate(text, p.index, text.slice(p.index, p.index + lead.length).trim());
+      }),
     );
 
   const specifics = (unquoted.match(SPECIFIC) ?? []).length;
@@ -421,7 +438,10 @@ export function lintProse(text: string): ProseLint {
     if (isList(p.text) || /^\s*\|/.test(p.text)) continue;
     const hits = [...p.text.matchAll(BOLD)];
     if (hits.length > RULES.bold.perParagraph)
-      for (const h of hits) bold.push(locate(text, p.index + h.index, h[0]));
+      for (const h of hits)
+        bold.push(
+          locate(text, p.index + h.index, text.slice(p.index + h.index, p.index + h.index + h[0].length)),
+        );
   }
   add(
     'bold',

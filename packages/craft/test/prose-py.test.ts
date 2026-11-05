@@ -37,7 +37,7 @@ interface Attack {
 const pairs = (l: ProseLint) => l.findings.map((f) => `${f.severity} ${f.id}`).sort();
 
 describe('prose lint: the Python script and the package agree', () => {
-  for (const c of FIXTURES.cases as Array<{ name: string; text: string }>) {
+  for (const c of FIXTURES.cases as Array<{ name: string; text: string; reports?: Record<string, string> }>) {
     it(c.name, () => {
       const js = lintProse(c.text);
       const py = lintPy(c.text);
@@ -49,6 +49,8 @@ describe('prose lint: the Python script and the package agree', () => {
       );
       // The same places, in the same order: text, offset, line and column.
       expect(py.findings.map((f) => f.matches)).toEqual(js.findings.map((f) => f.matches));
+      for (const [id, at] of Object.entries(c.reports ?? {}))
+        expect(py.findings.find((f) => f.id === id)?.matches[0]?.text).toBe(at);
     });
   }
 

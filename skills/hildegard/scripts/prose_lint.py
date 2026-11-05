@@ -208,8 +208,9 @@ _RUN = rf"[.!?]+(?![.!?])[\"”’)]*(?={S}|\Z)"
 SENTENCE = rx(rf"{NS}(?:(?:{_RUN}|\Z)|[\s\S]*?(?:(?<![.!?]){_RUN}|\Z))")
 
 
-def sentences(prose):
-    """Sentences of running prose (not headings or list items): (text, index, words)."""
+def sentences(prose, original):
+    """Sentences of running prose (not headings or list items): (text, index, words). The text is the sentence as
+    written, read from the text as given so code and links show; the words count the blanked copy."""
     out = []
     for ptext, pindex in paragraphs(prose):
         if HEADING.match(ptext) or LIST.match(ptext):
@@ -219,7 +220,9 @@ def sentences(prose):
             if not t:
                 continue
             lead = len(m.group(0)) - len(m.group(0).lstrip(JS_WS))
-            out.append((t, pindex + m.start() + lead, count_words(t)))
+            at = pindex + m.start() + lead
+            # Trimmed after slicing: the blanked copy ends in spaces where the sentence ends in a link or a URL.
+            out.append((jstrip(original[at : pindex + m.end()]), at, count_words(t)))
     return out
 
 
@@ -360,7 +363,7 @@ def lint_prose(text):
         reveals,
     )
 
-    said = sentences(prose)
+    said = sentences(prose, text)
     run, max_words = RULES["fragments"]["run"], RULES["fragments"]["maxWords"]
     frags = []
     start = -1
@@ -399,6 +402,7 @@ def lint_prose(text):
     paras = [p for p in paragraphs(prose) if not HEADING.match(p[0])]
     if paras and len(paras) > 2 and ENDING.match(paras[-1][0]):
         ptext, pindex = paras[-1]
+        ptext = text[pindex : pindex + len(ptext)]
         add(
             "summary-ending",
             "fail",
@@ -426,7 +430,7 @@ def lint_prose(text):
             "warn",
             "Paragraph after paragraph opens on a bold label, like slides.",
             "Write paragraphs that lead with their point, or use real headings if it is a reference page.",
-            [t.locate(p[1], jstrip(BOLD_LEAD.match(p[0]).group(0))) for p in leads],
+            [t.locate(p[1], jstrip(text[p[1] : p[1] + BOLD_LEAD.match(p[0]).end()])) for p in leads],
         )
 
     sp = RULES["specifics"]
@@ -454,7 +458,7 @@ def lint_prose(text):
             continue
         hits = list(BOLD.finditer(ptext))
         if len(hits) > RULES["bold"]["perParagraph"]:
-            bold.extend(t.locate(pindex + h.start(), h.group(0)) for h in hits)
+            bold.extend(t.locate(pindex + h.start(), text[pindex + h.start() : pindex + h.end()]) for h in hits)
     add("bold", "warn", "Bold sprinkled through a paragraph shouts.", "Let the sentence carry the weight.", bold)
 
     unfinished = []
