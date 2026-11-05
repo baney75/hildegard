@@ -57,6 +57,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'install_voice_model',
       'keep_designed_voice',
       'keep_still',
+      'lint_writing',
       'list_characters',
       'list_presets',
       'list_skills',
@@ -230,6 +231,37 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     // Words are checked like any prompt.
     const bad = await call('make_image', { prompt: 'nude' });
     expect(bad.isError).toBe(true);
+  });
+
+  it('lints writing before the agent shows it, from text or from a file', async () => {
+    const stock = 'We will delve into the realm of it — and it is robust.';
+    const bad = await call('lint_writing', { text: stock });
+    expect(bad.isError).toBeFalsy();
+    expect(textOf(bad)).toMatch(/^Fails: \d tells? to fix/);
+    expect(textOf(bad)).toMatch(/- fail stock-words: .+ At 1:9 “delve”/);
+    expect(textOf(bad)).toMatch(/- fail dashes: /);
+
+    const file = join(dir, 'post.md');
+    writeFileSync(file, 'We bought a red barn in 2019 and painted it.\n\nWe will delve into it.\n');
+    const fromFile = textOf(await call('lint_writing', { path: file }));
+    expect(fromFile).toMatch(/- fail stock-words: .+ At 3:9 “delve”/);
+
+    expect(textOf(await call('lint_writing', { text: 'A plain sentence about a red barn.' }))).toBe(
+      'Clean: no tells in 7 words.',
+    );
+    expect(textOf(await call('lint_writing', { text: 'delve delved delving', max: 1 }))).toContain(
+      'and 2 more',
+    );
+
+    for (const args of [{}, { text: 'x', path: file }, { path: join(dir, 'missing.md') }]) {
+      const r = await call('lint_writing', args);
+      expect(r.isError, JSON.stringify(args)).toBe(true);
+    }
+    // Told to every agent: lint before showing, fix, lint again.
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.description).toMatch(/every piece of prose before you show it/);
+    expect(tool.description).toMatch(/Fix every fail/);
+    expect(tool.description).toMatch(/lint again/);
   });
 
   it('corrects a wrong id with the ids that would work', async () => {

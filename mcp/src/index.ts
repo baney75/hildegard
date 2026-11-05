@@ -24,6 +24,7 @@ Voice: list_voices, then speak a script in any voice there; design_voice makes a
 Sites: for a website, start from site_templates, a Figma link, a pen.dev file or the live site (site_new), edit it with site_read and site_write, and run it through the web loop with site_id.
 Loops: to make a 3D model or a part to print, to design a web page or site, or to iterate on any image, video or sound until it is right, loop_start, then loop_submit each version, look at what comes back, and loop_critique it honestly before the next round; loop_finish delivers the best round.
 Reports: when Hildegard itself fails (a tool errors, or a take fails, in a way no change to the request fixes), or your user wants something it can't do yet, offer to tell its makers. report_draft writes it with the computer's details, private things taken out; show your user the exact text and any matching issues, and call report_file only after they say yes. Never file without asking, and add to a matching issue rather than open a new one.
+Writing: run lint_writing on every piece of prose before you show it to anyone (posts, emails, pages, captions, scripts); fix every fail, fix each warn unless it is your writer's deliberate voice, and lint again until it passes.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
 export interface McpOptions {
