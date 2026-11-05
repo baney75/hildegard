@@ -135,6 +135,37 @@ describe('images', () => {
     expect(await steps('final')).toBe(50);
   });
 
+  it('draws a character’s still at final steps, whatever quality its record carries', async () => {
+    const c = await json<{ id: string }>(post('/api/characters', { name: 'Mara', description: 'A carpenter' }));
+    const st = {
+      id: 'aaaaaaaaaaaaaaa1',
+      characterId: c.id,
+      view: 'portrait',
+      quality: 'draft',
+      status: 'queued',
+      priority: 'interactive',
+      source: { kind: 'studio' },
+      seed: 1,
+      model: 'qwen-image-edit-2511',
+      prompt: 'Character reference photograph of Mara.',
+      references: [],
+      width: 1024,
+      height: 1024,
+      queuePosition: null,
+      progress: null,
+      previewVersion: 0,
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+      renderMs: null,
+      error: null,
+      image: null,
+    } as Still;
+    srv.scheduler.enqueueStill(st);
+    await until(() => still(st.id).status === 'done');
+    expect(still(st.id).progress?.steps).toBe(40);
+  });
+
   it('refuses references for a model that draws from words only', async () => {
     const up = await upload(Buffer.concat([PNG, Buffer.from('words-only')]));
     const res = await post('/api/images', {

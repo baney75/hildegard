@@ -555,6 +555,34 @@ describe('vetGraph', () => {
     // The builders' own negative prompt names nudity, to steer away from it.
     expect(vetGraph(variants[0]!, files, safety)).toEqual([]);
   });
+
+  it('lets only Hildegard’s own negative prompts past the words check, and only where they steer away', () => {
+    const g = clone(variants[0]!);
+    const nodes = Object.entries(g.graph);
+    const negId = Object.values(g.graph)
+      .map((n) => n.inputs.negative)
+      .find((v): v is [string, number] => Array.isArray(v))![0];
+    // A paired device can't hide a request in a "negative" and turn the guidance down so the sampler draws it.
+    const sneaky = clone(g);
+    let neg = sneaky.graph[negId]!;
+    while (neg.class_type !== 'CLIPTextEncode')
+      neg = sneaky.graph[(neg.inputs.negative as [string, number])[0]]!;
+    neg.inputs.text = 'a naked woman on a bed';
+    expect(vetGraph(sneaky, files, safety).join()).toMatch(/asks for sexual content/);
+    // Guidance under 1 draws toward the negative, whatever it says.
+    const low = clone(g);
+    for (const [, n] of Object.entries(low.graph))
+      if ('negative' in n.inputs && 'cfg' in n.inputs) n.inputs.cfg = 0;
+    expect(vetGraph(low, files, safety).join()).toMatch(/draws toward its negative prompt/);
+    // Hildegard's own negative names nudity to steer away from it; wired into the positive, it asks for it.
+    const swapped = clone(g);
+    const [posId] = nodes.find(([, n]) => n._meta?.title === 'Prompt')!;
+    const ownNeg = Object.entries(swapped.graph).find(
+      ([, n]) => n.class_type === 'CLIPTextEncode' && /nudity/.test(String(n.inputs.text)),
+    )!;
+    swapped.graph[posId]!.inputs.text = ownNeg[1].inputs.text as string;
+    expect(vetGraph(swapped, files, safety).join()).toMatch(/asks for sexual content/);
+  });
 });
 
 describe('progressOf', () => {

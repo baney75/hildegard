@@ -5,6 +5,7 @@ import {
   type ComposedShot,
   type ComposedStill,
   type Model,
+  NEGATIVE,
   referencesOf,
   type SafetyCheck,
 } from '@hildegard/presets';
@@ -283,6 +284,9 @@ function zImage(g: GraphBuilder, still: ComposedStill, seed: number): { image: L
   );
   return { image: out(g.add('VAEDecode', { samples: out(sampled), vae: out(vae) })), nodes: [] };
 }
+
+/** The negative prompt Hildegard's own graphs carry: the only words that may name what a render must not show. */
+const OWN_NEGATIVES: ReadonlySet<string> = new Set([NEGATIVE]);
 
 /** What ComfyUI's Qwen-Image blueprints steer away from, as they write it. */
 const QWEN_NEGATIVE =
@@ -748,12 +752,12 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
     new Set(refs).size !== refs.length
   )
     return ['the reference images are not ones Hildegard binds'];
-  const negatives = new Set(
-    Object.values(graph).flatMap((n) => {
-      const v = n?.inputs?.negative;
-      return Array.isArray(v) && typeof v[0] === 'string' ? [v[0]] : [];
-    }),
-  );
+  // Nodes read only as a negative steer the sampler away from what they say, as long as guidance is 1 or more.
+  const asNegative = new Set<string>();
+  const asOther = new Set<string>();
+  for (const n of Object.values(graph))
+    for (const [k, v] of Object.entries(n?.inputs ?? {}))
+      if (Array.isArray(v) && typeof v[0] === 'string') (k === 'negative' ? asNegative : asOther).add(v[0]);
   for (const [id, node] of Object.entries(graph)) {
     if (!/^\d{1,4}$/.test(id)) problems.push(`node id ${JSON.stringify(id).slice(0, 40)} is not a number`);
     if (!node || typeof node !== 'object' || typeof node.class_type !== 'string') {
@@ -789,15 +793,23 @@ export function vetGraph(built: BuiltGraph, modelFiles: ReadonlySet<string>, saf
       if (typeof threshold !== 'number' || threshold > safety.threshold)
         problems.push(`node ${id} checks frames less strictly than this device does`);
     }
-    // The device rendering it checks the words too: a paired device's own checks may have been taken out. A
-    // negative prompt steers away from what it names, so only prompts that feed a `negative` input are let be.
+    // The device rendering it checks the words too: a paired device's own checks may have been taken out. Only
+    // Hildegard's own negative prompt may name what it steers away from, and only where it is read as a negative
+    // and nothing else. Any other words, anywhere, pass the words check.
     if (
       node.class_type === 'CLIPTextEncode' &&
       typeof node.inputs.text === 'string' &&
-      !negatives.has(id) &&
+      !(OWN_NEGATIVES.has(node.inputs.text) && asNegative.has(id) && !asOther.has(id)) &&
       !safety.text(node.inputs.text).ok
     )
       problems.push(`node ${id} asks for sexual content`);
+    // Under 1, classifier-free guidance draws toward the negative prompt instead of away from it.
+    if (
+      'negative' in node.inputs &&
+      'cfg' in node.inputs &&
+      !(typeof node.inputs.cfg === 'number' && node.inputs.cfg >= 1)
+    )
+      problems.push(`node ${id} draws toward its negative prompt (guidance under 1)`);
     // Qwen-Image-Edit's encoder holds the prompt itself, for the positive and the (empty) negative alike.
     if (
       node.class_type === 'TextEncodeQwenImageEditPlus' &&

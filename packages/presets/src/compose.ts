@@ -43,7 +43,8 @@ export class PresetError extends Error {
   }
 }
 
-const NEGATIVE =
+/** What every shot steers away from. It names nudity, so it is one of the few texts a graph may carry that do. */
+export const NEGATIVE =
   'blurry, low quality, still frame, frozen, watermark, text overlay, subtitles, logo, distorted faces, extra limbs, jitter, flicker, nudity, nsfw, sexual content';
 
 export function apertureWords(f: number): string {

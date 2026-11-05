@@ -881,7 +881,7 @@ export class Scheduler {
       if (!words.ok) throw new EngineError('content_blocked', words.message);
       const model = pickStillModel(this.catalog, still.model);
       // A character's still is always final; an image renders at the quality it was asked for.
-      const q = model[still.quality ?? 'final'];
+      const q = model[still.characterId === null ? (still.quality ?? 'final') : 'final'];
       const built = buildStillGraph({
         still: {
           model,
