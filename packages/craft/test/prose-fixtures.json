@@ -148,6 +148,31 @@
       "warns": ["triads"]
     },
     {
+      "name": "typographic apostrophe: it’s worth noting",
+      "text": "It’s worth noting that the deadline moved to Friday.",
+      "fails": ["empty-phrases"]
+    },
+    {
+      "name": "typographic apostrophe: here’s the thing",
+      "text": "Here’s the thing. The deadline moved to Friday.",
+      "fails": ["throat-clearing"]
+    },
+    {
+      "name": "typographic apostrophe: let’s dive in",
+      "text": "Let’s dive in and look at the deadline for Friday.",
+      "fails": ["empty-phrases"]
+    },
+    {
+      "name": "typographic apostrophe: I’d be happy to",
+      "text": "I’d be happy to move the deadline to Friday for you.",
+      "fails": ["chatbot"]
+    },
+    {
+      "name": "typographic apostrophe: in today’s world and you’re doing it wrong",
+      "text": "In today’s world, you’re doing it wrong if the deadline is still Thursday.",
+      "fails": ["empty-phrases", "faux-insight"]
+    },
+    {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
       "warns": ["fragments"]
