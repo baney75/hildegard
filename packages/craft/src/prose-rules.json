@@ -1,5 +1,5 @@
 {
-  "_about": "Hildegard's prose lint: the tells that make writing read as machine-made. One file feeds every engine: packages/craft/src/prose.ts (Studio, MCP, CLI) and skills/hildegard/scripts/prose_lint.py (any agent, no install). Phrase patterns are lowercase regexes matched on word boundaries, in the subset JavaScript and Python share. Sources: Donovan's slop hook (slop-list.json) and the no-ai-slop skill. Keep skills/hildegard/scripts/prose_rules.json identical to this file; a test checks it.",
+  "_about": "Hildegard's prose lint: the tells that make writing read as machine-made. One file feeds every engine: packages/craft/src/prose.ts (Studio, MCP, CLI) and skills/hildegard/scripts/prose_lint.py (any agent, no install). Phrase patterns are lowercase regexes matched on word boundaries, in the subset JavaScript and Python share. A match that starts with a capital in the middle of a sentence is a name (\"Beacon Street\") and is skipped. Write an apostrophe as ['’] so both kinds match. Sources: Donovan's slop hook (slop-list.json) and the no-ai-slop skill. Keep skills/hildegard/scripts/prose_rules.json identical to this file; a test checks it.",
   "version": 1,
   "phrases": {
     "stock-words": {
@@ -16,7 +16,6 @@
         "testament to",
         "realm",
         "realms",
-        "beacon",
         "multifaceted",
         "meticulous(ly)?",
         "intricate(ly)?",
@@ -37,18 +36,14 @@
         "facilitat(e|es|ed|ing)",
         "empower(s|ed|ing)?",
         "streamlin(e|es|ed|ing)",
-        "foster(s|ed|ing)?",
         "unlock(s|ed|ing)? the",
         "unleash(es|ed|ing)?",
         "harness(es|ed|ing)? the",
         "elevat(e|es|ed|ing)",
         "bustling",
-        "vibrant",
         "nestled",
-        "boast(s|ed|ing)?",
         "showcas(e|es|ed|ing)",
         "pivotal",
-        "crucial(ly)?",
         "navigat(e|es|ed|ing) the (complexities|landscape|world|waters)",
         "in the (ever-evolving |digital |modern )?landscape of",
         "rich (history|heritage|tapestry)",
@@ -83,8 +78,6 @@
         "in this blog post",
         "let['’]?s dive in",
         "let['’]?s dive into",
-        "dive into",
-        "deep dive",
         "without further ado",
         "as an ai",
         "i hope this helps",
@@ -184,6 +177,20 @@
         "it is widely (known|believed)",
         "some would say",
         "critics (say|argue)"
+      ]
+    },
+    "loaded-words": {
+      "severity": "warn",
+      "why": "Words generated text overuses that also have ordinary senses.",
+      "fix": "Keep it if it means exactly what you say; otherwise use the plain word.",
+      "patterns": [
+        "beacon",
+        "boast(s|ed|ing)?",
+        "crucial(ly)?",
+        "deep dive",
+        "dive into",
+        "foster(s|ed|ing)?",
+        "vibrant"
       ]
     },
     "summary-openers": {

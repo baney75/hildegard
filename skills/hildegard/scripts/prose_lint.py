@@ -90,8 +90,12 @@ class Text:
         at = self.u16(index)
         return {"text": match, "index": at, "line": before + 1, "column": at - last}
 
-    def all(self, rx_, prose):
-        return [self.locate(m.start(), self.text[m.start() : m.end()]) for m in rx_.finditer(prose)]
+    def all(self, rx_, prose, skip=None):
+        return [
+            self.locate(m.start(), self.text[m.start() : m.end()])
+            for m in rx_.finditer(prose)
+            if not (skip and skip(prose, m.start(), m.group(0)))
+        ]
 
 
 def blank(m):
@@ -158,6 +162,17 @@ def unquote(prose):
     return rx(r"\"[^\"\n]{1,80}\"|“[^”\n]{1,80}”").sub(lambda m: blank(m.group(0)), prose)
 
 
+def is_name(prose, index, match):
+    """A match that starts with a capital in the middle of a sentence (after a lowercase letter, a comma or a
+    semicolon and a space, as count_specifics reads it) is a name, not the word: "Pastor Mike Foster", "Beacon Street"."""
+    return (
+        unicodedata.category(match[0]) == "Lu"
+        and index >= 2
+        and prose[index - 1] == " "
+        and (unicodedata.category(prose[index - 2]) == "Ll" or prose[index - 2] in ",;")
+    )
+
+
 def bounded(p):
     return rx(rf"(?<![\w-])(?:{js_pattern(p)})(?![\w-])", re.I)
 
@@ -205,7 +220,12 @@ EMOJI_LINE = rx(
     r"[\U0001F300-\U0001FAFF\u2600-\u27bf\u2b50\u2705\u274c]"
 )
 NOT_BUT = [
-    rx(r"\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t)\b" + f"[^.\\n]{{1,60}}?,{S}*but\\b", re.I),
+    # Only the contrasts a writer sets up, not an everyday hedge: "not about rules, but", never "not cheap, but".
+    rx(
+        r"\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|only|merely|simply|a|an|the|because|that)\b"
+        + f"[^.\\n]{{1,60}}?,{S}*but\\b",
+        re.I,
+    ),
     rx(rf"\b(?:it|this|that)['’]?s not\b[^.\n]{{1,60}}[.;]{S}+(?:it|this|that)['’]?s\b", re.I),
     rx(rf"\b(?:it|this|that) (?:is|was) not\b[^.\n]{{1,60}}[.;]{S}+(?:it|this|that) (?:is|was)\b", re.I),
     rx(rf"\bnot (?:just|only|merely) [^.\n]{{1,60}}?,?{S}+but(?: also)?\b", re.I),
@@ -267,7 +287,7 @@ def lint_prose(text):
     unquoted = unquote(prose)
     for id_, rule in RULES["phrases"].items():
         matches = sorted(
-            [m for p in rule["patterns"] for m in t.all(bounded(p), unquoted)], key=lambda m: m["index"]
+            [m for p in rule["patterns"] for m in t.all(bounded(p), unquoted, is_name)], key=lambda m: m["index"]
         )
         if "density" in rule and len(matches) / max(1, words) <= rule["density"]:
             continue

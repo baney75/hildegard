@@ -8,13 +8,7 @@
       "times": 99999,
       "tail": "y"
     },
-    {
-      "name": "accented letters (list of three)",
-      "head": "",
-      "unit": "aé",
-      "times": 100000,
-      "tail": ""
-    },
+    { "name": "accented letters (list of three)", "head": "", "unit": "aé", "times": 100000, "tail": "" },
     {
       "name": "a run of exclamation marks (sentence split)",
       "head": "a",
@@ -22,48 +16,12 @@
       "times": 199998,
       "tail": "b"
     },
-    {
-      "name": "unclosed tags",
-      "head": "",
-      "unit": "<",
-      "times": 200000,
-      "tail": ""
-    },
-    {
-      "name": "unclosed tags with a name",
-      "head": "",
-      "unit": "<a",
-      "times": 100000,
-      "tail": ""
-    },
-    {
-      "name": "unclosed code blocks",
-      "head": "",
-      "unit": "<code",
-      "times": 40000,
-      "tail": ""
-    },
-    {
-      "name": "unclosed images",
-      "head": "",
-      "unit": "![",
-      "times": 100000,
-      "tail": ""
-    },
-    {
-      "name": "unclosed image targets",
-      "head": "",
-      "unit": "![a](",
-      "times": 40000,
-      "tail": ""
-    },
-    {
-      "name": "unclosed link targets",
-      "head": "",
-      "unit": "](",
-      "times": 100000,
-      "tail": ""
-    }
+    { "name": "unclosed tags", "head": "", "unit": "<", "times": 200000, "tail": "" },
+    { "name": "unclosed tags with a name", "head": "", "unit": "<a", "times": 100000, "tail": "" },
+    { "name": "unclosed code blocks", "head": "", "unit": "<code", "times": 40000, "tail": "" },
+    { "name": "unclosed images", "head": "", "unit": "![", "times": 100000, "tail": "" },
+    { "name": "unclosed image targets", "head": "", "unit": "![a](", "times": 40000, "tail": "" },
+    { "name": "unclosed link targets", "head": "", "unit": "](", "times": 100000, "tail": "" }
   ],
   "cases": [
     {
@@ -171,6 +129,38 @@
       "name": "typographic apostrophe: in today’s world and you’re doing it wrong",
       "text": "In today’s world, you’re doing it wrong if the deadline is still Thursday.",
       "fails": ["empty-phrases", "faux-insight"]
+    },
+    {
+      "name": "overused words that also have ordinary senses only warn",
+      "text": "The program will foster growth in a vibrant town. Our shop boasts a crucial location near the square. Last week we took a deep dive into the sales numbers.",
+      "warns": ["loaded-words"],
+      "ok": true
+    },
+    {
+      "name": "a capital in mid-sentence is a name; one that starts a sentence is a use",
+      "text": "Foster the habit early. Pastor Mike Foster will bless the food. Teachers foster it too.",
+      "warns": ["loaded-words"],
+      "ok": true
+    },
+    {
+      "name": "names that look like overused words, and everyday hedges",
+      "clean": true,
+      "text": "Pastor Mike Foster will bless the food on Sunday. The shop on Beacon Street opens at nine. It was not cheap, but it worked. I’m not sure, but I think so."
+    },
+    {
+      "name": "a hedge with not and but is no contrast",
+      "clean": true,
+      "text": "The tires were not new, but they held air all winter. She is not tall, but she can reach the shelf."
+    },
+    {
+      "name": "not about rules, but about the reader",
+      "text": "Good writing is not about rules, but about the reader.",
+      "warns": ["not-but"]
+    },
+    {
+      "name": "not just a tool but a partner, with a typographic apostrophe",
+      "text": "Our app isn’t just a tool, but a partner for the whole team.",
+      "warns": ["not-but"]
     },
     {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",

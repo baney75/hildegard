@@ -11,6 +11,7 @@ interface Case {
   fails?: string[];
   warns?: string[];
   clean?: boolean;
+  ok?: boolean;
 }
 
 interface Attack {
@@ -32,6 +33,7 @@ describe('prose lint', () => {
         ).toEqual([]);
         expect(l.ok).toBe(true);
       }
+      if (c.ok !== undefined) expect(l.ok).toBe(c.ok);
       for (const id of c.fails ?? []) expect(ids('fail')).toContain(id);
       for (const id of c.warns ?? []) expect(ids('warn')).toContain(id);
       if (c.fails?.length) expect(l.ok).toBe(false);
@@ -78,6 +80,16 @@ describe('prose lint', () => {
     expect(blanked('see_[x](y)_and_](z')).toBe('see_[x](.._and_](z');
     expect(blanked('<code>a</code>_b_<CODE>c')).toBe('.............._b_......c');
     expect(blanked('<pre>a_<code>b</pre>_c</code>')).toBe('...................._c.......');
+  });
+
+  it('skips a capitalised match inside a sentence, a name, and keeps the one that starts it', () => {
+    const l = lintProse(
+      'Foster the habit early. Pastor Mike Foster will bless the food. Teachers foster it too.',
+    );
+    expect(l.findings.find((f) => f.id === 'loaded-words')?.matches.map((m) => m.text)).toEqual([
+      'Foster',
+      'foster',
+    ]);
   });
 
   it('blanks code, links and HTML without moving anything', () => {
