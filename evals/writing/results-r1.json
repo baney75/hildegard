@@ -1,146 +1,144 @@
 [
- {
-  "id": "bakery",
-  "order": 0,
-  "winner": "new",
-  "margin": "clear",
-  "invented_old": [
-   "60 a week dated to 'the spring' (brief gives no timing)",
-   "Nobody ran an ad; growth was word of mouth",
-   "Crust is dark and crackles, inside open and tangy, keeps better than the old loaf",
-   "Ingredient list: flour, water, salt, starter, 'that's the whole list'",
-   "Starter is fed every day",
-   "Loaves are still warm on Saturday if you come early",
-   "Most people tear off the end before reaching the car",
-   "Bread 'asleep in the proof boxes' and paying for power and labor",
-   "'I wrote it down'"
-  ],
-  "invented_new": [
-   "60 a week dated to 'before the switch' (brief gives no timing)",
-   "Mr. Albright 'keeps coming back' for the country loaf specifically"
-  ],
-  "why": "Draft A has the warmer, more personal voice, but it invents product descriptions, an ingredient list, a no-advertising claim, and Saturday details Ruth never gave. Draft B is plainer and somewhat templated with its headers, yet it stays close to the brief's facts, handles the diabetic anecdote carefully, and still makes the Saturday ask."
- },
- {
-  "id": "bakery",
-  "order": 1,
-  "winner": "new",
-  "margin": "clear",
-  "invented_old": [
-   "country loaf sold about 60 a week 'in the spring' (brief does not date the starting figure)",
-   "'Nobody ran an ad' and growth by word of mouth, with customers bringing others",
-   "the slow method 'did not suit' most breads and Ruth would not 'bake them badly'",
-   "crust and crumb description, and that it 'keeps better on the counter than the old loaf'",
-   "ingredient list: flour, water, salt and starter only",
-   "starter fed every day, kept 'the way it did in my grandmother's kitchen'",
-   "costs of 'flour, power and labor' and dough in 'proof boxes'",
-   "Mr. Albright compared it to 'other bread he's tried'; Ruth 'wrote it down'",
-   "loaves still warm on Saturday mornings; 'most people' tear off the end before the car"
-  ],
-  "invented_new": [
-   "Mr. Albright 'keeps coming back' specifically for the country loaf"
-  ],
-  "why": "Draft B is warmer and more vivid, but it invents a lot: ingredients, product qualities, a word-of-mouth story, and Saturday details that Ruth would have to check or might find false. Draft A stays almost entirely within the brief, handles the Albright anecdote carefully, and makes the Saturday ask clearly, though it is plainer and has one awkward line about the crock."
- },
- {
-  "id": "potluck",
-  "order": 0,
-  "winner": "old",
-  "margin": "slight",
-  "invented_old": [],
-  "invented_new": [],
-  "why": "Both drafts stick to the brief's facts, but A sounds more like a real parishioner, with lines like 'Come hungry,' 'See you in the hall,' and the practical nudge to list 'the pinch of this and the handful of that,' which directly helps the allergy concern. B is clean and accurate but flatter, and it repeats the date from the headline in the first line."
- },
- {
-  "id": "potluck",
-  "order": 1,
-  "winner": "old",
-  "margin": "slight",
-  "invented_old": [],
-  "invented_new": [],
-  "why": "Neither draft invents facts, and both use every specific in the brief. B sounds more like a parishioner writing to their own congregation: its opening and closing lines are warm, and its practical nudge to list even 'the pinch of this' makes the allergy cards more useful, while A is accurate but clipped and a bit impersonal."
- },
- {
-  "id": "mowers",
-  "order": 0,
-  "winner": "new",
-  "margin": "slight",
-  "invented_old": [
-   "'Every spring, the first week of mowing season, my bench fills up' (timing not given)",
-   "'Close the fuel valve if your mower has one' (not in brief)",
-   "'A blade can turn over with a quarter turn of your hand' (unsupported mechanical claim)",
-   "Tip the mower with the air filter and carburetor side facing up (technical advice not in brief)",
-   "'A dull blade tears grass instead of cutting it' (unsupported claim)",
-   "After November 15 'the shop is filling up with other work, and you'll be waiting' (invented reason and shop situation)"
-  ],
-  "invented_new": [
-   "'It's almost never a bad engine' (overstates the 80% figure)",
-   "'Shut off the fuel' (not in brief)",
-   "'Store it somewhere dry' (checklist item not in brief)",
-   "Offer to take in the whole mower for winterization (invented service)",
-   "'Sharp and waiting when the grass comes back' (implies the shop holds blades until spring)"
-  ],
-  "why": "Both drafts add things Dale never said, but A invents more of them, including technical claims (tipping orientation, quarter-turn blade risk, dull blades tearing grass) and a made-up reason for the November 15 deadline, while B's additions are fewer and milder, though its whole-mower service offer still needs Dale's sign-off. A has the stronger first-person voice and headline, but B uses every brief fact cleanly and adds a practical checklist, so B is slightly safer to publish under Dale's name."
- },
- {
-  "id": "mowers",
-  "order": 1,
-  "winner": "new",
-  "margin": "clear",
-  "invented_old": [
-   "Bench fills up the first week of mowing season",
-   "Gas from the pump today has ethanol in it",
-   "A blade can turn over with a quarter turn of your hand",
-   "Tip the mower with the air filter and carburetor side up",
-   "After November 15 the shop fills up and you'll be waiting",
-   "A dull blade tears grass instead of cutting it"
-  ],
-  "invented_new": [
-   "It's almost never a bad engine",
-   "Store it somewhere dry (added advice)",
-   "Offer to take care of the whole winterizing if the mower is brought in"
-  ],
-  "why": "Draft B has more personality but adds several unsupported claims, including shop-schedule assertions and technical tipping advice that Dale never gave. Draft A sticks closely to Dale's facts with only minor additions, uses every specific cleanly, and ends with a useful checklist, so it is safer to publish under his name."
- },
- {
-  "id": "carpentry",
-  "order": 0,
-  "winner": "new",
-  "margin": "clear",
-  "invented_old": [
-   "Anna did fraction worksheets for two years and they never stuck",
-   "fractions clicked 'somewhere in the first week'",
-   "Mark said nothing when she cut the rafters short",
-   "she rechecked her angle, found the problem, and the next pair fit",
-   "Anna held up the first egg 'like she'd won something'",
-   "the $310 receipt was totaled together as a lesson in estimating and comparing prices",
-   "'I've paid more for worse lessons'"
-  ],
-  "invented_new": [
-   "fractions 'had been a fight for a while'",
-   "the $14 mistake 'turned out to be a decent percent problem too' (implies it was used as a lesson)"
-  ],
-  "why": "Draft A has a warmer voice, but it invents several scenes and backstory (two years of worksheets, the successful recut, Anna holding up the egg, totaling the receipt together), and it garbles an idiom with 'stood on my hands.' Draft B stays close to the brief, only derives figures that check out (32 sq ft, about 5 percent), explains the speed square for readers, and makes the winter-project ask cleanly, though it is plainer and less personal."
- },
- {
-  "id": "carpentry",
-  "order": 1,
-  "winner": "new",
-  "margin": "clear",
-  "invented_old": [
-   "She'd done fractions on worksheets for two years",
-   "Somewhere in the first week she was reading the tape to the sixteenth",
-   "I didn't say anything / I wanted to grab the square and fix it",
-   "She checked her angle again, found the problem, and cut the next pair. They fit.",
-   "Anna held it up like she'd won something",
-   "Our $310 became a lesson in estimating, comparing prices and deciding what mattered",
-   "Buy a little extra lumber (implies they did)",
-   "I've paid more for worse lessons"
-  ],
-  "invented_new": [
-   "Fractions had been a fight for a while (mild, implied by 'finally clicked')",
-   "I did not explain it any better than before"
-  ],
-  "why": "Draft B is warmer and more voiced, but it invents several events: the two-year worksheet history, the first-week timeline, the corrected recut that fit, Anna holding up the egg, and receipt-totaling lessons, and it garbles an idiom ('stood on my hands'). Draft A stays close to the brief's facts, uses them well (it even derives the roughly 5% figure correctly), and makes the winter-project ask cleanly, so Mark could publish it without correcting the record."
- }
+  {
+    "id": "bakery",
+    "order": 0,
+    "winner": "new",
+    "margin": "clear",
+    "invented_old": [
+      "60 a week dated to 'the spring' (brief gives no timing)",
+      "Nobody ran an ad; growth was word of mouth",
+      "Crust is dark and crackles, inside open and tangy, keeps better than the old loaf",
+      "Ingredient list: flour, water, salt, starter, 'that's the whole list'",
+      "Starter is fed every day",
+      "Loaves are still warm on Saturday if you come early",
+      "Most people tear off the end before reaching the car",
+      "Bread 'asleep in the proof boxes' and paying for power and labor",
+      "'I wrote it down'"
+    ],
+    "invented_new": [
+      "60 a week dated to 'before the switch' (brief gives no timing)",
+      "Mr. Albright 'keeps coming back' for the country loaf specifically"
+    ],
+    "why": "Draft A has the warmer, more personal voice, but it invents product descriptions, an ingredient list, a no-advertising claim, and Saturday details Ruth never gave. Draft B is plainer and somewhat templated with its headers, yet it stays close to the brief's facts, handles the diabetic anecdote carefully, and still makes the Saturday ask."
+  },
+  {
+    "id": "bakery",
+    "order": 1,
+    "winner": "new",
+    "margin": "clear",
+    "invented_old": [
+      "country loaf sold about 60 a week 'in the spring' (brief does not date the starting figure)",
+      "'Nobody ran an ad' and growth by word of mouth, with customers bringing others",
+      "the slow method 'did not suit' most breads and Ruth would not 'bake them badly'",
+      "crust and crumb description, and that it 'keeps better on the counter than the old loaf'",
+      "ingredient list: flour, water, salt and starter only",
+      "starter fed every day, kept 'the way it did in my grandmother's kitchen'",
+      "costs of 'flour, power and labor' and dough in 'proof boxes'",
+      "Mr. Albright compared it to 'other bread he's tried'; Ruth 'wrote it down'",
+      "loaves still warm on Saturday mornings; 'most people' tear off the end before the car"
+    ],
+    "invented_new": ["Mr. Albright 'keeps coming back' specifically for the country loaf"],
+    "why": "Draft B is warmer and more vivid, but it invents a lot: ingredients, product qualities, a word-of-mouth story, and Saturday details that Ruth would have to check or might find false. Draft A stays almost entirely within the brief, handles the Albright anecdote carefully, and makes the Saturday ask clearly, though it is plainer and has one awkward line about the crock."
+  },
+  {
+    "id": "potluck",
+    "order": 0,
+    "winner": "old",
+    "margin": "slight",
+    "invented_old": [],
+    "invented_new": [],
+    "why": "Both drafts stick to the brief's facts, but A sounds more like a real parishioner, with lines like 'Come hungry,' 'See you in the hall,' and the practical nudge to list 'the pinch of this and the handful of that,' which directly helps the allergy concern. B is clean and accurate but flatter, and it repeats the date from the headline in the first line."
+  },
+  {
+    "id": "potluck",
+    "order": 1,
+    "winner": "old",
+    "margin": "slight",
+    "invented_old": [],
+    "invented_new": [],
+    "why": "Neither draft invents facts, and both use every specific in the brief. B sounds more like a parishioner writing to their own congregation: its opening and closing lines are warm, and its practical nudge to list even 'the pinch of this' makes the allergy cards more useful, while A is accurate but clipped and a bit impersonal."
+  },
+  {
+    "id": "mowers",
+    "order": 0,
+    "winner": "new",
+    "margin": "slight",
+    "invented_old": [
+      "'Every spring, the first week of mowing season, my bench fills up' (timing not given)",
+      "'Close the fuel valve if your mower has one' (not in brief)",
+      "'A blade can turn over with a quarter turn of your hand' (unsupported mechanical claim)",
+      "Tip the mower with the air filter and carburetor side facing up (technical advice not in brief)",
+      "'A dull blade tears grass instead of cutting it' (unsupported claim)",
+      "After November 15 'the shop is filling up with other work, and you'll be waiting' (invented reason and shop situation)"
+    ],
+    "invented_new": [
+      "'It's almost never a bad engine' (overstates the 80% figure)",
+      "'Shut off the fuel' (not in brief)",
+      "'Store it somewhere dry' (checklist item not in brief)",
+      "Offer to take in the whole mower for winterization (invented service)",
+      "'Sharp and waiting when the grass comes back' (implies the shop holds blades until spring)"
+    ],
+    "why": "Both drafts add things Dale never said, but A invents more of them, including technical claims (tipping orientation, quarter-turn blade risk, dull blades tearing grass) and a made-up reason for the November 15 deadline, while B's additions are fewer and milder, though its whole-mower service offer still needs Dale's sign-off. A has the stronger first-person voice and headline, but B uses every brief fact cleanly and adds a practical checklist, so B is slightly safer to publish under Dale's name."
+  },
+  {
+    "id": "mowers",
+    "order": 1,
+    "winner": "new",
+    "margin": "clear",
+    "invented_old": [
+      "Bench fills up the first week of mowing season",
+      "Gas from the pump today has ethanol in it",
+      "A blade can turn over with a quarter turn of your hand",
+      "Tip the mower with the air filter and carburetor side up",
+      "After November 15 the shop fills up and you'll be waiting",
+      "A dull blade tears grass instead of cutting it"
+    ],
+    "invented_new": [
+      "It's almost never a bad engine",
+      "Store it somewhere dry (added advice)",
+      "Offer to take care of the whole winterizing if the mower is brought in"
+    ],
+    "why": "Draft B has more personality but adds several unsupported claims, including shop-schedule assertions and technical tipping advice that Dale never gave. Draft A sticks closely to Dale's facts with only minor additions, uses every specific cleanly, and ends with a useful checklist, so it is safer to publish under his name."
+  },
+  {
+    "id": "carpentry",
+    "order": 0,
+    "winner": "new",
+    "margin": "clear",
+    "invented_old": [
+      "Anna did fraction worksheets for two years and they never stuck",
+      "fractions clicked 'somewhere in the first week'",
+      "Mark said nothing when she cut the rafters short",
+      "she rechecked her angle, found the problem, and the next pair fit",
+      "Anna held up the first egg 'like she'd won something'",
+      "the $310 receipt was totaled together as a lesson in estimating and comparing prices",
+      "'I've paid more for worse lessons'"
+    ],
+    "invented_new": [
+      "fractions 'had been a fight for a while'",
+      "the $14 mistake 'turned out to be a decent percent problem too' (implies it was used as a lesson)"
+    ],
+    "why": "Draft A has a warmer voice, but it invents several scenes and backstory (two years of worksheets, the successful recut, Anna holding up the egg, totaling the receipt together), and it garbles an idiom with 'stood on my hands.' Draft B stays close to the brief, only derives figures that check out (32 sq ft, about 5 percent), explains the speed square for readers, and makes the winter-project ask cleanly, though it is plainer and less personal."
+  },
+  {
+    "id": "carpentry",
+    "order": 1,
+    "winner": "new",
+    "margin": "clear",
+    "invented_old": [
+      "She'd done fractions on worksheets for two years",
+      "Somewhere in the first week she was reading the tape to the sixteenth",
+      "I didn't say anything / I wanted to grab the square and fix it",
+      "She checked her angle again, found the problem, and cut the next pair. They fit.",
+      "Anna held it up like she'd won something",
+      "Our $310 became a lesson in estimating, comparing prices and deciding what mattered",
+      "Buy a little extra lumber (implies they did)",
+      "I've paid more for worse lessons"
+    ],
+    "invented_new": [
+      "Fractions had been a fight for a while (mild, implied by 'finally clicked')",
+      "I did not explain it any better than before"
+    ],
+    "why": "Draft B is warmer and more voiced, but it invents several events: the two-year worksheet history, the first-week timeline, the corrected recut that fit, Anna holding up the egg, and receipt-totaling lessons, and it garbles an idiom ('stood on my hands'). Draft A stays close to the brief's facts, uses them well (it even derives the roughly 5% figure correctly), and makes the winter-project ask cleanly, so Mark could publish it without correcting the record."
+  }
 ]
