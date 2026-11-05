@@ -61,16 +61,23 @@ export function blankNonProse(text: string): string {
     .replace(/https?:\/\/[^\s)>\]]+/g, blank);
 }
 
+/** Where each line starts, for the text being linted: one pass, then every match is a binary search. */
+let lines: { text: string; breaks: number[] } = { text: '', breaks: [] };
 function locate(text: string, index: number, match: string): ProseMatch {
-  let line = 1;
-  let last = -1;
-  for (let i = 0; i < index; i++) {
-    if (text.charCodeAt(i) === 10) {
-      line++;
-      last = i;
-    }
+  if (lines.text !== text) {
+    const breaks: number[] = [];
+    for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) breaks.push(i);
+    lines = { text, breaks };
   }
-  return { text: match, index, line, column: index - last };
+  const { breaks } = lines;
+  let lo = 0;
+  let hi = breaks.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (breaks[mid]! < index) lo = mid + 1;
+    else hi = mid;
+  }
+  return { text: match, index, line: lo + 1, column: index - (lo ? breaks[lo - 1]! : -1) };
 }
 
 function all(re: RegExp, prose: string, text: string): ProseMatch[] {

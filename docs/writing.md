@@ -40,4 +40,4 @@ All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so t
 
 The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
 It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
-in this folder, so the two cannot drift apart without the tests failing.
+at the top of `docs/`, so the two cannot drift apart without the tests failing.
