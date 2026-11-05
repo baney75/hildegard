@@ -1,128 +1,124 @@
 [
- {
-  "id": "fourh",
-  "order": 0,
-  "winner": "new",
-  "margin": "clear",
-  "invented_base": [
-   "six new families (the brief says six new members, not families)",
-   "members knocked on doors to sell pecans",
-   "Two drivers, and the trip is paid for and ready to go (implies nothing else is needed)",
-   "a Hampshire is the black hog with the white belt (true, but not from the brief)"
-  ],
-  "invented_cand": [],
-  "why": "Draft B sticks to the brief's facts and puts the meeting change first, which is the item readers most need to act on. Draft A adds small unsupported details, such as 'six new families' and door-knocking, and explains what a gilt is to a 4-H audience that already knows; B's main flaw is the publishing-system frontmatter, which is easy to strip."
- },
- {
-  "id": "fourh",
-  "order": 1,
-  "winner": "new",
-  "margin": "clear",
-  "invented_base": [
-   "six new families (brief says six new members, not families)",
-   "members knocked on doors to sell pecans",
-   "Two drivers, and the trip is ready to go (implies nothing else is needed)",
-   "'We started this year with 17' (brief says up from 17, likely last year's count)"
-  ],
-  "invented_cand": [],
-  "why": "Draft A sticks to the brief and puts the urgent December meeting change first, where readers will see it. Draft B adds unsupported details like the six new families and door-knocking, and explaining what a gilt is to 4-H families reads like generic filler rather than something a club leader would write."
- },
- {
-  "id": "realtor",
-  "order": 0,
-  "winner": "old",
-  "margin": "clear",
-  "invented_base": [
-   "I've never wanted to work anywhere else",
-   "I'd rather know two counties well than cover six badly (rationale not given)",
-   "When you ask me about a street, a school or a township, I'm not looking it up",
-   "Houses get decided in the evening, after work and after dinner"
-  ],
-  "invented_cand": [
-   "'Realtor' in the title (a trademarked NAR membership the brief doesn't claim)"
-  ],
-  "why": "Neither draft invents numbers or events. A's additions are mild interpretive embellishments, while B's 'Realtor' title asserts an unconfirmed credential. A turns the teaching background, the county focus and the 9 p.m. texting into concrete, voiced reasons a reader would trust, whereas B lists the same facts thinly and reads more like a template."
- },
- {
-  "id": "realtor",
-  "order": 1,
-  "winner": "new",
-  "margin": "clear",
-  "invented_base": [
-   "I've never wanted to work anywhere else",
-   "teaching is where I learned to explain things without making anyone feel slow",
-   "watches buyers' faces and checks (anecdotal working style)",
-   "I'd rather know two counties well than cover six badly",
-   "when you ask about a street, school or township, I'm not looking it up (claimed depth of local knowledge)",
-   "Houses get decided in the evening, after work and after dinner",
-   "we can do the whole thing in Spanish (implies full transactions, documents included, in Spanish)"
-  ],
-  "invented_cand": [],
-  "why": ""
- },
- {
-  "id": "guide",
-  "order": 0,
-  "winner": "old",
-  "margin": "clear",
-  "invented_base": [
-   "the water was warm in August",
-   "you will feel it through your boots by the second hour",
-   "we spend most of the day in the boat, but we get out to work runs on foot"
-  ],
-  "invented_cand": [
-   "Cotton is the one fabric I'll turn down (an invented refusal policy)",
-   "the water is 38 to 46 degrees the whole time"
-  ],
-  "why": "Both drafts embellish a little, but A's additions are plausible operational color, while B invents a client-facing policy of turning people away for wearing cotton. A also explains why each item matters in a guide's voice, which serves the reader better than B's terse restatement of the brief."
- },
- {
-  "id": "guide",
-  "order": 1,
-  "winner": "new",
-  "margin": "slight",
-  "invented_base": [
-   "The water that was warm in August",
-   "you will feel it through your boots by the second hour",
-   "the clients who enjoy the day most are the ones who dressed for the water, not the air",
-   "We spend most of the day in the boat, but we get out to work runs on foot",
-   "Cold water is the reason steelhead fishing in the fall is worth doing"
-  ],
-  "invented_cand": [
-   "Everything below comes from that number (frames all advice as derived from water temperature, which the brief doesn't say)",
-   "Cotton is the one fabric I'll turn down"
-  ],
-  "why": ""
- },
- {
-  "id": "dentist",
-  "order": 0,
-  "winner": "new",
-  "margin": "clear",
-  "invented_base": [
-   "states the practice has been at 1420 N. Wells St. since 2004 (the brief only says Dr. Okafor has practiced 'here' since 2004)",
-   "claims six chairs will make it easier to find a time that fits your week",
-   "'Dr. Okafor is still your dentist' (not stated in the brief)",
-   "'You don't need to call, rebook or confirm anything' (the 'confirm' part goes beyond the brief)"
-  ],
-  "invented_cand": [
-   "'I'm glad that the practice is growing into a bigger space' (a mild sentiment not in the brief)"
-  ],
-  "why": "Draft B sticks closer to the brief: it keeps the 2004 fact as stated and puts the closure and unchanged appointments up front, where patients need them. Its first-person voice from Dr. Okafor reads like the dentist wrote it, while Draft A adds unsupported inferences and uses a more templated 'what's different / what stays the same' structure."
- },
- {
-  "id": "dentist",
-  "order": 1,
-  "winner": "new",
-  "margin": "slight",
-  "invented_base": [
-   "practice has been at 1420 N. Wells St. since 2004 (brief only says Dr. Okafor has practiced 'here' since 2004)",
-   "six chairs will make it easier to find a time that fits your week",
-   "'the team' sign-off"
-  ],
-  "invented_cand": [
-   "the practice is growing (mild inference from more chairs)"
-  ],
-  "why": "Draft B has the more reader-friendly structure, but it turns the brief's ambiguous 'practiced here since 2004' into a specific claim about the Wells St. address and adds a scheduling benefit the brief never promised. Draft A sticks closely to the facts in a plain first-person voice that sounds like the dentist, and it covers every point the brief asked for."
- }
+  {
+    "id": "fourh",
+    "order": 0,
+    "winner": "new",
+    "margin": "clear",
+    "invented_base": [
+      "six new families (the brief says six new members, not families)",
+      "members knocked on doors to sell pecans",
+      "Two drivers, and the trip is paid for and ready to go (implies nothing else is needed)",
+      "a Hampshire is the black hog with the white belt (true, but not from the brief)"
+    ],
+    "invented_cand": [],
+    "why": "Draft B sticks to the brief's facts and puts the meeting change first, which is the item readers most need to act on. Draft A adds small unsupported details, such as 'six new families' and door-knocking, and explains what a gilt is to a 4-H audience that already knows; B's main flaw is the publishing-system frontmatter, which is easy to strip."
+  },
+  {
+    "id": "fourh",
+    "order": 1,
+    "winner": "new",
+    "margin": "clear",
+    "invented_base": [
+      "six new families (brief says six new members, not families)",
+      "members knocked on doors to sell pecans",
+      "Two drivers, and the trip is ready to go (implies nothing else is needed)",
+      "'We started this year with 17' (brief says up from 17, likely last year's count)"
+    ],
+    "invented_cand": [],
+    "why": "Draft A sticks to the brief and puts the urgent December meeting change first, where readers will see it. Draft B adds unsupported details like the six new families and door-knocking, and explaining what a gilt is to 4-H families reads like generic filler rather than something a club leader would write."
+  },
+  {
+    "id": "realtor",
+    "order": 0,
+    "winner": "old",
+    "margin": "clear",
+    "invented_base": [
+      "I've never wanted to work anywhere else",
+      "I'd rather know two counties well than cover six badly (rationale not given)",
+      "When you ask me about a street, a school or a township, I'm not looking it up",
+      "Houses get decided in the evening, after work and after dinner"
+    ],
+    "invented_cand": ["'Realtor' in the title (a trademarked NAR membership the brief doesn't claim)"],
+    "why": "Neither draft invents numbers or events. A's additions are mild interpretive embellishments, while B's 'Realtor' title asserts an unconfirmed credential. A turns the teaching background, the county focus and the 9 p.m. texting into concrete, voiced reasons a reader would trust, whereas B lists the same facts thinly and reads more like a template."
+  },
+  {
+    "id": "realtor",
+    "order": 1,
+    "winner": "new",
+    "margin": "clear",
+    "invented_base": [
+      "I've never wanted to work anywhere else",
+      "teaching is where I learned to explain things without making anyone feel slow",
+      "watches buyers' faces and checks (anecdotal working style)",
+      "I'd rather know two counties well than cover six badly",
+      "when you ask about a street, school or township, I'm not looking it up (claimed depth of local knowledge)",
+      "Houses get decided in the evening, after work and after dinner",
+      "we can do the whole thing in Spanish (implies full transactions, documents included, in Spanish)"
+    ],
+    "invented_cand": [],
+    "why": ""
+  },
+  {
+    "id": "guide",
+    "order": 0,
+    "winner": "old",
+    "margin": "clear",
+    "invented_base": [
+      "the water was warm in August",
+      "you will feel it through your boots by the second hour",
+      "we spend most of the day in the boat, but we get out to work runs on foot"
+    ],
+    "invented_cand": [
+      "Cotton is the one fabric I'll turn down (an invented refusal policy)",
+      "the water is 38 to 46 degrees the whole time"
+    ],
+    "why": "Both drafts embellish a little, but A's additions are plausible operational color, while B invents a client-facing policy of turning people away for wearing cotton. A also explains why each item matters in a guide's voice, which serves the reader better than B's terse restatement of the brief."
+  },
+  {
+    "id": "guide",
+    "order": 1,
+    "winner": "new",
+    "margin": "slight",
+    "invented_base": [
+      "The water that was warm in August",
+      "you will feel it through your boots by the second hour",
+      "the clients who enjoy the day most are the ones who dressed for the water, not the air",
+      "We spend most of the day in the boat, but we get out to work runs on foot",
+      "Cold water is the reason steelhead fishing in the fall is worth doing"
+    ],
+    "invented_cand": [
+      "Everything below comes from that number (frames all advice as derived from water temperature, which the brief doesn't say)",
+      "Cotton is the one fabric I'll turn down"
+    ],
+    "why": ""
+  },
+  {
+    "id": "dentist",
+    "order": 0,
+    "winner": "new",
+    "margin": "clear",
+    "invented_base": [
+      "states the practice has been at 1420 N. Wells St. since 2004 (the brief only says Dr. Okafor has practiced 'here' since 2004)",
+      "claims six chairs will make it easier to find a time that fits your week",
+      "'Dr. Okafor is still your dentist' (not stated in the brief)",
+      "'You don't need to call, rebook or confirm anything' (the 'confirm' part goes beyond the brief)"
+    ],
+    "invented_cand": [
+      "'I'm glad that the practice is growing into a bigger space' (a mild sentiment not in the brief)"
+    ],
+    "why": "Draft B sticks closer to the brief: it keeps the 2004 fact as stated and puts the closure and unchanged appointments up front, where patients need them. Its first-person voice from Dr. Okafor reads like the dentist wrote it, while Draft A adds unsupported inferences and uses a more templated 'what's different / what stays the same' structure."
+  },
+  {
+    "id": "dentist",
+    "order": 1,
+    "winner": "new",
+    "margin": "slight",
+    "invented_base": [
+      "practice has been at 1420 N. Wells St. since 2004 (brief only says Dr. Okafor has practiced 'here' since 2004)",
+      "six chairs will make it easier to find a time that fits your week",
+      "'the team' sign-off"
+    ],
+    "invented_cand": ["the practice is growing (mild inference from more chairs)"],
+    "why": "Draft B has the more reader-friendly structure, but it turns the brief's ambiguous 'practiced here since 2004' into a specific claim about the Wells St. address and adds a scheduling benefit the brief never promised. Draft A sticks closely to the facts in a plain first-person voice that sounds like the dentist, and it covers every point the brief asked for."
+  }
 ]
