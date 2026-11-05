@@ -113,6 +113,19 @@ describe('prose lint', () => {
     expect(d).toMatch(/- fail dashes: .+ At 1:\d+ “—”/);
   });
 
+  it('tells an agent which lint fails bind: everyday prose yes, craft and academic work no', () => {
+    const skill = readFileSync(resolve(import.meta.dirname, '../../../skills/hildegard/SKILL.md'), 'utf8');
+    const step = skill.split('\n').find((l) => l.startsWith('**Writing:** lint every draft'))!;
+    expect(step).toMatch(/everyday prose \([^)]*references\/blog\.md`\), every fail must be fixed/);
+    expect(step).toMatch(
+      /fiction, poetry, scripts, prayer and speech \([^)]*writing-craft\.md`\) and academic work \([^)]*nonfiction-academic\.md`\), treat every finding, fails included, as a warning/,
+    );
+    expect(step).toMatch(/say which you kept/);
+    // The five-things rule gives way to the blog interview's fast path.
+    const five = skill.split('\n').find((l) => l.includes('at least five concrete things'))!;
+    expect(five).toMatch(/asks for speed.*fast path in `references\/blog\.md`/);
+  });
+
   it('keeps the skill’s copy of the rules identical to the package’s', () => {
     const pkg = readFileSync(resolve(import.meta.dirname, '../src/prose-rules.json'), 'utf8');
     const skill = readFileSync(
