@@ -49,17 +49,19 @@ const PHRASES = RULES.phrases as Record<string, PhraseRule>;
  */
 export function blankNonProse(text: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
-  return text
-    .replace(/^---\n[\s\S]*?\n---\n/, blank)
-    .replace(/```[\s\S]*?```/g, blank)
-    .replace(/~~~[\s\S]*?~~~/g, blank)
-    // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.
-    .replace(/`[^`]{0,400}?`/g, (m) => `x${blank(m.slice(1))}`)
-    .replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, blank)
-    .replace(/<(script|style|code|pre)\b[\s\S]*?<\/\1>/gi, blank)
-    .replace(/<[^>\n]+>/g, blank)
-    .replace(/\]\([^)\n]*\)/g, (m) => `](${blank(m.slice(2))}`)
-    .replace(/https?:\/\/[^\s)>\]]+/g, blank);
+  return (
+    text
+      .replace(/^---\n[\s\S]*?\n---\n/, blank)
+      .replace(/```[\s\S]*?```/g, blank)
+      .replace(/~~~[\s\S]*?~~~/g, blank)
+      // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.
+      .replace(/`[^`]{0,400}?`/g, (m) => `x${blank(m.slice(1))}`)
+      .replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, blank)
+      .replace(/<(script|style|code|pre)\b[\s\S]*?<\/\1>/gi, blank)
+      .replace(/<[^>\n]+>/g, blank)
+      .replace(/\]\([^)\n]*\)/g, (m) => `](${blank(m.slice(2))}`)
+      .replace(/https?:\/\/[^\s)>\]]+/g, blank)
+  );
 }
 
 /** Where each line starts, for the text being linted: one pass, then every match is a binary search. */
