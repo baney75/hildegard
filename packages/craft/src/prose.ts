@@ -132,12 +132,25 @@ function locate(text: string, index: number, match: string): ProseMatch {
   };
 }
 
-function all(re: RegExp, prose: string, text: string): ProseMatch[] {
+function all(
+  re: RegExp,
+  prose: string,
+  text: string,
+  skip?: (prose: string, index: number, match: string) => boolean,
+): ProseMatch[] {
   const out: ProseMatch[] = [];
   for (const m of prose.matchAll(re))
-    out.push(locate(text, m.index, text.slice(m.index, m.index + m[0].length)));
+    if (!skip?.(prose, m.index, m[0]))
+      out.push(locate(text, m.index, text.slice(m.index, m.index + m[0].length)));
   return out;
 }
+
+/**
+ * A match that starts with a capital in the middle of a sentence (after a lowercase letter, a comma or a semicolon and
+ * a space, as SPECIFIC reads it) is a name, not the word: “Pastor Mike Foster”, “Beacon Street”.
+ */
+const isName = (prose: string, index: number, match: string) =>
+  /^\p{Lu}/u.test(match) && /[\p{Ll},;] $/u.test(prose.slice(Math.max(0, index - 3), index));
 
 /** Quoted words are mentioned, not used: “tapestry” in a list of banned words is no tell. */
 const unquote = (prose: string) =>
@@ -189,7 +202,8 @@ function sentences(prose: string): Array<{ text: string; index: number; words: n
 const EMOJI_LINE =
   /^\s{0,3}(?:#{1,6}\s*|[-*+]\s+|\d+\.\s+)?(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2705}\u{274C}])/gmu;
 const NOT_BUT = [
-  /\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t)\b[^.\n]{1,60}?,\s*but\b/gi,
+  // Only the contrasts a writer sets up, not an everyday hedge: “not about rules, but”, never “not cheap, but”.
+  /\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|only|merely|simply|a|an|the|because|that)\b[^.\n]{1,60}?,\s*but\b/gi,
   /\b(?:it|this|that)['’]?s not\b[^.\n]{1,60}[.;]\s+(?:it|this|that)['’]?s\b/gi,
   /\b(?:it|this|that) (?:is|was) not\b[^.\n]{1,60}[.;]\s+(?:it|this|that) (?:is|was)\b/gi,
   /\bnot (?:just|only|merely) [^.\n]{1,60}?,?\s+but(?: also)?\b/gi,
@@ -227,7 +241,7 @@ export function lintProse(text: string): ProseLint {
   const unquoted = unquote(prose);
   for (const [id, rule] of Object.entries(PHRASES)) {
     const matches = rule.patterns
-      .flatMap((p) => all(bounded(p), unquoted, text))
+      .flatMap((p) => all(bounded(p), unquoted, text, isName))
       .sort((a, b) => a.index - b.index);
     if (rule.density !== undefined && matches.length / Math.max(1, words) <= rule.density) continue;
     add(id, rule.severity, rule.why, rule.fix, matches);
