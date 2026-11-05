@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { mkdtempSync, readdirSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -72,7 +73,21 @@ describe('POST /api/writing/lint', () => {
     expect((await lint(srv.url, '{nope', undefined, true)).status).toBe(400);
     expect((await lint(srv.url, { text: 'a'.repeat(200_001) })).status).toBe(400);
     expect((await lint(srv.url, { text: 'a '.repeat(100_000) })).status).toBe(200);
-    expect((await lint(srv.url, { text: 'a'.repeat(2_100_000) })).status).toBe(413);
+    // Refused on its declared length, before a byte is read. Sending the whole body would race the refusal (the
+    // server hangs up mid-upload, which Windows reports as a reset), so this declares one and sends nothing.
+    const big = await new Promise<number | undefined>((resolve, reject) => {
+      const req = httpRequest(`${srv.url}/api/writing/lint`, {
+        method: 'POST',
+        headers: { ...H, 'content-length': String(2_100_000) },
+      });
+      req.on('response', (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', reject);
+      req.flushHeaders();
+    });
+    expect(big).toBe(413);
   });
 
   it('reads nothing and writes nothing', async () => {

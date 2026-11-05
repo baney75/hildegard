@@ -257,15 +257,17 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     // Only a regular file small enough to be 200,000 characters: never a folder, a pipe or a device that never ends.
     const big = join(dir, 'big.md');
     writeFileSync(big, 'a '.repeat(500_000));
+    // Windows has no named pipes on disk and no /dev/zero.
+    const unix = process.platform !== 'win32';
     const fifo = join(dir, 'pipe.md');
-    execFileSync('mkfifo', [fifo]);
+    if (unix) execFileSync('mkfifo', [fifo]);
     // Small enough to read, one character too long to lint: refused here, not after it has been uploaded.
     const long = join(dir, 'long.md');
     writeFileSync(long, 'a'.repeat(200_001));
     const exact = join(dir, 'exact.md');
     writeFileSync(exact, 'a '.repeat(100_000));
     expect(textOf(await call('lint_writing', { path: exact }))).toMatch(/^Clean|^Passes|^Fails/);
-    for (const path of [dir, big, long, fifo, '/dev/zero']) {
+    for (const path of [dir, big, long, ...(unix ? [fifo, '/dev/zero'] : [])]) {
       const r = await call('lint_writing', { path });
       expect(r.isError, path).toBe(true);
       expect(textOf(r), path).toMatch(/a text file of up to 200,000 characters/);
