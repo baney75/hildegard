@@ -37,6 +37,16 @@ describe('prose lint', () => {
     expect(text.slice(f.matches[0]!.index, f.matches[0]!.index + 5)).toBe('delve');
   });
 
+  it('lints the largest text the server takes in well under a second, even made of nothing but tells', () => {
+    for (const unit of ['delve ', 'a — b\n']) {
+      const text = unit.repeat(Math.floor(200_000 / unit.length));
+      const started = performance.now();
+      const l = lintProse(text);
+      expect(l.ok).toBe(false);
+      expect(performance.now() - started).toBeLessThan(1500);
+    }
+  });
+
   it('blanks code, links and HTML without moving anything', () => {
     const text = 'See `robust()` and [x](https://a.b/delve) or <b>bold</b>.';
     const blanked = blankNonProse(text);
