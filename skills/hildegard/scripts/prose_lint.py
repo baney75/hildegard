@@ -35,10 +35,10 @@ RULES = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 WS = r"\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 S = f"[{WS}]"
 NS = f"[^{WS}]"
+SNL = f"[{WS.replace(chr(92) + 'n', '')}]"  # \s without the newline: JavaScript's [^\S\n]
 JS_WS = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 EOL = "\n\r\u2028\u2029"
 LET = r"[^\W\d_]"  # \p{L}
-BOUND = r"(?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))"  # JavaScript's \b is ASCII
 LINE_START = f"(?<![^{EOL}])"  # ^ with the m flag
 FLAGS = re.ASCII  # \w, \b and \d mean ASCII, as in JavaScript (no u flag)
 
@@ -98,18 +98,58 @@ def blank(m):
     return re.sub(r"[^\n]", " ", m)
 
 
+BLOCK_CLOSE = rx(r"</(script|style|code|pre)>", re.I)
+BLOCK_OPEN = rx(r"<(script|style|code|pre)\b", re.I)
+
+
+def blank_blocks(text):
+    """<script>, <style>, <code> and <pre> through their closing tag, blanked; one with no closing tag is left alone.
+
+    The plain pattern `<(script|style|code|pre)\\b[\\s\\S]*?</\\1>` scans to the end of the text from every unclosed
+    opener, so this looks for each tag's last closing tag once and skips the openers after it."""
+    last = {}
+    for m in BLOCK_CLOSE.finditer(text):
+        last[m.group(1).lower()] = m.start()
+    out, at, pos = [], 0, 0
+    while True:
+        m = BLOCK_OPEN.search(text, pos)
+        if not m:
+            break
+        name = m.group(1).lower()
+        if last.get(name, -1) <= m.start():
+            pos = m.end()
+            continue
+        c = rx(rf"</{name}>", re.I).search(text, m.end())
+        out.append(text[at : m.start()] + blank(text[m.start() : c.end()]))
+        at = pos = c.end()
+    return "".join(out) + text[at:]
+
+
+def when_closed(blanked):
+    """A replacement that blanks only the first alternative's match; the other alternatives consume what can't match."""
+    return lambda m: blanked(m.group(0)) if m.group(1) else m.group(0)
+
+
 def blank_non_prose(text):
-    """Code, URLs, link targets and HTML that isn't prose, blanked to spaces of the same length."""
+    """Code, URLs, link targets and HTML that isn't prose, blanked to spaces of the same length.
+
+    The image, tag and link patterns each have a second alternative that consumes the doomed rest of the line when
+    the closer is missing, as prose.ts does: otherwise '<<<<...' fails from every opener and rescans the line."""
     b = lambda m: blank(m.group(0))
     text = rx(r"\A---\n[\s\S]*?\n---\n").sub(b, text)
     text = rx(r"```[\s\S]*?```").sub(b, text)
     text = rx(r"~~~[\s\S]*?~~~").sub(b, text)
     # Inline code reads as one word in its sentence: "call `lint_writing` on it" is not a fragment.
     text = rx(r"`[^`]{0,400}?`").sub(lambda m: "x" + blank(m.group(0)[1:]), text)
-    text = rx(r"!\[[^\]\n]*\]\([^)\n]*\)").sub(b, text)
-    text = rx(r"<(script|style|code|pre)\b[\s\S]*?</\1>", re.I).sub(b, text)
-    text = rx(r"<[^>\n]+>").sub(b, text)
-    text = rx(r"\]\([^)\n]*\)").sub(lambda m: "](" + blank(m.group(0)[2:]), text)
+    # ![alt](target). Not closed: no ] on the line, a ] with no ( after it, or a ( with no ) after it.
+    text = rx(r"(!\[[^\]\n]*\]\([^)\n]*\))|!\[[^\]\n]*\](?!\()|!\[[^\]\n]*(?=\n|\Z)|!\[[^\]\n]*\]\([^\n]*").sub(
+        when_closed(blank), text
+    )
+    text = blank_blocks(text)
+    # <tag>. Not closed: "<>", or no > on the rest of the line.
+    text = rx(r"(<[^>\n]+>)|<>|<[^\n]*").sub(when_closed(blank), text)
+    # ](target). Not closed: no ) on the rest of the line.
+    text = rx(r"(\]\([^)\n]*\))|\]\([^\n]*").sub(when_closed(lambda s: "](" + blank(s[2:])), text)
     text = rx(rf"https?://[^{WS})>\]]+").sub(b, text)
     return text
 
@@ -129,7 +169,8 @@ def count_words(s):
     return len(WORD.findall(s))
 
 
-PARA = rx(r"[^\n]+(?:\n(?!" + S + r"*\n)[^\n]+)*")
+# [^\S\n]*, not \s*: the lookahead must stop at the line's end, or a run of blank lines is rescanned from every line.
+PARA = rx(r"[^\n]+(?:\n(?!" + SNL + r"*\n)[^\n]+)*")
 
 
 def paragraphs(prose):
@@ -138,7 +179,10 @@ def paragraphs(prose):
 
 HEADING = rx(rf"\A{S}{{0,3}}#{{1,6}}{S}")
 LIST = rx(rf"\A{S}{{0,3}}(?:[-*+]|\d+[.)]){S}")
-SENTENCE = rx(rf"{NS}[\s\S]*?(?:[.!?]+[\"”’)]*(?={S}|\Z)|\Z)")
+# One sentence: its first character, then up to the first whole run of . ! or ? that ends a word. After the first
+# character the run must start where it begins, or a greedy run is retried from every character of 'a!!!!...!b'.
+_RUN = rf"[.!?]+(?![.!?])[\"”’)]*(?={S}|\Z)"
+SENTENCE = rx(rf"{NS}(?:(?:{_RUN}|\Z)|[\s\S]*?(?:(?<![.!?]){_RUN}|\Z))")
 
 
 def sentences(prose):
@@ -186,7 +230,7 @@ DASHES = re.compile(rf"\u2014|(?:(?<={LET})|(?<={LET},)) (?:\u2013|--) (?={LET})
 BOLD = rx(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
 LW = r"(?:[^\W\d_]|['’-])"
 # "sleep, reading, play, or dinner": a list of three or more, the rhythm generated prose falls into.
-TRIAD = re.compile(rf"{BOUND}{LW}+(?: {LW}+){{0,3}}, {LW}+(?: {LW}+){{0,3}},? (?:and|or) {LW}+")
+TRIAD = re.compile(rf"(?<![\w'’-]){LW}+(?: {LW}+){{0,3}}, {LW}+(?: {LW}+){{0,3}},? (?:and|or) {LW}+")
 BOLD_LEAD = rx(rf"\A{S}*(?:\*\*|__)[^*_\n]{{2,80}}(?:\*\*|__)")
 NUMBER = rx(r"\b\d[\d,.:]*\b")
 ENDING = rx(rf"\A{S}*(?:ultimately|overall|in the end|in conclusion|in summary|to sum up|all in all)\b[,:]?", re.I)

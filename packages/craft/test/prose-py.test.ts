@@ -26,6 +26,14 @@ function lintPy(text: string, name = 'in.md'): ProseLint {
   }
 }
 
+interface Attack {
+  name: string;
+  head: string;
+  unit: string;
+  times: number;
+  tail: string;
+}
+
 const pairs = (l: ProseLint) => l.findings.map((f) => `${f.severity} ${f.id}`).sort();
 
 describe('prose lint: the Python script and the package agree', () => {
@@ -41,6 +49,16 @@ describe('prose lint: the Python script and the package agree', () => {
       );
       // The same places, in the same order: text, offset, line and column.
       expect(py.findings.map((f) => f.matches)).toEqual(js.findings.map((f) => f.matches));
+    });
+  }
+
+  for (const a of FIXTURES.attacks as Attack[]) {
+    it(`lints 200,000 characters of ${a.name} in seconds, and agrees`, () => {
+      const text = a.head + a.unit.repeat(a.times) + a.tail;
+      const started = performance.now();
+      const py = lintPy(text);
+      expect(performance.now() - started).toBeLessThan(5000);
+      expect(py).toEqual(lintProse(text));
     });
   }
 

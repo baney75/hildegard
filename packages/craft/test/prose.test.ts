@@ -13,6 +13,14 @@ interface Case {
   clean?: boolean;
 }
 
+interface Attack {
+  name: string;
+  head: string;
+  unit: string;
+  times: number;
+  tail: string;
+}
+
 describe('prose lint', () => {
   for (const c of FIXTURES.cases as Case[]) {
     it(c.name, () => {
@@ -45,6 +53,31 @@ describe('prose lint', () => {
       expect(l.ok).toBe(false);
       expect(performance.now() - started).toBeLessThan(1500);
     }
+  });
+
+  for (const a of FIXTURES.attacks as Attack[]) {
+    it(`lints 200,000 characters of ${a.name} in well under a second`, () => {
+      const text = a.head + a.unit.repeat(a.times) + a.tail;
+      const started = performance.now();
+      lintProse(text);
+      expect(performance.now() - started).toBeLessThan(750);
+    });
+  }
+
+  it('blanks what the plain patterns blank, and only that, when a closer is missing', () => {
+    // Underscores stand in for spaces in the input, so every space in the output is a blanked character. The
+    // expected values are what the plain patterns (no consumed-alternative) gave before they were rewritten.
+    const blanked = (t: string) => blankNonProse(t).replaceAll(' ', '.');
+    expect(blanked('x_<_y_<b>z')).toBe('x_.......z');
+    expect(blanked('a_<>_b_<i>c')).toBe('a_<>_b_...c');
+    expect(blanked('a_<_b\nc_<i>d')).toBe('a_<_b\nc_...d');
+    expect(blanked('a_![b](c)_d')).toBe('a_......._d');
+    expect(blanked('![a_![b](c)')).toBe('...........');
+    expect(blanked('![a]_![b](c)')).toBe('![a]_.......');
+    expect(blanked('![a](b_![c](d)')).toBe('..............');
+    expect(blanked('see_[x](y)_and_](z')).toBe('see_[x](.._and_](z');
+    expect(blanked('<code>a</code>_b_<CODE>c')).toBe('.............._b_......c');
+    expect(blanked('<pre>a_<code>b</pre>_c</code>')).toBe('...................._c.......');
   });
 
   it('blanks code, links and HTML without moving anything', () => {
