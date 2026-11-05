@@ -43,15 +43,20 @@ drafting a long piece. A line with no fact behind it is a sign to ask, not to in
 ## 3. Draft in their voice
 
 - Lead with the point or the story. No opener about the world, the age we live in, or the reader's struggles.
-- Every claim traces to an answer, a source you can name, or plain common knowledge. Never invent a statistic, a
-  quote, a study, a customer or an anecdote. If the piece needs one you don't have, ask, or leave a visible note
-  for the writer and say so in the delivery.
-- Use their phrases where they fit. Vary sentence length the way they talk.
-- Headings only where a reader would scan for them, written as what the section says, not as labels. No bold
-  lead-in on every paragraph; that is a slide deck, not a post.
+- Every claim traces to an answer or a source you can name. Never invent a statistic, a quote, a study, a customer,
+  a scene or a feeling the writer didn't report. Don't put advice, services, prices, dates or opinions in the
+  writer's mouth that they didn't give, even common ones: a shop owner's post that adds “store it somewhere dry” is
+  telling customers something the owner never said. If the piece needs it, ask, or mark it for the writer to
+  confirm and say so in the delivery.
+- Warmth comes from how the writer talks to these readers, not from invented detail. Write as them, to people they
+  know: “you”, the plain greeting and sign-off they'd use, the joke they made in the interview. Use their phrases
+  where they fit, and vary sentence length the way they talk.
+- A post under about 600 words usually needs no headings at all. Over that, headings only where a reader would scan
+  for them, written as what the section says. Never a bold lead-in on every paragraph; that is a slide deck.
 - A list only for things that are really a list (steps, ingredients, a schedule). Elsewhere, pick the one example
   that matters instead of three that sound balanced.
-- End on the last concrete point or the ask. No recap, no moral, no line written to sound wise.
+- End on the ask, said the way the writer would say it to these readers (“See you in the hall after the 10:30”), or
+  on the last concrete point. No recap, no moral, no line written to sound wise.
 
 ## 4. Lint until it passes
 
