@@ -43,23 +43,67 @@ interface PhraseRule {
 
 const PHRASES = RULES.phrases as Record<string, PhraseRule>;
 
+const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+const whenClosed = (blanked: (m: string) => string) => (m: string, closed?: string) =>
+  closed ? blanked(m) : m;
+
+/**
+ * <script>, <style>, <code> and <pre> through their closing tag, blanked; one with no closing tag is left alone. The
+ * plain pattern `<(script|style|code|pre)\b[\s\S]*?<\/\1>` scans to the end of the text from every unclosed opener,
+ * so this looks for each tag's last closing tag once and skips the openers after it.
+ */
+const BLOCK_CLOSE = /<\/(script|style|code|pre)>/gi;
+function blankBlocks(text: string): string {
+  const last: Record<string, number> = {};
+  for (const m of text.matchAll(BLOCK_CLOSE)) last[m[1]!.toLowerCase()] = m.index;
+  const open = /<(script|style|code|pre)\b/gi;
+  let out = '';
+  let from = 0;
+  for (let m = open.exec(text); m; m = open.exec(text)) {
+    const name = m[1]!.toLowerCase();
+    if ((last[name] ?? -1) <= m.index) continue;
+    const close = new RegExp(`</${name}>`, 'gi');
+    close.lastIndex = m.index + m[0].length;
+    const c = close.exec(text)!;
+    const end = c.index + c[0].length;
+    out += text.slice(from, m.index) + blank(text.slice(m.index, end));
+    from = end;
+    open.lastIndex = end;
+  }
+  return out + text.slice(from);
+}
+
 /**
  * Code, URLs, link targets and HTML that isn't prose, blanked to spaces of the same length so every offset still
  * points at the text as given.
+ *
+ * Three of these are an opener, a run to the end of the line, and a closer. When the closer is missing, the plain
+ * pattern fails from every opener on the line and rescans the line each time: '<<<<…' or '![![![…' at 200,000
+ * characters took ten seconds. So each has a second alternative that consumes the doomed rest of the line (or span),
+ * unchanged, and only the first alternative's match is blanked. Which text is blanked is exactly the plain pattern's.
  */
 export function blankNonProse(text: string): string {
-  const blank = (m: string) => m.replace(/[^\n]/g, ' ');
   return (
-    text
-      .replace(/^---\n[\s\S]*?\n---\n/, blank)
-      .replace(/```[\s\S]*?```/g, blank)
-      .replace(/~~~[\s\S]*?~~~/g, blank)
-      // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.
-      .replace(/`[^`]{0,400}?`/g, (m) => `x${blank(m.slice(1))}`)
-      .replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, blank)
-      .replace(/<(script|style|code|pre)\b[\s\S]*?<\/\1>/gi, blank)
-      .replace(/<[^>\n]+>/g, blank)
-      .replace(/\]\([^)\n]*\)/g, (m) => `](${blank(m.slice(2))}`)
+    blankBlocks(
+      text
+        .replace(/^---\n[\s\S]*?\n---\n/, blank)
+        .replace(/```[\s\S]*?```/g, blank)
+        .replace(/~~~[\s\S]*?~~~/g, blank)
+        // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.
+        .replace(/`[^`]{0,400}?`/g, (m) => `x${blank(m.slice(1))}`)
+        // ![alt](target). Not closed: no ] on the line, a ] with no ( after it, or a ( with no ) after it.
+        .replace(
+          /(!\[[^\]\n]*\]\([^)\n]*\))|!\[[^\]\n]*\](?!\()|!\[[^\]\n]*(?=\n|$)|!\[[^\]\n]*\]\([^\n]*/g,
+          whenClosed(blank),
+        ),
+    )
+      // <tag>. Not closed: “<>”, or no > on the rest of the line.
+      .replace(/(<[^>\n]+>)|<>|<[^\n]*/g, whenClosed(blank))
+      // ](target). Not closed: no ) on the rest of the line.
+      .replace(
+        /(\]\([^)\n]*\))|\]\([^\n]*/g,
+        whenClosed((m) => `](${blank(m.slice(2))}`),
+      )
       .replace(/https?:\/\/[^\s)>\]]+/g, blank)
   );
 }
@@ -80,7 +124,12 @@ function locate(text: string, index: number, match: string): ProseMatch {
     if (breaks[mid]! < index) lo = mid + 1;
     else hi = mid;
   }
-  return { text: match, index, line: lo + 1, column: index - (lo ? breaks[lo - 1]! : -1) };
+  return {
+    text: match,
+    index,
+    line: lo + 1,
+    column: index - (lo ? breaks[lo - 1]! : -1),
+  };
 }
 
 function all(re: RegExp, prose: string, text: string): ProseMatch[] {
@@ -101,7 +150,8 @@ const countWords = (s: string) => s.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.l
 /** Paragraphs with their offsets: blocks between blank lines. */
 function paragraphs(prose: string): Array<{ text: string; index: number }> {
   const out: Array<{ text: string; index: number }> = [];
-  const re = /[^\n]+(?:\n(?!\s*\n)[^\n]+)*/g;
+  // `[^\S\n]*`, not `\s*`: the lookahead must stop at the line's end, or a run of blank lines is rescanned from every line.
+  const re = /[^\n]+(?:\n(?![^\S\n]*\n)[^\n]+)*/g;
   for (const m of prose.matchAll(re)) if (m[0].trim()) out.push({ text: m[0], index: m.index });
   return out;
 }
@@ -109,16 +159,28 @@ function paragraphs(prose: string): Array<{ text: string; index: number }> {
 const isHeading = (p: string) => /^\s{0,3}#{1,6}\s/.test(p);
 const isList = (p: string) => /^\s{0,3}(?:[-*+]|\d+[.)])\s/.test(p);
 
+/**
+ * One sentence: its first character, then up to the first run of . ! or ? that ends a word, with any closing quotes.
+ * The run must be whole (`(?![.!?])`) and, after the first character, must start where it begins (`(?<![.!?])`): a
+ * greedy run is otherwise retried from every character of 'a!!!!...!b', and each retry backtracks through the run.
+ */
+const SENTENCE =
+  /\S(?:(?:[.!?]+(?![.!?])["”’)]*(?=\s|$)|$)|[\s\S]*?(?:(?<![.!?])[.!?]+(?![.!?])["”’)]*(?=\s|$)|$))/g;
+
 /** Sentences of running prose (not headings or list items), with offsets. */
 function sentences(prose: string): Array<{ text: string; index: number; words: number }> {
   const out: Array<{ text: string; index: number; words: number }> = [];
   for (const p of paragraphs(prose)) {
     if (isHeading(p.text) || isList(p.text)) continue;
-    for (const m of p.text.matchAll(/\S[\s\S]*?(?:[.!?]+["”’)]*(?=\s|$)|$)/g)) {
+    for (const m of p.text.matchAll(SENTENCE)) {
       const t = m[0].trim();
       if (!t) continue;
       const lead = m[0].length - m[0].trimStart().length;
-      out.push({ text: t, index: p.index + m.index + lead, words: countWords(t) });
+      out.push({
+        text: t,
+        index: p.index + m.index + lead,
+        words: countWords(t),
+      });
     }
   }
   return out;
@@ -142,9 +204,12 @@ const COLON_REVEAL =
 /** An em dash anywhere; an en dash or a double hyphen only between words, never in a range like 9 – 5. */
 const DASHES = /—|(?<=\p{L}[,]?) (?:–|--) (?=\p{L})/gu;
 const BOLD = /\*\*[^*\n]+\*\*|__[^_\n]+__/g;
-/** “sleep, reading, play, or dinner”: a list of three or more, the rhythm generated prose falls into. */
+/**
+ * “sleep, reading, play, or dinner”: a list of three or more, the rhythm generated prose falls into. It starts where
+ * a word starts, by its own letters: `\b` is ASCII-only, so in “aéaéaé…” it fell between every pair and rescanned the word.
+ */
 const TRIAD =
-  /\b[\p{L}'’-]+(?: [\p{L}'’-]+){0,3}, [\p{L}'’-]+(?: [\p{L}'’-]+){0,3},? (?:and|or) [\p{L}'’-]+/gu;
+  /(?<![\p{L}\p{N}_'’-])[\p{L}'’-]+(?: [\p{L}'’-]+){0,3}, [\p{L}'’-]+(?: [\p{L}'’-]+){0,3},? (?:and|or) [\p{L}'’-]+/gu;
 const BOLD_LEAD = /^\s*(?:\*\*|__)[^*_\n]{2,80}(?:\*\*|__)/;
 /** Numbers, and capitalised words that don't start a sentence: the names, dates and amounts a real piece is made of. */
 const SPECIFIC = /\b\d[\d,.:]*\b|(?<=[\p{Ll},;] )\p{Lu}\p{Ll}+/gu;

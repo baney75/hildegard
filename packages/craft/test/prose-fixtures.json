@@ -1,5 +1,70 @@
 {
-  "_about": "Shared cases for both prose lint engines (prose.ts and skills/hildegard/scripts/prose_lint.py). `fails` lists rule ids that must fail; `warns` ids that must warn; `clean: true` means no finding at all.",
+  "_about": "Shared cases for both prose lint engines (prose.ts and skills/hildegard/scripts/prose_lint.py). `fails` lists rule ids that must fail; `warns` ids that must warn; `clean: true` means no finding at all; `ok` is the lint's ok. `attacks` are 200,000-character texts (head, unit repeated times, tail) that once took seconds to lint: both engines must lint each in a moment.",
+  "attacks": [
+    {
+      "name": "blank lines of spaces (paragraph split)",
+      "head": "x\n",
+      "unit": " \n",
+      "times": 99999,
+      "tail": "y"
+    },
+    {
+      "name": "accented letters (list of three)",
+      "head": "",
+      "unit": "aé",
+      "times": 100000,
+      "tail": ""
+    },
+    {
+      "name": "a run of exclamation marks (sentence split)",
+      "head": "a",
+      "unit": "!",
+      "times": 199998,
+      "tail": "b"
+    },
+    {
+      "name": "unclosed tags",
+      "head": "",
+      "unit": "<",
+      "times": 200000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed tags with a name",
+      "head": "",
+      "unit": "<a",
+      "times": 100000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed code blocks",
+      "head": "",
+      "unit": "<code",
+      "times": 40000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed images",
+      "head": "",
+      "unit": "![",
+      "times": 100000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed image targets",
+      "head": "",
+      "unit": "![a](",
+      "times": 40000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed link targets",
+      "head": "",
+      "unit": "](",
+      "times": 100000,
+      "tail": ""
+    }
+  ],
   "cases": [
     {
       "name": "the stock blog opener",
@@ -81,6 +146,15 @@
       "name": "a default post leaning on lists of three",
       "text": "# Choosing Your First Pickup Truck\n\nBuying a first pickup is exciting. Trucks have a reputation for toughness and utility, but the right one for you depends far more on how you'll use it than on how it looks on the lot. Before you walk into a dealership, take a few minutes to get honest about your needs.\n\n## Start With the Work, Not the Wish List\n\nAsk yourself what you'll actually haul. If you're mostly carrying groceries, a bike, or a few bags of mulch, a compact truck with a short bed may serve you perfectly well. If you tow a boat, a camper, or a utility trailer every weekend, you'll need a full-size truck with a higher towing rating and a stronger frame. Be realistic. Buying a larger truck than you need means paying more for fuel, insurance, and parking every month.\n\n## Size Matters More Than You Think\n\nCompact trucks are easier to park, cheaper to buy, and often more economical on gas. Full-size trucks offer more cabin room, a longer bed, and greater capability, but they can be a handful in tight city streets and parking garages. Measure your garage and your most common parking spots before you fall in love with a model.\n\n## Cab and Bed Configurations\n\nMost trucks come in regular, extended, and crew cab layouts. A regular cab is the lightest and least expensive. An extended cab adds small rear seats for occasional passengers. A crew cab gives you full rear seating, which is ideal if you carry people often but means a shorter bed on many models. Choose the bed length that fits your typical loads, since a bed that's too short can make sheets of plywood a puzzle.\n\n## Four-Wheel Drive: Do You Really Need It?\n\nFour-wheel drive adds cost, weight, and maintenance, and it reduces fuel economy. It's essential if you drive on snow, mud, or unpaved roads regularly. If your driving is mostly paved and dry, a two-wheel-drive truck with good tires will save you money without sacrificing much day-to-day capability.\n\n## Budget Beyond the Sticker Price\n\nThe purchase price is only the beginning. Factor in fuel, insurance, registration, routine maintenance, and tires. Trucks often carry higher insurance premiums than sedans. Get quotes before you sign, and compare the total cost of ownership across two or three models rather than focusing on the monthly payment alone.\n\n## Buy Used, or Buy New?\n\nA two- or three-year-old truck often sheds its steepest depreciation while still offering modern features and a warranty remainder. Used trucks also make a forgiving first purchase, since a scratch in the bed matters less when the truck is already a working tool. Get a pre-purchase inspection from an independent mechanic, especially for a truck that has been used for towing or off-road work.\n\n## Test Drive With a Purpose\n\nBring your real cargo, or something close to it. Drive on the highway, in traffic, and on the roads you use most. Check visibility, turning radius, and how the seats feel after thirty minutes. The truck that suits your life will feel comfortable in the ordinary moments, not just the showroom.\n\nChoose deliberately, and your first pickup can serve you well for many years.\n",
       "warns": ["triads"]
+    },
+    {
+      "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
+      "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
+      "warns": ["fragments"]
+    },
+    {
+      "name": "a list of three needs its own start: accents and apostrophes",
+      "text": "We sold ’tis, apples, and plums at the café, and the crème, éclairs, or tarts went fast."
     }
   ]
 }
