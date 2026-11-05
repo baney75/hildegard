@@ -264,13 +264,7 @@
   "bold": {
     "perParagraph": 1
   },
-  "markers": [
-    "TODO",
-    "TBD",
-    "FIXME",
-    "lorem ipsum",
-    "\\[(?:your|insert|add) [^\\],\\n]{1,40}\\](?!\\()"
-  ],
+  "markers": ["TODO", "TBD", "FIXME", "lorem ipsum", "\\[(?:your|insert|add) [^\\],\\n]{1,40}\\](?!\\()"],
   "triads": {
     "perHundred": 1.5,
     "minWords": 200
