@@ -93,6 +93,29 @@ describe('prose lint: the Python script and the package agree', () => {
     }
   });
 
+  it('exits 2, not the 1 of a failing lint, for bad usage or a file it cannot read', () => {
+    const status = (args: string[]) => {
+      try {
+        execFileSync(python, ['-I', script, ...args], { encoding: 'utf8', stdio: 'pipe' });
+        return 0;
+      } catch (e) {
+        return (e as { status: number }).status;
+      }
+    };
+    const bad = join(dir, 'exit-bad.md');
+    const good = join(dir, 'exit-good.md');
+    writeFileSync(bad, 'We will delve into it.');
+    writeFileSync(good, 'A plain sentence about a red barn.');
+    expect(status([bad])).toBe(1);
+    expect(status([good, '--max', '1'])).toBe(0);
+    expect(status([])).toBe(2);
+    expect(status([join(dir, 'missing.md')])).toBe(2);
+    expect(status([dir])).toBe(2);
+    expect(status([bad, join(dir, 'missing.md')])).toBe(2);
+    expect(status(['--bogus', good])).toBe(2);
+    for (const max of ['0', '-1', 'many']) expect(status([good, '--max', max]), max).toBe(2);
+  });
+
   it('exits 1 on a failing file and 0 on a passing one, and reads stdin', () => {
     const run = (input: string) => {
       try {

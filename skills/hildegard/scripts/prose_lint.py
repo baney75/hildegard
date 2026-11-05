@@ -4,11 +4,12 @@
 
   python3 prose_lint.py FILE [FILE...]     lint files; "-" reads stdin
   python3 prose_lint.py --json FILE        the lint as JSON, the shape of ProseLint in packages/craft/src/prose.ts
-  python3 prose_lint.py --max 10 FILE      show up to 10 places per finding (default 6)
+  python3 prose_lint.py --max 10 FILE      show up to 10 places per finding (1 or more, default 6)
 
 Run it on every piece of prose before anyone reads it: a blog post, an email, a page, a caption, a script. Fix every
 fail. Fix each warn too, unless it is the writer's deliberate voice. Lint again until it passes. Exit status is 1
-when any input fails and 0 otherwise. With several inputs, --json prints a list of {file, ok, words, findings}.
+when any input fails, 0 when all pass, and 2 for bad usage or a file that can't be read. With several inputs, --json
+prints a list of {file, ok, words, findings}.
 
 It checks words a person reads, not image or video prompts. The rules live in prose_rules.json beside this file; the
 same file feeds packages/craft/src/prose.ts, which this script reproduces rule for rule (same ids, severities, texts,
@@ -497,13 +498,20 @@ def main():
     ap = argparse.ArgumentParser(description="Lint prose for the tells of machine-made writing.")
     ap.add_argument("files", nargs="+", metavar="FILE", help='files to lint; "-" reads stdin')
     ap.add_argument("--json", action="store_true", help="print the lint as JSON")
-    ap.add_argument("--max", type=int, default=6, help="places shown per finding (default 6)")
-    a = ap.parse_args()
+    ap.add_argument("--max", type=int, default=6, help="places shown per finding, 1 or more (default 6)")
+    a = ap.parse_args()  # a bad flag or no files: exit status 2
+    if a.max < 1:
+        print("--max takes a whole number of places, 1 or more.", file=sys.stderr)
+        return 2
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     results = []
     for f in a.files:
-        raw = sys.stdin.buffer.read() if f == "-" else open(f, "rb").read()
+        try:
+            raw = sys.stdin.buffer.read() if f == "-" else open(f, "rb").read()
+        except OSError:
+            print(f"I can't read {f}.", file=sys.stderr)
+            return 2
         results.append((f, lint_prose(raw.decode("utf-8", errors="replace"))))
     if a.json:
         out = results[0][1] if len(results) == 1 else [{"file": f, **l} for f, l in results]

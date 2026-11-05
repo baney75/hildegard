@@ -35,8 +35,8 @@ All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so t
 | --- | --- | --- |
 | Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }`, up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
 | MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, and `max` places to show for each finding. | A linked AI app |
-| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself, and the exit status is 1 when any file fails. | Hildegard installed, but no server running |
-| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json` and exit status. | Only Python 3 |
+| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
+| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
 
 The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
 It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page

@@ -1376,13 +1376,17 @@ describe('hildegard lint', () => {
     expect(text).toContain(`\n${bad}\nFails`);
   });
 
-  it('says what is wrong when there is nothing to read', async () => {
-    const none = await lint([]);
-    expect(none.code).toBe(1);
+  it('exits 2, not the 1 of a failing lint, when it was used wrongly or has nothing to read', async () => {
+    expect((await lint([bad])).code).toBe(1);
+    expect((await lint([])).code).toBe(2);
     const missing = await run(process.execPath, [main, 'lint', join(dir, 'nope.md')], {
       env: cliEnv(home),
     }).catch((e: { code: number; stderr: string }) => e);
-    expect(missing).toMatchObject({ code: 1, stderr: expect.stringContaining('can\u2019t read') });
-    expect((await lint([good, '--max', '0'])).code).toBe(1);
+    expect(missing).toMatchObject({ code: 2, stderr: expect.stringContaining('can\u2019t read') });
+    // A bad file anywhere in the list stops it, even after a file that fails.
+    expect((await lint([bad, join(dir, 'nope.md')])).code).toBe(2);
+    for (const max of [['--max', '0'], ['--max', '-1'], ['--max', 'many'], ['--max=2.5'], ['--max']])
+      expect((await lint([good, ...max])).code, max.join(' ')).toBe(2);
+    expect((await lint([bad, '--max', '1'])).code).toBe(1);
   });
 });

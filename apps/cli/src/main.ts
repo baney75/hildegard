@@ -101,7 +101,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard lint <file...>   Check writing for the tells that make it read as machine-made (a blog post, an email,
                              a page): each one with where it is and what to do. A file of - reads standard input.
                              Fix every fail, fix each warn unless it is your voice, and lint again. Exits 1 when
-                             any file fails (--json: the lint itself; --max N: places shown for each)
+                             any file fails, 2 for bad usage or a file it can't read (--json: the lint itself;
+                             --max N: places shown for each, 1 or more)
 
   hildegard report bug "<what broke>" --what "<what you did, expected, got>"
   hildegard report idea "<what you want>" --what "<the work you want to make>"
@@ -301,6 +302,7 @@ try {
   const message = (e as Error).message;
   if (ctx.json) console.log(JSON.stringify({ ok: false, needsOwner: false, steps: [], message }, null, 2));
   else console.error(message);
-  process.exitCode = 1;
+  // A command can pick its own status: `lint` uses 2 for bad usage, so 1 stays for a failing lint.
+  process.exitCode = (e as { exitCode?: number }).exitCode ?? 1;
   if (e instanceof ForegroundStartError) process.exit(1);
 }
