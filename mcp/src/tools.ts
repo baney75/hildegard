@@ -652,8 +652,13 @@ export function registerTools(
     'lint_writing',
     {
       title: 'Lint writing before you show it',
-      description:
-        'Check words a person will read for the tells that make writing read as machine-made: stock words, empty openers, dashes, "not X but Y" contrasts, stacked fragments, lists of three, bold used as slides, placeholder text and more. Run it on every piece of prose before you show it to anyone: blog posts, emails, pages, captions, scripts. Fix every fail. Fix each warn unless it is your writer’s deliberate voice. Then lint again, and repeat until it passes. Give the text itself, or the path to a file on this computer. Each problem comes with where it is (line:column), why it reads as generated and what to write instead. Costs nothing and nothing leaves the computer. For image and video prompts use review_prompt.',
+      description: `Check words a person will read for the tells that make writing read as machine-made: stock words, empty openers, dashes, "not X but Y" contrasts, stacked fragments, lists of three, bold used as slides, placeholder text and more. Run it on every piece of prose before you show it to anyone: blog posts, emails, pages, captions, scripts. Fix every fail. Fix each warn unless it is your writer’s deliberate voice. Then lint again, and repeat until it passes. ${
+        remote
+          ? 'Give the text itself; the words go to the Hildegard computer, which lints them.'
+          : 'Give the text itself, or the path to a file on this computer.'
+      } Each problem comes with where it is (line:column), why it reads as generated and what to write instead. Costs nothing${
+        remote ? '' : ' and nothing leaves your own Hildegard'
+      }. For image and video prompts use review_prompt.`,
       inputSchema: {
         text: z
           .string()

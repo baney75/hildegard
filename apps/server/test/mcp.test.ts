@@ -280,6 +280,9 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(tool.description).toMatch(/every piece of prose before you show it/);
     expect(tool.description).toMatch(/Fix every fail/);
     expect(tool.description).toMatch(/lint again/);
+    // On the user's own Hildegard: a path works, and nothing leaves.
+    expect(tool.description).toMatch(/path to a file on this computer/);
+    expect(tool.description).toMatch(/nothing leaves your own Hildegard/);
   });
 
   it('corrects a wrong id with the ids that would work', async () => {

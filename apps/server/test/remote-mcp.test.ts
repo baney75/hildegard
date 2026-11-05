@@ -260,6 +260,10 @@ describe('MCP over HTTP from other devices', { timeout: 30_000 }, () => {
     })) as CallToolResult;
     expect(byText.isError).toBeFalsy();
     expect(textOf(byText)).toMatch(/^Clean/);
+    // Told to a hosted caller: no path (it can't be read), and the words do leave their computer.
+    const tool = (await c.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.description).toMatch(/Give the text itself; the words go to the Hildegard computer/);
+    expect(tool.description).not.toMatch(/path|nothing leaves/);
     await c.close();
   });
 
