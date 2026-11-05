@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { describeProseLint, describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
 import type {
   Catalog,
@@ -688,6 +688,13 @@ export function registerTools(
             422,
             'Hildegard runs on another computer, so it can’t read a path on yours. Send the words as text instead.',
           );
+        // A regular file only, and no bigger than 200,000 characters can be: a folder, a pipe or /dev/zero is never
+        // read.
+        const st = await stat(a.path).catch(() => {
+          throw new HildegardError(0, `Cannot read ${a.path}`);
+        });
+        if (!st.isFile() || st.size > 800_000)
+          throw new HildegardError(422, `${a.path} isn’t a text file of up to 200,000 characters.`);
         prose = await readFile(a.path, 'utf8').catch(() => {
           throw new HildegardError(0, `Cannot read ${a.path}`);
         });

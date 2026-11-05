@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -252,6 +253,17 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(textOf(await call('lint_writing', { text: 'delve delved delving', max: 1 }))).toContain(
       'and 2 more',
     );
+
+    // Only a regular file small enough to be 200,000 characters: never a folder, a pipe or a device that never ends.
+    const big = join(dir, 'big.md');
+    writeFileSync(big, 'a '.repeat(500_000));
+    const fifo = join(dir, 'pipe.md');
+    execFileSync('mkfifo', [fifo]);
+    for (const path of [dir, big, fifo, '/dev/zero']) {
+      const r = await call('lint_writing', { path });
+      expect(r.isError, path).toBe(true);
+      expect(textOf(r), path).toMatch(/a text file of up to 200,000 characters/);
+    }
 
     for (const args of [{}, { text: 'x', path: file }, { path: join(dir, 'missing.md') }]) {
       const r = await call('lint_writing', args);

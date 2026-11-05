@@ -244,6 +244,25 @@ describe('MCP over HTTP from other devices', { timeout: 30_000 }, () => {
     await c.close();
   });
 
+  it('lints words sent from afar, never a file on this computer', async () => {
+    const { key } = await newKey('Laptop');
+    const c = await mcpAt(remote, key);
+    const byPath = (await c.callTool({
+      name: 'lint_writing',
+      arguments: { path: '/etc/hosts' },
+    })) as CallToolResult;
+    expect(byPath.isError).toBe(true);
+    expect(textOf(byPath)).toContain('Send the words as text');
+    expect(textOf(byPath)).not.toMatch(/localhost|127\.0\.0\.1/);
+    const byText = (await c.callTool({
+      name: 'lint_writing',
+      arguments: { text: 'We fixed the pump on Tuesday.' },
+    })) as CallToolResult;
+    expect(byText.isError).toBeFalsy();
+    expect(textOf(byText)).toMatch(/^Clean/);
+    await c.close();
+  });
+
   it('stops working the moment a key is revoked', async () => {
     const { key, grant } = await newKey('Old desktop');
     expect((await rawMcp(remote, key)).status).toBe(200);
