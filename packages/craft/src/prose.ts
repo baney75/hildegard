@@ -278,7 +278,10 @@ export function lintProse(text: string): ProseLint {
     );
   }
 
-  const notBut = NOT_BUT.flatMap((re) => all(re, prose, text)).sort((a, b) => a.index - b.index);
+  // Two patterns can match the same span (“not just a tool, but”): one contrast is one match.
+  const notBut = NOT_BUT.flatMap((re) => all(re, prose, text))
+    .sort((a, b) => a.index - b.index)
+    .filter((m, i, a) => i === 0 || m.index !== a[i - 1]!.index);
   if (notBut.length)
     add(
       'not-but',

@@ -317,7 +317,11 @@ def lint_prose(text):
             dashes,
         )
 
-    not_but = sorted([m for re_ in NOT_BUT for m in t.all(re_, prose)], key=lambda m: m["index"])
+    # Two patterns can match the same span ("not just a tool, but"): one contrast is one match.
+    not_but = []
+    for m in sorted([m for re_ in NOT_BUT for m in t.all(re_, prose)], key=lambda m: m["index"]):
+        if not not_but or m["index"] != not_but[-1]["index"]:
+            not_but.append(m)
     if not_but:
         add(
             "not-but",

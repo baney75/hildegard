@@ -189,6 +189,12 @@
       "text": "Pastor Mike Foster will bless the food.\n\nThe shop on Beacon Street opens at nine."
     },
     {
+      "name": "second-F7: one not just X, but Y is one match and a warn",
+      "text": "Our app is not just a tool, but a partner.",
+      "warns": ["not-but"],
+      "ok": true
+    },
+    {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
       "warns": ["fragments"]
