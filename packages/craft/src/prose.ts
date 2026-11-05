@@ -88,7 +88,8 @@ export function blankNonProse(text: string): string {
   return (
     blankBlocks(
       text
-        .replace(/^---\n[\s\S]*?\n---\n/, blank)
+        // Front matter: after an optional byte order mark, with either line ending, and at the end of the text.
+        .replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, blank)
         .replace(/```[\s\S]*?```/g, blank)
         .replace(/~~~[\s\S]*?~~~/g, blank)
         // Inline code reads as one word in its sentence: “call `lint_writing` on it” is not a fragment.

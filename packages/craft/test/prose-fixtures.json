@@ -239,6 +239,26 @@
       }
     },
     {
+      "name": "second-F11: front matter with Windows line endings is not prose",
+      "text": "---\r\ntitle: We delve into a robust tapestry\r\n---\r\nA plain sentence about a red barn.\r\n",
+      "clean": true
+    },
+    {
+      "name": "second-F11: front matter after a byte order mark is not prose",
+      "text": "\ufeff---\ntitle: We delve into a robust tapestry\n---\nA plain sentence about a red barn.\n",
+      "clean": true
+    },
+    {
+      "name": "second-F11: front matter with nothing after the closing line is not prose",
+      "text": "---\ntitle: We delve into a robust tapestry\n---",
+      "clean": true
+    },
+    {
+      "name": "second-F11: a dash rule later in the text is not front matter",
+      "text": "A plain sentence about a red barn.\n\n---\n\nWe will delve into it.",
+      "fails": ["stock-words"]
+    },
+    {
       "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
       "warns": ["fragments"]

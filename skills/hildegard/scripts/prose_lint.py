@@ -146,7 +146,8 @@ def blank_non_prose(text):
     The image, tag and link patterns each have a second alternative that consumes the doomed rest of the line when
     the closer is missing, as prose.ts does: otherwise '<<<<...' fails from every opener and rescans the line."""
     b = lambda m: blank(m.group(0))
-    text = rx(r"\A---\n[\s\S]*?\n---\n").sub(b, text)
+    # Front matter: after an optional byte order mark, with either line ending, and at the end of the text.
+    text = rx(r"\A\ufeff?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|\Z)").sub(b, text)
     text = rx(r"```[\s\S]*?```").sub(b, text)
     text = rx(r"~~~[\s\S]*?~~~").sub(b, text)
     # Inline code reads as one word in its sentence: "call `lint_writing` on it" is not a fragment.
