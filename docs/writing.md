@@ -10,7 +10,7 @@ each one by line and column, says why it reads that way, and says what to do ins
 video prompts: `review_prompt` does those. Code blocks, inline code, link targets and HTML are skipped, and so are
 words in quotation marks, since a list of banned words should not fail for naming them.
 
-It looks for 24 kinds of tell. The rule ids are in the output, and a few examples are:
+It looks for 25 kinds of tell. The rule ids are in the output, and a few examples are:
 
 - Stock words and empty openers: "delve", "tapestry", "it's worth noting", "in today's fast-paced world".
 - Dashes used for rhythm, and contrasts of the form "it's not X, it's Y".
@@ -24,8 +24,10 @@ until you fix it. A warn is a judgment call: fix it unless it is the writer's ow
 deliberate fragments. A text passes when nothing fails, and is clean when nothing is found at all. Short pieces get
 stricter treatment than long ones: one dash fails a 100-word email and only warns in a 2,000-word essay.
 
-For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before showing it to anyone, fix every fail,
-fix each warn that is not the writer's voice, and lint again until it passes.
+For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before
+showing it to anyone. For everyday prose (a post, an email, a page, an announcement), fix every fail, fix each warn
+that is not the writer's voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and
+academic papers, every finding is a warning: keep what the voice, form or field needs, and say which you kept.
 
 ## Four ways to run it
 

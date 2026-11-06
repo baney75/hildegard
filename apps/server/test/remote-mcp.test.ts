@@ -264,6 +264,8 @@ describe('MCP over HTTP from other devices', { timeout: 30_000 }, () => {
     const tool = (await c.listTools()).tools.find((t) => t.name === 'lint_writing')!;
     expect(tool.description).toMatch(/Give the text itself; the words go to the Hildegard computer/);
     expect(tool.description).not.toMatch(/path|nothing leaves/);
+    const listed = (await c.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(listed.inputSchema.properties).not.toHaveProperty('path');
     await c.close();
   });
 

@@ -100,7 +100,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
 
   hildegard lint <file...>   Check writing for the tells that make it read as machine-made (a blog post, an email,
                              a page): each one with where it is and what to do. A file of - reads standard input.
-                             Fix every fail, fix each warn unless it is your voice, and lint again. Exits 1 when
+                             For everyday prose, fix every fail, fix each warn unless it is your voice, and lint
+                             again; for poems, fiction, scripts and papers every finding is a warning. Exits 1 when
                              any file fails, 2 for bad usage or a file it can't read (--json: the lint itself;
                              --max N: places shown for each, 1 or more)
 

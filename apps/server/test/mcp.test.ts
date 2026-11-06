@@ -28,7 +28,8 @@ beforeAll(async () => {
     { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0 },
     { fakeTickMs: 20, secrets: fileStore(join(dir, 'secret.json')) },
   );
-  const server = createMcpServer(new HildegardClient(srv.url));
+  // As the stdio server a person starts for their own AI app: it may read files they name.
+  const server = createMcpServer(new HildegardClient(srv.url), { files: true });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await server.connect(a);
   client = new Client({ name: 'test-agent', version: '1.0.0' });
@@ -267,7 +268,14 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     const exact = join(dir, 'exact.md');
     writeFileSync(exact, 'a '.repeat(100_000));
     expect(textOf(await call('lint_writing', { path: exact }))).toMatch(/^Clean|^Passes|^Fails/);
-    for (const path of [dir, big, long, ...(unix ? [fifo, '/dev/zero'] : [])]) {
+    const linux = process.platform === 'linux';
+    for (const path of [
+      dir,
+      big,
+      long,
+      ...(unix ? [fifo, '/dev/zero'] : []),
+      ...(linux ? ['/proc/self/environ'] : []),
+    ]) {
       const r = await call('lint_writing', { path });
       expect(r.isError, path).toBe(true);
       expect(textOf(r), path).toMatch(/a text file of up to 200,000 characters/);
@@ -280,7 +288,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     // Told to every agent: lint before showing, fix, lint again.
     const tool = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
     expect(tool.description).toMatch(/every piece of prose before you show it/);
-    expect(tool.description).toMatch(/Fix every fail/);
+    expect(tool.description).toMatch(/fix every fail/);
     expect(tool.description).toMatch(/lint again/);
     // On the user's own Hildegard: a path works, and nothing leaves.
     expect(tool.description).toMatch(/path to a file on this computer/);
@@ -381,6 +389,47 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(r).toContain('Apache-2.0');
     expect(r).toContain('accept_license: true');
     expect(srv.models.licenseAccepted('wan-2-2-ti2v-5b')).toBe(false);
+  });
+
+  it('reads files by path only for the stdio server a person starts, never for a local model Hildegard runs', async () => {
+    // As llm.ts builds it for a local model, which reads content that may carry instructions.
+    const asModel = createMcpServer(new HildegardClient(srv.url), { agentName: 'qwen (local)' });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await asModel.connect(a);
+    const c = new Client({ name: 't', version: '1' });
+    await c.connect(b);
+    const tool = (await c.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.inputSchema.properties).not.toHaveProperty('path');
+    expect(tool.description).not.toMatch(/path/);
+    const r = (await c.callTool({
+      name: 'lint_writing',
+      arguments: { path: '/etc/hosts' },
+    })) as CallToolResult;
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).not.toMatch(/localhost/);
+    expect(
+      textOf(
+        (await c.callTool({
+          name: 'lint_writing',
+          arguments: { text: 'We fixed the pump.' },
+        })) as CallToolResult,
+      ),
+    ).toMatch(/^Clean/);
+    await c.close();
+    // The stdio server's own tool offers it.
+    const mine = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(mine.inputSchema.properties).toHaveProperty('path');
+  });
+
+  it('tells agents that fails bind for everyday prose, and are warnings for poems, fiction and papers', async () => {
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.description).toMatch(/everyday prose .+ fix every fail/);
+    expect(tool.description).toMatch(
+      /poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning/,
+    );
+    expect(client.getInstructions()).toMatch(
+      /poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning/,
+    );
   });
 
   it('says plainly when Hildegard is not running', async () => {
