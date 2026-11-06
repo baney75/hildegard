@@ -20,7 +20,8 @@ export EVAL_DIR=~/.cache/hildegard-writing-eval
 mkdir -p $EVAL_DIR/old $EVAL_DIR/new
 git archive origin/main skills/hildegard | tar -x -C $EVAL_DIR/old
 cp -r skills $EVAL_DIR/new/
-python3 -c "import json,subprocess; [subprocess.run(['evals/writing/draft.sh',v,b['id'],b['brief']]) for b in json.load(open('evals/writing/briefs.json')) for v in ('old','new')]"
+export BRIEFS=evals/writing/briefs.json   # or evals/writing/heldout.json
+python3 -c "import json,os,subprocess; [subprocess.run(['evals/writing/draft.sh',v,b['id'],b['brief']]) for b in json.load(open(os.environ['BRIEFS'])) for v in ('old','new')]"
 python3 evals/writing/judge.py old new
 ```
 
@@ -34,13 +35,14 @@ agent's about page, a fishing guide's packing list, a dental office's move notic
 
 | Brief | Verdicts (both orders) | Invented facts, main | Invented facts, branch |
 | --- | --- | --- | --- |
-| 4-H newsletter | branch, branch (both clear) | 4, 4 | 0, 0 |
-| About page | main, branch (both clear) | 4, 7 | 1, 0 |
-| Packing list | main (clear), branch (slight) | 3, 5 | 2, 2 |
-| Move notice | branch, branch (clear, slight) | 4, 3 | 1, 1 |
+| 4-H newsletter | branch (clear), branch (clear) | 3, 4 | 0, 0 |
+| About page | main (clear), branch (clear) | 4, 7 | 1, 0 |
+| Packing list | branch (clear), main (slight) | 5, 5 | 2, 1 |
+| Move notice | branch (clear), branch (slight) | 3, 2 | 0, 0 |
 
-The branch wins 6 of 8 verdicts, and the judge finds 0.9 unsupported facts a post in its drafts against 4.3 in
-main's. Two briefs split by order, which is the judge's position bias showing, so read this as 2 briefs won
+The branch wins 6 of 8 verdicts, and the judge finds 0.5 unsupported facts a post in its drafts against 4.1 in
+main's. The judge never sees front matter (only the branch's drafts carry it, which would give the variants away),
+and every draft on both sides passes the prose lint; `judge.py` records both. Two briefs split by order, which is the judge's position bias showing, so read this as 2 briefs won
 outright and 2 tied, not as 75%.
 
 **Tuning set.** `briefs.json` is what `blog.md` was revised against, so it is not evidence on its own. Round 1
