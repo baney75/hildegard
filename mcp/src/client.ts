@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { readFile } from 'node:fs/promises';
+import type { ProseLint } from '@hildegard/craft';
 import type {
   Catalog,
   Character,
@@ -254,6 +255,8 @@ export class HildegardClient {
     look?: { lighting?: string; palette?: string; genre?: string; era?: string };
     agent: string;
   }) => this.call<{ stills: Still[] }>('POST', '/api/images', body);
+  /** The prose lint (up to 200,000 characters): the tells that make writing read as machine-made. */
+  lintWriting = (text: string) => this.call<ProseLint>('POST', '/api/writing/lint', { text });
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
   updateNow = () => this.call<UpdateState>('POST', '/api/update');

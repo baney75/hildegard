@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
+import { constants } from 'node:fs';
+import { open } from 'node:fs/promises';
+import { describeProseLint, describeRubric, type Lint, lintPrompt } from '@hildegard/craft';
 import type {
   Catalog,
   Character,
@@ -253,11 +255,45 @@ function recentTakes(s: Snapshot, limit: number): string[] {
   ];
 }
 
+/**
+ * A file named by path, read once through one handle: a regular file of up to 200,000 characters, never a folder, a
+ * pipe, a device or a /proc file, whatever it is swapped for between a check and a read.
+ */
+async function readTextFile(path: string): Promise<string> {
+  const refuse = () => new HildegardError(422, `${path} isn’t a text file of up to 200,000 characters.`);
+  // Non-blocking, so a named pipe is opened and refused instead of waiting forever for a writer.
+  const fh = await open(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0)).catch(() => {
+    throw new HildegardError(0, `Cannot read ${path}`);
+  });
+  try {
+    const st = await fh.stat();
+    if (!st.isFile() || st.size > 800_000) throw refuse();
+    const buf = Buffer.alloc(800_001);
+    let got = 0;
+    for (;;) {
+      const { bytesRead } = await fh.read(buf, got, buf.length - got, null);
+      if (!bytesRead) break;
+      got += bytesRead;
+      if (got > 800_000) throw refuse();
+    }
+    // A /proc file says it is empty and then reads as much as it likes: not a file a person wrote.
+    if (st.size === 0 && got > 0) throw refuse();
+    const prose = buf.subarray(0, got).toString('utf8');
+    // The byte limit lets multi-byte text through; the limit that counts is characters, and the server's.
+    if (prose.length > 200_000) throw refuse();
+    return prose;
+  } finally {
+    await fh.close();
+  }
+}
+
 export function registerTools(
   server: McpServer,
   client: HildegardClient,
   agentName: () => string,
   remote?: { link: (path: string) => string },
+  /** lint_writing may read a file by path: the stdio server only (McpOptions.files). */
+  files = false,
 ) {
   const videoOf: VideoOf = (d, t) =>
     remote ? (t.video ? remote.link(t.video) : undefined) : (d.files[t.id] ?? t.video ?? undefined);
@@ -644,6 +680,74 @@ export function registerTools(
       return text(
         `Still exporting (${e.done} of ${e.total} takes joined). Export ${e.id}; call export_film again later.`,
       );
+    }),
+  );
+
+  server.registerTool(
+    'lint_writing',
+    {
+      title: 'Lint writing before you show it',
+      description: `Check words a person will read for the tells that make writing read as machine-made: stock words, empty openers, dashes, "not X but Y" contrasts, stacked fragments, lists of three, bold used as slides, placeholder text and more. Run it on every piece of prose before you show it to anyone. For everyday prose (blog posts, emails, pages, captions, announcements) fix every fail, fix each warn unless it is your writer’s deliberate voice, then lint again until it passes. For poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning: keep what the voice, form or field needs and say which you kept. ${
+        files
+          ? 'Give the text itself, or the path to a file on this computer.'
+          : remote
+            ? 'Give the text itself; the words go to the Hildegard computer, which lints them.'
+            : 'Give the text itself.'
+      } Each problem comes with where it is (line:column), why it reads as generated and what to write instead. Costs nothing${
+        remote ? '' : ' and nothing leaves your own Hildegard'
+      }. For image and video prompts use review_prompt.`,
+      inputSchema: {
+        text: z
+          .string()
+          .max(200_000)
+          .optional()
+          .describe(
+            'The prose to check, up to 200,000 characters. Markdown is fine; code and links are skipped.',
+          ),
+        ...(files
+          ? {
+              path: z
+                .string()
+                .optional()
+                .describe(
+                  'Instead of text: the absolute path to a UTF-8 text or Markdown file on this computer.',
+                ),
+            }
+          : {}),
+        max: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('Places to show for each problem. Default 6.'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    guard(async (a) => {
+      const path = (a as { path?: string }).path;
+      // Without file access the schema has no path, so a path an agent sends anyway arrives as no text at all.
+      if (!files && a.text === undefined)
+        throw new HildegardError(
+          422,
+          remote
+            ? 'Hildegard runs on another computer, so it can’t read a path on yours. Send the words as text instead.'
+            : 'Send the words as text instead.',
+        );
+      if ((a.text === undefined) === (path === undefined))
+        throw new HildegardError(422, 'Give either text or path, not both and not neither.');
+      let prose = a.text;
+      if (path !== undefined) {
+        if (!files)
+          throw new HildegardError(
+            422,
+            remote
+              ? 'Hildegard runs on another computer, so it can’t read a path on yours. Send the words as text instead.'
+              : 'Send the words as text instead.',
+          );
+        prose = await readTextFile(path);
+      }
+      return text(describeProseLint(await client.lintWriting(prose!), a.max ?? 6));
     }),
   );
 

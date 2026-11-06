@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -16,7 +18,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { starterModel } from '../src/commands.ts';
 import { frontDoorStep } from '../src/doctor.ts';
 import { printEvent, printResult, result } from '../src/output.ts';
-import { cliEnv, freePort, hildegard, hildegardEnv, hildegardWithStdin, main } from './harness.ts';
+import { cliEnv, freePort, hildegard, hildegardEnv, hildegardWithStdin, main, run } from './harness.ts';
 
 describe('hildegard', () => {
   it('starts in the background, reports status, links an app, and stops', async () => {
@@ -1323,4 +1325,68 @@ describe('a foreground start that fails', () => {
       busy.close();
     }
   }, 60_000);
+});
+
+describe('hildegard lint', () => {
+  const home = mkdtempSync(join(tmpdir(), 'hg-lint-home-'));
+  const lint = (args: string[], input?: string) =>
+    new Promise<{ code: number | null; stdout: string }>((resolve, reject) => {
+      const child = spawn(process.execPath, [main, 'lint', ...args], { env: cliEnv(home) });
+      let stdout = '';
+      child.stdout.on('data', (d) => (stdout += d));
+      child.on('error', reject);
+      child.on('close', (code) => resolve({ code, stdout }));
+      child.stdin.end(input ?? '');
+    });
+  const dir = mkdtempSync(join(tmpdir(), 'hg-lint-'));
+  const bad = join(dir, 'bad.md');
+  const good = join(dir, 'good.md');
+  writeFileSync(bad, 'A red barn.\n\nWe will delve into it \u2014 fast.\n');
+  writeFileSync(good, 'We bought a red barn in 2019 and painted it.\n');
+
+  it('lists the tells with where they are, and exits 1 when a file fails', async () => {
+    const r = await lint([bad]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/^Fails: 2 tells to fix/);
+    expect(r.stdout).toMatch(/- fail stock-words: .+ At 3:9 \u201cdelve\u201d/);
+  });
+
+  it('exits 0 for clean writing, and reads standard input with -', async () => {
+    const r = await lint([good]);
+    expect(r).toEqual({ code: 0, stdout: 'Clean: no tells in 10 words.\n' });
+    expect((await lint(['-'], 'We will delve into it.')).code).toBe(1);
+    expect(await lint(['-'], 'A plain sentence about a red barn.')).toEqual({
+      code: 0,
+      stdout: 'Clean: no tells in 7 words.\n',
+    });
+  });
+
+  it('prints the lint itself with --json, and names each file when given several', async () => {
+    const one = JSON.parse((await lint([bad, '--json'])).stdout);
+    expect(one).toMatchObject({ ok: false, words: 9 });
+    expect(one.findings.map((f: { id: string }) => f.id)).toEqual(['stock-words', 'dashes']);
+    const both = await lint([good, bad, '--json']);
+    expect(both.code).toBe(1);
+    expect(JSON.parse(both.stdout).map((r: { file: string; ok: boolean }) => [r.file, r.ok])).toEqual([
+      [good, true],
+      [bad, false],
+    ]);
+    const text = (await lint([good, bad])).stdout;
+    expect(text).toContain(`${good}\nClean`);
+    expect(text).toContain(`\n${bad}\nFails`);
+  });
+
+  it('exits 2, not the 1 of a failing lint, when it was used wrongly or has nothing to read', async () => {
+    expect((await lint([bad])).code).toBe(1);
+    expect((await lint([])).code).toBe(2);
+    const missing = await run(process.execPath, [main, 'lint', join(dir, 'nope.md')], {
+      env: cliEnv(home),
+    }).catch((e: { code: number; stderr: string }) => e);
+    expect(missing).toMatchObject({ code: 2, stderr: expect.stringContaining('can\u2019t read') });
+    // A bad file anywhere in the list stops it, even after a file that fails.
+    expect((await lint([bad, join(dir, 'nope.md')])).code).toBe(2);
+    for (const max of [['--max', '0'], ['--max', '-1'], ['--max', 'many'], ['--max=2.5'], ['--max']])
+      expect((await lint([good, ...max])).code, max.join(' ')).toBe(2);
+    expect((await lint([bad, '--max', '1'])).code).toBe(1);
+  });
 });

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -27,7 +28,8 @@ beforeAll(async () => {
     { ...parseArgs(['--fake-gpu', '--data', dir]), port: 0 },
     { fakeTickMs: 20, secrets: fileStore(join(dir, 'secret.json')) },
   );
-  const server = createMcpServer(new HildegardClient(srv.url));
+  // As the stdio server a person starts for their own AI app: it may read files they name.
+  const server = createMcpServer(new HildegardClient(srv.url), { files: true });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await server.connect(a);
   client = new Client({ name: 'test-agent', version: '1.0.0' });
@@ -57,6 +59,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'install_voice_model',
       'keep_designed_voice',
       'keep_still',
+      'lint_writing',
       'list_characters',
       'list_presets',
       'list_skills',
@@ -232,6 +235,66 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(bad.isError).toBe(true);
   });
 
+  it('lints writing before the agent shows it, from text or from a file', async () => {
+    const stock = 'We will delve into the realm of it — and it is robust.';
+    const bad = await call('lint_writing', { text: stock });
+    expect(bad.isError).toBeFalsy();
+    expect(textOf(bad)).toMatch(/^Fails: \d tells? to fix/);
+    expect(textOf(bad)).toMatch(/- fail stock-words: .+ At 1:9 “delve”/);
+    expect(textOf(bad)).toMatch(/- fail dashes: /);
+
+    const file = join(dir, 'post.md');
+    writeFileSync(file, 'We bought a red barn in 2019 and painted it.\n\nWe will delve into it.\n');
+    const fromFile = textOf(await call('lint_writing', { path: file }));
+    expect(fromFile).toMatch(/- fail stock-words: .+ At 3:9 “delve”/);
+
+    expect(textOf(await call('lint_writing', { text: 'A plain sentence about a red barn.' }))).toBe(
+      'Clean: no tells in 7 words.',
+    );
+    expect(textOf(await call('lint_writing', { text: 'delve delved delving', max: 1 }))).toContain(
+      'and 2 more',
+    );
+
+    // Only a regular file small enough to be 200,000 characters: never a folder, a pipe or a device that never ends.
+    const big = join(dir, 'big.md');
+    writeFileSync(big, 'a '.repeat(500_000));
+    // Windows has no named pipes on disk and no /dev/zero.
+    const unix = process.platform !== 'win32';
+    const fifo = join(dir, 'pipe.md');
+    if (unix) execFileSync('mkfifo', [fifo]);
+    // Small enough to read, one character too long to lint: refused here, not after it has been uploaded.
+    const long = join(dir, 'long.md');
+    writeFileSync(long, 'a'.repeat(200_001));
+    const exact = join(dir, 'exact.md');
+    writeFileSync(exact, 'a '.repeat(100_000));
+    expect(textOf(await call('lint_writing', { path: exact }))).toMatch(/^Clean|^Passes|^Fails/);
+    const linux = process.platform === 'linux';
+    for (const path of [
+      dir,
+      big,
+      long,
+      ...(unix ? [fifo, '/dev/zero'] : []),
+      ...(linux ? ['/proc/self/environ'] : []),
+    ]) {
+      const r = await call('lint_writing', { path });
+      expect(r.isError, path).toBe(true);
+      expect(textOf(r), path).toMatch(/a text file of up to 200,000 characters/);
+    }
+
+    for (const args of [{}, { text: 'x', path: file }, { path: join(dir, 'missing.md') }]) {
+      const r = await call('lint_writing', args);
+      expect(r.isError, JSON.stringify(args)).toBe(true);
+    }
+    // Told to every agent: lint before showing, fix, lint again.
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.description).toMatch(/every piece of prose before you show it/);
+    expect(tool.description).toMatch(/fix every fail/);
+    expect(tool.description).toMatch(/lint again/);
+    // On the user's own Hildegard: a path works, and nothing leaves.
+    expect(tool.description).toMatch(/path to a file on this computer/);
+    expect(tool.description).toMatch(/nothing leaves your own Hildegard/);
+  });
+
   it('corrects a wrong id with the ids that would work', async () => {
     const r = await call('direct_shot', { prompt: 'x', lens: 'fisheye-9000' });
     expect(r.isError).toBe(true);
@@ -326,6 +389,47 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(r).toContain('Apache-2.0');
     expect(r).toContain('accept_license: true');
     expect(srv.models.licenseAccepted('wan-2-2-ti2v-5b')).toBe(false);
+  });
+
+  it('reads files by path only for the stdio server a person starts, never for a local model Hildegard runs', async () => {
+    // As llm.ts builds it for a local model, which reads content that may carry instructions.
+    const asModel = createMcpServer(new HildegardClient(srv.url), { agentName: 'qwen (local)' });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await asModel.connect(a);
+    const c = new Client({ name: 't', version: '1' });
+    await c.connect(b);
+    const tool = (await c.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.inputSchema.properties).not.toHaveProperty('path');
+    expect(tool.description).not.toMatch(/path/);
+    const r = (await c.callTool({
+      name: 'lint_writing',
+      arguments: { path: '/etc/hosts' },
+    })) as CallToolResult;
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).not.toMatch(/localhost/);
+    expect(
+      textOf(
+        (await c.callTool({
+          name: 'lint_writing',
+          arguments: { text: 'We fixed the pump.' },
+        })) as CallToolResult,
+      ),
+    ).toMatch(/^Clean/);
+    await c.close();
+    // The stdio server's own tool offers it.
+    const mine = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(mine.inputSchema.properties).toHaveProperty('path');
+  });
+
+  it('tells agents that fails bind for everyday prose, and are warnings for poems, fiction and papers', async () => {
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'lint_writing')!;
+    expect(tool.description).toMatch(/everyday prose .+ fix every fail/);
+    expect(tool.description).toMatch(
+      /poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning/,
+    );
+    expect(client.getInstructions()).toMatch(
+      /poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning/,
+    );
   });
 
   it('says plainly when Hildegard is not running', async () => {

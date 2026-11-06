@@ -6,7 +6,7 @@ import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { describeReview, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
+import { describeReview, lintProse, type Review, ReviewError, type ReviewSpec } from '@hildegard/craft';
 import type { Diagnostics } from '@hildegard/mcp';
 import { findSkills, HildegardClient, readSkills, SkillScanError } from '@hildegard/mcp';
 import {
@@ -54,6 +54,7 @@ import {
   snippet,
 } from '@hildegard/runtime';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -220,6 +221,10 @@ export interface AppDeps {
     figmaFetch?: SiteRouteDeps['figmaFetch'];
   };
 }
+
+/** The most text the prose lint takes, and the largest request body that can hold it. */
+const MAX_LINT_CHARS = 200_000;
+const MAX_LINT_BODY = 2_000_000;
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
 const LOOP_FILE = /^\/api\/loops\/[a-f0-9]{16}\/files\/[\w.-]+$/;
@@ -2172,6 +2177,36 @@ export function createApp(deps: AppDeps) {
       return grantFail(c, e);
     }
   });
+
+  /**
+   * The prose lint: the tells that make writing read as machine-made, found where they are. Anyone signed in may use
+   * it. It reads nothing from this computer and writes nothing.
+   */
+  app.post(
+    '/api/writing/lint',
+    bodyLimit({
+      maxSize: MAX_LINT_BODY,
+      onError: (c) =>
+        c.json({ error: `Send up to ${MAX_LINT_CHARS.toLocaleString('en-US')} characters.` }, 413, {
+          connection: 'close',
+        }),
+    }),
+    async (c) => {
+      const body = z
+        .object({
+          text: z
+            .string()
+            .max(MAX_LINT_CHARS, `Send up to ${MAX_LINT_CHARS.toLocaleString('en-US')} characters.`),
+        })
+        .safeParse(await c.req.json().catch(() => null));
+      if (!body.success)
+        return c.json(
+          { error: body.error.issues[0]?.message ?? 'Send { "text": "…" }.', field: 'text' },
+          400,
+        );
+      return c.json(lintProse(body.data.text));
+    },
+  );
 
   // ── Reports: bugs and ideas for Hildegard's makers, drafted by agents and filed only once the person said yes ──
   const reports = deps.reports ?? new Reports({ dir: join(deps.config.dataDir, 'reports') });
