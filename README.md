@@ -292,7 +292,7 @@ account. `--signup` with either opens its free-account page. `hildegard tunnel i
 own `cloudflared`, checked against a pinned hash, into Hildegard's folder (no administrator); Tailscale you install
 yourself. `hildegard tunnel cloudflare --login` signs this computer in to your Cloudflare account on Cloudflare's page,
 and Hildegard then makes the tunnel `hildegard-<computer>`, its DNS record (never replacing one already there) and runs
-`cloudflared`, starting it again if it stops. Its credentials go to your keychain, never a file or a log. A quick tunnel
+`cloudflared`, starting it again if it stops. Its credentials go to your keychain (on a computer with none, a file only you can read in Hildegard's data folder, as Hildegard's other secrets do), never a command line or a log. A quick tunnel
 is the fallback: its name changes every time Hildegard starts, and Cloudflare doesn't pass the Studio's live updates
 through it. Settings › Sharing does all of this with buttons. `hildegard doctor` says what is broken and the command
 that fixes it.

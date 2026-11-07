@@ -211,6 +211,8 @@ export class Host {
   fix: string | null = null;
   /** The next try at a saved tunnel that couldn't start with Hildegard. */
   private retry: NodeJS.Timeout | null = null;
+  /** Counts turning the link off: a tunnel that finishes starting after an off doesn't turn it back on. */
+  private gen = 0;
 
   constructor(opts: HostOptions) {
     this.opts = opts;
@@ -495,10 +497,16 @@ export class Host {
     if (!tunnel) throw new HostError(409, 'This Hildegard can’t run a tunnel.');
     if (hostname) this.checkReserved(hostname.replace(/^https:\/\//i, '').replace(/\/$/, ''));
     const prev = this.saved?.on && this.saved.tunnel ? this.saved : null;
+    const gen = this.gen;
     let url: string;
     try {
       url = await tunnel.up(kind, this.target(), kind === 'cloudflare' ? hostname : null);
+      if (gen !== this.gen) {
+        await tunnel.down();
+        throw new HostError(409, 'The link was turned off while the tunnel started, so it stays off.');
+      }
     } catch (e) {
+      if (gen !== this.gen) throw e;
       // Refused before it stopped anything, the old tunnel still runs; failing after, it comes back.
       await this.restoreTunnel(prev);
       throw e;
@@ -611,8 +619,10 @@ export class Host {
   async off(): Promise<HostState> {
     if (this.retry) clearTimeout(this.retry);
     this.retry = null;
+    this.gen++;
     const f = this.saved;
-    if (f?.on && f.tunnel) await this.opts.tunnel?.down();
+    // Also a tunnel still starting, saved or not: off means nothing forwards here.
+    if ((f?.on && f.tunnel) || this.opts.tunnel?.active) await this.opts.tunnel?.down();
     if (f?.on && f.httpsPort) {
       const ts = await this.tailscale(true);
       if (ts) await this.tailscaleOff(ts, f.via, f.httpsPort);
@@ -633,11 +643,18 @@ export class Host {
       this.problem = 'The tunnel is starting.';
       this.fix = null;
       this.emit();
+      const gen = this.gen;
       try {
         const url = await this.opts.tunnel.up(f.tunnel, this.target(), f.hostname ?? null);
+        if (gen !== this.gen) {
+          await this.opts.tunnel.down();
+          return;
+        }
         this.problem = null;
         if (url !== f.url) this.save({ ...f, url });
       } catch (e) {
+        // Turned off or closing meanwhile: nothing to say and nothing to try again.
+        if (gen !== this.gen) return;
         // Started before the network was up, or Cloudflare was out of reach: try again until it works or is off.
         this.problem = `${(e as Error).message} Hildegard tries again shortly.`;
         this.fix = e instanceof HostError ? e.fix : null;
@@ -663,6 +680,13 @@ export class Host {
       this.fix = e instanceof HostError ? e.fix : null;
       this.emit();
     }
+  }
+
+  /** Hildegard is closing: no tunnel is tried again, and one still starting is let go. */
+  stop() {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
+    this.gen++;
   }
 
   /** The bound listener couldn't open: say so on the state. */

@@ -42,6 +42,10 @@ interface World {
   offFails?: boolean;
   /** How many cloudflared starts stop before they connect. */
   failStarts?: number;
+  /** How many cloudflared starts run on without ever connecting (the network is down). */
+  hangStarts?: number;
+  /** Starts connect only after this many milliseconds. */
+  slowMs?: number;
 }
 
 const fresh = (): World => ({
@@ -81,7 +85,7 @@ class FakeChild extends EventEmitter implements Child {
   }
 }
 
-function setup(w: World, opts: { signedIn?: boolean } = {}) {
+function setup(w: World, opts: { signedIn?: boolean; readyMs?: number } = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'hg-tunnel-'));
   const home = mkdtempSync(join(tmpdir(), 'hg-tunnel-home-'));
   if (opts.signedIn) {
@@ -174,12 +178,17 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
   const spawn: Spawn = (cmd, args, env) => {
     const c = new FakeChild([cmd, ...args], env);
     children.push(c);
-    setImmediate(() => {
+    const begin = (fn: () => void) => (w.slowMs ? setTimeout(fn, w.slowMs) : setImmediate(fn));
+    begin(() => {
       if (args[1] === 'login') {
         c.say('Please open the following URL and log in with your Cloudflare account:');
         c.stderr.write(
           'https://dash.cloudflare.com/argotunnel?aud=&callback=https%3A%2F%2Flogin.cloudflareaccess.org%2Fabc\n',
         );
+        return;
+      }
+      if (w.hangStarts) {
+        w.hangStarts--;
         return;
       }
       if (w.failStarts) {
@@ -204,7 +213,7 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
     home,
     env: { PATH: '/usr/bin', DISPLAY: ':0', WAYLAND_DISPLAY: 'wayland-1' },
     computer: 'Studio-PC',
-    readyMs: 2000,
+    readyMs: opts.readyMs ?? 2000,
     restartMs: 10,
     onUrl: (url) => host.tunnelMoved(url),
   });
@@ -257,7 +266,7 @@ const tailscaleChanges = (calls: string[][]) =>
   calls.filter((c) => c[0] === 'tailscale' && (c[1] === 'serve' || c[1] === 'funnel') && c[2] !== 'status');
 
 let made: ReturnType<typeof setup>[] = [];
-const make = (w: World, o?: { signedIn?: boolean }) => {
+const make = (w: World, o?: { signedIn?: boolean; readyMs?: number }) => {
   const s = setup(w, o);
   made.push(s);
   return s;
@@ -697,6 +706,68 @@ describe('tunnels: after review (round 1)', () => {
       on: true,
       tunnel: 'cloudflare',
       url: 'https://hildegard.example.com',
+    });
+  });
+});
+
+describe('tunnels: after review (round 2)', () => {
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it('never runs two cloudflared when restarts can’t connect, and off stops every one', async () => {
+    const w = fresh();
+    const s = make(w, { readyMs: 80 });
+    await s.host.on({ via: 'quick' });
+    w.hangStarts = 4;
+    s.live()[0]!.die();
+    for (let i = 0; i < 12; i++) {
+      await wait(50);
+      expect(s.live().length, `after ${(i + 1) * 50} ms`).toBeLessThanOrEqual(1);
+    }
+    await s.host.off();
+    await wait(50);
+    expect(s.live()).toEqual([]);
+  });
+
+  it('lets off win over a tunnel still starting: nothing forwards and the link stays off', async () => {
+    // The start connects 150 ms in, after the off: it must not turn the link back on.
+    const w = { ...fresh(), slowMs: 150 };
+    const s = make(w, { readyMs: 2000 });
+    const starting = s.host.on({ via: 'quick' }).then(
+      () => 'on',
+      () => 'refused',
+    );
+    await wait(30);
+    expect(s.live()).toHaveLength(1);
+    await s.host.off();
+    expect(await starting).toBe('refused');
+    expect(s.live()).toEqual([]);
+    expect(s.host.state()).toMatchObject({ on: false, tunnel: null });
+  });
+
+  it('tries nothing again once Hildegard is closing', async () => {
+    const w = fresh();
+    const s = make(w, { signedIn: true });
+    await s.host.on({ via: 'cloudflare', hostname: 'hildegard.example.com' });
+    await s.cloudflared.stop();
+    w.failStarts = 1;
+    const again = s.restart();
+    await again.resume();
+    const started = s.children.length;
+    again.stop();
+    await wait(120);
+    expect(s.children.length).toBe(started);
+  });
+
+  it('says so when the Serve route was removed outside Hildegard', async () => {
+    const w = fresh();
+    const s = make(w);
+    await s.host.on({ via: 'tailscale' });
+    expect((await s.report()).tailscale.state).toBe('on');
+    delete w.served['443'];
+    expect((await s.report()).tailscale).toMatchObject({
+      state: 'problem',
+      forwarding: false,
+      fix: 'hildegard tunnel tailscale',
     });
   });
 });

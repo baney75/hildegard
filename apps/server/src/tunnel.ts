@@ -88,7 +88,13 @@ export async function tailscaleInfo(run: Exec = exec): Promise<TailscaleInfo> {
   return { installed: false, version: null, backend: null };
 }
 
-function tailscaleProvider(ts: TailscaleInfo, host: HostState, ports: number[]): TunnelReport['tailscale'] {
+function tailscaleProvider(
+  ts: TailscaleInfo,
+  host: HostState,
+  known: number[] | null,
+): TunnelReport['tailscale'] {
+  // null: not asked (no Tailscale here, or a caller without the host); no route is assumed then.
+  const ports = known ?? [];
   const forwarding = ports.length > 0;
   const signedIn = ts.backend === 'Running';
   const mine = host.on && (host.via === 'tailscale' || host.via === 'funnel');
@@ -107,6 +113,14 @@ function tailscaleProvider(ts: TailscaleInfo, host: HostState, ports: number[]):
     forwarding,
   };
   if (mine && host.problem) return { ...base, state: 'problem', problem: host.problem, fix: host.fix };
+  // On by Hildegard's account, but Tailscale no longer forwards here (the route was removed outside Hildegard).
+  if (mine && host.url && known !== null && !forwarding && ts.backend === 'Running')
+    return {
+      ...base,
+      state: 'problem',
+      problem: 'Tailscale no longer forwards the link here; the route was turned off outside Hildegard.',
+      fix: host.via === 'funnel' ? 'hildegard tunnel tailscale --funnel' : 'hildegard tunnel tailscale',
+    };
   if (mine && host.url) return { ...base, state: 'on', problem: null, fix: null };
   // Off by Hildegard's account, but Tailscale still forwards here (it refused to turn the route off): say so.
   if (forwarding && !mine)
@@ -275,6 +289,8 @@ export class Cloudflared implements TunnelControl {
   private binAt = 0;
   private want: Want | null = null;
   private child: Child | null = null;
+  /** Every cloudflared started and not yet exited, so stopping the tunnel stops them all. */
+  private readonly spawned = new Set<Child>();
   private restartTimer: NodeJS.Timeout | null = null;
   private failures = 0;
   private startedAt = 0;
@@ -634,6 +650,8 @@ export class Cloudflared implements TunnelControl {
         writeFileSync(this.log, '', { mode: 0o600 });
         const child = this.spawn(bin, want.args, want.env);
         this.child = child;
+        this.spawned.add(child);
+        child.on('exit', () => this.spawned.delete(child));
         this.startedAt = Date.now();
         if (child.pid) writeFileSync(this.pidFile, String(child.pid), { mode: 0o600 });
         let out = '';
@@ -648,6 +666,8 @@ export class Cloudflared implements TunnelControl {
               .filter((l) => / ERR /.test(l))
               .join('\n') || out,
           );
+          // This path alone owns the failed start: the child is disowned first, so its exit schedules nothing.
+          if (this.child === child) this.child = null;
           child.kill();
           reject(
             new HostError(502, `cloudflared didn’t connect to Cloudflare in time: ${why}`, `See ${this.log}`),
@@ -743,6 +763,8 @@ export class Cloudflared implements TunnelControl {
     this.url = null;
     this.problem = null;
     this.fix = null;
+    // Any other cloudflared still alive (a start that timed out and hasn't exited yet) goes too.
+    for (const c of this.spawned) if (c !== child) c.kill('SIGKILL');
     if (child) {
       await new Promise<void>((resolve) => {
         const kill = setTimeout(() => {
@@ -821,5 +843,5 @@ export async function tunnelReport(o: {
   forwarding?: number[];
 }): Promise<TunnelReport> {
   const [ts, cf] = await Promise.all([tailscaleInfo(o.run), o.cloudflared.provider(o.host, o.savedHostname)]);
-  return { tailscale: tailscaleProvider(ts, o.host, o.forwarding ?? []), cloudflare: cf, host: o.host };
+  return { tailscale: tailscaleProvider(ts, o.host, o.forwarding ?? null), cloudflare: cf, host: o.host };
 }

@@ -1011,6 +1011,7 @@ async function serveStudio(
       clearInterval(watch);
       clearInterval(fleet);
       updates.stop();
+      host.stop();
       await cloudflared.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
