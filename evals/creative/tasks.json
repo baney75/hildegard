@@ -177,18 +177,11 @@
             "name": "NVIDIA GeForce RTX 4080",
             "mb": 16384
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         }
       ],
-      "ssh": [
-        "gpu-box"
-      ],
-      "tools": [
-        "make-take",
-        "ssh"
-      ]
+      "ssh": ["gpu-box"],
+      "tools": ["make-take", "ssh"]
     },
     "score": {
       "kind": "render-elsewhere",
@@ -209,9 +202,7 @@
             "name": "NVIDIA GeForce RTX 3060",
             "mb": 12288
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         },
         {
           "id": "gpu-box",
@@ -220,9 +211,7 @@
             "name": "NVIDIA GeForce RTX 4080",
             "mb": 16384
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         }
       ],
       "setup": [
@@ -235,14 +224,10 @@
         {
           "do": "stop",
           "server": "gpu-box",
-          "observers": [
-            "here"
-          ]
+          "observers": ["here"]
         }
       ],
-      "tools": [
-        "make-take"
-      ]
+      "tools": ["make-take"]
     },
     "score": {
       "kind": "fix-offline",
@@ -262,26 +247,15 @@
             "name": "NVIDIA GeForce RTX 3060",
             "mb": 12288
           },
-          "installed": [
-            "wan-2-2-ti2v-5b",
-            "flux-2-klein-4b",
-            "z-image-turbo",
-            "qwen-image-2512"
-          ]
+          "installed": ["wan-2-2-ti2v-5b", "flux-2-klein-4b", "z-image-turbo", "qwen-image-2512"]
         }
       ],
       "tools": []
     },
     "score": {
       "kind": "free-disk",
-      "remove": [
-        "flux-2-klein-4b",
-        "z-image-turbo",
-        "qwen-image-2512"
-      ],
-      "keep": [
-        "wan-2-2-ti2v-5b"
-      ]
+      "remove": ["flux-2-klein-4b", "z-image-turbo", "qwen-image-2512"],
+      "keep": ["wan-2-2-ti2v-5b"]
     }
   },
   {
@@ -297,10 +271,7 @@
             "name": "NVIDIA GeForce RTX 3060",
             "mb": 12288
           },
-          "installed": [
-            "wan-2-2-ti2v-5b",
-            "flux-2-klein-4b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b", "flux-2-klein-4b"]
         },
         {
           "id": "gpu-box",
@@ -309,9 +280,7 @@
             "name": "NVIDIA GeForce RTX 4080",
             "mb": 16384
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         },
         {
           "id": "old-pc",
@@ -320,9 +289,7 @@
             "name": "NVIDIA GeForce RTX 3060",
             "mb": 12288
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         }
       ],
       "setup": [
@@ -339,9 +306,7 @@
         {
           "do": "stop",
           "server": "old-pc",
-          "observers": [
-            "here"
-          ]
+          "observers": ["here"]
         }
       ],
       "tools": []

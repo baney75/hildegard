@@ -102,9 +102,7 @@
     "score": {
       "kind": "install",
       "model": "wan-2-2-ti2v-5b",
-      "may_accept": [
-        "wan-2-2-ti2v-5b"
-      ]
+      "may_accept": ["wan-2-2-ti2v-5b"]
     }
   },
   {
@@ -120,9 +118,7 @@
             "name": "NVIDIA GeForce RTX 4080",
             "mb": 16384
           },
-          "installed": [
-            "wan-2-2-ti2v-5b"
-          ]
+          "installed": ["wan-2-2-ti2v-5b"]
         },
         {
           "id": "laptop",
@@ -159,24 +155,15 @@
             "name": "NVIDIA GeForce RTX 3060",
             "mb": 12288
           },
-          "installed": [
-            "wan-2-2-ti2v-5b",
-            "flux-2-klein-4b",
-            "z-image-turbo"
-          ]
+          "installed": ["wan-2-2-ti2v-5b", "flux-2-klein-4b", "z-image-turbo"]
         }
       ],
       "tools": []
     },
     "score": {
       "kind": "free-disk",
-      "remove": [
-        "flux-2-klein-4b"
-      ],
-      "keep": [
-        "wan-2-2-ti2v-5b",
-        "z-image-turbo"
-      ]
+      "remove": ["flux-2-klein-4b"],
+      "keep": ["wan-2-2-ti2v-5b", "z-image-turbo"]
     }
   }
 ]
