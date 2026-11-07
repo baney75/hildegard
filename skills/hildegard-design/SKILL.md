@@ -27,18 +27,23 @@ is all you need for it.
    | Church, community, heritage | Libre Caslon Display or Cormorant | Libre Franklin or Source Sans 3 |
    | Hardware, sale, sports, loud | Anton or Oswald | Archivo or Roboto Condensed |
    | Folk, farm, bluegrass, rustic | Alfa Slab One or Rye | Bitter or Cabin |
-   | Wedding, formal, gala | Cormorant Garamond | Montserrat |
+   | Wedding, formal, gala | Cormorant Garamond (600 or bolder) | Montserrat |
    | Kids, playful | Fredoka | Nunito |
    | Modern, tech, clean | DM Serif Display or Syne | Manrope or IBM Plex Sans |
 5. **Pick three or four colors** from the subject's own world (harvest gold and barn red, hymnal navy and candle
    cream), plus one dark and one light for text. Text must stand out: dark on light or light on dark, never mid on mid.
-6. **Lay it out on a grid.** Use CSS grid or flex with `gap`, never absolute positions for text. Size the headline
-   at least three times the body text. Give the headline `text-wrap: balance`. Leave room: empty space is what makes
-   the headline read.
-7. **One picture or none.** A simple SVG shape that belongs to the subject (a sheaf of wheat, a ruler, a sun over a
-   field) beats a busy illustration. Never put text over a busy picture.
-8. **Render and read it back** (next section). Fix, render again, until every check passes.
-9. **Deliver** the HTML file, the rendered PNG, and the copy deck. Say which typefaces and colors you used, and list
+6. **Size for a phone.** Most people see it as a thumbnail. Set the headline in a bold or heavier weight (never a
+   thin or light display face), spanning at least 60% of the canvas width, at least three times the body text. The
+   when and where (date, time, place) come second in size, never small. Body text at least 2.5% of the canvas
+   height. Give the headline `text-wrap: balance`.
+7. **Lay it out on a grid.** Use CSS grid or flex with `gap`, never absolute positions for text. Space separates the
+   groups (headline, the when and where, the details); it never sits as an empty band. If a third of the canvas is
+   empty, make the headline or the picture bigger.
+8. **One picture, big, or none.** A picture earns its place at a real size: at least a third of the canvas, part of
+   the layout, never a small icon floating in a frame. A simple SVG scene or shape that belongs to the subject (a lantern on a porch rail, a sheaf of wheat, a sun over a field) beats a busy illustration; no stick figures or faces
+   drawn in code. Never put text over a busy picture.
+9. **Render and read it back** (next section). Fix, render again, until every check passes.
+10. **Deliver** the HTML file, the rendered PNG, and the copy deck. Say which typefaces and colors you used, and list
    anything from the brief you left off and why.
 
 ## Render and read it back

@@ -19,11 +19,15 @@ When the request is a plan (a shot list, prompts, an edit and a sound plan) rath
 3. **One shot, one idea.** For each shot: what we see, the camera (body, lens, height, move), the light, the length,
    and the prompt for the model, written as one concrete paragraph: subject, action, place, light, camera, then what
    is heard. No "cinematic", "stunning", "epic".
-4. **Continuity.** The same person, clothes, place and time of day carry from shot to shot unless the story changes
+4. **An arc, not a row of shots.** Open, build, peak, close. Vary the shot size (wide, medium, close), the angle and
+   the move from shot to shot, and let the lengths vary with what each shot holds (a reveal longer, a beat shorter).
+   Every shot changes something: a new action, a new place, a new light. The last shot moves or lands; it doesn't
+   just hold still.
+5. **Continuity.** The same person, clothes, place and time of day carry from shot to shot unless the story changes
    them; name them the same way in every prompt.
-5. **Edit and sound.** Cuts in order with their reason (on action, on a look), the music's shape against the cuts,
+6. **Edit and sound.** Cuts in order with their reason (on action, on a look), the music's shape against the cuts,
    the voice-over timed to shots, and the ambience under each place.
-6. **Check before you hand it over:** every spoken line and on-screen fact is in the facts list; every shot is within
+7. **Check before you hand it over:** every spoken line and on-screen fact is in the facts list; every shot is within
    the model's limit; the lengths add up; nothing contradicts an earlier rule in your own plan.
 
 
