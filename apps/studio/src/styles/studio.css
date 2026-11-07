@@ -172,12 +172,6 @@
 .st-ob { position: absolute; inset: 0; display: grid; grid-template-columns: 460px minmax(0, 1fr); }
 .st-ob__side { position: relative; overflow: hidden; background: var(--sapphire-deep); padding: 44px 40px; display: flex; flex-direction: column; gap: 28px; }
 .st-ob__main { padding: 64px 72px; display: flex; flex-direction: column; gap: 26px; min-width: 0; }
-.st-obsteps { display: grid; gap: 14px; }
-.st-obsteps span { display: flex; gap: 12px; align-items: center; font-size: 14px; color: color-mix(in oklab, var(--text-primary), transparent 45%); }
-.st-obsteps i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 600 12px/1 var(--font-sans); border: 1px solid color-mix(in oklab, var(--text-primary), transparent 70%); }
-.st-obsteps .cur { color: var(--text-primary); }
-.st-obsteps .cur i { background: var(--text-primary); color: var(--sapphire-deep); border-color: var(--text-primary); }
-.st-obsteps .done i { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 
 /* heatmap */
 
