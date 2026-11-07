@@ -21,6 +21,7 @@ import {
   useTheme,
 } from '../lib/theme.ts';
 import { Account, People, Sharing } from './Sharing.tsx';
+import { WritingSettings } from './WritingSettings.tsx';
 
 const ALL = [
   { id: 'models', label: 'Models', icon: 'models', who: 'owner' },
@@ -29,6 +30,7 @@ const ALL = [
   { id: 'devices', label: 'Devices', icon: 'server', who: 'owner' },
   { id: 'sharing', label: 'Sharing', icon: 'phone', who: 'owner' },
   { id: 'people', label: 'People', icon: 'person', who: 'owner' },
+  { id: 'writing', label: 'Writing', icon: 'feather', who: 'all' },
   { id: 'account', label: 'Your account', icon: 'key', who: 'signed-in' },
   { id: 'privacy', label: 'Privacy', icon: 'privacy', who: 'all' },
   { id: 'about', label: 'About', icon: 'book', who: 'all' },
@@ -94,6 +96,7 @@ export function Settings({
               {current === 'devices' ? <Devices catalog={catalog} /> : null}
               {current === 'sharing' ? <Sharing /> : null}
               {current === 'people' ? <People /> : null}
+              {current === 'writing' ? <WritingSettings /> : null}
               {current === 'account' ? <Account /> : null}
               {current === 'privacy' ? <Privacy /> : null}
               {current === 'about' ? <About /> : null}

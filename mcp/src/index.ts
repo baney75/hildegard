@@ -8,6 +8,7 @@ import { registerReportTools } from './report-tools.ts';
 import { registerSiteTools } from './site-tools.ts';
 import { findSkills, registerSkillTools } from './skill-tools.ts';
 import { registerTools } from './tools.ts';
+import { registerWritingTools } from './writing-tools.ts';
 
 export { HildegardClient, HildegardError, type VoiceJobDetail } from './client.ts';
 export * from './report.ts';
@@ -25,7 +26,8 @@ Draft first, then re-render the take you like with quality "final" and the same 
 Recording: you can't use the person's microphone or camera, so record_link gives a link to Hildegard's own page where they record, then recording_status until it arrives; clean_voice makes a voice usable, and export_film's voiceover puts it over a film.
 Voice: list_voices, then speak a script in any voice there; design_voice makes a new one from words. You can't clone a voice: clone_voice says how the person does it themselves, with their consent.
 Posting: prepare_post makes each platform's version of a finished film or image, with its title, caption and thumbnail, in a Ready to post folder. You never post: the person presses Post themselves, in Studio's Post sheet, on the site in Hildegard's own window for it or in their browser. Don't sign in to, click in or read anything from a platform's site for them.
-Sites: for a website, start from site_templates, a Figma link, a pen.dev file or the live site (site_new), edit it with site_read and site_write, and run it through the web loop with site_id.
+Sites: for a website, start from site_templates, a Figma link, a pen.dev file or the live site (site_new), edit it with site_read and site_write, and run it through the web loop with site_id. A post goes on a site with site_post; only the owner publishes a site (site_publish), and you ask first.
+Voice: before you write anything in a person's own name, read writing_voice (and the text of their samples with writing_voice_samples) and write the way it says. When they give you something they wrote, add it with writing_voice_add_sample. When they change a draft you wrote, send both versions to writing_voice_record_edit, and when the same phrases keep going, write a rule for it with writing_voice_update.
 Loops: to make a 3D model or a part to print, to design a web page or site, or to iterate on any image, video or sound until it is right, loop_start, then loop_submit each version, look at what comes back, and loop_critique it honestly before the next round; loop_finish delivers the best round.
 Reports: when Hildegard itself fails (a tool errors, or a take fails, in a way no change to the request fixes), or your user wants something it can't do yet, offer to tell its makers. report_draft writes it with the computer's details, private things taken out; show your user the exact text and any matching issues, and call report_file only after they say yes. Never file without asking, and add to a matching issue rather than open a new one.
 Writing: run lint_writing on every piece of prose before you show it to anyone. For everyday prose (posts, emails, pages, captions, announcements) fix every fail, fix each warn unless it is your writer's deliberate voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning: keep what the writer's voice, form or field needs, and say which you kept.
@@ -83,6 +85,7 @@ export function createMcpServer(client = new HildegardClient(), opts: McpOptions
   );
   registerSiteTools(server, client, opts.remote);
   registerPostTools(server, client, opts.remote);
+  registerWritingTools(server, client);
   registerRecordTools(server, client, opts.remote);
   registerSkillTools(server, opts.skillsDir === undefined ? findSkills() : opts.skillsDir);
   return server;
