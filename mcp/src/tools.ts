@@ -17,7 +17,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { type HildegardClient, HildegardError, type ShotDetail } from './client.ts';
+import { type HildegardClient, HildegardError, type ShotDetail, type VoiceoverArgs } from './client.ts';
+import { importPath } from './record-tools.ts';
 import { registerVoiceTools } from './voice-tools.ts';
 
 const DONE: Take['status'][] = ['done', 'failed', 'canceled'];
@@ -652,14 +653,73 @@ export function registerTools(
           .max(900)
           .optional()
           .describe('Wait up to this long for the file. Default 300.'),
+        voiceover: z
+          .object({
+            media_id: z
+              .string()
+              .max(64)
+              .optional()
+              .describe(
+                'A recording’s id, from recording_status or clean_voice (clean it first for speech).',
+              ),
+            ...(remote
+              ? {}
+              : {
+                  path: z
+                    .string()
+                    .optional()
+                    .describe('Or the absolute path to a recording on this computer. Give one of the two.'),
+                }),
+            start_seconds: z
+              .number()
+              .min(0)
+              .max(86_400)
+              .optional()
+              .describe('Where the voice starts. Default 0.'),
+            gain_db: z.number().min(-40).max(20).optional().describe('Voice level change in dB. Default 0.'),
+            duck_db: z
+              .number()
+              .min(0)
+              .max(40)
+              .optional()
+              .describe('How far the film’s own sound drops while the voice speaks. Default 12 dB.'),
+          })
+          .optional()
+          .describe(
+            'A voice-over mixed over the film: the film’s sound dips while it speaks, the voice is padded or cut to the film’s length, and the mix is set to -14 LUFS and -1 dBTP.',
+          ),
       },
     },
     guard(async (a) => {
-      // A second call while it runs follows the export already going.
-      let e = await client.exportFilm(a.film_id).catch(async (err) => {
+      let voiceover: VoiceoverArgs | undefined;
+      // An export already running has no voice-over, so one asked for is never joined to it; this film's plain
+      // export is left alone and the asker tries again once it is done.
+      const exporting = new HildegardError(
+        409,
+        'This film is already exporting, without the voice-over. Call export_film with the voice-over again after it finishes.',
+      );
+      if (a.voiceover) {
+        const v = a.voiceover as { media_id?: string; path?: string };
+        if (!!v.media_id === !!v.path)
+          throw new HildegardError(422, 'The voice-over needs media_id or path, one of the two.');
+        // Before a path is imported, so a refusal leaves no recording behind.
+        if (
+          (await client.snapshot()).exports.some((x) => x.projectId === a.film_id && x.status === 'running')
+        )
+          throw exporting;
+        voiceover = {
+          mediaId: v.media_id ?? (await importPath(client, v.path!, !!remote, 'voice')).id,
+          startSeconds: a.voiceover.start_seconds,
+          gainDb: a.voiceover.gain_db,
+          duckDb: a.voiceover.duck_db,
+        };
+      }
+      // A second call while it runs follows the export already going (a plain one, never one asked to carry a voice-over).
+      let e = await client.exportFilm(a.film_id, voiceover).catch(async (err) => {
         const going = (await client.snapshot()).exports.find(
           (x) => x.projectId === a.film_id && x.status === 'running',
         );
+        if (going && voiceover) throw exporting;
         if (going) return going;
         throw err;
       });
@@ -673,8 +733,8 @@ export function registerTools(
       if (full.status === 'done')
         return text(
           remote && e.url
-            ? `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s. Download it (the link works for a day): ${remote.link(e.url)}`
-            : `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s, at ${full.file}. In the browser: ${client.url}${e.url}`,
+            ? `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s${voiceover ? ', with the voice-over' : ''}. Download it (the link works for a day): ${remote.link(e.url)}`
+            : `Exported "${e.title}": ${e.total} shots, ${e.seconds ?? '?'} s${voiceover ? ', with the voice-over' : ''}, at ${full.file}. In the browser: ${client.url}${e.url}`,
         );
       if (full.status === 'failed') return { ...text(`The export failed: ${e.error}`), isError: true };
       return text(

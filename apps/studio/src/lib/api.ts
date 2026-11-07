@@ -37,6 +37,15 @@ import type {
   VoiceUse,
 } from '@hildegard/presets';
 
+/** What the record page behind a link may know: what is asked of the person, and whether it can still be sent. */
+export interface RecordLinkInfo {
+  kind: 'voice' | 'video';
+  purpose: string | null;
+  expiresAt: string;
+  state: 'pending' | 'received';
+  maxBytes: number;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly field: string | undefined;
@@ -474,6 +483,10 @@ export const api = {
   checkConsent: (id: string) => call<VoiceJob>('POST', `/api/voice/consent/${id}/check`),
   finishClone: (id: string, name: string) => call<Voice>('POST', `/api/voice/consent/${id}/finish`, { name }),
   consentLink: (token: string) => call<ConsentLink>('GET', `/api/consent/${encodeURIComponent(token)}`),
+  recordLinkInfo: (token: string) => call<RecordLinkInfo>('GET', `/api/record/${encodeURIComponent(token)}`),
+  /** Sends the recording a link was made for. The link works once. */
+  recordSend: (token: string, clip: Blob) =>
+    call<{ received: boolean }>('POST', `/api/record/${encodeURIComponent(token)}`, undefined, clip),
   recordByLink: (token: string, audio: Blob) =>
     call<{ recorded: boolean }>(
       'POST',
