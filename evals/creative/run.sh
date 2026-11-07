@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # The whole eval: inputs, responses, scores, judge, report. Resumable: each stage skips what already exists.
 #
-#   evals/creative/run.sh <label> [--set tuned|heldout|heldout2|both] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4] [--judge-only]
+#   evals/creative/run.sh <label> [--set tuned|heldout|heldout2|both] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4] [--judge-only [--allow-stale]]
 #
-# --judge-only judges and reports the responses already on disk (inputs, responses and scores are not touched, no responder runs).
+# --judge-only judges and reports the responses already on disk (inputs, responses and scores are not touched, no responder runs). It refuses when a
+# run's skills.sha differs from the arm's skills now (or has none); --allow-stale judges them anyway and says so in the output.
 # --cand new compares this checkout's skills/ (or $NEW_SKILLS) against --base (default none; use --base main for a change).
 # Writes evals/creative/results-<label>.json and prints the summary. State lives in $EVAL_DIR (default
 # ~/.cache/hildegard-creative-eval), outside git. Needs: claude and codex signed in with a subscription, ffmpeg, numpy, Pillow,
@@ -12,10 +13,10 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 LABEL=${1:?label}; shift
-SET=tuned; BASE=none; CAND=main; MODELS="haiku luna"; ONLY=""; JOBS=4; JUDGE_ONLY=0
+SET=tuned; BASE=none; CAND=main; MODELS="haiku luna"; ONLY=""; JOBS=4; JUDGE_ONLY=0; STALE_OK=0
 while [ $# -gt 0 ]; do case $1 in
   --set) SET=$2; shift 2;; --base) BASE=$2; shift 2;; --cand) CAND=$2; shift 2;;
-  --models) MODELS=$2; shift 2;; --only) ONLY=$2; shift 2;; --jobs) JOBS=$2; shift 2;; --judge-only) JUDGE_ONLY=1; shift;;
+  --models) MODELS=$2; shift 2;; --only) ONLY=$2; shift 2;; --jobs) JOBS=$2; shift 2;; --judge-only) JUDGE_ONLY=1; shift;; --allow-stale) STALE_OK=1; shift;;
   *) echo "unknown option $1" >&2; exit 2;; esac; done
 export EVAL_DIR=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 unset ANTHROPIC_API_KEY OPENAI_API_KEY
@@ -34,6 +35,13 @@ for f in sys.argv[1:]:
 PY
 )
 
+if [ $JUDGE_ONLY = 1 ]; then
+  if ! STALE=$(python3 skillhash.py --stale "$EVAL_DIR" "$BASE $CAND" "$MODELS" "$IDS"); then
+    printf '%s\n' "$STALE" >&2
+    [ $STALE_OK = 1 ] && echo "WARNING: judging runs the current skills did not make (--allow-stale); do not read this as a result for them." >&2 \
+      || { echo "--judge-only would judge runs made with other skills than the ones now. Run without --judge-only to make them again, or pass --allow-stale." >&2; exit 3; }
+  fi
+fi
 if [ $JUDGE_ONLY = 0 ]; then
 echo "== 2/5 responses"
 for m in $MODELS; do for a in $BASE $CAND; do for t in $IDS; do echo "$a $m $t"; done; done; done \

@@ -5,7 +5,10 @@ bubblewrap when it works: the whole filesystem read-only, a tmpfs over the owner
 or D-Bus sockets), only rw_dir writable, no network, a new PID, IPC and UTS namespace, no capabilities, no new privileges, killed
 with its parent. Without bubblewrap it falls back to `unshare -rn` plus `setpriv --no-new-privs`, which only removes the network and
 new privileges, and says so on stderr. With neither it refuses; set EVAL_SANDBOX=none to run bare anyway (a deliberate choice).
-EVAL_SANDBOX=bwrap|fallback forces a mode."""
+EVAL_SANDBOX=bwrap|fallback forces a mode.
+
+wrap(cmd, rw_dir, hide=[dirs]) also puts a tmpfs over each dir, wherever it is (outside $HOME too), so a script cannot read them. Only
+bubblewrap can do that: in any other mode wrap() refuses, because the script could read the dirs by their path."""
 import os, shutil, subprocess, sys
 
 _mode = None
@@ -36,8 +39,10 @@ def mode():
     return _mode
 
 
-def wrap(cmd, rw_dir):
+def wrap(cmd, rw_dir, hide=()):
     m = mode()
+    if hide and m != 'bwrap':
+        raise SystemExit(f'cannot hide {", ".join(hide)} from the script without bubblewrap (mode: {m}); install bwrap')
     if m == 'none':
         return list(cmd)
     if m == 'fallback':
@@ -46,5 +51,6 @@ def wrap(cmd, rw_dir):
     home = os.path.realpath(os.path.expanduser('~'))
     return (['bwrap', '--unshare-user', '--unshare-pid', '--unshare-net', '--unshare-ipc', '--unshare-uts', '--unshare-cgroup-try',
              '--die-with-parent', '--new-session', '--cap-drop', 'ALL',
-             '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--tmpfs', '/run', '--tmpfs', home,
-             '--bind', rw, rw, '--chdir', rw, '--'] + list(cmd))
+             '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--tmpfs', '/run', '--tmpfs', home] +
+            [a for h in hide if os.path.exists(h) for a in ('--tmpfs', os.path.realpath(h))] +
+            ['--bind', rw, rw, '--chdir', rw, '--'] + list(cmd))
