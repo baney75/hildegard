@@ -128,8 +128,9 @@ Common fixes:
    denser, time-labelled sheet. Look at the sheet.
 5. Tell your user: the film's path, its length, what each shot is, and anything still imperfect.
 
-Sound: LTX makes sound with the picture; Wan doesn't. For music, voice-over or a mix, continue with
-**hildegard-video-edit**.
+Sound: LTX makes sound with the picture; Wan doesn't. For a voice-over, **hildegard-sound** has the steps: a person
+records it through `record_link`, `clean_voice` cleans it, and `export_film` takes it as `voiceover`. For music or a
+mix, continue with **hildegard-video-edit**.
 
 ## Never
 

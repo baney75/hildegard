@@ -13,3 +13,6 @@ test-results/
 __pycache__/
 *.pyc
 /.runs/
+
+# pnpm dev’s own data folder
+.dev-data/

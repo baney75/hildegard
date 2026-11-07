@@ -513,3 +513,13 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 .hg-app[data-wc="compact"] .hg-look__themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hg-app[data-wc="compact"] .hg-look > .hg-seg { justify-self: stretch; display: flex; }
 .hg-app[data-wc="compact"] .hg-look > .hg-seg button { flex: 1 1 auto; justify-content: center; padding: 0 var(--space-2); }
+/* Settings › Sharing: a tunnel provider's steps, with what's done marked and skipped. */
+.hg-tunnels { display: grid; gap: 12px; justify-items: start; width: 100%; }
+.hg-tsteps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; width: 100%; }
+.hg-tstep { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; }
+.hg-tstep__n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 500 12px/1 var(--font-mono); border: 1px solid var(--hairline); color: var(--text-secondary); }
+.hg-tstep[data-done] .hg-tstep__n { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.hg-tstep__b { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.hg-tstep__b > b { font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hg-tstep__b input { width: min(100%, 360px); }
+.hg-tunnels a.hg-btn { text-decoration: none; color: var(--text-primary); }

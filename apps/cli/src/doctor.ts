@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { GrantsResponse, HostState, Snapshot } from '@hildegard/presets';
+import type { GrantsResponse, HostState, Snapshot, TunnelReport } from '@hildegard/presets';
 import { detectGpu, listAgents, readRuntime, readVoiceEnv, type Step } from '@hildegard/runtime';
 import { COMFY_STARTING, tailnetSelf } from '@hildegard/server';
 import { api, baseUrl, type Ctx, entry, running } from './commands.ts';
 import { hostStep } from './host.ts';
 import { type Result, result } from './output.ts';
 import { serviceStep } from './service.ts';
+import { providerStep } from './tunnel.ts';
 
 /**
  * The owner's own front door, seen from this computer: its `/.well-known/oauth-protected-resource` should name
@@ -99,8 +100,9 @@ export async function doctor(ctx: Ctx): Promise<Result> {
   // Models.
   if (snap) steps.push(...modelSteps(snap));
 
-  // Tailscale, the Choir and the link.
+  // Tailscale, the Choir and the link. The server's tunnel report tells "not installed" from "signed out".
   const ts = await tailnetSelf();
+  const tr = up ? await api<TunnelReport>(c, '/api/tunnel').catch(() => null) : null;
   steps.push(
     ts
       ? {
@@ -113,9 +115,8 @@ export async function doctor(ctx: Ctx): Promise<Result> {
           id: 'tailscale',
           title: 'Tailscale',
           status: 'skipped',
-          detail:
-            'Not running here. It’s needed only to render on your other devices or to host Hildegard at a link. Install it from tailscale.com; the owner signs in.',
-          command: 'tailscale up',
+          detail: `${tr?.tailscale.problem ?? 'Not running here.'} It’s needed only to render on your other devices or to host Hildegard at a link through Tailscale. ${tr?.tailscale.state === 'missing' ? `Install it from ${tr.tailscale.download}; the owner signs in.` : 'The owner signs in.'}`,
+          command: tr?.tailscale.fix ?? 'tailscale up',
         },
   );
   if (snap?.choir) {
@@ -152,6 +153,9 @@ export async function doctor(ctx: Ctx): Promise<Result> {
     );
   const h = up ? await api<HostState>(c, '/api/host').catch(() => null) : null;
   if (h) steps.push(hostStep(h));
+  // A tunnel Hildegard runs: is cloudflared there, signed in and connected, and if not, the exact fix.
+  if (h?.on && h.tunnel && tr)
+    steps.push({ ...providerStep('cloudflare', tr, true), id: 'tunnel', title: 'Cloudflare tunnel' });
   if (h?.on && h.via === 'custom' && h.url) steps.push(await frontDoorStep(h.url));
   // MCP from other devices: only once there is a link to reach it at.
   const g = h?.on ? await api<GrantsResponse>(c, '/api/auth/grants').catch(() => null) : null;

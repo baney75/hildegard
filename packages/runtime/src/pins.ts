@@ -49,3 +49,35 @@ export const UV = {
   } as Record<string, [file: string, sha256: string]>,
   url: (file: string) => `https://github.com/astral-sh/uv/releases/download/0.13.2/${file}`,
 };
+
+/**
+ * cloudflared, for a Cloudflare tunnel, when the owner asks Hildegard to fetch it (`hildegard tunnel install
+ * cloudflare`, or the button in Settings › Sharing): Cloudflare's release builds, by GitHub's SHA-256 of each asset.
+ * The Mac builds are archives that hold the one binary.
+ */
+export const CLOUDFLARED = {
+  version: '2026.10.3',
+  assets: {
+    'linux-x64': [
+      'cloudflared-linux-amd64',
+      '053b80b0a23031a038fdbf3c073f59f82b8f1f152aa67971d7383ffafc0dbab0',
+    ],
+    'linux-arm64': [
+      'cloudflared-linux-arm64',
+      '89297ebfb9e8c99c0dc013a1140601453cf3798d8306c5591651f4a3f5210be8',
+    ],
+    'darwin-x64': [
+      'cloudflared-darwin-amd64.tgz',
+      '81b7b85f2376815c4f59b1aa323887b62e16ce8b67555c2e1577dc23f2a82000',
+    ],
+    'darwin-arm64': [
+      'cloudflared-darwin-arm64.tgz',
+      '1165d14b6f6360a3b8c283d7d1100024d6ec7cd9bc9e32519e96150645f3ec55',
+    ],
+    'win32-x64': [
+      'cloudflared-windows-amd64.exe',
+      '76b2805253d0d6ffacb092a7acfbee99e7af6917835c0c5410e23f3ef5052da2',
+    ],
+  } as Record<string, [file: string, sha256: string]>,
+  url: (file: string) => `https://github.com/cloudflare/cloudflared/releases/download/2026.10.3/${file}`,
+};

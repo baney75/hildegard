@@ -68,6 +68,7 @@ import {
   type HgEnv,
   LOOPBACK_ADDR,
   open,
+  originOf,
   ownAuth,
   secureRequest,
   seesCharacter,
@@ -100,6 +101,9 @@ import {
   type PrinterProfile,
   type Slicer,
 } from './printer.ts';
+import type { RecordStore } from './record.ts';
+import type { CleanJobs } from './record-clean.ts';
+import { mayOpen, recordRoutes } from './record-routes.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
@@ -107,6 +111,7 @@ import { previewRoutes, type SiteRouteDeps, siteRoutes } from './site-routes.ts'
 import type { Sites } from './sites.ts';
 import type { Store } from './store.ts';
 import { type TalkRouteDeps, talkRoutes } from './talk-routes.ts';
+import { type Cloudflared, tunnelReport } from './tunnel.ts';
 import type { Updates } from './update.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
@@ -174,6 +179,8 @@ export interface AppDeps {
   people: People;
   /** Host mode: this Hildegard at a link. */
   host: Host;
+  /** The Cloudflare tunnel Hildegard runs as a front door, when asked. */
+  cloudflared?: Cloudflared;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
   /** Keys and chatbots that use the MCP from other devices. */
@@ -192,6 +199,8 @@ export interface AppDeps {
   updates: Updates;
   /** The voice studio: speech, voices, consent. */
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
+  /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
+  records?: { store: RecordStore; cleaner: CleanJobs };
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -607,10 +616,37 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── Export film ─────────────────────────────────────────────────────────────────────────────────────────────
-  app.post('/api/projects/:id/export', (c) => {
+  app.post('/api/projects/:id/export', async (c) => {
     if (!sees(c, c.req.param('id'))) return c.json({ error: 'No such film' }, 404);
+    // A voice-over is a recording the asker may see, by its id; the body is otherwise empty.
+    const body = z
+      .object({
+        voiceover: z
+          .object({
+            mediaId: z.string().max(64),
+            startSeconds: z.number().min(0).max(86_400).default(0),
+            gainDb: z.number().min(-40).max(20).default(0),
+            duckDb: z.number().min(0).max(40).default(12),
+          })
+          .optional(),
+      })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'The voice-over isn’t right.', field: 'voiceover' }, 400);
+    let voiceover: Parameters<Exporter['start']>[1];
+    if (body.data.voiceover) {
+      const v = body.data.voiceover;
+      const rec = deps.records?.store.get(v.mediaId);
+      if (!rec || !mayOpen(whoOf(c), rec) || rec.state !== 'received' || !deps.records!.store.exists(rec))
+        return c.json({ error: 'No such recording to use as the voice-over.', field: 'voiceover' }, 404);
+      voiceover = {
+        path: deps.records!.store.path(rec)!,
+        startSeconds: v.startSeconds,
+        gainDb: v.gainDb,
+        duckDb: v.duckDb,
+      };
+    }
     try {
-      return c.json(deps.exporter.start(c.req.param('id')), 202);
+      return c.json(deps.exporter.start(c.req.param('id'), voiceover), 202);
     } catch (e) {
       if (e instanceof ExportError) return c.json({ error: e.message }, e.status);
       throw e;
@@ -2430,12 +2466,14 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
     const body = z
       .object({
-        via: z.enum(['tailscale', 'funnel', 'address', 'custom']).optional(),
+        via: z.enum(['tailscale', 'funnel', 'address', 'custom', 'cloudflare', 'quick']).optional(),
         address: z.string().max(64).optional(),
         url: z.string().max(300).optional(),
+        hostname: z.string().max(253).optional(),
       })
       .safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ error: 'Choose tailscale, funnel, address or custom.' }, 400);
+    if (!body.success)
+      return c.json({ error: 'Choose tailscale, funnel, address, custom, cloudflare or quick.' }, 400);
     try {
       return c.json(await host.on(body.data));
     } catch (e) {
@@ -2446,6 +2484,58 @@ export function createApp(deps: AppDeps) {
     if (!local(c))
       return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
     return c.json(await host.off());
+  });
+
+  // ── Tunnels: where Tailscale and Cloudflare stand here, signing in, and fetching cloudflared on the owner's word ──
+  const cloudflared = deps.cloudflared;
+  app.get('/api/tunnel', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    await host.tailscale();
+    return c.json(
+      await tunnelReport({
+        host: host.state(),
+        savedHostname: host.hostname,
+        cloudflared,
+        run: host.run,
+        forwarding: await host.forwarding(),
+      }),
+    );
+  });
+  const provider = async (c: Context) =>
+    z.object({ provider: z.literal('cloudflare') }).safeParse(await c.req.json().catch(() => ({}))).success;
+  app.post('/api/tunnel/login', async (c) => {
+    if (!local(c)) return c.json({ error: 'Sign in from the computer Hildegard runs on.' }, 403);
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    if (!(await provider(c)))
+      return c.json(
+        {
+          error:
+            'Hildegard signs in to Cloudflare only. Sign in to Tailscale with its own app or `tailscale up`.',
+        },
+        400,
+      );
+    try {
+      return c.json(await cloudflared.login());
+    } catch (e) {
+      return hostFail(c, e);
+    }
+  });
+  app.post('/api/tunnel/install', async (c) => {
+    if (!local(c)) return c.json({ error: 'Install it from the computer Hildegard runs on.' }, 403);
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    if (!(await provider(c)))
+      return c.json(
+        { error: 'Hildegard fetches cloudflared only. Install Tailscale from tailscale.com.' },
+        400,
+      );
+    try {
+      const bin = await cloudflared.install();
+      return c.json({ installed: true, version: bin.version });
+    } catch (e) {
+      return hostFail(c, e);
+    }
   });
 
   // ── Voice ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2464,6 +2554,22 @@ export function createApp(deps: AppDeps) {
     );
     app.route('/api/consent', consentLinkRoutes(v.studio));
   }
+  if (deps.records)
+    app.route(
+      '/api/record',
+      recordRoutes({
+        records: deps.records.store,
+        cleaner: deps.records.cleaner,
+        who: whoOf,
+        // The link the person opens on their own device: this Hildegard's link if it has one; else the address this
+        // request came to (this computer's own, or the device a signed-in person is on).
+        linkBase: (c) => {
+          const shared = host.state().url;
+          return shared ? { base: shared, viaLink: true } : { base: originOf(c), viaLink: false };
+        },
+        sees: (c, filmId) => sees(c, filmId),
+      }),
+    );
   if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 
   // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2564,6 +2670,7 @@ export function createApp(deps: AppDeps) {
   // ── Media with byte ranges, so videos seek ─────────────────────────────────────────────────────────────────
   const TYPES: Record<string, string> = {
     '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
     '.jpg': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
@@ -2576,8 +2683,27 @@ export function createApp(deps: AppDeps) {
   };
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
-    if (!/^((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..'))
+    if (
+      !/^(recordings\/[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]+|((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+)$/.test(
+        rel,
+      ) ||
+      rel.includes('..')
+    )
       return c.body(null, 404);
+    // A recording is its owner's: the person who made the link, the owner of this Hildegard and this computer, or a
+    // signed link from an MCP result.
+    if (rel.startsWith('recordings/')) {
+      const rec = deps.records?.store.byFile(rel.slice('recordings/'.length));
+      if (!rec || !(c.get('signedMedia') || mayOpen(whoOf(c), rec))) return c.body(null, 404);
+      return sendFile(
+        c,
+        resolve(mediaDir, rel),
+        rec.kind === 'video' && extname(rel) === '.webm'
+          ? 'video/webm'
+          : (TYPES[extname(rel)] ?? 'application/octet-stream'),
+        'private, no-store',
+      );
+    }
     // Voice is the owner's alone: clips, uploads and consent recordings.
     if (rel.startsWith('voice/') && !isOwner(c) && !c.get('signedMedia')) return c.body(null, 404);
     const file = resolve(mediaDir, rel);
@@ -2633,6 +2759,22 @@ export function createApp(deps: AppDeps) {
     };
     app.get('*', (c) => {
       const p = decodeURIComponent(c.req.path);
+      // A record page answers only for a link that exists and hasn't run out; the Studio draws it from there.
+      const link = /^\/record\/([^/]*)$/.exec(p);
+      if (link && deps.records) {
+        const gate = deps.records.store.gate(link[1]!);
+        if (gate !== 'ok') {
+          const text =
+            gate === 'expired'
+              ? 'This link has run out. Ask for a new one; each works for 30 minutes.'
+              : 'This link doesn’t work. Ask for a new one.';
+          c.header('cache-control', 'no-store');
+          return c.html(
+            `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hildegard</title><body style="font:18px system-ui;margin:3rem 1.5rem;max-width:30rem"><h1 style="font-size:1.4rem">${gate === 'expired' ? 'This link has run out' : 'This link doesn’t work'}</h1><p>${text}</p>`,
+            gate === 'expired' ? 410 : 404,
+          );
+        }
+      }
       let file = resolve(ui, `.${p}`);
       if (!file.startsWith(ui + sep) || !existsSync(file) || statSync(file).isDirectory())
         file = join(ui, 'index.html');
@@ -2645,7 +2787,7 @@ export function createApp(deps: AppDeps) {
         c,
         file,
         UI_TYPES[extname(file)] ?? 'application/octet-stream',
-        hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
+        hashed ? 'public, max-age=31536000, immutable' : link ? 'no-store' : 'no-cache',
       );
     });
   }

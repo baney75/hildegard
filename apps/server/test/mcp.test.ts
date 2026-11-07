@@ -46,6 +46,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cancel_take',
       'check_watermark',
+      'clean_voice',
       'clone_voice',
       'convert_voice',
       'create_character',
@@ -75,6 +76,8 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'openscad_status',
       'printer_profile',
       'read_skill',
+      'record_link',
+      'recording_status',
       'report_draft',
       'report_file',
       'review_prompt',
