@@ -38,7 +38,7 @@ const LINUX_NAMES = [
 ];
 
 /** The newest Chromium that Playwright downloaded, if any (people who build for the web often have one). */
-function playwrightChromium(env: NodeJS.ProcessEnv, os: NodeJS.Platform): string | null {
+export function playwrightChromium(env: NodeJS.ProcessEnv, os: NodeJS.Platform): string | null {
   const roots = [
     env.PLAYWRIGHT_BROWSERS_PATH,
     '/opt/pw-browsers',

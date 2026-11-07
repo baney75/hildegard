@@ -628,8 +628,6 @@ describe('running OpenSCAD', () => {
     },
   );
 
-  const bwrap =
-    process.platform === 'linux' && spawnSync('bwrap', ['--ro-bind', '/', '/', 'true']).status === 0;
   it.runIf(bwrapOk || !!process.env.HILDEGARD_EXPECT_SANDBOX)(
     'runs OpenSCAD in bubblewrap on Linux',
     async () => {
