@@ -4,12 +4,13 @@
 // has put it in its transcript and in a process list. So the code only ever travels from one process's stdout to the
 // next process's stdin:
 //
-//   hildegard choir invite --code-only     prints the code, and only when stdout is not a terminal
+//   hildegard choir invite --code-only     prints the code, and only when stdout is a pipe or a socket
 //   hildegard choir pair <ssh-host>        runs that over ssh and pipes it into this computer's `choir join`
 //
 // `pair` never holds the code in a variable, an argument or a file: it connects one process's stdout to the other's
 // stdin, and prints only what the join says back, with anything shaped like a code taken out.
 import { type ChildProcess, spawn } from 'node:child_process';
+import { fstatSync } from 'node:fs';
 import type { Readable } from 'node:stream';
 import type { ChoirInvite } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
@@ -20,11 +21,20 @@ import { type Result, result } from './output.ts';
 export const NEVER_SHOW =
   'Scripts and AI agents: never print, echo, printf or paste a join code. Use `hildegard choir pair <ssh-host>`, or pipe it: `ssh <host> hildegard choir invite --code-only | hildegard choir join --code-stdin`.';
 
-/** Why `--code-only` won't print here, or null when stdout is a pipe or a file. */
-export function codeOnlyRefusal(out: { isTTY?: boolean }): string | null {
-  return out.isTTY
-    ? 'This would show the join code on your screen, and a code anyone can read is a key anyone can use. Pipe it into the other device instead: `hildegard choir invite --code-only | ssh <host> hildegard choir join --code-stdin`, or run `hildegard choir pair <ssh-host>` there.'
-    : null;
+/** What stdout is, from `fstatSync(1)`. */
+interface Out {
+  isFIFO(): boolean;
+  isSocket(): boolean;
+  isCharacterDevice(): boolean;
+}
+
+/** Why `--code-only` won't print here, or null when stdout is a pipe or a socket (a shell `|`, or ssh). */
+export function codeOnlyRefusal(out: Out): string | null {
+  if (out.isFIFO() || out.isSocket()) return null;
+  const where = out.isCharacterDevice()
+    ? 'show the join code on your screen'
+    : 'write the join code to a file';
+  return `This would ${where}, and a code anyone can read is a key anyone can use. Pipe it into the other device instead: \`hildegard choir invite --code-only | ssh <host> hildegard choir join --code-stdin\`, or run \`hildegard choir pair <ssh-host>\` there.`;
 }
 
 /** Anything shaped like a join code (long or short), so a message can't carry one even by accident. */
@@ -32,6 +42,16 @@ export const scrub = (text: string) =>
   text
     .replace(/hgc1_[A-Za-z0-9_-]+/g, '[code hidden]')
     .replace(/HG-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}/gi, '[code hidden]');
+
+/** `scrub` on every string in a value, keys included, so no field of a join's answer can carry a code. */
+export const scrubAll = <T>(value: T): T =>
+  (typeof value === 'string'
+    ? scrub(value)
+    : Array.isArray(value)
+      ? value.map(scrubAll)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [scrub(k), scrubAll(v)]))
+        : value) as T;
 
 const stop = (message: string, code = 1): null => {
   console.error(message);
@@ -44,7 +64,7 @@ const stop = (message: string, code = 1): null => {
  * is not a terminal. Problems go to stderr with a status that says which: 1 failed, 2 Tailscale needs the owner.
  */
 export async function inviteCodeOnly(ctx: Ctx): Promise<null> {
-  const refused = codeOnlyRefusal(process.stdout);
+  const refused = codeOnlyRefusal(fstatSync(1));
   if (refused) return stop(refused);
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return stop('Hildegard isn’t running here.');
@@ -185,7 +205,7 @@ export async function pair(ctx: Ctx, args: string[]): Promise<Result> {
   }
   let r: Joined | null = null;
   try {
-    r = JSON.parse(said()) as Joined;
+    r = scrubAll(JSON.parse(said()) as Joined);
   } catch {}
   if (!r) {
     const why = scrub(complained().trim());
@@ -201,12 +221,8 @@ export async function pair(ctx: Ctx, args: string[]): Promise<Result> {
     status: 'done',
     detail: `The code went straight from ${giver} into the join on ${getter}. It was never shown, saved or typed.`,
   };
-  const steps = (r.steps ?? []).map((s) => ({
-    ...s,
-    detail: scrub(s.detail),
-    ...(s.command ? { command: scrub(s.command) } : {}),
-  }));
-  return result([asked, ...steps], scrub(r.message ?? (r.ok ? `Joined ${giver}.` : 'The join failed.')), {
+  const steps = r.steps ?? [];
+  return result([asked, ...steps], r.message ?? (r.ok ? `Joined ${giver}.` : 'The join failed.'), {
     ok: r.ok !== false && !steps.some((s) => s.status === 'failed'),
     ...(r.device ? { device: r.device, models: r.device.models ?? [] } : {}),
     ...(r.choir ? { choir: r.choir } : {}),

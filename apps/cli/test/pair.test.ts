@@ -2,8 +2,10 @@
 import { execFileSync, spawn } from 'node:child_process';
 import {
   chmodSync,
+  closeSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   statSync,
@@ -101,6 +103,7 @@ case "$STUB_MODE" in
   unreachable) echo "ssh: connect to host gpu-box port 22: Connection refused" >&2; exit 255 ;;
   leak) echo "it broke: hgc1""_abcdefghijklmnopqrstuvwx and HG-ABCD""-EFGH" >&2; exit 1 ;;
   tailscale) echo "Sharing needs Tailscale." >&2; exit 2 ;;
+  reflect) IFS= read -r c; printf '{"ok":false,"message":"%s","steps":[{"id":"%s","title":"%s","status":"failed","detail":"x"}],"device":{"name":"%s","models":["%s"]},"choir":{"%s":"%s"}}' "$c" "$c" "$c" "$c" "$c" "$c" "$c"; exit 1 ;;
 esac
 for last; do :; done
 HOME="$STUB_REMOTE_HOME" PATH="/usr/bin:/bin" exec sh -c "$last"
@@ -148,9 +151,15 @@ HOME="$STUB_REMOTE_HOME" PATH="/usr/bin:/bin" exec sh -c "$last"
 
 describe('pairing without anyone seeing the join code', () => {
   it('invite --code-only refuses on a terminal, and prints only the code into a pipe', async () => {
-    expect(codeOnlyRefusal({ isTTY: true })).toMatch(/pipe/i);
-    expect(codeOnlyRefusal({ isTTY: false })).toBeNull();
-    expect(codeOnlyRefusal({})).toBeNull();
+    const out = (kind: 'fifo' | 'socket' | 'tty' | 'file') => ({
+      isFIFO: () => kind === 'fifo',
+      isSocket: () => kind === 'socket',
+      isCharacterDevice: () => kind === 'tty',
+    });
+    expect(codeOnlyRefusal(out('tty'))).toMatch(/screen/);
+    expect(codeOnlyRefusal(out('file'))).toMatch(/to a file/);
+    expect(codeOnlyRefusal(out('fifo'))).toBeNull();
+    expect(codeOnlyRefusal(out('socket'))).toBeNull();
 
     const r = await rig();
     const gpuArgs = [...r.at(r.gpu, r.gpuData), '--url', r.gpu.url];
@@ -165,6 +174,22 @@ describe('pairing without anyone seeing the join code', () => {
       env: cliEnv(r.home),
     });
     expect(json.stdout).toMatch(/^hgc1_[A-Za-z0-9_-]{20,}\n$/);
+
+    // Redirected to a file, it refuses: the file stays empty and no key is made.
+    const before = r.gpu.choir.state().sharing;
+    const file = join(r.home, 'code.txt');
+    const fd = openSync(file, 'w');
+    const status = await new Promise<number | null>((done) => {
+      const child = spawn(process.execPath, [main, 'choir', 'invite', '--code-only', ...gpuArgs], {
+        env: cliEnv(r.home),
+        stdio: ['ignore', fd, 'pipe'],
+      });
+      child.on('close', done);
+    });
+    closeSync(fd);
+    expect(status).toBe(1);
+    expect(readFileSync(file, 'utf8')).toBe('');
+    expect(r.gpu.choir.state().sharing).toEqual(before);
 
     // And that is what `join --code-stdin` takes.
     const joined = await hildegardWithStdin(
@@ -322,6 +347,18 @@ describe('pairing without anyone seeing the join code', () => {
       expect(leak.stdout + leak.stderr).not.toContain('HG-ABCD-EFGH');
       expect(leak.stdout).toContain('[code hidden]');
       expect(scrub('x hgc1_abcDEF123_- y hg-abcd-efgh')).toBe('x [code hidden] y [code hidden]');
+
+      // A join that answers with the code in any field (a title, an id, the device, the choir) shows none of it.
+      const reflect = await r.pair(
+        r.gpu,
+        r.gpuData,
+        r.plainHome,
+        ['--to', 'plain-box', '--url', r.gpu.url],
+        'reflect',
+      );
+      expect(reflect.out.ok).toBe(false);
+      expect(reflect.stdout + reflect.stderr).not.toMatch(CODE);
+      expect(reflect.stdout).toContain('[code hidden]');
 
       // A host that ssh could read as an option is never passed to it.
       const before = readFileSync(r.log, 'utf8');

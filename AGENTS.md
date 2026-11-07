@@ -169,7 +169,7 @@ Setting it up for an owner, end to end:
    on a screen, in a transcript, in an argument or in a file: `pair` runs `hildegard choir invite --code-only` over
    ssh and connects its stdout to this device's `hildegard choir join --code-stdin`, and prints only the joined device
    and its models. By hand, the same pipe: `ssh <host> hildegard choir invite --code-only | hildegard choir join
-   --code-stdin --json`. `--code-only` refuses when stdout is a terminal. `choir pair --to <ssh-host>` is the other
+   --code-stdin --json`. `--code-only` prints only into a pipe or a socket, never to a terminal or a file. `choir pair --to <ssh-host>` is the other
    way, for an agent on the GPU device. `choir invite --json` is for the Studio and apps: an agent never runs it and
    never echoes, `printf`s or pastes a code (the eval that found this: every model printed the code, then typed it).
    `hildegard choir list --json` should show the device online with its models, and `hildegard status --json`
