@@ -3,7 +3,7 @@ import type { Catalog } from '@hildegard/presets';
 import { type ClipboardEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api.ts';
 import { getDraft, setDraft, toRequest, useDraft } from '../lib/draft.ts';
-import { about, deviceLabel, estimateMs, videoModels } from '../lib/format.ts';
+import { about, deviceLabel, estimateMs, modelName, videoModels } from '../lib/format.ts';
 import type { WindowClass } from '../lib/hooks.ts';
 import { getState, upsert, useStore } from '../lib/store.ts';
 import { addToCast, CastFaces, CastSheet, MentionPop, mentionAt } from './Cast.tsx';
@@ -206,15 +206,24 @@ export function Composer({
   const variant = compact ? 'bottom' : 'center';
   const takesWord = `${draft.takes} ${draft.format.quality === 'draft' ? (draft.takes === 1 ? 'draft' : 'drafts') : draft.takes === 1 ? 'take' : 'takes'}`;
   const where = deviceLabel(engine).replace(/^(This|Stand-in)/, (m) => m.toLowerCase());
+  // The first model still on its way: say how far, so the button isn't a dead end while it downloads.
+  const fetching = modelId ? undefined : models.find((m) => m.downloading && videos.has(m.id));
+  const fetched = fetching?.downloading
+    ? Math.floor((fetching.downloading.done / Math.max(1, fetching.downloading.total)) * 100)
+    : 0;
   const createLabel = !modelId
     ? appleOnly
       ? 'Pair a device to render'
-      : 'Choose a model'
+      : fetching
+        ? `Downloading ${modelName(catalog, fetching.id)}`
+        : 'Choose a model'
     : `Create ${takesWord}`;
   const createSub = !modelId
     ? appleOnly
       ? 'Models don’t render on this Mac yet'
-      : 'Install one to start'
+      : fetching
+        ? `${fetched}% · write your shot meanwhile`
+        : 'Install one to start'
     : estimate
       ? `${about(estimate)} on ${where}`
       : `On ${where}`;
