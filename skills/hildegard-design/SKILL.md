@@ -16,18 +16,11 @@ is all you need for it.
    "3 days only", "thank you for 70 years", year range, hashtag, web address or count that the person didn't give.
    Fix spelling, keep their words. If the brief gives too much text to fit, keep what a passer-by needs (what, when,
    where, the one reason to come) and put the rest in your reply as a suggestion.
-2. **Find the idea.** Safe and tidy loses to a design with a point of view. Take the brief's tone words and its
-   subject, and choose one treatment that makes it unmistakably this thing, then carry it through type, color,
-   texture and the picture: a farmers' market board can feel hand-lettered in chalk; a jazz night can borrow a 1950s
-   record sleeve; a library book sale can look like a card catalog. Texture is allowed and often right: paper grain
-   or worn ink with an SVG noise filter, a printed border, a stamp. If the reason to come is a number (a price, a
-   count, a date), make the numbers the feature: big, in a row, each with a short label. Write the idea in one line
-   before you lay anything out.
-3. **Rank it.** One headline, the thing someone must read from across the room. Two or three supporting lines. Then
+2. **Rank it.** One headline, the thing someone must read from across the room. Two or three supporting lines. Then
    the details, small. Write the ranking next to the copy deck.
-4. **Set the canvas.** The exact size asked for (a phone post 1080 x 1350, a square 1080 x 1080, a letter-size flyer
+3. **Set the canvas.** The exact size asked for (a phone post 1080 x 1350, a square 1080 x 1080, a letter-size flyer
    1275 x 1650 at 150 dpi). Keep every word inside a safe margin of at least 6% of the short side.
-5. **Pick two typefaces** and nothing more: one for the headline, one for everything else. Choose for the subject, and
+4. **Pick two typefaces** and nothing more: one for the headline, one for everything else. Choose for the subject, and
    check the family is on Google Fonts:
    | Feel | Headline | Text |
    |---|---|---|
@@ -37,20 +30,20 @@ is all you need for it.
    | Wedding, formal, gala | Cormorant Garamond (600 or bolder) | Montserrat |
    | Kids, playful | Fredoka | Nunito |
    | Modern, tech, clean | DM Serif Display or Syne | Manrope or IBM Plex Sans |
-6. **Pick three or four colors** from the subject's own world (harvest gold and barn red, hymnal navy and candle
+5. **Pick three or four colors** from the subject's own world (harvest gold and barn red, hymnal navy and candle
    cream), plus one dark and one light for text. Text must stand out: dark on light or light on dark, never mid on mid.
-7. **Size for a phone.** Most people see it as a thumbnail. Set the headline in a bold or heavier weight (never a
+6. **Size for a phone.** Most people see it as a thumbnail. Set the headline in a bold or heavier weight (never a
    thin or light display face), spanning at least 60% of the canvas width, at least three times the body text. The
    when and where (date, time, place) come second in size, never small. Body text at least 2.5% of the canvas
    height. Give the headline `text-wrap: balance`.
-8. **Lay it out on a grid.** Use CSS grid or flex with `gap`, never absolute positions for text. Space separates the
+7. **Lay it out on a grid.** Use CSS grid or flex with `gap`, never absolute positions for text. Space separates the
    groups (headline, the when and where, the details); it never sits as an empty band. If a third of the canvas is
    empty, make the headline or the picture bigger.
-9. **One picture, big, or none.** A picture earns its place at a real size: at least a third of the canvas, part of
+8. **One picture, big, or none.** A picture earns its place at a real size: at least a third of the canvas, part of
    the layout, never a small icon floating in a frame. A simple SVG scene or shape that belongs to the subject (a lantern on a porch rail, a sheaf of wheat, a sun over a field) beats a busy illustration; no stick figures or faces
    drawn in code. Never put text over a busy picture.
-10. **Render and read it back** (next section). Fix, render again, until every check passes.
-11. **Deliver** the HTML file, the rendered PNG, and the copy deck. Say which typefaces and colors you used, and list
+9. **Render and read it back** (next section). Fix, render again, until every check passes.
+10. **Deliver** the HTML file, the rendered PNG, and the copy deck. Say which typefaces and colors you used, and list
    anything from the brief you left off and why.
 
 ## Render and read it back
