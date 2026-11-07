@@ -14,6 +14,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-openscad**: exact, parametric parts in OpenSCAD code, sent as source; Hildegard renders it, checks the
   mesh and measures how the parts fit.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
+- **hildegard-music**: music, jingles, background beds and sound effects from recipes any model can fill in, rendered by
+  tested scripts and checked for key, length, loudness and clipping. Synthesized, not a recorded band.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.
 

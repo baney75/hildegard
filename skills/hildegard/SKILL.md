@@ -62,6 +62,7 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
 | palettes, color coding, correction, grading | `color.md` |
 | film or animation production | `film-animation.md` |
 | cutting any footage | `video-editing.md` |
+| Make music, a jingle, a bed, or sound effects | the `hildegard-music` skill (presets and templates rendered by `scripts/sfx.py` and `scripts/music.py`, no GPU), then `sound-design.md` for mixing |
 | sound effects, soundscapes, music made here, mixing, mastering, dialogue | `sound-design.md` |
 | podcasts, audio documentaries, audiobooks | `podcast.md` |
 | songs, lyrics, hymns for Suno | `song-suno.md` (5h) |
@@ -93,6 +94,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 | Film, shots, sequences | `direct_shot`, `make_sequence`, `export_film`, then `review_take` on every take | `hildegard-film`, `hildegard-video-edit` |
 | Characters who stay the same across shots | `create_character`, `make_character_stills`, `keep_still`, then cast them in `direct_shot` | `hildegard-film` |
 | Stills, key art, covers | `make_image` (words to image, or an edit of up to four references, in Cinema’s camera language), or a held shot; `review_take` | `hildegard-art`, `hildegard-photo-edit` |
+| Instrumental music, a jingle, a bed, sound effects | none needed: `hildegard-music` renders presets and scores with its own scripts (a real song with a voice: write the Suno brief, `references/song-suno.md`) | `hildegard-music` |
 | Voice, narration, dubbing | `speak`, `design_voice`, `dub`, `transcribe` (never a clone without the person's consent session) | `hildegard-sound` |
 | Sculpture, 3D models, prints | `loop_start` kind `model`, then `loop_submit`, `loop_critique`, `loop_finish` | `hildegard-3d` |
 | Iterating any image, video or sound until it is right | `loop_start` with that kind, then the same loop | `hildegard-loop` |

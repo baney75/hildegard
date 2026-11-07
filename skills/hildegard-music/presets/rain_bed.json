@@ -1,0 +1,88 @@
+{
+  "name": "rain_bed",
+  "note": "Steady rain on a roof, ten seconds with soft edges. Loop it by repeating the file with a 0.5 s crossfade. Vary: the drop layer's events.count (200 lighter, 600 downpour), the bed's lowpass cutoff (4000 to 10000 Hz), dur.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "pink",
+      "stereo": true,
+      "dur": 10.0,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 3200,
+        "q": 0.5
+      },
+      "gain_db": -2
+    },
+    {
+      "source": "white",
+      "stereo": true,
+      "dur": 10.0,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 6000,
+        "q": 0.8
+      },
+      "gain_db": -16
+    },
+    {
+      "source": "white",
+      "dur": 0.012,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 3000,
+        "q": 0.9
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.0098,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "gain_db": -14,
+      "pan": -0.5,
+      "events": {
+        "count": 220,
+        "span": 9.9,
+        "random": true,
+        "gain_jitter_db": 6,
+        "pitch_jitter_cents": 500
+      }
+    },
+    {
+      "source": "white",
+      "dur": 0.012,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 3000,
+        "q": 0.9
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.0098,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "gain_db": -14,
+      "pan": 0.5,
+      "start": 0.03,
+      "events": {
+        "count": 220,
+        "span": 9.9,
+        "random": true,
+        "gain_jitter_db": 6,
+        "pitch_jitter_cents": 500
+      }
+    }
+  ],
+  "master": {
+    "fade": {
+      "in": 0.5,
+      "out": 0.5
+    },
+    "loudness": {
+      "lufs": -26,
+      "true_peak": -1
+    }
+  }
+}

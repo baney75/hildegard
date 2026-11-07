@@ -1,0 +1,41 @@
+{
+  "name": "ui_toggle",
+  "note": "A two-step switch pop, up for on. Swap the two freq values to make the off sound. Vary: the layers' freq (400 to 900 Hz).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 520,
+      "dur": 0.07,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.06,
+        "sustain": 0.0,
+        "release": 0.005
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 780,
+      "start": 0.06,
+      "dur": 0.1,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.09,
+        "sustain": 0.0,
+        "release": 0.008
+      },
+      "gain_db": -2
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.08,
+      "room": 0.2
+    },
+    "loudness": {
+      "lufs": -21,
+      "true_peak": -1
+    }
+  }
+}

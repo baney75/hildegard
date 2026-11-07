@@ -1,0 +1,50 @@
+{
+  "name": "bubble_pop",
+  "note": "A water droplet pop. Vary: layers[0].freq (300 to 700 Hz; lower is a bigger bubble), sweep.time (0.03 to 0.12).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 420,
+      "sweep": {
+        "to": 1300,
+        "time": 0.07,
+        "curve": "exp"
+      },
+      "dur": 0.16,
+      "env": {
+        "attack": 0.003,
+        "decay": 0.14,
+        "sustain": 0.0,
+        "release": 0.008
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 840,
+      "sweep": {
+        "to": 2600,
+        "time": 0.07,
+        "curve": "exp"
+      },
+      "dur": 0.1,
+      "env": {
+        "attack": 0.003,
+        "decay": 0.09,
+        "sustain": 0.0,
+        "release": 0.006
+      },
+      "gain_db": -12
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.12,
+      "room": 0.3
+    },
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

@@ -68,6 +68,7 @@ three rounds with an honest note.
 | hildegard-photo-edit | Photo corrections and exports with ImageMagick, and animating a photo |
 | hildegard-art | Stills and series, with art direction and critique |
 | hildegard-sound | Music, voice and mixing levels |
+| hildegard-music | Music, jingles, beds and sound effects from recipes, rendered and loudness-checked by `scripts/music.py` and `scripts/sfx.py` |
 | hildegard-setup | Installing Hildegard, linking AI apps, agent access within terms |
 | hildegard-cloud | Renting a GPU on Runpod |
 | hildegard-3d | 3D models for screens and printing, built in code (`scripts/mesh_kit.py`) and checked view by view |

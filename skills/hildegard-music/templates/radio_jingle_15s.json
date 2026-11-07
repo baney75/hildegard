@@ -1,0 +1,114 @@
+{
+  "name": "radio_jingle_15s",
+  "note": "A 15 second radio jingle bed that ends on a held chord and a bell: energetic, major key, four-on-the-floor. Exactly 15.0 s at 128 BPM. Vary: key, the bell hook degrees; keep tempo 128 and 8 bars for 15 s (tempo 120 needs 7.5 bars, so use length_s).",
+  "vary": ["key", "the bell hook degrees", "tempo with matching length_s", "swap synth_bass for sub_bass"],
+  "seed": 81,
+  "tempo": 128,
+  "key": "G major",
+  "time": "4/4",
+  "length_s": 15,
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 1,
+      "chords": ["I"]
+    },
+    {
+      "name": "a",
+      "bars": 4,
+      "chords": ["I", "V", "vi", "IV"]
+    },
+    {
+      "name": "b",
+      "bars": 2,
+      "chords": ["IV", "V"]
+    },
+    {
+      "name": "end",
+      "bars": 1,
+      "chords": ["I"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "drums",
+      "kit": "electronic",
+      "fill": true,
+      "level_db": -9,
+      "sections": {
+        "intro": {
+          "pattern": "kick_only",
+          "gain_db": -3
+        },
+        "a": "four_floor",
+        "b": "four_floor"
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "synth_bass",
+      "level_db": -4,
+      "sections": {
+        "a": "eighths",
+        "b": "eighths",
+        "end": "root"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "pluck_synth",
+      "pan": 0.3,
+      "level_db": -8,
+      "sections": {
+        "a": "arp_16",
+        "b": "arp_16"
+      }
+    },
+    {
+      "role": "keys",
+      "instrument": "piano",
+      "level_db": -6,
+      "sections": {
+        "a": "offbeat",
+        "b": "quarters",
+        "end": "block"
+      }
+    },
+    {
+      "role": "pad",
+      "instrument": "strings",
+      "duck": 4,
+      "sections": {
+        "intro": "swell",
+        "a": "sustain",
+        "b": "sustain",
+        "end": "sustain"
+      }
+    },
+    {
+      "role": "melody",
+      "instrument": "bell",
+      "octave": 1,
+      "level_db": 0,
+      "sections": {
+        "a": "5:0.5 5:0.5 3:1 5:1 1^:1 | 7:1 5:1 2:1 5:1 | 6:1 6:0.5 5:0.5 3:2 | 4:1 6:1 5:1 4:1",
+        "b": "6:1 1^:1 6:2 | 5:1 7:1 2^:2",
+        "end": "1^:4"
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 4,
+    "velocity": 0.05
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.45,
+      "level_db": -7
+    }
+  },
+  "master": {
+    "fade_out": 0.3,
+    "tail": 1.0
+  }
+}
