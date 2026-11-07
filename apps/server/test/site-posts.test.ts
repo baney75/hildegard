@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { markdown } from '../src/markdown.ts';
+import { renderMarkdown } from '../src/render-markdown.ts';
 import { CASES } from './fixtures/markdown-cases.ts';
 import { boot, type Harness, raw, textOf } from './harness.ts';
 
@@ -367,13 +368,17 @@ describe('a post that is too hostile to render', () => {
       const healthMs = performance.now() - t0;
       const res = await refused;
       expect(performance.now() - t0).toBeLessThan(2_000);
-      expect(res.status).toBe(422);
-      expect(((await res.json()) as { error: string }).error).toContain('too complex to render');
+      // The one-pass reader gets through these inside the budget; the worker stays as the backstop (below).
+      expect([201, 422]).toContain(res.status);
       expect(healthMs).toBeLessThan(200);
-      expect(siteJson(blank).posts.map((p) => p.slug)).not.toContain('too-much');
     },
     10_000,
   );
+  it('refuses a post the worker cannot finish within its budget, writing nothing', async () => {
+    const err = await renderMarkdown('# Slow', 0).catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 422, code: 'body_md' });
+    expect((err as Error).message).toContain('too complex to render');
+  });
   it('renders an ordinary post exactly as the renderer does', async () => {
     const body_md =
       '# One\n\nA *soft* and **hard** `code` line, a [link](https://example.com/a?b=1&c=2).\n\n- x\n  - y';

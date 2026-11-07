@@ -6,9 +6,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { writePost } from '../src/posts.ts';
+import { markdown } from '../src/markdown.ts';
+import { type PostInput, writePost as write } from '../src/posts.ts';
 import { publicSiteRoutes } from '../src/public-sites.ts';
 import { Sites } from '../src/sites.ts';
+
+// writePost takes its body rendered; these tests render it here, the way the route does in a worker.
+const writePost = (s: Sites, id: string, input: PostInput, o: { base: null }) =>
+  write(s, id, input, { ...o, html: markdown(input.body_md) });
 
 let dir: string;
 let sites: Sites;
