@@ -46,6 +46,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cancel_take',
       'check_watermark',
+      'clean_voice',
       'clone_voice',
       'convert_voice',
       'create_character',
@@ -75,6 +76,8 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'openscad_status',
       'printer_profile',
       'read_skill',
+      'record_link',
+      'recording_status',
       'report_draft',
       'report_file',
       'review_prompt',
@@ -84,6 +87,8 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'site_export',
       'site_files',
       'site_new',
+      'site_post',
+      'site_publish',
       'site_read',
       'site_templates',
       'site_tokens',
@@ -92,6 +97,11 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'transcribe',
       'update_hildegard',
       'voice_job_status',
+      'writing_voice',
+      'writing_voice_add_sample',
+      'writing_voice_record_edit',
+      'writing_voice_samples',
+      'writing_voice_update',
     ]);
     expect(client.getInstructions()).toContain('hildegard_status');
   });

@@ -8,6 +8,10 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-3d**: 3D models for screens and for printing, built in code and checked by Hildegard view by view.
 - **hildegard-print**: working parts to 3D print, measured from a photo or a shop listing, sized from your printer's
   fits, sliced, and handed over with a print sheet.
+- **hildegard-blog**: blog posts, newsletters, emails and pages in the writer's own voice, learned from their samples
+  and every edit they make; interviews them for the material and posts to their Hildegard site.
+- **hildegard-design**: posters, flyers, social posts, covers, invitations, menus and signs, built in HTML at their exact
+  size, rendered, and read back line by line so no word is cut or invented.
 - **hildegard-brand**: logos and brand systems built as SVG and JSON: a mark on a grid, a hand-kerned wordmark,
   lockups, a logo sheet measured at 16 px, in one ink and embroidered, and a one-page brand guide with every contrast
   pair worked out.
@@ -20,6 +24,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
   file or a live page; your user watches the site on Hildegard's canvas while you build it.
 - **hildegard-openscad**: exact, parametric parts in OpenSCAD code, sent as source; Hildegard renders it, checks the
   mesh and measures how the parts fit.
+- **hildegard-motion**: animated video drawn in code from a checked spec: title cards, promos, quotes, data reveals, photo
+  slideshows and kinetic type, from six finished templates, with no GPU.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.

@@ -44,36 +44,55 @@ ask me questions", so the eval measures making the work, not the interview.
   four test clips (`ffmpeg` lavfi sources at 1280x720/30, 1920x1080/24, a 720x1280 portrait clip and 1280x720/25) are synthesized with no
   network. The clean source for each cleaning task is kept in `ref/` and never shown to a responder.
 - **Audio scoring** (`score_audio.py`). The responder's script is re-run here, not trusted: in a temp folder holding only the inputs, under
-  `unshare -rn` (no network) and a 120 s timeout. The output is measured: integrated loudness and true peak (ffmpeg `ebur128`) against
+  `sandbox.py` and a 120 s timeout: bubblewrap with the filesystem read-only, a tmpfs over the owner's home, `/tmp` and `/run`,
+  only that folder writable, no network, new PID, IPC and UTS namespaces, no capabilities and no new privileges. Without bubblewrap it falls back to
+  `unshare -rn` plus `setpriv --no-new-privs` and warns that the filesystem is then not isolated; with neither it refuses. The output is measured: integrated loudness and true peak (ffmpeg `ebur128`) against
   the brief's targets; clipped samples; for cleaning tasks the hum prominence at 60/120/180 Hz in the pauses, speech minus pause level, rumble,
   how much the quiet stretches were evened out, how far the pop was tamed, and a STOI-like fidelity against the clean reference (band-envelope
   correlation in 1/3-octave bands; documented in `stoi_like`; it ranks, it is not the standardized STOI). For mix tasks the voice and music
   files are found in the output by cross-correlation and fitted window by window, which gives the ducking depth (music gain in gaps minus
   under speech), the voice-to-music ratio while speaking, whether the lines are in order, where the sting lands, and whether the ending is a
   hard cut. Each metric becomes a pass/fail check, and the full table goes to the judge.
-- **Video-edit scoring** (`score.py`): ran, length in range, 1280x720, 30 fps, H.264 and AAC, scene changes (ffmpeg scene score above 0.12), loudness
+- **Design rendering** (`score.py`): model HTML is untrusted. Chromium gets a throwaway profile and `HOME` in a temp folder (removed afterwards), its own
+  sandbox on (`--no-sandbox` only if this machine cannot run it; `chromium_sandbox` in score.json says which), and a dead proxy for every request except
+  Google Fonts, loopback and IP addresses included.
+- **Video-edit scoring** (`score.py`): ran, edit.sh under the same sandbox, length in range, 1280x720, 30 fps, H.264 and AAC, scene changes (ffmpeg scene score above 0.12), loudness
   within 2 LU, `blackdetect` for black stretches over half a second, and an estimate of which of the four clips appear (colour-histogram match).
 - **Writing scoring** (`score.py`): `skills/hildegard/scripts/prose_lint.py --json` on the draft with front matter removed (the repo's `lint` command
   needs a built workspace; the Python lint reproduces it rule for rule). Note that the skill arms know about this lint and the `none` arm does not.
-- **Judge** (`judge.py`): Opus (`claude -p --model opus`, no MCP, Read only) sees each task's two deliverables in both orders as `A` and `B`, with
-  file names neutralized, front matter stripped and no arm names, against a domain rubric (in the file). Design: the two rendered PNGs. Video:
+- **Judge** (`judge.py`): Opus (`claude -p --model opus`, no MCP, Read limited to its working folder with `Read(./**)`; a bare `Read` reads anywhere the owner can) sees each task's two deliverables in both orders as `A` and `B`, with
+  file names neutralized, front matter stripped and no arm names, against a domain rubric (in the file). Each call runs in a fresh temp folder outside the eval tree that holds only those files (`A.*`, `B.*`); the verdicts, which
+  name the arms, are written elsewhere, and a scan refuses to call the judge if the folder holds anything else, a file name names an arm, or a file points into the eval tree. Design: the two rendered PNGs. Video:
   the two plans. Audio and video edit: the measured table, the scripts and, for video edit, a frame contact sheet. It returns the winner, the
   margin (slight or clear), the reasons, and the invented facts it found. If one arm has no usable deliverable, it wins automatically and the verdict is
-  flagged `auto`; the report prints how many verdicts were automatic. A skill-arm plan can still mention a Hildegard tool by name, which is a small leak.
+  flagged `auto`; the report prints how many verdicts were automatic. A run counts only if the responder finished (a `done` file and a `meta.json` with no error): one that timed out or died
+  after writing part of its deliverable is never scored or judged, loses automatically, and the report says how many verdicts had such an arm. Before the files are copied, any skill path
+  (`.agents/skills/...`, `skills/hildegard-...`, `SKILL.md`), skill name or reference file name in a text deliverable becomes `[reference]`, the same way in both arms, and the scan fails the judgment if one is left.
+  A skill-arm plan can still mention a Hildegard tool by name, which is a small leak.
 - **Selftest**: `python3 evals/creative/selftest/test_scorers.py` runs a passthrough control and a competent reference script through the scorers;
-  the controls must fail the checks they should, and the references must pass.
+  the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
+  sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render
+  isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, and the judge's folder.
+- **Not sandboxed**: the responder sessions themselves. Haiku's Bash tool runs on the host with the network (its tool list is Read, Write, Bash and Skill), and
+  Codex runs with its own `workspace-write` sandbox. Only the re-run of a finished script, and the render of its HTML, is isolated.
+- **Reuse**: a response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
+  the arm's skills folder; `main` is archived from `origin/main` into `skills-main-<tree>` so a moved `main` is never mixed with an old one; the report prints the hashes
+  each arm used. A run from before this check has no hash, and `run.sh` makes it again.
 
 ## Run it
 
 ```sh
 evals/creative/run.sh <label>                       # tuned set, none vs main, haiku and luna; resumable
-evals/creative/run.sh <label> --set heldout         # the held-out set
+evals/creative/run.sh <label> --set heldout         # the held-out set (--set heldout2: a second one, design and video)
+evals/creative/run.sh <label> --cand new --base main --judge-only   # judge and report the responses already on disk; no responder runs
 evals/creative/run.sh <label> --cand new --base main   # this checkout's skills/ (or $NEW_SKILLS) against main
 evals/creative/run.sh <label> --only a1-podcast-clean,d1-fall-festival --models haiku
 evals/creative/run.sh brand-ship --set brand-both --base none --cand nocouncil   # logos, guides, app screens (arms.py makes the arms)
 ```
 
 State lives in `~/.cache/hildegard-creative-eval/` (`runs/<arm>/<model>/<task>/`, `judge/<label>/`); delete a run folder to redo it.
+A quota or billing message stops the whole run: the response exits 99, `dispatch.sh` makes xargs stop starting jobs, and a `STOP` file under `runs/` keeps later
+responses from calling a model until you delete it. A responder that dies before a finished transcript leaves a `meta.json` with the error and no `done`, so it is made again.
 It writes `evals/creative/results-<label>.json` and prints the summary and a design contact sheet path. Needs `claude` and `codex` signed in
 with a subscription, `ffmpeg`, `numpy`, `Pillow` and Playwright's Chromium. One response per task, arm and model is about 52 responses
 and 52 Opus verdicts for the tuned set.

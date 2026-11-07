@@ -5,32 +5,42 @@
 #          (default: this checkout's skills/)
 #   model  haiku  Claude Haiku 5.5 through `claude -p`; luna  GPT-6 Luna at low effort through `codex exec`
 # Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are unset. If a quota or billing message comes back, this
-# writes STOP in the run folder and exits 99 so run.sh halts. Skips a run that already finished (its `done` file).
+# writes STOP in the run folder and exits 99 (dispatch.sh then halts every later job; a STOP file also stops this script before it
+# calls a model). Skips a run that finished (its `done` file) with the same skills hash (skills.sha). Exits 4, with no `done`, when
+# the responder dies before a finished transcript.
 #
-# Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, done}
+# Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
 set -u
 ARM=$1; MODEL=$2; TASK=$3
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(git -C "$HERE" rev-parse --show-toplevel)
 E=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 RUN=$E/runs/$ARM/$MODEL/$TASK; WORK=$RUN/work
-[ -f "$RUN/done" ] && exit 0
-rm -rf "$RUN"; mkdir -p "$WORK"
 
 case $ARM in
   none) SK="" ;;
-  main) SK=$E/skills-main
-        if [ ! -d "$SK/skills" ]; then mkdir -p "$SK.tmp" && git -C "$REPO" archive origin/main skills | tar -x -C "$SK.tmp" && mv "$SK.tmp" "$SK"; fi ;;
+  main) # keyed by the skills tree on origin/main, so a moved main is archived again and never mixed with the old one
+        TREE=$(git -C "$REPO" rev-parse origin/main:skills) || { echo "no origin/main:skills" >&2; exit 2; }
+        SK=$E/skills-main-${TREE:0:12}
+        if [ ! -d "$SK/skills" ]; then
+          T=$(mktemp -d "$SK.XXXXXX") && git -C "$REPO" archive origin/main skills | tar -x -C "$T" && { mv -T "$T" "$SK" 2>/dev/null || rm -rf "$T"; }
+        fi ;;
   new)  SK=$(dirname "${NEW_SKILLS:-$REPO/skills}"); [ "$(basename "${NEW_SKILLS:-$REPO/skills}")" = skills ] || { echo "NEW_SKILLS must end in /skills" >&2; exit 2; } ;;
   *) if [ -d "$E/arms/$ARM/skills" ]; then SK=$E/arms/$ARM; else echo "arm: none|main|new, or a folder made by arms.py in $E/arms" >&2; exit 2; fi ;;
 esac
+# A finished run is reused only while the skills it was made with are unchanged (a run from before this check has no skills.sha
+# and is made again). The hash goes into meta.json, and the report prints it.
+if [ -n "$SK" ]; then HASH=$(python3 "$HERE/skillhash.py" "$SK/skills") || exit 2; else HASH=none; fi
+[ -f "$RUN/done" ] && { [ "$ARM" = none ] || [ "$(cat "$RUN/skills.sha" 2>/dev/null)" = "$HASH" ]; } && exit 0
+# One quota or billing message anywhere halts every later response until its STOP file is removed.
+if find "$E/runs" -name STOP 2>/dev/null | grep -q .; then echo "a STOP file is present under $E/runs; not calling a model" >&2; exit 99; fi
+rm -rf "$RUN"; mkdir -p "$WORK"; printf '%s\n' "$HASH" > "$RUN/skills.sha"
 
 # The task's inputs, and the prompt.
 [ -d "$E/inputs/$TASK" ] && cp "$E/inputs/$TASK"/* "$WORK"/
 PROMPT=$(python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
 import json, sys, os
 here, tid, arm, model = sys.argv[1:]
-import glob
-t = next(t for f in sorted(glob.glob(os.path.join(here, 'tasks*.json')) + glob.glob(os.path.join(here, 'heldout*.json'))) for t in json.load(open(f)) if t['id'] == tid)
+t = next(t for f in ('tasks.json', 'heldout.json', 'heldout2.json', 'tasks-brand.json', 'heldout-brand.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
 chrome = os.environ.get('HILDEGARD_EVAL_CHROMIUM') or ''
 if not chrome:
     import glob
@@ -121,16 +131,27 @@ fi
 echo $(( $(date +%s) - T0 )) > "$RUN/seconds"
 
 python3 "$HERE/runmeta.py" "$MODEL" "$RUN" || true
-# A quota or billing prompt means stop: never top up, never switch to API billing.
-if python3 - "$RUN" <<'PY'
+# Exit 99 on a quota or billing message, found in the final text, stderr or the end of the transcript whether or not meta.json exists:
+# never top up, never switch to API billing. Exit 4 when the responder died before a finished transcript (no `done`, so it is made again).
+python3 - "$RUN" <<'PY'
 import json, re, sys, os
 run = sys.argv[1]
+def read(name, tail=4000):
+    try:
+        return open(os.path.join(run, name), errors='replace').read()[-tail:]
+    except OSError:
+        return ''
+try:
+    meta = json.load(open(os.path.join(run, 'meta.json')))
+except (OSError, ValueError):
+    meta = {}
 bad = re.compile(r'usage limit|quota|billing|credit balance|rate.?limit|out of (extra )?usage|upgrade your plan|purchase', re.I)
-final = open(os.path.join(run, 'final.txt')).read() if os.path.exists(os.path.join(run, 'final.txt')) else ''
-err = open(os.path.join(run, 'err.txt')).read()
-meta = json.load(open(os.path.join(run, 'meta.json')))
-hit = (meta.get('is_error') and bad.search(final)) or bad.search(err.replace('rmcp::transport', ''))
-sys.exit(0 if hit else 1)
+text = read('final.txt') if meta.get('is_error') else ''
+if bad.search(text) or bad.search(read('err.txt').replace('rmcp::transport', '')) or (not meta.get('finished') and bad.search(read('transcript.jsonl'))):
+    sys.exit(99)
+sys.exit(0 if meta.get('finished') else 4)
 PY
-then echo "quota or billing message in $RUN; stopping" >&2; : > "$RUN/STOP"; exit 99; fi
+rc=$?
+if [ $rc -eq 99 ]; then echo "quota or billing message in $RUN; stopping" >&2; : > "$RUN/STOP"; exit 99; fi
+if [ $rc -ne 0 ]; then echo "the responder died before a finished transcript in $RUN: $(head -c 300 "$RUN/err.txt" 2>/dev/null)" >&2; exit 4; fi
 touch "$RUN/done"

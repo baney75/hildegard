@@ -1,23 +1,36 @@
 ---
 name: hildegard
-description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make, edit, design, write or compose creative work - art, cutouts, storyboards, film, music, podcasts, 3D, fiction, essays, APA papers.
+description: Use for /hildegard, /art, /vus, /mus, /suno and any creative or writing request - routes to the one skill each task needs; covers art, film, music, podcasts, 3D, fiction, essays and papers.
 ---
 
 # Hildegard — the midwife's craft
 
 ## Start here: the one place to look
 
+Find the request in this table and read only what it names. For these, that is all you need: don't open other skills
+or references unless the one you're in sends you there.
+
 | The request | Read |
 |---|---|
-| A logo, wordmark, favicon or app icon; a brand's palette, type, voice and guide | **hildegard-brand** |
-| An app screen or flow (iOS, Android, desktop, web app) and its states | **hildegard-app** |
+| A poster, flyer, social post, album or book cover, invitation, menu, sign, banner | **hildegard-design** |
+| A logo, wordmark, lockup, favicon or app icon; a brand's palette, type, voice and guide | **hildegard-brand** |
 | A website, landing page or product page | **hildegard-web** |
-| A review of a logo, guide, screen, page, image or film before revising it, or a pick between variants | **hildegard-council** |
-| A painting, illustration, poster or art image | **hildegard-art** |
-| Cut, caption or finish a video; plan or make a film | **hildegard-video-edit**, **hildegard-film** |
-| Clean up or mix audio, voice, music | **hildegard-sound** |
+| An app screen or flow (iOS, Android, desktop, a web app's working screens) and its states | **hildegard-app** |
+| Only when asked: a blind review of a design before revising it, or a pick between variants | **hildegard-council** |
+| Clean up or mix audio: a podcast, sermon or voice recording, music under a voice, a radio spot | **hildegard-sound** |
+| Cut, trim, caption or finish a video from clips you have | **hildegard-video-edit** |
+| Plan or make a film, ad or reel with Hildegard's video models | **hildegard-film** |
+| Everyday prose in a person's own voice: a blog post, email, newsletter, page copy, bio, announcement | **hildegard-blog** |
+| A poem, story, script, sermon, speech or essay | `references/writing-craft.md` here (papers and books: `references/nonfiction-academic.md`) |
+| A painting, illustration or art image | **hildegard-art** |
+| Edit or retouch a photo | **hildegard-photo-edit** |
+| A 3D model, or a part to print | **hildegard-3d**, **hildegard-print** |
+| Install Hildegard, models, devices, linking apps, anything not working | **hildegard-setup** |
 
-Anything else, and open-ended work with no brief yet: the method below.
+Two rules hold everywhere: put in only the facts your user gave (no invented dates, numbers, names, quotes or
+taglines), and check the finished thing yourself before you hand it over: render it and look, measure it, or lint it.
+
+The rest of this file is the full method for open-ended work, a piece that has no brief yet.
 
 Named for Saint Hildegard of Bingen (1098–1179): composer of the *Symphonia* and the *Ordo Virtutum*, visionary whose *Scivias* was illuminated under her direction, writer on theology, medicine and nature. She was one person working in every form, all of it serving one vision. That is this skill's pattern: many systems, one claim.
 
@@ -25,22 +38,7 @@ Named for Saint Hildegard of Bingen (1098–1179): composer of the *Symphonia* a
 
 The piece belongs to the user. Your job is to draw it out, test whether it is alive, make it with full craft, and think honestly about its own making the whole way through. The test is Socrates' test: is this the real thing the user carries, or a false idol, the thing they think they are supposed to want?
 
-**Scope: every creative and written form, every file it lives in.** That includes:
-- painting, drawing and print (PNG, PDF);
-- vector work (SVG);
-- text art (TXT);
-- color work: palettes, color coding for information, correction and grading (`references/color.md`);
-- image editing: retouching, background removal and mattes, compositing, blending, restoration (`references/image-editing.md`);
-- animation and film (MP4);
-- songs for Suno: lyrics, hooks, hymns, style prompts, and fixes to a Suno take (step 5h);
-- music videos, lyric videos, visualizers, Spotify Canvas loops and storyboards for songs, including songs made with step 5h (step 5i);
-- music, soundscape and sound design (MP3, WAV); mixing and mastering; podcasts and audio stories (`references/podcast.md`);
-- video editing of any footage, from films to reels (`references/video-editing.md`);
-- sculpture and 3D, for viewing or printing (GLB, STL, 3MF);
-- writing of every kind: poems, stories, novels, parables, scripts, prayers, speeches, essays, nonfiction, books, and academic papers in APA, Chicago or MLA (5e);
-- interactive and generative pieces (HTML);
-- work made from the user's own photos, footage, recordings, scans or drafts;
-- combinations of any of these, such as a song with its cover, a poem with its reading, or a sculpture with its turntable film.
+**Scope: every creative and written form, every file it lives in.** Painting, drawing, print and vector (PNG, PDF, SVG); text art; color work (`references/color.md`); image editing (`references/image-editing.md`); animation, film and video editing (MP4, `references/video-editing.md`); songs for Suno (step 5h) and music videos (step 5i); music, sound design, mixing and podcasts (MP3, WAV, `references/podcast.md`); sculpture and 3D (GLB, STL, 3MF); writing of every kind, including papers in APA, Chicago or MLA (5e); interactive pieces (HTML); work from the user's own photos, footage, recordings or drafts; and any combination, such as a song with its cover.
 
 **The bar:** the piece rewards two distances. Pretty, on-topic and empty fails. So does busy at both distances.
 
@@ -80,6 +78,7 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
 | podcasts, audio documentaries, audiobooks | `podcast.md` |
 | songs, lyrics, hymns for Suno | `song-suno.md` (5h) |
 | music videos, lyric videos, visualizers, Canvas | `music-video.md` (5i) |
+| animated type and graphics drawn in code: title cards, promos, quotes, data reveals, photo slideshows, kinetic type | the `hildegard-motion` skill: copy a template, `scripts/motion.py --check`, render, look at the sheet |
 | sculpture, 3D models, printing, renders | `sculpture-3d.md` |
 | fiction, poetry, scripts, prayer, speech | `writing-craft.md` |
 | essays, nonfiction, research, APA, Chicago or MLA | `nonfiction-academic.md` |
@@ -95,7 +94,10 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
    - `figure_rig.py`: a proportioned, posable mannequin in head units;
    - `canon_check.py`: measures a face or figure against Leonardo's, Loomis's and Bridgman's canons and prints pass/fail.
 
-   The check scripts are in step 6 and in the domain files.
+   The check scripts are in step 6 and in the domain files. The ones that draw pictures need Python packages a bare
+   machine may lack; install them once with `python3 -m pip install pillow numpy av`. `contact_sheet.py` and `animatic.py` need only Pillow, `cutout.py` and
+   `figure_rig.py` Pillow and numpy, and the media checker of step 6 all three. `edit.py`, `canon_check.py` and `prose_lint.py` need only
+   Python and FFmpeg. Without the packages, look at the frames yourself and take the numbers from FFmpeg and `ffprobe`.
 4. **Composite works** (5j): several media serving one claim (a song with its cover, video, lyric sheet and podcast episode; a book with its illustrations; a paper with its figures). One seed and one bible, then each medium's layer, in a planned order.
 
 ## With Hildegard connected: make it on the user's own machines
@@ -115,7 +117,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 
 **The loop is step 6 made mechanical.** Every round comes back measured and drawn (a turntable with silhouettes for a model, a contact sheet for media); answer every question by pointing at a view or a check, change one thing, and send the next round. Hildegard won't take round two before the critique of round one, and it keeps every round so the user can see how the work got there.
 
-When the tools aren't here and the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
+When the tools aren't here, everything else in this skill still works alone: the scripts in `scripts/` need Python and FFmpeg, plus the packages named in step 3 for the ones that draw pictures. If the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
 
 ## Lenses and styles: choose on purpose
 

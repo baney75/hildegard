@@ -37,6 +37,15 @@ import type {
   VoiceUse,
 } from '@hildegard/presets';
 
+/** What the record page behind a link may know: what is asked of the person, and whether it can still be sent. */
+export interface RecordLinkInfo {
+  kind: 'voice' | 'video';
+  purpose: string | null;
+  expiresAt: string;
+  state: 'pending' | 'received';
+  maxBytes: number;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly field: string | undefined;
@@ -170,6 +179,8 @@ export interface SiteSummary {
   bytes: number;
   /** Where its pages are served, framed only by the Studio. */
   preview: string;
+  /** Whether everyone can read it at /s/<id>/. */
+  published?: boolean;
 }
 export interface SiteDetail extends SiteSummary {
   fileList: Array<{ path: string; bytes: number }>;
@@ -221,7 +232,38 @@ export interface TalkTurn {
   device: string;
 }
 
+export interface WritingSample {
+  id: string;
+  title: string;
+  source: string;
+  addedAt: string;
+  words: number;
+}
+export interface WritingEdit {
+  at: string;
+  draftWords: number;
+  finalWords: number;
+  removed: string[];
+  added: string[];
+  lintBefore: { fails: number; warns: number };
+  lintAfter: { fails: number; warns: number };
+  note: string;
+}
+export interface WritingState {
+  person: string;
+  voice: { md: string; updatedAt: string | null; versions: number };
+  samples: WritingSample[];
+  edits: WritingEdit[];
+  topCut: Array<{ phrase: string; count: number }>;
+}
+
 export const api = {
+  writing: () => call<WritingState>('GET', '/api/writing/voice'),
+  setWritingVoice: (md: string) =>
+    call<{ person: string; voice: WritingState['voice'] }>('PUT', '/api/writing/voice', { md }),
+  addWritingSample: (body: { title: string; text: string; source?: string }) =>
+    call<{ sample: WritingSample }>('POST', '/api/writing/samples', body),
+  removeWritingSample: (id: string) => call<{ ok: true }>('DELETE', `/api/writing/samples/${id}`),
   sites: () =>
     call<{
       sites: SiteSummary[];
@@ -441,6 +483,10 @@ export const api = {
   checkConsent: (id: string) => call<VoiceJob>('POST', `/api/voice/consent/${id}/check`),
   finishClone: (id: string, name: string) => call<Voice>('POST', `/api/voice/consent/${id}/finish`, { name }),
   consentLink: (token: string) => call<ConsentLink>('GET', `/api/consent/${encodeURIComponent(token)}`),
+  recordLinkInfo: (token: string) => call<RecordLinkInfo>('GET', `/api/record/${encodeURIComponent(token)}`),
+  /** Sends the recording a link was made for. The link works once. */
+  recordSend: (token: string, clip: Blob) =>
+    call<{ received: boolean }>('POST', `/api/record/${encodeURIComponent(token)}`, undefined, clip),
   recordByLink: (token: string, audio: Blob) =>
     call<{ recorded: boolean }>(
       'POST',

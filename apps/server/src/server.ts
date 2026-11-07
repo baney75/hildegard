@@ -59,6 +59,8 @@ import {
 import { People } from './people.ts';
 import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
+import { importLimits, RecordStore } from './record.ts';
+import { CleanJobs, probeMedia } from './record-clean.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
 import { Scheduler } from './scheduler.ts';
@@ -165,7 +167,7 @@ async function serveStudio(
     tunnelSecrets?: (account: string) => SecretStore;
     /** cloudflared's home for cert.pem, the Cloudflare sign-in; the user's home by default. */
     tunnelHome?: string;
-    /** The clock for short codes and their limits: tests give a fake one. */
+    /** The clock for short codes, their limits and sign-in sessions: tests give a fake one. */
     now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
@@ -440,7 +442,7 @@ async function serveStudio(
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
-  const people = new People({ dataDir: config.dataDir });
+  const people = new People({ dataDir: config.dataDir, now: opts.now });
   const grants = new Grants({ dataDir: config.dataDir, person: (id) => people.get(id) });
   const signer = new MediaSigner({ dataDir: config.dataDir });
   const llm = new LocalModels({ dataDir: config.dataDir, secrets: secretsFor, ...opts.llm });
@@ -611,6 +613,18 @@ async function serveStudio(
     credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
     onChange: (e) => store.emit({ type: 'export', export: e }),
   });
+  // Recording from any chat: links to a record page, what comes back, and cleaning it.
+  const recordStore = new RecordStore({
+    dataDir: config.dataDir,
+    mediaDir,
+    now: opts.now,
+    probe: probeMedia(config.dataDir),
+    imports: importLimits(),
+  });
+  const records = {
+    store: recordStore,
+    cleaner: new CleanJobs({ dataDir: config.dataDir, store: recordStore }),
+  };
   // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
   // git. The port is the one this server listens on, known once it does.
   const entry = process.env.HILDEGARD_ENTRY;
@@ -668,6 +682,7 @@ async function serveStudio(
     },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
+    records,
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,
