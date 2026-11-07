@@ -41,6 +41,7 @@ check('a3 passthrough fails length, order, sting', not r['checks']['length'] and
 
 with tempfile.TemporaryDirectory() as d:
     os.makedirs(os.path.join(d, 'work'))
+    open(os.path.join(d, 'done'), 'w').close()
     subprocess.run(['cp', os.path.join(HERE, 'edit.sh'), os.path.join(d, 'work', 'edit.sh')], check=True)
     subprocess.run([sys.executable, os.path.join(CR, 'score.py'), 'e1-canoe-cut', d], check=True)
     s = json.load(open(os.path.join(d, 'score.json')))
@@ -51,7 +52,7 @@ with tempfile.TemporaryDirectory() as d:
     check('e1 empty script scores as not run', not s['ran'] and s['passed'] == 0, s['checks'])
 
 rng = np.random.default_rng(0)
-x = sa.read_audio(os.path.expanduser('~/.cache/hildegard-creative-eval/ref/a1-podcast-clean/clean.wav'), sr=16000)
+x = sa.read_audio(os.path.join(sa.E, 'ref', 'a1-podcast-clean', 'clean.wav'), sr=16000)
 check('stoi_like of a signal with itself is about 1', sa.stoi_like(x, x) > 0.99)
 noise = sa.stoi_like(x, rng.standard_normal(len(x)).astype(np.float32) * 0.1)
 check('stoi_like: noise is far below speech with a little noise on it, and unrelated speech is lower still', noise < 0.5 and sa.stoi_like(x, np.roll(x, 16000 * 7)) < 0.3 and sa.stoi_like(x, x + rng.standard_normal(len(x)).astype(np.float32) * 0.02) > noise + 0.2)
