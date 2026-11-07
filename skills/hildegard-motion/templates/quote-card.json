@@ -1,0 +1,67 @@
+{
+  "title": "A quote or a verse on a quiet card",
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "background": {
+      "type": "radial",
+      "center": [0.5, 0.45],
+      "radius": 0.9,
+      "stops": [{ "at": 0, "color": "#f7f1e3" }, { "at": 1, "color": "#e6d9bd" }]
+    }
+  },
+  "duration": 10,
+  "fonts": { "serif": { "google": "EB Garamond" }, "body": { "google": "Inter" } },
+  "fade": { "in": 0.8, "out": 1.0, "color": "#f7f1e3" },
+  "scenes": [
+    {
+      "id": "verse",
+      "duration": 10,
+      "layers": [
+        {
+          "type": "shape",
+          "shape": "line",
+          "from": [0.46, 0.2],
+          "to": [0.54, 0.2],
+          "stroke": { "color": "#9a7b3f", "width": 0.35 },
+          "enter": { "type": "draw", "duration": 0.8 }
+        },
+        {
+          "type": "text",
+          "text": "The Lord is my shepherd;\nI shall not want.",
+          "font": "serif",
+          "italic": true,
+          "weight": 500,
+          "size": 8,
+          "color": "#2b2118",
+          "x": 0.5,
+          "y": 0.47,
+          "box": 0.7,
+          "line_height": 1.25,
+          "enter": { "type": "fade", "split": "line", "stagger": 0.7, "duration": 1.0, "delay": 0.8 }
+        },
+        {
+          "type": "shape",
+          "shape": "line",
+          "from": [0.46, 0.7],
+          "to": [0.54, 0.7],
+          "stroke": { "color": "#9a7b3f", "width": 0.35 },
+          "enter": { "type": "draw", "duration": 0.8, "delay": 3.2 }
+        },
+        {
+          "type": "text",
+          "text": "PSALM 23:1",
+          "font": "body",
+          "weight": 600,
+          "size": 3.2,
+          "letter_spacing": 0.5,
+          "color": "#6b4f1d",
+          "x": 0.5,
+          "y": 0.77,
+          "enter": { "type": "fade", "duration": 1.0, "delay": 3.6 }
+        }
+      ]
+    }
+  ]
+}
