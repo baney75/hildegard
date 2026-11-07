@@ -5,14 +5,16 @@
  *
  * - GET and HEAD only, and only for a site the owner has published.
  * - Only files under the site's own folder. The path is decoded, checked segment by segment, then resolved to its
- *   real location, which must still be inside the folder (a symlink out is refused) and must pass the same checks.
+ *   real location, which must still be inside the folder (a symlink or junction out, even to another drive, is
+ *   refused) and must pass the same checks. What is withheld is decided on that real spelling, as the disk stores it
+ *   (`realpath.native`), because a case-insensitive disk (APFS, NTFS) opens `NOTES/`, `Notes/` or `noteſ/` as `notes/`.
  * - Never `notes/`, a draft post, `site.json`, a name that starts with a dot, or a half-written file.
  * - Every response is its own sandbox (an opaque origin, with no scripts unless the site has scripts of its own), so
  *   a published page can't reach Hildegard's API or the Studio's cookies even though it is served from the same host.
  * - It reads no cookie and sets none (app.ts leaves /s/ out of the sign-in check).
  */
 import { readFileSync, realpathSync, statSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import path, { resolve } from 'node:path';
 import { Hono } from 'hono';
 import type { HgEnv } from './access.ts';
 import { TYPES } from './browser.ts';
@@ -51,13 +53,43 @@ export function publicCsp(scripts: boolean): string {
     .join('; ');
 }
 
-/** Whether a path inside the site (already split) is one the public never gets. */
-function withheld(parts: string[], drafts: Set<string>): boolean {
-  const low = parts.map((p) => p.toLowerCase());
+/**
+ * A name as a case-insensitive disk sees it: compatibility-normalized (ſ is s, the Kelvin sign is k, a full-width dot
+ * is a dot) and in lower case. Two names that fold alike may be one file there, so they are treated as one here.
+ */
+const fold = (name: string) => name.normalize('NFKC').toLowerCase();
+
+/** Whether a path inside the site (already split) is one the public never gets. `drafts` are the draft slugs. */
+export function withheld(parts: string[], drafts: readonly string[]): boolean {
+  const low = parts.map(fold);
   if (low[0] === 'notes') return true;
-  if (low[0] === 'blog' && low[1] && drafts.has(low[1])) return true;
+  if (low[0] === 'blog' && low[1] && drafts.some((d) => fold(d) === low[1])) return true;
   const last = low.at(-1) ?? '';
   return last === 'site.json' || last.endsWith('.hg-tmp') || low.some((p) => p.startsWith('.'));
+}
+
+/**
+ * The segments of `real` under `root` (both real paths), or null when it is not inside: another drive, a sibling
+ * with the same beginning (`files2`), the parent. Never decided with `path.relative` alone, which answers with an
+ * absolute path for a target on another Windows drive. `fold` compares names without case, as Windows and macOS do.
+ */
+export function insideSite(
+  root: string,
+  real: string,
+  how: { api: typeof path.posix; fold: boolean } = {
+    api: path,
+    fold: process.platform === 'win32' || process.platform === 'darwin',
+  },
+): string[] | null {
+  const { api } = how;
+  const same = (a: string, b: string) => (how.fold ? a.toLowerCase() === b.toLowerCase() : a === b);
+  const split = (p: string) => p.split(/[\\/]+/).filter(Boolean);
+  const back = api.relative(root, real);
+  if (api.isAbsolute(back) || back === '..' || back.startsWith(`..${api.sep}`)) return null;
+  const r = split(root);
+  const t = split(real);
+  if (t.length < r.length || !r.every((seg, i) => same(seg, t[i]!))) return null;
+  return t.slice(r.length);
 }
 
 export function publicSiteRoutes(sites: Sites) {
@@ -88,7 +120,7 @@ export function publicSiteRoutes(sites: Sites) {
     const id = c.req.param('id');
     const site = published(id);
     if (!site) return gone();
-    const drafts = new Set(site.drafts.map((d) => d.slug));
+    const drafts = site.drafts.map((d) => d.slug);
 
     let rel: string;
     try {
@@ -102,10 +134,13 @@ export function publicSiteRoutes(sites: Sites) {
     const wantsDir = rel === '' || rel.endsWith('/');
     if (wantsDir) parts.pop();
     if (parts.some((p) => p === '' || p.startsWith('.')) || withheld(parts, drafts)) return gone();
+    // Names the request side can't judge, because Windows reads them as another name: `notes.` and `notes ` are
+    // notes, `site.json::$DATA` and `site.json:x` are site.json, `HIDDEN~1` is a long folder. No site needs them.
+    if (parts.some((p) => /[. ]$/.test(p) || p.includes(':') || /~\d/.test(p))) return gone();
 
     let root: string;
     try {
-      root = realpathSync(sites.folder(id));
+      root = realpathSync.native(sites.folder(id));
     } catch {
       return gone();
     }
@@ -113,13 +148,13 @@ export function publicSiteRoutes(sites: Sites) {
     const find = (inside: string[]): { file: string; dir: boolean } | null => {
       let real: string;
       try {
-        real = realpathSync(resolve(root, ...inside));
+        real = realpathSync.native(resolve(root, ...inside));
       } catch {
         return null;
       }
-      const back = relative(root, real);
-      if (back === '..' || back.startsWith(`..${sep}`) || resolve(root, back) !== real) return null;
-      if (back && withheld(back.split(sep), drafts)) return null;
+      const under = insideSite(root, real);
+      if (!under) return null;
+      if (under.length && withheld(under, drafts)) return null;
       const st = statSync(real);
       return st.isFile() || st.isDirectory() ? { file: real, dir: st.isDirectory() } : null;
     };
