@@ -1,53 +1,51 @@
-**Subject: Repairing Our Church Roof: The Plan and How We'll Pay for It**
+**Subject: Caring for Our Church Home: The Roof Repair and How We'll Pay for It**
 
 Dear Church Family,
 
-Many of you have noticed the water stains on the sanctuary ceiling and the buckets that have appeared in the fellowship hall after heavy rain. We want to share what we've learned about the roof, what we plan to do, and how we hope to pay for it together.
+For generations, our building has sheltered worship, weddings, baptisms, funerals, potlucks, youth nights, and countless quiet prayers. Today we're writing about something that protects all of it: our roof.
 
-**What's Wrong**
+**What's happening**
 
-Our roof is more than thirty years old, and it has reached the end of its life. This fall, two licensed roofing contractors inspected it. Both found worn and missing shingles, damaged flashing around the bell tower, and soft spots in the decking above the fellowship hall where water has been getting in for some time. Patching would only buy us a season or two. Both contractors recommended a full replacement before further damage reaches the ceilings, the electrical system, or the organ.
+Over the past several months, we've noticed water stains on the sanctuary ceiling, damp spots in the fellowship hall after heavy rain, and missing and curling shingles visible from the parking lot. We asked qualified roofing contractors to inspect the building. They agreed that the roof has reached the end of its useful life. Patching it again would only delay a larger and more expensive problem. Left alone, continued leaks could damage the ceilings, walls, electrical systems, and the sanctuary itself.
 
-**The Plan**
+After prayer and careful review, church leadership has approved a full roof replacement. We have gathered competitive bids and are finalizing the contract with a licensed, insured contractor who has experience with church buildings.
 
-After reviewing three bids, the Church Council has selected a local contractor with strong references and experience with older church buildings. The project includes:
+**What to expect during the work**
 
-- Removing the old roofing down to the decking
-- Replacing damaged decking and rotted wood
-- Installing new underlayment, flashing, and architectural shingles with a 30-year warranty
-- Repairing the gutters and downspouts so water drains away from the foundation
+- Work is planned to begin once the contract is signed and weather allows. We will announce firm dates as soon as they are set.
+- Worship services will continue as scheduled. If any service or event needs to move, we will tell you well in advance.
+- Some parking areas may be closed while materials and equipment are on site. Please follow posted signs and allow a little extra time on Sunday mornings.
+- For everyone's safety, please keep children away from the work areas and fenced-off zones.
 
-The total cost is **$148,000**. Work is planned for early spring, weather permitting, and should take about three weeks. Sunday worship will continue as normal. We'll share any changes to weekday building use as the date gets closer.
+**How we will pay for it**
 
-**How We'll Pay for It**
+This is a significant expense, and we want to be open about how we plan to meet it. Our approach has four parts:
 
-We've been careful stewards, and we're not starting from zero. Here is the plan:
+1. **Building reserve fund.** Thanks to faithful giving over the years, we have money set aside for building needs. A portion of it will go toward the roof. We will keep enough in reserve to handle other emergencies.
 
-- **$60,000 from our building reserve fund**, set aside over many years for exactly this kind of need
-- **$15,000 from a denominational property grant**, which we have applied for and expect to hear about in January
-- **$73,000 through a special Raise the Roof campaign**, running from now through Easter
+2. **Roof Fund campaign.** Starting this month, we are launching a dedicated Roof Fund. Gifts to this fund will go only toward the roof project. You can give in several ways:
+   - Mark your offering envelope or check memo "Roof Fund."
+   - Select "Roof Fund" when giving online.
+   - Make a pledge to be paid over the next twelve months. Pledge cards are available in the narthex and the church office.
 
-We are not asking anyone to give in place of their regular offering. Our ministries, staff, and outreach depend on that ongoing support. We're asking each household to prayerfully consider a gift above their usual giving, whatever size is right for you. Every gift matters. If 150 households each gave $500 over the next five months, about $100 a month, we would reach our goal.
+3. **Fundraising events.** Over the coming months, we'll host events to bring us together and raise support, including a community dinner and other gatherings. Details will appear in the bulletin and upcoming emails. If you'd like to help plan or volunteer, please contact the church office.
 
-**Ways to Give**
+4. **Grants and outside support.** We are applying for grants available to houses of worship and historic buildings. We are also asking our denomination about assistance for capital repairs. Any funds we receive will reduce the amount we need to raise ourselves.
 
-- Use the marked **Roof Fund** envelopes in the pews
-- Give online through our website and select "Roof Fund"
-- Make checks payable to the church with "Roof Fund" in the memo line
-- Make a pledge payable in monthly installments through Easter
+If our combined efforts don't fully cover the cost by the time payment is due, leadership will consider a short-term financing option. We would strongly prefer to complete this project without taking on debt, and your generosity can make that possible.
 
-We'll post progress on the thermometer board in the narthex and in the weekly bulletin, so everyone can see how we're doing.
+**Our commitment to you**
 
-**Other Ways to Help**
+We will report progress on the Roof Fund regularly in the bulletin, in congregational emails, and on the display board in the fellowship hall. Every dollar will be accounted for, and a full financial summary will be shared when the project is complete. If any funds remain after the roof is paid for, they will be returned to the building reserve for future maintenance.
 
-Not every gift is financial. We'll need volunteers to move furniture and cover the organ and pews before work begins, and to help with cleanup afterward. Most of all, we ask for your prayers for the workers' safety, for good weather, and for our congregation as we take this on together.
+**A word of thanks**
 
-**Questions?**
+We know that every household's circumstances are different. Please give only as you are able. Every gift matters, and so do your prayers, your time, and your encouragement. This building is a gift passed down to us by those who came before, and caring for it is one way we pass that gift on to those who will come after.
 
-We'll hold an informational meeting after worship on **Sunday, November 22**, in the fellowship hall, with a light lunch provided. The contractor's report and bids will be available for anyone who wants to review them. You're also welcome to contact any member of the Church Council or the church office at any time.
+If you have questions, please speak with any member of church leadership after worship or contact the church office. We are glad to talk with you.
 
-Generations before us built and cared for this place so that we could worship here. Now it's our turn to keep it standing for those who come after us. Thank you for your faithfulness, your generosity, and your love for this church family.
+"Unless the Lord builds the house, those who build it labor in vain." (Psalm 127:1)
 
 With gratitude and hope,
 
-The Church Council
+Your Church Leadership

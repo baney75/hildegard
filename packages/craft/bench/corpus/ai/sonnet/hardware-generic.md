@@ -1,29 +1,35 @@
 # Our Story
 
-We're a family hardware store. That's the short version, and most of what matters follows from it.
+We're a family hardware store, and we've been one for as long as we can remember.
 
-Being family-run means the people who own the store are the people standing behind the counter. When you walk in with a broken faucet part wrapped in a paper towel, you're talking to someone who has a stake in whether you walk out with the right replacement. Nobody here is working from a script, and nobody is going to send you down an aisle and wish you luck.
+It started with a simple idea: when someone walks in with a problem, they should leave with a solution. Sometimes that's a box of screws. Sometimes it's ten minutes of advice at the counter, a sketch on the back of a receipt, or a "don't buy that, you don't need it." We've always believed the advice matters as much as the merchandise.
 
-## How we got here
+## Built on the Counter
 
-Every hardware store starts with the same idea: people need things fixed, built, planted, and patched, and they shouldn't have to drive far or guess at the answer. We started with that idea and have built on it ever since. We stock what our neighbors actually need, we learn from the questions they ask, and we keep adjusting as the community changes.
+Most of what we know, we learned from the people who came through our doors. The retired carpenter who showed us a better way to hang a door. The first-time homeowner standing in aisle six with a leaking faucet and a worried look. The farmer who needed a part fixed by morning, and the neighbor who needed one bolt, not a bag of fifty.
 
-## What we believe
+Every one of them taught us something, and we've tried to pass it on to the next person in line.
 
-**The right part matters more than the sale.** If you only need one screw, we'll sell you one screw. If the job calls for something different from what you came in for, we'll tell you, even if it means a smaller receipt.
+## Family, All the Way Through
 
-**Advice should be free.** Whether it's your first time patching drywall or your fiftieth time wrestling a stubborn pipe fitting, you deserve a straight answer. Ask us anything. If we don't know, we'll find someone who does.
+This is a family business in the plainest sense. We work here, we've grown up here, and we take it personally when something goes wrong. When you talk to us, you're talking to the people whose name is on the sign. If we made a mistake, we'll fix it. If we don't have what you need, we'll tell you who does.
 
-**Small things count.** Cutting a key, mixing a quart of paint, rethreading a bolt, finding the washer that fits an old fixture: these are the jobs that keep a home running, and we take them as seriously as the big ones.
+The people who work alongside us are family too, whether or not they share our last name. Many have been with us for years, and they know the store, the products, and our customers better than anyone.
 
-**Neighbors come first.** We live here, we shop here, and we see our customers at the grocery store and at school events. That keeps us honest, and we wouldn't want it any other way.
+## What We Stand For
 
-## What you'll find
+**Honest advice.** We'll tell you what you need, and what you don't.
 
-Tools and fasteners. Paint and supplies. Plumbing, electrical, lawn and garden, and the hundred odd items that never fit neatly into a category but always seem to be the thing you need on a Saturday morning. We choose our inventory carefully, favoring products that hold up over products that merely look good on a shelf.
+**Quality that lasts.** We stock tools and supplies we'd use ourselves, because we do.
 
-## Come say hello
+**Fair prices.** We'd rather earn your business again next week than squeeze it out of you today.
 
-Bring your project, your questions, and your half-broken whatever-it-is. We'd be glad to help you figure it out.
+**Showing up.** For the big renovation, the weekend repair, and the emergency on a Sunday morning.
 
-Thank you for supporting a family business. It means more than we can say.
+## Still Here, Still Helping
+
+Big-box stores and online carts have changed how people shop, and we've changed along with them. But the heart of the place hasn't moved. You'll still find someone who knows your name, asks about your project, and walks you to the right shelf instead of pointing vaguely toward the back.
+
+Whether you're building a deck, fixing a fence, or just trying to find the right size washer, we're glad you're here.
+
+Come on in. We'll help you get it done.

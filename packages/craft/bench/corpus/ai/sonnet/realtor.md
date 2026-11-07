@@ -1,26 +1,29 @@
 # About Teresa Walsh
 
-I grew up in Scottville, nine miles east of Ludington, and I've spent my life around this part of Michigan. When I help someone buy or sell a home here, I know the roads, the neighborhoods, and the towns because they're mine too.
+**Lakeshore Realty | Ludington, Michigan**
 
-## From the classroom to real estate
+I grew up in Scottville, just nine miles east of Ludington, and I never really left. This is home, and the people who buy and sell here are my neighbors. Helping them is the work I'm proudest of.
 
-Before I sold homes, I taught fourth grade for six years. Teaching gave me skills I still use every day: explaining complicated things in plain language, being patient with questions, and making sure nobody leaves the room confused. Buying a home comes with a lot of paperwork and unfamiliar terms. My job is to make it feel manageable.
+## From the Classroom to Closing Day
 
-## Experience you can count on
+Before I got into real estate, I taught 4th grade for six years. Teaching gave me skills I use every day: explaining complicated things in plain language, being patient with questions (there are no bad ones), and helping people feel confident about a big step. Buying or selling a home has plenty of paperwork and unfamiliar terms. My job is to make sure you understand each part of it.
 
-I've been licensed since 2011 and have sold 312 homes. About half of those went to first-time buyers, so I know how much there is to learn the first time through, and I enjoy walking people through it step by step.
+## Experience You Can Count On
 
-## Local, on purpose
+I've been licensed since 2011 and have helped sell 312 homes. About half of those went to first-time buyers, and I love that work. If you're nervous about your first purchase, I'll walk you through every step, from getting your finances in order to getting your keys.
 
-I work only in Mason and Lake counties. I don't spread myself across the whole region, because I'd rather know a small area well than a large one thinly. That focus means I can tell you what a street is really like, what homes nearby have sold for, and what to watch for in a particular market.
+## Local, By Choice
 
-## Hablo español
+I work only in Mason and Lake counties. Staying focused means I know the neighborhoods, the market, and the lakeshore communities in a way that comes from living here, not just researching it.
 
-I speak Spanish, and I'm glad to work with buyers and sellers in the language they're most comfortable with.
+## Se Habla Español
 
-## Reach me when you need me
+Hablo español. If you or your family are more comfortable discussing a home purchase or sale in Spanish, I'm glad to work with you in your language.
 
-I answer texts until 9 p.m., because questions about a house don't always come up during business hours. Text or call me any time at **(231) 555-0144**.
+## Easy to Reach
 
-Teresa Walsh
-Lakeshore Realty, Ludington, Michigan
+I answer texts until 9 p.m., because questions about a home don't always come up during business hours. Text or call me anytime that's convenient.
+
+**Teresa Walsh**
+Lakeshore Realty
+**(231) 555-0144**

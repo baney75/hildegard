@@ -1,15 +1,9 @@
 **Join Us for the Harvest Potluck!**
 
-Come celebrate the season of gratitude with our church family at the annual Harvest Potluck. Bring your favorite dish to share, whether it's a hearty main, a seasonal side, or a sweet dessert made with the best of autumn's bounty, and enjoy an afternoon of good food, warm fellowship, and thankful hearts.
+Come gather around the table as we celebrate the season of gratitude with our annual Harvest Potluck. It's a time to share good food, warm fellowship, and thanks for the blessings of the year.
 
-**Date:** [Date]
-**Time:** [Time]
-**Location:** [Location]
+Bring a dish to share, whether it's a family favorite, a seasonal side, or a sweet treat. Tables, place settings, and drinks will be provided. If you have dietary needs, a small card listing your dish's ingredients is always appreciated by your neighbors in line.
 
-Please bring a dish that serves about 8–10 people, along with any serving utensils you'll need. Drinks and table settings will be provided. If your dish contains common allergens such as nuts or dairy, a small label is much appreciated.
+All are welcome, so bring your family, your friends, and your appetite. Newcomers are especially encouraged to join us; there's always room at the table.
 
-All ages are welcome, so bring your family, your friends, and your neighbors. There's always room for one more at the table!
-
-To let us know what you're bringing, please sign up at the welcome desk or speak with a member of the hospitality team.
-
-We can't wait to gather, give thanks, and share a meal together.
+Please check the church bulletin or speak with a member of the hospitality team for the date, time, and sign-up details. We can't wait to break bread together!

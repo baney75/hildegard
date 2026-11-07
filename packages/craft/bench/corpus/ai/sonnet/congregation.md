@@ -1,22 +1,31 @@
-**Subject:** Our sanctuary roof: how we can meet this need together
+**Subject: Our sanctuary roof: where we stand and how you can help**
 
 Dear Grace family,
 
-The sanctuary roof is leaking over the north pews. Many of you have seen the buckets and the stained ceiling, and it needs to be fixed.
+The roof over our sanctuary is leaking, and the water is coming in above the north pews. We have known about it, and now it is time to deal with it together.
 
-The council has a bid from Hauge Roofing for $64,200. Our building fund holds $21,500, which leaves $42,700 to raise. After prayer and discussion, the council voted 7 to 1 to ask the congregation to help raise the rest by Easter.
+**The numbers**
+- Bid from Hauge Roofing: $64,200
+- Currently in the building fund: $21,500
+- Still needed: $42,700
 
-Here is how you can help.
+The church council has voted 7 to 1 to ask the congregation to raise the remaining amount by Easter. The council weighed the cost carefully, and the vote reflects both the seriousness of the repair and the confidence we have in this community.
 
-**A matching gift.** Evelyn Marsh has offered a $5,000 matching gift if we reach $20,000 in other gifts by March 31. If we do, that is $25,000 toward the roof, and every gift before that date goes further.
+**A matching gift**
+Evelyn Marsh has generously offered a $5,000 matching gift. If we reach $20,000 in other gifts by March 31, she will add her $5,000 to the total. Every gift between now and then helps us toward the goal and brings the match closer.
 
-**A pancake breakfast.** On March 8 we will gather for a pancake breakfast, with all proceeds going to the roof. Come hungry, bring friends and neighbors, and enjoy the fellowship.
+**Pancake breakfast, March 8**
+We will hold a pancake breakfast on March 8, and all proceeds will go to the roof fund. Come hungry, bring friends and neighbors, and enjoy a morning together for a good purpose.
 
-**Our congregation meeting.** We will meet on Sunday, February 16, after worship to talk through the bid, the plan, and your questions. Please plan to stay.
+**Congregation meeting, Sunday, February 16**
+We will meet after worship on Sunday, February 16, to talk through the bid, the plan, and your questions. Please plan to stay. Your voice matters in this decision.
 
-This is a large goal, but it is one we can reach together. Please pray about what you are able to give, and whether that is a gift, time at the breakfast, or an invitation to someone else, thank you. A dry, safe sanctuary is a gift to everyone who worships here, now and in the years ahead.
+**How to give**
+You can give by check, marked "Roof" in the memo line, or place a gift in the offering plate with the same note. If you would like to talk about a gift, or have questions about the project, please call or email me at any time.
 
-In Christ,
+This building has sheltered our worship, our weddings, our funerals, and our fellowship. Caring for it is one way we care for each other and for those who will gather here after us. I am grateful for your generosity and your faithfulness, and I look forward to seeing you on the 16th.
+
+Grace and peace,
 
 Pastor Greg Hollis
 Grace Lutheran Church, Ames, Iowa

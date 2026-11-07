@@ -1,20 +1,20 @@
-# Week 9 at Reyes Family Farm
+**From the Field: Week 9 of 20**
 
-Hello, neighbors,
+Friends,
 
-We're nine weeks into the season and the garden is giving us a lot. This week's box has tomatoes, green beans, two zucchini, a head of cabbage, and our first Walla Walla onions. Walla Wallas are sweet and mild, so they're good sliced raw on a sandwich or cooked slowly until they turn golden.
+This week's boxes are heavy with late-summer produce: ripe tomatoes, green beans, two zucchini, a head of cabbage, and the first Walla Walla onions of the season. Those sweet onions are a favorite here, so enjoy them while they're fresh.
 
-**A hard note on potatoes.** Late blight hit our potato field, and we lost about a third of the crop. We pulled the affected plants and are watching what's left closely. There won't be potatoes in boxes until week 13. I'm sorry about that. We know many of you count on them, and we wanted you to hear it from us directly.
+Potatoes are the hard news. Late blight moved through the patch and we lost about a third of the crop. We've taken out what was affected and are keeping a close eye on the rest, but there will be no potatoes in boxes until week 13. We know some of you look forward to them, and we're sorry to disappoint. We'll make it up to you when they return.
 
-**Storm damage.** On Tuesday's windstorm, our big walnut tree came down. It missed the greenhouse by about six feet. Nobody was hurt, and the greenhouse is fine. We'll be cutting and clearing the tree over the next few weeks, so please keep an eye out for the crew and the equipment when you visit the farm.
+We also had a rough Tuesday. A windstorm brought down our big walnut tree. It missed the greenhouse by about six feet, which we count as a real piece of luck. Everyone is safe, and we're already working on clearing the area.
 
-**Pickup this week:** Thursday, 3 to 6 p.m., at the barn.
+**Pickup is Thursday, 3 to 6 p.m., at the barn.** Please bring back your box and any egg cartons so we can reuse them.
 
-Please bring back your box and your egg cartons so we can reuse them. Every carton returned saves us from buying a new one.
+Tucked into each box is a recipe card from my wife, Marisol, for a green bean salad. It's a simple way to make the most of this week's beans, and it's become a staple in our kitchen during harvest. Give it a try and let us know how it turns out.
 
-In each box you'll find a recipe card from Marisol for green bean salad. It's a simple one that uses this week's beans and onions, and it keeps well in the fridge for a couple of days, so it's a good way to start on the beans while the zucchini and cabbage wait for you.
+Thank you, as always, for eating with us and supporting the farm.
 
-Thank you for being part of this season with us. See you Thursday.
+Until Thursday,
 
-Tom and Marisol Reyes
-Reyes Family Farm, outside Corvallis, Oregon
+Tom Reyes
+Reyes Family Farm, Corvallis, Oregon

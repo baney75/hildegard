@@ -1,35 +1,37 @@
 # About Dobbs Plumbing and Drain
 
-I'm Carl Dobbs. I've been plumbing in Waco for over thirty years, and I've run Dobbs Plumbing and Drain since 2004.
+I started Dobbs Plumbing and Drain in 2004. Before that I spent eleven years as a journeyman plumber for a big outfit, and I learned a lot there: how to do the work right, and how I wanted to treat people if I ever had my own shop. More than twenty years later, that's still how we run things here in Waco.
 
-Before that, I spent eleven years as a journeyman for one of the big outfits. I learned a lot there, and most of it was good. But I also watched customers get handed bills they didn't expect and sold work they didn't need. When I went out on my own, I wanted to run a shop where people could trust the plumber standing in their kitchen.
+## Who We Are
 
-## Who You'll Be Dealing With
-
-We're a small crew. It's me and two other plumbers, Luis and Danny. When you call, my wife Pat answers the phone. There's no call center and no runaround. You'll talk to someone who knows the business and can tell you when we'll be there.
+We're a small crew, and we like it that way. It's me, Carl, along with Luis and Danny, two plumbers I'd trust in my own house. When you call, my wife Pat is the one who answers the phone. You won't get a call center or a phone tree. You'll get Pat, and she'll get one of us out to you.
 
 ## What We Do
 
 We stick to what we're good at:
 
-- **Repairs.** Leaks, fixtures, valves, supply lines, and whatever else has quit working.
-- **Water heaters.** Repair and replacement. In winter I fix about six a week, so there's a good chance I've seen your problem before.
-- **Drain cleaning.** Kitchens, bathrooms, and main lines.
+- **Repairs**: leaks, broken fixtures, bad valves, and the problems that don't fit in a category
+- **Water heaters**: repair and replacement
+- **Drain cleaning**: kitchen, bath, and main lines
 
-We don't do new construction. Our work is keeping the homes and businesses already standing in Waco running right.
+We don't do new construction. Our work is keeping the plumbing in your home or business running, and fixing it fast when it isn't.
 
 ## How We Charge
 
-You get a flat rate, and I quote it before I start. Once you say yes, that's the price, even if the job runs long. I'd rather you know exactly what you're paying than watch a clock and worry.
+You'll know the price before we pick up a wrench. I quote a flat rate up front, and that's what you pay. You don't need to watch the clock or worry about the bill climbing while we work.
 
-## Burst Pipes Don't Wait, and Neither Do We
+## When It Can't Wait
 
-A burst pipe can do a lot of damage in an hour. We're on call for burst pipes any hour of the day or night, weekends and holidays included. If water's coming through your ceiling at 2 a.m., call us.
+A burst pipe doesn't care what time it is, and neither do we. We're on call around the clock for burst pipes, any hour, any day. If water is coming through your ceiling at 2 a.m., call us.
 
-## What I Won't Do
+## Winter in Waco
 
-I won't sell you a repipe you don't need. If a repair will solve your problem, I'll tell you that. If your pipes really are at the end of their life, I'll show you why and let you decide. I'm not interested in the biggest ticket I can write. I want you to call me again the next time something goes wrong, and to tell your neighbors about us.
+Folks don't always think of Central Texas as cold country, but when a freeze rolls through, water heaters feel it. In winter I fix about six a week. If yours is acting up, don't wait until you're stuck with a cold shower. Give us a call.
 
-That's how we've done business since 2004, and it's how we'll keep doing it.
+## A Straight Answer
 
-**Dobbs Plumbing and Drain. Honest work, a fair price, and a plumber who picks up the phone.**
+Here's something I want you to know before you ever call: I won't sell you a repipe you don't need. If a repair will do the job, I'll tell you so. If your pipes really do need replacing, I'll show you why and give you a straight answer. I've built this business on people trusting me in their homes, and I don't intend to change that.
+
+Thanks for considering Dobbs Plumbing and Drain. We'd be glad to help.
+
+— Carl Dobbs

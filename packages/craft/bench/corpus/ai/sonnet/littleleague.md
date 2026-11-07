@@ -1,38 +1,45 @@
 # Maple Grove Little League Spring Newsletter
 
-**A message from President Gary Tolliver**
+## A Message from the President
 
-Dear Maple Grove families,
+Neighbors, families, and fellow baseball fans,
 
-Spring is on its way, and so is baseball. Here is what you need to know for the season ahead.
+Spring is almost here, and Maple Grove Little League is growing. We have **14 teams** this season, up from 11 last year. That means more kids on the field, more families in the stands, and more reasons to be excited for opening day.
 
-## Bigger than ever: 14 teams
+There is a lot to do between now and the first pitch, so here is what you need to know.
 
-We are growing. This year Maple Grove Little League will field 14 teams, up from 11 last season. More kids will be playing, and we are grateful to every family who has helped spread the word.
+## Key Dates
 
-## Registration closes March 12
+- **March 12:** Registration closes
+- **March 22:** Coaches clinic, high school gym
+- **April 5:** Work day at Veterans Field, 9 am
+- **April 26:** Opening day parade, 9 am, from the fire station
 
-Sign up your player before **March 12**. The fee is **$95 per child**, and the second sibling is **$60**. Please register early so we can build balanced teams and order equipment on time.
+## Registration Closes March 12
 
-## Coaches clinic: March 22
+Registration is **$95 per child, and $60 for a second sibling.** With 14 teams to fill, signing up before the deadline helps us form balanced rosters and get uniforms and equipment ordered on time. If you have been putting it off, please do it this week.
 
-All coaches, new and returning, are invited to the coaches clinic on **Saturday, March 22**, at the high school gym. We will cover the basics of running a practice, keeping kids safe, and making the game fun. If you have ever thought about coaching, this is a great place to start.
+## Coaches Clinic: March 22
 
-## Work day at Veterans Field: April 5
+All coaches, new and returning, are invited to the coaches clinic on **March 22 at the high school gym**. Whether you are running your first practice or your tenth season, it is a good chance to get ready and meet the other coaches. With three new teams this year, we are especially glad to welcome first-time coaches.
 
-Our fields need some care before the first pitch. Join us on **Saturday, April 5, at 9 a.m.** at Veterans Field. We need **20 parents** to bring rakes and drills. Many hands make quick work, and it is a good chance to meet other families before the season begins.
+## Work Day at Veterans Field: April 5
 
-## Opening day: April 26
+Our fields do not get ready by themselves. Join us **Saturday, April 5, at 9 am** at Veterans Field for our spring work day. We need **20 parents** to bring **rakes and drills**. Many hands make quick work, and it is a good way to meet the other families on your child's team. If you can spare a morning, we would love to see you there.
 
-Mark your calendar for **Saturday, April 26**. The parade starts at **9 a.m.** from the fire station. Bring your players, your gloves, and your noise. We will celebrate the start of the season together.
+## Opening Day: April 26
 
-## Snack shack update
+Opening day begins with a **parade at 9 am from the fire station**. Players, coaches, and families are all welcome to take part. Wear your team colors, bring your enthusiasm, and help us start the season with the whole community cheering.
 
-The January ice storm took the roof off our snack shack. The repair came to **$11,000**. Insurance covered **$7,800**, and we are very grateful to the **Kiwanis Club**, which generously gave **$1,500** toward the rest. That leaves a gap that we are working to close, and we will share more about how you can help as the season gets underway. Thank you, Kiwanis, for standing with our kids.
+## Snack Shack Update
 
-## See you at the field
+The January ice storm took the roof off our snack shack. The repair came to **$11,000**. Insurance covered **$7,800**, and the **Kiwanis Club generously gave us $1,500**. Thank you, Kiwanis, for stepping up for our kids.
 
-Thank you for being part of this league. Our volunteers, coaches, and families make it what it is. If you have questions, please reach out to any board member.
+That leaves **$1,700** still to cover. We are working to close that gap, and any support from families or local businesses will help. If you would like to contribute, please find me or any board member at the work day or at registration.
+
+## See You at the Field
+
+Thank you for being part of Maple Grove Little League. Growing from 11 teams to 14 takes volunteers, coaches, sponsors, and families who care about the game. Let's make this a great season.
 
 Play ball!
 

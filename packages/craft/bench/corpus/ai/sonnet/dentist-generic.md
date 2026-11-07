@@ -1,31 +1,34 @@
-# We're Moving! Our Family Dental Office Has a New Home
+# We're Moving! Our Practice Has a New Home
 
-We have exciting news to share with our patients and neighbors: our practice is moving to a new building!
+We have some exciting news to share with our patients and neighbors: our family dental office is moving to a new building.
 
-For years, you've trusted us with your family's smiles, and we're grateful for every appointment, every hello in the waiting room, and every kid who proudly showed off a newly earned sticker. As our practice has grown alongside the families we serve, we've outgrown our current space. Our new building lets us offer you more comfort, more convenience, and the same caring service you've always known.
+For years, you've trusted us with your smiles, from first checkups to braces to crowns and everything in between. Your support has helped our practice grow, and it's time for a space that lets us take even better care of you and your family.
 
 ## What's Changing
 
-- **A more comfortable space.** Our new office has bright, welcoming treatment rooms and a roomier waiting area, so your whole family can feel at ease.
-- **Updated technology.** We're bringing in modern equipment to make exams, imaging, and treatment faster and more comfortable.
-- **Easier access.** Enjoy convenient parking and an accessible entrance and layout for patients of all ages and abilities.
+Our new office has been designed with patient comfort and modern care in mind. You can look forward to:
+
+- **More spacious, welcoming treatment rooms** that make every visit feel relaxed
+- **Updated technology** for more accurate diagnostics and efficient treatment
+- **A comfortable waiting area** with room for the whole family
+- **Easier access and parking** for patients of all ages and abilities
 
 ## What's Staying the Same
 
-Everything that matters most. You'll still see the same friendly faces, receive the same gentle, personalized care, and be treated like family every time you visit. Your records, appointments, and treatment plans will transfer with us, so there's nothing you need to do.
+Everything you value about our practice is coming with us. The same friendly team, the same gentle approach, and the same commitment to treating every patient like family. Your records, appointments, and treatment plans will transfer seamlessly, so there's nothing you need to do.
 
 ## What You Need to Know
 
-- **Your upcoming appointments are safe.** We'll contact every patient with a scheduled visit to confirm the date, time, and location. If you have questions about where to go, just give us a call.
-- **Our phone number and online booking remain the same.** You can reach us the way you always have.
-- **Watch for updates.** We'll share our new address, opening date, and any temporary schedule changes here on our website, on social media, and by email and text to current patients.
+- **Your appointments:** If you have an upcoming visit, we'll contact you to confirm the date, time, and location. Please watch for a call, text, or email from our office.
+- **Your information:** Our phone number and online contact options will remain available throughout the transition. If any details change, we'll update this website right away.
+- **Moving day:** We'll post the exact opening date and our new address here and on our social media pages. We'll also notify every patient directly so no one is left guessing.
 
 ## Thank You
 
-Moving is a big step, and we couldn't take it without the families who have made this practice what it is. Thank you for your loyalty, your referrals, and your kindness. We can't wait to welcome you into our new home and keep caring for your smiles for years to come.
+Moving is a big step, and we couldn't take it without you. Thank you for your loyalty, your referrals, and the kind words you've shared over the years. We're so grateful to be part of your family's health and happiness.
 
-Have questions about the move? Call our office or stop by at your next visit. We'd love to talk with you.
+If you have questions about the move, please call or stop by the office. We'd love to talk with you. We can't wait to welcome you to our new home!
 
-**See you at the new office!**
+With gratitude,
 
-*Your Family Dental Care Team*
+**Your Family Dental Care Team**

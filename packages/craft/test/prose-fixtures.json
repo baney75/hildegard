@@ -294,8 +294,58 @@
     },
     {
       "name": "bracketed placeholders are unfinished",
-      "text": "Join us on [date] at [Church Name]. Call [phone number] to sign up, and bring [this week’s produce].",
+      "text": "Join us on [Date] at [Church Name]. Call [Phone Number] to sign up, and bring your [Your Name] badge.",
       "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: [Business Name], [City]",
+      "text": "Welcome to [Business Name], serving [City] since 1987. Ask for [Your Name] at the front desk.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: [STUDIO NAME], [Phone or Email]",
+      "text": "Warm regards,\n\n[Your Name]\n[STUDIO NAME]\n[Phone or Email]",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: {{name}}",
+      "text": "Dear {{name}}, thank you for coming to the supper on Friday.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: <insert the date>",
+      "text": "The supper is on <insert the date> at the parish hall.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: TK, and a number or amount of Xs",
+      "text": "The barn was built in TK by the Millers. Call (XXX) XXX-XXXX or come by before XX/XX/XXXX with $XX.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "filler text is unfinished: Lorem ipsum dolor sit amet",
+      "text": "Our Story\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a page that explains lorem ipsum is no filler",
+      "text": "Designers fill a mockup with lorem ipsum so that readers judge the layout, not the words. Swap it for real copy before the page goes live, since lorem ipsum hides how a headline wraps or a paragraph runs long.",
+      "clean": true
+    },
+    {
+      "name": "a roman numeral XX is no placeholder",
+      "text": "The roof of the hall was repaired in Chapter XX of the building committee’s minutes, and the barn stayed dry.",
+      "clean": true
+    },
+    {
+      "name": "a shortcut link and an editorial bracket are no placeholders",
+      "text": "Read [our contact page] for hours, or [the church office] if you cannot reach us.\n\nThe elder wrote that the [church] voted 7 to 1, and that [this week’s produce] was late.\n\n[our contact page]: https://example.com/contact\n[the church office]: https://example.com/office",
+      "clean": true
+    },
+    {
+      "name": "a bracket inside a block quote is no placeholder",
+      "text": "The minutes say:\n\n> The [church] voted to repair the roof, and the [school] agreed to host the supper in the fall.",
+      "clean": true
     },
     {
       "name": "a bracket that is a link, a reference or a footnote is no placeholder",

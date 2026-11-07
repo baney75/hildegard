@@ -1,53 +1,39 @@
-# Why We Switched to Sourdough (And Why We're Not Going Back)
+# Why We Switched to Sourdough (And Why We're Never Going Back)
 
-If you've stopped by the bakery recently, you may have noticed a few changes. The crust on our loaves is a little darker and crackles when you squeeze it. The crumb is more open, with a slight shine to it. And there's a gentle tang that wasn't there before.
+If you've stopped by the shop over the past few months, you may have noticed something different. The crust crackles a little louder. The crumb has a little more chew. There's a gentle tang that lingers after the last bite. It isn't your imagination: we've switched to a sourdough starter for our breads, and we want to tell you why.
 
-That's sourdough. A while back we made the decision to move our breads over to a natural starter, and we want to tell you why.
+## It Started With a Jar
 
-## What a Starter Actually Is
-
-A sourdough starter is a living culture of wild yeast and bacteria, kept alive with nothing more than flour and water. Commercial yeast is a single strain grown for speed and consistency. A starter is a whole community of organisms, and it's different from one bakery to the next because it picks up the character of its flour, its water, and even the air in the room.
-
-Ours lives in a crock on the back counter. Every day we feed it, and every day it rises, bubbles, and smells faintly of yogurt and green apples. It's become something like a member of the staff. A demanding one, admittedly.
+Every big change in a bakery seems to start small. Ours started with a jar of flour and water on the back counter, fed every morning and evening like a very demanding houseplant. For weeks we watched it bubble, rise, fall, and rise again. We tested loaves on our days off. We argued about hydration levels over coffee. Somewhere along the way, we realized we weren't just experimenting anymore. We were falling in love with a different way of baking.
 
 ## Flavor You Can't Rush
 
-The biggest reason we switched is flavor.
+Commercial yeast is fast and reliable, and there's nothing wrong with it. It's built for speed, though, and speed comes at a cost. Sourdough relies on a living culture of wild yeast and lactic acid bacteria, and those microbes take their time. A long, slow fermentation gives them hours to break down the flour and build layers of flavor that a quick rise simply can't match.
 
-Commercial yeast is efficient. It can take a dough from mixed to baked in a few hours. That efficiency comes at a cost, though. Much of what makes bread taste like *bread* develops slowly, as enzymes break starches down into sugars and the bacteria in a starter produce lactic and acetic acids.
+The result is bread that tastes like *something*: nutty, slightly sour, deeply wheaty, with a crust that caramelizes into a rich, almost toffee-like color. Each loaf tells you exactly how much time went into it.
 
-When we give our dough a long, slow fermentation, often overnight, those flavors have time to build. The result is a loaf with depth: nutty, a little sweet, a little sour, with a crust that caramelizes into something close to toffee. We tried for years to get that flavor with commercial yeast. We never quite did.
+## Better for the Bread, and Maybe for You
 
-## Better Texture, Longer Life
+That slow fermentation does more than build flavor. As the starter works through the dough, it begins breaking down some of the starches and proteins in the flour. Many people find sourdough easier to digest than conventional bread, and the natural acidity helps our loaves stay fresh longer without any added preservatives. Your bread will hold up on the counter for days, and it makes the best toast you'll ever have once it starts to firm up.
 
-Sourdough's natural acidity does more than add tang. It strengthens the dough's structure, which gives us that open, chewy crumb. It also helps the bread stay fresh longer, so a sourdough loaf holds up for days on your counter instead of going stale overnight.
+We want to be clear: sourdough is still made from wheat and still contains gluten, so it isn't safe for anyone with celiac disease. But if regular bread has ever left you feeling heavy, it might be worth giving ours a try.
 
-That means less waste in your kitchen and in ours, which matters to us.
+## Fewer Ingredients, More Honesty
 
-## Easier on Many Stomachs
+Our sourdough loaves are made from flour, water, salt, and starter. That's it. There are no dough conditioners, no additives, and nothing you'd need to look up. We like knowing exactly what goes into every loaf we hand across the counter, and we think you'll like knowing it too.
 
-Long fermentation breaks down some of the compounds in wheat that can be harder to digest. Plenty of our customers have told us they find sourdough sits easier with them than other breads.
+## Baking With Our Hands Again
 
-To be clear, sourdough is **not** gluten-free and isn't safe for anyone with celiac disease. But for many people, slow-fermented bread is simply a more comfortable bread to eat.
+Here's the part we didn't expect. Working with a starter has changed how we bake. It responds to the weather, the temperature of the kitchen, the flour we use that week. It asks us to pay attention, to feel the dough instead of just following a timer. Some mornings it cooperates beautifully; some mornings it humbles us. Either way, it's made us better bakers and reminded us why we got into this in the first place.
 
-## Getting Back to How Bread Was Made
-
-For most of human history, all bread was leavened this way. Commercial baker's yeast is a fairly recent invention. When we switched to a starter, part of what we were after was a closer connection to that long tradition: flour, water, salt, time, and attention.
-
-There's no shortcut in that list, and we've come to see that as the point.
+There's also something special about tending a culture that's alive. Our starter gets fed every single day, and every loaf we bake carries a little piece of it. In a way, every customer who takes home a loaf is sharing in something that's been growing in our kitchen since the very first jar.
 
 ## What This Means for You
 
-The switch did change a few things behind the counter:
+You'll find our sourdough across our bread lineup, from the classic country loaf to seeded boules and baguettes. Because sourdough takes longer to make, some loaves may sell out earlier in the day than you're used to. If you have a favorite, we recommend stopping by in the morning or asking us about setting one aside.
 
-- **Our bread takes longer to make.** Most loaves now ferment for 12 to 24 hours before they ever see the oven. We plan further ahead, so a few items may sell out earlier in the day. If you have your heart set on something, come early or call ahead.
-- **Every batch is a little different.** A living culture responds to the weather, the season, and the flour. Your loaf might be slightly more sour in summer and milder in winter. We think that's part of the charm.
-- **The flavor is more pronounced.** If you've loved our bread for years, you'll recognize it, but you'll also taste something new. We hope you'll give it a chance.
+We're also happy to talk shop. If you're curious about starters, want tips for baking your own, or just want to know why your bread has those big, beautiful holes, come say hello. We could talk about this stuff all day.
 
-## Come Taste the Difference
-
-The best way to understand why we made this change is to tear into a warm loaf yourself. Stop by, grab a slice, and tell us what you think. We'd love to hear it.
-
-And if you're curious about baking sourdough at home, just ask. We're always happy to talk shop, and now and then we might even send you home with a little of our starter.
+Thank you for coming along with us on this change. We think it's the best bread we've ever made, and we can't wait for you to taste it.
 
 See you at the counter.

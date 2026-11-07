@@ -1,38 +1,32 @@
 # About [Business Name]
 
-We fix pipes, water heaters, drains, and fixtures for homes and businesses in [Service Area]. When you call us, you get a plumber who shows up on time, explains the problem in plain language, and gives you a price before any work starts.
+For [number] years, [Business Name] has been the plumbing company [City or Service Area] calls when something goes wrong. We fix leaks, clear drains, repair water heaters, and install fixtures and whole-home systems. Whatever the job, we show up on time, explain the problem in plain language, and fix it right the first time.
 
 ## How We Work
 
-Most plumbing problems are stressful because they come with surprises. We try to remove them. We diagnose first, tell you what we found and what it will cost, and wait for your approval before we proceed. If a repair can wait, we say so. If it can't, we explain why.
+Plumbing problems rarely arrive at a convenient time, and most people don't want a lecture about pipes. We keep it simple:
 
-We clean up after ourselves, protect your floors and furniture, and walk you through the finished work before we leave.
-
-## What We Do
-
-- **Leak repair and detection**, including slab and hidden leaks
-- **Drain cleaning and sewer line service**, from clogged sinks to main line camera inspections
-- **Water heater installation and repair**, tank and tankless
-- **Fixture and appliance hookups**, including faucets, toilets, and dishwashers
-- **Repiping and remodel plumbing** for kitchens, bathrooms, and additions
-- **Emergency service** for burst pipes, sewage backups, and no-hot-water calls
-
-## Our Promise
-
-- **Upfront pricing.** You'll know the cost before we start.
-- **Licensed and insured work.** [License number] · Fully insured
-- **Respect for your home.** We wear shoe covers, keep work areas clean, and treat your property as our own.
-- **A straight answer.** If we can't fix it, we'll tell you who can.
+- **We answer the phone.** A real person picks up, and we give you a clear time window.
+- **We give you a straight price.** Before we start, you'll know what the work costs. No surprises on the invoice.
+- **We clean up after ourselves.** We protect your floors and walls, and we leave the work area as we found it, minus the problem.
+- **We stand behind our work.** Every job comes with a [warranty length] guarantee on parts and labor.
 
 ## Who We Are
 
-[Owner name] founded [Business Name] after years of working in the trade and seeing too many homeowners pay for repairs that didn't last. The crew is small on purpose, so the person who quotes your job is usually the person who does it.
+[Business Name] is [licensed, insured, and locally owned/operated]. Our team includes [number] licensed plumbers and apprentices, and every one of them is trained to treat your home with the same care they'd give their own. [Add one or two sentences about the owner's background or what drew them to the trade.]
+
+We're proud to serve [neighborhoods, towns, or service area]. Many of our customers have been with us for years, and many of them found us through a neighbor's recommendation. We'd like to earn the same trust with you.
+
+## Our Services
+
+- Leak detection and repair
+- Drain cleaning and sewer line service
+- Water heater installation and repair
+- Fixture and faucet installation
+- Bathroom and kitchen remodel plumbing
+- Water filtration and softener systems
+- Emergency plumbing service [hours or availability]
 
 ## Get in Touch
 
-Call **[Phone number]** for service or a quote, or request an appointment at **[Website / booking link]**. For emergencies, call anytime; we answer 24/7.
-
-**[Business Name]**
-[Street address]
-[City, State ZIP]
-[Hours of operation]
+Have a plumbing problem, or planning a project? Call us at [phone number] or visit [website]. For non-emergency estimates, you can also reach us at [email address]. We'll be glad to help.

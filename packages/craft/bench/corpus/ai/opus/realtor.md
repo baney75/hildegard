@@ -1,27 +1,31 @@
 # About Teresa
 
-I grew up in Scottville, nine miles east of Ludington, and I've never wanted to live anywhere else. When you work with me, you're working with someone who knows these roads, these schools, and these neighborhoods because they're home.
+I grew up in Scottville, nine miles east of Ludington, so I know this corner of Michigan the way you know a place you've ridden your bike across. I know which roads flood in spring, which neighborhoods fill up with summer visitors, and which streets stay quiet all year. I bring that knowledge to every client I work with.
 
-I've been a licensed real estate agent since 2011, and I'm proud to work with Lakeshore Realty. In that time I've helped 312 families buy and sell homes, and about half of them were first-time buyers.
+## A Teacher First
 
-## Before real estate, I was a teacher
+Before I sold a single house, I spent six years teaching fourth grade. That job taught me patience, clear explanations, and the value of a question nobody felt silly asking. I still work that way. Buying or selling a home involves dozens of steps, unfamiliar paperwork, and real money. I'll walk you through each piece until it makes sense, and I'll never make you feel rushed.
 
-I spent six years teaching 4th grade, and that experience still shapes how I work. Buying a home involves a lot of unfamiliar steps, paperwork, and decisions. I take the time to explain each one in plain language, answer every question (there are no silly ones), and make sure you understand what you're signing and why. If you're buying your first home, you won't be left guessing.
+## Fifteen Years, 312 Homes
 
-## Local, on purpose
+I've been a licensed real estate agent since 2011, and I've helped families buy and sell 312 homes. About half of those buyers were purchasing their very first home. First-time buyers hold a special place in my work. I remember how big that decision feels, and I love being there when someone gets the keys to a place that's finally theirs.
 
-I work only in Mason and Lake counties. I don't spread myself across the state, because knowing a market well means staying close to it. I know what homes are really selling for here, which areas fit different budgets and lifestyles, and what questions to ask about a property before you fall in love with it.
+## Focused on Mason and Lake Counties
 
-## Se habla español
+I work only in Mason and Lake counties. That's a deliberate choice. Keeping my focus here means I know the local market closely: what homes are really selling for, how long they sit, and what buyers in this area are looking for. You won't get a long-distance guess from me. You'll get advice from someone who lives and works right here.
 
-I speak Spanish and I'm happy to work with you in whichever language you're most comfortable with, from the first conversation to the closing table.
+## Se Habla Español
 
-## Easy to reach
+I speak Spanish and am happy to work with clients in either English or Spanish. If you or your family are more comfortable discussing a major decision in Spanish, I'm glad to make that possible from the first conversation to the closing table.
 
-Real estate doesn't keep business hours, and neither do your questions. I answer texts until 9 p.m., so if something comes up after work or a new listing catches your eye at dinner, send me a message.
+## Easy to Reach
 
-Whether you're buying your first home, moving up, or getting ready to sell, I'd love to help.
+Questions don't always come up during business hours. I answer texts until 9 p.m., so you can reach out when it's convenient for you, whether that's after work or once the kids are in bed.
+
+## Let's Talk
+
+Whether you're buying your first home, selling the one you raised your family in, or just wondering what your house might be worth, I'd love to hear from you.
 
 **Teresa Walsh**
-Lakeshore Realty · Ludington, Michigan
+Lakeshore Realty, Ludington, Michigan
 Call or text: **(231) 555-0144**

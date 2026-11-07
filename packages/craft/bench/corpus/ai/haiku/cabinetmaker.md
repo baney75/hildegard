@@ -1,37 +1,40 @@
-# Finishing Our Walnut Dining Table, Step by Step
+# Finishing a Walnut Dining Table, Coat by Coat
 
-At Oberg Woodworks in Duluth, Georgia, we build about 30 tables a year, and every one of them gets the same care at the end. The finish is what people touch first and what they live with longest, so it's worth explaining how we do it and why.
+Every walnut table that leaves our shop in Duluth, Georgia, gets the same finish. We make about 30 tables a year, and the finish takes more time than most people expect. It's also the part of the process that determines how the table will look and feel for decades, so we don't rush it.
 
-## Why We Choose an Oil Finish
+## Why We Don't Use a Film Finish
 
-Walnut has a warm, deep grain that a film finish tends to hide. Polyurethane and other film finishes sit on top of the wood like a coat of plastic. They look glossy at first, but over time they chip, scratch, and show wear in ways that are hard to repair. You can't spot-fix a chipped film finish without refinishing the whole top.
+Many furniture makers reach for polyurethane or another film finish. It's durable on paper and easy to apply, but it sits on top of the wood like a skin. Over time it looks like plastic, and when it chips or scratches, the damage is hard to repair. A chipped film finish usually means refinishing the whole top.
 
-An oil and wax finish soaks into the wood instead. It protects the surface without covering it, so the grain stays open and the color stays rich. When something happens to the surface, it's usually fixable.
+Walnut has a warm, deep grain that we want people to see and touch. An oil finish soaks into the wood instead of coating it, so the surface feels like wood, not lacquer. When it gets a scratch or a ring, the repair is simple.
 
-## How We Apply It
+## Our Process
 
-Our process is deliberately unhurried:
+We build the finish in stages, and each one has a purpose.
 
-1. **Three coats of Danish oil.** We apply each coat by hand, wiping on a thin layer and then wiping off the excess.
-2. **Twenty-four hours between coats.** Oil needs time to cure into the wood. Rushing this step leaves a tacky surface and a finish that never feels quite right.
-3. **Paste wax to finish.** Once the oil has cured, we rub in a paste wax and buff it out. This adds a soft sheen and a layer of protection against moisture and everyday handling.
+**Three coats of Danish oil.** We apply the first coat generously, let it soak in, and wipe off the excess. We then wait 24 hours before the second coat, and another 24 hours before the third. Those waiting periods matter. The oil needs time to cure between coats, and rushing it leaves a tacky surface that never sets properly.
 
-Each step is simple. The discipline is in waiting and in wiping off what doesn't soak in.
+**Paste wax.** Once the oil has fully cured, we finish with a hand-rubbed paste wax. The wax adds a soft sheen and a bit of protection against moisture and everyday handling. It also makes the surface pleasant to run your hand across.
 
-## Living With the Finish
+The result is a finish that looks like the wood itself, with a low luster that gets richer with use.
 
-Oil finishes are forgiving. A water ring on a dining table is a common complaint, and with an oil finish it's rarely a disaster. We sand the spot lightly with 400-grit paper, then re-oil the area. Most repairs like this take an afternoon.
+## What Happens Over Time
 
-We can point to a table as proof. In 2009 I built a walnut dining table for the Hollis family. It has hosted weekly dinners for fifteen years, and it has needed only one re-oiling in that time. That's the kind of longevity we design for.
+Life happens to dining tables. Hot dishes get set down, glasses sweat, and someone eventually leaves a ring. With an oil finish, this is a small problem.
 
-## What It Costs
+For a water ring, we sand the area lightly with 400-grit paper, then re-oil the spot. The whole repair usually takes an afternoon. You don't need to strip and refinish the table, and the repaired area blends in once the oil cures.
 
-An oil and wax finish adds about $200 to the price of a table. That covers the extra hours of hand-rubbing, the curing time between coats, and the materials. We think it's worth it, and we'd rather explain the cost than hide it in the price.
+One of our tables offers a good example. In 2009 we built a walnut table for the Hollis family. It has hosted weekly dinners for fifteen years. In that time it has needed only one re-oiling. Between meals, a damp cloth and an occasional coat of wax have kept it in good shape. That's the kind of longevity we design for.
 
-## What to Expect Over Time
+## Color Changes Are Part of the Story
 
-Walnut changes with light. Over the first year, a table that sits in direct sun will darken noticeably, deepening from its original tone into a richer brown. This isn't a flaw. It's the wood maturing, and it's one of the reasons we love working in walnut. If you want to keep the color as close to the day it was made as possible, keep the table out of direct sun or rotate any decorative pieces so the top ages evenly.
+Walnut darkens over its first year, especially where it gets sunlight. The heartwood starts out with lighter, sometimes pinkish tones and slowly deepens toward rich chocolate brown. This is normal and, we think, one of walnut's best qualities. If you place your table near a sunny window, expect it to change, and plan on it.
 
----
+## The Cost of an Oil Finish
 
-*Hank Oberg builds custom furniture at Oberg Woodworks in Duluth, Georgia. Have a question about finishing your own piece? Get in touch.*
+An oil finish adds about $200 to the price of a table. That reflects the labor: the hand application, the waiting between coats, and the careful wax work. We think it's worth it, because the finish is what makes the table last and what lets you repair it yourself.
+
+If you're considering a walnut table for your home, ask us about the finish. We're glad to show you samples and explain how it will age in your space.
+
+— Hank Oberg
+Oberg Woodworks, Duluth, Georgia

@@ -1,32 +1,38 @@
-**Reyes Family Farm CSA Newsletter: Week 9 of 20**
+**Reyes Family Farm CSA Newsletter**
+**Week 9 of 20**
 
-Hello, everyone,
+Hello, farm family,
 
-Week nine is here, and it's a good box this week, though the farm had a rougher few days than we'd like.
+We're nearly at the halfway mark of the season, and this week's box has a little of everything, along with some news from the field.
 
 **In your box this week**
 
 - Tomatoes
 - Green beans
 - Two zucchini
-- One head of cabbage
+- A head of cabbage
 - The first Walla Walla onions of the season
 
-The tomatoes are finally coming in properly, and the Walla Wallas are sweet enough that you can slice one raw onto a sandwich. Marisol has tucked a recipe card for green bean salad into each box. It's a good use for the beans and the tomatoes together, and the onion belongs in it too.
+The Walla Wallas are the ones we've been waiting on. They're sweet and mild, and they're good sliced raw on a sandwich or a burger as well as cooked down slowly. The tomatoes and green beans are coming on strong, and the zucchini is doing what zucchini does.
+
+You'll also find a recipe card from my wife Marisol for green bean salad. It's a good way to use the beans, and it pairs well with those tomatoes and a bit of the onion.
 
 **The potatoes**
 
-Late blight hit our potatoes, and we lost about a third of the crop. We won't be putting potatoes in the boxes until week 13. We'd rather tell you plainly than slip in a few sad ones. What survived should be worth the wait, and we'll let you know as soon as we're digging again.
+Some harder news: late blight hit our potato crop, and we lost about a third of the potatoes. Because of that, there won't be any potatoes in the boxes until week 13. We'd rather tell you plainly than have you wonder where they went. The rest of the crop is still in the ground, and we're watching it closely. Thank you for sticking with us through the part of farming that doesn't go to plan.
 
-**The walnut tree**
+**Windstorm**
 
-On Tuesday a windstorm brought down the walnut tree. It missed the greenhouse by about six feet. Nobody was hurt and nothing was damaged, and we're counting that as luck. The tree itself is a loss we'll feel for a long time, and there's a lot of cleanup ahead.
+The windstorm on Tuesday brought down our walnut tree. It missed the greenhouse by six feet. Six feet! We're grateful, and we're also going to be dealing with a lot of walnut wood for a while.
 
-**Pickup reminders**
+**Pickup**
 
-Pickup is Thursday from 3 to 6 at the barn. Please bring back your box and your egg cartons. We reuse both, and it makes a real difference to us.
+Thursday, 3 to 6 p.m., at the barn.
 
-Thank you for sticking with us through a week like this one. See you Thursday.
+Please bring back your box and your egg cartons. We reuse them every week, and it helps more than you'd think.
+
+Thank you for being part of the farm. See you Thursday.
 
 Tom Reyes
-Reyes Family Farm, outside Corvallis, Oregon
+Reyes Family Farm
+Corvallis, Oregon

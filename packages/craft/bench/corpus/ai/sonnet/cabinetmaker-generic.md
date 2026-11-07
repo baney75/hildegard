@@ -1,58 +1,58 @@
 # Finishing a Walnut Dining Table: Where the Wood Comes Alive
 
-There's a moment in every walnut project that makes the hours of milling, glue-ups, and sanding worth it. It happens when the first coat of finish hits the surface and the grain deepens from a dull, dusty brown into something rich, chocolate-dark and glowing, with ribbons of purple and gold you didn't know were there. We got to watch it happen again last month on a ten-foot dining table, and we want to walk you through how we got there.
+There is a moment in every walnut project when the work changes character. The joinery is done, the glue has cured, the top is flat, and what's left is the part that decides whether a table is merely well built or something people run their hands across every time they walk past. That moment is finishing.
 
-## Start with the Wood
+We recently finished a solid black walnut dining table, and we want to walk you through how we approached it, what we chose, and why.
 
-Finishing begins long before the first drop of oil. This table came from two bookmatched slabs of black walnut, air-dried and then kiln-finished, with a tight, flowing figure running down the center seam. Walnut is forgiving to work but unforgiving to rush. It moves with humidity, it shows every scratch once finish goes on, and it rewards patience more than any species we work with.
+## Starting with the Surface
 
-Before we touched a finish, the top sat flat in the shop for two weeks after the final flattening pass. That rest period lets any remaining stress release so the surface doesn't surprise us later.
+Finish never hides what's underneath it. It magnifies it. So the real work of finishing begins with sanding, and with patience.
 
-## Sanding: The Part No One Sees
+We started at 80 grit to level any lingering mill marks and glue lines, then moved to 120, 150, and finally 180. We skipped no steps. Each grit exists to remove the scratches of the one before it, and a skipped grit leaves scratches that only show up once the finish goes on, at which point it's too late.
 
-We sanded in stages, working from 80 grit through 120, 150, 180, and finally 220. We skipped no grits. Each one exists to remove the scratches of the one before, and a skipped step shows up as a faint swirl the moment the finish goes on.
+Between grits, we wiped the whole table down with mineral spirits. This does two things: it reveals scratches you'd otherwise miss, and it gives you a preview of how the wood will look under finish. Walnut changes dramatically when wet. Those deep chocolate tones and the purple-gray streaks in the grain leap forward, and any flaw does too.
 
-Between grits we vacuumed the surface and wiped it with mineral spirits. This does two things: it clears dust from the pores, and it previews how the finish will look, revealing scratches and glue residue while they're still easy to fix. We found one small patch of squeeze-out near a bowtie key that would have blotched the finish. Ten minutes with a scraper saved us a lot of regret.
+We stopped at 180 on purpose. Going finer can burnish the surface and keep the finish from penetrating evenly. For an oil-based finish on an open-grained hardwood, 180 is the sweet spot.
 
-We stopped at 220 on purpose. Going finer can burnish walnut's pores closed and keep the finish from soaking in evenly.
+## Dealing with Dust and Raised Grain
+
+After the final sanding, we vacuumed the table, then wiped it with a damp cloth to deliberately raise the grain. Once dry, we knocked down the fuzz with a light pass of 220 grit. This step means the grain won't swell and feel rough the first time someone sets a wet glass on the table.
 
 ## Choosing the Finish
 
-A dining table takes a beating: hot plates, spilled wine, homework, holiday dinners. Our clients wanted a finish that felt natural under the hand but could handle real life. We settled on a hardwax oil, a blend of natural oils and waxes that cures hard within the wood rather than sitting on top like a film.
+Walnut has a lot of natural character, and we wanted a finish that would respect it rather than bury it under plastic. But a dining table takes real abuse: hot plates, spilled wine, homework, holiday dinners. So we needed protection too.
 
-Why hardwax oil over a traditional varnish or polyurethane?
+We landed on a hardwax oil. It soaks into the wood rather than sitting on top, so the walnut still feels like wood. It enriches the color without turning it orange or muddy, it's durable enough for daily use, and, importantly for a family table, it's repairable. A scratch or a ring can be spot-treated and blended in. A film finish, by contrast, usually means stripping the entire top.
 
-- **It feels like wood.** There's no plastic sheen, just a warm, low-satin surface you can actually feel the grain through.
-- **It's repairable.** A scratch or water ring can be spot-sanded and re-oiled without refinishing the entire top.
-- **It deepens walnut beautifully.** The oil amber-tones the wood and pops the figure without turning it muddy.
+## Applying the Finish
 
-The tradeoff is that it asks a little more of the owner over the years. We'll get to that.
+We worked in thin coats. This is where most people go wrong with oil finishes: more is not better. Excess oil doesn't penetrate, it just sits there and turns tacky.
 
-## Application
+For each coat, we:
 
-We applied the first coat thin, working it in with a lint-free cloth in small sections, following the grain. The key with hardwax oil is restraint. Too much product leaves a tacky, uneven surface that never cures properly. After about twenty minutes, we wiped off all the excess until the surface looked almost dry.
+1. Applied a thin, even layer with a lint-free cloth, working with the grain.
+2. Let it soak in for the time the manufacturer recommends.
+3. Wiped off every bit of excess until the surface felt dry to the touch.
+4. Let it cure fully before the next coat.
 
-Then came the waiting. We let the first coat cure for a full day, lightly scuffed it with a fine abrasive pad to knock down raised grain, and applied a second coat the same way. A third coat went on the top only, since that's the surface that takes the most abuse. The base and edges got two.
+We did two coats on the top, with a very light scuff sand using a fine abrasive pad between them to keep the surface smooth. The legs and apron got the same treatment. The underside of the top received a coat as well, which matters more than people think. Sealing both faces helps the top absorb and release moisture evenly, which keeps it from cupping over the seasons.
 
-The whole process took about a week, most of it spent waiting. That's the part people don't expect: finishing is mostly patience, with short bursts of focused work in between.
+## The Edges and End Grain
 
-## The Reveal
+End grain drinks finish like a sponge, so it gets extra attention. We gave the table's ends an additional light coat and checked them after the first cure to make sure they hadn't gone dull. We also softened every edge slightly by hand before finishing, since a crisp edge will chip and wear faster than a gently eased one, and it feels better under a forearm.
 
-When the final coat cured, we carried the top out to the daylight and set it on the trestle base. The figure in the center seam, which had looked like a calm river on bare wood, now had real depth, shifting as you moved around it. The sapwood edge we'd deliberately left on one side picked up a soft honey tone against the dark heartwood. It looked like it had always been that way.
+## Letting It Cure
 
-## Caring for Your Table
+Here's the part nobody likes: waiting. A finish can feel dry in a day, but it takes much longer to fully harden. We recommend treating the table gently for the first couple of weeks. Use placemats, avoid hot dishes, and skip harsh cleaners. After about a month, the finish reaches its full durability.
 
-To keep a hardwax oil finish looking its best:
+## Caring for It Afterward
 
-1. **Wipe spills promptly.** The finish is water-resistant, not waterproof.
-2. **Use trivets and coasters.** Heat and moisture are the biggest enemies of any wood finish.
-3. **Clean gently.** A barely damp cloth is usually enough. Avoid harsh cleaners.
-4. **Refresh once a year or so.** A light wipe of maintenance oil keeps the surface protected and glowing. High-use areas may want it sooner.
+Walnut finished this way is easy to live with. Wipe up spills promptly, clean with a damp cloth and a mild soap, and avoid soaking the surface. Once or twice a year, or whenever the top starts to look dry, apply a fresh thin coat of the same finish. That's the whole routine, and it means the table will only get better looking with age as the walnut slowly deepens in tone.
 
-That's the whole routine. Do it, and the table will only look better with age as the walnut slowly mellows and the finish builds a soft patina.
+## The Result
 
-## Thinking About a Table of Your Own?
+When the last coat cured, the table looked the way we'd hoped: deep, warm, and quiet. The figure in the grain was clear without being loud, and the surface had that soft, satin feel that makes you want to touch it. No glossy shell, just walnut at its best.
 
-Every piece we build is made to order, and we love walking clients through the choices, from slab selection to base design to finish. If you've been dreaming about a walnut dining table that will anchor your home for decades, we'd be glad to talk it through.
+If you're thinking about a custom dining table, or have an older piece that needs new life, we'd love to talk. Finishing is where all the earlier decisions come together, and it's one of our favorite parts of the work.
 
-Stop by the shop, send us a message, or browse our recent work in the gallery. Bring a sketch, a photo, or just an idea. We'll take it from there.
+*Get in touch through our contact page to start a conversation about your next piece.*

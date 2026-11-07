@@ -1,13 +1,14 @@
 **Join Us for the Harvest Potluck!**
 
-As the leaves turn and the season of thanksgiving draws near, we warmly invite the whole church family to our annual Harvest Potluck on **[Date] at [Time]** in **[Location]**.
+As the leaves turn and the season of thanksgiving draws near, we invite the whole church family to gather around the table for our annual Harvest Potluck. It's a time to share good food, warm fellowship, and gratitude for the many blessings God has given us this year.
 
-This is a time to gather around the table, share a meal, and give thanks to God for His abundant blessings this year. Bring your favorite dish to share: a hearty casserole, a fresh salad, a basket of warm rolls, or a homemade pie. Main dishes, sides, and desserts are all welcome. Drinks and tableware will be provided.
+**When:** [Date and Time]
+**Where:** [Location]
 
-Newcomers, neighbors, and friends are especially welcome. There is always room for one more at the table, so bring someone along!
+Please bring a favorite dish to share: a main course, side, salad, or dessert. Family recipes and seasonal favorites are especially welcome! Beverages and table settings will be provided.
 
-If you can help with setup or cleanup, please sign up on the sheet in the fellowship hall or contact **[Contact Name]** at **[Phone/Email]**.
+Newcomers, neighbors, and friends are warmly invited. There's always room for one more at the table. If you'd like to help with setup or cleanup, please sign up at the welcome desk or contact the church office.
 
-*"Give thanks to the Lord, for He is good; His love endures forever."* (Psalm 107:1)
+*"Give thanks to the Lord, for he is good; his love endures forever."* (Psalm 107:1)
 
-We can't wait to share this harvest celebration with you!
+We can't wait to see you there!

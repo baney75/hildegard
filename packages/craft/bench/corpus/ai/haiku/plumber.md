@@ -1,17 +1,17 @@
 # About Dobbs Plumbing and Drain
 
-Carl Dobbs started Dobbs Plumbing and Drain in Waco, Texas, in 2004, after eleven years working as a journeyman for a large plumbing company. He wanted to run a shop where the work was done right, the price was clear before the job began, and the person who showed up was the person who did the work.
+I started Dobbs Plumbing and Drain in Waco in 2004, after eleven years as a journeyman for a larger plumbing company. I wanted to run a business where I knew every job and every customer, and where the person you call is the person who shows up.
 
-Today the business is three plumbers and a phone line. Carl runs the jobs alongside Luis and Danny, and Carl's wife, Pat, answers the phone, so when you call, you reach a real person who knows the schedule and can tell you what to expect.
+Today it's me, Luis, and Danny. We're a small crew, and we like it that way. My wife Pat runs the phone, so when you call, a real person answers and can tell you when we'll be there.
 
-We focus on repairs, water heaters, and drain cleaning. We don't do new construction. That focus means we can do the everyday work well, whether it's a leaking faucet, a stubborn clog, or a water heater that's given up in the middle of January.
+We do repairs, water heaters, and drain cleaning. We don't do new construction, so we can focus on the work that happens in homes and businesses every day. In winter, we typically replace about six water heaters a week, so if yours has quit, we've likely seen your problem before.
 
-**Honest pricing.** We charge a flat rate, quoted before we start. You'll know the cost before any work begins, and it won't climb because we found something unexpected halfway through. If a repair needs more than we expected, we'll explain why and get your approval first.
+Our pricing is simple. We give you a flat rate before we start, and that's the price you pay. No surprises when the job is done.
 
-**Straight recommendations.** We won't sell you a repipe you don't need. If a repair will solve the problem, we'll recommend the repair. If the whole system does need replacing, we'll show you why and let you decide. Our goal is to fix what's wrong, not to find more work to bill.
+Burst pipes don't keep business hours, so we're on call any hour of the day or night. If you have water where it shouldn't be, call us and we'll get there as fast as we can.
 
-**Available when pipes burst.** Plumbing emergencies don't keep business hours, so we're on call for burst pipes at any hour. When water is coming through the ceiling, you need someone who will answer and come out.
+I also won't sell you a repipe you don't need. If a few repairs will fix the problem, that's what I'll recommend. Waco families and businesses have trusted us for more than twenty years, and that trust comes from giving honest advice and doing good work.
 
-**Busy in winter.** Cold snaps are our busiest season. In the winter months, we typically replace about six water heaters a week, so if you have an aging unit, it's worth having it checked before the cold arrives.
+Thank you for considering Dobbs Plumbing and Drain.
 
-If you have a plumbing problem in Waco, call us. Pat will pick up, and one of us will get back to you quickly.
+Carl Dobbs

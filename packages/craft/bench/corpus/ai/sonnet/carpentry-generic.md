@@ -1,61 +1,73 @@
-# The Chicken Coop That Taught Us Fractions
+# Building a Chicken Coop, Building a Mathematician
 
-This fall, my daughter and I built a chicken coop. I told myself it was a weekend project. It took three weekends and a lot of lumber, and she learned more math in those weeks than in most of the worksheets we've done all year.
+When I told my daughter we were going to build a chicken coop, she wanted to know when we'd get the chickens. When I told her we'd start with a notebook and a tape measure, she looked at me like I'd cheated her.
 
-I didn't plan it as a math unit. We wanted chickens, we needed a coop, and I figured we'd build it together. But about ten minutes into the first morning, I realized the whole project was a math lesson in disguise.
+Three weeks later, she had filled eleven pages with measurements, sketches, and cost estimates, and she had no idea she'd just done a semester's worth of math.
 
-## Starting with a Problem, Not a Page
+That's the secret of project-based learning, and I'm not too proud to admit I stumbled into it. I'd been trying to make fractions interesting for a month. A chicken coop did it in an afternoon.
 
-The first question was simple: how big should it be?
+## Start with the Chickens, Not the Lumber
 
-Chickens need space, and the usual guidance is about four square feet per bird inside the coop, and more in the run. We wanted six hens. So I asked her, "How much floor do we need?"
+Before any wood got cut, we had to answer a question: how big does a coop need to be?
 
-She multiplied 6 by 4 and got 24 square feet. Then we had to figure out what shape that could be. A 4 by 6 floor works. So does 3 by 8. So does 2 by 12, though she pointed out, laughing, that the chickens would be living in a hallway.
+A little research told us that standard guidance is about 4 square feet of coop space per chicken, plus about 10 square feet per bird in the outdoor run. We wanted six hens.
 
-We had talked about area and perimeter before, but it had always been abstract. Now there was a reason to care. She sketched different rectangles on graph paper, compared them, and chose a 4 by 6 footprint because it fit the spot in the yard she'd picked out. She was making an engineering decision using multiplication, and she didn't once ask when she'd ever use this.
+So she did the math:
 
-## Measuring Twice, Cutting Once, Learning Fractions Constantly
+- 6 hens × 4 square feet = 24 square feet of coop
+- 6 hens × 10 square feet = 60 square feet of run
 
-Nothing teaches fractions like a tape measure.
+Then came the fun part. What dimensions give you 24 square feet? She discovered that 4 × 6 works, but so does 3 × 8, and 2 × 12. We talked about why a 2 × 12 coop would be a strange, narrow hallway for chickens. Without my saying a word, she had stumbled into the idea that area stays the same while perimeter changes. (We later checked: 4 × 6 has a perimeter of 20 feet, while 2 × 12 has 28. More fence, same floor.)
 
-Our lumber was never a clean number of inches. She'd read 37 and 5/8 and then have to work out what to do with it. When we needed a board cut to half of 37 and 5/8, she had to halve a mixed number, which is a skill that makes many adults pause. She figured out that you can convert to eighths first: 37 and 5/8 is 301/8, and half of that is 301/16. Then she had to find that on the tape.
+## Fractions with Real Consequences
 
-It was slow at first. By the second weekend she was reading the tape fluently, and she'd started catching my mistakes. "Dad, that's a sixteenth over, not an eighth." She was right.
+Here is what I love about lumber: it doesn't care about your feelings. A board cut 1/4 inch too short is just a board that's too short.
 
-The tape measure also made something clear that no worksheet had: fractions are real quantities with a physical size. A sixteenth of an inch is small, and you can see it when the cut is off.
+Our plans called for pieces like 34 3/8 inches and 17 1/2 inches. She had to add and subtract fractions on a tape measure, and she did it because she needed the pieces to fit, not because I assigned a worksheet.
 
-## Angles, Triangles, and the Roof
+When she needed to cut a 34 3/8-inch board from a longer one, she figured out how much would be left over. When two boards had to add up to a total length, she checked her work by laying them end to end. The tape measure became a number line she could hold in her hands.
 
-The roof was where geometry showed up. We wanted a sloped roof so rain would run off, which meant we needed to know the length of the rafters.
+Her first cut was off by 3/4 of an inch because she read the wrong mark. She didn't need me to tell her it was wrong. She held it up to the frame and saw it. That kind of feedback is something I can't replicate with a red pen.
 
-This was our first real use of the Pythagorean theorem. The coop was 6 feet across, and we wanted the roof to rise a foot and a half over a 4-foot run on the short side. She drew the right triangle, labeled the legs 4 and 1.5, and worked out the hypotenuse: the square root of 16 plus 2.25, which is the square root of 18.25, about 4.27 feet.
+## Geometry You Can Stand Inside
 
-Then came the part I love most about learning this way. She cut the rafter to 4.27 feet, we held it up, and it fit. The theorem worked on actual wood, in our backyard, and she was delighted. She said, "So it's really true," as if she'd suspected math was just something adults made up to keep kids busy.
+Our coop has a sloped roof, which meant angles. It also meant the Pythagorean theorem, which I had been dreading teaching in the abstract.
 
-We also used the 3-4-5 trick to check that our corners were square. Measure 3 feet along one edge, 4 along the other, and the diagonal should be exactly 5. When ours came out at 5 feet and a quarter inch, we nudged the frame until it was right. That is a proof by construction, and it was more convincing than anything I could have said.
+To keep the frame square, we used the 3-4-5 trick. Measure 3 feet along one edge, 4 feet along the other, and the diagonal between those points should be exactly 5 feet. If it is, you have a perfect right angle.
 
-## Budgeting and Ratios
+She measured. It was 5 feet and a bit. We nudged the frame, measured again, and got it to 5 on the nose.
 
-Then there was the shopping list. She helped build the budget, and this is where percentages and unit rates came in.
+Later, when I showed her that 3² + 4² = 5², her reaction was, "Oh, that's why the trick works." Not "when will I use this?" She already had.
 
-We compared prices on hardware cloth, the wire mesh that keeps predators out. One roll was cheaper per roll, but another was cheaper per square foot. She worked out the unit price for each and chose the better deal. She also calculated how much to buy: the perimeter of the run times the height, plus extra for overlap, plus a bit more because, as she put it, "we will definitely mess something up."
+## The Budget
 
-We added sales tax, calculated what 10 percent extra for waste would cost, and checked the total against the budget we'd set. We came in under, which she announced to the whole family at dinner.
+The part she was most serious about was the money. We set a budget of $400 and she kept the spreadsheet.
 
-## What I Learned About Teaching
+She had to:
 
-A few things stood out to me, and I'll carry them into the rest of our homeschool year.
+- Calculate how many 8-foot boards we needed, rounding up (and learning why rounding up matters when you can't buy 0.4 of a board)
+- Compare prices per foot between different lumber sizes
+- Add sales tax
+- Decide what to cut when the total came in at $437
 
-**Start with the question, then find the math.** She never asked why we were learning something, because the need was right in front of us. The motivation came from the project.
+That last one led to the best conversation of the project, about tradeoffs, priorities, and why we probably shouldn't skimp on the hardware cloth that keeps predators out. She cut the fancy paint instead.
 
-**Let the mistakes be real.** When she cut a board too short, the cost was a board, and the lesson was immediate. She became more careful on her own, with no lecture from me.
+## What I Learned as a Teacher
 
-**Slow down.** The coop took longer than it would have if I'd done it alone. But the point was never just the coop.
+A few things I'd tell another homeschool parent considering something like this:
 
-**Math is easier to trust when you can touch it.** She now believes in the Pythagorean theorem the way she believes in gravity.
+**Let the problem come first.** I never introduced a concept and then looked for a place to use it. The need showed up, and then we found the math that solved it.
 
-## The Coop Today
+**Don't rescue too fast.** The wrong-cut board taught more than ten right ones. I had to sit on my hands more than once.
 
-The hens moved in two weeks ago. They are noisy, curious, and thoroughly unimpressed by the engineering. My daughter checks their water every morning and has already started tracking eggs in a spreadsheet, where she plans to graph production over time.
+**Keep a project notebook.** Ours holds sketches, calculations, receipts, and notes on mistakes. It's now a record of her thinking, and it works as a portfolio better than any test.
 
-I didn't expect a chicken coop to become the best math curriculum we've had. If you're looking for a project to try with your own kids, I'd say pick something you actually want to build, bring a tape measure, and let the numbers show up on their own. They will.
+**Say the math out loud, but lightly.** I'd point out, "Hey, that's a ratio," and then move on. No lecture. The names for things can come after the understanding.
+
+## The Result
+
+The coop is standing. It's a little crooked in one corner, and we have both agreed to call that "character." Six hens moved in last month, and my daughter can tell you the square footage they have, what it cost per bird, and exactly how much we saved by skipping the paint.
+
+She still doesn't love worksheets. But last week she looked at our garden and said, "I wonder how many square feet we'd need for tomatoes."
+
+I handed her the tape measure.

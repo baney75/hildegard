@@ -1,62 +1,45 @@
-# Fall Lawn Care: What to Do Now for a Greener Spring
+# Fall Lawn Care: How to Set Your Yard Up for a Great Spring
 
-Fall is the most important season for your lawn. While summer gets the attention, what you do in the weeks between the first cool nights and the first hard freeze decides how thick, green, and healthy your grass will be next year. Cooler air, warm soil, and steady moisture create ideal conditions for roots to grow and recover from summer stress.
+When the leaves start to turn and the evenings cool off, it's easy to think the work in your yard is done for the year. In reality, fall is the most important season for your lawn. The steps you take now decide how thick, green, and healthy your grass looks when spring arrives.
 
-Here is how to make the most of it.
+Here's our guide to getting your lawn through the fall and ready for winter.
 
-## 1. Keep Mowing, and Adjust Your Height
+## Keep Mowing, Then Lower the Blade Gradually
 
-Grass doesn't stop growing just because the leaves are turning. Keep mowing as long as it grows, and gradually lower the blade over your last few mows of the season. A finished height of about 2 to 2.5 inches works well for most cool-season lawns. Grass left too long can mat down under snow and invite disease, while grass cut too short loses the energy reserves it needs for winter.
+Grass keeps growing as long as temperatures stay mild, so don't put the mower away yet. Keep mowing on your regular schedule until growth slows down. For your last two or three mows of the season, lower the blade a notch each time, finishing around two to two and a half inches. Shorter grass is less likely to mat down under snow and less inviting to winter diseases like snow mold. Don't cut it too short, though. Grass needs enough blade surface to keep storing energy for winter.
 
-Don't remove more than one-third of the blade in a single mowing, and keep your mower blades sharp. A clean cut heals faster and leaves the lawn less open to disease.
+## Don't Let Leaves Pile Up
 
-## 2. Clear the Leaves
+A thick layer of fallen leaves blocks sunlight and traps moisture, which can smother your grass and encourage fungus. Rake or mulch them regularly instead of waiting for the last leaf to drop.
 
-A thick layer of wet leaves blocks sunlight and air, and it can smother grass and breed fungus. Rake or mulch them regularly instead of waiting until they have all fallen.
+One easy option is mulch mowing. Run your mower over a light layer of leaves and let the shredded pieces fall into the lawn. They break down quickly and return nutrients to the soil. If the leaves are too deep for that, rake them up and add them to your compost or garden beds.
 
-Mulching is a good option when leaf cover is light. Run the mower over them and the small pieces will break down and return nutrients to the soil. If the leaves are deep enough that you can't see the grass through them, bag or compost them instead.
+## Aerate to Relieve Compaction
 
-## 3. Aerate Compacted Soil
+Over a busy summer, soil gets compacted from foot traffic, play, and equipment. Compacted soil makes it hard for water, air, and nutrients to reach the roots. Core aeration pulls small plugs of soil out of the lawn and opens up channels so everything can get down where it's needed. Early to mid fall is the ideal window, while the grass is still actively growing and can recover quickly.
 
-Foot traffic, mowing, and summer heat pack soil down over time, making it harder for water, air, and nutrients to reach the roots. Core aeration pulls small plugs of soil from the lawn and opens channels for them.
+## Overseed Thin or Bare Spots
 
-Early fall is the best time. The grass is actively growing and will fill in the openings quickly. If your lawn is heavily used, has thick thatch, or feels hard underfoot, aeration will make a noticeable difference.
+Fall is the best time to overseed. Warm soil and cooler air help seeds germinate, and there's less competition from weeds. Aeration and overseeding work especially well together, since the seed settles into the openings and makes good contact with the soil. Choose a seed blend suited to your yard's sun exposure, and keep the soil consistently moist until the new grass is established.
 
-## 4. Overseed Thin or Bare Areas
+## Feed Your Lawn for Winter
 
-Fall is the best time to seed. Warm soil helps seeds germinate, cooler air reduces stress on new seedlings, and there is less competition from weeds. Overseeding right after aeration gives seed excellent contact with the soil.
+If you only fertilize once a year, make it fall. Cool-season grasses put a lot of energy into root growth this time of year, and a fall fertilizer feeds that process. The nutrients are stored in the roots over winter, so your lawn greens up earlier and stronger in spring. Choose a slow-release formula and follow the label rates carefully, since too much can do more harm than good.
 
-Choose a seed blend suited to your sun exposure and region, and keep the soil consistently moist until the new grass is established. Seed that goes down late, close to a hard freeze, may not germinate until spring, so the sooner you get it down, the better.
+## Keep Watering Until the Ground Freezes
 
-## 5. Feed the Lawn
+Even though the weather is cooler, your lawn still needs moisture, especially if the fall has been dry. Newly seeded areas need light, frequent watering, while established grass does best with a deep soak when rainfall falls short. Stop once the ground freezes, and drain and store your hoses and irrigation components before a hard freeze can damage them.
 
-A fall fertilizer application is the most valuable feeding of the year. Grass uses it to build deep roots and store nutrients that fuel a fast, healthy green-up in spring. Use a slow-release fertilizer formulated for fall, and apply it evenly according to the label. Applying a second round in late fall, while the grass is still green but growth is slowing, helps it store even more.
+## Tackle Weeds Now
 
-A soil test can tell you if your lawn needs lime to correct acidity or other amendments to balance nutrients.
+Many perennial weeds, such as dandelions and clover, are pulling nutrients down into their roots in the fall, which makes them more vulnerable to treatment now than at almost any other time. Dealing with them this season means fewer problems next spring.
 
-## 6. Control Weeds While They're Vulnerable
+## Finish With a Little Cleanup
 
-Perennial weeds like dandelions and clover are pulling energy down into their roots for winter, which makes fall an effective time to treat them. Herbicide applied now travels to the roots and does a better job than a spring treatment. Spot-treat where you can, and follow label directions carefully.
-
-## 7. Keep Watering Until the Ground Freezes
-
-Rain often tapers off in fall, and new seed especially needs moisture. Water deeply when rainfall is lacking, and keep it up until the ground freezes. A well-hydrated lawn goes into winter stronger.
-
-## 8. Put Your Equipment Away Properly
-
-Before winter, clean your mower, sharpen or replace the blades, and either run the fuel tank dry or add a stabilizer. Drain hoses and irrigation lines before the first hard freeze to prevent cracked pipes and costly repairs in spring.
-
-## A Simple Fall Checklist
-
-- Mow regularly and lower the height gradually
-- Remove or mulch fallen leaves
-- Aerate compacted soil
-- Overseed thin areas
-- Apply fall fertilizer
-- Treat perennial weeds
-- Water until the ground freezes
-- Winterize your equipment
+Before winter sets in, clear toys, furniture, and debris off the lawn so nothing sits on the grass and leaves dead patches. Take a last look at your trees and shrubs, too. Fall is a good time to remove dead branches and plan any changes for next year.
 
 ## Let Us Help
 
-Fall lawn care takes time, timing, and the right equipment. If you'd rather spend your weekends enjoying the season, our crew is ready to help with aeration, overseeding, fertilization, leaf cleanup, and more. Contact us today for a free estimate, and let's get your lawn ready for its best spring yet.
+A healthy spring lawn starts with the work you do right now. If you'd rather spend your weekends enjoying the season than raking, aerating, and seeding, our team is ready to help. We offer fall cleanups, aeration, overseeding, and fertilization programs tailored to your property.
+
+Contact us today for a free estimate, and let's get your lawn ready for winter.

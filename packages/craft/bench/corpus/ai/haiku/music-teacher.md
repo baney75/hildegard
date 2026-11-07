@@ -1,28 +1,22 @@
 **Subject: Spring Recital: Saturday, May 17 at 2:00 PM**
 
-Dear Parents,
+Dear Piano Families,
 
-Our spring recital is almost here, and I'm excited to hear what your children have been working on. Please mark your calendars for **Saturday, May 17**, at **2:00 PM** at **Trinity Methodist**. Doors open at **1:30 PM**.
+Our spring recital is almost here! We're excited to celebrate your students' hard work with an afternoon of music on **Saturday, May 17 at 2:00 PM** at Trinity Methodist. Doors open at 1:30 PM.
 
-Each of our 18 students will perform one piece, no longer than two minutes. The Johnson twins will also perform a duet.
+**Arrival:** Please have your student arrive by **1:15 PM**. Students will sit together in the front two rows.
 
-**Arrival and seating**
-- Please have your student arrive by **1:15 PM** so we can start on time.
-- Students will sit in the **front two rows** until it's time to perform.
+**Performance:** Each student will play one piece, two minutes or less. With 18 students performing, we'll keep things moving so everyone has a chance to shine. The Johnson twins will also be performing a duet.
 
-**What to wear**
-Students should dress in church clothes. Please avoid jeans.
+**What to Wear:** Please dress your student in church clothes. Jeans are not appropriate for the recital.
 
-**Piece titles**
-Please send me the title of your child's final piece by **Friday, April 25**. I'll use these titles in the program.
+**Program Titles:** Please send me your student's final piece title by **Friday, April 25** so I can include it in the printed program.
 
-**Reception**
-Following the recital, we'll host a reception with cookies and a chance to celebrate our students' hard work together.
+**Reception:** Join us afterward for a reception with cookies. It's a wonderful chance to congratulate the students and visit with one another.
 
-**Video**
-My cousin will film the recital and share a link afterward so you can watch it again or share it with family who couldn't attend.
+**Video:** My cousin will be filming the recital, and I'll share a link with families afterward.
 
-Thank you for your support and encouragement all year. I look forward to seeing you there and hearing our students shine.
+Thank you for your support and encouragement all year. I can't wait to hear what your students have prepared!
 
 Warmly,
 

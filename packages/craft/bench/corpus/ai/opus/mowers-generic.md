@@ -1,102 +1,83 @@
-# Putting Your Lawn Mower to Bed for Winter: A Shop Owner's Guide
+# Putting Your Lawn Mower to Bed for Winter: A Simple Guide That Saves You Money in Spring
 
-Every spring, the same thing happens. The grass starts growing, folks pull their mowers out of the shed, give the cord a yank, and nothing. A few more pulls, maybe a cough and a sputter, and then the mower ends up on our bench.
+Every spring, our shop fills up with mowers that won't start. The owners are frustrated, the grass is getting long, and the fix is almost always the same: something that could have been prevented in about an hour last fall.
 
-Most of those spring repairs come from how the mower was stored over the winter. Twenty or thirty minutes of work in the fall can save you a repair bill, a wait in our spring backlog, and a lot of frustration. Here's how we recommend putting your mower away.
+If your mowing season is winding down, now is the time to store your mower properly. Here's how to do it.
 
-## 1. Deal With the Fuel First
+## Why Winter Storage Matters
 
-Fuel is the biggest cause of spring breakdowns we see.
+A lawn mower that sits for four or five months doesn't just rest. Fuel breaks down, moisture creeps in, and old grass clippings hold dampness against metal. By spring you can end up with a gummed-up carburetor, a corroded deck, or a dead battery. A little prep now heads off most of that.
 
-Today's gasoline, especially fuel with ethanol, starts to break down in as little as 30 days. As it sits, it leaves a varnish that clogs the tiny passages in your carburetor. Ethanol also pulls moisture out of the air, which leads to corrosion and phase separation, where water and ethanol settle at the bottom of the tank.
+## Step 1: Deal With the Fuel
+
+This is the most important step, and it's the one people skip most often.
+
+Gasoline starts to degrade in as little as 30 days. Modern ethanol-blended fuel is especially hard on small engines. It attracts moisture and leaves varnish-like deposits that clog the tiny passages in your carburetor.
 
 You have two good options:
 
-**Option A: Stabilize and run.** Add a fuel stabilizer to a nearly full tank, following the dosage on the bottle. Run the engine for 5 to 10 minutes so the treated fuel works its way through the carburetor. A full tank leaves less room for condensation.
+- **Add fuel stabilizer.** Fill the tank with fresh gas, add a stabilizer according to the label, and run the engine for 5 to 10 minutes so the treated fuel works its way through the carburetor.
+- **Run it dry.** Burn off the remaining fuel by running the mower until it stalls. This works well, but it's a good idea to add stabilizer to that last tank of gas anyway.
 
-**Option B: Run it dry.** Burn off the fuel until the engine stops on its own. This works well on most small push mowers, but a little fuel can stay in the carburetor bowl, so stabilizer is still a good idea before you run it out.
+Whichever you choose, don't leave untreated gas sitting in the tank all winter. That goes for your gas can too.
 
-If your mower has a fuel shutoff valve, close it before storage.
+## Step 2: Change the Oil
 
-**Tip:** If you can find ethanol-free gas or pre-mixed canned fuel in your area, it's worth the extra cost for small engines, especially equipment that sits for months.
+Used oil contains acids and contaminants that can eat at engine parts while the mower sits. Changing it in the fall means your engine spends the winter in clean oil and is ready to go in spring.
 
-## 2. Change the Oil
+Run the engine for a few minutes first. Warm oil drains more completely. Check your owner's manual for the right type and amount, and take the old oil to a recycling center or auto parts store.
 
-Used oil holds acids, moisture, and bits of debris that can eat at internal engine parts over a long winter. Changing it now means your engine sits in clean oil all season and is ready to go in spring.
+## Step 3: Disconnect the Spark Plug
 
-- Run the engine for a few minutes first. Warm oil drains faster and carries more contaminants out with it.
-- Disconnect the spark plug wire before you start.
-- Drain the oil through the drain plug, or tip the mower according to your owner's manual. Most manufacturers say to tip it with the air filter and carburetor side facing **up** so oil doesn't flood the filter.
-- Refill with the oil type and amount listed in your manual, and check the level with the dipstick.
+Before you do anything near the blade, pull the spark plug wire off the plug. This keeps the engine from accidentally firing while you work.
 
-Please take the used oil to a recycling center or an auto parts store. Most of them accept it for free.
+While you're there, take a look at the plug itself. If it's black, oily, or worn, replace it. Spark plugs are inexpensive, and a fresh one makes spring startups much easier.
 
-## 3. Pull the Spark Plug
+## Step 4: Clean the Deck
 
-With the plug wire already disconnected, take the spark plug out and look at it.
+Tip the mower on its side, with the air filter and carburetor facing up so oil and fuel don't leak where they shouldn't. Then scrape out the caked-on grass from under the deck. A putty knife and a stiff brush work well.
 
-- **Light tan or gray deposits:** Normal. Clean it with a wire brush or swap in a new one.
-- **Black and sooty, wet and oily, or a cracked insulator:** Replace it. Plugs are cheap, and a fresh one makes spring starts much easier.
+Wet clippings trap moisture against the steel and cause rust. A clean deck also cuts better and puts less strain on the engine.
 
-While the plug is out, pour about a teaspoon of clean engine oil into the cylinder. Pull the starter cord slowly a few times to spread the oil over the cylinder wall. This protects against rust while the engine sits. Then reinstall the plug, but **leave the wire disconnected** until spring so the engine can't start by accident.
+Give the top of the mower a wipe-down too, especially around the engine's cooling fins.
 
-## 4. Clean or Replace the Air Filter
+## Step 5: Sharpen or Replace the Blade
 
-A dirty air filter makes your engine work harder and burn fuel less efficiently. Check it now so it's one less thing to deal with in spring.
+A dull blade tears grass instead of cutting it, which leaves your lawn ragged and more vulnerable to disease. Fall is a great time to sharpen it, because you won't be in a hurry.
 
-- **Paper filters:** Tap them gently to knock out loose dirt. If it's still dirty, damaged, or oil-soaked, replace it.
-- **Foam filters:** Wash in warm, soapy water, rinse, let dry completely, then lightly oil if your manual calls for it.
+If you're not comfortable removing and balancing a blade yourself, bring it to us. An unbalanced blade can cause vibration that wears out the engine over time.
 
-## 5. Clean the Deck
+## Step 6: Check the Air Filter
 
-Grass clippings packed under the deck hold moisture, and moisture means rust. Over a few seasons it can eat right through the deck.
+A dirty air filter makes the engine work harder and burn more fuel. Paper filters should be replaced when they're dirty. Foam filters can usually be washed in warm soapy water, dried completely, and lightly re-oiled.
 
-With the spark plug wire disconnected, tip the mower (carburetor side up) and scrape off the caked-on grass with a putty knife or plastic scraper. A hose or a deck wash port, if your mower has one, can help get the rest. Let everything dry fully before storage.
+## Step 7: Take Care of the Battery
 
-Brush or blow off the top of the engine too, especially around the cooling fins and under the shroud. Built-up debris there can cause overheating next season, and it's a favorite nesting spot for mice.
+If you have a riding mower or an electric-start push mower, remove the battery for the winter. Clean the terminals, store it somewhere cool and dry where it won't freeze, and connect it to a trickle charger or battery maintainer if you have one.
 
-## 6. Sharpen the Blade
+A battery left in a cold shed all winter often won't survive until spring.
 
-Winter is the best time to get your blade sharpened, before the spring rush. A dull blade tears grass instead of cutting it cleanly, which leaves ragged, brown tips and makes your lawn more prone to disease.
+## Step 8: Store It Somewhere Dry
 
-You can sharpen it yourself if you have the tools, but make sure it's balanced afterward. An unbalanced blade causes vibration that wears out bearings and crankshafts. If the blade is bent, cracked, or badly worn, replace it. We're happy to sharpen and balance blades for you, and fall turnaround is quick.
+A garage or shed is ideal. Keep the mower off damp concrete if you can, and cover it with a breathable cloth or tarp to keep dust off. Avoid plastic covers that trap moisture underneath.
 
-## 7. Take Care of the Battery (Electric-Start and Riding Mowers)
+Never store a mower with fuel in it near a furnace, water heater, or anything with a pilot light.
 
-Batteries don't like cold, and they don't like sitting.
+## The Quick Checklist
 
-- Remove the battery and store it somewhere cool and dry where it won't freeze. A basement shelf works well. Avoid setting it directly on bare concrete if you can.
-- Clean any corrosion off the terminals with a baking soda and water mix.
-- Charge it fully before storage, and use a battery maintainer or top it off every month or two.
+- Stabilize or drain the fuel
+- Change the oil
+- Disconnect the spark plug and inspect it
+- Clean under the deck
+- Sharpen the blade
+- Clean or replace the air filter
+- Remove and maintain the battery
+- Store it in a dry, covered spot
 
-For battery-powered mowers, follow the manufacturer's storage guidance. Most lithium-ion packs store best partially charged, often around 40 to 60 percent, indoors and away from extreme cold.
+## Rather Not Do It Yourself?
 
-## 8. Check the Tires, Belts, and Cables
+We get it. Not everyone has the time, the tools, or the interest to spend a Saturday afternoon on their mower. Our winterization service covers all of the steps above, plus a full inspection to catch small problems before they become big ones.
 
-Take a few minutes to look things over while you're at it.
+Fall is also our slow season, so you'll get your mower back faster now than you would in April when everyone's rushing to get theirs running. Drop it off this month, and it'll be ready and waiting when the grass starts growing again.
 
-- Inflate pneumatic tires to the recommended pressure. Flat spots can develop on underinflated tires over a long winter.
-- Look at drive belts for cracks, fraying, or glazing.
-- Check throttle and drive cables for fraying or stiffness.
-- Lubricate pivot points and wheel axles per your manual.
-
-If something looks worn, make a note now. It's easier to get parts in the off-season than when everyone else needs them in April.
-
-## 9. Store It Somewhere Smart
-
-Where you keep your mower matters.
-
-- **Pick a dry, covered spot** like a garage or shed. Avoid leaving it outside, even under a tarp.
-- **Keep it away from open flames and pilot lights,** like those on water heaters or furnaces, especially if there's fuel in the tank.
-- **Cover it** with a breathable cover or an old sheet to keep dust off. Plastic tarps can trap moisture against the metal.
-- **Discourage rodents.** Mice love to nest in engine compartments and air filter housings over winter and will chew through wiring. Keep the area clean, and consider peppermint oil, dryer sheets, or traps nearby.
-
-## Not Up for It? Let Us Handle It
-
-We get it. Not everyone has the time, tools, or space to do all of this. That's what we're here for.
-
-Our winterization service covers everything above: fuel treatment, oil change, spark plug, air filter, deck cleaning, blade sharpening, and a full inspection. When spring comes, your mower is ready to go, and you skip the wait during our busiest season.
-
-Fall and winter are our slower months, so this is the best time to bring your equipment in. Give us a call or stop by the shop, and we'll get your mower set for winter.
-
-A little attention now means one pull and a clean start next spring.
+Give us a call or stop by the shop. We're happy to help.

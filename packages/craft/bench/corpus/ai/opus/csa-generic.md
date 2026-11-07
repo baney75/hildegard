@@ -1,65 +1,59 @@
-# From the Field: The First Hard Frost
+# From the Field: Week of November 9
 
-Dear friends,
+Good morning, friends.
 
-It finally happened. Tuesday morning we walked out to a farm gone silver. Every leaf of kale was crusted white, the row cover was stiff as cardboard, and the puddles by the wash station had a skin of ice. The thermometer on the barn read 26°F at sunrise. By ten o'clock it had all melted off, and the fields looked much as they had the day before. Underneath, something had changed.
-
-Frost is the cold-season grower's secret ingredient. When temperatures drop, brassicas like kale, collards, cabbage, and Brussels sprouts turn some of their starches into sugars. It's a natural antifreeze that keeps their cells from rupturing, and it also makes them noticeably sweeter. If you've found kale a bit bitter or tough this summer, this is the week to give it another chance. The same goes for carrots, which are now crisp and sweet enough that we've caught more than one crew member eating them straight out of the harvest bin.
+The first hard frost came through this week. On Tuesday the whole farm woke up silver. The kale stood stiff and glittering, and by ten o'clock it had relaxed back into its usual floppy self. This is our favorite trick of the season. Frost turns starches into sugars in the brassicas and root crops, so everything you pick up this week will taste sweeter than it did a month ago. If you've been on the fence about Brussels sprouts, this is the week to try them again.
 
 ## What's in the Share
 
-- **Frost-sweetened kale**, a mix of lacinato and red Russian
-- **Carrots**, freshly dug
-- **Butternut squash**, cured and ready
-- **Yellow onions** and **garlic** from our storage crop
-- **Sweet potatoes**
-- **Salad mix**, harvested under row cover. Enjoy it, because the greens are slowing down.
-- **Watermelon radishes**, the ugly-on-the-outside, gorgeous-on-the-inside roots that have us excited this week
-- **Herb bunch**, sage or thyme depending on your pickup day
+- **Lacinato kale**, frost-kissed and tender
+- **Carrots**, a big bunch with greens still on
+- **Brussels sprouts**, still on the stalk (yes, the whole stalk)
+- **Delicata squash**, two or three per share
+- **Yellow onions**, cured and ready for storage
+- **Garlic**, two heads from this summer's harvest
+- **Spinach**, the first cutting from the hoop house
+- **Watermelon radishes**, plain on the outside and a bright pink surprise inside
 
-*Note: Shares may vary slightly by pickup day based on what the field gives us.*
+Full shares will also get a bag of **parsnips** and a small pie pumpkin.
 
-## In the Kitchen: Roasted Squash and Kale with Crispy Sage
+## Storage Tips
 
-This one tastes like November, and it uses most of your share.
+Twist the greens off your carrots as soon as you get home. They'll keep pulling moisture from the roots otherwise. The greens make a lovely pesto, so don't toss them.
 
-1. Heat the oven to 425°F. Peel and cube one butternut squash and toss it with olive oil, salt, and a pinch of chili flakes. Roast for 25–30 minutes, until the edges are caramelized.
-2. While it roasts, strip a bunch of kale from its stems and tear it into pieces. Massage it with a little olive oil, lemon juice, and salt until it softens and darkens, about a minute.
-3. In a small pan, warm a few tablespoons of butter over medium heat. Add a handful of sage leaves and fry until crisp, 1–2 minutes. Pull the leaves out and keep the browned butter.
-4. Toss the warm squash with the kale, drizzle with the sage butter, and top with the crispy leaves. Toasted pumpkin seeds, crumbled feta, or a handful of dried cranberries make it even better.
+The Brussels sprouts will stay fresh longest on the stalk. Stand it in a jar with an inch of water in a cool spot, or snap the sprouts off and refrigerate them in a bag. Onions, garlic, and squash like it cool, dark, and dry, not in the fridge.
 
-**Watermelon radish tip:** Slice them paper-thin and lay them over the salad mix with a simple vinaigrette. They're mild, a little peppery, and they'll make your table look like you hired a food stylist.
+## Notes from the Field
 
-## Storage Notes
+Most of the work this week was about tucking things in. We pulled the last of the peppers before the frost, seeded cover crop on the fields we've finished harvesting, and laid row cover over the spinach and lettuce that will carry us into December. The garlic for next year is in the ground. We planted just over six thousand cloves, mulched with straw, and now we wait until spring to see the green shoots come up.
 
-Many of this week's items will keep for a long time if you treat them right:
+The hens have slowed down with the shorter days, which is natural for them this time of year. Egg shares may run a little light for the next few weeks. Thanks for your patience while the girls take their seasonal rest.
 
-- **Squash and sweet potatoes:** Keep them somewhere cool and dry, like a pantry or a basement shelf. Don't refrigerate sweet potatoes, because cold turns their texture hard and off.
-- **Onions and garlic:** Store them in a well-ventilated spot away from the potatoes. The two speed up each other's spoiling.
-- **Carrots and radishes:** Cut off the greens, which pull moisture out of the roots. Store the roots in a sealed bag or container in the fridge, where they'll last for weeks.
+## Recipe: Roasted Delicata and Brussels Sprouts with Maple and Garlic
 
-## Around the Farm
+Delicata is the friendliest squash there is. The skin is thin enough to eat, so there's no peeling.
 
-This week was all about tucking the farm in for winter. We planted next year's garlic, roughly a quarter acre of cloves, each pushed by hand into the soil, mulched with straw, and left to sleep until spring. There's something hopeful about planting a crop you won't harvest for nine months. Every clove is a small bet that next July will come.
+1. Heat your oven to 425°F.
+2. Slice the delicata in half lengthwise, scoop out the seeds, and cut it into half-moons about half an inch thick.
+3. Trim and halve the Brussels sprouts.
+4. Toss everything with olive oil, salt, pepper, and three or four smashed garlic cloves.
+5. Spread it all on a sheet pan in a single layer. Crowding makes it steam instead of brown.
+6. Roast 25 to 30 minutes, flipping once, until the edges are deeply caramelized.
+7. Drizzle with a spoonful of maple syrup and a squeeze of lemon right as it comes out of the oven.
 
-The beds that finished up for the season have been sown with a cover crop of winter rye and hairy vetch. Over the winter those roots will hold the soil in place, feed the underground life that keeps our fields healthy, and add nitrogen back for next year's tomatoes. If you drive past and see a green haze across the bare ground, that's what it is.
-
-We also want to say thank you. Our crew has worked through heat waves, a rainy June that tested everyone's patience, and more 5 a.m. harvest mornings than we can count. They are the reason your share shows up every week. If you see them at pickup, a word of thanks goes a long way.
+It's good as a side and just as good over a bowl of farro with a fried egg on top.
 
 ## Looking Ahead
 
-We have just a few weeks left in the main season. Watch your inbox for details about our final pickup and our winter share, which is a once-a-month box of storage crops, greens from the hoop house, and whatever else we can coax out of the cold months. Spots are limited and tend to go quickly.
+We have **three pickups left** in the main season. After that, our winter storage shares begin: monthly boxes of roots, squash, onions, garlic, and greens from the hoop house. Spots are limited and they go fast, so sign up at pickup or reply to this email if you'd like one held for you.
 
-Sign-ups for next season will open soon, too. Returning members get first pick before we open to the public. If this season meant something to your household, we'd love to have you back.
+We're also starting to plan next year. If there's something you'd love to see more of (or something you'd be happy never to see again; we won't take it personally), let us know at pickup. Your feedback really does shape what goes in the ground.
 
-## One Last Thought
+## Thank You
 
-There's a temptation this time of year to think of the season as winding down. The cold mornings and the shorter days push us that way. Standing in that frosted kale on Tuesday, though, it felt more like the farm was shifting gears. The plants were getting sweeter. The soil was getting ready. The garlic was going in the ground for a summer none of us can see yet.
+Every week, someone at pickup tells us what they made with last week's share, and it never gets old. Thank you for eating with the seasons alongside us, and for showing up through the heat, the rain, and now the frost.
 
-Thank you for being part of this with us, through every frost and every harvest.
+Bundle up, roast something, and we'll see you at pickup.
 
-See you at pickup,
-
-**Your farmers**
-
-*P.S. Please return your empty share boxes and egg cartons at pickup. We reuse every one we can, and as the season winds down we're running low.*
+With gratitude,
+Your Farm Crew

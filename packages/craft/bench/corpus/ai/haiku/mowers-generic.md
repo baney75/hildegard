@@ -1,59 +1,50 @@
-# Put Your Mower to Bed Right: A Winter Storage Guide from Your Local Small Engine Shop
+# Don't Let Winter Wreck Your Mower: A Simple Guide to Putting It Away Right
 
-Winter is coming, and your lawn mower is about to get a long nap. How you put it away now decides whether it fires up on the first pull next spring or spends April sulking in the garage. A little work in the fall saves a lot of frustration, and often a trip to the shop, when the weather turns warm and everyone wants their mower at once.
+The mower that roared through summer deserves a little care before it goes into storage. Skipping a few steps now often means a hard-starting engine, a gummed-up carburetor, or a dead battery when the grass starts growing again in spring. A solid hour of work in the fall can save you a lot of frustration and repair bills later.
 
-Here's our checklist for getting your mower ready for storage.
+## 1. Clean It Off
 
-## 1. Run the Fuel System Dry, or Treat It
+Start with the deck. Grass clippings, mud, and moisture trapped under the deck cause rust and corrosion, and they hold dampness against the metal all winter. Tip the mower carefully or tilt it onto its side, following your owner's manual so you don't flood the air filter or spill oil. Scrape the underside clean and rinse it, then let it dry completely before storing.
 
-Gasoline is the biggest enemy of a stored engine. Modern ethanol-blended fuel attracts moisture and begins breaking down within a month or two. The result is varnish and gum that clog the carburetor jets, plug the fuel lines, and leave you with an engine that cranks but won't run.
+Wipe down the engine as well, keeping water away from the air intake and the carburetor.
+
+## 2. Deal With the Fuel
+
+Old gasoline is the most common reason small engines fail to start after winter. Gasoline begins to break down within a few months. It leaves varnish in the carburetor jets and gums up the fuel system.
 
 You have two good options:
 
-- **Add a fuel stabilizer.** Mix it into a full tank of fresh gas, then run the engine for 5 to 10 minutes so the treated fuel reaches the carburetor. This is the simplest route for most homeowners.
-- **Drain the tank and carburetor bowl.** Run the engine until it stalls from lack of fuel. This leaves nothing to go bad, but it takes a few extra minutes.
+- **Add fuel stabilizer.** Fill the tank with fresh gas, add a stabilizer at the rate listed on the bottle, and run the engine for a few minutes so the treated fuel reaches the carburetor.
+- **Drain the tank.** Run the engine until it stalls from lack of fuel. This takes a little longer, but it leaves nothing to go bad. Dispose of old gas at a proper collection site, never in the trash or on the ground.
 
-Whichever you choose, don't store the mower with untreated gas in the tank. Also keep in mind that stabilizer doesn't reverse old fuel. If the gas is already a season old, drain it and start fresh.
+Stabilizer is the easier choice for most homeowners, but both work.
 
-## 2. Change the Oil
+## 3. Change the Oil
 
-Old oil carries acids and combustion byproducts that can sit on engine internals all winter. Change it before storage, while the engine is still warm, so the old oil drains easily. Refill with the manufacturer's recommended grade and quantity. Your owner's manual has the specifics.
+Used oil holds acids and contaminants that can corrode engine parts over several months of sitting. Drain the oil while the engine is still warm, which lets it flow out more fully, and refill with fresh oil to the proper level. Take the used oil to a recycling center.
 
-## 3. Clean the Mower Thoroughly
+## 4. Service the Air Filter and Spark Plug
 
-Grass clippings, mud, and dirt hold moisture against metal and invite rust. Once the engine has cooled:
+A dirty air filter restricts airflow and makes starting harder. Replace a paper filter if it's worn, or clean and re-oil a foam filter according to its design.
 
-- Scrape the underside of the deck to remove caked-on grass.
-- Clean the cooling fins on the engine so it can breathe.
-- Wipe down the air filter housing and replace the filter if it's dirty or damaged.
-- Remove the spark plug and inspect it. Replace it if the electrode is worn or the porcelain is cracked. A fresh plug every year is cheap insurance.
+Remove the spark plug and inspect it. A dark, sooty, or wet tip usually points to a problem worth fixing. Replacing the plug each season is inexpensive insurance for a reliable start in spring. Set the gap to the manufacturer's specification before installing the new one.
 
-A light coat of oil on exposed metal surfaces will also help prevent surface rust.
+## 5. Sharpen or Inspect the Blade
 
-## 4. Check the Blade
+A dull blade tears grass instead of cutting it, which leaves ragged, brown tips and invites disease. Before storage is a good time to remove the blade, sharpen it or have it balanced, and reinstall it. Wear gloves, and remember to disconnect the spark plug wire before you work near the blade.
 
-A dull blade tears grass and leaves ragged brown tips. Before winter, remove the blade (disconnect the spark plug wire first, always) and:
+## 6. Protect the Battery
 
-- Sharpen the edges, or have them sharpened.
-- Check for cracks, bends, or excessive wear, and replace the blade if you find any.
-- Balance the blade. An unbalanced blade vibrates, wears bearings, and shortens engine life.
+If your mower has an electric start, the battery is the weak link over winter. Disconnect it, or use a battery tender to keep it charged. A battery left discharged in cold weather can be damaged beyond recovery.
 
-Sharpening now means you won't be scrambling for service in the first warm weekend of spring.
+## 7. Store It Smart
 
-## 5. Inspect Belts, Cables, and Tires
+Choose a dry, sheltered spot. A garage, shed, or basement works well. Avoid storing the mower where it will sit in direct contact with concrete that holds moisture, and keep it away from the furnace or water heater, where fumes could be a concern. Cover it loosely to keep dust off, but don't seal it in plastic, which can trap condensation.
 
-Look over the drive belt for cracks or fraying, and check control cables for stiffness or rust. Make sure tires hold air. Flat-spotted tires are an easy fix, but they're better avoided altogether.
+## Spring Startup
 
-## 6. Store It Properly
+When warm weather returns, check the oil, add fresh fuel if you drained the tank, and reconnect the battery. If the mower still won't start or runs rough, don't keep cranking it. Repeated attempts can flood the engine and make the problem worse.
 
-Choose a dry spot. A damp shed or an unheated garage with temperature swings can cause condensation inside the engine. If you can, keep the mower on a flat surface, not tilted, and avoid storing it directly on a concrete floor that sweats in the cold. Cover it loosely with a breathable cover rather than a plastic tarp, which traps moisture.
+## Let Us Handle It
 
-If your mower has a battery, the battery needs attention too. Disconnect it, store it somewhere above freezing, and keep it topped off with a trickle charger once a month or so. A dead battery in April is one of the most common spring service calls we see.
-
-## 7. Don't Forget Other Small Engines
-
-Snowblowers, tillers, chainsaws, and trimmers deserve the same care. Stabilize the fuel, change the oil, and clean them up. A snowblower in particular needs its fuel system protected, since it will sit idle for months and then be asked to work hard on the first big storm.
-
-## Need Help?
-
-If your mower sputtered last season, smoked, or just never felt quite right, bring it in before winter. We'd rather catch a small problem in October than sell you a new engine in May. Give us a call to schedule a fall tune-up, and we'll have your equipment ready to roll when the grass starts growing again.
+If you'd rather not do this work yourself, or if your mower is showing signs of trouble, bring it in. A professional tune-up before winter catches small problems early and gets your machine ready for the first mow of the season. Stop by the shop this fall and let us get your mower ready for winter so it's ready to go when spring arrives.

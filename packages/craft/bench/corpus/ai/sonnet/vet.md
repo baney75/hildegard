@@ -2,26 +2,29 @@
 
 Dear clients and friends,
 
-We're pleased to share some changes coming to Ruiz Animal Clinic this spring.
+We have some news we're glad to share: starting March 1, Ruiz Animal Clinic will be open on Saturdays.
 
-**Saturday hours begin March 1**
-Starting March 1, we will be open Saturdays from 8 a.m. to noon for sick visits and vaccines. Please note that we will not be performing surgeries on Saturdays. Walk-ins are welcome and are seen first come, first served. If your pet is vomiting or limping, please call ahead so we can prepare for your visit.
+**Saturday hours**
+Every Saturday from 8 a.m. to noon, we'll see pets for sick visits and vaccines. Surgeries will not be scheduled on Saturdays. Walk-ins are welcome and are seen first come, first served. If your pet is vomiting or limping, please call ahead so we can prepare for you.
 
-**Welcome Dr. Tom Pak**
-On March 3, Dr. Tom Pak joins our team from Pullman. We're delighted to have another doctor here to care for your pets, and we look forward to introducing you.
+**Wellness visits**
+Wellness appointments will stay Monday through Friday.
 
-**Weekday schedule**
-Wellness visits remain Monday through Friday. Beginning March 1, we will also be closing for lunch from 12 to 1 p.m. on weekdays.
+**A new veterinarian**
+Dr. Tom Pak joins our team from Pullman on March 3. We're delighted to welcome him and look forward to introducing him to you.
 
 **Rabies clinic on March 15**
-Mark your calendar for our rabies clinic on March 15. Vaccines are $18 per shot, with no exam fee.
+Our rabies clinic is March 15. Vaccines are $18 a shot, with no exam fee.
+
+**Lunch closure on weekdays**
+To help our team keep up with the added hours, we will now close for lunch from 12 to 1 p.m., Monday through Friday.
 
 **After-hours emergencies**
-If your pet has an emergency when we're closed, please call our after-hours emergency line at 509-555-0142.
+If your pet has an emergency outside our regular hours, please call our after-hours emergency number at 509-555-0142.
 
-Thank you for trusting us with your pets. We look forward to seeing you, and them, soon.
+Thank you for trusting us with your pets. We look forward to seeing you, whether on a weekday or a Saturday morning.
 
-Warmly,
+Warm regards,
 
 Dr. Ana Ruiz
 Ruiz Animal Clinic

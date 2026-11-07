@@ -1,62 +1,51 @@
 # This Week at the Farm
+**Newsletter for the week of November 7, 2026**
 
-**Week of November 7, 2026**
+## Frost Sweetens the Fields
 
-Dear members,
+The first hard frosts have come through, and the fields look different now. The tomato vines are long gone, the summer beds are tucked under cover crop, and what's left standing is the hardy stuff: kale, collards, leeks, Brussels sprouts, and the last of the carrots. Cold turns the starches in these crops to sugar, so this is when they taste their best. If you've been waiting for the carrots to get really sweet, this is the week.
 
-The mornings now start with frost on the field edges, and the kale has gone sweet because of it. Cold turns the starches in leafy greens into sugars, so this is the time of year when kale, collards, and spinach taste their best. If you've been lukewarm on kale all season, try it again this week.
+## In Your Share This Week
 
-## In This Week's Share
+- **Carrots**: Frost-sweetened and crunchy. Good raw, better roasted.
+- **Winter squash**: Delicata and butternut. These keep for weeks on the counter, so there's no rush.
+- **Leeks**: Wash them well, since dirt hides between the layers.
+- **Kale or collards**: Hardy and sweeter after the cold.
+- **Brussels sprouts**: Some of you will get stalks, and some will get loose sprouts.
+- **Potatoes**: Store them in a cool, dark spot, not the fridge.
+- **Cabbage**: A dense, heavy head that keeps for a month or more in the crisper.
+- **Garlic**: For everything above.
 
-- **Carrots**: Fall carrots are the sweetest of the year. Roast them whole with a little oil and salt.
-- **Winter squash**: Butternut and delicata. Delicata needs no peeling, so slice it into rings and roast until the edges caramelize.
-- **Kale or collards**: Frost-sweetened and tender.
-- **Potatoes**: These are cured and ready for storage.
-- **Beets**: Roast them, or grate them raw into a slaw.
-- **Onions and garlic**: Keep them in a cool, dry, dark place.
-- **Leeks**: Slice them lengthwise and rinse well, since soil hides between the layers.
-- **Radishes or turnips**: Small, crisp, and good with butter and salt.
+Contents can shift a little depending on what the harvest crew finds, so your box may differ slightly from your neighbor's.
 
-Contents can shift a little depending on what the cold has done to the fields, so the exact mix in your box may vary from the list above.
+## Notes from the Field
 
-## Storing Your Share
+This is the quiet stretch of the season. Most of the work now is putting the farm to bed: pulling irrigation lines, spreading compost, sowing cover crops, and covering the beds we'll plant early next spring. We're also keeping an eye on the forecast, because a deep freeze means row covers go over the greens and the last roots come out of the ground.
 
-With cold weather, a lot of this week's box will keep for weeks if you treat it right.
+Thank you for sticking with us through a long season. Every box you picked up, every container you returned, and every kind word at pickup made a difference.
 
-- **Squash and onions** like a cool, dry spot on the counter or in a pantry. Don't refrigerate them.
-- **Potatoes** want darkness. Light turns them green and bitter. Keep them out of the fridge too.
-- **Carrots and beets**: Cut off the tops, which pull moisture from the roots, then store the roots in a bag in the fridge. They'll stay crisp for weeks.
-- **Kale and collards** keep best wrapped loosely in a damp towel in the crisper drawer.
+## What to Cook: Roasted Squash and Leek Soup
 
-## From the Field
+This is an easy way to use several things from your box at once.
 
-We're in the stretch where the work shifts from harvesting to putting the farm to bed. Beds are being cleared, cover crops sown, and compost spread so the soil can rest and rebuild over winter. Cover crops hold the soil in place through rain and snowmelt, feed the microbes below, and give us a head start next spring. It isn't glamorous work, but next year's tomatoes start here.
+1. Halve a butternut squash, scoop out the seeds, and roast it cut-side down at 400°F for 40 to 45 minutes, until soft.
+2. While it roasts, slice 2 leeks (white and light green parts) and cook them in butter or olive oil over medium heat until soft, about 10 minutes. Add 3 cloves of minced garlic for the last minute.
+3. Scoop the squash flesh into the pot and add 4 cups of broth. Simmer for 15 minutes.
+4. Blend until smooth. Season with salt, pepper, and a pinch of nutmeg.
+5. Top with toasted seeds, a swirl of cream, or crispy kale chips made from your greens.
 
-We're also tucking in the garlic. Cloves go into the ground now, spend the winter putting down roots, and send up green shoots in spring. It's one of our favorite acts of faith: planting something in November for a harvest next summer.
+**Storage tip:** Keep squash and potatoes out of the fridge. Keep carrots and cabbage in it. Leeks do best wrapped loosely in a damp towel in the crisper.
 
-## What to Cook
+## Reminders
 
-**Roasted Squash and Kale Salad**
-Roast cubed butternut squash at 425°F for about 25 minutes, until browned at the edges. Massage thinly sliced kale with olive oil, lemon juice, and a pinch of salt until it softens. Toss the warm squash through the kale and finish with toasted nuts or seeds and a little grated cheese if you like.
+- **Pickup:** Please bring your boxes back clean and dry so we can reuse them. We're grateful for every one that returns.
+- **Missed a pickup?** Let us know ahead of time and we'll set your share aside or find a good home for it.
+- **Winter and next-season sign-ups:** Planning for next year is underway. Signing up early helps us decide how much to plant, and it's the best way to support the farm through the slow months.
 
-**Leek and Potato Soup**
-Sweat sliced leeks in butter until soft, add diced potatoes and enough stock to cover, and simmer until tender. Blend until smooth, or leave it chunky. Season with salt, pepper, and a splash of cream or olive oil. It's a good use of two things that arrive in the box together.
+## A Closing Thought
 
-**Beet and Carrot Slaw**
-Grate raw beets and carrots, then dress with apple cider vinegar, a little honey, salt, and a spoonful of oil. It's bright, crunchy, and holds up well in the fridge for a few days.
+There's something satisfying about a table full of food that grew within a few miles of where you're eating it. As the days get shorter, we hope your kitchen gets a little warmer. Make soup, roast something, and share a meal.
 
-## A Note on Thanksgiving
-
-Thanksgiving is coming up, and many of you will be cooking for a crowd. Squash, potatoes, onions, carrots, and greens from your shares can make up most of the table. If you want to plan ahead, now is a good time to start setting aside storage vegetables, since most of them will keep happily until the holiday.
-
-## Returning Your Boxes
-
-Please bring back your empty boxes and bags when you pick up your share. We reuse them all season, and it saves us money and waste. Thank you to everyone who has been so good about this.
-
-## Thank You
-
-This community is what makes a farm like ours possible. Your commitment at the start of the season gave us the security to plant, to take risks, and to weather the tough weeks. When you tell us what you cooked, send a photo of a meal, or just say hello at pickup, it matters more than you might know.
-
-Eat well, stay warm, and we'll see you next week.
+See you at pickup.
 
 Your farmers

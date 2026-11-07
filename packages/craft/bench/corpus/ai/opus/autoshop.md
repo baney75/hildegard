@@ -1,58 +1,59 @@
-# Don't Let Your Battery Quit on the Coldest Morning of the Year
+# Don't Let a Cheyenne Morning Kill Your Battery: A Winter Care Guide
 
-*By Luis Moreno, Moreno Auto, Cheyenne*
+*By Luis Moreno, Moreno Auto*
 
-In the first week of last January, I jump-started 42 cars. Most of those drivers told me the same thing: "It was fine yesterday." In most cases the battery had been weak for weeks. It took a cold Wyoming morning to finish it off.
+Every winter it happens the same way. The first real cold snap rolls in off the plains, the temperature drops overnight, and the next morning half of Cheyenne turns the key and hears *click-click-click*. Last January, in the first week alone, I jump-started 42 cars. Most of those drivers had batteries that were already on their way out, and the cold finished the job.
 
-A battery failure in winter is almost never a surprise to the battery. With a little attention before the first cold snap, you can avoid being one of those 42.
+Here's what's going on under your hood when the temperature drops, and how to stay off my jump-start list this year.
 
 ## Why Cold Weather Is So Hard on Batteries
 
-A car battery makes power through a chemical reaction, and cold slows that reaction down. At 32 degrees, a battery loses about a third of its starting power. At zero, it loses about half.
+A car battery makes power through a chemical reaction, and cold slows that reaction down. At 32 degrees, your battery has lost about a third of its starting power. At zero, it's lost about half.
 
-At the same time, your engine needs more power to turn over in the cold, because the oil is thicker and everything moves more stiffly. So on a below-zero morning in Cheyenne, your engine is asking for more power from a battery that can only deliver half of what it normally could. A battery that gets by in September can come up short in January.
+Cold weather also thickens your engine oil, so the engine is harder to turn over. Your battery has less power to give at the exact moment your engine needs more. A battery that starts your car fine in September can leave you stranded in January.
 
-## How Long Batteries Last Here
+## How Long Do Batteries Last in Wyoming?
 
-Most car batteries last 3 to 5 years. In Wyoming, the ones we see average about 4. Our temperature swings, long cold stretches, and dry wind take a toll.
+Most car batteries last 3 to 5 years. Here in Wyoming, we see them average about 4. Our hot summers, bitter winters, and big temperature swings wear them out faster than in milder climates.
 
-If your battery is 3 years old or older, it's worth checking before winter, even if it seems fine right now.
+If your battery is 3 years old or older, it's worth paying attention to this winter.
 
 ## Warning Signs to Watch For
 
-Your car will usually tell you when the battery is getting weak. Pay attention if you notice:
+Your battery will usually give you a heads-up before it quits. Watch for:
 
-- **The engine cranks slowly** when you start it, with a sluggish *rrr-rrr-rrr* instead of a quick start.
-- **The dash lights dim at idle**, or your headlights look weaker when the engine is just idling.
+- **Slow cranking.** The engine turns over sluggishly instead of firing right up.
+- **Dimming dash lights at idle.** If your dashboard or headlights dim when the engine is idling, your battery or charging system may be struggling.
 
-If you notice either one, get the battery tested before the first cold snap. A battery that's struggling now will likely fail when the temperature drops.
+If you notice either of these, get your battery tested before the first cold snap. A battery that's weak in the fall won't get stronger when it's 5 below.
 
-## Check Your Terminals
+## Clean Those Terminals
 
-Look under the hood at the two posts on top of your battery. If you see white, green, or bluish crust, that's corrosion. It can keep your battery from charging properly and from delivering full power when you start the car.
+Corrosion on battery terminals, that white, green, or bluish crust, gets in the way of the electrical connection and makes a weak battery even weaker. You can clean it yourself:
 
-You can clean it yourself:
+1. Turn off the engine. Disconnect the negative (black) cable first, then the positive (red).
+2. Mix baking soda with a little water and apply it to the terminals and cable ends. It will fizz as it neutralizes the corrosion.
+3. Scrub with a wire brush until the metal is clean and shiny.
+4. Rinse with a small amount of clean water and dry thoroughly.
+5. Reconnect the positive cable first, then the negative.
 
-1. Turn the engine off. Disconnect the negative (black, –) cable first, then the positive (red, +).
-2. Mix a little baking soda with water and apply it to the terminals and cable ends. It will fizz as it neutralizes the corrosion.
-3. Scrub with a wire brush until the metal is clean.
-4. Rinse with a small amount of clean water and dry everything well.
-5. Reconnect the positive cable first, then the negative, and make sure both are tight.
+Wear gloves and eye protection. Battery acid is no joke.
 
-Clean terminals won't save a battery that's worn out, but they help a healthy battery do its job.
+## Free Battery Load Tests at Moreno Auto
 
-## Get a Free Load Test
+A battery can look fine and still fail. The only way to really know how much life it has left is a load test, which checks how your battery performs under the kind of demand a cold start puts on it.
 
-The best way to know where your battery stands is a load test. It shows how your battery performs under real demand, which a simple voltage reading can't tell you.
+At Moreno Auto, a load test is **free** and takes about **ten minutes**. Stop by, and we'll tell you straight whether your battery is ready for winter or living on borrowed time.
 
-**At Moreno Auto, a load test is free and takes about ten minutes.** Stop by, and we'll tell you whether your battery is good for another winter or getting close to the end.
+If it does need replacing, a new battery runs **$140 to $220 installed**, depending on your vehicle. That beats paying for a tow, missing work, or standing in a parking lot at 6 a.m. waiting for a jump.
 
-If it does need replacing, a new battery installed at our shop runs **$140 to $220**, depending on your vehicle. That's a lot less hassle than a tow, a missed shift, or waiting in a parking lot at 6 a.m. for a jump.
+## Get Ahead of the Cold
 
-## Don't Wait for the First Cold Snap
+Winter in Cheyenne doesn't wait, and neither does a dying battery. If your battery is 3 years old or more, your engine has been cranking slow, or your dash lights flicker at idle, come see us before the first hard freeze.
 
-Every year the first truly cold morning brings a rush of dead batteries, and every year most of them could have been caught ahead of time. Ten minutes now can save you a morning stuck in the driveway.
+Ten minutes and a free test now can save you a cold, dead morning later. We'd rather see you in the shop than on the side of the road.
 
-Come see us at Moreno Auto in Cheyenne for your free battery load test. Let's get you ready for winter before winter gets here.
+Stay warm out there,
 
-*— Luis Moreno, Moreno Auto*
+**Luis Moreno**
+Moreno Auto, Cheyenne, Wyoming

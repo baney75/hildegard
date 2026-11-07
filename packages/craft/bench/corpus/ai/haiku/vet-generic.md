@@ -2,22 +2,26 @@
 
 Dear [Client First Name],
 
-Starting [start date], [Clinic Name] will be open on Saturdays. Our new Saturday hours are [Saturday open time] to [Saturday close time].
+We're pleased to announce that [Clinic Name] will now be open on Saturdays, starting [start date]. Beginning that day, we'll welcome patients from [opening time] to [closing time].
 
-We know busy schedules can make it hard to get your pets in for care during the week. Saturday hours give you another option for wellness exams, vaccinations, sick visits, and routine appointments.
+We know that weekday work schedules can make it hard to bring your pets in for routine care or when something seems off. Saturday hours give you another option for:
 
-**Saturday hours:** [Saturday open time] to [Saturday close time]
-**Weekday hours:** [weekday hours, unchanged]
+- Wellness exams and vaccinations
+- Dental cleanings and check-ups
+- Sick and injury visits
+- Prescription refills and medication questions
+- Spay and neuter appointments [adjust to services offered on Saturdays]
 
-To book a Saturday appointment, call us at [phone number] or book online at [booking link]. Appointments fill quickly, so we recommend booking early.
+Saturday appointments are available now. You can book online at [website link], call us at [phone number], or stop by the front desk during our weekday hours. Walk-in availability on Saturdays will depend on the day, so we recommend scheduling ahead when you can.
 
 For emergencies outside our regular hours, please contact [emergency clinic name and phone number].
 
-Thank you for trusting us with your pets. We look forward to seeing you on Saturdays.
+Thank you for trusting us with your animals' care. We look forward to seeing you and your pets on Saturdays.
 
-Warmly,
+Warm regards,
 
 [Your Name]
 [Title]
 [Clinic Name]
-[Phone number] | [Website]
+[Phone Number] | [Email Address]
+[Clinic Address]

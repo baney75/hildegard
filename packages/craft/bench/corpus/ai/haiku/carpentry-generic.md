@@ -1,39 +1,29 @@
-# Teaching Math Through the Chicken Coop
+# Building a Chicken Coop, One Measurement at a Time
 
-This spring, our daughter asked whether we could get chickens. My first instinct was to say yes to the eggs and no to the mess. My second instinct, the one that stuck, was that if she wanted chickens, we had to build them a home first. That turned into the best math curriculum we've used all year.
+When we decided to build a chicken coop in the backyard, I expected the hard part to be the carpentry. It turned out the math was where the real learning happened, and my daughter did most of it herself.
 
-We didn't plan it as a unit. We just started with a question: how big does a coop need to be?
+## Starting With a Plan
 
-## Step One: Measuring and Estimating
+Before we bought a single board, we sketched the coop on graph paper. We chose a scale where one square equaled one foot, so a 4-by-6-foot footprint became a rectangle four squares tall and six squares wide. She counted the squares to find the floor area and discovered that 4 × 6 = 24 square feet. Then she asked the question that led the whole project: "How much room does each chicken get?"
 
-We started with the rule of thumb most backyard keepers use: about four square feet of coop space per bird, and roughly ten square feet of run per bird. Our daughter wanted six hens, so she did the first calculation herself. Six times four is twenty-four square feet of coop floor. She sketched a rectangle on graph paper and tried different dimensions until she found one that worked: four feet by six feet.
+We looked up the guideline of roughly 4 square feet per bird in the coop and 10 square feet per bird in an outdoor run. We had four hens planned, so she worked out that the coop needed at least 16 square feet of floor space. Our 24 square feet was more than enough, and she could explain why in her own words. That was the first lesson: a math answer has to connect to a real need.
 
-Then came the question she found funny: "Is that enough room if I make it taller?" Floor area and volume are different things, and we spent an afternoon talking about why a tall coop doesn't give the hens more floor to stand on, even though it adds air. It was a better conversation about area than any worksheet I've written.
+## Measuring Is Harder Than It Looks
 
-## Step Two: Lumber and Cutting Lists
+Next came the lumber list. Every board had to be cut to a specific length, and we had to account for the thickness of the wood, the width of the saw blade, and the overlap at the corners. She practiced reading a tape measure, which is trickier than it sounds because the marks are in sixteenths of an inch. We made a rule: measure twice, and then have someone else check.
 
-Next we priced materials. We used a basic cutting list, and she learned to read board lengths in feet and inches, then to convert between them. Standard lumber comes in eight-foot lengths, so we asked: how many boards do we need, and how much waste will we make?
+A few cuts went wrong. One side wall came out a quarter inch short. Instead of getting frustrated, we treated it as a problem to solve. She calculated the gap, decided whether a shim or a new board made more sense, and chose the shim. Mistakes like that taught her more about fractions than any worksheet had.
 
-She drew the frame on paper first, labeled every piece, and added up the total linear feet. When the numbers didn't match what the store sold, we talked about rounding up, about buying an extra board in case of a bad cut, and about what a 15 percent overage costs in real dollars.
+## Budgeting With Real Numbers
 
-Her favorite part was the budget spreadsheet. She entered each item, its price, and a running total. When the total went over what we'd planned, she had to decide what to cut, and she learned that a budget is a set of tradeoffs, not just a number.
+We gave her a budget of $300 and asked her to plan the purchases. She compared the price per board foot at two lumberyards, factored in tax, and added a 10 percent cushion for mistakes. She found that the cheaper pine was $2 less per board but would need extra bracing, so the cost savings disappeared. Subtraction, multiplication, percentages, and a little logic all showed up in one decision.
 
-## Step Three: Angles, Slopes, and the Roof
+## Angles, Slopes, and Roofs
 
-The roof was the hardest math of the project. A shed roof with a slight pitch sheds rain, and she wanted to know how steep to make it. We measured the rise over the run, turned that into a ratio, and then into a percentage. She discovered that a 4-in-12 pitch is a little under 19 degrees, and she checked the number with a protractor app on my phone.
-
-We also used the Pythagorean theorem to find the length of the rafters. She had seen the formula before but never used it on something she could touch. When her rafter came out to a number that didn't match the measuring tape, she went back and found her mistake. That moment of checking and correcting taught her more than being told the answer.
-
-## Step Four: Building It Together
-
-On build days, she did the measuring and I did most of the cutting, though she made every cut mark herself. Every measurement had to be double-checked: "measure twice, cut once" is not just a saying when a board is four inches short and you have to start over.
-
-We also talked about scale. The plans were drawn at a reduced scale, so she converted a drawing measurement of 3 centimeters into the real length on the lumber. That's proportional reasoning in the most practical form I can think of.
+The roof was our favorite challenge. A flat roof would have been easier, but we wanted rain to run off, so we chose a shed roof with a slight pitch. She learned that a pitch is described as a rise over a run. For a 6-foot run and a 12-inch rise, she calculated the rafter length using the Pythagorean theorem: the square root of 36 + 1 (in feet) is about 6.08 feet, so the rafter needed to be just over 6 feet long, plus overhang. Seeing a theorem she had memorized solve an actual roof was a moment she still brings up.
 
 ## What She Took Away
 
-When the coop was done, she could explain why we chose its dimensions, how much the whole thing cost, and why the roof slopes the way it does. She also understood that math isn't just something you do in a workbook. It's the reason a door fits, a roof sheds water, and six hens get enough room.
+When the coop was finished, the hens moved in, and my daughter proudly showed off her scale drawing, her budget spreadsheet, and her roof calculations in a binder. Her math confidence grew because every number had a purpose. She knew why she was multiplying, what the answer meant, and what would happen if she got it wrong.
 
-If you're thinking about a project like this, here's my advice: start with a real question your child cares about, let them make the first estimate, and resist the urge to correct every mistake right away. Let them find the error themselves. The chickens will wait.
-
-And yes, the hens have arrived. The eggs are great. The math lessons are better.
+If you are thinking about a project like this with your own kids, my advice is simple: let them hold the tape measure, let them make the budget, and let them own the mistakes. Some of the best math in our homeschool happened in the dirt, next to a pile of sawdust and a flock of very curious hens.

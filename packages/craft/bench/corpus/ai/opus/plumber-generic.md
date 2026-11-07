@@ -1,45 +1,41 @@
 # About Us
 
-## Plumbing done right, by people who pick up the phone
+## Plumbing done right, by people who show up
 
-At [Business Name], we believe a plumber should be three things: honest, on time, and good at the job. That sounds simple, but anyone who's waited all day for a no-show or opened a surprise invoice knows how rare it can be. We built this business to be the plumber we'd want to call ourselves.
+Most people don't think about their plumbing until something goes wrong. A pipe bursts at two in the morning. The water heater quits the day before the holidays. The kitchen sink backs up an hour before guests arrive. When that happens, you don't need a sales pitch. You need someone who answers the phone, arrives when they said they would, and fixes the problem the first time.
 
-## Who we are
-
-We're a locally owned plumbing company serving [City] and the surrounding communities. We're not a franchise or a call center, and when you call us, you're talking to people who live here, work here, and care about their reputation in this town. Our neighbors are our customers, and we treat every home like we'll see the owner at the grocery store next week, because we probably will.
-
-## What we do
-
-We handle residential and light commercial plumbing from the small stuff to the big jobs:
-
-- **Leak detection and repair**: dripping faucets, hidden pipe leaks, and everything in between
-- **Drain cleaning**: clogged sinks, slow showers, and main line backups
-- **Water heaters**: repair, replacement, and tankless installation
-- **Fixture installation**: toilets, sinks, faucets, garbage disposals, and more
-- **Repiping and remodels**: updating old plumbing or roughing in for a new kitchen or bath
-- **Sewer and water line service**: inspections, repairs, and replacements
-- **Emergency service**: because burst pipes don't wait for business hours
+That's the whole idea behind this business.
 
 ## How we work
 
-**We show up when we say we will.** Your time matters. We give you a real arrival window and we call if anything changes.
+**We tell you the price before we start.** You'll know what the job costs before any work begins. No surprise line items, no "while we were in there" add-ons you never agreed to.
 
-**We tell you the price before we start.** No vague estimates and no surprise charges. You'll know what the job costs and why before we pick up a wrench.
+**We explain what we find.** If something needs fixing, we'll show you what's wrong and why. If it can wait, we'll tell you that too. Sometimes the honest answer is that a repair isn't needed yet, and we'd rather keep your trust than make a quick sale.
 
-**We explain your options.** If there's a quick fix and a long-term fix, we'll tell you about both and let you decide. We'd rather earn your trust than upsell you.
+**We respect your home.** Shoe covers, drop cloths, and a clean workspace when we leave. You shouldn't have to clean up after the plumber.
 
-**We clean up after ourselves.** We wear shoe covers, protect your floors, and leave your home the way we found it, minus the leak.
+**We stand behind our work.** If something we fixed doesn't hold up, call us and we'll come back and make it right.
 
-**We stand behind our work.** If something we fixed isn't right, we come back and make it right.
+## What we do
+
+- Leak detection and repair
+- Drain cleaning and clog removal
+- Water heater repair and replacement, including tankless systems
+- Toilet, faucet, and fixture installation
+- Sewer line inspection and repair
+- Garbage disposal service
+- Repiping and pipe replacement
+- Remodel and new construction plumbing
+- Emergency service when you need it most
+
+From a dripping faucet to a full repipe, no job is too small to take seriously.
 
 ## Licensed, insured, and accountable
 
-Our team is fully licensed and insured, and we follow local code on every job. That protects your home, your family, and your investment, and it means the work will pass inspection the first time.
+Every job is handled by trained, licensed plumbers who carry full insurance. We keep up with current codes and modern equipment, so the work is done safely, passes inspection, and lasts.
 
-## Let's fix it
+## Our promise to you
 
-Whether it's a running toilet that's been bugging you for months or water coming through the ceiling right now, we're ready to help. Give us a call or send us a message, and a real person will get back to you fast.
+We built this business on repeat customers and word-of-mouth referrals, and the only way to earn those is to treat every home like it matters. Because it does. When you call us, you're trusting us with your house, your schedule, and your budget. We don't take that lightly.
 
-**[Business Name]**
-[Phone Number] · [Email Address]
-Serving [City] and surrounding areas
+If you have a plumbing problem, big or small, give us a call. We'll get it fixed, and we'll treat you right while we do it.

@@ -1,31 +1,41 @@
 # Why We Switched to a Sourdough Starter
 
-A few months ago, we made a change that every loaf in our bakery now reflects: we stopped relying on commercial yeast and started baking with a living sourdough starter. It was a big decision, and we want to tell you why we made it.
+Every morning before the sun is up, the first thing we do in the bakery is check on a jar of bubbling flour and water. It doesn't look like much. But that jar has changed everything about how we bake, and we want to tell you why.
 
-## Flavor You Can't Rush
+## The Old Way Was Fast. Too Fast.
 
-The first reason is the simplest one: taste. Commercial yeast works fast, which is convenient, but speed leaves little time for flavor to develop. A sourdough starter is a community of wild yeast and friendly bacteria that works slowly. Over a long, patient fermentation, it builds a depth you can taste: a gentle tang, a subtle sweetness, and a complex, wheaty aroma that fills the shop in the early morning.
+For a long time, we made our bread the way most bakeries do: with commercial yeast. It's reliable, predictable, and quick. A loaf could go from mixing bowl to oven in a few hours.
 
-## A Better Crust and Crumb
+But we kept noticing the same thing. The bread was fine. It was good, even. But it wasn't *memorable*. It lacked the depth of flavor we remembered from the loaves that first made us fall in love with baking. Speed had won out over character.
 
-Slow fermentation changes the structure of the bread, too. Our loaves now come out with a crackling, deeply caramelized crust and an open, tender crumb with a satisfying chew. The bread holds its character from the first slice to the last heel.
+## What a Starter Gives Us
 
-## Bread That Lasts
+A sourdough starter is a living culture of wild yeast and friendly bacteria, fed with nothing but flour and water. Ours is alive in the truest sense: we feed it, we watch it, and it responds to the weather, the season, and the flour we use.
 
-Sourdough's natural acidity helps bread stay fresh longer. A loaf from our ovens will keep its texture and flavor for days on your counter, with no preservatives needed. Less waste for you, and a better slice of toast on day three.
+Here's what that living culture brings to your table:
 
-## Easier on the Stomach for Many
+**Flavor with real depth.** Slow fermentation develops complex, tangy, slightly sweet notes that fast-rising dough simply can't reach. Each loaf tastes like something happened to it, because it did.
 
-Long fermentation also begins to break down some of the compounds in flour as the dough rests. Many of our customers tell us they find sourdough easier to digest than conventional bread. (Sourdough made with wheat is not gluten-free, so it isn't suitable for anyone with celiac disease.)
+**A better crust and crumb.** Long fermentation gives us a crackly, caramelized crust and an open, chewy interior with a satisfying bite.
 
-## It's Alive, and It Has a Story
+**Bread that keeps.** The natural acidity in sourdough helps loaves stay fresh longer. Your bread on day three still tastes like bread, not like a memory.
 
-Our starter is something we feed, care for, and get to know. It has moods. It likes a warm kitchen. It rises faster in summer and slower in winter, and our bakers adjust to its rhythm every day. Working with something living makes us better bakers, and we think it makes the bread more honest.
+**A gentler loaf.** The long ferment starts breaking down some of the components in flour before the dough ever reaches the oven. Many of our customers tell us sourdough feels easier on their stomachs. (We're bakers, not doctors, so we'll simply say we hear it often.)
 
-## What This Means for You
+## The Trade-Off We Chose
 
-Our schedule has changed to make room for time. Doughs are mixed the day before, shaped, and left to ferment slowly overnight, so that each morning's bread is baked fresh at its peak. Some days we may sell out earlier than we used to, because good things take time and we only make so much.
+Let's be honest: sourdough is harder. It takes more time, more attention, and more patience. Our dough now rests for many hours, sometimes overnight, before it's ready to bake. A starter can't be rushed, and it doesn't take days off. It needs feeding whether it's a holiday or a Tuesday.
 
-We hope you'll stop by, try a loaf, and taste the difference for yourself. Thank you for supporting a small bakery and for being part of the next chapter of ours.
+We decided that was worth it. When you give bread time, it rewards you. And we'd rather hand you one great loaf than a dozen forgettable ones.
+
+## A Little Bit of Tradition
+
+There's something we love about the fact that this is one of the oldest ways of making bread. People have been baking with wild fermentation for thousands of years. Each starter is a little ecosystem, and ours has its own personality. In a small way, every loaf connects what we do today to a very long line of bakers who simply mixed flour and water and waited.
+
+## Come Taste the Difference
+
+The best way to understand the switch is to try it. Stop by the bakery, pick up a fresh loaf, and tear off a piece while it's still warm. Notice the crackle of the crust, the tang, the chew.
+
+We think you'll taste why we did it.
 
 *See you at the counter.*

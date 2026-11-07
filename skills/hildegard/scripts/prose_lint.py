@@ -164,7 +164,7 @@ def blank_non_prose(text):
     )
     text = blank_blocks(text)
     # <tag>. Not closed: "<>", or no > on the rest of the line.
-    text = rx(r"(<[^>\n]+>)|<>|<[^\n]*").sub(when_closed(blank), text)
+    text = rx(r"(<(?!(?:insert|your|add)\s)[^>\n]+>)|<(?:insert|your|add)\s[^>\n]+>|<>|<[^\n]*").sub(when_closed(blank), text)
     # ](target). Not closed: no ) on the rest of the line.
     text = rx(r"(\]\([^)\n]*\))|\]\([^\n]*").sub(when_closed(lambda s: "](" + blank(s[2:])), text)
     text = rx(rf"https?://[^{WS})>\]]+").sub(b, text)

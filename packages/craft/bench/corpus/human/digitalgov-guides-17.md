@@ -1,15 +1,42 @@
-# An introduction to GitHub
+# How to Test Websites for Accessibility
 
-In this first training video, Content Strategy and Design Specialist for GSA’s [Technology Transformation Services (TTS)](https://tts.gsa.gov/), Malaika Carpenter, breaks down how to use GitHub into easy, practical steps and demonstrates ways to use this tool to create, manage and publish website content.
+In this video, Michael Horton, Accessible Design and Development Advisor at the GSA’s Office of Government-wide Policy, describes how to use manual and automated testing methods to create accessible websites—and why it matters. He also shares more information about GSA’s Government-wide IT Accessibility Program.
 
-## What is GitHub?
+## Trusted Testers
 
-[GitHub](https://www.github.com/) is a web-based interface that uses [Git](https://www.git-scm.com/), the open source version control software that lets multiple people make separate changes to web pages at the same time. As Carpenter notes, because it allows for real-time collaboration, GitHub encourages teams to work together to build and edit their site content.
+Before the Department of Homeland Security (DHS) [Trusted Tester program](https://www.dhs.gov/trusted-tester), inconsistent accessibility testing approaches produced different results for the same standard. Users were unable to share results with other users while vendors and developers received mixed messages on the testing process and test results.
 
-## How can GitHub help my team and me?
+The DHS Trusted Tester program addresses these issues by providing a code inspection-based test approach for determining web content conformance to the [Section 508 standards](https://www.access-board.gov/guidelines-and-standards/communications-and-it/about-the-ict-refresh/final-rule/text-of-the-standards-and-guidelines).
 
-GitHub allows multiple developers to work on a single project at the same time, reduces the risk of duplicative or conflicting work, and can help decrease production time. With GitHub, developers can build code, track changes, and innovate solutions to problems that might arise during the site development process simultaneously. Non-developers can also use it to create, edit, and update website content, which Carpenter demonstrates in her tutorial.
+The DHS Trusted Tester program offers:
 
-## How do I speak GitHub?
+- Common evaluation processes and procedures for Section 508 testing;
+- Scalable training with a certification exam for testers; and
+- Resources with certified skills and capabilities related to Section 508 conformance testing.
 
-There are some common terms teams will need to understand when using GitHub. They are:
+The Trusted Tester process aligns with the [Section 508 ICT Testing Baseline](https://section508coordinators.github.io/ICTTestingBaseline/introduction.html) to evaluate the accessibility of a website, which provides more standardized and less subjective results. Automated testing is only capable of inspecting a portion of possible issues, with manual inspections required to evaluate the remainder. Trusted Testers can help identify a broader spectrum of accessibility issues when they are integrated into the review process.
+
+There are several [testing methods](https://www.section508.gov/test/testing-overview) to validate conformance to the [Revised 508 Standards](https://www.access-board.gov/guidelines-and-standards/communications-and-it/about-the-ict-refresh/final-rule):
+
+- **Automated** — High volume testing tools automatically scan and test electronic content;
+- **Manual** — Manual testing uses a documented, consistent, repeatable process;
+- **Hybrid** — A combination of automated and manual testing.
+
+You should use the hybrid approach—both manual testing by Trusted Testers and automated testing tools—to create accessible websites and digital services.
+
+**Become a Trusted Tester**
+
+Visit the [DHS online training portal](https://training.section508testing.net) to take the Trusted Tester training. You can self-enroll, and DHS provides the training at no cost.
+
+## About the Government-wide IT Accessibility Program
+
+The goal of GSA’s Government-wide IT Accessibility Program is to improve compliance and conformance with Section 508 of the Rehabilitation Act. The program provides technical assistance to help agencies comply with these requirements, and ensure that covered information and communication technology (ICT) is accessible to, and usable by, individuals with disabilities.
+
+Visit [Section508.gov](https://www.section508.gov/) for:
+
+- Technical assistance for federal agencies interested in developing, deploying, and managing their accessibility policies;
+- Guidance on how to improve accessibility;
+- Accessibility language for contracts through the [Accessibility Requirements Tool](https://www.buyaccessible.gov/), to ensure any IT products or services agencies purchase are accessible ; and
+- Additional tools, training and resources.
+
+For more information and resources on IT accessibility, visit our [Accessibility](https://digital.gov/topics/accessibility/) topic page, and [Section508.gov](https://www.section508.gov/). Join the [Section 508 IT Accessibility Community](https://digital.gov/communities/it-accessibility-section-508/) Listserv.

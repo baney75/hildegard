@@ -1,45 +1,42 @@
 # Fall Lawn Care in Duluth: What to Do and When
 
-*By Janet Moss, Moss Lawn and Garden*
-
-In Duluth, fall is when your lawn gets ready for winter and sets itself up for next spring. The work you do between late summer and the first hard frost decides whether you get thick, green grass in May or a patchy, matted mess. Here is how we approach it every year.
+In Duluth, fall is when your lawn gets ready for winter and sets itself up for spring. The work you do between late August and the first hard frost decides whether you get thick, green grass next year or a patchy, tired lawn. Here is how we approach it at Moss Lawn and Garden.
 
 ## Aerate and Overseed: August 20 to September 20
 
-This is the most valuable thing you can do for a Northland lawn, and timing matters. Aim to aerate and overseed between August 20 and September 20, while the soil is still warm. Warm soil helps new seed germinate quickly and gives young grass time to establish roots before cold weather arrives.
+The best window for aerating and overseeding in Duluth runs from August 20 to September 20. The soil is still warm during those weeks, which is what new grass seed needs to germinate and establish roots before cold weather arrives.
 
-Aeration pulls small plugs of soil out of the lawn, relieving compaction and letting air, water, and nutrients reach the roots. Seed dropped right afterward settles into those openings and makes good contact with the soil, which is what it needs to take hold.
+Aeration pulls small plugs of soil out of the lawn, relieving compaction and letting air, water, and nutrients reach the roots. Overseeding right afterward drops fresh seed into those openings, where it has good contact with the soil. Together they thicken thin areas and crowd out weeds.
 
-If you'd rather not rent the equipment and haul it around, we can do it for you. Aeration with Moss Lawn and Garden is $140 for a quarter acre.
+If you'd like us to handle it, we charge $140 to aerate a quarter acre.
 
 ## Know Your Frost Date
 
-The first hard frost in Duluth usually arrives around October 5. Plan your fall work backward from that date. Seed needs weeks of growing time, so the earlier in the window you aerate and overseed, the better your results.
+The first hard frost here usually arrives around October 5. Plan your fall tasks around that date. Seed that goes down in the recommended window has several weeks to establish before the ground turns cold, and that head start matters.
 
 ## Mow the Last Time at 2.5 Inches
 
-As the season winds down, resist the urge to cut the grass short for winter. Make your final mow at 2.5 inches, not shorter. Grass that is too short has less leaf surface to store energy for winter and is more vulnerable to stress. Grass left too tall can mat down under snow. Two and a half inches is the sweet spot.
+As the season winds down, keep mowing as long as the grass is growing. For your final mow, set the blade to 2.5 inches, and don't go shorter. Grass cut too short going into winter has less energy reserve and is more exposed to cold. Grass left too long can mat down under snow. Two and a half inches is the right balance.
 
-## Deal with Leaves Before They Deal with Your Lawn
+## Don't Let Leaves Smother the Grass
 
-Fallen leaves look harmless, but a thick layer smothers grass by blocking light and air. Rake them up, or mulch them with your mower so they break into small pieces that filter down into the turf.
+Fallen leaves look harmless, but a thick layer blocks sunlight and air and traps moisture against the grass. Rake them up, or mulch them with your mower so they break into small pieces that settle into the lawn. Either way, don't leave a heavy blanket of whole leaves sitting on the turf.
 
-Don't skip this step. Last year I watched a customer on Lakeside Drive lose half of their lawn to snow mold because leaves were left on all winter. Snow mold thrives under a damp, matted layer of leaves, and the damage shows up as dead, grayish patches when the snow melts. It is easy to prevent and much harder to repair.
+The consequences can be serious. Last year, I watched a customer on Lakeside Drive lose half of their lawn to snow mold because leaves stayed on all winter. Snow mold thrives under a wet, matted layer beneath the snow, and that damage took far more effort to repair than raking would have taken.
 
-## Fertilizer: Stop by October 15
+## Stop Fertilizing After October 15
 
-If you fertilize in the fall, finish by October 15. Don't apply fertilizer after that date. Late applications can push growth the grass can't sustain through winter, and unused nutrients are more likely to wash away.
+If you fertilize in fall, finish by October 15. After that date, don't apply any more. Mark it on your calendar so it doesn't slip by.
 
 ## Your Fall Checklist
 
-- **August 20 to September 20:** Aerate and overseed while the soil is warm
-- **Around October 5:** Expect the first hard frost
-- **Before winter:** Make your last mow at 2.5 inches
-- **Through fall:** Rake or mulch leaves so they never sit on the grass
-- **By October 15:** Finish any fertilizing
+- **August 20 to September 20:** Aerate and overseed while the soil is warm.
+- **Around October 5:** Expect the first hard frost.
+- **Through the season:** Rake or mulch leaves regularly.
+- **Final mow:** Cut at 2.5 inches, not shorter.
+- **October 15:** Last day to fertilize.
 
-## Let Us Help
+A little work in the fall pays off every spring. If you'd rather leave it to a crew who knows Duluth lawns, Moss Lawn and Garden is happy to help.
 
-Fall lawn care isn't complicated, but it is time sensitive. If you'd like a hand, Moss Lawn and Garden serves Duluth and the surrounding area. Get in touch and we'll help you get your lawn ready for winter.
-
-*Janet Moss is the owner of Moss Lawn and Garden in Duluth, Minnesota.*
+*Janet Moss*
+*Moss Lawn and Garden, Duluth, Minnesota*

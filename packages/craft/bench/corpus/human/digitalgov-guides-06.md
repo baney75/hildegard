@@ -1,29 +1,27 @@
-# Hurricane Idalia guidance for U.S. government websites and social media
+# Contact Center Technologies
 
-In response to Hurricane Idalia, the U.S. Department of Homeland Security (DHS) is issuing guidance for the coordination of federal web and social media communications related to this incident.
+A contact center is supported by many technologies designed to enhance the customer experience, improve the operating and management efficiency, or lower the overall costs of running a contact center. These technologies are:
 
-The authority for this action comes from [Emergency Support Function 15](https://www.fema.gov/emergency-managers/national-preparedness/frameworks/response#esf) (ESF-15 - Public Affairs – Annex R) of the [National Response Framework](https://www.fema.gov/emergency-managers/national-preparedness/frameworks/response) where, during incidents of national significance, DHS has the authority to coordinate all U.S. government communications.
+- [Automatic Call Distributor Systems]()
+- [Email Response Management Systems]()
+- [Intelligent Call Routing]()
+- [Interactive Voice Response Systems]()
+- [Knowledge Management Systems]()
+- [TTY/TDD Communications]()
+- [Toll-Free Telephone Services]()
+- [Trunk Circuit Networks]()
+- [Web Chat]()
+- [Workforce Management Systems]()
 
-On August 30, 2023, in conjunction with the [Federal Web Council](https://digital.gov/resources/federal-web-council/), DHS issued ESF-15 guidance for federal web and social communications to support the national response to Hurricane Idalia.
+## Automatic Call Distributor System {#automatic}
 
- **All federal agencies are required to follow this guidance.** 
+An Automatic Call Distributor (ACD) is a computerized telephony system that analyzes incoming calls and distributes them based on specific instructions that define how the calls are to be handled. It has both a hardware and software component. It is considered the hub of a contact center and the most critical technology component. An ACD can range from a few lines for a small system to hundreds of lines, such as systems used in large contact centers.
 
-## In brief
+When the ACD receives a call, it will recognize certain information transmitted along with the call:
 
-Federal agencies with a role in the response effort should stand up an `agency.gov/hurricane-idalia` or `agency.gov/idalia` page. That page should link to the two primary [lanes of communication](#lanes-of-communication):
+- The phone number that was dialed (Direct Number Identification Service–DNIS), or
+- The phone number the call was made from (Automatic Number Identification–ANI)
 
-1. What DHS and Federal Emergency Management Agency (FEMA) are doing
-2. What the U.S. government is doing
+The ACD can also categorize calls based on the callers&#8217; responses to questions in the Interactive Voice Response (IVR) system. The ACD looks for specific rule or skills-based routing instructions stored in the ACD’s database for that DNIS or ANI to determine how the call is to be handled.
 
-When distributing materials related to Hurricane Idalia, please include links to these two lanes on all materials.
-
-When posting information to your agency website, please only post information related to your individual agency. Then, link to the authoritative information from other government agencies that is related to your agency mission or “lane.” Do NOT copy and paste content from other agencies or websites onto your site.
-
-Coordinate emergency response-related web and digital communications with your [Federal Web Council representative](https://digital.gov/resources/federal-web-council#current-council-members).
-
-## Lanes of communication
-
-### What DHS and FEMA are doing
-
-*English*: [https://www.fema.gov/hurricane-idalia](https://www.fema.gov/hurricane-idalia)
-*Spanish*: [https://www.fema.gov/es/hurricane-idalia](https://www.fema.gov/es/hurricane-idalia)
+There are many routing options, including:

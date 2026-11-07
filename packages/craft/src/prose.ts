@@ -102,8 +102,12 @@ export function blankNonProse(text: string): string {
           whenClosed(blank),
         ),
     )
-      // <tag>. Not closed: “<>”, or no > on the rest of the line.
-      .replace(/(<[^>\n]+>)|<>|<[^\n]*/g, whenClosed(blank))
+      // <tag>. Not closed: “<>”, or no > on the rest of the line. A tag that reads “<insert the date>” is left for the
+      // placeholder rule.
+      .replace(
+        /(<(?!(?:insert|your|add)\s)[^>\n]+>)|<(?:insert|your|add)\s[^>\n]+>|<>|<[^\n]*/g,
+        whenClosed(blank),
+      )
       // ](target). Not closed: no ) on the rest of the line.
       .replace(
         /(\]\([^)\n]*\))|\]\([^\n]*/g,

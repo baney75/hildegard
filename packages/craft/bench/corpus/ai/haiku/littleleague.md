@@ -1,23 +1,29 @@
 # Maple Grove Little League Spring Newsletter
 
-Dear Maple Grove families,
+Spring is almost here, and Maple Grove Little League is ready for another season. This year we're fielding **14 teams, up from 11**, and we couldn't be prouder of the growth in our community. Thank you to every family, coach, volunteer, and neighbor who helped make it happen.
 
-Spring is almost here, and the Maple Grove Little League is getting ready for another season. We have a lot to share, so please read on.
+## Registration Closes March 12
 
-**Registration closes March 12.** The fee is $95 per child, and the second sibling is $60. This year we have 14 teams, up from 11 last season, so we are excited about the growth. If you have a child who wants to play, now is the time to sign up.
+Registration closes **Thursday, March 12**, so don't wait. The fee is **$95 per child**, and **the second sibling registers for $60**. If you have kids who want to play, sign them up now to secure their spot on a team.
 
-**Coaches clinic: March 22** at the high school gym. Whether you are a first-time coach or a veteran, we invite you to attend and sharpen your skills before the season begins.
+## Coaches Clinic: March 22
 
-**Veterans Field work day: Saturday, April 5, at 9 a.m.** We need 20 parents to help with rakes and drills to get the field ready. Please bring your work gloves and a willingness to pitch in. Many hands make light work, and we hope to see you there.
+Our coaches clinic is **Sunday, March 22, at the high school gym**. Whether you're a first-time coach or a veteran looking for a refresher, the clinic covers the fundamentals of safe, fun, and effective coaching for players of every skill level. We encourage all coaches to attend.
 
-**Opening day: April 26.** We will kick off the season with a parade starting at 9 a.m. from the fire station. Bring your family, your lawn chairs, and your team spirit.
+## Work Day at Veterans Field: Saturday, April 5
 
-**A thank-you and an update.** The January ice storm damaged the roof of our snack shack. The total repair came to $11,000, and our insurance covered $7,800 of that cost. We are grateful to the Kiwanis Club, whose generous gift of $1,500 is helping us close the gap. Thanks to their support, the snack shack will be ready for game days.
+Veterans Field needs some spring attention, and we need your help. Join us **Saturday, April 5, at 9:00 a.m.** We're looking for **20 parents** to bring rakes and drills to get the fields ready for opening day. Come for an hour or stay all morning. Every pair of hands makes a difference.
 
-We appreciate every family, coach, volunteer, and sponsor who makes Maple Grove Little League possible. We look forward to a great season with you.
+## Opening Day: Saturday, April 26
 
-Play ball!
+Opening day is one of our favorite days of the year. The celebration kicks off with a **parade at 9:00 a.m. from the fire station**, followed by games at the ballpark. Bring your lawn chairs, your team spirit, and your cheering voices.
 
-Gary Tolliver
+## Snack Shack Update
+
+The January ice storm damaged the roof of our snack shack, and we've been working through the repair. Our insurance covered **$7,800 of the $11,000 repair**. We're grateful to the **Kiwanis Club**, whose generous **$1,500 donation** went toward the remaining cost. The snack shack is a gathering place for our families, and we're glad to be getting it back in shape before the season begins.
+
+Thank you for supporting Maple Grove Little League. We'll see you at the ballpark!
+
+**Gary Tolliver**
 President, Maple Grove Little League
 Maple Grove, Minnesota

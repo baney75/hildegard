@@ -1,64 +1,76 @@
-# Spring Newsletter
+# Spring Season Newsletter
 
-## Play Ball: The Season Is Almost Here
+## Play Ball!
 
-The snow will melt, the infields will dry out, and soon the sound of a ball hitting a glove will be back in our neighborhood. Whether your player is swinging for the first time or heading into their last year of Little League, we're glad to have your family on the team this spring.
+The snow is melting, the gloves are out of the closet, and the sound of a bat meeting a ball is back where it belongs. Welcome to a new spring season of Little League. Whether this is your player's first time in a uniform or their tenth, we're glad you're here.
 
-## Opening Day
+## A Note on What Matters
 
-Opening Day is the biggest day on our calendar. Expect a parade of teams, the first pitch, and a lot of kids in brand-new uniforms who can't stand still. Every player should arrive in full uniform and ready to be introduced. Families are welcome to bring lawn chairs, cameras, and plenty of noise.
+Every season, the scoreboard gets forgotten by the car ride home. What kids remember is the friend they made in the dugout, the first time they caught a fly ball, and the snack they got after the game. Our goal this spring is simple: help every player learn the game, build confidence, and leave the field wanting to come back.
 
-Arrive early, because the concession stand will be busy.
+## Season Reminders
 
-## Getting Ready
+**Check your team schedule.** Game times and field assignments can change with weather and field conditions. Please check your team's schedule and messages from your coach before heading out.
 
-**Practices.** Coaches will contact families directly with team assignments and practice schedules. Please reply promptly so your coach can plan around everyone's availability.
+**Arrive early.** Players should be at the field 15 to 20 minutes before game time so they can warm up, stretch, and get settled.
 
-**Equipment.** Players should bring a glove, a water bottle, and sneakers or molded cleats. Metal cleats are not permitted at most levels. Helmets and bats are available from the league, but many families prefer their own. If you buy a bat, check that it carries the approved certification mark for your player's division.
+**Gear up.** Players need a glove, a league-approved helmet for batting, and appropriate cleats or athletic shoes. Catchers must wear full protective equipment. Water bottles are a must, and sunscreen is a smart idea even on cloudy days.
 
-**Sun and weather.** Spring weather changes fast. Pack sunscreen, a hat, and a light jacket. If fields are closed for weather, we'll notify coaches and post updates as early as possible.
+**Label everything.** Gloves, hats, and water bottles look surprisingly alike in a dugout. A name written inside makes lost-and-found much easier.
 
-## A Note on Safety
+## Safety First
 
-Players' safety always comes first. Please remind your child to:
+Safety is the foundation of everything we do. Please help us keep our fields safe:
 
-- Keep a helmet on whenever they are batting or running the bases
-- Stay behind the backstop and out of the dugout area unless they are on their team
-- Drink water often, especially on warm days
-- Tell a coach right away if they feel hurt or unwell
+- Keep siblings and spectators behind the fences and out of the dugouts.
+- Never stand directly behind the backstop or near the foul lines during play.
+- Let your coach know about injuries, allergies, or medical needs that may affect your child's participation.
+- If you see something on the field that looks unsafe, such as a loose base, a hole, or debris, tell a coach or board member right away.
 
-Parents, please keep walkways and areas around the dugouts clear, and supervise younger siblings at the fields.
+If there is lightning or thunder, play stops and everyone moves to a safe shelter or vehicle. No exceptions.
 
-## Be a Good Sport
+## Sportsmanship Starts in the Stands
 
-Our league exists so that kids can learn the game, make friends, and have fun. Our umpires and coaches are mostly volunteers, and many are parents just like you. Cheer for every player, on both teams. Let the coaches coach and the umpires umpire. A kind word after a strikeout can mean more to a child than any trophy.
+Our umpires are often teenagers and volunteers, and many are learning as they go. Our coaches are parents who gave up their evenings to be there. Our players are children. A little grace goes a long way.
+
+Please remember:
+
+- Cheer for good plays by both teams.
+- Leave the coaching to the coaches.
+- Speak respectfully to umpires, coaches, and fellow spectators.
+- Remember that every child on that field is trying their best.
+
+A good rule of thumb: if you wouldn't say it to the player's face after the game, don't shout it during the game.
 
 ## Volunteers Make It Happen
 
-Every game depends on volunteers. We're always looking for help with:
+Our league runs entirely on volunteers, and there is a job for everyone, whatever your schedule or baseball knowledge. We can always use help with:
 
+- Snack bar shifts
+- Field prep and cleanup
 - Scorekeeping and running the scoreboard
-- Concession stand shifts
-- Field preparation and cleanup
-- Team parents to help coordinate snacks and communication
-- Assistant coaches
+- Team parent duties
+- Umpiring and coaching assistance
+- Photography for end-of-season memories
 
-You don't need baseball experience to help. If you have an hour to spare, we have a job for you. Ask your coach or any board member how to sign up.
+Even one shift makes a difference. Talk to your team manager or any board member to sign up. Many hands make light work, and kids love seeing their families pitch in.
 
-## Concession Stand
+## Snack Bar
 
-The snack bar will be open on game days with the usual favorites: hot dogs, popcorn, candy, and cold drinks. Every dollar goes back into the league to maintain fields and buy equipment. Please help us keep the area clean by using the trash and recycling bins.
+The snack bar is open on game days and is one of the ways we keep registration costs down. Every purchase helps pay for equipment, field maintenance, and supplies. Stop by for a hot dog, a cold drink, or a post-game treat, and say thanks to the volunteers behind the counter.
 
-## Thank You to Our Sponsors
+## Our Thanks
 
-Our local sponsors make this league possible. Their support covers uniforms, equipment, and field improvements. When you see their names on a jersey or a banner, please stop by and say thanks. Supporting the businesses that support our kids keeps the whole community strong.
+To our sponsors, thank you for supporting local kids and local baseball. Your names are on the back of our jerseys, and your generosity is on every field. We hope our families will return the support and visit our sponsors throughout the year.
 
-## Final Inning
+To our coaches, managers, umpires, and board members, thank you for the hours you give, often unseen, so that kids can play.
 
-Every season brings first hits, great catches, tough losses, and moments the kids will remember long after the scores are forgotten. Thank you for sharing your children, your time, and your enthusiasm with us.
+To our families, thank you for trusting us with your children this season.
 
-We'll see you at the ballpark.
+## Looking Ahead
 
-**Play ball!**
+Spring moves fast. Before you know it, we'll be in the middle of the season, then the final game, then the end-of-year celebration. Take a moment now and then to soak it in: the dusty knees, the oversized helmets, the hand-me-down gloves, the proud grins after a first hit.
 
-*The Board of Directors*
+See you at the ballpark.
+
+**Your Little League Board**

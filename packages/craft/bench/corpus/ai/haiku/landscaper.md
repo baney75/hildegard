@@ -1,43 +1,32 @@
-# Fall Lawn Care in Duluth: Four Steps Before Winter
+# Fall Lawn Care in Duluth: Four Things That Make Next Spring Greener
 
-Fall is the best time of year to work on your lawn here in Duluth. The soil is still warm, the grass is actively growing, and the cooler days are easier on both you and your turf. What you do over the next few weeks will decide how your lawn looks next spring. At Moss Lawn and Garden, these are the four steps we recommend.
+Fall is the most important season for your lawn, even though it's easy to put off. Cool air and warm soil give grass roots a head start, and the work you do now shows up next May. Here's what we recommend for Duluth lawns.
 
-## 1. Aerate and overseed between August 20 and September 20
+## Aerate and Overseed Between August 20 and September 20
 
-Compacted soil keeps water, air, and nutrients from reaching grass roots. Core aeration pulls small plugs of soil out of the lawn and opens channels for roots to grow into. Overseeding right afterward fills thin spots with new grass.
+Your soil is still warm during this window, and grass seed germinates best when it is. Aeration pulls small plugs of soil out of the lawn, loosening compacted ground so water, air, and nutrients can reach the roots. Overseeding then fills thin patches with new grass that establishes before winter.
 
-The window matters. Seed needs warm soil to germinate and enough time to establish roots before the ground freezes. Between August 20 and September 20, the soil is still warm enough for seed to take hold. Waiting much later leaves new grass too little time to get established.
+If you wait until October, the seed may not have enough warm days to take hold before the ground freezes. Book early, because our crews fill up quickly in late August and early September.
 
-We charge **$140 to aerate a quarter acre**. If your lawn has heavy foot traffic, clay soil, or a lot of dead patches, aeration is one of the most useful things you can do for it.
+Aerating a quarter acre costs $140 with Moss Lawn and Garden.
 
-## 2. Give it one last proper mow at 2.5 inches
+## Mow Your Last Cut at 2.5 Inches
 
-Grass that goes into winter too short is more vulnerable to cold, drying winds, and disease. Make your final mow of the season at **2.5 inches**, not shorter. Longer blades also shade the soil a little, which helps the lawn hold moisture and stay healthy through the cold months.
+Through the fall, keep mowing as the grass grows, but make your final cut of the season at 2.5 inches. Grass that's cut shorter than that goes into winter with less leaf to store energy and less protection for the crown. Short grass also leaves more room for snow mold and other winter diseases to take hold.
 
-## 3. Rake or mulch leaves before they smother the grass
+## Rake or Mulch Your Leaves
 
-A few leaves on the lawn are harmless. A thick, wet layer left over winter is not. Matted leaves block sunlight, trap moisture, and create the conditions snow mold needs to grow.
+A blanket of wet leaves can smother the grass beneath it. Over a long Minnesota winter, that means dead patches in spring. Rake leaves off the lawn, or run a mulching mower over them so they break into small pieces that filter down to the soil and decompose. A thin layer of mulched leaves is fine. A thick mat is not.
 
-You have two good options:
+Last year we saw a customer on Lakeside Drive lose about half of his lawn to snow mold. The culprit was leaves left on the grass all winter. Snow melted into a soggy mat, and the grass underneath never recovered. Clearing leaves in the fall is one of the cheapest ways to protect your lawn.
 
-- **Rake** leaves off the lawn and add them to your compost or yard waste.
-- **Mulch** them with a mower. Run over the leaves until they are finely chopped, and let the pieces settle into the grass. Mulched leaves break down over winter and feed the soil.
+## Stop Fertilizing After October 15
 
-Either way, don't let leaves sit on the grass until spring.
+Fertilizer applied late in the season can push out new top growth that the first hard frost will damage. Our first hard frost usually arrives around October 5, so by mid-October the grass is slowing down for winter. Make your last fertilizer application before October 15. After that, let the lawn go dormant.
 
-This is not a theoretical concern. Last year we saw a customer on Lakeside Drive lose about half their lawn to snow mold. The cause was leaves left on the grass all winter. The damage was preventable, and it took a lot of work to bring the lawn back. A few hours of raking in the fall would have saved them that trouble.
+## Let Us Handle the Work
 
-## 4. Stop fertilizing after October 15
+Fall lawn care comes down to timing, and the calendar here is short. If you'd like help with aeration, overseeding, or a fall cleanup, contact Moss Lawn and Garden. We'll get your lawn ready for winter so it comes back strong in spring.
 
-Fertilizer applied late in the season can push out new top growth that the grass has no time to harden off before the first hard frost, which here usually arrives around **October 5**. Tender growth going into a freeze is easily damaged.
-
-Make your last fertilizer application before **October 15**. Choose a product for fall or winter feeding if your soil test or lawn needs call for it. After that date, let the lawn rest.
-
-## The short version
-
-- Aerate and overseed **August 20 to September 20**.
-- Mow the last time at **2.5 inches**.
-- Rake or mulch leaves so they don't smother the grass.
-- Stop fertilizing after **October 15**.
-
-If you'd rather have a professional handle any of this, our team can aerate and overseed your lawn, and we're happy to talk through what your yard needs before winter. Call Moss Lawn and Garden to get started.
+*Janet Moss*
+*Moss Lawn and Garden, Duluth, Minnesota*

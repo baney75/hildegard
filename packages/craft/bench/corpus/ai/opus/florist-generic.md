@@ -1,28 +1,38 @@
 # About Us
 
-We started this shop with a simple belief: flowers should feel like they came from someone who cares, not from a warehouse.
+Every bouquet that leaves our shop starts the same way: with a single stem, held up to the light, and the question of what it wants to become.
 
-Every morning begins before the doors open. We unpack the day's deliveries, trim stems, change water, and look over each bloom by hand. Anything that isn't at its best doesn't make it to the cooler. It's slow, unglamorous work, and it's the reason our arrangements last longer on your table.
+We're a small, independent flower shop, and we like it that way. Small means we know our growers by name. It means the person who answers the phone is often the same person trimming your roses. And it means every arrangement gets looked at, adjusted, and looked at again before it goes out the door.
 
-## What we believe
+## How We Began
 
-**Seasonal first.** We build our arrangements around what's fresh right now: tulips and ranunculus in spring, garden roses and dahlias in summer, branches and berries when the weather turns. Flowers in season look better, smell better, and travel fewer miles to reach you.
+This shop grew out of a simple belief: flowers aren't a luxury. They're how people say the things that are hard to say. *I'm sorry. I'm proud of you. I miss her too. Will you marry me?* We've had the privilege of helping thousands of those moments find their words, and we've never stopped being moved by it.
 
-**Local when we can.** We work with nearby growers whenever possible, and we're proud to know many of them by name. When we do source from farther away, we choose partners who treat their land and their workers well.
+What started as buckets of blooms and a borrowed workbench has become a place where neighbors stop in for a Tuesday bunch, couples plan their wedding florals over coffee, and families come to us in their hardest weeks knowing we'll take care of the details.
 
-**Every order matters.** A single stem for a first date gets the same attention as a full wedding. We know flowers show up at the biggest moments of people's lives: births, anniversaries, apologies, goodbyes. We never forget that.
+## What We Believe
 
-## What we do
+**Fresh means fresh.** We buy in small quantities and often, so what you receive was chosen days ago, not weeks. If a flower isn't good enough to go home with us, it doesn't go home with you.
 
-- **Everyday arrangements** for your home, your desk, or just because
-- **Same-day local delivery** for the moments that can't wait
-- **Weddings and events**, from intimate dinners to full ceremonies
-- **Sympathy and funeral flowers**, handled with quiet care
-- **Weekly subscriptions** for homes, offices, restaurants, and lobbies
-- **Plants and gifts** that keep giving long after the bouquet fades
+**Seasonal is beautiful.** We follow the calendar: tulips and ranunculus in spring, garden roses and dahlias through summer, rich foliage and branches in fall, and evergreens and amaryllis in winter. Working with the seasons gives you better blooms, longer vase life, and arrangements that feel connected to the time of year.
 
-## Come say hello
+**Local whenever we can.** We source from nearby farms as often as the weather allows, and we're thoughtful about everything else we bring in. Fewer miles means fresher flowers and a lighter footprint.
 
-The best way to know us is to stop by. Walk in, breathe deep, and take your time. Tell us who the flowers are for and what you want them to say, even if you don't know the names of a single bloom. That's our job. We'll help you find something that feels exactly right.
+**Every budget deserves beauty.** A handful of wrapped stems and a full wedding installation get the same care. Tell us what you'd like to spend, and we'll make it count.
 
-We're glad you're here.
+## What We Do
+
+- **Everyday arrangements** for birthdays, anniversaries, thank-yous, and just-because
+- **Weddings and events**, from intimate elopements to full-scale celebrations
+- **Sympathy and funeral flowers**, handled with patience and discretion
+- **Weekly and corporate subscriptions** for homes, offices, restaurants, and lobbies
+- **Plants and gifts** for people who'd rather have something that keeps growing
+- **Same-day local delivery** for orders placed in the morning
+
+## Come Say Hello
+
+The best way to know us is to visit. Walk in, breathe deep, and take a look at what's in the cooler today. Ask us what's in season, what lasts longest, or what would make your mother cry happy tears. We'll be glad you stopped by.
+
+And if you can't make it in, call or order online. We'll put the same care into your flowers as if you were standing right here watching us make them.
+
+*Thank you for letting us be a part of your moments, big and small.*

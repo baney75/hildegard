@@ -1,35 +1,38 @@
-# Cedar Falls Community Pantry: October Update
+# Cedar Falls Community Pantry: November Update
 
-**412 families came through our doors in October, up from 331 a year ago.** Sixty-one of them were new to the pantry. Thank you to everyone who donated, sorted, stocked and packed to make that possible.
+**412 families served in October, and we couldn't have done it without you**
+
+Last month, the Cedar Falls Community Pantry served 412 families, up from 331 in October of last year. Sixty-one of those families were visiting us for the first time. Every one of them is a neighbor, and every one of them was welcomed because of the people who donate, sort, pack, and drive.
 
 ## A Big Thank-You to Hy-Vee
 
-Hy-Vee gave us 1,800 pounds of fresh produce this month. That is a lot of fruit and vegetables on our tables, and families noticed.
+Hy-Vee donated 1,800 pounds of fresh produce this month. That is a lot of fruit and vegetables on a lot of family tables, and we are grateful for their generosity.
 
-## What We Need Right Now
+## What We Need Most
 
-Our shelves are running low on:
+Our shelves are running low on a few essentials:
 
 - Peanut butter
 - Canned chicken
 - Diapers, sizes 4 and 5
 
-If you can pick up an extra item or two on your next shopping trip, drop it off during open hours.
+If you can pick up an extra item or two on your next shopping trip, please drop it off during open hours.
 
 ## Volunteer Drivers Wanted
 
-We need two more drivers for our Friday pickups. If you have a free Friday and a reliable vehicle, we would love to hear from you.
+We need two more drivers for our Friday pickups. If you have a few hours on Fridays and a reliable vehicle, we would love to hear from you.
 
 ## Mark Your Calendar
 
-The Lions Club food drive is **Saturday, November 22**. Please give generously, and thank you to the Lions for organizing it.
+The Lions Club food drive is **Saturday, November 22**. Please give generously, and thank you to the Lions Club for organizing it.
 
-## Visit Us
+## Hours and Location
 
-**Cedar Falls Community Pantry**
+**Tuesdays, 4 to 7 p.m.**
+**Saturdays, 9 a.m. to noon**
 218 West 3rd Street
 
-- Tuesdays, 4 to 7 p.m.
-- Saturdays, 9 a.m. to noon
+Thank you for caring for your neighbors.
 
-*Barb Lindqvist, Volunteer Coordinator*
+*Barb Lindqvist*
+*Volunteer Coordinator, Cedar Falls Community Pantry*

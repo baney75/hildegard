@@ -1,53 +1,59 @@
-# Why I Finish Every Walnut Table by Hand
+# Why I Finish Every Walnut Table by Hand with Oil and Wax
 
-*By Hank Oberg, Oberg Woodworks — Duluth, Georgia*
+*By Hank Oberg, Oberg Woodworks, Duluth, Georgia*
 
-I build about 30 dining tables a year here in the shop, and the question I get most often isn't about joinery or which slab to choose. It's about the finish. People want to know what goes on that table, how it'll hold up to kids and casseroles, and why I don't just spray it with polyurethane like the furniture stores do.
+I build about thirty tables a year here in the shop. Customers ask me about wood species, leg styles, and how many people a table will seat. The question I think matters most for how a table will live in your home usually comes last: **how is it finished?**
 
-So here's how I finish a walnut dining table, and why.
+On every walnut dining table that leaves my shop, my answer is the same. I use a hand-rubbed oil and wax finish. Here's why, and what that means for you.
 
-## Three Coats of Oil, Then Wax
+## How I Do It
 
-Every walnut table that leaves my shop gets a hand-rubbed oil and wax finish. The process is simple, but it can't be rushed.
+There's nothing complicated about the process. It just takes time.
 
-**Coat one.** After final sanding, I flood the surface with Danish oil and work it in by hand. Walnut drinks that first coat. You can watch the grain come alive as the oil soaks in, with the figure deepening and the chocolate tones turning rich and warm.
+1. **Three coats of Danish oil.** I flood the surface, let the oil soak into the grain, and wipe off the excess by hand.
+2. **Twenty-four hours between coats.** I don't rush this. Each coat needs a full day to cure before the next one goes on. That's why a table sits in my shop for most of a week after the last joint is glued.
+3. **A final coat of paste wax.** I rub it in and buff it out. This gives the top a soft, low sheen and a bit of extra protection against everyday spills.
 
-**Wait 24 hours.** The oil needs a full day to cure before the next coat goes on. I don't cut corners here. Rushing it gives you a gummy surface that never quite feels right.
-
-**Coats two and three.** Same process, same 24-hour wait between each. Every coat builds a little more protection and a little more depth.
-
-**Paste wax.** Once the third coat has cured, I finish with paste wax, buffed out by hand. This is what gives the table that soft, satin feel. Run your palm across it and you're touching wood, not a coating sitting on top of wood.
+When it's done, the finish sits *in* the wood rather than *on* it. You can run your hand across the top and feel walnut, not a coating.
 
 ## Why Not Polyurethane?
 
-I get it. Polyurethane is fast, it's cheap, and it's what most mass-produced furniture uses. But a film finish like poly sits *on* the wood instead of *in* it. To my eye, it makes a beautiful piece of walnut look like plastic. You lose the texture and the warmth, and you lose a lot of what you paid for when you chose a solid hardwood table.
+Many furniture makers use a film finish like polyurethane, and I understand the appeal. It goes on fast and looks tough. But I don't use it on my tables, for two reasons.
 
-Film finishes also chip. When they do, there's no easy fix. You can't just touch up one spot. You're often looking at stripping the whole top and starting over.
+**It looks like plastic.** Walnut is one of the most beautiful woods in North America. The grain has depth, and the color shifts as light moves across it. A thick film of poly puts a layer between your eye and all of that. To me, it makes a hand-built table look like it came from a big-box store.
 
-## "But What About Water Rings?"
+**It chips, and chips are hard to fix.** A film finish is a shell. When something heavy hits it, or a plate gets dragged across it for years, the shell cracks or wears through. Repairing that properly usually means stripping and refinishing the whole top. That's a big job.
 
-This is the worry I hear most. Yes, an oil finish can take a water ring if someone leaves a sweating glass sitting overnight. Here's the good news: it's not a big deal.
+## What Happens When Life Happens
 
-A water ring on an oiled table can be sanded out with 400-grit paper and re-oiled in an afternoon. No stripping, no refinishing shop, no shipping it back to me. You fix the spot and the table looks like nothing happened. That's the whole point of a finish that lives in the wood. It's repairable by the people who actually use it.
+People worry that an oil finish isn't tough enough for a family table. Let's talk about the most common worry: water rings.
 
-## A Table That's Been Fed for Fifteen Years
+Say someone leaves a sweating glass on the table overnight and you wake up to a white ring. With an oil finish, the fix is simple. **Sand the spot lightly with 400-grit paper and re-oil it.** You'll be done in an afternoon, and the repair blends right in. No stripping and no refinishing service. You can do it yourself at the kitchen counter with a rag.
 
-Back in 2009, I built a walnut dining table for the Hollis family. They've had dinner around it every week since. That's well over fifteen years of plates, elbows, homework, holidays, and spilled drinks.
+That's the real advantage of oil. It doesn't pretend nothing will ever happen to your table. It makes repairs easy when something does.
 
-In all that time, the table has needed exactly one re-oil.
+## Fifteen Years of Sunday Dinners
 
-That's what I mean when I say an oil finish holds up. It doesn't stay pristine, because no real family table does. It ages well, and when it needs attention, the fix is easy.
+In 2009, I built a walnut dining table for the Hollis family. They've had dinner around it every week since then. That's fifteen years of plates, glasses, homework, holidays, and elbows.
+
+**In all that time, it's needed exactly one re-oil.**
+
+That table looks better today than the day it left my shop. The finish has worn in rather than worn out. That's what a good oil finish does.
+
+## Walnut Changes, and That's a Good Thing
+
+One more thing you should know. Walnut darkens over its first year, especially if it gets some sun. When your table arrives, it may look a bit lighter or more varied in tone than you expected. Give it time. Over the first year, the color deepens and evens out into that rich, warm brown walnut is known for.
+
+An oil finish lets that change happen naturally. A thick film finish can slow it down or lock in an uneven look.
 
 ## What It Costs
 
-An oil and wax finish adds about $200 to the price of a table. That covers the extra days the table spends in my shop curing between coats, and the hand work that goes into each one. For a piece your family will eat around for decades, I think it's the best $200 you'll spend on it.
+A hand-rubbed oil and wax finish adds **about $200** to the price of a table. That covers the extra days of shop time and the handwork involved.
 
-## One More Thing: Walnut Changes
+I'll be straight with you: that's an investment. But think of what you're getting for it. Your table will look like real walnut, and you can repair it yourself in an afternoon. With a little care, it can serve your family for decades. Ask the Hollis family.
 
-If your table sits near a window, expect it to darken over the first year in the sun. That's normal, and it's one of the things I love about walnut. The color settles and mellows as the wood matures, and an oil finish lets that happen naturally instead of locking the wood under a layer of plastic.
+## Let's Build Your Table
 
-Your table on delivery day won't look exactly like your table a year later. Most folks tell me they like the second one better.
+If you're thinking about a walnut dining table for your home, I'd be glad to talk it through with you. Stop by the shop in Duluth or reach out through the contact page. We'll talk about size, style, and how your family uses its table, and I'll show you what a hand-rubbed finish feels like in person.
 
----
-
-*Thinking about a walnut dining table for your home? Stop by Oberg Woodworks in Duluth or get in touch. I'm always happy to talk wood, finishes, and what kind of table will suit the way your family lives.*
+*— Hank Oberg, Oberg Woodworks*

@@ -1,32 +1,33 @@
 Python and the package agree on all 396 pieces
-Strict profile: human fail 46.4%, any warn 9.1%; AI recall 80.7%.
-Human writing: 220 pieces. Fail 0.0%, any warn 50.9%, any finding 50.9%.
-AI drafts (no skill): 176 pieces. Recall (fails) 30.7%, any finding 86.9%.
-  haiku                  n=44 recall 38.6%
-  luna                   n=44 recall 18.2%
-  opus                   n=44 recall 43.2%
-  sonnet                 n=44 recall 22.7%
-dev   human n=98 false-fail 0.0%; AI n=72 recall 33.3%
-test  human n=49 false-fail 0.0%; AI n=56 recall 26.8%
-holdout human n=73 false-fail 0.0%; AI n=48 recall 31.3%
+Strict profile: human fail 46.4%, any warn 6.8%; AI recall 79.0%.
+Human writing: 220 pieces. Fail 0.0%, any warn 49.5%, any finding 49.5%.
+AI drafts (no skill): 176 pieces. Recall (fails) 29.5%, any finding 84.7%.
+  haiku                  n=44 recall 36.4%
+  luna                   n=44 recall 13.6%
+  opus                   n=44 recall 47.7%
+  sonnet                 n=44 recall 20.5%
+dev   human n=98 false-fail 0.0%; AI n=72 recall 27.8%
+test  human n=49 false-fail 0.0%; AI n=56 recall 28.6%
+holdout human n=73 false-fail 0.0%; AI n=48 recall 33.3%
 
 rule                  human ai    humanFail aiFail
-headings                9.1%  40.3%     0.0%     0.0%   (20/71)
-bold-list-leads         3.6%  31.8%     0.0%     0.0%   (8/56)
-stacked-tells           0.0%  17.0%     0.0%    17.0%   (0/30)
-unfinished              0.0%  14.8%     0.0%    14.8%   (0/26)
-warm-boilerplate        0.0%  12.5%     0.0%     0.0%   (0/22)
-bold                    4.1%  16.5%     0.0%     0.0%   (9/29)
-metadiscourse           0.5%  11.9%     0.0%     0.0%   (1/21)
-uniform-paragraphs      4.1%  15.3%     0.0%     0.0%   (9/27)
-triads                  4.1%  11.9%     0.0%     0.0%   (9/21)
-bold-leads              0.9%   7.4%     0.0%     0.0%   (2/13)
+headings                6.8%  42.6%     0.0%     0.0%   (15/75)
+bold-list-leads         3.2%  30.1%     0.0%     0.0%   (7/53)
+stacked-tells           0.0%  18.2%     0.0%    18.2%   (0/32)
+warm-boilerplate        0.0%  14.8%     0.0%     0.0%   (0/26)
+metadiscourse           0.5%  14.8%     0.0%     0.0%   (1/26)
+uniform-paragraphs      4.5%  16.5%     0.0%     0.0%   (10/29)
+bold                    4.1%  15.9%     0.0%     0.0%   (9/28)
+unfinished              0.0%  11.4%     0.0%    11.4%   (0/20)
+triads                  4.1%  14.2%     0.0%     0.0%   (9/25)
+bold-leads              0.9%   4.0%     0.0%     0.0%   (2/7)
+throat-clearing         0.0%   1.7%     0.0%     1.7%   (0/3)
 colon-reveal            0.0%   1.7%     0.0%     0.0%   (0/3)
-throat-clearing         0.0%   1.1%     0.0%     1.1%   (0/2)
+emoji-heading           0.0%   0.6%     0.0%     0.6%   (0/1)
+not-but                 3.6%   3.4%     0.0%     0.0%   (8/6)
 summary-ending          0.5%   0.0%     0.0%     0.0%   (1/0)
 cliches                 0.5%   0.0%     0.0%     0.0%   (1/0)
 summary-openers         0.5%   0.0%     0.0%     0.0%   (1/0)
 loaded-words            0.5%   0.0%     0.0%     0.0%   (1/0)
 corporate-words         0.9%   0.0%     0.0%     0.0%   (2/0)
-not-but                 3.6%   2.3%     0.0%     0.0%   (8/4)
-em-dash                35.5%  21.0%     0.0%     0.0%   (78/37)
+em-dash                35.9%  17.6%     0.0%     0.0%   (79/31)

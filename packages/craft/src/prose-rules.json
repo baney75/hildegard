@@ -312,9 +312,13 @@
     "TODO",
     "TBD",
     "FIXME",
-    "lorem ipsum",
+    "TK",
+    "lorem ipsum dolor",
     "\\[(?:your|insert|add) [^\\],\\n]{1,40}\\](?!\\()",
-    "\\[[^\\]\\n]{0,40}\\b(?:name|date|time|address|phone|number|email|contact|link|url|website|city|state|business|company|organization|location|amount|price|insert|produce|details?|information|title|event|church|school|club)\\b[^\\]\\n]{0,40}\\](?![(\\[:])"
+    "\\[(?:(?!(?:the|a|an|our|his|her|their|its|this|that|these|those|my|of|for|to|in|on|at|by|with)\\b)[\\w'\u2019&-]+\\s+){0,3}(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact)(?:\\s+(?:or|and)\\s+(?:[\\w'\u2019&-]+\\s+)?(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact))?\\](?![(\\[:])",
+    "\\{\\{\\s*[^{}\\n]{1,40}\\}\\}",
+    "<(?:insert|your|add)\\s[^>\\n]{1,40}>",
+    "(?<!\\w)(?:\\(?X{2,}\\)?[-/. ]){1,3}X{2,}\\b|\\$X{2,}\\b"
   ],
   "triads": {
     "perHundred": 1.5,

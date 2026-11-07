@@ -1,19 +1,21 @@
-# M-23-07, Update to Transition to Electronic Records
+# Required web content and links
 
-Memorandum M-19-21, Transition to Electronic Records, issued jointly by the Office of Management and Budget (OMB) and the National Archives and Records Administration (NARA), established several requirements to move federal agencies to a fully electronic environment, where appropriate. Agencies may have been delayed in their electronic records transition process during the COVID-19 pandemic.
+If you manage a public website in the federal government's executive branch, various policies require you to have certain content—or provide links to content—from specific places on your website.
 
- This December 23, 2022 memorandum, M-23-07, Update to Transition to Electronic Records, does the following:
+**This page makes it clear:**
 
-- Reinforces the requirements established in M-19-21.
-- Reaffirms the underlying goal of the transition to electronic records.
-- Updates the previous target dates described in M-19-21 to June 24, 2024
+- what links are required and the purpose they serve
+- the text that you should use for each link
+- where the link should be located on your site
+- which law or policy requires those links
 
- This memorandum also describes NARA’s plans to issue updated guidance, as appropriate.
+The easiest way to implement these required links in a clear, user-friendly way is by using the two core [U.S. Web Design System](https://designsystem.digital.gov/) components:
 
-## Related Links
+- [banner](https://designsystem.digital.gov/components/banner/)
+- [identifier](https://designsystem.digital.gov/components/identifier/)
 
-- [M-19-21, Transition to Electronic Records (PDF, 239 KB, 4 pages)](https://www.whitehouse.gov/wp-content/uploads/2019/08/M-19-21-new-2.pdf) (June 28, 2019)
+Together, these two components are the most recognizable and standardized design elements of federal websites. Use the banner at the top to identify your site as an official federal government site. Use the identifier at the bottom to communicate the site’s parent agency and display the links required by federal laws and policies.
 
----
+**Questions?** send an email to [digitalgov@gsa.gov](mailto:digitalgov@gsa.gov)
 
-See more [DigitalGov Resources]()
+**Sub-agency sites** are sites managed by or focused on a branch or division of a Department-level agency, such as the National Institutes of Health (NIH) website, [www.nih.gov](https://www.nih.gov), which is a sub-agency of the U.S. Department of Health and Human Services (HHS). The content is focused on the work of the agency.

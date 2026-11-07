@@ -1,27 +1,34 @@
 **Dear Little Acorns Families,**
 
-Over the past six years, I have had the privilege of caring for 31 families, and each of you has trusted me with the most precious people in your lives. Thank you. It is because of your partnership that Little Acorns has grown into the place it is today. I want to share a few changes that take effect soon, so you have time to plan.
+Six years ago, I opened my home in Bend to a small group of children and their families. Since then, 31 families have trusted us with their little ones, and every one of those relationships has meant a great deal to me. I'm writing to share some changes that will take effect this summer.
 
-**Tuition changes beginning June 1**
-Our weekly rate will increase from $265 to $285. This is our first rate change in several years, and it helps us keep the program running well and our classroom stocked with the toys, books, and supplies the children love.
+**Tuition Change**
 
-**Late pickup**
-Our hours end at 5:30 p.m. Beginning June 1, a late fee of $1 per minute will apply for any pickup after that time. I know unexpected delays happen, and if you ever find yourself running behind, please call me as soon as you can so I know to expect you.
+Beginning June 1, our weekly rate will increase from $265 to $285. I know any change to tuition is hard to hear, and I don't make this decision lightly. The increase helps us keep up with rising costs and continue providing the care, attention, and environment your children deserve.
 
-**Sunscreen policy**
-To keep every child protected on sunny days, we are introducing a new sunscreen policy. Each family will need to sign a sunscreen form, so Priya and I have clear permission and instructions for applying sunscreen while your child is in our care.
+**Late Pickup**
 
-**Summer and holiday closures**
-We will be closed the week of July 4 and on Thanksgiving Thursday and Friday. Please mark these dates on your calendars now so you can arrange your plans in advance.
+Our day ends at 5:30 p.m. For pickups after that time, a fee of $1 per minute will apply. I ask that you plan ahead so that our staff can head home at a reasonable hour, and I thank you for your cooperation.
 
-**Open houses**
-I would love for you to see the newly replaced fence and the changes we have made to the play yard. I will host open houses on **May 10 from 10:00 a.m. to noon**. Please bring your children, your questions, and your ideas. Priya and I would be delighted to show you around.
+**Sunscreen Policy**
 
-Our program serves children ages 1 to 4, and we are capped at 8 children so that every little one gets the attention and care they deserve. With Priya by my side, I am so grateful for the joy and growth we see every day, and for the families who make it all possible.
+For the safety of every child in our care, we now require a signed sunscreen form from each family. The form tells us which products your child may use and any sensitivities we should know about. You'll receive it before the change takes effect, and I appreciate you returning it promptly.
 
-If you have any questions about these changes, please reach out to me directly. Thank you for being part of the Little Acorns family.
+**Closures**
 
-With warmth and gratitude,
+We will be closed the week of July 4 and on Thanksgiving Thursday and Friday. I'll share a full calendar of closures with you ahead of time so you can make arrangements in advance.
+
+**Fence Replacement**
+
+This spring we replaced our backyard fence at a cost of $3,200. Keeping our children safe and secure is my first priority, and this investment gives us a sturdier, safer outdoor space for play. I'm grateful for the families who have supported us through this project.
+
+**Open Houses**
+
+I would love for you to see the changes firsthand and meet our team. I'll be hosting open houses on May 10 from 10:00 a.m. to noon. Please bring your questions, your children if you like, and your ideas. Priya and I look forward to welcoming you.
+
+Thank you for the trust you place in us every day. We are honored to be part of your family's story, and we look forward to many more years together.
+
+With warmth,
 
 **Marcy Ellison**
 Little Acorns Home Daycare

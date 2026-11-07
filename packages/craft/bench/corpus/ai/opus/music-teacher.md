@@ -1,30 +1,34 @@
-Subject: Spring Recital – Saturday, May 17 at 2:00 pm
+Subject: Spring Recital: Saturday, May 17 at 2 PM
 
 Dear Park Piano Studio Families,
 
-I'm delighted to invite you to our Spring Recital! Our students have been working hard, and I can't wait for them to share their music with you.
+Our spring recital is coming up, and I'm excited to share the details with you. All 18 of our students will be performing, and I hope you'll bring family and friends to cheer them on.
 
-**When:** Saturday, May 17, at 2:00 pm (doors open at 1:30 pm)
-**Where:** Trinity Methodist
+**When and Where**
+Saturday, May 17, 2:00 PM
+Trinity Methodist Church, Bellingham
+Doors open at 1:30 PM for guests.
 
-**For students**
+**Student Arrival**
+Please have your student at the church by 1:15 PM. Students will sit together in the front two rows so we can move smoothly from one performer to the next. Guests are welcome to take any seats behind them once the doors open.
 
-- **Arrival:** Please have your student arrive by 1:15 pm. Students will sit together in the front two rows so they're ready when it's their turn.
-- **Performance:** Each student will play one piece, no longer than two minutes. We have 18 performers this year, including a special duet from the Johnson twins!
-- **Dress:** Please dress in church clothes. No jeans, please.
+**The Performance**
+Each student will play one piece, two minutes or less. We'll also have a special duet from the Johnson twins, which I know everyone will enjoy.
 
-**Piece titles due April 25**
+**Piece Titles Due April 25**
+Please send me your student's final piece title by Friday, April 25 so I can put together the program.
 
-Please send me the final title of your student's piece by Friday, April 25, so I can put together the program.
+**What to Wear**
+Students should dress in church clothes. Please, no jeans.
 
-**Reception and video**
+**Reception**
+Stay after the recital for a reception with cookies. It's a lovely chance to congratulate the performers and visit with other families.
 
-Please stay after the recital for a reception with cookies, and a chance to congratulate our performers. My cousin will be filming the recital, and I'll share a link to the video with all families afterward, so you can enjoy the performance without worrying about recording it yourself.
+**Video**
+My cousin will be filming the recital, and I'll share a link with all of you afterward. Feel free to relax and enjoy the music rather than worrying about recording it yourself.
 
-Thank you for all the encouragement and practice time you give your children at home. It truly makes a difference, and this recital is a celebration of their effort. Please reach out if you have any questions.
+Thank you for all your support this year. Your students have worked hard, and I can't wait for you to hear them play.
 
 Warmly,
-
 Ellen Park
 Park Piano Studio
-Bellingham, Washington

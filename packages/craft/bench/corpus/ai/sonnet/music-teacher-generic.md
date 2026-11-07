@@ -1,44 +1,24 @@
-Subject: Spring Piano Recital: Save the Date and What to Expect
+Subject: Save the Date: Spring Piano Recital
 
-Dear Parents and Guardians,
+Dear Piano Parents and Families,
 
-It's almost time for our spring piano recital, and I'm so proud of the progress your children have made this year. This is a chance for them to share their hard work with family and friends in a warm, supportive setting.
+I'm excited to share that our spring recital is on the calendar! It is one of my favorite times of the year, and a wonderful chance for your child to share the music they've been working so hard on.
 
-**Event Details**
+**What to expect**
+Each student will perform one or two pieces they have chosen with me and polished over the coming months. The recital is relaxed and friendly, and a celebration of progress rather than perfection. Students of all levels will perform, from first-year beginners to advanced players.
 
-- **Date:** [Date]
-- **Time:** [Time] (students, please arrive 20 minutes early)
-- **Location:** [Venue and address]
-- **Duration:** About one hour, followed by a small reception
+**How to help at home**
+- Encourage regular, short practice sessions. Consistency matters more than length.
+- Ask your child to play their recital piece for you, family members, or even a stuffed animal. Performing for others is a skill, and practice makes it comfortable.
+- Celebrate effort. Nerves are normal, and confidence grows with every performance.
 
-**Preparing for the Big Day**
+**What to wear**
+Neat, comfortable clothing that lets your child sit and move easily at the piano. Nothing fancy is required, though many students enjoy dressing up a little for the occasion.
 
-Over the coming weeks, we'll be polishing recital pieces in lessons. Here is how you can help at home:
+**Next steps**
+I'll send the date, time, and location in a separate message soon, along with each student's piece and performance order. In the meantime, please reply to let me know of any scheduling conflicts or questions, and I'll do my best to accommodate everyone.
 
-- Encourage daily practice, even just 15 to 20 minutes, with a focus on the recital piece.
-- Invite your child to play for family members or stuffed animals. Performing for an audience, even a small one, builds confidence.
-- Remind them that mistakes happen and that keeping going is part of performing well.
+Thank you for your support and for making music part of your family's life. I'm so proud of my students and can't wait to share this special day with you.
 
-**What to Wear**
-
-Please have students dress in neat, comfortable clothing they can move in easily. Nice casual or "Sunday best" are both perfectly fine.
-
-**Recital Etiquette**
-
-To help every performer feel at ease, we ask that audience members silence phones, stay seated during pieces, and save applause for the end of each performance. Photos and video are welcome, as long as flash is off and you remain in your seat.
-
-**Reception**
-
-We'll celebrate afterward with light refreshments. If you'd like to contribute a snack or drink, please reply to this email and let me know what you plan to bring.
-
-**Please RSVP**
-
-To help me plan seating, please reply by [RSVP date] with the number of guests attending.
-
-Thank you for your support all year. Your encouragement at home makes all the difference, and I can't wait to see your children shine on stage.
-
-Warm regards,
-
-Donovan Baney
-[Phone number]
-donovan@dbaney.com
+Warmly,
+Your Piano Teacher

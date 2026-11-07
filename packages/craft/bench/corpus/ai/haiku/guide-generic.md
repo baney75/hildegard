@@ -1,65 +1,48 @@
-# Fall Steelhead Float Trips: What to Pack
+# What to Bring on a Fall Steelhead Float Trip
 
-There's a particular kind of morning in November when the river is cold enough to make your breath show, the leaves on the banks have turned copper and gold, and the first steelhead of the season are moving upstream with purpose. A float trip in the fall is one of the best ways to chase them. You're on the water all day, covering miles of run after run, and the fish are often more aggressive than their summer counterparts.
+Fall steelhead fishing asks a lot of you and your gear. The mornings are cold, the rain can come and go all day, and the days are short. A little planning keeps you on the water and focused on fish instead of being miserable. Here is what we recommend packing.
 
-Getting the gear right makes the difference between a comfortable day that ends with fish in the net and a miserable one you'd rather forget. Here's what we recommend you bring.
+## Clothing: Dress in Layers
 
-## Clothing: Dress for Cold Water and Changing Weather
+Wet cold is what ends a trip early, so build your system around staying dry and warm.
 
-Fall weather is unpredictable. A bluebird sunrise can turn into a cold, wind-driven rain by noon, and the river itself will be cold enough to chill you quickly if you go in.
+- **Waders:** Breathable waders with boot-foot or stocking-foot design, paired with good wading boots. Check for leaks before the trip. Bring a patch kit.
+- **Base layers:** Merino or synthetic. Avoid cotton, which holds water and chills you fast.
+- **Mid layers:** A fleece or light insulated jacket you can add or remove as the day warms or cools.
+- **Rain shell:** A fully waterproof jacket and pants. Fall weather changes quickly.
+- **Warm hat and gloves:** A beanie that fits under a hood, plus neoprene or lightweight wool gloves. Your hands need to work when you tie knots and handle fish.
+- **Extra socks:** Pack at least one dry pair in a waterproof bag.
 
-- **Waders:** Bring a pair of breathable waders with boot-foot or stocking-foot design, along with wading boots that have good traction. Felt soles are still common, but many anglers now prefer rubber or studded soles for slick, algae-covered rock. Check your waders for leaks before you leave the house.
-- **Base layers:** Merino wool or synthetic thermal layers keep you warm even when damp. Avoid cotton, which holds water and pulls heat from your body.
-- **Insulating mid-layer:** A fleece or light puffy jacket works well under your rain shell.
-- **Waterproof outer shell:** A quality rain jacket and rain pants are non-negotiable. You'll want them even if the forecast looks clear.
-- **Hat and gloves:** A wool beanie and a pair of lightweight waterproof gloves will keep your hands working for tying knots and fighting fish. Bring a spare pair in the boat.
-- **Extra dry clothes:** Pack a complete set of dry layers in a waterproof bag. If you take a dunking, you'll be glad you have them.
+## Rod, Reel, and Terminal Tackle
 
-## Safety Gear: Non-Negotiable on the River
+Most of our float trips use a few reliable setups.
 
-Cold water is serious. Cold-water shock can incapacitate a person within minutes of an unexpected immersion, and fall rivers often run higher and faster than summer flows.
+- **Rods:** A 9 to 10 foot rod rated for steelhead, matched to your reel and line. Bring a backup if you have one.
+- **Reels:** Smooth drag matters more than anything. Make sure it's clean and fresh.
+- **Line:** Fluorocarbon in 8 to 12 pound test is a common choice for float rigs. Carry spare spools.
+- **Indicators and weights:** Bring a range of bobber sizes and split shot so you can adjust for current speed and depth.
+- **Hooks and beads:** Small, sharp hooks in sizes you know work on the river, plus beads and yarn or whatever patterns we've discussed for the day.
+- **Barbless hooks:** Many fall steelhead rivers require them, and they're easier on the fish. Check current regulations for your river.
 
-- **Personal flotation device (PFD):** Wear a Coast Guard–approved PFD at all times while on the boat. Inflatable PFDs are comfortable for many anglers, but make sure you know how to activate them and that they're serviced according to the manufacturer's instructions.
-- **Throw rope:** Keep one within easy reach.
-- **Whistle and first aid kit:** Carry both on your person or in a dry bag you can reach.
-- **Dry bag for essentials:** Phone, keys, wallet, and a spare set of car keys should stay sealed and dry.
-- **Navigation knowledge:** Know the river's current hazards, rapids, and take-out points before you launch. Your guide will walk you through these, and we encourage you to pay close attention.
+Tie a few extra rigs the night before. Retying in the cold with numb fingers is no fun.
 
-## Tackle: Be Ready for Changing Conditions
+## Fishing Documentation
 
-Fall steelhead respond to a variety of presentations, and water conditions shift throughout the day. Bring options.
+Carry your fishing license and any required steelhead tags or validation. Regulations change, so check the current rules for the river you're fishing before you go. Keep your documents in a waterproof pouch.
 
-- **Rods and reels:** A 9- to 10-foot medium-heavy spinning or baitcasting rod is a versatile choice for float trips. Pair it with a reel loaded with 10- to 15-pound line.
-- **Terminal tackle:** Pack a range of sizes in drift beads, floats, split shot, and hooks. Carry extra leader material, since abrasion from rocks and fish teeth will eventually cut through it.
-- **Egg patterns and beads:** Fall steelhead often key on egg imitations, especially in the early season. Bring a variety of colors, including pink, orange, and chartreuse.
-- **Jigs and spinners:** Small jigs and spinners are useful when fish are holding in faster water or when you need to cover more ground.
-- **Net:** A rubber-mesh net is gentler on fish and protects their slime coat. Use it.
-- **Pliers and nippers:** Essential for removing hooks and trimming line.
+## Safety and Comfort on the Boat
 
-## Food, Water, and Comfort
+- **Personal flotation device:** Wear it at all times on the boat. Make sure it fits and is in good condition.
+- **Dry bags:** Keep your phone, keys, snacks, and spare clothes sealed and dry.
+- **Headlamp:** Days are short in the fall, and you may need light for the run back to the ramp.
+- **First-aid kit:** Include basics plus anything you personally need.
+- **Water and food:** Bring more than you think you'll need. Hot drinks in a thermos are a welcome addition on a cold morning.
+- **Sun protection:** Overcast days can still burn, and sunlight on the water is strong. Pack sunglasses with a retainer strap.
 
-A full day on the water burns more energy than you might expect, especially in cold weather.
+## Handling Fish
 
-- **Water:** Bring at least two liters per person, and consider an insulated bottle so your drink doesn't turn to ice.
-- **Snacks:** High-energy options like trail mix, jerky, nuts, and energy bars keep you going between bites and runs.
-- **Hot drinks:** A thermos of coffee, tea, or cocoa is one of the great pleasures of a cold fall float.
-- **Sun protection:** Low autumn sun reflects hard off the water. Sunglasses with polarized lenses help you spot fish and protect your eyes from glare, and a hat with a brim is useful too.
-- **Sunscreen and lip balm:** Cold wind and sun can both chap your skin.
+Wet your hands before touching a steelhead to protect its slime coat. Keep fish in the water as much as possible, and have your camera ready so the release is quick. Release them carefully, facing them into the current until they swim off on their own.
 
-## Final Checklist
+## Final Thoughts
 
-Before you head to the river, run through this list:
-
-- [ ] Waders checked for leaks
-- [ ] Layered clothing and rain gear packed
-- [ ] PFD worn and inspected
-- [ ] Dry bag with spare clothes and essentials
-- [ ] Rods, reels, and terminal tackle ready
-- [ ] Egg patterns, jigs, and spinners packed
-- [ ] Rubber-mesh net in the boat
-- [ ] Water, snacks, and a hot drink
-- [ ] Polarized sunglasses and sun protection
-
-## See You on the Water
-
-Fall steelhead are one of the most rewarding fish to chase, and a well-prepared float trip makes the whole experience better for everyone in the boat. If you have questions about gear, want recommendations for specific rods or patterns, or are ready to book your trip, reach out to us. We'd love to get you on the river this season.
+The best fall float trips come down to preparation. Dry feet, warm hands, sharp hooks, and a clear head will keep you fishing through the bite windows that make the season special. Bring everything on this list, leave room for a good lunch, and get ready for a day you'll remember.

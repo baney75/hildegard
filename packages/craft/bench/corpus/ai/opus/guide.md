@@ -1,65 +1,66 @@
 # What to Bring on a Fall Steelhead Float Trip on the Pere Marquette
 
-There's nothing quite like a late-autumn morning on the Pere Marquette. Fog lifts off the water, the hardwoods along the banks have gone gold and rust, and somewhere below the next riffle a fresh steelhead is holding in the current. Fall is one of the best times of year to chase these fish, and also one of the coldest. A little preparation decides whether you spend the day focused on the swing of your fly or counting the minutes until you can feel your toes again.
+There's nothing quite like a fall morning on the Pere Marquette. Fog lifts off the water, the hardwoods have turned, and somewhere downstream a chrome-bright steelhead is holding in a seam, waiting for the right drift. Our fall steelhead float trips run from October through early December, and a good day on the river starts with being ready for it.
 
-Here's what you need to know before you join us for a fall float.
-
-## When and Where We Fish
-
-Our fall steelhead trips run **October through early December**. We meet and launch at **7 a.m. from the Gleason's Landing access**, so plan your drive accordingly. Northern Michigan mornings in the fall are dark and often frosty, and we want to be on the water when the fishing is good.
-
-Trips are **$525 for two people**.
+Here's what to pack, what to leave at home, and what we'll take care of for you.
 
 ## What We Provide
 
 You don't need to own a single piece of steelhead gear to fish with us. Big Two-Hearted Outfitters supplies:
 
-- **Rods and reels** set up for Pere Marquette steelhead
-- **Flies**, tied and chosen for current conditions
-- **The drift boat**
+- **Rods and reels**, rigged and ready for Pere Marquette steelhead
+- **Flies**, chosen for the conditions on the day you fish
+- **The drift boat**, so all you have to do is step in, settle in, and fish
 
-Leave the gear-shopping to us and focus on staying warm and comfortable.
+If you have a favorite rod and want to bring it, you're welcome to. But it's never required.
 
 ## What You Need to Bring
 
 ### A Michigan Fishing License with an All-Species Endorsement
 
-This one is non-negotiable. Steelhead require a **Michigan fishing license with the all-species endorsement**. Buy it before the trip and have it on you, either printed or on your phone, when we launch. We can't take you fishing without it.
+This one isn't optional. Every angler in the boat needs a valid Michigan fishing license **with the all-species endorsement**, which is required for steelhead. Buy it before the trip and have it on you. A copy on your phone works. We'd hate to see a great day held up at the launch over paperwork.
 
 ### Breathable Waders
 
-Even though we fish from a drift boat, you'll be in and out of the water: wading to fish a run, stepping out at a gravel bar, helping the boat through a shallow stretch. **Breathable waders** keep you dry without trapping sweat, which matters a lot when you're alternating between sitting still in the cold and moving around.
+Fall water on the Pere Marquette runs between **38 and 46 degrees**. That's cold enough that you'll want full waders any time you step out of the boat to wade a run or land a fish. Breathable waders are the way to go. They keep you dry without trapping sweat, which matters when you're layering underneath and moving around on and off the boat all day.
 
 ### Wading Boots Without Felt Soles
 
-Please read this one carefully: **no felt soles.** Michigan bans felt-soled waders and boots on some rivers because felt can carry invasive species and diseases from one waterway to the next. Whatever the rule on a given stretch, **I don't allow felt in my boat, period.** Rubber-soled wading boots, with or without studs, are the way to go. If your boots have felt, please leave them at home.
+Please read this one twice: **no felt soles.** Michigan has banned felt-soled waders and boots on some rivers because felt can carry invasive species from one waterway to another. Whatever the rule says for a given stretch, felt doesn't come into my boat, period. Rubber-soled wading boots give you good grip, protect the river, and keep us all fishing these waters for years to come.
 
 ### Layers, and No Cotton
 
-Water temperatures on the Pere Marquette in the fall run between **38 and 46 degrees**, and air temperatures can swing from frosty at launch to pleasant by midday, then back down when clouds roll in. The key is layering:
+Fall weather on the river can swing from frosty at dawn to mild by midday, then turn raw again when the wind picks up or the clouds roll in. The answer is layers you can add or shed as the day goes:
 
-- **Base layer:** Synthetic or merino wool long underwear, top and bottom.
-- **Mid layer:** Fleece or wool for insulation. Bring more than you think you'll need. It's easy to take a layer off and impossible to put on one you left in the truck.
-- **Outer layer:** A waterproof, windproof rain jacket. Fall weather on the river can turn on you fast.
+- **Base layer:** synthetic or merino wool, snug and moisture-wicking
+- **Mid layer:** fleece or a light insulated jacket
+- **Outer layer:** a waterproof, windproof shell
 
-**Leave the cotton at home.** That includes jeans, cotton hoodies, and cotton socks. Cotton soaks up water and sweat, holds it against your skin, and stops insulating once it's wet. On a cold river that's a recipe for a miserable day, or worse. Wool and synthetics keep you warm even when damp.
+**Leave the cotton at home.** That includes jeans, cotton hoodies, and cotton socks. Cotton soaks up water and sweat, holds it against your skin, and stops insulating once it's wet. On a 40-degree river, that can turn a great day into a miserable one fast. Wool and synthetics keep working even when they're damp.
 
-### The Small Stuff That Makes a Big Difference
+### A Few Extras Worth Packing
 
-A few more items worth tossing in your bag:
+These aren't required, but you'll be glad you have them:
 
-- **Warm hat** that covers your ears
-- **Gloves**: fingerless or fold-over mitts let you handle line and still keep your hands warm
+- **Warm hat and gloves.** Fingerless gloves or flip-mitts let you handle line and still keep your hands warm.
 - **Wool socks**, plus a spare pair
-- **Polarized sunglasses** to cut glare, protect your eyes from errant casts, and help you spot fish
-- **Water and snacks** to keep you fueled through a long, cold day
-- **A dry bag or small backpack** for your phone, keys, and extra layers
-- **A change of clothes** waiting in your vehicle for the drive home
+- **Polarized sunglasses** to cut glare and help you spot fish and structure
+- **Snacks and drinks** to keep your energy up through a full day on the water
+- **A small dry bag** for your phone, keys, wallet, and license
+- **A camera**, because you'll want proof
 
-## The Bottom Line
+## When and Where We Meet
 
-Fall steelhead fishing on the Pere Marquette rewards anglers who come prepared. Get your license with the all-species endorsement, wear breathable waders and felt-free boots, dress in warm non-cotton layers, and show up at Gleason's Landing ready to go at 7 a.m. We'll handle the rods, reels, flies, and boat.
+We launch at **7 a.m. from the Gleason's Landing access**. Plan to arrive a little early so you have time to suit up, use the facilities, and get settled before we push off. The early start is worth it, since those first hours of light are some of the best on the river.
 
-The fish are coming up the river. Let's go meet them.
+## Trip Cost
 
-**Ready to book your fall float? Contact Big Two-Hearted Outfitters to reserve your date before the season fills up.**
+A fall steelhead float trip is **$525 for two people**. That covers your guide, the drift boat, rods, reels, and flies. You bring the license, the waders, the layers, and the willingness to spend a cold morning chasing one of the hardest-fighting fish in Michigan.
+
+## Ready to Book?
+
+Fall dates fill up quickly, and the season only runs from October through early December. If you've been thinking about hooking your first steelhead, or your fiftieth, now's the time to get on the calendar. Reach out to Big Two-Hearted Outfitters to reserve your day on the Pere Marquette.
+
+See you at Gleason's Landing.
+
+— Big Two-Hearted Outfitters

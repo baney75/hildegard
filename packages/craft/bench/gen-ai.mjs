@@ -2,8 +2,13 @@
 // Draft every brief in corpus/ai/briefs.json with several models and no skill, for the prose lint's AI corpus.
 //   node packages/craft/bench/gen-ai.mjs [--only haiku,sonnet] [--jobs 4]
 // Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are removed from the environment, and the run stops if a
-// quota or billing message appears. The Claude runs load no settings, no MCP and no CLAUDE.md; the Codex run gets
-// an empty CODEX_HOME that links only to the sign-in, so the owner's global AGENTS.md is not read.
+// quota or billing message appears. The Claude runs load no settings, no MCP and no CLAUDE.md, run from an empty
+// temporary directory with the default system prompt replaced, and `--tools ''`. Claude Code still puts the signed-in
+// account's email address in the model's context (there is no flag to drop it without a different sign-in), and
+// an early run signed drafts with the owner's name from it. So the system prompt says the model does not know who is
+// asking, and a draft that carries the owner's name or email is thrown away and drafted again (tests/corpus check
+// that none is committed). The Codex run gets an empty CODEX_HOME that links only to the sign-in, so the owner's
+// global AGENTS.md is not read.
 // Each brief is drafted twice: with the writer's facts (<id>.md) and with the topic alone (<id>-generic.md), the way
 // most people prompt. Output: corpus/ai/<model>/ (skipped when it exists).
 import { spawn } from 'node:child_process';
@@ -49,6 +54,10 @@ const RUNNERS = {
     env: { CODEX_HOME: codexHome },
   }),
 };
+const SYSTEM =
+  'You are a writing assistant. You are not told who the person asking is: never guess a name or email from anything in your context, and sign a piece only with a name the request gives.';
+/** What a draft must not contain: the owner's name or email, which Claude Code gives the model with the sign-in. */
+const LEAK = /baney|donovan|dbaney/i;
 const CLAUDE_FLAGS = [
   '--setting-sources',
   '',
@@ -58,6 +67,8 @@ const CLAUDE_FLAGS = [
   '--no-session-persistence',
   '--tools',
   '',
+  '--system-prompt',
+  SYSTEM,
 ];
 const STOP = /quota|billing|usage limit|rate limit|upgrade your plan|credit balance/i;
 
@@ -71,7 +82,7 @@ for (const model of only)
     }
 
 let stopped = false;
-function run({ model, b, out }) {
+function run({ model, b, out }, attempt = 1) {
   return new Promise((done) => {
     if (stopped) return done();
     const r = RUNNERS[model](b.brief + ASK);
@@ -95,7 +106,12 @@ function run({ model, b, out }) {
       const text = stdout.trim();
       if (code !== 0 || !text)
         console.error(`FAILED ${model}/${b.id} (exit ${code}): ${stderr.slice(0, 200)}`);
-      else {
+      else if (LEAK.test(text)) {
+        console.error(
+          `LEAK ${model}/${b.id}: the draft names the owner (attempt ${attempt}); ${attempt < 3 ? 'drafting again' : 'not saved'}`,
+        );
+        if (attempt < 3) return run({ model, b, out }, attempt + 1).then(done);
+      } else {
         mkdirSync(join(here, 'corpus/ai', model), { recursive: true });
         writeFileSync(out, `${text}\n`);
         console.log(`ok ${model}/${b.id} ${text.split(/\s+/).length} words`);

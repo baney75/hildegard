@@ -1,33 +1,20 @@
-# About Donovan Baney
+# About
 
-Living on the lake isn't just an address. It's a way of spending your mornings, your weekends, and eventually your whole life. I've helped people find that here for years, and I still get a little thrill every time someone gets their keys.
+I sell homes in a small lakeside town, and I wouldn't want to do it anywhere else.
 
-I'm Donovan Baney, a local real estate agent in this small lakeside town. I know it the way you only can by living in it: which roads flood in spring, which coves stay quiet in July, where the best sunsets happen, and which neighbors will wave when you pull into the driveway.
+Out here, real estate is rarely just a transaction. A house on the water is where someone learns to fish with their grandfather, where a family gathers every Fourth of July, or where a couple finally slows down after a long career. I treat every sale and every purchase with that in mind.
 
-## Why Local Knowledge Matters
+Because this is a small town, I know the details that don't show up in a listing. I know which roads get the best morning light, which stretches of shoreline stay quiet in summer, and which neighborhoods turn into a community the moment the first boat hits the water. I know how the seasons change the market, and what to look for in a lakefront property: shoreline, docks, water access, flood zones, wells, and septic systems. These things matter, and I'll walk you through each of them plainly.
 
-Anyone can pull up listings online. What you can't find on a screen is the story behind a property. I can tell you how the shoreline shifts from one stretch to the next, what winters are really like out here, and what to ask about docks, septic systems, wells, and access rights before you fall in love with a view. In a small town, those details make the difference between a good purchase and a great one.
+**What working with me looks like**
 
-## How I Work
+- **Honest advice.** If a property has a problem, you'll hear about it from me first. If the timing isn't right to buy or sell, I'll tell you that too.
+- **Local knowledge.** I'm your neighbor, not just your agent. I can tell you about the best hardware store, the right inspector, and who to call when the dock needs work.
+- **Real availability.** When you call, you'll reach me, not a call center. I answer questions quickly and keep you informed at every step.
+- **No pressure.** Buying or selling a home is a big decision. I'll give you the information you need and the room to make the right choice.
 
-I believe buying or selling a home should feel clear, not stressful. That means:
+**Whether you're buying or selling**
 
-- **Honest advice.** If a house is overpriced or a deal isn't right for you, I'll say so.
-- **Straight communication.** You'll hear from me promptly, in plain language, with no surprises.
-- **Care for your goals.** Whether you're buying a first cabin, a year-round home, a retirement retreat, or selling a property your family has loved for decades, I'll work around what matters to you.
-- **Real community ties.** I know the local lenders, inspectors, contractors, and surveyors, and I'll connect you with people I trust.
+If you're looking for a year-round home, a weekend cabin, or a place to retire, I'll help you find somewhere that fits your life. If you're selling, I'll price your property carefully, present it well, and market it to the people most likely to appreciate what makes it special.
 
-## For Buyers
-
-I'll help you understand the market, tour the right properties, and make a confident offer. I'll walk you through everything from waterfront considerations to closing day, so you always know what comes next.
-
-## For Sellers
-
-Your home deserves to be presented well and priced wisely. I'll build a plan that shows off what makes your property special, whether that's the water view, the quiet lane, or the porch that catches the evening light, and I'll guide you through every step of the sale.
-
-## Let's Talk
-
-Whether you're ready to make a move this season or just dreaming about life by the water, I'd love to hear from you. Reach out anytime for a friendly, no-pressure conversation about your plans.
-
-**Donovan Baney**
-Your local lakeside real estate agent
+If you're thinking about making a move, or just want to talk about what's possible, I'd be glad to hear from you. Reach out through the contact page, and let's start with a conversation.

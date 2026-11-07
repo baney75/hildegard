@@ -1,80 +1,78 @@
 # Maple Grove Little League Spring Newsletter
 
-**A message from Gary Tolliver, President**
+## Play Ball, Maple Grove!
 
-Families,
-
-Spring is coming, even if the snowbanks on Veterans Field haven't heard the news yet. There's a lot to get on your calendar, so here's everything you need to know.
+Spring is coming, and so is another season of Maple Grove Little League. Whether this is your child's first year or their fifth, we're glad you're with us. Here's what you need to know to get ready.
 
 ---
 
-## We're Growing: 14 Teams This Year
+### Registration Closes March 12
 
-Last season we fielded 11 teams. This spring we're fielding 14. That's three more teams' worth of kids learning to throw, catch, slide, and cheer each other on, and it's the clearest sign yet that this league is healthy. Thank you to every family who signed up, came back, or told a neighbor about us.
+There's still time to sign up, but don't wait. **Registration closes March 12.**
 
-More teams also means more coaches, more volunteers, and more field time to share. Read on to find out how you can help.
-
----
-
-## Registration Closes March 12
-
-If your player isn't registered yet, don't wait. **Registration closes Thursday, March 12.**
-
-- **$95** for the first child
+- **$95** per child
 - **$60** for each additional sibling
 
-With 14 teams to build, we need final numbers on time to set rosters, order uniforms, and assign coaches. Late registrations may not be possible once teams are set.
+Getting your registration in on time helps us build rosters, order uniforms, and get every player on the field ready for opening day.
 
 ---
 
-## Coaches Clinic: March 22
+### We're Growing: 14 Teams This Year!
 
-All head coaches and assistant coaches are asked to attend our coaches clinic on **Sunday, March 22, at the Maple Grove High School gym.** We'll cover practice planning, fundamentals, safety, and keeping the game fun for every kid on the roster, from the first-time player to the one who already knows the infield fly rule.
+This season we'll field **14 teams, up from 11** last year. That's three more teams' worth of players, coaches, and families, and it's a sign of how much this community loves the game. Thank you for spreading the word and bringing new families into the league.
 
-New coaches are especially welcome. If you've been thinking about stepping up, this is the place to start.
-
----
-
-## Saturday Work Day at Veterans Field: April 5
-
-Our fields don't get game-ready on their own. On **Saturday, April 5, at 9 a.m.**, we're gathering at Veterans Field to rake infields, repair fencing and benches, and get everything ready for the season.
-
-**We need 20 parents.** Please bring a rake, a drill, or both. Many hands make this a morning job instead of an all-day one, and it's a great chance to meet the families your kids will be playing alongside all season.
+More teams also means we need more volunteers, so read on.
 
 ---
 
-## Opening Day: April 26
+### Coaches Clinic: March 22
 
-Mark it down: **Opening Day is Saturday, April 26.**
-
-The day kicks off with our parade, stepping off from the **fire station at 9 a.m.** Players should wear their uniforms and march with their teams. Families, grab a spot along the route and make some noise. After the parade, it's on to the fields to play ball.
+All coaches, new and returning, are invited to our **coaches clinic on March 22 at the high school gym.** It's a great chance to sharpen your skills, pick up new drills, and meet the other coaches you'll be sharing the fields with this spring. With three new teams this year, we especially want to welcome our first-time coaches.
 
 ---
 
-## Snack Shack Update
+### Work Day at Veterans Field: Saturday, April 5
 
-Many of you heard that the January ice storm took the roof off our snack shack. Here's where things stand.
+Many hands make light work. Join us **Saturday, April 5, at 9 a.m. at Veterans Field** to get the fields and facilities in shape for the season.
 
-The repair costs **$11,000.** Our insurance covered **$7,800**, leaving us **$3,200** short. Then the **Maple Grove Kiwanis Club** stepped in with a generous **$1,500** gift. On behalf of every family in this league, thank you, Kiwanis. Your support for local kids never goes unnoticed.
-
-That leaves **$1,700** still to raise. Every hot dog, sunflower seed bag, and cup of coffee sold at the snack shack helps fund our league, so getting it back in shape matters. If your family or your business can contribute toward closing that gap, please reach out to any board member. Every dollar counts, and we'll make sure it goes straight to the roof.
+**We need 20 parents.** Please bring a **rake or a drill** if you have one. A couple of hours on a Saturday morning makes a real difference for every kid who plays on that field this year.
 
 ---
 
-## Key Dates at a Glance
+### Snack Shack Update
+
+The January ice storm took the roof off our snack shack. The repair costs **$11,000**. Insurance covered **$7,800**, which left a $3,200 gap.
+
+We're grateful to the **Maple Grove Kiwanis Club**, who stepped up with a generous **$1,500 donation**. That brings us within **$1,700** of covering the full repair.
+
+The snack shack is a big part of what makes game days special, and the money it brings in helps support the league all season long. If you or your business can help close the remaining gap, please reach out to a league board member. Every bit helps.
+
+Thank you again to Kiwanis for supporting the kids of Maple Grove.
+
+---
+
+### Opening Day: April 26
+
+Mark your calendars! **Opening day is April 26.** We'll kick things off with our traditional **parade from the fire station at 9 a.m.** Players, wear your uniforms and bring your biggest smiles. Families, grab a spot along the route and cheer them on.
+
+It's the best morning of the year, and we can't wait to celebrate it with you.
+
+---
+
+### Key Dates at a Glance
 
 | Date | Event |
 |---|---|
-| **Thursday, March 12** | Registration closes |
-| **Sunday, March 22** | Coaches clinic, Maple Grove High School gym |
-| **Saturday, April 5, 9 a.m.** | Work day at Veterans Field (bring rakes and drills!) |
-| **Saturday, April 26, 9 a.m.** | Opening Day parade from the fire station |
+| **March 12** | Registration closes |
+| **March 22** | Coaches clinic, high school gym |
+| **April 5, 9 a.m.** | Work day, Veterans Field |
+| **April 26, 9 a.m.** | Opening day parade from the fire station |
 
 ---
 
-Fourteen teams, a field to fix up, and a roof to finish. It's going to be a big season, and I can't wait to see all of you out there.
+Thank you for being part of Maple Grove Little League. Our league runs on volunteers, generous neighbors, and families who show up for their kids. I'm looking forward to a great season with all of you.
 
-See you at the ballpark,
+See you at the ballpark!
 
 **Gary Tolliver**
 President, Maple Grove Little League

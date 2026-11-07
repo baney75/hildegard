@@ -1,17 +1,15 @@
-# Why We Switched to a Sourdough Starter
+# Why We Made the Switch to Sourdough Starter
 
-We used to make our bread with commercial yeast. It was predictable, fast, and easy to work with. We switched to a live sourdough starter because we wanted our bread to taste like something, and we wanted to know exactly what was going into every loaf.
+Every loaf that leaves our ovens starts with a jar of flour and water that has been alive for longer than most of us have worked in a kitchen. That jar is our sourdough starter, and choosing to build our bread around it was one of the best decisions we've made.
 
-A sourdough starter is a living culture of flour, water, wild yeast, and lactic acid bacteria. Feed it regularly and it stays active for years. It takes more attention than a packet of yeast, but the results are worth it.
+Commercial yeast is fast and predictable. You open a packet, measure it out, and the dough rises on a schedule. We understood the appeal, and for years it was what we used. But something was missing from the bread. It rose well and tasted fine, yet it tasted much like every other loaf in town.
 
-**The flavor is deeper.** Commercial yeast works quickly and leaves a clean, neutral taste. A starter ferments slowly. Over a long, cool rise, the bacteria and yeast produce acids and aromatic compounds that give the bread a tang, a nutty sweetness, and a crust that browns with complexity. Each loaf tastes richer than the last.
+A sourdough starter changes that. It is a living culture of wild yeasts and lactic acid bacteria, and it works slowly. Fermentation takes hours, sometimes most of a day, and during that time the dough develops flavor that a quick rise can't produce. You taste it in the gentle tang, the deep, nutty crumb, and the crust that crackles when it cools.
 
-**The bread keeps longer.** The acids produced during fermentation slow mold and staleness. A good sourdough loaf stays soft inside and crisp outside for days, not hours. Less bread ends up in the compost, and you get more out of every loaf you buy.
+The starter also changed how we work. It needs feeding, usually once or twice a day, and it responds to temperature, humidity, and the flour we use. Learning to read it has made us more attentive bakers. We pay attention to how it smells, how it bubbles, and how it lifts in the jar. Some mornings it is more active than others, and we adjust. That attention carries into everything else we make.
 
-**It's easier on many stomachs.** Long fermentation breaks down some of the starches and proteins in flour, including some of the fructans that bother people with sensitive digestion. Many customers tell us they can eat our bread when other loaves leave them uncomfortable. We don't make medical claims, but we're glad when our bread feels good to eat.
+There is also a practical side. Sourdough bread tends to keep well, staying fresh for days where many breads go stale by the next morning. Its natural acidity also slows spoilage, so there is less waste at the end of the day. Many of our customers tell us they can eat it more easily, and while we are careful never to make medical claims, the long fermentation is part of why we think it is such a good bread.
 
-**It's a craft we can stand behind.** A starter ties us to the slow, steady work of baking. We measure, we watch, and we adjust with the weather and the seasons. The bread changes a little from week to week, and we think that variation is part of what makes it honest.
+Switching was not simple. Our first few batches were dense, flat, and sometimes sour in ways we hadn't planned. We threw away more dough than we'd like to admit. We kept at it, took notes, adjusted our timing, and slowly our loaves began to show the character we'd been hoping for.
 
-Switching wasn't instant. Our first few batches were dense and sour in the wrong ways, and we threw out more dough than we'd like to admit. Once we learned to read the starter, meaning its rise, its smell, and its texture, the bread came together.
-
-Come by and try a loaf. Ask us about the starter, and we'll be happy to show you how it's fed and how the dough comes together. We're proud of the bread, and we're glad to share the story behind it.
+Today the starter sits at the center of our kitchen. It is the reason our bread tastes the way it does, and it is a reminder that good bread takes time. We're grateful to every customer who has tasted the difference and come back for more.

@@ -1,15 +1,59 @@
-# Guidance for Social Media Providers
+# Best Practices for Writing for the Accessible Web
 
-[](https://s3.amazonaws.com/digitalgov/_legacy-img/2014/01/termsofService.jpg)GSA welcomes interest from providers that want to offer, for the federal government&#8217;s consideration, social media products that are free of charge. If you are such a provider, please email [GSA](mailto:socialmediaapps@gsa.gov) and include the following information:
+When developing accessible content, authors need to think about how users will access and engage with content both visually or auditorily. By considering the following ways to create accessible content, you can enhance the way content is searched, used, and accessed. Here are some important Do’s and Don’ts to help you think about creating accessible content.
 
-  1. Explanation of the free, social media product you are offering for the federal government&#8217;s consideration. Include:
+## Images
 
-* Product Name
-* Product Description
-* Point–of–Contact for questions
+_DO_
 
-<ol start="2">
-  <li>
-    Specific examples of how the government could use your free product to meet its mission objectives (including information on any federal agencies already using your product); and
-  </li>
-</ol>
+1. Think about the image's strategic purpose. Ask yourself, "Is this visual pertinent to the overall purpose of the presentation, email, document, or site?"
+2. Add alt text to describe your images.
+
+_DON'T_
+
+1. Add an image just for decorative purposes.
+
+## Headers
+
+_DO_
+
+1. Use headers thoughtfully. They identify significant prompts for readers.
+
+_DON'T_
+
+1. Assume users will understand the importance of text.
+
+## Emails
+
+_DO_
+
+1. Write out the full text of the email so they can be read by screen readers.
+
+_DON'T_
+
+1. Share screenshots of text. Screen readers will process these as photos and be unable to read the text.
+
+## URLs
+
+_DO_
+
+1. Offer descriptive links with context of what is being shared.
+2. Use visual cues, such as changing the link's colors and underlining.
+
+_DON'T_
+
+1. Use language, such as “click here” or “link,” when referencing the URL.
+2. List the full URL when inserting the link into content.
+
+## Animations
+
+_DO_
+
+1. Stick to an easily scrollable format.
+2. Use static images.
+
+_DON'T_
+
+1. Use gifs or parallax features to avoid visual strain.
+
+## Color Contrast

@@ -1,26 +1,23 @@
+**Little Acorns Home Daycare**
+Bend, Oregon
+
 Dear Little Acorns Families,
 
-I'm writing to share a few updates to our policies. Some take effect on June 1, so I wanted you to have plenty of notice.
+Thank you for trusting me with your children. In six years, we have had the privilege of caring for 31 families, and I don't take that lightly. I'm writing to let you know about a few changes and reminders for the coming months.
 
-**New weekly rate**
-Starting June 1, the weekly rate will go from $265 to $285. Over the past six years, Little Acorns has cared for 31 families, and I've worked to keep our rates as steady as I can. This adjustment helps me keep the program safe, well supplied, and well staffed. One recent example is the new fence around our yard, which cost $3,200 and which I'm glad to have in place.
+**Rate change.** Starting June 1, the weekly rate will increase from $265 to $285. I know any increase matters to a family budget, and I have kept it as modest as I can while covering the rising costs of running the program. This year that included replacing our fence for $3,200, so the children can keep playing outside safely.
 
-**Late pickup**
-Our day ends at 5:30. For pickups after 5:30, there is a late fee of $1 per minute. Priya and I love your children, but we also have families of our own to get home to, and this keeps the end of the day running smoothly for everyone.
+**Late pickup.** Our day ends at 5:30. For pickups after 5:30, there will be a fee of $1 per minute. I'm happy to work with you when you know you'll be running behind, so please call or text and we'll sort it out together.
 
-**Sunscreen form**
-Our new sunscreen policy requires a signed parent permission form before we can apply sunscreen to your child. Please fill one out and return it to me. Without a signed form, we won't be able to apply sunscreen, and I'd hate for any little one to be left unprotected on a sunny Bend afternoon.
+**Sunscreen policy.** Under our new sunscreen policy, parents must sign a permission form before we can apply sunscreen to your child. Please sign and return the form before the sunny weather arrives. Without it, we won't be able to apply sunscreen.
 
-**Closures**
-Little Acorns will be closed the week of July 4 and on Thanksgiving Thursday and Friday. Please plan your backup care now so there are no surprises.
+**Closures.** Little Acorns will be closed the week of July 4 and on Thanksgiving Thursday and Friday. Please plan your care arrangements for those dates.
 
-**A reminder about our small size**
-I care for eight children, ages 1 to 4, with the help of my assistant, Priya. Keeping our group small is what lets us give each child real attention, and I'm committed to keeping it that way.
+**Our small, close-knit group.** I care for up to 8 children, ages 1 to 4, with the help of my wonderful assistant, Priya. Keeping our group small is what allows us to give each child the attention they deserve, and that will not change.
 
-**Open house**
-I'll hold open houses on May 10 from 10 a.m. to noon. Please stop by to see the new fence, ask questions about any of these changes, and visit with Priya and me. Current families, and anyone who'd like to know more about Little Acorns, are welcome.
+**Open house.** I would love to talk through any of these changes with you in person. I'll be holding an open house on **May 10 from 10:00 a.m. to noon**. Come see the new fence, ask questions, and visit with Priya and me. Current families and friends considering Little Acorns are all welcome.
 
-Thank you for trusting me with your children. It is a privilege to be part of your families' lives, and I look forward to seeing you on May 10.
+Thank you for being part of our Little Acorns family. Your support makes this work possible.
 
 Warmly,
 

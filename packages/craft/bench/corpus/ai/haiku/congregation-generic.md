@@ -2,34 +2,30 @@
 
 Dear Friends,
 
-Many of you have noticed the water stains on our ceilings, the buckets in the fellowship hall, and the worn shingles above the sanctuary. Our roof needs repair, and we want you to hear about it from us directly: what is wrong, what it will cost, and how we plan to pay.
+Many of you have noticed the water stains on the ceiling in the fellowship hall and the buckets that appear after heavy rain. Our roof has reached the point where it needs major repairs, and the leaks threaten the building we use for worship, school, meals, and fellowship. After consulting with a licensed roofing contractor and our property committee, the church council has decided to move forward with the work.
 
 **What needs to be done**
 
-After an inspection by [contractor name] on [date], we learned that [brief description, e.g., the roof is original to the 1985 sanctuary addition, several sections have failed flashing, and water is entering the nursery and fellowship hall]. Left alone, this damage will spread to the decking, insulation, and plaster, and the eventual cost will be much higher. The recommended work includes [e.g., replacing the sanctuary shingles, repairing the flashing around the bell tower, and sealing the fellowship hall skylight].
-
-**What it will cost**
-
-The total estimated cost is **$[amount]**, based on the written proposal we received from [contractor name]. We obtained [number] bids and chose the one that offered the best combination of quality, warranty, and experience with buildings like ours.
+The inspection found damaged flashing around the bell tower, several areas of failing shingles on the north slope, and rot in the decking beneath the fellowship hall. The repairs will replace damaged decking and flashing, install new roofing on the affected sections, and seal the seams that are letting water in. The contractor estimates the total cost at **$[TOTAL COST]**, and the work is expected to begin in [MONTH] and take about [NUMBER] weeks, weather permitting.
 
 **How we will pay for it**
 
-We have worked hard to find a plan that does not place an unreasonable burden on any one household. It includes:
+We do not plan to borrow money for this project. We will fund it through three sources:
 
-- **Reserve funds:** We will use $[amount] from our building reserve fund, which has been set aside for exactly this kind of need.
-- **Special giving campaign:** Beginning [date], we invite gifts toward a Roof Fund. Pledge cards will be available in the narthex and online at [website or link]. Gifts can be given as a one-time amount or spread over [number] months.
-- **Fundraising events:** [Event name(s) and date(s), if any.]
-- **Financing, if needed:** If the gifts fall short, the Finance Committee has recommended a short-term loan of no more than $[amount], which we would repay from the regular budget over [number] years. The congregation will vote on this option at [meeting date] before any loan is taken.
+1. **Church reserves.** We will set aside **$[AMOUNT]** from our building fund, money given over the years for exactly this kind of need.
+2. **A special roof offering.** Beginning [DATE], we will receive special gifts for the roof, given one time or spread over several months, whichever works best for your household. Pledge cards will be available in the narthex and online.
+3. **Budget adjustments.** The council will reduce [SPECIFIC AREA] for the next [NUMBER] months to cover the remaining **$[AMOUNT]**.
 
-Our goal is to have the work completed by [target date], before the winter rains. We will report progress on every giving Sunday and share a full financial update at each congregational meeting.
+Every gift, large or small, moves us closer to our goal. If you have questions about giving, or if giving is difficult for you right now, please talk with [CONTACT NAME] in confidence. No one should feel excluded from caring for this place.
 
-**How you can help**
+**Keeping you informed**
 
-Please pray for our building committee, our finance team, and the workers who will climb our roof. If you are able, please give generously to the Roof Fund. If you have questions, or if you would like to volunteer, please contact [name] at [phone or email] or speak with any member of the Finance Committee after worship.
+We will share progress in the weekly bulletin and at the end of each month, including how much has been raised and what work has been completed. If you have questions, please contact [CONTACT NAME] at [PHONE OR EMAIL], or join us after worship on [DATE] for a short meeting.
 
-Our church is more than the building that shelters us, but it is the place where we gather, worship, and serve. Thank you for caring for it with us.
+We are grateful for this community and for the care so many of you have shown this church over the years. Let us repair this roof together, so that the building will keep sheltering us for generations to come.
 
-In Christ's love,
+In Christ,
 
-[Pastor's name]
-on behalf of the [Church name] Church Council and Finance Committee
+[YOUR NAME]
+[TITLE]
+[CHURCH NAME]

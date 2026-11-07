@@ -1,44 +1,48 @@
-# Putting Your Mower Away for Winter (and Why Your Spring Self Will Thank You)
+# Putting Your Mower Away for Winter: The $8 Step That Saves You a Repair Bill
 
-*From the bench at Dale's Small Engine, Marion, Indiana*
+Every spring, the same thing happens at the shop. The first warm weekend hits, folks pull their mowers out of the garage, yank the cord, and get nothing. Or a cough, a sputter, and a stall.
 
-Every spring, the same thing happens. The first warm weekend rolls around, folks drag their mowers out of the shed, pull the cord, and get nothing. Or a cough, a sputter, and a puff of smoke. Then they show up at my shop with the mower in the back of a truck.
+About 80% of the spring repairs I see come down to one problem: a gummed-up carburetor from old gas.
 
-About 80% of the spring repairs I see come down to one problem: a gummed-up carburetor from old gas. It's the most common problem I see, and it's almost entirely preventable.
+The good news is that it's almost entirely preventable, and the fix takes about five minutes this fall.
 
-## Why Old Gas Ruins Carburetors
+## Why Old Gas Causes Trouble
 
-Most gas sold today contains ethanol, and ethanol gas starts going bad in about 30 days. As it breaks down, it leaves behind sticky varnish and gum. Leave that sitting in your carburetor all winter and the tiny passages inside clog up. Your mower won't start, or it'll run rough and stall.
-
-A carburetor rebuild at my shop runs $85 to $120. A bottle of fuel stabilizer costs about $8. That's the whole math.
+Most pump gas today contains ethanol, and ethanol gas starts going bad in about 30 days. As it breaks down, it leaves gummy deposits and varnish behind. Those deposits clog the tiny passages inside your carburetor. Leave a half tank of gas in the mower all winter, and by spring the carb is a sticky mess.
 
 ## Two Ways to Protect Your Mower
 
-Pick one of these before you put the mower away:
+**Option 1: Run it dry.** Shut off the fuel (if your mower has a shutoff valve) and let the engine run until it uses up the gas in the carburetor and stalls. No fuel sitting around means nothing to gum up.
 
-**Option 1: Run it dry.** Shut off the fuel supply if your mower has a valve, then let the engine run until it uses up all the gas and quits on its own. No fuel in the carburetor means nothing to turn into gum.
+**Option 2: Use fuel stabilizer.** Add stabilizer to the gas in the tank, following the directions on the bottle, then run the engine for 5 minutes. That last part matters. Running it gets the treated fuel all the way through the fuel system and into the carburetor, not just sitting in the tank.
 
-**Option 2: Use stabilizer.** Add fuel stabilizer to the tank, following the directions on the bottle. Then run the engine for 5 minutes. That last part matters. Running it pulls the treated gas through the fuel system and into the carburetor, so the protection reaches the parts that actually gum up. Stabilizer sitting in the tank alone doesn't do the job.
+Either method works. Just don't skip both.
 
-Either method works. Skipping both is what keeps my bench busy in April.
+## The Math Is Easy
 
-## Safety First: Pull the Plug Wire
+- A bottle of fuel stabilizer: about **$8**
+- A carburetor rebuild at my shop: **$85 to $120**
 
-Before you touch the blade for any reason, whether you're cleaning under the deck, checking it, or removing it, pull the plug wire off the spark plug. A mower that can't spark can't start. It takes a few seconds, and it keeps your hands safe if the blade turns even a little.
+I'm happy to do the rebuild if you need it, but I'd rather you keep that money in your pocket.
 
-## Get the Blade Sharpened Now
+## Sharpen the Blade While the Mower Is Resting
 
-While your mower is parked for the season, it's the perfect time to deal with a dull blade. A sharp blade cuts grass cleanly, and a dull one tears it, which leaves the lawn ragged and stressed.
+Winter is the best time to deal with a dull blade. A sharp blade cuts grass cleanly instead of tearing it, and your lawn will look better for it come spring.
 
-I sharpen blades for $12. Drop yours off by **November 15** and it'll be sharpened and waiting for you well before the grass starts growing again. Remember to pull that plug wire before you take the blade off.
+**Safety first:** before you touch the blade, pull the plug wire. Disconnect it from the spark plug so the engine can't accidentally start while your hands are near the blade. Don't skip this, even if you're sure the mower is off.
 
-## Your Winter Checklist
+If you'd rather leave it to us, drop your mower or blade off at Dale's Small Engine **by November 15** and I'll sharpen the blade for **$12**.
 
-1. Run the tank dry, or add stabilizer and run the engine for 5 minutes.
+## Your Winter Storage Checklist
+
+1. Run the mower dry, or add stabilizer and run it for 5 minutes.
 2. Pull the plug wire before working near the blade.
-3. Bring the blade in for sharpening by November 15.
+3. Sharpen the blade yourself, or bring it to us by November 15 for $12.
 4. Store the mower somewhere dry.
 
-Do those few things now, and in the spring you'll pull the cord, hear the engine catch, and get to mowing.
+Do those few things now, and your first mow of spring should be a pull of the cord and off you go.
 
-If you have questions, or your mower already needs some attention, stop by **Dale's Small Engine** in Marion. We're happy to help.
+Questions about your mower? Stop by or give us a call.
+
+**Dale's Small Engine**
+Marion, Indiana

@@ -1,34 +1,32 @@
-# Four Months of Losing Money for a Better Loaf
+# Twenty Hours for a Loaf of Bread
 
-In January 2025, I did something that made no sense on paper. At Kessler's Bread, I stopped using commercial yeast and switched every loaf to a sourdough starter.
+In January 2025, I did something that made no sense on paper. At Kessler's Bread, I stopped using commercial yeast and switched every loaf we bake to a sourdough starter.
 
-The starter came from my grandmother's crock, which she bought in 1962. It's been in the family longer than I've been baking, and it felt wrong to keep it on a shelf while I reached for a packet of yeast. So I woke it up and put it to work.
+The starter came from my grandmother's 1962 crock. It had been sitting in my family for decades, and I decided it was time to put it to work again, in the bakery on Main Street.
 
-## The math didn't work
+## The math didn't work at first
 
-A loaf made with commercial yeast takes about four hours from start to finish. A loaf made with our starter takes twenty. That's a whole day of waiting, tending, and trusting the dough to do its own thing on its own schedule.
+Commercial yeast gets a loaf from mixing bowl to oven in about four hours. Sourdough took us twenty. That's a long time to wait on flour, water, and patience, and it meant fewer loaves, longer days, and a lot of planning around a dough that doesn't care about our schedule.
 
-For four months, we lost money. Fewer loaves per day, the same rent, the same ovens, the same early mornings. I won't pretend there weren't nights I wondered whether I'd made a mistake.
+For four months, we lost money. I won't dress that up. There were weeks I wondered whether I'd made a very expensive sentimental mistake.
 
-## Cutting the menu
+## We cut the menu from 11 breads to 3
 
-We also had to get honest about what we could do well. We were making eleven breads. We kept three.
+Not everything survived the change. We started with eleven breads and kept three. Some of what we let go was hard to part with, but the breads we kept were the ones that truly rewarded the slower process. I'd rather bake three loaves I'm proud of than eleven I'm rushing.
 
-That was hard. Some of those breads had regulars. But a slow, careful process doesn't leave room for eleven of anything, and I would rather make three loaves I'm proud of than eleven I'm rushing.
+## The country loaf won people over
 
-## What happened next
+By September, we were selling 140 country loaves a week. In January, it was 60. Nobody ran an ad campaign. People tried a loaf, came back, and told their neighbors.
 
-The country loaf is the one that turned it around. In the winter, we were selling about 60 a week. By September, we were selling 140.
+The country loaf has a crackling crust and a tender, tangy crumb, and the long fermentation gives it a flavor that four hours simply can't produce.
 
-I didn't run a promotion or change the price to get there. People tasted it and came back, and then they told someone else. The crust is deep and crackly, the crumb is chewy and a little tangy, and it keeps better on the counter than anything we made with commercial yeast.
+One customer, Mr. Albright, who manages diabetes, told me that he feels his blood sugar handles our sourdough better than other breads he's tried. I'm a baker, not a doctor, and I can't tell you what it might mean for anyone else. But I was glad to hear it, and it's the kind of thing that makes the twenty hours feel worth it.
 
-One more story. A customer, Mr. Albright, who is diabetic, told me that he feels his blood sugar handles our sourdough better than other breads he's tried. I'm a baker, not a doctor, and I'd never tell anyone what bread will do for their health. But I was glad to hear it, and I'm grateful he shared it with me. If you have dietary concerns, talk to your own doctor.
+## Come try it on Saturday
 
-## Come try it on a Saturday
+If you've been curious, Saturday morning is the best time to stop by. Come to Kessler's Bread on Main Street in Sidney, pick up a country loaf, and taste what my grandmother's crock has been up to.
 
-If you've been curious, Saturday morning is the best time to visit. The country loaf is at its best, the shop smells the way it should, and I'm usually behind the counter.
-
-Come to Kessler's Bread on Main Street in Sidney, pick up a country loaf, and tell me what you think. After twenty hours of waiting on that dough, I'd love to hear it.
+I'll be glad to see you.
 
 *Ruth Kessler*
 *Kessler's Bread, Main Street, Sidney, Ohio*

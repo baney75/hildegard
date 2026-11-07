@@ -1,32 +1,27 @@
-# Paperwork Reduction Act Fast Track Process
+# How to Build an Analytics Strategy
 
-## Protect Your Customer&#8217;s Privacy
+The [Digital Analytics Program](https://digital.gov/guides/dap/) (DAP) recently partnered with Digital.gov to help set up an analytics strategy to monitor their website and overall platform performance. DAP provided a start-to-finish approach for assessing, reporting, and taking action using this strategy in a 3-part series:
 
-Federal agencies must follow various laws and regulations, including the [Paperwork Reduction Act (PRA)](http://www.gpo.gov/fdsys/pkg/PLAW-104publ13/html/PLAW-104publ13.htm) and the [Privacy Act](http://www.justice.gov/opcl/1974privacyact-overview.htm), when collecting information from the public. You should also be familiar with SORN (Systems of Records Notice), as well as rules around personally identifiable information, and laws that relate to your specific method of feedback collection (such as Section 508 compliance for online surveys).
+- Part 1: Assessment
+- Part 2: Reporting & Analysis
+- Part 3: Taking Action
 
-## Paperwork Reduction Act
+This review provides some highlighted steps from the series, which you can follow to build an analytics strategy and immediately extract value in your government analytics reporting role.
 
-The PRA was designed, among other things, to maximize the quality and usefulness of information created, used and shared by the federal government, while preventing unnecessary burdens on respondents. Before requiring or requesting information from the public, the PRA generally requires Federal agencies to:
+Of note, we used both the DAP web analytics tool and a web analytics account that is independently-managed by Digital.gov as part of this series. If you don’t have DAP or an independently-managed analytics account, this series might help support a business case for building these tools out further as part of your broader analytics toolkit.
 
-1. Post a 60-day Federal Register notice for public comment on the proposed collection;
-2. Post a subsequent 30-day Federal Register notice; and,
-3. Submit the proposed collection for review and approval by the Office of Management and Budget (OMB) concurrent with the 30-day Federal Register notice.
+## Part 1: Assessment
 
-### Fast-Track PRA Process
+We connected the dots between an organization's website strategy and how this cascades through the reporting experience. We illustrated how your strategy serves as the linchpin and foundation of website reporting. If you don't do the hard, up-front work of defining your strategy, you'll never be able to set up goals and glean insights from your data.
 
-OMB worked with agencies to create a fast-track process for information collections that focus on the awareness, understanding, attitudes, preferences, or experiences of customers or other stakeholders (e.g., delivery partners, co-regulators, or potential customers) relating to existing or future services, products or communication materials. The fast-track process allows agencies to submit such collections directly to OMB without posting in the Federal Register, since these agencies will have already created a generic clearance for these types of collections. The collection can then be quickly approved, unless OMB identifies any problems, and if so, they will notify the agency within five business days of submission. Consider using the fast-track process for your data collection activities when:
+**Key Steps and Highlights**
 
-- The data collection is focused on improving existing or future services, products, or communication materials;
-- The data collection is voluntary;
-- Statistical rigor is not required;
-- The burden on participants is not high; and
-- Public dissemination of results is not intended.
+- **Define your analytics strategy**—[mission, goals and KPIs](https://youtu.be/H0YMQe4rZug?t=511)—before you pull reports. There should be a logical connection between each of these items to keep you focused on your mission.
+- [**Assess the different data sources** and tracking methods](https://youtu.be/H0YMQe4rZug?t=991) at your disposal for reporting. Understanding whether you have a DAP account, an independently-managed account, both account types, or other metric tools implemented is key in figuring out next steps in tracking the metrics that matter most, and how you'll be able to define your KPIs.
+- [**Test each metric** with a real world example](https://youtu.be/H0YMQe4rZug?t=1692) to make sure the metrics support each of your goals. You can track a lot of numbers, but the numbers need to show how you are achieving a goal which aligns to your mission, or they might be secondary metrics. Use this test to inspire your thought process about why your site exists, and how you want and need to define success.
 
-Generally, these service-delivery-focused, voluntary collections fall under the fast-track process: focus groups; one-time or panel discussion groups; customer satisfaction qualitative surveys; post-transaction customer surveys; online surveys; comment cards or complaint forms; moderated, un-moderated, in-person, and remote usability studies; and testing of a survey or other collection to refine questions. Examples of collections that would not generally fall under the fast-track process are: (i) surveys that require statistical rigor because they will be used for making significant policy or resource allocation decisions; (ii) collections whose results are intended to be published; and (iii) collections that are intended for basic research and that do not directly benefit the agency&#8217;s service delivery.
+## Part 2: Reporting and Analysis
 
-Ask your agency PRA or Privacy Officer, or Counsel&#8217;s office, if your survey is eligible for the fast-track process.
+In the second part, we demonstrated how to pull reporting using Digital.gov data in both the DAP account and their independently-managed account. You must know your website mission, goals and KPIs, and know how to find the data to assess the performance of your KPIs in both DAP or an independently managed account.
 
-- [Fast-Track PRA Frequently-Asked Questions](https://obamawhitehouse.archives.gov/sites/default/files/omb/assets/inforeg/pra-faqs.pdf) (PDF, 370 KB, 8 pages, February 2012)
-- [Fast Track PRA Submission Short Form](https://s3.amazonaws.com/digitalgov/_legacy-img/2017/05/fast-track-PRA-submission-short-form-3.doc) (Word document, 53 KB, 3 pages, February 2012)
-
-### Traditional PRA Process
+**Key Steps & Highlights**

@@ -1,13 +1,18 @@
 # About Teresa Walsh
 
-Teresa Walsh has been helping buyers and sellers across Mason and Lake counties since 2011. She is a licensed agent with Lakeshore Realty in Ludington, Michigan, and she works only in those two counties, so she knows the neighborhoods, the lakefront, and the local market well.
+I'm a real estate agent with Lakeshore Realty in Ludington, Michigan, and I've been helping people buy and sell homes since 2011.
 
-Teresa grew up in Scottville, just nine miles east of Ludington. Before she became an agent, she spent six years teaching fourth grade. That experience shapes how she works today: she explains each step clearly, answers questions patiently, and keeps her clients informed from the first conversation to the closing table.
+I grew up in Scottville, just nine miles east of Ludington, so this area is home to me. Before I got into real estate, I spent six years teaching 4th grade. I still think of that work every time I sit down with a buyer who is nervous about a big decision. Explaining things clearly and being patient with people who have questions is a habit I brought with me from the classroom.
 
-Over her career, Teresa has sold 312 homes. About half of those sales were to first-time buyers, and she takes real pride in guiding people through their first purchase with confidence. Whether you are buying your first home, selling a family property, or moving within the area, she will work to make the process feel manageable.
+To date, I've helped sell 312 homes. About half of those went to first-time buyers, and I enjoy that part of the job the most. Buying your first home can feel overwhelming, and I want you to understand every step before we take it together.
 
-Teresa speaks Spanish, so she is glad to work with Spanish-speaking clients in their preferred language.
+I speak Spanish, so I'm glad to work with clients who prefer to conduct their home search or closing conversations in Spanish.
 
-She understands that real estate decisions don't happen only during business hours. She answers texts until 9 p.m., so you can reach out when it is convenient for you.
+I focus exclusively on Mason and Lake counties. Knowing these communities well, from the neighborhoods to the local market, is how I can give you advice you can trust.
 
-**Let's talk.** Call or text Teresa at **(231) 555-0144**.
+I'm also responsive. I answer texts until 9 p.m., because I know that home decisions don't always happen during business hours.
+
+If you're thinking about buying or selling, I'd love to hear from you. Call or text me anytime at **(231) 555-0144**.
+
+Teresa Walsh
+Lakeshore Realty, Ludington, Michigan

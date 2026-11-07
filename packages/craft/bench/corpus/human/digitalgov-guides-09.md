@@ -1,17 +1,15 @@
-# An introduction to working with social media influencers
+# An introduction to GitHub
 
-## What is an influencer program?
+In this first training video, Content Strategy and Design Specialist for GSA’s [Technology Transformation Services (TTS)](https://tts.gsa.gov/), Malaika Carpenter, breaks down how to use GitHub into easy, practical steps and demonstrates ways to use this tool to create, manage and publish website content.
 
-In the rapidly evolving social media landscape, working with influencers has become a popular way to reach a desired audience. A social media influencer is anyone with a social media following beyond their personal friends and family who has the ability to impact others’ decisions with their digital content.
+## What is GitHub?
 
-## Why partner with social media influencers?
+[GitHub](https://www.github.com/) is a web-based interface that uses [Git](https://www.git-scm.com/), the open source version control software that lets multiple people make separate changes to web pages at the same time. As Carpenter notes, because it allows for real-time collaboration, GitHub encourages teams to work together to build and edit their site content.
 
-Working with influential people is an established communications tactic and public service announcements have featured celebrities for many years.
+## How can GitHub help my team and me?
 
-More recently, the rise of social media has made working with social media influencers an effective communications tool, especially in commercial marketing. Government agencies are also recognizing the potential for social media influencers to achieve non-commercial sales goals, such as public health information.
+GitHub allows multiple developers to work on a single project at the same time, reduces the risk of duplicative or conflicting work, and can help decrease production time. With GitHub, developers can build code, track changes, and innovate solutions to problems that might arise during the site development process simultaneously. Non-developers can also use it to create, edit, and update website content, which Carpenter demonstrates in her tutorial.
 
-For example, the U.S. Food and Drug Administrations (FDA) [Center for Tobacco Products](https://www.fda.gov/about-fda/fda-organization/center-tobacco-products) works with influencers on their public health education campaigns to prevent and reduce tobacco use.
+## How do I speak GitHub?
 
-## How to design, implement, and measure an influencer program
-
-The FDA published [Influencers 101: Best Practices and Practical Approaches for Public Health Campaigns](https://digitalmedia.hhs.gov/tobacco/print_materials/CTP-237). Drawn from nine years of experience, this award-winning guide explores key aspects of influencer programs and addresses frequently asked questions like:
+There are some common terms teams will need to understand when using GitHub. They are:

@@ -1,19 +1,26 @@
 **Subject: Spring Recital Details**
 
-Dear Piano Families,
+Dear Parents and Guardians,
 
-Spring recital season is almost here, and I am excited to share the details with you.
+I'm excited to announce our spring recital, coming up on [date] at [time] at [location]. It's a chance for students to share the progress they've made this year with family and friends.
 
-**Date:** [Day, Month Date, 2027]
-**Time:** [Start time] (please arrive by [arrival time])
-**Location:** [Venue name and address]
+**What to expect**
+- Doors open at [time], and the program begins promptly at [time].
+- The recital will last about [length], with a short intermission.
+- Each student will perform one or more pieces. Please let me know by [deadline] if your child has a special request for their performance slot.
 
-Each student will perform one piece, and I encourage everyone to practice their selection in the weeks leading up to the event so they can enjoy the experience. Students should dress comfortably but neatly, and I ask that they arrive with their music, a pencil, and a sense of excitement.
+**Preparing for the day**
+- Please have your child practice their recital piece daily in the weeks leading up to the event, and encourage them to perform it for family at home.
+- Students should arrive at least 20 minutes early to warm up and get settled.
+- Dress is comfortable but neat. Many students like to wear something nice for the stage.
 
-Please let me know by [RSVP date] if your child will be performing and whether you plan to attend. If you have questions about your child's piece or performance order, feel free to reach out to me directly at [phone or email].
+**Please RSVP**
+Let me know how many guests you expect by [RSVP date] so I can plan seating. You can reply to this email or contact me at [phone number].
 
-Thank you for your continued support and encouragement. I look forward to hearing our students shine!
+Thank you for your support and encouragement. Watching the students grow throughout the year has been a joy, and I look forward to celebrating their hard work with you this spring.
 
 Warm regards,
 
-Donovan Baney
+Your piano teacher
+[Studio name]
+[Contact information]

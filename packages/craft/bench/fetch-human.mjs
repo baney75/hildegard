@@ -7,7 +7,10 @@
 //                                                        ~/.cache/hildegard-prose-corpus)
 //   node packages/craft/bench/fetch-human.mjs --check    re-fetch and fail if any piece's hash changed
 //
-// Sources, all published before 2021 so no model wrote them:
+// Sources, chosen to predate language models. Every piece with a date in its source is dated 2020 or earlier (a
+// `date` of 2021 or later is skipped). The 18F site pages carry no date in their files, and their repository first
+// holds them in June 2024 and changes them through January 2025, so their manifest date is `undated` and the docs
+// say so:
 //   18F blog and site pages (CC0 and US public domain, github.com/18F/18f.gsa.gov, pinned commit)
 //   Digital.gov news (US public domain and CC0, github.com/GSA/digitalgov.gov, pinned commit)
 //   NASA blog and feature posts (US government work, generally not copyrighted)
@@ -134,7 +137,13 @@ const take = (src, cands, count, holdout = 0) => {
 const wanted = (md, min = 90) => {
   const w = words(md);
   const paragraphs = md.split(/\n\n+/).filter((p) => !/^(#|- |>)/.test(p));
-  return w >= min && w <= 2500 && paragraphs.filter((p) => words(p) >= 10).length >= 2;
+  // A style-guide test page full of filler (“Lorem ipsum dolor sit amet”) is a template, not writing.
+  return (
+    w >= min &&
+    w <= 2500 &&
+    paragraphs.filter((p) => words(p) >= 10).length >= 2 &&
+    !/lorem ipsum dolor/i.test(md)
+  );
 };
 const front = (raw) => {
   const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
@@ -177,6 +186,8 @@ async function github(
     const { meta, authors, body } = front(await get(url));
     const date = (meta.date ?? '').slice(0, 10);
     if (dated && !/^20(1[4-9]|20)/.test(date)) continue;
+    // Pages without a date filter (`dated: false`) still carry one when they were written or updated: nothing from 2021 on.
+    if (date >= '2021') continue;
     const md = stripMd(lead && meta.lead ? `${meta.lead}\n\n${body}` : body);
     const c = cut(md, target(p));
     if (!c || !wanted(c.text)) continue;
@@ -184,7 +195,7 @@ async function github(
       url: `https://github.com/${repo}/blob/${commit}/${p}`,
       title: meta.title ?? p,
       author: authorsFmt(authors ?? []),
-      date: date || '2014/2020',
+      date: date || 'undated',
       ...c,
     });
   }

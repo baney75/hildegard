@@ -1,29 +1,26 @@
-# Sitting on the Porch
+**Sitting on the Porch**
+*Luke 15:1–10*
 
-*Luke 15:1-10*
+Luke tells us who was listening when Jesus told these stories. The tax collectors and sinners were gathering around to hear him, and the Pharisees and teachers of the law were muttering about it. "This man welcomes sinners and eats with them." So Jesus answers the muttering with a story about a shepherd, and then another about a woman with a broom.
 
-Luke tells us the tax collectors and sinners were gathering around Jesus to listen, and the religious people were grumbling about it. So Jesus tells them a story. A shepherd has a hundred sheep and loses one. He leaves the ninety-nine and goes after it "until he finds it." Then he tells another. A woman has ten silver coins and loses one. She lights a lamp, sweeps the house, and searches carefully until she finds it.
+A hundred sheep, and one is gone. Any sensible man, Jesus implies, would see the math. Ninety-nine is a good number. Ninety-nine is a healthy flock. But the shepherd leaves the ninety-nine in the open country and goes after the one. That is not good business. It is love, and love has never been very good at arithmetic.
 
-I've read those stories all my life, and I always heard them as stories about strategy. Lost things get found. Last month I heard them differently.
+Then the coin. Ten silver coins, one lost. The woman lights a lamp, sweeps the house, and searches carefully until she finds it. Then she calls her neighbors over to celebrate a coin. Anyone watching would think she had lost her mind.
 
-A boy from our youth group walked away from this church after his dad's funeral. I won't tell you his name. He doesn't belong to the church website, he belongs to himself. But some of you know who I mean, and all of you know how it happens. A family buries someone they love, the casseroles stop coming, the house goes quiet, and a kid decides he's done with all of it. Maybe done with God. Maybe just done with us, with the people who stood around in the fellowship hall saying things like "He's in a better place."
+I want to tell you what these stories looked like for us last month, because I did not expect to be living inside them.
 
-On a Tuesday night, three of us drove to his apartment. I'd love to tell you we had a plan. We didn't. We had no speech and no verse ready. We climbed the steps, he opened the door, and we ended up sitting on his porch. For an hour he didn't say a word. Not one. We said a little, and then less, and then we mostly listened to traffic and the sound of a screen door down the hall.
+A young man in our youth group lost his father. We buried his dad on a Saturday. The church showed up the way a church should: casseroles, cards, a full sanctuary. And then, within a few days, the boy was gone. Not dramatically. He just stopped coming. No argument, no announcement. He walked out of the funeral and, as far as any of us could tell, out of the church.
 
-I drove home wondering if we had done anything at all.
+I would love to tell you I had a plan. I did not. What I had was an address and a Tuesday night. Three of us drove to his apartment. We knocked. He came out, and he sat down on the porch, and we sat down with him.
 
-Here is what strikes me now about the shepherd and the woman. Jesus doesn't tell us what either of them said to what they found. A sheep can't be reasoned with, and a coin can't be talked into anything. The whole story is about the one who goes looking. The shepherd goes out into the rough country. The woman gets down on her knees with a lamp and a broom and moves the furniture.
+And he did not say a word. Not one, for an hour.
 
-Notice, too, that nobody in these stories was lost on purpose. The sheep wandered. The coin simply fell. Grief does that to people. It doesn't always look like rebellion. Sometimes it looks like a boy who can't stand to sit in a pew where his father used to sit beside him.
+I have preached on this passage for years, and I never once pictured the shepherd sitting quietly beside the sheep. In my head the shepherd always arrived with a rescue, a speech, a solution. But what we had that night was three men on a porch step, a streetlight, and a silence that was not ours to fix. Honestly, I kept wanting to say something wise. I kept not having anything. So we stayed. When it was time to go, we told him we were glad we came, and we drove home.
 
-Two weeks later, he came to youth group.
+I don't know what that hour did. I won't pretend to. I can't draw a line from our porch to what happened two weeks later, when he walked back into youth group and sat down like it was any other night. Maybe it was us. Maybe it was his mother, or a friend, or God working in ways none of us saw. I'm not offering you a method. Please don't hear me say that if you sit on enough porches, people come back. Some don't, not on our timetable. Grief keeps its own calendar.
 
-I want to be honest with you. I don't know why. I can't tell you it was the porch. I can't promise you that if you sit outside someone's door for an hour, they will come back in two weeks. Sometimes they don't, and the sitting was still right. I think that's why Jesus tells these stories to people who are grumbling. He is not handing out a method. He is showing them the heart of God, who goes looking for the ones the rest of us have written off, or just stopped noticing.
+But notice what Jesus says. The shepherd goes after the sheep *until he finds it.* The woman searches *carefully.* The verbs in these stories are slow, stubborn, and unglamorous. Nobody in them is clever. They are just unwilling to let the lost thing stay lost.
 
-Some of you are the one who is lost tonight. Maybe you buried someone, or something, and you are sitting very still in a place where nobody has found you yet. Hear this: you are not a problem to be managed. You are valuable to the One who is looking. He has the lamp lit.
+And notice the joy. Heaven rejoices, Jesus says, over one. Not over the ninety-nine who never wandered, but over the one. When that boy walked in, I felt a little of what the woman felt with her neighbors crowding the kitchen. Over one kid. Over a seat that had been empty.
 
-And some of you have someone in mind right now, a name you thought of the moment I said "walked away." You may not know what to say. Good. Neither did we. Go anyway. Sit down on the porch. Let the silence be what it is.
-
-Heaven rejoices over the one who comes home. I saw a little of that rejoicing on a Wednesday night in our youth room, and I'm not ashamed to say I had to step into the hallway for a minute.
-
-Let's be a church that goes looking.
+That is the heart of God, and it is wildly out of step with how we count. Church, there is someone you are not counting right now, because they stopped showing up and it was easier not to notice. Go and sit on their porch. You don't need words.

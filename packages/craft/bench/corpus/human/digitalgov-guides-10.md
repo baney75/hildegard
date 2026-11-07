@@ -1,27 +1,17 @@
-# Contact Center Technologies
+# NARA guidance on Managing Social Media Records
 
-A contact center is supported by many technologies designed to enhance the customer experience, improve the operating and management efficiency, or lower the overall costs of running a contact center. These technologies are:
+This Bulletin provides high-level record keeping requirements and best practices for capturing records created when federal agencies use social media.
 
-- [Automatic Call Distributor Systems]()
-- [Email Response Management Systems]()
-- [Intelligent Call Routing]()
-- [Interactive Voice Response Systems]()
-- [Knowledge Management Systems]()
-- [TTY/TDD Communications]()
-- [Toll-Free Telephone Services]()
-- [Trunk Circuit Networks]()
-- [Web Chat]()
-- [Workforce Management Systems]()
+The use of social media may create Federal records that must be captured and managed in compliance with Federal records management laws, regulations, and policies. This Bulletin does not contain platform-specific social media capture guidance.
 
-## Automatic Call Distributor System {#automatic}
+## Related Links
 
-An Automatic Call Distributor (ACD) is a computerized telephony system that analyzes incoming calls and distributes them based on specific instructions that define how the calls are to be handled. It has both a hardware and software component. It is considered the hub of a contact center and the most critical technology component. An ACD can range from a few lines for a small system to hundreds of lines, such as systems used in large contact centers.
+- NARA blog post on [Managing Official Email and Social Media Accounts during a presidential transition](https://records-express.blogs.archives.gov/2020/10/21/transition-post-3-managing-official-email-and-social-media-accounts/) (October 10, 2020)
+- [NARA guidance for implementing Section 207(e) of the E-Gov Act](http://www.archives.gov/records-mgmt/bulletins/2006/2006-02.html)
+- [NARA guidance on managing web records](http://www.archives.gov/records-mgmt/policy/managing-web-records-index.html)
+- [OMB M-17-06, Policies for Federal Agency Public Websites and Digital Services (PDF, 1.2 MB, 18 pages, November 2016)](https://www.whitehouse.gov/wp-content/uploads/legacy_drupal_files/omb/memoranda/2017/m-17-06.pdf)
+- [E-Government Act of 2002](http://www.archives.gov/about/laws/egov-act-section-207.html) (Section 207)
 
-When the ACD receives a call, it will recognize certain information transmitted along with the call:
+---
 
-- The phone number that was dialed (Direct Number Identification Service–DNIS), or
-- The phone number the call was made from (Automatic Number Identification–ANI)
-
-The ACD can also categorize calls based on the callers&#8217; responses to questions in the Interactive Voice Response (IVR) system. The ACD looks for specific rule or skills-based routing instructions stored in the ACD’s database for that DNIS or ANI to determine how the call is to be handled.
-
-There are many routing options, including:
+See more [DigitalGov Resources]()

@@ -1,32 +1,63 @@
-# An introduction to trust
+# Plain Language Web Writing Tips
 
-## What is trust in digital services?
+On the web, people are in a hurry. They skim and scan, looking for fast answers to their questions, so it’s important to get to the point—quickly!
 
-Almost every interaction with government today has an online component, from looking up an agency’s phone number, to making an appointment or filling out a form, to completing an entire transaction online. Consequently, agency websites have come to represent the U.S. government. And because people tend to think about the federal government as a single thing, one poor experience with one agency website can diminish trust in the entire government.
+Help your readers complete their tasks with these Plain Language writing tips:
 
-Trusted digital services meet customer expectations, and they are easy to find, understand, and use.
-
-## Why is trust important?
-
-Because websites are sometimes the only way the public interacts with agencies, it’s our duty to deliver a well-designed and helpful online experience. People expect government services to work well, especially online. When they don’t, it erodes public trust and reinforces negative perceptions of government.
-
-According to a 2022 report by Pew Research, “Public trust in government remains low. Only about one-quarter of Americans say they can trust the government in Washington to do what is right “just about always” (2%) or “most of the time” (22%).”<sup>[1]</sup>
-
-## How to build websites that people can trust
-
-There are practical steps you can take to meet the trust-related [federal web requirements](https://digital.gov/resources/checklist-of-requirements-for-federal-digital-services/). Start improving in these four areas to increase the trustworthiness of your site:
-
-1. **Improve design quality:** Have a clear and meaningful navigational structure, copyedited writing, and a professional looking visual design.
-2. **Upfront disclosure:** Prominently display contact information and provide clear links to policy or documentation.
-3. **Correct and current content:** Knowledge and intention should inform the organization of the website, and users should feel that your site is knowledgeable  and supportive of what they are trying to do.
-4. **Connection to the rest of the web:** Present links to other government sources to be transparent and inspire confidence in the services your agency provides.<sup>[2]</sup>
-
-Trust is hard to earn, and even harder to regain once broken. Federal websites must demonstrate that they can be trusted by working well, meeting customer needs, and delivering real value.
-
-## Resources
-
-* [USWDS design principles](https://designsystem.digital.gov/design-principles/#earn-trust) — Earn trust by following consistent design principles
-* [Get .gov](https://get.gov/) — Host your site on a .gov or .mil domain to assure users it’s an official government site
-* [To build trust, aim for easy](https://digital.gov/2022/12/13/to-build-trust-aim-for-easy/) — Trust is built up with good experiences, and broken with bad ones
-
-## Connect with others interested in improving trust in government
+<table style="width: 100%" border="1">
+  <tr>
+    <td>Audience</td><td>Write for your reader. Don&#8217;t write for the experts, the lawyers, or your management, unless they are your intended audience.</td>
+  </tr>
+  
+  <tr>
+    <td>Length</td><td><s>Less is more!</s> <s>Be concise.</s> Eliminate ALL unnecessary words. <s>Challenge every word = do you need it?</s></td>
+  </tr>
+  
+  <tr>
+    <td>Tone</td><td>Use conversational pronouns (you, us, our, we). Write as if you were talking to a colleague or friend. Use contractions (we’re instead of we are).</td>
+  </tr>
+  
+  <tr>
+    <td>Voice</td><td>Use active voice with strong verbs. Say “We mailed your form on May 1” instead of “Your form was mailed by us on May 1.”</td>
+  </tr>
+  
+  <tr>
+    <td>Word Choice</td><td>Use the same words your readers use when they search for your info on the Web. Avoid acronyms and jargon.</td>
+  </tr>
+  
+  <tr>
+    <td>Simplify</td><td>Use simple, descriptive section headings; short paragraphs; and ordinary, familiar words.</td>
+  </tr>
+  
+  <tr>
+    <td>Links</td><td>Never use &#8220;click here&#8221;—link language should describe what your reader will get if they click that link. Include key words to help search engines.</td>
+  </tr>
+  
+  <tr>
+    <td>Organization</td><td>Put the most important information first, followed by the details.</td>
+  </tr>
+  
+  <tr>
+    <td>Improve Tasks</td><td>Organize content around your customers’ tasks, not your organization. Highlight action items (step 1, step 2, etc.).</td>
+  </tr>
+  
+  <tr>
+    <td>Scannability</td><td>Separate content into small chunks. Use lots of white space for easy scanning. In general, write no more than 5-7 lines per paragraph. Use lists and bullets, they are easy to scan.</td>
+  </tr>
+  
+  <tr>
+    <td>Separate Topics</td><td>Present each topic separately. Keep the information on each page to three (or fewer) levels.</td>
+  </tr>
+  
+  <tr>
+    <td>Context</td><td>Don’t assume your readers already know the subject or have read related pages. Each page should stand on its own. Put everything in context.</td>
+  </tr>
+  
+  <tr>
+    <td>Test and Evaluate</td><td>Test Web pages with actual customers so you can be sure real people can understand what you write.</td>
+  </tr>
+  
+  <tr>
+    <td>Train</td><td>Encourage all your colleagues (lawyers, accountants, researchers, etc.) to use plain language—because all content is potentially Web content.</td>
+  </tr>
+</table>

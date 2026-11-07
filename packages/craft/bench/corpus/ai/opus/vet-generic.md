@@ -1,30 +1,26 @@
-**Subject: We're Now Open Saturdays!**
+**Subject: We're Now Open on Saturdays!**
 
-Dear Friends,
+Dear Valued Clients,
 
-We know that weekdays can be busy. Between work, school, and everything else, finding time for your pet's care isn't always easy. That's why we're happy to announce that **[Clinic Name] is now open on Saturdays**, starting **[Start Date]**.
+We know weekdays can be busy, and finding time for your pet's appointment isn't always easy. That's why we're happy to announce that **our clinic is now open on Saturdays!**
 
-**Our New Saturday Hours:**
-**[Opening Time] – [Closing Time]**
+**New Saturday Hours:** [Opening Time] – [Closing Time]
 
-Saturday appointments are available for:
+Starting [Start Date], you can bring your furry, feathered, or scaly family members in on the weekend for:
 
-- Wellness exams and vaccinations
+- Wellness exams and annual checkups
+- Vaccinations
 - Sick visits and minor concerns
-- Follow-up appointments
-- Prescription and food pickups
+- Medication and food pickups
+- Nail trims and other routine care
 
-Our weekday hours will stay the same, so you'll simply have more options to choose from.
+**Booking a Saturday appointment is easy.** Call us at [Phone Number], book online at [Website], or stop by the front desk on your next visit. Saturday spots are expected to fill quickly, so we encourage you to reserve your time early.
 
-**Booking a Saturday Visit**
-Saturday spots are expected to fill quickly, so we recommend booking ahead. You can schedule by calling us at **[Phone Number]** or online at **[Website]**.
+Our weekday hours remain the same, so you'll have more options than ever to fit your pet's care into your schedule.
 
-As always, if your pet has an emergency outside our regular hours, please contact **[Emergency Clinic Name]** at **[Emergency Phone Number]**.
-
-Thank you for trusting us with the care of your animals. We look forward to seeing you and your pets on Saturdays!
+Thank you for trusting us with the health and happiness of your pets. We look forward to seeing you, on weekdays *and* weekends!
 
 Warm regards,
 
 The Team at [Clinic Name]
-[Address]
-[Phone Number] | [Website]
+[Phone Number] | [Website] | [Address]

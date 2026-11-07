@@ -1,30 +1,31 @@
-Human writing: 220 pieces. Fail 32.3%, any warn 45.9%, any finding 63.2%.
-AI drafts (no skill): 176 pieces. Recall (fails) 11.4%, any finding 61.4%.
-  haiku                  n=44 recall 11.4%
+Human writing: 220 pieces. Fail 33.6%, any warn 44.1%, any finding 62.7%.
+AI drafts (no skill): 176 pieces. Recall (fails) 11.9%, any finding 60.8%.
+  haiku                  n=44 recall 15.9%
   luna                   n=44 recall 18.2%
-  opus                   n=44 recall 13.6%
-  sonnet                 n=44 recall 2.3%
-dev   human n=98 false-fail 35.7%; AI n=72 recall 9.7%
-test  human n=49 false-fail 34.7%; AI n=56 recall 12.5%
-holdout human n=73 false-fail 26.0%; AI n=48 recall 12.5%
+  opus                   n=44 recall 9.1%
+  sonnet                 n=44 recall 4.5%
+dev   human n=98 false-fail 34.7%; AI n=72 recall 15.3%
+test  human n=49 false-fail 36.7%; AI n=56 recall 12.5%
+holdout human n=73 false-fail 30.1%; AI n=48 recall 6.3%
 
 rule                  human ai    humanFail aiFail
-bold                    4.1%  16.5%     0.0%     0.0%   (9/29)
-triads                  4.1%  11.9%     0.0%     0.0%   (9/21)
-bold-leads              0.9%   7.4%     0.0%     0.0%   (2/13)
+bold                    4.1%  15.9%     0.0%     0.0%   (9/28)
+triads                  4.1%  14.2%     0.0%     0.0%   (9/25)
+bold-leads              0.9%   4.0%     0.0%     0.0%   (2/7)
 unfinished              0.0%   2.8%     0.0%     2.8%   (0/5)
+throat-clearing         0.0%   2.3%     0.0%     2.3%   (0/4)
 colon-reveal            0.0%   1.7%     0.0%     0.0%   (0/3)
-chatbot                 0.0%   1.1%     0.0%     1.1%   (0/2)
-throat-clearing         0.0%   1.1%     0.0%     1.1%   (0/2)
+chatbot                 0.0%   0.6%     0.0%     0.6%   (0/1)
+emoji-heading           0.0%   0.6%     0.0%     0.6%   (0/1)
 metadiscourse           0.0%   0.6%     0.0%     0.0%   (0/1)
 puffery                 0.5%   0.0%     0.5%     0.0%   (1/0)
 summary-ending          0.5%   0.0%     0.5%     0.0%   (1/0)
 summary-openers         0.5%   0.0%     0.5%     0.0%   (1/0)
-rhythm                  2.7%   1.1%     0.0%     0.0%   (6/2)
-fragments               4.5%   1.7%     0.0%     0.0%   (10/3)
-empty-phrases           4.1%   1.1%     4.1%     1.1%   (9/2)
-specifics              15.5%  11.9%     0.0%     0.0%   (34/21)
+rhythm                  2.7%   1.7%     0.0%     0.0%   (6/3)
+fragments               4.5%   3.4%     0.0%     0.0%   (10/6)
+specifics              14.5%  12.5%     0.0%     0.0%   (32/22)
+empty-phrases           4.1%   1.7%     4.1%     1.7%   (9/3)
 not-but                 6.4%   1.7%     0.5%     0.0%   (14/3)
 loaded-words            5.5%   0.0%     0.0%     0.0%   (12/0)
-stock-words            12.7%   1.1%    12.7%     1.1%   (28/2)
-dashes                 39.5%  22.2%    19.1%     4.0%   (87/39)
+stock-words            12.7%   0.6%    12.7%     0.6%   (28/1)
+dashes                 40.0%  17.6%    20.5%     3.4%   (88/31)

@@ -1,53 +1,47 @@
-# What to Bring for a Fall Steelhead Float on the Pere Marquette River
+# What to Bring on a Fall Steelhead Float Trip on the Pere Marquette
 
-Fall on the Pere Marquette is hard to beat. The maples along the banks go gold, the mornings come in cold and quiet, and fresh steelhead are moving up from Lake Michigan. Our trips at Big Two-Hearted Outfitters run from October through early December, and the fishing only gets more interesting as the water cools.
-
-That cold is the reason this post exists. With the river between 38 and 46 degrees, what you bring and what you wear will decide whether you have a great day or a miserable one. Here's how to get ready.
+There's a particular quiet that settles over the Pere Marquette in the fall. The leaves are down, the river runs clear and cold, and somewhere under the drift boat a chrome steelhead is holding in a seam, waiting. If you've booked a trip with Big Two-Hearted Outfitters, or you're thinking about it, here's how to show up ready.
 
 ## What I Provide
 
-Leave the heavy gear to me. Your trip includes:
+Let's start with what you don't have to worry about. I supply the rods, reels, flies, and the drift boat. You don't need to buy a steelhead setup or sort through fly boxes. Just bring yourself and the gear below.
 
-- Rods and reels, set up for steelhead
-- Flies, chosen for the conditions that morning
-- The drift boat
+## The Conditions
 
-You don't need to buy or borrow any tackle. Just show up ready to fish.
+Our season runs October through early December. Water temperatures during that stretch sit between 38 and 46 degrees. That's cold enough to slow fish down and cold enough to punish anyone who dresses carelessly. Plan for a long morning on the water and dress for the river, not for the parking lot.
 
-## What You Need to Bring
+## Waders and Boots
 
-### Breathable waders
+**Breathable waders.** They keep you dry and let you layer underneath without overheating when the sun finally clears the trees.
 
-Even on a float trip, we'll get out of the boat to work good runs and tailouts. With water in the 30s and 40s, you want waders that keep you dry and leave room for warm layers underneath. Breathable waders are the right choice: they keep you dry from the outside without turning into a sweat lodge when you're rowing, walking, or casting.
+**Wading boots without felt soles.** This one matters. Michigan bans felt on some rivers, and I don't allow felt in my boat, so rubber-soled boots are the rule on every trip. If your boots have felt, leave them home or swap the soles before you arrive.
 
-### Wading boots with no felt soles
+## How to Dress
 
-This one is firm. Michigan bans felt soles on some rivers, and I don't allow felt in my boat at all. Rubber-soled boots are what you want. Check your boots before you drive up. If they have felt, leave them home and bring a rubber-soled pair.
+Layers are the answer, and **no cotton.** Cotton soaks up moisture and holds it against your skin, which is a miserable way to spend a cold morning. Choose wool or synthetic fabrics instead.
 
-### Layers, and no cotton
+- A moisture-wicking base layer, top and bottom
+- An insulating mid-layer, such as fleece or wool
+- A waterproof, windproof outer shell
+- Warm wool or synthetic socks that fit comfortably inside your boots
+- A warm hat and gloves you can fish in
 
-Cotton holds moisture and pulls heat from your body. On a 38-degree river, that's a bad combination. Dress in layers you can add or shed as the day changes:
+You can always shed a layer in the boat. You can't add one you left in the truck.
 
-- A synthetic or merino wool base layer
-- A fleece or wool mid-layer
-- A warm, windproof outer layer
-- Wool or synthetic socks (thick, but not so tight they restrict circulation in your boots)
-- A warm hat and gloves
+## Your License
 
-Mornings on the water are cold, and it often warms up by midday. Layers let you adjust without ending the day early.
+You'll need a Michigan fishing license with an all-species endorsement. Take care of it before the trip so we can launch on time and spend the morning fishing.
 
-### A Michigan fishing license with an all-species endorsement
+## Launch Details
 
-You must have a valid Michigan fishing license with an all-species endorsement to fish for steelhead. Buy it before the trip so we can launch on time.
+We put in at **7 a.m. from the Gleason's Landing access.** Arrive a little early so we can get settled, go over the plan for the day, and push off right on schedule.
 
-## The Schedule and the Cost
+## Rates
 
-We launch at 7 a.m. from the Gleason's Landing access. Plan to arrive a little early so you can gear up, sort out your layers, and be ready to go when we push off.
-
-Trips are $525 for two people.
+A trip is **$525 for two people.**
 
 ## Ready to Fish?
 
-If you've got your waders, rubber-soled boots, warm layers, and license, you're set. I'll take care of the rest. Fall steelhead on the Pere Marquette is one of the best days you can spend on a Michigan river, and I'd love to put you on some fish.
+Fall steelhead fishing on the Pere Marquette is cold, beautiful, and worth every layer. Pack smart, show up ready, and I'll handle the rest.
 
-Get in touch with Big Two-Hearted Outfitters to book your date. Dates fill up as the season goes on, so don't wait too long.
+To book your date, get in touch with Big Two-Hearted Outfitters. I'll see you at Gleason's Landing.

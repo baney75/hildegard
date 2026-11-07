@@ -1,25 +1,38 @@
-# We're Moving to Stellhorn Road
+# We're Moving: Okafor Family Dentistry Has a New Home on Stellhorn Road
 
-After more than twenty years at 1420 N. Wells St., Okafor Family Dentistry is moving to a new home. Starting **January 12**, you'll find us at **6115 Stellhorn Rd.** in Fort Wayne.
+Since 2004, Dr. Samuel Okafor has been caring for Fort Wayne families from our office at 1420 N. Wells St. We're grateful to every patient who has trusted us with their smiles over the years, and we're excited to share some big news: **Okafor Family Dentistry is moving.**
 
-Dr. Samuel Okafor has cared for Fort Wayne families since 2004. Many of you have trusted us with your smiles for years, some of you since you were kids, and now you bring your own children. Thank you for that trust. This move lets us keep caring for our growing family of patients in a space built for it.
+Starting **January 12**, you'll find us at our new office:
+
+**6115 Stellhorn Rd.**
+**Fort Wayne, IN**
 
 ## What's New
 
-- **More room to serve you.** The new office has six treatment chairs instead of four, so it will be easier to find an appointment time that works for you.
-- **Easier access for everyone.** The entrance is wheelchair accessible, so every patient can get in comfortably.
-- **Plenty of parking.** Our new lot has space for 30 cars, so no more circling the block.
+Our new space was chosen with our patients in mind:
+
+- **More room to serve you.** We're growing from 4 treatment chairs to 6, which means more flexibility when scheduling and less time waiting.
+- **A wheelchair-accessible entrance**, so every member of your family can get in comfortably and easily.
+- **Parking for 30 cars**, so finding a spot before your appointment won't be a worry.
 
 ## What Stays the Same
 
-- **Your appointments.** Any appointment scheduled for January 12 or later stays exactly as booked. You don't need to do anything, just come to the new address.
+Some things aren't changing, and we think you'll be glad to hear it:
+
+- **Your appointments.** Any appointment scheduled on or after January 12 stays exactly as booked. Just come to our new address at your usual time.
 - **Our phone number.** You can still reach us at **(260) 555-0198**.
-- **Our care.** You'll see the same team and get the same personal, family-focused care you've come to expect.
+- **Your care team.** Dr. Okafor and our staff are making the move together, and we look forward to seeing familiar faces at our new home.
 
-## Closed January 5–9
+## Temporary Closure for the Move
 
-Our office will be **closed Monday, January 5 through Friday, January 9** while we move. If you need to reschedule or have any questions, please call us at (260) 555-0198.
+To get everything packed, moved, and set up properly, **our office will be closed January 5 through January 9.** If you have questions during that time, please leave a message at (260) 555-0198 and we'll return your call as soon as we can.
 
-We can't wait to welcome you to our new office on Stellhorn Road. See you soon!
+## Thank You, Fort Wayne
 
-*Dr. Samuel Okafor and the team at Okafor Family Dentistry*
+For more than two decades, this community has welcomed us into the lives of so many families. This move is about being able to care for you even better, with more space, easier access, and the same personal attention you've always counted on.
+
+We can't wait to welcome you to 6115 Stellhorn Rd.
+
+Warmly,
+
+**Dr. Samuel Okafor and the team at Okafor Family Dentistry**

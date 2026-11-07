@@ -1,26 +1,24 @@
-Dear Families,
+**Dear Families,**
 
-We are writing to let you know about an upcoming change to our policies, effective Monday, December 7, 2026. We know that any change to routine can raise questions, so we want to explain what is changing, why, and how it will affect your child and your family.
+I'm writing to share an update to our health and illness policy, effective Monday, January 4, 2027. I know changes can raise questions, so I want to explain what's changing, why, and how it affects your family.
 
-**What is changing**
+**What's changing**
 
-Beginning December 7, our daily pickup window will close at 5:30 p.m. Children must be picked up by that time. Previously, families had until 6:00 p.m. Our hours of operation remain 7:00 a.m. to 5:30 p.m., Monday through Friday.
+- **Fever-free time:** Children must be fever-free for 24 hours, without fever-reducing medication, before returning. Previously this was 12 hours.
+- **Symptom check at drop-off:** Each morning, I'll ask a quick set of health questions and check for signs of illness. If a child seems unwell, I may ask you to keep them home for the day.
+- **Pickup window:** If your child becomes ill during the day, I'll call you right away, and I'd ask that you pick them up within one hour.
+- **Written notice for exclusions:** When a child is kept home for a contagious illness, I'll send a brief note about the symptoms I observed and when to expect them back, so we all stay on the same page.
 
-We are also asking that all families notify us by 10:00 a.m. on the day of any planned late arrival or early pickup, so we can plan staffing and keep the children's schedule on track.
+**Why we're making these changes**
 
-**Why we are making this change**
+Over the past year, several families have been dealing with repeated illnesses that moved through the group. Some children came back before they were fully recovered, which meant more sick days for everyone. These updates follow current guidance from public health agencies, and I believe they'll help keep the other children, and our own household, healthier through the colder months.
 
-Our home is a small, carefully staffed environment, and our days are structured around the children's needs for meals, rest, and quiet activities. Consistently extending our hours past 5:30 p.m. has made it difficult to give each child the attention and routine they deserve, and it has left our staff working well beyond their own schedules. Adjusting the closing time allows us to end each day calmly and keep the quality of care we are known for.
+**What this means for you**
 
-**How this affects you**
+You don't need to do anything before January 4. In the meantime, please make sure your child's emergency contact information and pickup list are current. If you have questions about how the policy applies to your child's specific situation, or if your child has a chronic condition or an existing care plan, please reach out to me directly so we can talk it through.
 
-We understand that work schedules and commutes do not always cooperate. If you anticipate difficulty meeting the new pickup time, please contact us as soon as possible. We are glad to talk through your situation, and we will do our best to help you find a workable plan. Please do not hesitate to reach out.
-
-Thank you for your continued trust and partnership. We look forward to a smooth transition and to another season of growing together.
+I'm grateful for your trust and your partnership. Thank you for helping us keep everyone safe and well.
 
 Warmly,
 
-[Your Name]
-[Daycare Name]
-[Phone Number]
-[Email Address]
+Your home daycare provider

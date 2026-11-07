@@ -1,49 +1,53 @@
-**Clover Creek Champions 4-H Newsletter**
-*Bremen, Indiana · November 2026*
+Note: December 9, 2026 falls on a Wednesday, not a Tuesday. The newsletter below says "Tuesday, December 9" as you gave it. Please confirm the correct date before sending.
 
 ---
 
-**A Growing Club**
-
-The Clover Creek Champions are bigger than ever. We have 23 members this year, up from 17 last year. To everyone who joined us this fall: welcome! And to our returning members, thank you for bringing your friends, siblings, and neighbors along. A bigger club means more projects, more ideas, and more hands to share the work.
-
----
-
-**Reserve Grand Champion at the Marshall County Fair**
-
-Congratulations to Hannah Yoder, whose Hampshire gilt was named Reserve Grand Champion at the Marshall County Fair in July. A win like that comes from months of early mornings, daily care, and steady work in the barn and the show ring. Hannah, the whole club is proud of you.
+# Clover Creek Champions
+### November Newsletter · Bremen, Indiana
 
 ---
 
-**Pecan Fundraiser: Thank You!**
+## Our Club Keeps Growing
 
-Our fall pecan sale was a big success. Members sold 410 pounds of pecans and cleared $1,180 for the club. That money covers our spring trip to the Indiana State Fairgrounds. Thank you to every member who took orders and made deliveries, and to every family, neighbor, and business who bought a bag or two. We hope you enjoy them in your holiday baking.
+The Clover Creek Champions have **23 members** this year, up from 17 last year. That's six new faces at our meetings, six more sets of hands on projects, and six more people learning what "To Make the Best Better" means. To our new members and families: welcome! We're glad you're here. To our returning members: thank you for making Clover Creek a club people want to join.
 
 ---
 
-**December Meeting: New Date and Location**
+## Reserve Grand Champion at the Marshall County Fair
+
+We're still celebrating July. At the Marshall County Fair, **Hannah Yoder's Hampshire gilt was named Reserve Grand Champion.** That ribbon came from months of early mornings, careful feeding, patient training, and a lot of time in the barn. Congratulations, Hannah! You made the whole club proud.
+
+---
+
+## Pecan Sale: A Sweet Success
+
+Our fall fundraiser went better than we hoped. Together we sold **410 pounds of pecans** and cleared **$1,180**. That money covers our **spring trip to the Indiana State Fairgrounds**.
+
+Thank you to every member who took orders, every family who helped sort and deliver, and every neighbor, relative, and coworker who bought a bag (or three). You made this trip possible.
+
+---
+
+## ⚠️ December Meeting: New Date and Location
 
 The fire station hall is being repainted, so our December meeting is moving:
 
-**When:** Tuesday, December 9, at 7:00 p.m.
-**Where:** Bremen Public Library
+> **Tuesday, December 9 · 7:00 p.m.**
+> **Bremen Public Library**
 
-Please note the change on your calendar and share it with anyone who might miss this newsletter. We'll return to the fire station hall once the painting is finished.
-
----
-
-**Volunteers Needed: Drivers for the State Fairgrounds Trip**
-
-We need **two parent volunteers** to drive members to the spring trip to the state fairgrounds. If you're able to help, please let a club leader know at the December meeting or reach out before then. This trip is a highlight of the year for our members, and it can't happen without parents behind the wheel.
+Please note the change on your calendar, and tell any members who might miss this newsletter.
 
 ---
 
-**Looking Ahead**
+## Parent Volunteers Needed
 
-Thank you for a great fall, Champions. We'll see you December 9 at the library!
-
-*To make the best better.*
+We need **two parent volunteers to drive** for the spring trip to the state fairgrounds. If you can help, please let a club leader know at the December meeting or before. More details about the trip, including timing and logistics, are coming soon.
 
 ---
 
-*Note for the editor (remove before publishing): December 9, 2026 falls on a Wednesday, not a Tuesday. Tuesday is December 8. Please confirm the correct date before sending.*
+## Looking Ahead
+
+This year has already brought a bigger club, a champion at the county fair, and a fully funded trip. Thank you for all the work and support. See you at the library on December 9!
+
+**— The Clover Creek Champions 4-H Club**
+
+*I pledge my head to clearer thinking, my heart to greater loyalty, my hands to larger service, and my health to better living, for my club, my community, my country, and my world.*

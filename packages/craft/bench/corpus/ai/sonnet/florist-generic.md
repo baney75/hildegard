@@ -1,31 +1,33 @@
 # About Us
 
-We believe a bouquet should feel like it came from someone who was thinking of you.
+We believe flowers belong in everyday life, not just on special occasions.
 
-Our shop began with a simple idea: flowers are not decoration, they are a way of saying what words sometimes can't. A birthday, a new baby, an apology, a quiet thank-you, a farewell. Each one deserves something made with care, not pulled from a cooler and wrapped in plastic.
+Our shop began with a simple idea: that a thoughtfully arranged bunch of blooms can change the feel of a room, a day, or a moment between two people. Since then, we've made it our work to bring that feeling to our neighbors, one bouquet at a time.
 
-**Fresh, seasonal, and thoughtfully sourced**
+## What We Do
 
-We work with growers we trust and let the seasons guide what we offer. Spring brings tulips and ranunculus, summer fills the shop with dahlias and garden roses, autumn turns toward warm foliage and late blooms, and winter is for evergreens, amaryllis, and anemones. Buying in season means fresher stems, better scent, and flowers that last longer in your home.
+Every arrangement is designed and assembled by hand, using flowers chosen for freshness, color, and character. We work with seasonal stems whenever we can, because flowers grown in their natural time simply look and last better. You'll find garden roses and peonies in their season, tulips and ranunculus in early spring, dahlias in late summer, and rich, textured foliage and dried accents when the weather turns.
 
-**Designed by hand, one arrangement at a time**
+We create:
 
-No two bouquets leave our studio exactly alike. Every arrangement is built by hand, with attention to color, texture, and shape. Tell us about the person you're sending flowers to, or the mood you want to capture, and we'll design something that fits.
+- **Everyday bouquets** for brightening a kitchen table or saying thank you
+- **Weddings and events**, from bridal bouquets to full ceremony installations
+- **Sympathy and memorial arrangements**, made with care and sensitivity
+- **Gifts and plants** for birthdays, new homes, and new beginnings
+- **Subscriptions** for fresh flowers delivered on a regular schedule
 
-**For every occasion**
+## How We Work
 
-- Everyday bouquets and gifts
-- Weddings and event florals
-- Sympathy arrangements and funeral tributes
-- Corporate and recurring subscriptions
-- Plants and small gifts to go with your flowers
+We keep things personal. When you order, you're talking with the people who will actually design your flowers. Tell us about the person you're sending them to, the space they'll fill, or the feeling you hope to capture, and we'll take it from there. If you have a color palette in mind, we'll honor it. If you'd rather leave it up to us, we'll surprise you.
 
-**Rooted in our community**
+We buy fresh, we condition every stem carefully, and we never send out anything we wouldn't be happy to receive ourselves.
 
-We're a local, independent shop, and the people who walk through our door are our neighbors. We take pride in knowing our customers, remembering their favorites, and being part of the moments that matter to them: the big celebrations and the small ones.
+## Our Promise
 
-**Our promise**
+If your flowers don't delight you, we'll make it right. It's that simple.
 
-If your flowers aren't everything you hoped for, tell us and we'll make it right. That's not a policy so much as how we like to do business.
+## Come Say Hello
 
-Stop by the shop, call us, or order online. We'd love to help you find the right flowers.
+Stop by the shop, give us a call, or send us a message. We'd love to help you find the right flowers for whatever you're celebrating, remembering, or simply enjoying today.
+
+Thank you for letting us be part of your story.

@@ -1,31 +1,27 @@
-# The One Who Goes After the Lost
+# The One Who Goes Looking
 
 *Luke 15:1–7*
 
-Picture the scene Luke gives us. Tax collectors and sinners are crowding close to Jesus, listening to every word. Nearby, the Pharisees and teachers of the law stand with folded arms, muttering, "This man welcomes sinners and eats with them." It is an accusation. In their eyes, a holy person keeps his distance from people like that.
+There is a detail in the parable of the lost sheep that we tend to hurry past. Jesus begins, "Suppose one of you has a hundred sheep and loses one of them." Notice that he doesn't say the sheep ran away. He says it was lost. Maybe it wandered off nibbling at grass, one tuft after another, until it looked up and could no longer see the flock. Anyone who has ever drifted from something important will recognize that. Most of us don't leave dramatically. We drift.
 
-So Jesus tells a story.
+Jesus tells this story because the religious leaders are grumbling. Tax collectors and sinners are gathering around him, and the respectable people are offended. "This man welcomes sinners and eats with them." They intend it as an accusation. Jesus takes it as a description of his whole mission, and he answers with a story about a shepherd.
 
-"Suppose one of you has a hundred sheep and loses one of them. Doesn't he leave the ninety-nine in the open country and go after the lost sheep until he finds it?"
+Look at what the shepherd does. He leaves ninety-nine sheep in the open country to chase after one. By any sensible accounting, that is a bad decision. Ninety-nine is a good return. A business would write off the loss. But the shepherd doesn't do arithmetic the way the world does. To him, the hundred is not a number. It is a flock made up of particular creatures, and one of them is missing. Until that one is found, the flock is not whole.
 
-Notice first what a strange question this is. No sensible shepherd would take that risk. Ninety-nine sheep left exposed to wolves and thieves, all for the sake of one that wandered off? The math does not work. Any businessman would call it a bad trade. But Jesus is not teaching economics. He is showing us the heart of God, and God's heart does not run on our arithmetic.
+Here is the first thing the parable tells us: **you are not a statistic to God.** Some of us carry a quiet suspicion that we are too small, too ordinary, or too far gone to be noticed. We assume that God's attention goes to the faithful, the gifted, the ones who have it together. Jesus says otherwise. The one is worth the search.
 
-Notice second that the sheep does nothing to deserve rescue. It does not repent. It does not find its own way home. It does not even know it is lost. Sheep rarely do. They wander one patch of grass at a time, nibbling their way a little farther from the flock, until the flock is gone from sight. Most of us drift the same way. Few of us leave God in one dramatic act. We drift through small neglects: a skipped prayer, a postponed apology, a Sunday that turns into a month. Then one day we look up and cannot see the fold.
+Notice also that the shepherd goes *until he finds it*. There is no time limit in the story and no point at which he decides he has done enough. Where we might say, "I tried," Jesus describes a love that keeps walking. This is good news for anyone who has wondered whether they have wandered too far. It is also a challenge to those of us who have grown comfortable inside the fold, because a church that is content with its ninety-nine has stopped sounding like the shepherd.
 
-Here is the good news: the shepherd goes after it. Not *if the sheep returns*. Not *when the sheep cleans itself up*. He goes after it "until he finds it." That phrase carries the whole parable. The search does not end at the point of convenience. It ends at the point of finding.
+Then comes the part that is easy to miss. When the shepherd finds the sheep, he does not scold it. He doesn't drive it home or make it walk behind him in shame. He lifts it onto his shoulders, rejoicing. The sheep does nothing to earn the ride. It is carried because it is tired, because it is found, and because it is loved.
 
-And when he finds it, there is no scolding. There is no lecture on the dangers of wandering. Luke says he lifts the sheep onto his shoulders, rejoicing. A tired, frightened sheep cannot walk home on its own, so the shepherd carries the full weight of it. This is grace: God does not merely point the way back, he carries us there.
-
-Then comes the celebration. The shepherd calls his friends and neighbors: "Rejoice with me; I have found my lost sheep." Heaven, Jesus says, throws a party over one sinner who repents. The Pharisees saw sinners as a stain on the community. Jesus says they are the reason for the feast.
+And then he throws a party. He calls his friends and neighbors together and says, "Rejoice with me; I have found my lost sheep." Jesus adds that there is more joy in heaven over one sinner who repents than over ninety-nine righteous persons who need no repentance. Heaven, it seems, is not a quiet place when someone comes home.
 
 So what do we do with this story?
 
-If you are the one who has wandered, hear this: you are not too far gone. The distance you feel from God is not the distance he feels from you. He is already on the hillside, already calling your name.
+If you are the one who has wandered, hear this: you are being looked for. You don't have to clean yourself up before you are found. You only have to stop running from the voice that is calling your name.
 
-If you are among the ninety-nine, as many of us are, hear this too. The shepherd's joy is meant to become ours. We are not called to stand with folded arms at the edge of the crowd. We are called to open the door, set another place at the table, and rejoice when the lost come home.
+If you are among the ninety-nine, hear this too: the shepherd's work is now our work. Someone in your family, your workplace, or your neighborhood has drifted from the flock. Don't grumble about who is being welcomed. Go and look. And when they are found, be ready to celebrate.
 
-And if we are honest, we are all both. We have all been the one carried, and we are all called to be the ones who go looking.
+The shepherd has never counted the cost of finding you. Let us be a people who rejoice when anyone is brought home.
 
-Let us pray.
-
-Lord Jesus, Good Shepherd, thank you for seeking us when we did not seek you. Carry us when we are weary. Make us people who welcome the wanderer with the same joy you show. Amen.
+Amen.

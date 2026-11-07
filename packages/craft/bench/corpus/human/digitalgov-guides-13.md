@@ -1,63 +1,31 @@
-# Plain Language Web Writing Tips
+# Coronavirus (COVID-19) Guidance for U.S. Government Websites and Social Media
 
-On the web, people are in a hurry. They skim and scan, looking for fast answers to their questions, so it’s important to get to the point—quickly!
+In response to Coronavirus Disease 2019 (COVID-19), and in conjunction with the White House, the US Department of Health and Human Services (HHS), and the [Federal Web Council](https://digital.gov/resources/federal-web-council/), the US Department of Homeland Security (DHS) is issuing guidance for the coordination of Federal web and social media communications related to this incident.
 
-Help your readers complete their tasks with these Plain Language writing tips:
+This authority for this action comes from [Emergency Support Function 15](https://www.fema.gov/media-library/assets/documents/34369) (ESF-15 - Public Affairs – Annex R) of the [National Response Framework](https://www.fema.gov/media-library/assets/documents/117791) where, during incidents of national significance, DHS has the authority to coordinate all USG communications.
 
-<table style="width: 100%" border="1">
-  <tr>
-    <td>Audience</td><td>Write for your reader. Don&#8217;t write for the experts, the lawyers, or your management, unless they are your intended audience.</td>
-  </tr>
-  
-  <tr>
-    <td>Length</td><td><s>Less is more!</s> <s>Be concise.</s> Eliminate ALL unnecessary words. <s>Challenge every word = do you need it?</s></td>
-  </tr>
-  
-  <tr>
-    <td>Tone</td><td>Use conversational pronouns (you, us, our, we). Write as if you were talking to a colleague or friend. Use contractions (we’re instead of we are).</td>
-  </tr>
-  
-  <tr>
-    <td>Voice</td><td>Use active voice with strong verbs. Say “We mailed your form on May 1” instead of “Your form was mailed by us on May 1.”</td>
-  </tr>
-  
-  <tr>
-    <td>Word Choice</td><td>Use the same words your readers use when they search for your info on the Web. Avoid acronyms and jargon.</td>
-  </tr>
-  
-  <tr>
-    <td>Simplify</td><td>Use simple, descriptive section headings; short paragraphs; and ordinary, familiar words.</td>
-  </tr>
-  
-  <tr>
-    <td>Links</td><td>Never use &#8220;click here&#8221;—link language should describe what your reader will get if they click that link. Include key words to help search engines.</td>
-  </tr>
-  
-  <tr>
-    <td>Organization</td><td>Put the most important information first, followed by the details.</td>
-  </tr>
-  
-  <tr>
-    <td>Improve Tasks</td><td>Organize content around your customers’ tasks, not your organization. Highlight action items (step 1, step 2, etc.).</td>
-  </tr>
-  
-  <tr>
-    <td>Scannability</td><td>Separate content into small chunks. Use lots of white space for easy scanning. In general, write no more than 5-7 lines per paragraph. Use lists and bullets, they are easy to scan.</td>
-  </tr>
-  
-  <tr>
-    <td>Separate Topics</td><td>Present each topic separately. Keep the information on each page to three (or fewer) levels.</td>
-  </tr>
-  
-  <tr>
-    <td>Context</td><td>Don’t assume your readers already know the subject or have read related pages. Each page should stand on its own. Put everything in context.</td>
-  </tr>
-  
-  <tr>
-    <td>Test and Evaluate</td><td>Test Web pages with actual customers so you can be sure real people can understand what you write.</td>
-  </tr>
-  
-  <tr>
-    <td>Train</td><td>Encourage all your colleagues (lawyers, accountants, researchers, etc.) to use plain language—because all content is potentially Web content.</td>
-  </tr>
-</table>
+On March 11, 2020, DHS activated ESF-15 for Federal web and social communications to support the national response to Coronavirus Disease 2019 (COVID-19).
+
+ **All Federal agencies are required to follow this guidance.** 
+
+<!--  -->
+
+## In Brief
+
+Federal agencies with a role in the response effort should stand up an `agency.gov/coronavirus` page. That page must contain the following links for the three primary [lanes of communication](#lanes-of-communication):
+
+- [Coronavirus.gov](https://www.coronavirus.gov/) — White House Coronavirus Task Force
+- [Coronavirus Disease 2019](https://www.cdc.gov/coronavirus/2019-ncov/index.html) (COVID-19) — CDC
+- [Government Response to Coronavirus](https://www.usa.gov/coronavirus) — USAgov
+
+In addition, use your agency coronavirus page to communicate what your agency is doing to support the response effort and link to [featured content](#content-to-feature) as appropriate. Also follow the [guidance for social media](#social-media-guidance). Coordinate emergency response-related web communications with your [Federal Web Council]() representative.
+
+Link to authoritative information from other government agencies related to your agency mission or ”lane.” Do NOT copy and paste content from other agencies/websites onto your site.
+
+## Content to Feature
+
+The White House, in collaboration with DHS and HHS, encourages agencies to feature the following content on both their agency homepages and coronavirus pages as appropriate.
+
+### Last updated June 12, 2020:
+
+**Publishing Operating Status of Federal Public Facilities**: [OMB M-20-23 - Aligning Federal Agency Operations with the National Guidelines for Opening Up America Again](https://www.whitehouse.gov/wp-content/uploads/2020/04/M-20-23.pdf) (section II, page 9) requires federal agencies to publish the operating status of their public facilities on their website.

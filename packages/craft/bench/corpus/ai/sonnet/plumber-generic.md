@@ -1,38 +1,35 @@
 # About Us
 
-We're a plumbing company built on a simple idea: show up when you say you will, fix the problem right, and charge a fair price.
+When a pipe bursts, a drain backs up, or the hot water quits on a cold morning, you don't want a sales pitch. You want someone who shows up, figures out what's wrong, and tells you the truth about how to fix it. That's the kind of plumbing company we set out to be.
 
-Whether it's a dripping faucet, a stubborn clog, a failing water heater, or a burst pipe at two in the morning, we treat your home like our own. We arrive on time, keep the work area clean, and explain what's wrong in plain language before we pick up a wrench. No jargon, no pressure, and no surprise charges. You'll get a clear quote up front, and the price we give is the price you pay.
+## What we do
 
-## What We Do
+We handle the full range of residential and light commercial plumbing:
 
-- **Repairs:** leaks, clogs, running toilets, low water pressure, and broken fixtures
-- **Water heaters:** repair, replacement, and installation of tank and tankless systems
-- **Drain and sewer service:** cleaning, camera inspections, and line repair
-- **Installations:** sinks, faucets, toilets, disposals, showers, and appliance hookups
-- **Remodel and new construction plumbing:** from bathroom updates to full repipes
-- **Emergency service:** because plumbing problems don't keep business hours
+- Leak detection and repair
+- Drain cleaning and clog removal
+- Water heater repair and replacement
+- Faucet, toilet, and fixture installation
+- Pipe repair and repiping
+- Sump pumps and water line service
+- Emergency calls when something can't wait
 
-## Why Customers Choose Us
+## How we work
 
-**Licensed and insured.** Every technician is fully licensed, background-checked, and trained to code. Our work is backed by insurance and a written warranty.
+**We explain before we fix.** You'll know what's wrong, what your options are, and what each one costs before we pick up a wrench.
 
-**Honest advice.** If a repair is all you need, we'll tell you so. We'll never recommend a replacement just to make a bigger sale.
+**We quote honestly.** No surprise add-ons, no padded invoices. If a repair will do the job, we won't push a replacement.
 
-**Respect for your home.** We wear shoe covers, protect your floors, and clean up before we leave.
+**We respect your home.** We wear shoe covers, lay down drop cloths, and clean up when we're done. You should barely be able to tell we were there, except that the problem is gone.
 
-**Upfront pricing.** You approve the cost before any work begins.
+**We stand behind our work.** If something isn't right after we leave, call us and we'll make it right.
 
-**Work we stand behind.** If something isn't right, call us and we'll make it right.
+## Why customers call us back
 
-## Our Promise
+Plumbing is a service people hope they never need, so we try to make the experience as painless as possible. We answer the phone, arrive when we say we will, and treat every job, from a dripping faucet to a full repipe, with the same care.
 
-Plumbing is one of those things you don't think about until something goes wrong. When it does, you want someone you can trust. That's who we aim to be for every customer, on every job, big or small.
+Most of our work comes from neighbors recommending us to neighbors. We take that seriously, and it's why we keep our standards high on every call.
 
-When you call us, you'll talk to a real person. When we come to your door, you'll meet a professional who takes pride in the work. And when we leave, your water will be running the way it should.
+## Let's get started
 
-## Let's Get Started
-
-Have a leak, a clog, or a project in mind? Give us a call or request service online. We'll get you on the schedule and get the problem solved.
-
-**Call us today. We're ready when you are.**
+Whether you have an emergency, a project, or a small problem that's been nagging you, we're ready to help. Give us a call or send a message, and we'll get you taken care of.
