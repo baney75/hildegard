@@ -125,10 +125,10 @@ page or in the portal's contact link.
 | Account | A **verified OpenAI developer account** (organization verification) |
 | File | `hildegard-openai.zip` |
 
-The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE, the Apache license for the site templates (`LICENSE-APACHE`) and notices. It has no MCP server and
+The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE, the Apache license for the site templates (`LICENSE-APACHE`) and notices; the check fails a README or notice that names a license file the package lacks. It has no MCP server and
 no hooks, which the directory refuses. `scripts/check-listing.mjs` checks every limit (and a test fails each one past
 it): name 64, displayName 30 (`Hildegard`), shortDescription 30 (29), longDescription 4,000, capabilities 20 of 120,
-defaultPrompt 3 of 128, a square PNG logo under 5 MiB, a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
+defaultPrompt 3 of 128, a logo that is really a square PNG, JPEG, WebP or SVG (64 to 4,096 px, under 5 MiB), a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
 and the four required URLs: `websiteURL`, `supportURL`, `privacyPolicyURL`, `termsOfServiceURL`.
 
 Two things are unconfirmed, because OpenAI's page can't be read from here: the URLs sit under `interface` in the
