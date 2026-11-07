@@ -216,7 +216,7 @@ describe('the privacy and terms drafts', () => {
     });
   }
 
-  it('lists every place the app reaches out to, from the code', () => {
+  it('names the hosts of the app’s outbound connections', () => {
     const html = read('site/privacy/index.html');
     for (const host of [
       'github.com',

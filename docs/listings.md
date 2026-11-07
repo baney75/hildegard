@@ -10,7 +10,10 @@ node scripts/check-listing.mjs dist/listing dist/listing-extras/hildegard-openai
 
 `dist/listing-extras/` holds `hildegard-openai.zip`, `grok-bot/` (the skill zips) and `listing-fields.md` (every field
 below, filled in and ready to paste). CI builds and checks all of it on every change to skills, manifests or these
-scripts (`.github/workflows/listing.yml`).
+scripts (`.github/workflows/listing.yml`). Only the `publish` job, on a push to `main`, ever sees the deploy key
+(`scripts/check-listing-workflow.mjs` and its test hold the workflow to that), and `pack-listing.mjs` writes only into a
+new or empty folder, or one it marked itself (`.hildegard-listing-generated`), and inside the repository only under
+`dist/`.
 
 ## Before any submission: approve the legal pages
 
@@ -43,8 +46,10 @@ Every store asks for a privacy policy and terms of service URL. Both are **draft
 
 1. Create the public repository `baney75/hildegard-plugin` (empty, no `.gitattributes`, no LFS), and a deploy key:
    `ssh-keygen -t ed25519 -f hildegard-plugin-deploy -N ""`, add the public half to that repository's Settings ›
-   Deploy keys with **write access**, and save the private half as the secret `LISTING_DEPLOY_KEY` on
-   `baney75/hildegard` (Settings › Secrets and variables › Actions). The workflow does nothing without it.
+   Deploy keys with **write access**, and save the private half as the secret `LISTING_DEPLOY_KEY` in the
+   environment `listing` on `baney75/hildegard` (Settings › Environments › listing › Environment secrets; the first
+   run creates the environment). An environment secret never reaches a pull request, and you can add yourself as a
+   required reviewer there to approve each publish. The workflow does nothing without the key.
 2. Merge, let the `Listing` workflow run on `main`, and open the repository: it should hold `.claude-plugin/`,
    `skills/`, `README.md`, `LICENSE`, `LICENSE-APACHE` and `THIRD_PARTY_NOTICES.md`, and nothing else.
 3. Optional local check: `claude plugin validate <tree>` (it passes on the generated tree).
@@ -120,10 +125,10 @@ page or in the portal's contact link.
 | Account | A **verified OpenAI developer account** (organization verification) |
 | File | `hildegard-openai.zip` |
 
-The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE and notices. It has no MCP server and
+The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE, the Apache license for the site templates (`LICENSE-APACHE`) and notices; the check fails a README or notice that names a license file the package lacks. It has no MCP server and
 no hooks, which the directory refuses. `scripts/check-listing.mjs` checks every limit (and a test fails each one past
 it): name 64, displayName 30 (`Hildegard`), shortDescription 30 (29), longDescription 4,000, capabilities 20 of 120,
-defaultPrompt 3 of 128, a square PNG logo under 5 MiB, a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
+defaultPrompt 3 of 128, a logo that is really a square PNG, JPEG, WebP or SVG (64 to 4,096 px, under 5 MiB), a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
 and the four required URLs: `websiteURL`, `supportURL`, `privacyPolicyURL`, `termsOfServiceURL`.
 
 Two things are unconfirmed, because OpenAI's page can't be read from here: the URLs sit under `interface` in the

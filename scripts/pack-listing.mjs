@@ -11,8 +11,17 @@
 //
 // docs/listings.md is the owner's checklist; scripts/check-listing.mjs checks every rule the stores state.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { icons, skillNames, tree, zip } from './pack-skills.mjs';
 
@@ -44,6 +53,9 @@ export const OPENAI_LIMITS = {
   defaultPrompts: 3,
   defaultPrompt: 128,
   logoBytes: 5 * 1024 * 1024,
+  /** Not stated by OpenAI: the range check-listing.mjs holds a logo to, so a 1 px or 40,000 px file is caught. */
+  logoMinPx: 64,
+  logoMaxPx: 4096,
   contrast: 2,
 };
 
@@ -137,7 +149,7 @@ ${CLAUDE.description}
 These are skills for Claude: plain instructions and a few small helper scripts that Claude reads when your request
 matches. They teach the habits of a careful maker: interview before drafting, look at the real thing, check it
 against measurements and a rubric, and refine until it passes. The plugin has no server, hook or background process,
-and its own files send nothing anywhere.
+and its own scripts open no network connection.
 
 ## What is in it
 
@@ -167,8 +179,9 @@ To name a skill yourself, type its name after the plugin's, such as \`/hildegard
 - The skills work on their own. Some mention Hildegard, a separate free open-source app that runs on your own
   computers. It is not part of this plugin and nothing here needs it; where a skill names one of its tools, use your own.
 - A few skills use programs you may already have, such as FFmpeg, ImageMagick, OpenSCAD or Blender. They are not
-  included. One helper script (cutout.py) needs the rembg library, which downloads its own model the first time you
-  run it. Claude runs commands only with the permission you have set.
+  included. One helper script (cutout.py) needs the rembg library (from pypi.org), which downloads its own model from
+  github.com the first time you run it. A few skills suggest installing other Python packages and fonts the same way.
+  Everything that can reach the network is listed at ${URLS.privacy}. Claude runs commands only with the permission you have set.
 - Privacy: ${URLS.privacy}. Terms: ${URLS.terms}. Support and bug reports: ${URLS.support}.
 
 ## License
@@ -250,18 +263,68 @@ export function claudeEntries(version, repo = root) {
   return entries;
 }
 
-/** Writes the Claude listing into out, replacing a tree this script wrote before and refusing any other folder. */
-export function packClaude(out, version = repoVersion(), repo = root) {
-  const dir = resolve(out);
-  if (existsSync(dir)) {
-    const mine = existsSync(join(dir, '.claude-plugin', 'plugin.json'));
-    const empty = readdirOrEmpty(dir).length === 0;
-    if (!mine && !empty) throw new Error(`${dir} is not empty and isn't a listing; pick a new folder.`);
-    if (mine)
-      for (const n of readdirOrEmpty(dir))
-        if (n !== '.git') rmSync(join(dir, n), { recursive: true, force: true });
+/** The file this script writes into every tree it makes. Only a folder that is empty or holds this is ever replaced. */
+export const MARKER = '.hildegard-listing-generated';
+export const MARKER_TEXT =
+  'Written by scripts/pack-listing.mjs. This folder is replaced on every build; keep nothing here.\n';
+/** The one folder of the repository a listing may be built into (it is ignored by git). */
+export const BUILD_DIR = 'dist';
+
+/** The real path of p, following links for the part that exists, so a link can't carry a build into the repository. */
+function realish(p) {
+  const rest = [];
+  let at = resolve(p);
+  while (!existsSync(at)) {
+    rest.unshift(at.slice(dirname(at).length + 1));
+    const up = dirname(at);
+    if (up === at) break;
+    at = up;
   }
-  for (const [name, data] of claudeEntries(version, repo)) {
+  return join(realpathSync(at), ...rest);
+}
+
+const inside = (child, parent) => {
+  const r = relative(parent, child);
+  return r === '' || (!r.startsWith('..') && !isAbsolute(r));
+};
+
+/**
+ * Why out can't take a listing, or null. A listing replaces everything in its folder, so it goes only into a folder
+ * that is new, empty or marked as this script's own: never the repository, a parent of it, a git checkout, or a folder
+ * of a full plugin. Inside the repository only a build folder under dist/ will do.
+ */
+export function refuseOutput(out, repo = root) {
+  const dir = realish(out);
+  const home = realish(repo);
+  if (existsSync(dir) && !lstatSync(dir).isDirectory()) return `${dir} is a file, not a folder.`;
+  if (inside(home, dir))
+    return `${dir} is the repository or a folder that holds it; a build folder under ${join(home, BUILD_DIR)} is the only place inside it.`;
+  if (inside(dir, home)) {
+    const r = relative(home, dir).split(sep);
+    if (r[0] !== BUILD_DIR || r.length < 2)
+      return `${dir} is inside the repository; build into a folder under ${join(home, BUILD_DIR)} (such as ${join(home, BUILD_DIR, 'listing')}).`;
+  }
+  if (existsSync(join(dir, '.git'))) return `${dir} is a git checkout; pick a new folder.`;
+  const names = readdirOrEmpty(dir);
+  if (names.length === 0) return null;
+  let marked = false;
+  try {
+    marked = readFileSync(join(dir, MARKER), 'utf8') === MARKER_TEXT;
+  } catch {}
+  return marked
+    ? null
+    : `${dir} isn’t empty and wasn’t made by this script (it has no ${MARKER} file); pick a new folder.`;
+}
+
+/** Writes the Claude listing into out, replacing a tree this script made before and refusing any other folder. */
+export function packClaude(out, version = repoVersion(), repo = root) {
+  const refused = refuseOutput(out, repo);
+  if (refused) throw new Error(refused);
+  // Everything is read before anything is removed, so a failure leaves the old tree whole.
+  const entries = [...claudeEntries(version, repo), [MARKER, text(MARKER_TEXT)]];
+  const dir = realish(out);
+  for (const n of readdirOrEmpty(dir)) rmSync(join(dir, n), { recursive: true, force: true });
+  for (const [name, data] of entries) {
     const to = join(dir, ...name.split('/'));
     mkdirSync(dirname(to), { recursive: true });
     writeFileSync(to, data);
@@ -293,6 +356,7 @@ export function openaiEntries(version, repo = root) {
     ...icons(repo, [m.interface.composerIcon, m.interface.logo]),
     ['README.md', readFileSync(join(repo, 'plugin', 'README.md'))],
     ['LICENSE', readFileSync(join(repo, 'LICENSE'))],
+    ['LICENSE-APACHE', readFileSync(join(repo, 'LICENSE-APACHE'))],
     ['THIRD_PARTY_NOTICES.md', text(claudeNotices())],
     ...tree(join(repo, 'skills'), 'skills/').filter(([n]) => !SKIP_NAMES.test(n)),
   ];
@@ -430,6 +494,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.error('Usage: node scripts/pack-listing.mjs <out> [--extras <dir>] [--version <x.y.z>]');
     process.exit(2);
   }
-  for (const f of packListing(out, extras ?? `${resolve(out)}-extras`, version ?? repoVersion()))
-    console.log(f);
+  try {
+    for (const f of packListing(out, extras ?? `${resolve(out)}-extras`, version ?? repoVersion()))
+      console.log(f);
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
 }
