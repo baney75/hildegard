@@ -1,0 +1,149 @@
+{
+  "human": {
+    "n": 121,
+    "failRate": 0.355,
+    "warnRate": 0.496,
+    "anyRate": 0.719
+  },
+  "ai": {
+    "n": 128,
+    "recall": 0.109,
+    "anyRate": 0.625,
+    "byModel": {
+      "haiku": {
+        "n": 32,
+        "recall": 0.094
+      },
+      "luna": {
+        "n": 32,
+        "recall": 0.219
+      },
+      "opus": {
+        "n": 32,
+        "recall": 0.125
+      },
+      "sonnet": {
+        "n": 32,
+        "recall": 0
+      }
+    }
+  },
+  "splits": {
+    "dev": {
+      "humanN": 80,
+      "falseFail": 0.35,
+      "aiN": 72,
+      "recall": 0.097
+    },
+    "test": {
+      "humanN": 41,
+      "falseFail": 0.366,
+      "aiN": 56,
+      "recall": 0.125
+    }
+  },
+  "rules": {
+    "stock-words": {
+      "human": 15,
+      "ai": 2,
+      "humanFail": 15,
+      "aiFail": 2
+    },
+    "loaded-words": {
+      "human": 8,
+      "ai": 0,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "empty-phrases": {
+      "human": 7,
+      "ai": 1,
+      "humanFail": 7,
+      "aiFail": 1
+    },
+    "dashes": {
+      "human": 62,
+      "ai": 30,
+      "humanFail": 27,
+      "aiFail": 6
+    },
+    "specifics": {
+      "human": 17,
+      "ai": 16,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "not-but": {
+      "human": 11,
+      "ai": 2,
+      "humanFail": 1,
+      "aiFail": 0
+    },
+    "bold-leads": {
+      "human": 2,
+      "ai": 9,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "fragments": {
+      "human": 6,
+      "ai": 3,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "triads": {
+      "human": 4,
+      "ai": 16,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "bold": {
+      "human": 6,
+      "ai": 22,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "rhythm": {
+      "human": 2,
+      "ai": 2,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "summary-openers": {
+      "human": 1,
+      "ai": 0,
+      "humanFail": 1,
+      "aiFail": 0
+    },
+    "unfinished": {
+      "human": 0,
+      "ai": 2,
+      "humanFail": 0,
+      "aiFail": 2
+    },
+    "chatbot": {
+      "human": 0,
+      "ai": 1,
+      "humanFail": 0,
+      "aiFail": 1
+    },
+    "colon-reveal": {
+      "human": 0,
+      "ai": 3,
+      "humanFail": 0,
+      "aiFail": 0
+    },
+    "throat-clearing": {
+      "human": 0,
+      "ai": 2,
+      "humanFail": 0,
+      "aiFail": 2
+    },
+    "metadiscourse": {
+      "human": 0,
+      "ai": 1,
+      "humanFail": 0,
+      "aiFail": 0
+    }
+  }
+}
