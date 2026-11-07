@@ -70,10 +70,17 @@ describe('the phrases cut', () => {
 describe('the size of an edit', () => {
   const LINES = (n: number, tag: string) =>
     Array.from({ length: n }, (_, i) => `${tag} line ${i}.`).join('\n');
+  /** The least CPU time of three runs, in ms: a busy computer delays a run, it doesn't make the work bigger. */
   const timed = <T>(f: () => T) => {
-    const t = performance.now();
-    const out = f();
-    return { out, ms: performance.now() - t };
+    let best = Number.POSITIVE_INFINITY;
+    let out!: T;
+    for (let i = 0; i < 3; i++) {
+      const t = process.cpuUsage();
+      out = f();
+      const d = process.cpuUsage(t);
+      best = Math.min(best, (d.user + d.system) / 1000);
+    }
+    return { out, ms: best };
   };
 
   it('finishes quickly on a draft and a final at the limits', () => {
@@ -93,18 +100,18 @@ describe('the size of an edit', () => {
   });
 
   it('refuses a draft or a final past the limits, before comparing anything', () => {
-    const refused = (draft: string, final: string, code = 413) => {
-      const t = performance.now();
-      try {
-        diffPhrases(draft, final);
-      } catch (e) {
-        expect(e).toBeInstanceOf(WritingError);
-        expect((e as WritingError).status).toBe(code);
-        expect((e as WritingError).message).toMatch(/Cut it into|Send/);
-        return performance.now() - t;
-      }
-      throw new Error('was not refused');
-    };
+    const refused = (draft: string, final: string) =>
+      timed(() => {
+        try {
+          diffPhrases(draft, final);
+        } catch (e) {
+          expect(e).toBeInstanceOf(WritingError);
+          expect((e as WritingError).status).toBe(413);
+          expect((e as WritingError).message).toMatch(/Cut it into|Send/);
+          return true;
+        }
+        throw new Error('was not refused');
+      }).ms;
     const big = 'x'.repeat(WRITING_LIMITS.editChars + 1);
     expect(refused(big, 'ok.')).toBeLessThan(50);
     expect(refused('ok.', big)).toBeLessThan(50);
