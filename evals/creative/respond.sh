@@ -29,7 +29,8 @@ esac
 PROMPT=$(python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
 import json, sys, os
 here, tid, arm, model = sys.argv[1:]
-t = next(t for f in ('tasks.json', 'heldout.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
+import glob
+t = next(t for f in sorted(glob.glob(os.path.join(here, 'tasks*.json')) + glob.glob(os.path.join(here, 'heldout*.json'))) for t in json.load(open(f)) if t['id'] == tid)
 chrome = os.environ.get('HILDEGARD_EVAL_CHROMIUM') or ''
 if not chrome:
     import glob
