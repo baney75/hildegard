@@ -8,6 +8,8 @@ tools/voice_clean.py with the code it is grading. Loudness is ITU-R BS.1770-4 wr
     python audio_check.py film OUT SECONDS [LEVEL] [HZ] [TONE_SECONDS]
                                                           a picture with a steady tone for sound, 440 Hz unless told (.mp4);
                                                           the tone stops at TONE_SECONDS if that is under SECONDS
+    python audio_check.py delayed OUT SECONDS DELAY       the speech clip's video, with its sound starting DELAY seconds after the picture (.mp4 or .webm)
+    python audio_check.py starts FILE                     {"audio", "video"}: the time of the first packet of each, in seconds
     python audio_check.py m4a OUT SECONDS BRAND           AAC speech in an MP4 with no picture, its ftyp brand set (iso5, mp42, "M4A ")
     python audio_check.py silent OUT SECONDS              a picture with no audio track at all (.mp4)
     python audio_check.py measure FILE                    {"lufs", "true_peak", "seconds"}
@@ -60,9 +62,9 @@ def write_wav(path, x):
             c.mux(p)
 
 
-def write_av(path, seconds, audio, fps=24):
+def write_av(path, seconds, audio, fps=24, audio_start=0):
     """A moving picture with `audio` ((channels, n) float32) for sound, as mp4 (AAC) or webm (VP8, Opus).
-    With audio=None the file has no audio track."""
+    With audio=None the file has no audio track. The sound's first sample sits at `audio_start` samples."""
     webm = path.endswith(".webm")
     with av.open(path, "w") as c:
         v = c.add_stream("libvpx" if webm else "libx264", rate=fps)
@@ -88,7 +90,7 @@ def write_av(path, seconds, audio, fps=24):
         fr = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio), format="fltp", layout=layout)
         fr.sample_rate = RATE
         fifo.write(fr)
-        pts = 0
+        pts = audio_start
         while fifo.samples > 0:
             out = fifo.read(min(size, fifo.samples))
             out.pts, out.time_base = pts, Fraction(1, RATE)
@@ -193,6 +195,17 @@ def gaps(path):
     return worst
 
 
+def starts(path):
+    """When the first packet of each kind begins."""
+    first = {}
+    with av.open(path) as c:
+        for pkt in c.demux():
+            if pkt.pts is None or pkt.size == 0 or pkt.stream.type in first:
+                continue
+            first[pkt.stream.type] = float(pkt.pts * pkt.time_base)
+    return first
+
+
 def main(argv):
     cmd = argv[1]
     if cmd == "speech":
@@ -208,6 +221,12 @@ def main(argv):
         if len(argv) > 6:
             tone = tone[: int(float(argv[6]) * RATE)]
         write_av(argv[2], seconds, np.stack([tone, tone]))
+    elif cmd == "delayed":
+        seconds, delay = float(argv[3]), float(argv[4])
+        s = speechlike(seconds - delay, 2)
+        write_av(argv[2], seconds, s[None, :], audio_start=round(delay * RATE))
+    elif cmd == "starts":
+        print(json.dumps(starts(argv[2])))
     elif cmd == "m4a":
         write_m4a(argv[2], float(argv[3]), argv[4])
     elif cmd == "silent":

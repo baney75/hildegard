@@ -155,6 +155,8 @@ export interface SiteSummary {
   bytes: number;
   notes: string[];
   reference: { file: string; width: number } | null;
+  /** Whether everyone can read it at /s/<id>/. */
+  published: boolean;
   /** The preview's path on the server: /preview/<id>/<key>/. */
   preview: string;
 }
@@ -169,6 +171,32 @@ export interface TemplateInfo {
   sections: string[];
   images: { file: string; aspect: string; prompt: string }[];
   pages: string[];
+}
+export interface WritingEdit {
+  at: string;
+  draftWords: number;
+  finalWords: number;
+  removed: string[];
+  added: string[];
+  lintBefore: { fails: number; warns: number };
+  lintAfter: { fails: number; warns: number };
+  note: string;
+}
+export interface WritingVoice {
+  person: string;
+  voice: { md: string; updatedAt: string | null; versions: number };
+  samples: { id: string; title: string; source: string; addedAt: string; words: number }[];
+  /** The last ten edits, newest first. */
+  edits: WritingEdit[];
+  topCut: { phrase: string; count: number }[];
+}
+export interface PostResult {
+  slug: string;
+  draft: boolean;
+  path: string;
+  date: string;
+  site: SiteDetail & { path: string; address: string | null };
+  lint: { ok: boolean; fails: string[]; warns: string[] };
 }
 export interface SiteToken {
   name: string;
@@ -406,6 +434,32 @@ export class HildegardClient {
     }
     return new Uint8Array(await res.arrayBuffer());
   }
+  postToSite = (id: string, body: Record<string, unknown>) =>
+    this.call<PostResult>('POST', `/api/sites/${encodeURIComponent(id)}/posts`, body);
+  publishSite = (id: string, published: boolean) =>
+    this.call<SiteDetail & { path: string; address: string | null }>(
+      'PUT',
+      `/api/sites/${encodeURIComponent(id)}/publish`,
+      { published },
+    );
+  // ── Writing ──
+  writingVoice = () => this.call<WritingVoice>('GET', '/api/writing/voice');
+  setWritingVoice = (md: string) =>
+    this.call<{ person: string; voice: WritingVoice['voice'] }>('PUT', '/api/writing/voice', { md });
+  addWritingSample = (body: { title: string; text: string; source?: string }) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] }>(
+      'POST',
+      '/api/writing/samples',
+      body,
+    );
+  /** One saved sample, with its text. */
+  writingSample = (id: string) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] & { text: string } }>(
+      'GET',
+      `/api/writing/samples/${encodeURIComponent(id)}`,
+    );
+  recordWritingEdit = (body: { draft: string; final: string; note?: string }) =>
+    this.call<{ person: string; edit: WritingEdit }>('POST', '/api/writing/edits', body);
   siteZip = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/zip`);
   siteReference = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/reference`);
   // ── The printer ──
