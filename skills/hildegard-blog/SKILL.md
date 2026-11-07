@@ -11,22 +11,33 @@ your drafts, and the rules learned from both. This skill is all you need for eve
 
 ## Fast path
 
-1. **Open their voice.** Call `writing_voice`. It returns their rules (`voice.md`), their samples, and the phrases
-   they keep cutting from drafts. Follow the rules over your habits, and never use a phrase on the cut list.
+1. **Open their voice.** With Hildegard linked: call `writing_voice`. It returns their rules (`voice.md`), their
+   samples, and the phrases they keep cutting from drafts. Without Hildegard: read `voice.md` and the files in
+   `samples/` in the person's project folder, or the pieces they pasted or attached earlier in the chat. Follow the
+   rules over your habits, and never use a phrase on the cut list (the phrases they keep cutting, listed at the end of `voice.md`).
    - No samples yet? Ask once: "Paste two or three things you've written that sound like you: posts, emails, even long
-     texts." Save each with `writing_voice_add_sample`. Then write their first rules (below, "Learning the voice").
-   - No Hildegard tools? Ask for the samples in chat and keep the rules in your reply for them to save.
+     texts." With Hildegard: save each with `writing_voice_add_sample`. Without it: save each as
+     `samples/<short-name>.txt` beside `voice.md`. Then write their first rules (below, "Learning the voice").
+   - No files and no tools (a chat)? Ask for the samples in the chat, write `voice.md` in your reply, and tell them to
+     paste it back next time.
 2. **Get the material.** Ask until you hold at least five concrete things only this writer knows (the interview,
    below). If they say "just write it", ask the three that matter most (usually the story, the numbers and the ask),
    say in one line what you're assuming for the rest, and go.
 3. **Draft from their facts, in their voice** (the rules below).
-4. **Lint until it passes.** With Hildegard linked, `lint_writing`; with it installed, `hildegard lint draft.md`;
-   otherwise `python3 scripts/prose_lint.py draft.md` in the **hildegard** skill's folder. Fix every fail; fix each warn unless `voice.md` says it's theirs. Never show a draft that fails.
+4. **Lint until it passes.** Save the draft as `draft.md` and run `python3 scripts/prose_lint.py draft.md` from this
+   skill's folder (Python 3 only; the rules are `scripts/prose_rules.json` beside it). With Hildegard linked,
+   `lint_writing` or `hildegard lint draft.md` gives the same result. Fix every fail; fix each warn unless `voice.md`
+   says it's theirs. Never show a draft that fails. Without Python: check the draft against the Draft rules below,
+   line by line, and say you did not run the lint.
 5. **Show the draft.** Say which warnings you kept and why, and anything you assumed.
-6. **Learn from their edit.** When they send their changed version, call `writing_voice_record_edit` with your draft
-   and their final. Then update the rules (below).
+6. **Learn from their edit.** When they send their changed version, with Hildegard linked call
+   `writing_voice_record_edit` with your draft and their final. Without Hildegard: keep both as
+   `edits/<date>-draft.md` and `edits/<date>-final.md` beside `voice.md` (or in the chat) and compare them yourself:
+   what they cut, added and reworded. Then update the rules (below).
 7. **Byline and post.** From an interview, the byline is "By <their name>, with Hildegard" unless they choose
-   otherwise. Post it with `site_post` as a draft first; publish only when they say so.
+   otherwise. With Hildegard linked: post it with `site_post` as a draft first; publish only when they say so.
+   Without Hildegard: hand over `<slug>.md`, the post with its title, description, slug, date, byline and
+   `draft: true` in a block at the top, in the folder where their other posts live if you can see it. They publish it.
 
 ## The interview (one question per message)
 
@@ -44,7 +55,7 @@ Follow what they say; this is the ground to cover, not a script. Usually four to
 8. **The ask.** "What should the reader do after reading?"
 
 Never answer for them, and never put a word in their mouth to save a question. Save the answers with the post
-(`site_post` keeps them as private notes).
+(`site_post` keeps them as private notes; without Hildegard, put them in `<slug>-notes.md` and never publish it).
 
 ## Draft rules
 
@@ -57,8 +68,10 @@ Never answer for them, and never put a word in their mouth to save a question. S
 - **Every fact makes it in, with its conditions.** Before you show the draft, go down the brief: each fact, number,
   date and condition is in the draft, said as precisely as the brief says it ("the member rate for families who
   register by March 1", not "the member rate if you register by March 1").
-- **Put their numbers to work.** If the reader has a worry and the brief has the figures, do the arithmetic for them
-  ("about $4 more a month, while the feed we buy went up 20%"), as long as the math is exact.
+- **Put their numbers to work, only for a worry.** When the brief names a worry the readers have (a price going up, a
+  cost) and gives the figures, do the arithmetic for them ("about $4 more a month, while the feed we buy went up
+  20%"), exactly. Never turn a goal into a target for the reader (a total into "per family" or "per week") unless the
+  writer set it: that reads as a quota.
 - Warmth comes from how the writer talks to these readers, not from invented detail. Write as them, to people they
   know: "you", the plain greeting and sign-off they'd use, the joke they made in the interview. Use their phrases
   where they fit, and vary sentence length the way they talk: a run of short sentences reads like a notice, not a
@@ -88,19 +101,21 @@ Never answer for them, and never put a word in their mouth to save a question. S
   varies; how they open and close; how they address the reader ("y'all", "friends", none); words and phrases they
   use often; words they never use; punctuation habits (dashes, exclamation points, parentheses); humor; faith,
   family, place or trade they bring up; how long their pieces run. Quote short examples from the samples for each.
-- **From edits.** After `writing_voice_record_edit`, look at what they cut and added. Add a rule only when the same
+- **From edits.** After you record their edit (step 6), look at what they cut and added. Add a rule only when the same
   kind of change shows up in two edits, or when they tell you directly ("I never say 'journey'"). Write the rule as
   an instruction with an example: "Cuts 'I'm excited to share'. Opens with the news itself."
 - **Keep it under about 60 lines.** Merge rules that say the same thing. Remove a rule their later writing breaks.
-- Save it with `writing_voice_update` and tell them in one line what you learned.
+- Save it with `writing_voice_update` (without Hildegard, write it to `voice.md`, or in your reply if you have no
+  files) and tell them in one line what you learned.
 
 ## Posting to their site
 
-`site_post` makes the post page in their site's own look, adds it to the blog's index, feed and sitemap, and keeps
+With Hildegard linked, `site_post` makes the post page in their site's own look, adds it to the blog's index, feed and sitemap, and keeps
 the interview notes private. Post as a draft, give them the preview link, and change it until they're happy. Publish
 only on their word (`draft: false`). Putting the whole site on the internet is the owner's choice
 (`site_publish`); never do it for them. For the title, description and slug, keep the title under 60 characters
 and specific, the description 140 to 160 characters, and the first 100 words answering what the title asks.
+Without Hildegard, the same limits apply to the title and description in the post file's top block (step 7).
 
 ## Deliver
 
