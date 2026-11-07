@@ -125,6 +125,10 @@ export function writingRoutes(d: WritingRouteDeps) {
       201,
     ),
   );
+  app.get(
+    '/samples/:id',
+    go((c, person) => ({ person, sample: store.sample(person, c.req.param('id') ?? '') })),
+  );
   app.delete(
     '/samples/:id',
     go((c, person) => {

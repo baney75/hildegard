@@ -389,6 +389,12 @@ export class HildegardClient {
       '/api/writing/samples',
       body,
     );
+  /** One saved sample, with its text. */
+  writingSample = (id: string) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] & { text: string } }>(
+      'GET',
+      `/api/writing/samples/${encodeURIComponent(id)}`,
+    );
   recordWritingEdit = (body: { draft: string; final: string; note?: string }) =>
     this.call<{ person: string; edit: WritingEdit }>('POST', '/api/writing/edits', body);
   siteZip = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/zip`);

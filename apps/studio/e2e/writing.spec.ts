@@ -10,6 +10,9 @@ test('adds a sample, removes it, and keeps voice notes', async ({ page }) => {
   await page.goto('/#/settings/writing');
   await expect(page.getByRole('heading', { name: 'Writing' })).toBeVisible();
   await expect(page.getByText('No samples yet.')).toBeVisible();
+  // Owners can open a director's voice, so the page says who can see it rather than promising privacy it doesn't have.
+  await expect(page.getByText('Only you and this Hildegard’s owners can see these.')).toBeVisible();
+  await expect(page.getByText(/nobody else here/i)).toBeHidden();
   await expectAccessible(page, 'writing, empty');
   await expectCurlyQuotes(page, 'writing, empty');
 

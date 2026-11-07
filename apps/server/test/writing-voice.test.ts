@@ -67,6 +67,66 @@ describe('the phrases cut', () => {
   });
 });
 
+describe('the size of an edit', () => {
+  const LINES = (n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => `${tag} line ${i}.`).join('\n');
+  const timed = <T>(f: () => T) => {
+    const t = performance.now();
+    const out = f();
+    return { out, ms: performance.now() - t };
+  };
+
+  it('finishes quickly on a draft and a final at the limits', () => {
+    const cap = WRITING_LIMITS.editSentences;
+    // Every sentence different: the worst case for the sentence comparison.
+    const draft = LINES(cap, 'draft');
+    const final = LINES(cap, 'final');
+    expect(draft.length).toBeLessThanOrEqual(WRITING_LIMITS.editChars);
+    const { out, ms } = timed(() => diffPhrases(draft, final));
+    expect(ms).toBeLessThan(200);
+    expect(out.removed.length).toBeGreaterThan(0);
+    // One long rewritten stretch of words, at the character limit.
+    const wordy = (tag: string) =>
+      `${Array.from({ length: 4500 }, (_, i) => `${tag}${i}`).join(' ')}.`.slice(0, 29_000);
+    const long = timed(() => diffPhrases(wordy('a'), wordy('b')));
+    expect(long.ms).toBeLessThan(200);
+  });
+
+  it('refuses a draft or a final past the limits, before comparing anything', () => {
+    const refused = (draft: string, final: string, code = 413) => {
+      const t = performance.now();
+      try {
+        diffPhrases(draft, final);
+      } catch (e) {
+        expect(e).toBeInstanceOf(WritingError);
+        expect((e as WritingError).status).toBe(code);
+        expect((e as WritingError).message).toMatch(/Cut it into|Send/);
+        return performance.now() - t;
+      }
+      throw new Error('was not refused');
+    };
+    const big = 'x'.repeat(WRITING_LIMITS.editChars + 1);
+    expect(refused(big, 'ok.')).toBeLessThan(50);
+    expect(refused('ok.', big)).toBeLessThan(50);
+    // Under the character limit but too many sentences.
+    const many = 'a. '.repeat(WRITING_LIMITS.editSentences + 1);
+    expect(many.length).toBeLessThan(WRITING_LIMITS.editChars);
+    expect(refused(many, 'ok.')).toBeLessThan(50);
+    expect(refused('ok.', many)).toBeLessThan(50);
+    // 50,000 one-word sentences.
+    expect(refused('a. '.repeat(50_000), 'b. '.repeat(50_000))).toBeLessThan(50);
+  });
+
+  it('tells the agent over REST what to do', async () => {
+    const res = await h.as(bo.cookie, '/api/writing/edits', 'POST', {
+      draft: 'a. '.repeat(50_000),
+      final: 'b. '.repeat(50_000),
+    });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ code: 'size', error: expect.stringMatching(/30,000|1,500/) });
+  });
+});
+
 describe('the store', () => {
   const fresh = (limits?: { editLines?: number }) => {
     const dir = mkdtempSync(join(tmpdir(), 'hg-writing-store-'));
@@ -220,6 +280,36 @@ describe('one person’s voice over REST', () => {
     expect((await h.as(ada.cookie, `/api/writing/voice?person=${adaId}`)).status).toBe(200);
   });
 
+  it('gives a person the text of their own sample, and no one else’s', async () => {
+    const added = (await (
+      await h.as(ada.cookie, '/api/writing/samples', 'POST', {
+        title: 'Ada on the bridge',
+        text: 'The bridge opens at six. Bring a coat.',
+        source: 'her blog',
+      })
+    ).json()) as { sample: { id: string } };
+    const id = added.sample.id;
+    const mine = await h.as(ada.cookie, `/api/writing/samples/${id}`);
+    expect(mine.status).toBe(200);
+    expect(await mine.json()).toMatchObject({
+      person: adaId,
+      sample: { id, title: 'Ada on the bridge', text: 'The bridge opens at six. Bring a coat.', words: 8 },
+    });
+    // Bo's own folder has no such sample, and Bo can't name Ada.
+    expect((await h.as(bo.cookie, `/api/writing/samples/${id}`)).status).toBe(404);
+    expect((await h.as(bo.cookie, `/api/writing/samples/${id}?person=${adaId}`)).status).toBe(403);
+    expect((await h.as(undefined, `/api/writing/samples/${id}`)).status).toBe(401);
+    // The owner may name Ada, as with everything else here.
+    const owner = await h.as(h.owner.cookie, `/api/writing/samples/${id}?person=${adaId}`);
+    expect(owner.status).toBe(200);
+    expect(((await owner.json()) as { sample: { text: string } }).sample.text).toContain('Bring a coat');
+    for (const bad of ['nope', '../voice', 'ffffffffffffffff'])
+      expect((await h.as(ada.cookie, `/api/writing/samples/${encodeURIComponent(bad)}`)).status, bad).toBe(
+        404,
+      );
+    expect(directorMay('GET', `/api/writing/samples/${id}`)).toBe(true);
+  });
+
   it('records an edit with the phrases cut and the lint counted', async () => {
     const draft = 'We will delve into the realm of it — and it is robust. The roof is done.';
     const final = 'The roof is done.';
@@ -315,11 +405,63 @@ describe('the same over the remote MCP route', () => {
     ).toBe(0);
   });
 
+  it('lets an agent read the text of the saved samples, its own person’s only', async () => {
+    const adaAgent = await h.mcpFor('Ada');
+    const boAgent = await h.mcpFor('Bo');
+    // The index gives ids, so the agent can ask for one.
+    const index = textOf(await call(adaAgent, 'writing_voice'));
+    expect(index).toMatch(/Ada’s MCP sample.*[a-f0-9]{16}/);
+    const all = await call(adaAgent, 'writing_voice_samples');
+    expect(all.isError).toBeFalsy();
+    const text = textOf(all);
+    expect(text).toContain('A note from Ada about bread.');
+    expect(text).toContain('The bridge opens at six. Bring a coat.');
+    expect(text).not.toMatch(/cut|not shown/i);
+    // One by id gets that one only.
+    const id = /Ada’s MCP sample.*?([a-f0-9]{16})/.exec(index)![1]!;
+    const one = textOf(await call(adaAgent, 'writing_voice_samples', { ids: [id] }));
+    expect(one).toContain('A note from Ada about bread.');
+    expect(one).not.toContain('Bring a coat');
+    // Bo's agent gets nothing of Ada’s, with her id or without.
+    expect(textOf(await call(boAgent, 'writing_voice_samples'))).not.toContain('Ada');
+    const stolen = await call(boAgent, 'writing_voice_samples', { ids: [id] });
+    expect(stolen.isError).toBe(true);
+    expect(textOf(stolen)).not.toContain('bread');
+  });
+
+  it('gives samples newest first within 20,000 characters, and says what it cut', async () => {
+    const cy = await h.director('Cy');
+    const agent = await h.mcpFor('Cy');
+    for (const [title, tag] of [
+      ['Oldest', 'OLDEST'],
+      ['Middle', 'MIDDLE'],
+      ['Newest', 'NEWEST'],
+    ] as const) {
+      expect(
+        (
+          await h.as(cy.cookie, '/api/writing/samples', 'POST', {
+            title,
+            text: `${tag} ${'Bread rises slowly. '.repeat(750)}`,
+          })
+        ).status,
+      ).toBe(201);
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    const text = textOf(await call(agent, 'writing_voice_samples'));
+    expect(text.length).toBeLessThan(21_500);
+    expect(text.indexOf('NEWEST')).toBeGreaterThan(-1);
+    expect(text.indexOf('NEWEST')).toBeLessThan(text.indexOf('MIDDLE'));
+    expect(text).not.toContain('OLDEST');
+    expect(text).toMatch(/cut|not shown/i);
+    expect(text).toMatch(/writing_voice_samples/);
+  });
+
   it('lists the tools with titles and hints, each saying when to call it', async () => {
     const c = await h.mcpFor('Bo');
     const { tools } = await c.listTools();
     for (const name of [
       'writing_voice',
+      'writing_voice_samples',
       'writing_voice_add_sample',
       'writing_voice_record_edit',
       'writing_voice_update',
@@ -331,6 +473,7 @@ describe('the same over the remote MCP route', () => {
       expect(t.description, name).toMatch(/^Call this/);
     }
     expect(tools.find((x) => x.name === 'writing_voice')!.annotations?.readOnlyHint).toBe(true);
+    expect(tools.find((x) => x.name === 'writing_voice_samples')!.annotations?.readOnlyHint).toBe(true);
     expect(tools.find((x) => x.name === 'writing_voice_update')!.annotations?.destructiveHint).toBe(true);
   });
 });

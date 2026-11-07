@@ -58,15 +58,16 @@ everyone else's, in the data folder under `writing/<person>/`:
 
 Folders are readable by you alone (0700) and files too (0600). On this computer the voice is the first owner's. From
 another device it is the person who signed in. A director reaches only their own: asking for someone else's is
-refused. An owner can name another person with `?person=<id>`.
+refused. An owner can name another person with `?person=<id>`, so a director's voice, samples and edits are visible to
+the owners of that Hildegard and to no other director.
 
 | Where | How |
 | --- | --- |
 | Studio | Settings › Writing: paste or choose `.md` and `.txt` samples, remove them, read and edit the voice notes, and see what you changed lately and the phrases you cut most. |
-| API | `GET` and `PUT /api/writing/voice`, `GET` and `POST /api/writing/samples`, `DELETE /api/writing/samples/<id>`, `GET` and `POST /api/writing/edits` (body `{ draft, final, note? }`). |
-| MCP | `writing_voice` reads the notes, the sample titles, the last 10 edits and the 30 phrases cut most. `writing_voice_add_sample`, `writing_voice_record_edit` and `writing_voice_update` write. |
+| API | `GET` and `PUT /api/writing/voice`, `GET` and `POST /api/writing/samples`, `GET` (with the text) and `DELETE /api/writing/samples/<id>`, `GET` and `POST /api/writing/edits` (body `{ draft, final, note? }`, each text up to 30,000 characters and 1,500 sentences; past that the answer is 413 and says how to split it). |
+| MCP | `writing_voice` reads the notes, the sample titles and ids, the last 10 edits and the 30 phrases cut most. `writing_voice_samples` reads the sample text, newest first, up to 20,000 characters a call. `writing_voice_add_sample`, `writing_voice_record_edit` and `writing_voice_update` write. |
 
-How an agent uses it: read `writing_voice` before writing anything in a person's name. When they hand over something
+How an agent uses it: read `writing_voice` before writing anything in a person's name, and `writing_voice_samples` to learn from their own sentences. When they hand over something
 they wrote, add it as a sample. When they change a draft, send both versions with `writing_voice_record_edit`. When
 the same phrases keep going, write a rule for it with `writing_voice_update`, then lint the next draft as usual.
 

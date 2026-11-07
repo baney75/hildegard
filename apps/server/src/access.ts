@@ -110,6 +110,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/(health|catalog|snapshot|events)$/,
     /^\/api\/auth\//,
     /^\/api\/writing\/(voice|samples|edits)$/,
+    /^\/api\/writing\/samples\/[^/]+$/,
     /^\/api\/shots\/[^/]+$/,
     /^\/api\/exports\/[^/]+$/,
     /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,

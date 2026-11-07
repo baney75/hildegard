@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings › Writing: your own voice. Samples of what you have written, the notes an AI app keeps about how you
- * write, and what you changed in its drafts. Everything here is yours alone, and nobody else here can read it.
+ * write, and what you changed in its drafts. Only you and this Hildegard’s owners can see what is here.
  */
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button, Icon, toast, toastError } from '../components/ui.tsx';
@@ -53,8 +53,8 @@ export function WritingSettings() {
       </h2>
       <p className="body-sm sec-text">
         Hildegard learns how you write from your own words. An AI app reads your voice notes before it writes
-        for you, and sends back what you change in its drafts, so the next one needs fewer fixes. This is
-        yours alone: nobody else here can read or change it.
+        for you, and sends back what you change in its drafts, so the next one needs fewer fixes. Only you and
+        this Hildegard’s owners can see these.
       </p>
       {failed ? (
         <p className="body-sm" role="alert">

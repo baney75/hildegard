@@ -12,6 +12,9 @@ import type { HildegardClient, WritingEdit } from './client.ts';
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
 
+/** Most characters of sample text one writing_voice_samples call gives back. */
+const SAMPLE_BUDGET = 20_000;
+
 const quoted = (l: string[], n = 6) =>
   l.length
     ? `${l
@@ -40,7 +43,7 @@ export function registerWritingTools(server: McpServer, client: HildegardClient)
     {
       title: 'Read the writer’s voice',
       description:
-        'Call this before you write or edit anything in a person’s own name (a post, an email, a page, a bio, a caption). It returns their voice notes (the rules Hildegard has learned from their own words and habits), the titles and sizes of the samples of their writing, a summary of their last 10 edits to drafts, and the 30 phrases they cut most often. Write the way the notes say, and leave out the phrases they keep cutting. It is the signed-in person’s own and nobody else’s. If it is empty, ask them for a few things they have written and add them with writing_voice_add_sample.',
+        'Call this before you write or edit anything in a person’s own name (a post, an email, a page, a bio, a caption). It returns their voice notes (the rules Hildegard has learned from their own words and habits), the titles, ids and sizes of the samples of their writing (read their text with writing_voice_samples), a summary of their last 10 edits to drafts, and the 30 phrases they cut most often. Write the way the notes say, and leave out the phrases they keep cutting. It is the signed-in person’s own: other people here cannot read it, but the owner of this Hildegard can. If it is empty, ask them for a few things they have written and add them with writing_voice_add_sample.',
       inputSchema: {},
       annotations: {
         title: 'Read the writer’s voice',
@@ -56,9 +59,9 @@ export function registerWritingTools(server: McpServer, client: HildegardClient)
         [
           notes
             ? `Voice notes (voice.md, changed ${v.voice.updatedAt?.slice(0, 10) ?? 'never'}; ${v.voice.versions} earlier ${v.voice.versions === 1 ? 'version' : 'versions'} kept):\n${notes}`
-            : 'No voice notes yet. Learn them from the samples and edits below, then save them with writing_voice_update.',
+            : 'No voice notes yet. Read their samples with writing_voice_samples and the edits below, learn the rules, then save them with writing_voice_update.',
           v.samples.length
-            ? `Samples of their writing (${v.samples.length}):\n${v.samples.map((s) => `- “${s.title}”, ${s.words} words, ${s.source}`).join('\n')}`
+            ? `Samples of their writing (${v.samples.length}):\n${v.samples.map((s) => `- “${s.title}”, ${s.words} words, ${s.source}, id ${s.id}`).join('\n')}`
             : 'No samples yet. Ask for a few things they wrote themselves and add them with writing_voice_add_sample.',
           v.edits.length
             ? `Their last ${v.edits.length} ${v.edits.length === 1 ? 'edit' : 'edits'}, newest first:\n${v.edits.map(editLine).join('\n')}`
@@ -70,6 +73,60 @@ export function registerWritingTools(server: McpServer, client: HildegardClient)
           .filter(Boolean)
           .join('\n\n'),
       );
+    }),
+  );
+
+  server.registerTool(
+    'writing_voice_samples',
+    {
+      title: 'Read the writer’s saved samples',
+      description:
+        'Call this to learn how the person writes from their own saved words: it returns the text of their samples, newest first, up to 20,000 characters in all, and says when it cut and how many it did not show. Give ids (from writing_voice) to read particular samples, up to the same limit per call. Use it before you write voice notes with writing_voice_update, and read the actual sentences: the rhythm, what they open and close with, which words they reach for. Quote phrases of theirs in the rules; never copy their sentences into your drafts. It is the signed-in person’s own and nobody else’s.',
+      inputSchema: {
+        ids: z
+          .array(z.string().regex(/^[a-f0-9]{16}$/))
+          .max(50)
+          .optional()
+          .describe('Sample ids from writing_voice. Leave out for the newest samples.'),
+      },
+      annotations: {
+        title: 'Read the writer’s saved samples',
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+    },
+    guard(async (a: { ids?: string[] }) => {
+      const ids = a.ids?.length ? a.ids : (await client.writingVoice()).samples.map((s) => s.id);
+      if (!ids.length)
+        return text(
+          'No samples yet. Ask for a few things they wrote themselves and add them with writing_voice_add_sample.',
+        );
+      const parts: string[] = [];
+      let used = 0;
+      let cut = false;
+      let shown = 0;
+      for (const id of ids) {
+        const room = SAMPLE_BUDGET - used;
+        if (room < 500) break;
+        const { sample: s } = await client.writingSample(id);
+        const head = `### “${s.title}” (${s.words} words, ${s.source}, added ${s.addedAt.slice(0, 10)}, id ${s.id})\n`;
+        const body =
+          s.text.length > room - head.length
+            ? `${s.text.slice(0, Math.max(0, room - head.length))}\n[cut here]`
+            : s.text;
+        if (body !== s.text) cut = true;
+        parts.push(head + body);
+        used += head.length + body.length;
+        shown++;
+      }
+      const left = ids.length - shown;
+      if (left > 0) cut = true;
+      if (cut)
+        parts.push(
+          `Cut to fit ${SAMPLE_BUDGET.toLocaleString('en-US')} characters${left > 0 ? `; ${left} more ${left === 1 ? 'sample is' : 'samples are'} not shown` : ''}. Ask for the rest with writing_voice_samples and their ids.`,
+        );
+      return text(parts.join('\n\n'));
     }),
   );
 
@@ -113,10 +170,10 @@ export function registerWritingTools(server: McpServer, client: HildegardClient)
     {
       title: 'Record how the writer changed a draft',
       description:
-        'Call this every time the person edits a draft you wrote for them: send your draft and their final text. Hildegard works out the phrases they cut and added, counts the prose lint on both, and keeps the record, so the next draft needs fewer fixes. It changes nothing in their voice notes. After a few edits, read writing_voice, and if the same phrases keep going, write a rule for it with writing_voice_update. Both texts can be up to 200,000 characters.',
+        'Call this every time the person edits a draft you wrote for them: send your draft and their final text. Hildegard works out the phrases they cut and added, counts the prose lint on both, and keeps the record, so the next draft needs fewer fixes. It changes nothing in their voice notes. After a few edits, read writing_voice, and if the same phrases keep going, write a rule for it with writing_voice_update. Each text can be up to 30,000 characters and 1,500 sentences; for a longer piece, send the part they changed, or send it in sections.',
       inputSchema: {
-        draft: z.string().max(200_000).describe('Your draft, as you gave it to them.'),
-        final: z.string().max(200_000).describe('The text as they left it.'),
+        draft: z.string().max(30_000).describe('Your draft, as you gave it to them.'),
+        final: z.string().max(30_000).describe('The text as they left it.'),
         note: z.string().max(500).optional().describe('Anything they said about why, in a sentence.'),
       },
       annotations: {
