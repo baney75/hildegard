@@ -7,7 +7,7 @@ name: Listing
 # - publish runs only on a push to main, in the "listing" environment, from the pushed commit. It builds the Claude
 #   directory's plugin tree again and pushes only that tree to baney75/hildegard-plugin, using the repository secret
 #   LISTING_DEPLOY_KEY (a write-enabled deploy key the owner creates, docs/listings.md) through ssh-agent, and does
-#   nothing without it. scripts/check-listing-workflow.mjs holds this file to those rules.
+#   nothing without it. apps/cli/test/listing-workflow.test.ts holds this file to those rules.
 
 on:
   push:
@@ -23,7 +23,6 @@ on:
       - 'package.json'
       - 'scripts/pack-listing.mjs'
       - 'scripts/check-listing.mjs'
-      - 'scripts/check-listing-workflow.mjs'
       - 'scripts/pack-skills.mjs'
       - '.github/workflows/listing.yml'
   pull_request:
@@ -37,7 +36,6 @@ on:
       - 'package.json'
       - 'scripts/pack-listing.mjs'
       - 'scripts/check-listing.mjs'
-      - 'scripts/check-listing-workflow.mjs'
       - 'scripts/pack-skills.mjs'
       - '.github/workflows/listing.yml'
   workflow_dispatch:
@@ -61,8 +59,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - name: Hold this workflow to its rules
-        run: node scripts/check-listing-workflow.mjs
       - name: Build the listings
         run: node scripts/pack-listing.mjs "$RUNNER_TEMP/plugin" --extras "$RUNNER_TEMP/extras"
       - name: Check them against the stores' rules

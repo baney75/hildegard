@@ -53,9 +53,6 @@ export const OPENAI_LIMITS = {
   defaultPrompts: 3,
   defaultPrompt: 128,
   logoBytes: 5 * 1024 * 1024,
-  /** Not stated by OpenAI: the range check-listing.mjs holds a logo to, so a 1 px or 40,000 px file is caught. */
-  logoMinPx: 64,
-  logoMaxPx: 4096,
   contrast: 2,
 };
 
