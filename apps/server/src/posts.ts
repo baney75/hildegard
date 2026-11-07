@@ -6,7 +6,7 @@
  * writer's notes or interview go to `notes/<slug>.md`, which the public address never serves.
  */
 import { posix } from 'node:path';
-import { escapeHtml as esc, markdown, plainText } from './markdown.ts';
+import { escapeHtml as esc, plainText } from './markdown.ts';
 import { type PostMeta, SiteError, type Sites } from './sites.ts';
 
 export interface PostInput {
@@ -324,7 +324,11 @@ export function writePost(
   sites: Sites,
   id: string,
   input: PostInput,
-  opts: { base: string | null; now?: () => Date },
+  opts: {
+    base: string | null;
+    now?: () => Date /** `input.body_md` rendered by renderMarkdown, off the main thread. */;
+    html: string;
+  },
 ): PostResult {
   const site = sites.get(id);
   const title = input.title.trim();
@@ -337,7 +341,7 @@ export function writePost(
     );
   const now = (opts.now ?? (() => new Date()))();
   const date = checkDate(input.date ?? now.toISOString().slice(0, 10));
-  const body = markdown(input.body_md);
+  const body = opts.html;
   const draft = input.draft === true;
   const post: PostMeta = {
     slug,

@@ -18,6 +18,7 @@ import { FigmaError, type FigmaFetch, importFigma } from './figma.ts';
 import type { SecretStore } from './hf.ts';
 import { PenError, parseJsonc, penDesign, penImages } from './pen.ts';
 import { rebuildBlog, writePost } from './posts.ts';
+import { renderMarkdown } from './render-markdown.ts';
 import { ImportError, type importUrl } from './site-import.ts';
 import { SiteError, type Sites, sitePath } from './sites.ts';
 import { listTemplates, templateFiles } from './templates.ts';
@@ -375,7 +376,8 @@ export function siteRoutes(d: SiteRouteDeps) {
       const id = c.req.param('id') ?? '';
       const b = Post.parse(await body(c));
       sites.get(id);
-      const out = writePost(sites, id, b, { base: baseOf(id), now: d.now });
+      const html = await renderMarkdown(b.body_md);
+      const out = writePost(sites, id, b, { base: baseOf(id), now: d.now, html });
       const lint = lintProse(b.body_md);
       return {
         ...out,
