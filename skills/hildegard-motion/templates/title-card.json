@@ -57,7 +57,6 @@
       "id": "lower-third",
       "duration": 4.8,
       "transition": { "type": "crossfade", "duration": 0.4 },
-      "camera": { "preset": "push-in", "amount": 0.08 },
       "layers": [
         { "type": "image", "file": "sample:dawn" },
         {

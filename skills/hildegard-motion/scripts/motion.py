@@ -217,6 +217,9 @@ def parse_color(s):
     return (float(v[0]), float(v[1]), float(v[2]), (v[3] / 255.0) if len(v) == 4 else 1.0)
 
 
+SPLIT_KINDS = ("fade", "rise", "drop", "slide-from-left", "slide-from-right", "zoom", "pop")
+
+
 def opt(v):
     """An option object: absent, null and false are off; true and {} are on with every default."""
     if v is None or v is False:
@@ -1058,6 +1061,9 @@ class Compiler:
         def add(prop, seg):
             segs.setdefault(prop, []).append(seg)
 
+        dirs = {x for x in (d.get("direction"), (enter or {}).get("direction"), (exit_ or {}).get("direction")) if x}
+        if len(dirs) > 1:
+            self.err(w, f'has {len(dirs)} different directions ({", ".join(sorted(dirs))}) but a layer wipes one way, so all but one would be ignored. Fix: keep one "direction".')
         # explicit tweens first
         for a in d.get("animate", []) or []:
             prop = a["prop"]
@@ -1114,6 +1120,31 @@ class Compiler:
             ends += [s.end + (L.units - 1) * L.stagger for lst in L.unit_segs.values() for s in lst]
         L.anim_end = max(ends) if ends else 0.0
 
+    def refuse_unused(self, L, pd, kind, phase, w):
+        """The schema lets every field sit on every enter and exit; each one a preset does not read is an error, never ignored."""
+
+        def unused(field, why):
+            if field in pd:
+                self.err(w, f'{phase} "{kind}" does not use "{field}" ({why}), so it would be ignored. Fix: remove it.')
+
+        for field in ("split", "stagger"):
+            if phase != "enter":
+                unused(field, "only an enter splits")
+            elif L.kind != "text":
+                unused(field, "only text splits into words, lines or characters")
+            elif kind not in SPLIT_KINDS:
+                unused(field, f'"{kind}" cannot split; fade, rise, drop, slide-from-left, slide-from-right, zoom and pop can')
+        if "stagger" in pd and "split" not in pd and phase == "enter" and L.kind == "text" and kind in SPLIT_KINDS:
+            unused("stagger", 'it spaces the pieces of a "split"')
+        if kind not in ("rise", "drop", "slide-from-left", "slide-from-right", "slide-to-left", "slide-to-right"):
+            unused("distance", "only rise, drop and the slides travel")
+        if kind not in ("wipe", "grow", "draw"):
+            unused("direction", "only wipe, grow and draw have one")
+        elif L.kind == "shape" and L.shape == "circle" and kind == "grow":
+            unused("direction", "a circle grows from its middle")
+        elif L.kind == "shape" and L.shape in ("line", "polygon", "path") and not L.fill and kind in ("wipe", "draw"):
+            unused("direction", f"a stroked {L.shape} without a fill draws itself along its length")
+
     def apply_preset(self, L, d, pd, phase, segs, w):
         kind = pd["type"]
         b = L.base
@@ -1135,6 +1166,7 @@ class Compiler:
         if is_enter and kind in ("slide-to-left", "slide-to-right"):
             self.err(w, f'enter "{kind}" is an exit; use slide-from-left or slide-from-right')
             return
+        self.refuse_unused(L, pd, kind, phase, w)
         dur = float(pd.get("duration", (ENTER_DUR.get(kind, 0.6) if is_enter else EXIT_DUR)))
         if kind == "type" and "duration" not in pd:
             dur = clamp(L.chars * 0.045, 0.5, 3.0)
@@ -1145,7 +1177,7 @@ class Compiler:
         if is_enter and pd.get("split") and L.kind == "text":
             L.split = pd["split"]
             L.stagger = float(pd.get("stagger", 0.08))
-        target = L.unit_segs if (is_enter and L.split and kind in ("fade", "rise", "drop", "slide-from-left", "slide-from-right", "zoom", "pop")) else segs
+        target = L.unit_segs if (is_enter and L.split and kind in SPLIT_KINDS) else segs
 
         def put(prop, a, bb, ease, dd=None, off=0.0):
             s = Seg(at + off, dur if dd is None else dd, ease, a, bb, src)
@@ -1746,11 +1778,8 @@ class Renderer:
 
     def maybe_wipe(self, L, img, st, P, bw, bh, style):
         if style == "wipe" and st["reveal"] < 0.9999:
-            m = np.ones((img.height, img.width), dtype=np.float32)
-            inner = ramp_mask(int(math.ceil(bw)), int(math.ceil(bh)), st["reveal"], L.direction, max(4.0, 0.08 * (bw if L.direction in ("left", "right") else bh)))
-            m[P : P + inner.shape[0], P : P + inner.shape[1]] = inner
-            if L.direction in ("right",):
-                m[:, P + inner.shape[1] :] = 0 if st["reveal"] < 1 else 1
+            # the ramp spans the whole patch, so the padding (backing, shadow, outline) is revealed and hidden with the block
+            m = ramp_mask(img.width, img.height, st["reveal"], L.direction, max(4.0, 0.08 * (bw if L.direction in ("left", "right") else bh)))
             return apply_alpha_mask(img, m)
         return img
 
@@ -2324,7 +2353,11 @@ class Checker:
                     ends += [s.end + (L.units - 1) * L.stagger for lst in L.unit_segs.values() for s in lst]
                 if ends:
                     last_motion = max(last_motion, sc.start + L.start + max(ends))
-        if m.scenes and m.duration - last_motion < 0.99 and last_motion > 0:
+        cam = m.scenes[-1].camera if m.scenes else None
+        cam_moves = bool(cam and cam["a"] != cam["b"] and any(L.cam > 0 for L in m.scenes[-1].layers))
+        if cam_moves:
+            self.warn("ending", f"the camera on the last scene moves until the video ends at {m.duration:.1f} s. Hold the final frame for 1 s: remove the camera from the last scene.")
+        elif m.scenes and m.duration - last_motion < 0.99 and last_motion > 0:
             self.warn("ending", f"the last thing moves at {last_motion:.1f} s and the video ends at {m.duration:.1f} s. Hold the final frame for 1 s: lengthen the last scene by {1 - (m.duration - last_motion):.1f} s.")
 
     def check_audio(self):
@@ -2439,21 +2472,21 @@ class Checker:
                 continue
             frame = Rc.render_frame(min(gt, m.duration - 1e-3), until=L)
             px = frame[y0:y1, x0:x1].reshape(-1, 3)
-            col = np.array(L.color[:3], dtype=np.float32)
-            a = L.color[3] * st["opacity"]
+            col = np.array(st["color"][:3], dtype=np.float32)
+            a = st["color"][3] * st["opacity"]
             eff = col[None, :] * a + px * (1 - a)
             lum = lambda arr: 0.2126 * ((arr[:, 0] / 255) ** 2.2) + 0.7152 * ((arr[:, 1] / 255) ** 2.2) + 0.0722 * ((arr[:, 2] / 255) ** 2.2)  # noqa: E731
             lt_, lb_ = lum(eff), lum(px)
             ratio = (np.maximum(lt_, lb_) + 0.05) / (np.minimum(lt_, lb_) + 0.05)
             r10 = float(np.percentile(ratio, 10))
             if worst is None or r10 < worst[0]:
-                worst = (r10, px.mean(axis=0), gt)
+                worst = (r10, px.mean(axis=0), gt, st["color"])
         if worst and worst[0] < need:
-            r10, bgc, gt = worst
+            r10, bgc, gt, tcol = worst
             kind = "small" if L.size < SMALL_TEXT_VH else "large"
             photo = L.scene is not None and any(U.kind == "image" for U in L.scene.layers[: L.scene.layers.index(L)])
             fix = 'darken the photo with "dim": 0.4, give the text a "backing": {"color": "#00000099"}, or change its color' if photo else 'change the text color toward white or black (whichever is far from the background), or give it a "backing": {"color": "#00000099"}'
-            self.err(L.label, f"has contrast {r10:.1f}:1 against what is behind it at {gt:.1f} s (text {hexcolor(L.color)} on about {hexcolor(bgc)}); {kind} text needs {need:g}:1. Fix: {fix}.")
+            self.err(L.label, f"has contrast {r10:.1f}:1 against what is behind it at {gt:.1f} s (text {hexcolor(tcol)} on about {hexcolor(bgc)}); {kind} text needs {need:g}:1. Fix: {fix}.")
 
     def check_nontext(self, L):
         R, m = self.R, self.m

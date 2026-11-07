@@ -67,7 +67,6 @@
       "id": "four",
       "duration": 4.6,
       "transition": { "type": "crossfade", "duration": 0.8 },
-      "camera": { "preset": "drift" },
       "layers": [{ "type": "image", "file": "sample:dusk" }]
     }
   ]
