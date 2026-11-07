@@ -3,11 +3,16 @@
 
     python export_film.py SPEC.json
 
-SPEC is {"out": path, "inputs": [path, ...], "title": str, "comment": str}. Every take is fitted to the largest take's
-size, at the first take's frame rate; a take without sound gets silence, and a film with no sound at all still gets a
-silent track, since some players and sites mishandle video with no audio. Prints one JSON line per take as it goes
-({"done": i, "total": n}) and a last line {"ok": true, "seconds": s, "bytes": b}, or {"ok": false, "error": msg}.
-Uses PyAV, which ComfyUI already installs, so there is nothing else to download.
+SPEC is {"out": path, "inputs": [path, ...], "title": str, "comment": str, "voiceover": {...}}. Every take is fitted
+to the largest take's size, at the first take's frame rate; a take without sound gets silence, and a film with no sound
+at all still gets a silent track, since some players and sites mishandle video with no audio. Prints one JSON line per
+take as it goes ({"done": i, "total": n}) and a last line {"ok": true, "seconds": s, "bytes": b}, or {"ok": false,
+"error": msg}. Uses PyAV, which ComfyUI already installs, so there is nothing else to download.
+
+A voice-over, {"path": file, "start_seconds": 0, "gain_db": 0, "duck_db": 12}, is mixed over the film's own sound: the
+film is turned down by duck_db while the voice speaks (the voice's level sets the envelope: it follows within 30 ms,
+starts 50 ms ahead of the first word, and lets go over 300 ms), the voice is padded or cut to the film's length, and the
+mix is loudnormed to -14 LUFS and -1 dBTP (voice_clean.normalize). The last line then adds "lufs" and "true_peak".
 """
 
 import json
@@ -18,7 +23,15 @@ from fractions import Fraction
 import av
 import numpy as np
 
+# `python -I` leaves the script's folder off the path; the loudness code lives next to this file.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voice_clean  # noqa: E402
+
 RATE = 48000
+FILM_LUFS = -14.0
+FILM_PEAK = -1.0
+# AAC moves peaks by a few tenths of a dB, so the mix is set that much under the ceiling before it is encoded.
+FILM_MARGIN = 0.4
 
 
 def say(**kw):
@@ -58,7 +71,8 @@ def main(spec_path):
         vs.time_base = tb
         aus = dst.add_stream("aac", rate=RATE, layout="stereo")
         aus.time_base = Fraction(1, RATE)
-        audio = Audio(dst, aus)
+        voiceover = spec.get("voiceover")
+        audio = Audio(dst, aus, collect=[] if voiceover else None)
 
         for i, path in enumerate(inputs):
             take_frames = 0
@@ -98,9 +112,14 @@ def main(spec_path):
 
         for p in vs.encode():
             dst.mux(p)
+        loud = None
+        if voiceover:
+            say(stage="voice-over")
+            loud = audio.mix_voiceover(voiceover)
         audio.close()
     os.replace(tmp, out)
-    say(ok=True, seconds=round(float(total_frames / fps), 3), bytes=os.path.getsize(out))
+    extra = {"lufs": loud[0], "true_peak": loud[1]} if loud else {}
+    say(ok=True, seconds=round(float(total_frames / fps), 3), bytes=os.path.getsize(out), **extra)
 
 
 def fit(frame, width, height):
@@ -116,22 +135,86 @@ def fit(frame, width, height):
     return av.VideoFrame.from_ndarray(canvas, format="rgb24").reformat(format="yuv420p")
 
 
-class Audio:
-    """Feeds the AAC encoder whole 1024-sample frames, which is all it takes."""
+def duck_envelope(voice, duck_db, hop=RATE // 100):
+    """Gain for the film, per sample: 1 away from the voice, down by duck_db while it speaks.
 
-    def __init__(self, dst, stream):
+    The voice's level is read every 10 ms. Speaking is anything well above the voice's own quiet (its room noise),
+    found from the recording itself, so a clean take and a noisy one duck the same. The film starts to drop 50 ms
+    before a word, follows the voice within 30 ms, and comes back over 300 ms, so short pauses between words don't pump."""
+    n = voice.shape[1]
+    hops = max(1, n // hop)
+    level = np.empty(hops)
+    for h in range(hops):
+        seg = voice[:, h * hop : (h + 1) * hop]
+        level[h] = 10 * np.log10(float(np.mean(seg * seg)) + 1e-12)
+    heard = level[level > -80]
+    active = np.zeros(hops)
+    if heard.size:
+        ref, floor = np.percentile(heard, 95), np.percentile(heard, 10)
+        thr = -60.0 if ref - floor < 6 else max(-60.0, floor + 0.35 * (ref - floor))
+        active = (level > thr).astype(float)
+    lead = 5  # hops, 50 ms
+    active = np.concatenate([active[lead:], np.zeros(min(lead, hops))])
+    dt = hop / RATE
+    up, down = 1 - np.exp(-dt / 0.03), 1 - np.exp(-dt / 0.3)
+    s = np.empty(hops)
+    cur = 0.0
+    for h in range(hops):
+        cur += (active[h] - cur) * (up if active[h] > cur else down)
+        s[h] = cur
+    gain = 1 - s * (1 - 10 ** (-duck_db / 20))
+    centers = (np.arange(hops) + 0.5) * hop
+    return np.interp(np.arange(n), centers, gain).astype(np.float32)
+
+
+class Audio:
+    """Feeds the AAC encoder whole 1024-sample frames, which is all it takes.
+
+    With `collect`, the sound is kept instead, until `mix_voiceover` mixes a voice over it and sends it on."""
+
+    def __init__(self, dst, stream, collect=None):
         self.dst, self.stream = dst, stream
         self.fmt = stream.codec_context.format.name
         self.size = stream.codec_context.frame_size or 1024
         self.fifo = av.AudioFifo()
         self.pts = 0
+        self.collect = collect
 
     def push(self, arr):
+        if self.collect is not None:
+            a = np.asarray(arr, dtype=np.float32)
+            self.collect.append(a if self.fmt.endswith("p") else a.reshape(-1, 2).T)
+            return
+        self.send(arr)
+
+    def send(self, arr):
         fr = av.AudioFrame.from_ndarray(np.ascontiguousarray(arr), format=self.fmt, layout="stereo")
         fr.sample_rate = RATE
         fr.pts = None
         self.fifo.write(fr)
         self.drain(self.size)
+
+    def mix_voiceover(self, vo):
+        """Mix the voice over the collected film sound, loudnorm it, and encode it. Returns (lufs, true_peak)."""
+        film = np.concatenate(self.collect, axis=1) if self.collect else np.zeros((2, 0), dtype=np.float32)
+        self.collect = None
+        n = film.shape[1]
+        start = round(float(vo.get("start_seconds", 0) or 0) * RATE)
+        if start < 0:
+            raise ValueError("The voice-over can’t start before the film does.")
+        if start >= n:
+            raise ValueError("The voice-over starts after the film ends.")
+        voice = voice_clean.decode(vo["path"], 2) * np.float32(10 ** (float(vo.get("gain_db", 0) or 0) / 20))
+        placed = np.zeros((2, n), dtype=np.float32)
+        take = min(voice.shape[1], n - start)
+        placed[:, start : start + take] = voice[:, :take]
+        duck = float(12 if vo.get("duck_db") is None else vo["duck_db"])
+        mix = film * duck_envelope(placed, duck) + placed
+        backend = voice_clean.choose_backend()
+        mix, lufs, tp = voice_clean.normalize(backend, mix, FILM_LUFS, FILM_PEAK - FILM_MARGIN)
+        for i in range(0, mix.shape[1], 4096):
+            self.send(mix[:, i : i + 4096])
+        return lufs, tp
 
     def silence(self, n):
         planar = self.fmt.endswith("p")
