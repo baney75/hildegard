@@ -48,12 +48,14 @@ TABLE = {
 
 
 def available(s, domain):
-    if s.get('score_error') or not s.get('ran'):
+    if s.get('score_error'):
+        return False
+    if domain == 'photocreate':  # nothing runs for an SVG or an HTML page, so there is no `ran`
+        return bool(s.get('checks', {}).get('rendered')) and bool(s.get('checks', {}).get('not_blank'))
+    if not s.get('ran'):
         return False
     if domain == 'photoedit':
         return 'size' in s
-    if domain == 'photocreate':
-        return bool(s.get('checks', {}).get('rendered')) and bool(s.get('checks', {}).get('not_blank'))
     return True
 
 

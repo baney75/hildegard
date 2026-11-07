@@ -49,7 +49,7 @@ def run_script(task_id, work, names, out_name, timeout=120):
     except subprocess.TimeoutExpired:
         log, code = f'timed out after {timeout} s', -9
     outs = [out_name] if isinstance(out_name, str) else out_name
-    ok = any(os.path.exists(os.path.join(tmp, o)) and os.path.getsize(os.path.join(tmp, o)) > 500 for o in outs)
+    ok = any(os.path.exists(os.path.join(tmp, o)) and os.path.getsize(os.path.join(tmp, o)) > 500 for o in outs) and code != -9  # a script that hit the time limit did not deliver; its partial file does not count
     return ok, round(time.time() - t0, 1), tmp, log, code, name
 
 

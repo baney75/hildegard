@@ -106,7 +106,8 @@ def video():
     t = TASKS['v1-pancake-promo']
     check('v1 static', run(score_media.codevideo, t, {'make.py': script('video_static.py.tmpl', t)}), must_fail=('not_static',))
     check('v1 black', run(score_media.codevideo, t, {'make.py': script('video_black.py.tmpl', t)}), must_fail=('no_black_over_half_second', 'every_line_present'))
-    check('v1 invented date and number', run(score_media.codevideo, t, {'make.py': script('video_ref.py.tmpl', t, ('Saturday, April 19', 'Call 555 0142'))}), must_fail=('no_extra_numbers_or_dates',))
+    t = TASKS['v3-pantry-reveal']  # the smaller canvas: the 1080 x 1920 reference can pass the time limit on a busy machine
+    check('v3 invented date and number', run(score_media.codevideo, t, {'make.py': script('video_ref.py.tmpl', t, ('Saturday, April 19', 'Call 555 0142'))}), must_fail=('no_extra_numbers_or_dates',))
 
 
 if __name__ == '__main__':

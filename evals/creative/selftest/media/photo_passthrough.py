@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 # Control: crop to the aspect from the centre and resize. Fixes nothing.
 from PIL import Image
 W, H = __SIZE__

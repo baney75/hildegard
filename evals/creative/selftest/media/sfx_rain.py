@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import numpy as np, wave, subprocess, re
 sr = 44100; rng = np.random.default_rng(5)
 n = 30 * sr

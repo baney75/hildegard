@@ -219,7 +219,7 @@
   {
     "id": "m1-church-announce",
     "domain": "music",
-    "brief": "I'm the sound volunteer at Trinity Presbyterian in Dayton, Ohio. I need a bed of music to play softly under our spoken announcements before the service: 30 seconds (within 2), gentle and reverent, about 72 beats per minute, in G major, no vocals, nothing that fights a speaking voice (keep it sparse and low in the mix), a quiet natural ending (not a hard cut). Integrated loudness -23 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "brief": "I'm the sound volunteer at Trinity Presbyterian in Dayton, Ohio. I need a bed of music to play softly under our spoken announcements before the service: 30 seconds (within 2), gentle and reverent, about 72 beats per minute with a soft pulse you could tap along to (a plucked or mallet note on each beat is fine), in G major, no vocals, nothing that fights a speaking voice (keep it sparse and low in the mix), a quiet natural ending (not a hard cut). Integrated loudness -23 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
     "deliverable": [
       "make.py",
       "make.sh"

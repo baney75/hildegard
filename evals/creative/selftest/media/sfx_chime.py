@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import numpy as np, wave
 sr = 44100
 out = np.zeros(int(1.0 * sr))

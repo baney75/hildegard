@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 import numpy as np, wave
 sr = 44100; rng = np.random.default_rng(1)
 y = rng.standard_normal(30 * sr) * 0.03

@@ -189,6 +189,70 @@ What I would try first: put the two-pass `loudnorm` recipe, a hum notch recipe a
 and to add no copy that is not in the brief; add a 5-second-per-shot rule and "no facts beyond the brief" to the video-plan references. Those are
 changes for the session that owns `skills/`; this PR changes none.
 
+### Media baseline, 2026-11-07: `main` skills against no skills, media tuned set (`results-media-baseline.json`)
+
+One response per task, arm and model, each judged in both orders (60 responses, 60 verdicts); `main` is `origin/main`'s `skills/` at the time of the run. State lives in
+`~/.cache/hildegard-creative-eval-media` (its own `EVAL_DIR`, so it does not touch another run in the default one). The `main` arm loaded a Hildegard skill in 15 of 15 runs for both models
+(it was told to; the `none` arm in 0 of 15), but Haiku read no reference file in a median run and Luna read 5. Contact sheets (kept out of git):
+`contact-photo-edit-media-baseline.png`, `contact-photo-create-media-baseline.png`, `contact-motion-media-baseline.png` in the state folder; reduced copies are committed as
+`baseline-media-contact-*.jpg` next to this file.
+
+| Domain | Haiku 5.5: main wins of verdicts (tasks won/lost outright) | GPT-6 Luna (low): main wins of verdicts (tasks won/lost outright) |
+| --- | --- | --- |
+| photoedit (3 tasks) | 2 of 6 (1/2) | 2 of 6 (1/2) |
+| photocreate (3) | 0 of 6 (0/3) | 5 of 6 (2/0) |
+| sfx (3) | 4 of 6 (2/1) | 3 of 6 (1/1) |
+| music (3) | 6 of 6 (3/0) | 4 of 6 (2/1) |
+| codevideo (3) | 4 of 6 (2/1) | 3 of 6 (1/1) |
+| all | 16 of 30 (0.53) | 17 of 30 (0.57) |
+
+**Read it plainly: on these media tasks the skills are a wash.** Music is the one clear win for Haiku (3 of 3 tasks; its main beds read as A minor and carry
+more layers, where the no-skill ones read as C major or end early), and Luna's pictures drawn in code are better with the skills (2 of 3 won, none lost). But
+Haiku's pictures are worse with them (0 of 3: the judge calls `main`'s Advent cover "banded arcs [that] read as a rainbow or retro sunset", with "the hill cut[ting] the arcs off with a crude
+straight edge"), and photo editing, the domain with the most measurable truth, loses 2 of 3 tasks to no skills for both models. One response per cell, so one split task moves a cell a lot: read
+direction, not size, and confirm with `--set media-heldout`.
+
+Objective checks passed (of 9 to 14 per task; each script re-run with no network), `none` / `main`:
+
+| Task | Haiku | Luna | What decided it |
+| --- | --- | --- | --- |
+| p1 retreat hero | 10 / 11 of 13 | 8 / 8 of 13 | Luna turned the photo the wrong way in both arms (tilt 4.35 degrees became 5.4 and 6.1) and `main`'s output has black wedges at the edges; Haiku levelled it both times, `main` stayed cold (white-balance error 0.126 against 0.073) |
+| p2 farm stand | 11 / 12 of 14 | 12 / 12 of 14 | `main` fixed the cast better (error 0.057 and 0.071 against 0.185 for both `none` outputs) but left the picture a stop dark (mean luma 0.09 low) |
+| p3 barn card | 8 / 7 of 13 | 10 / 12 of 13 | Haiku replaced the sky with a synthetic gradient in both arms (luma 0.46 low, halos); Luna `main` kept the barn and sky natural (white-balance error 0.013) but left 1 degree of tilt |
+| c1 to c3 pictures | 6 / 6 of 6 | 6 / 6 of 6 | file facts all pass; the judge decides on craft |
+| s1 chime | 9 / 10 of 10 | 9 / 10 of 10 | both `none` chimes ended while still ringing (decay check); both `main` chimes pass |
+| s2 page turn | 9 / 9 | 9 / 9 | all pass; the judge splits on how paper-like the spectrogram is |
+| s3 rain | 10 / 10 | 9 / 9 of 10 | Luna `main` droplet CV 0.22 (static-like) against 0.43 for `none`; Luna `none` is 2 dB loud |
+| m1 church bed | 7 / 9 of 9 | 9 / 9 of 9 | Haiku `none` made a 20.5 s piece with a cut ending |
+| m2 shop promo | 9 / 9 | 7 / 9 of 9 | Luna `none` clipped (true peak +2.0 dBTP) and read as F-sharp minor |
+| m3 podcast intro | 9 / 9 | 8 / 8 of 9 | Luna `none` measured 113.5 BPM against 80; Luna `main` has 1.9 s of dead air |
+| v1 pancake promo | 9 / 10 of 10 | 9 / 9 of 10 | Luna's `main` shows most lines in the first seconds, then holds (54 percent of one-second windows with no change) |
+| v2 verse card | 10 / 10 | 10 / 9 of 10 | Luna `main` fades all lines in within 1.5 s then barely moves (73 percent static) |
+| v3 pantry reveal | 10 / 10 | 9 / 9 of 10 | Luna's counts settle correctly, but both Luna videos hold still too long (37 and 40 percent of windows); Haiku's do not (17 and 30) |
+
+Five most common failures in the `main` arm's outputs (counts are of the 30 `main` media outputs; quotes are the judge's or the measured values):
+
+1. **Straightening goes wrong or stops short** (3 of 6 photo edits fail the straightness check). Luna's `p1` turned the picture the wrong way: "Both edits rotated the wrong way, so the horizon is worse than before (5.4 degrees for A, 6.1 for B,
+   from 4.35)", and the `main` copy "also has dark wedges down the left and right edges where the rotated image no longer covers the frame". Haiku's `p3` stayed "visibly tilted at -2.3 degrees, so the fence line and barn corner still lean";
+   Luna's `p3` left 1.05 degrees.
+2. **Colour and exposure do not reach the reference** (3 of 6 fail white balance, 3 of 6 exposure). Haiku's `p1` "stays cool and bluish over the water and sky"; its `p3` "replace[s] the sky with a synthetic gradient that leaves halos around the tree and
+   barn and adds heavy noise" (mean luma 0.46 under the reference). The fix for a cast task is usually a gray-world gain, which removes the evening warmth along with the cast.
+3. **The crop loses what the client named, or the edit is over-sharpened** (2 of 6 fail `subject_kept`, 2 of 6 `detail_kept`). Luna's `p2` main: "its crop leaves out the tomatoes, the first item the client named, and it barely removes the grain (noise
+   only drops from 2.95 to 2.41)". Haiku's `p1` main is "over-sharpened and noisier (noise 9.57 against about 7.2 in the reference, detail ratio 1.2)".
+4. **Motion that is not there** (3 of 6 videos fail `not_static`; all three are Luna's). The judge on Luna's `v2` main: "B fades all three lines in within about 1.5 s, and its frames barely change for most of the clip, which fails the
+   not-static check (0.73 static)". The `none` videos fail this check 3 times too (Haiku `v1`, Luna `v1` and `v3`), so it is a weak-model habit the skills have not changed.
+5. **Pictures drawn in code with loose construction** (Haiku `main` lost all three picture tasks). "A cup handle that floats loose from the cup and sandwich wedges that hover over the plate" in the soup card; "the sun floats loose in the top-right
+   corner, and its scattered rays break up the silhouette at thumbnail size" in the farm-stand logo; the Advent cover is read as "a rainbow or retro sunset". The skills' drawing guidance is not reaching the SVG that a weak model writes.
+
+Also seen once each: Luna's `m1` bed repeats a four-note pluck unchanged for 30 s and ends on an unresolved D pad (the judge preferred the no-skill bed); a `main` rain bed that is "a denser, more static-like broadband field".
+
+What I would try first, for the session that owns `skills/`: tell the photo skill to measure the horizon and verticals instead of guessing the angle and to rotate-then-crop inside the valid area; to correct a cast per channel against a
+neutral the picture actually has and not by gray-world; to keep the subject box in a crop; and to check the output with the same numbers the scorer uses. For code-drawn pictures, a render-look-fix loop with a layer checklist (every part touches what it
+should). For motion, a staging recipe (one thing arriving per 1.5 to 2 s, an ease, a drift under everything). Those are changes for that session; this PR changes no skill.
+
+Notes on this baseline: it was re-run after two fixes found on the first pass. The judge skipped every picture task as "no usable deliverable" (a picture drawn in code has no `ran` field), so the 12 picture verdicts were redone; and the church-bed brief
+asked for a "sparse" bed whose tempo no onset-based estimator can read (four of four outputs missed), so it now asks for "a soft pulse you could tap along to" and its four runs were redone. Nothing else was rerun.
+
 ### Limits
 
 - Three tasks per domain and one response each; the judge's position bias splits some tasks. Use the held-out set and repeat runs before believing a small gap.
@@ -196,4 +260,7 @@ changes for the session that owns `skills/`; this PR changes none.
 - The audio decomposition assumes each source is placed once; a looped bed is scored on its first pass. `stoi_like` ranks and is not standardized STOI.
 - Video-edit cut counting started as ffmpeg scene changes only, which missed crossfades; it now also counts source-clip switches. That edit to `score.py`
   came after the first scoring pass, so `e1-canoe-cut` was re-scored and re-judged and the rest were not affected.
+- Media tasks: one response per cell and no repeats. The tilt estimate is a proxy (a projection profile of the photo's horizon or vertical lines, within 0.75 degrees; each task names the family its photo has) and was
+  checked against rotations of the same photos, not against human labels. OCR reads stylized type over a photograph badly, so the extra-number check only counts digits at 85 percent confidence or more and allows text that is in a supplied photo.
+  The tempo check reads pulsed music, not a bed that sounds once a bar. Sound and music are judged from measurements and pictures, never heard.
 - Plan judging cannot test whether a prompt renders well in LTX or Wan. It tests whether the plan is complete, consistent and feasible on paper.
