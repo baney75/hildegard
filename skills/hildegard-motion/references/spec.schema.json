@@ -620,9 +620,6 @@
               },
               "additionalProperties": false,
               "required": ["to"]
-            },
-            "_group": {
-              "type": "string"
             }
           },
           "additionalProperties": false,
@@ -705,10 +702,6 @@
               "minimum": 0,
               "maximum": 1
             },
-            "reveal_style": {
-              "type": "string",
-              "enum": ["type", "wipe"]
-            },
             "safe": {
               "type": "boolean",
               "description": "false lets this layer sit in the safe margin or off the edge on purpose"
@@ -769,12 +762,12 @@
             "d": {
               "type": "string",
               "description": "path in frame fractions: M x y, L x y, C x1 y1 x2 y2 x y, Q x1 y1 x y, Z"
-            },
-            "_group": {
-              "type": "string"
             }
           },
           "additionalProperties": false,
+          "x-not-used": {
+            "reveal_style": "does nothing on a shape: only text can type its letters; shapes and images always wipe. Fix: remove it, and use \"reveal\" or a \"wipe\" enter."
+          },
           "required": ["type", "shape"]
         },
         {
@@ -854,10 +847,6 @@
               "minimum": 0,
               "maximum": 1
             },
-            "reveal_style": {
-              "type": "string",
-              "enum": ["type", "wipe"]
-            },
             "safe": {
               "type": "boolean",
               "description": "false lets this layer sit in the safe margin or off the edge on purpose"
@@ -902,12 +891,12 @@
               "type": "number",
               "description": "rounded corners, percent of frame height",
               "minimum": 0
-            },
-            "_group": {
-              "type": "string"
             }
           },
           "additionalProperties": false,
+          "x-not-used": {
+            "reveal_style": "does nothing on a image: only text can type its letters; shapes and images always wipe. Fix: remove it, and use \"reveal\" or a \"wipe\" enter."
+          },
           "required": ["type", "file"]
         },
         {
@@ -941,19 +930,6 @@
             "anchor": {
               "$ref": "#/$defs/anchor"
             },
-            "scale": {
-              "type": "number",
-              "exclusiveMinimum": 0
-            },
-            "rotation": {
-              "type": "number",
-              "description": "degrees clockwise"
-            },
-            "opacity": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            },
             "camera": {
               "anyOf": [
                 {
@@ -967,29 +943,8 @@
               ],
               "description": "move with the scene camera (true, default for images), stay fixed (false, default for everything else) or a number for parallax"
             },
-            "enter": {
-              "$ref": "#/$defs/enter"
-            },
             "exit": {
               "$ref": "#/$defs/exit"
-            },
-            "animate": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/tween"
-              }
-            },
-            "direction": {
-              "$ref": "#/$defs/direction"
-            },
-            "reveal": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            },
-            "reveal_style": {
-              "type": "string",
-              "enum": ["type", "wipe"]
             },
             "safe": {
               "type": "boolean",
@@ -1105,12 +1060,19 @@
                 }
               },
               "additionalProperties": false
-            },
-            "_group": {
-              "type": "string"
             }
           },
           "additionalProperties": false,
+          "x-not-used": {
+            "enter": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\" ({\"at\", \"duration\", \"stagger\", \"ease\"}), and start the whole chart later with \"start\".",
+            "animate": "does nothing on a bars chart: its parts follow \"data\" and \"grow\". Fix: move the whole chart with \"x\" and \"y\", or time the bars with \"grow\".",
+            "opacity": "does nothing on a bars chart. Fix: use see-through colors, such as \"color\": \"#4f8cffaa\".",
+            "scale": "does nothing on a bars chart. Fix: size it with \"w\" and \"h\".",
+            "rotation": "does nothing on a bars chart; a chart cannot be turned. Fix: remove it.",
+            "reveal": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\".",
+            "reveal_style": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\".",
+            "direction": "does nothing on a bars chart: the bars grow upward. Fix: remove it."
+          },
           "required": ["type", "data"]
         }
       ],

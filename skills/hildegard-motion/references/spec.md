@@ -83,6 +83,10 @@ they do not band after encoding.
 | `camera` | `true`, `false` or a number: follow the scene camera |
 | `safe` | `false` allows this layer in the safe margin or off an edge, on purpose |
 
+A field a layer type does not use is refused by `--check`, never ignored: `reveal_style` is for text only, a `bars` chart
+takes none of `enter`, `animate`, `opacity`, `scale`, `rotation`, `reveal` or `direction` (it has `grow`), and a shape takes only
+the fields of its kind (see shape).
+
 ### `enter` and `exit`
 
 `{"type": "rise", "duration": 0.7, "delay": 0.3, "ease": "easeOutCubic"}`. Every field but `type` is optional.
@@ -103,8 +107,9 @@ they do not band after encoding.
 Text only: `"split": "word" | "line" | "char"` with `"stagger"` (seconds between pieces, default 0.08) animates each piece
 in turn for `fade`, `rise`, `drop`, `slide-from-*`, `zoom` and `pop`.
 
-Exits: `fade`, `rise` (up), `drop` (down), `slide-to-left`, `slide-to-right`, `zoom` (grows and fades), `wipe`. An exit ends
-when the layer ends (its `end`, or the scene's end).
+Exits: `fade`, `rise` (up), `drop` (down), `slide-to-left`, `slide-to-right`, `zoom` (grows and fades), `wipe` (an edge
+moving along `direction` takes the layer away; on text it wipes, it does not untype). Every exit works on every layer type. An
+exit ends when the layer ends (its `end`, or the scene's end).
 
 ### `animate`: your own moves
 
@@ -164,7 +169,11 @@ Things arriving use `easeOut...`, things leaving use `easeIn...`, things that go
   `C x1 y1 x2 y2 x y`, `Q x1 y1 x y`, `Z`. Example: `"M 0.2 0.8 C 0.4 0.6 0.6 1.0 0.8 0.8"`.
 
 For line, polygon and path, `x` and `y` are offsets (default 0) added to every point, and `scale` and `rotation` pivot on
-the middle of the shape.
+the middle of the shape (so they take no `anchor`).
+
+Each kind takes only its own fields: rect and ellipse `w`, `h`; rounded the same plus `radius`; circle `w`; line `from`, `to`;
+polygon `points`; path `d`; and `fill` and `stroke` on all but line (a line has only a `stroke`). `--check` names the field a
+kind would ignore.
 
 `fill` is a color or a gradient (default white; none for a line). `stroke` is `{"color", "width", "round"}` (width in vh,
 default 0.4).
@@ -190,7 +199,9 @@ default 0.4).
 ```
 
 Bar height is `value` over the largest value (or `max`) times the chart's room, so heights are proportional to the numbers.
-Each value label counts up as its bar grows. Other fields: `prefix`, `suffix`, `decimals`, `gap`, `radius`, `font`,
+Each value label counts up as its bar grows. A chart takes `id`, `start`, `end`, `x`, `y`, `w`, `h`, `anchor`, `exit`, `camera` and
+`safe`; the others every layer has (`enter`, `animate`, `opacity`, `scale`, `rotation`, `reveal`, `direction`) do nothing to a
+chart and `--check` refuses them. Time the bars with `grow`. Other fields: `prefix`, `suffix`, `decimals`, `gap`, `radius`, `font`,
 `label_color`, `value_color`, `axis_color`, `label_size`, `value_size`, and `color` per datum. Up to 12 bars. A chart is
 expanded into ordinary shape and text layers, so every check applies to its labels.
 
@@ -217,10 +228,11 @@ linear gain) unless `"loudnorm": false`. Audio needs `ffmpeg` on PATH. The audio
 
 ## What --check measures
 
-Unknown fields and wrong values (with a "did you mean"); missing image, audio and SRT files; missing fonts; scene lengths
+Unknown fields and wrong values, including a misspelled easing, preset, transition, enter or exit (with a "did you mean"); missing image, audio and SRT files; missing fonts; scene lengths
 against their transitions; `duration` against the scenes; any animation that runs past its scene; layers that never
 appear; text that overflows its box (a word wider than the box, more than `max_lines`); text that runs off the frame or into
-the safe margin at any time it is readable; text under size 2; text on screen less than 0.25 s per word (minimum 1.2 s);
+the safe margin at any time it is readable ("readable" is fully entered and fully revealed, at the opacity the layer settles at, so a
+line set to `opacity: 0.8` counts, and contrast decides whether 0.8 is enough); text under size 2; text on screen less than 0.25 s per word (minimum 1.2 s);
 text blocks that overlap each other or a caption; a later layer drawn over text; contrast under 4.5:1 for small text
 (under 5 vh) or 3:1 for large, measured on the pixels behind the text; a camera move that uncovers a photo's edge; more
 than 3.6 words per second in a scene; a last frame that is still moving. Warnings do not stop a render; problems do.

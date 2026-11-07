@@ -268,6 +268,344 @@ describe.skipIf(!hasLibs)('hildegard-motion: --check catches what weak models ge
   });
 });
 
+/** Writes a whole spec (several scenes, a camera, captions) for the cases `write` cannot shape. */
+function writeSpec(name: string, spec: Record<string, unknown>) {
+  const file = join(dir, `${name}.json`);
+  writeFileSync(
+    file,
+    JSON.stringify({ canvas: { width: 1280, height: 720, fps: 30, background: '#0b1020' }, ...spec }),
+  );
+  return file;
+}
+
+/** Runs packages/craft/test/motion_probe.py, which draws frames with the real script and prints JSON. */
+function runProbe(kind: string) {
+  const r = spawnSync(python, [join(import.meta.dirname, 'motion_probe.py'), skill, kind], {
+    encoding: 'utf8',
+    env,
+    maxBuffer: 1 << 26,
+  });
+  expect(r.status, r.stderr).toBe(0);
+  return JSON.parse(r.stdout);
+}
+
+describe.skipIf(!hasLibs)(
+  'hildegard-motion: a name that is not in the list is a problem, never a traceback',
+  () => {
+    const fade = { type: 'fade' };
+    const two = (second: Record<string, unknown>) => ({
+      scenes: [
+        { duration: 4, layers: [text('First scene')] },
+        { duration: 4, layers: [text('Second scene')], ...second },
+      ],
+    });
+    const cases: Array<[string, Record<string, unknown>, RegExp]> = [
+      [
+        'an enter ease "easeOut"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { enter: { ...fade, ease: 'easeOut' } })] }] },
+        /enter\.ease: must be one of: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'an enter ease "ease-out"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { enter: { ...fade, ease: 'ease-out' } })] }] },
+        /enter\.ease: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'an exit ease "easeIn"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { exit: { ...fade, ease: 'easeIn' } })] }] },
+        /exit\.ease: .*did you mean "easeIn\w+"/,
+      ],
+      [
+        'an animate ease',
+        {
+          scenes: [
+            {
+              duration: 4,
+              layers: [text('Hi there', { animate: [{ prop: 'y', to: 0.4, ease: 'easeOut' }] })],
+            },
+          ],
+        },
+        /animate\[0\]\.ease: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'a count ease',
+        { scenes: [{ duration: 4, layers: [text('{n} riders', { count: { to: 5, ease: 'easeOut' } })] }] },
+        /count\.ease: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'a bars grow ease',
+        {
+          scenes: [
+            {
+              duration: 4,
+              layers: [{ type: 'bars', data: [{ label: 'A', value: 2 }], grow: { ease: 'easeOut' } }],
+            },
+          ],
+        },
+        /grow\.ease: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'a camera ease "ease-out"',
+        {
+          scenes: [
+            { duration: 4, camera: { preset: 'push-in', ease: 'ease-out' }, layers: [text('Hi there')] },
+          ],
+        },
+        /camera\.ease: .*did you mean "easeOut\w+"/,
+      ],
+      [
+        'a camera preset "pushin"',
+        { scenes: [{ duration: 4, camera: { preset: 'pushin' }, layers: [text('Hi there')] }] },
+        /camera\.preset: .*did you mean "push-in"/,
+      ],
+      [
+        'a transition "cross-fade"',
+        two({ transition: { type: 'cross-fade' } }),
+        /transition\.type: .*did you mean "crossfade"/,
+      ],
+      [
+        'an enter type "fadein"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { enter: { type: 'fadein' } })] }] },
+        /enter\.type: .*did you mean "fade"/,
+      ],
+      [
+        'an exit type "fadeout"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { exit: { type: 'fadeout' } })] }] },
+        /exit\.type: .*did you mean "fade"/,
+      ],
+      [
+        'an enter that names a split "words"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { enter: { ...fade, split: 'words' } })] }] },
+        /split: .*did you mean "word"/,
+      ],
+      [
+        'a reveal style "typewriter"',
+        { scenes: [{ duration: 4, layers: [text('Hi there', { reveal_style: 'typewriter' })] }] },
+        /reveal_style: .*did you mean "type"/,
+      ],
+    ];
+    it.each(cases)('says what to write for %s', (name, spec, expected) => {
+      const file = writeSpec(`name-${name.replace(/\W+/g, '-')}`, spec);
+      const r = motion(['--check', file]);
+      expect(r.out).not.toMatch(/Traceback|KeyError/);
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(expected);
+      const j = motion(['--check', '--json', file]);
+      expect(() => JSON.parse(j.out), j.out).not.toThrow();
+      expect(JSON.parse(j.out).ok).toBe(false);
+    });
+
+    it('still reports the other problems in the same spec', () => {
+      const file = write('name-and-more', [
+        text('This headline is much too long to fit on one line of the frame', {
+          size: 9,
+          enter: { type: 'fade', ease: 'easeOut' },
+        }),
+      ]);
+      const r = motion(['--check', file]);
+      expect(r.out).not.toMatch(/Traceback/);
+      expect(r.out).toMatch(/did you mean "easeOut\w+"/);
+      expect(r.out).toMatch(/runs off the edge of the frame/);
+    });
+
+    it.skipIf(!canRender)(
+      'does not crash a --force draft that names an easing wrongly',
+      () => {
+        const file = write('name-force', [text('Hi there', { enter: { type: 'fade', ease: 'easeOut' } })]);
+        const out = join(dir, 'name-force.mp4');
+        const r = motion([file, out, '--scale', '0.25', '--fps', '5', '--quiet', '--force']);
+        expect(r.out).not.toMatch(/Traceback/);
+        expect(r.status).toBe(0);
+        expect(existsSync(out)).toBe(true);
+      },
+      120_000,
+    );
+  },
+);
+
+describe.skipIf(!hasLibs)(
+  'hildegard-motion: a layer type does what its fields say or --check says it does not',
+  () => {
+    const bars = (more: Record<string, unknown> = {}) => ({
+      type: 'bars',
+      x: 0.5,
+      y: 0.5,
+      w: 0.6,
+      h: 0.5,
+      data: [{ label: 'A', value: 3 }],
+      ...more,
+    });
+
+    it('draws or refuses every field the schema lets each layer type take', () => {
+      const r = runProbe('fields');
+      expect(r.unexplained).toEqual([]);
+      expect(r.refused_ok).toContain('bars.enter');
+    }, 240_000);
+
+    it.each([
+      ['enter', { enter: { type: 'fade' } }, /bars/],
+      ['animate', { animate: [{ prop: 'x', to: 0.6 }] }, /bars/],
+      ['opacity', { opacity: 0.5 }, /bars/],
+      ['scale', { scale: 1.2 }, /bars/],
+    ])('says a chart does not use "%s"', (field, more, expected) => {
+      const r = motion(['--check', write(`bars-${field}`, [bars(more)])]);
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(new RegExp(`"${field}"`));
+      expect(r.out).toMatch(expected);
+      expect(r.out).toMatch(/does nothing on a bars chart/);
+    });
+
+    it('keeps "id", "safe" and "camera" on a chart, because they reach its parts', () => {
+      const edge = motion(['--check', write('bars-edge', [bars({ id: 'sales', x: 0.97, w: 0.1 })])]);
+      expect(edge.out).toMatch(/"sales"/);
+      expect(edge.out).toMatch(/safe margin/);
+      const ok = motion([
+        '--check',
+        write('bars-edge-ok', [bars({ id: 'sales', x: 0.97, w: 0.1, safe: false })]),
+      ]);
+      expect(ok.out).not.toMatch(/safe margin/);
+    });
+
+    it.each([
+      [
+        'a rect with points',
+        {
+          type: 'shape',
+          shape: 'rect',
+          w: 0.2,
+          h: 0.2,
+          points: [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+          ],
+        },
+        '"points"',
+      ],
+      ['a circle with h', { type: 'shape', shape: 'circle', w: 0.2, h: 0.2 }, '"h"'],
+      ['a rect with radius', { type: 'shape', shape: 'rect', w: 0.2, h: 0.2, radius: 2 }, '"radius"'],
+      [
+        'a line with fill',
+        { type: 'shape', shape: 'line', from: [0.2, 0.5], to: [0.8, 0.5], fill: '#ff0000' },
+        '"fill"',
+      ],
+      [
+        'a shape with reveal_style',
+        { type: 'shape', shape: 'rect', w: 0.2, h: 0.2, reveal_style: 'wipe' },
+        '"reveal_style"',
+      ],
+      [
+        'an image with reveal_style',
+        { type: 'image', file: 'sample:dusk', reveal_style: 'wipe' },
+        '"reveal_style"',
+      ],
+    ])('refuses %s, which would be ignored', (_name, layer, field) => {
+      const r = motion(['--check', write(`ignored-${_name.replace(/\W+/g, '-')}`, [layer])]);
+      expect(r.status).toBe(1);
+      expect(r.out).toContain(field);
+    });
+  },
+);
+
+describe.skipIf(!hasLibs)('hildegard-motion: the check measures what the layer settles at', () => {
+  it('counts a see-through line as readable, and still fails one that is too faint', () => {
+    const ok = motion(['--check', write('soft', [text('Soft words', { opacity: 0.8 })])]);
+    expect(ok.out).toContain('result: clean');
+    expect(ok.status).toBe(0);
+    const faint = motion(['--check', write('faint', [text('Faint words', { opacity: 0.15 })])]);
+    expect(faint.status).toBe(1);
+    expect(faint.out).toMatch(/contrast \d\.\d:1/);
+    expect(faint.out).not.toMatch(/fully on screen for 0\.0 s/);
+  });
+
+  it('counts text that animates to 0.8 opacity, and text that is only part revealed on purpose', () => {
+    const anim = motion([
+      '--check',
+      write('anim-soft', [
+        text('Soft words', { animate: [{ prop: 'opacity', from: 0, to: 0.8, at: 0, duration: 0.5 }] }),
+      ]),
+    ]);
+    expect(anim.out).toContain('result: clean');
+    const part = motion(['--check', write('part', [text('Half there', { reveal: 0.6 })])]);
+    expect(part.out).not.toMatch(/fully on screen for 0\.0 s/);
+  });
+
+  it('still waits for a fade-in to finish, and for the fade-out not to have started', () => {
+    const r = motion([
+      '--check',
+      write('fade-short', [
+        text('one two three four five six', { size: 4, end: 2.2, enter: { type: 'fade', duration: 1.0 } }),
+      ]),
+    ]);
+    expect(r.out).toMatch(/fully on screen for 1\.\d s but 6 words need 1\.5 s/);
+  });
+
+  it('counts a split by line from the lines the box really makes', () => {
+    const r = runProbe('units');
+    expect(r.lines).toBeGreaterThan(5); // more than the old guess of newlines + 3
+    expect(r.anim_end).toBeCloseTo(r.expected, 6);
+  });
+
+  it('does not say a two-line quote never finishes when it does', () => {
+    const layer = text('First line\nSecond line', {
+      size: 6,
+      box: 0.8,
+      enter: { type: 'rise', duration: 1.0, delay: 0.8, split: 'line', stagger: 0.7 },
+    });
+    const r = motion(['--check', write('quote', [layer], {}, { duration: 4.5 })]);
+    expect(r.out).not.toMatch(/never finishes/);
+    expect(r.out).toContain('result: clean');
+  });
+});
+
+describe.skipIf(!hasLibs)('hildegard-motion: the exits spec.md lists', () => {
+  it.skipIf(!canRender)(
+    'moves every layer type for every exit',
+    () => {
+      expect(runProbe('exits')).toEqual([]);
+    },
+    240_000,
+  );
+
+  it.skipIf(!canRender)(
+    'wipes text out with an edge, the way a wipe enter wipes it in',
+    () => {
+      const r = runProbe('wipe');
+      expect(r.errors).toEqual([]);
+      expect(r.reveal).toBeGreaterThan(0.05);
+      expect(r.reveal).toBeLessThan(0.95);
+      expect(r.wipe).toBe(true);
+      expect(r.type).toBe(false);
+    },
+    120_000,
+  );
+});
+
+describe('hildegard-motion: the install line', () => {
+  const lines = (file: string) =>
+    [...readFileSync(file, 'utf8').matchAll(/python3 -m pip install ((?:"[^"]+"|[^`'")\n])+)/g)].map((m) =>
+      m[1]!.trim(),
+    );
+  const reqs = (line: string) => [...line.matchAll(/"([^"]+)"|(\S+)/g)].map((m) => m[1] ?? m[2]!);
+
+  it('uses ranges that resolve on Python 3.10 through 3.13, not a pin only newer Pythons have', () => {
+    const all = [...lines(join(skill, 'SKILL.md')), ...lines(script)];
+    expect(all.length).toBeGreaterThanOrEqual(3);
+    const seen = new Map<string, Set<string>>();
+    for (const line of all) {
+      for (const r of reqs(line)) {
+        // numpy 2.5 and PyAV 19 need Python 3.12, so an exact pin of any of them fails on 3.10 and 3.11
+        expect(r).not.toMatch(/==/);
+        const name = r.split(/[<>=]/)[0]!;
+        expect(r).toMatch(/>=/);
+        seen.set(name, (seen.get(name) ?? new Set()).add(r));
+      }
+    }
+    expect([...seen.keys()].sort()).toEqual(['av', 'numpy', 'pillow']);
+    for (const set of seen.values()) expect(set.size).toBe(1);
+  });
+});
+
 describe.skipIf(!hasLibs)('hildegard-motion: the templates', () => {
   it('ships the six the skill promises', () => {
     expect(templates).toEqual([

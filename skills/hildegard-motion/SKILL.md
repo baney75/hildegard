@@ -19,8 +19,11 @@ You need `python3` (3.10 or later), `numpy`, `Pillow`, and either `ffmpeg` on PA
 python3 -c "import numpy, PIL; print('ok')" && (ffmpeg -version | head -1 || python3 -c "import av; print('av ok')")
 ```
 
-If something is missing, say so and give the install line (`python3 -m pip install numpy==2.5.3 pillow==12.3.0 av==19.0.1`); do not install for the
-user. Fonts download once from Google Fonts (pinned, checked, cached) the first time a template needs them.
+If something is missing, say so and give the install line (`python3 -m pip install "numpy>=1.26" "pillow>=10.1" "av>=12"`; leave
+out `"av>=12"` when `ffmpeg` is on PATH); do not install for the user. These are minimums, not pins: pip picks the newest
+NumPy, Pillow and PyAV that the user's Python supports (NumPy 2.5 and PyAV 19 need Python 3.12). The script was run, and
+its tests passed, on Python 3.10 with the minimums (NumPy 1.26.4, Pillow 10.1.0, PyAV 12.0.0), and on 3.10, 3.11, 3.12 and
+3.13 with what that line installs today; say so if the user's versions are outside that. Fonts download once from Google Fonts (pinned, checked, cached) the first time a template needs them.
 
 ## FAST PATH (any model, start here)
 

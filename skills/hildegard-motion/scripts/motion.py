@@ -30,11 +30,15 @@ import urllib.request
 from collections import OrderedDict
 from pathlib import Path
 
+# numpy 2.5 and PyAV 19 need Python 3.12, so these are minimums that pip resolves on 3.10 through 3.13, not pins.
+INSTALL_LIBS = 'python3 -m pip install "numpy>=1.26" "pillow>=10.1"'
+INSTALL_AV = 'python3 -m pip install "av>=12"'
+
 try:
     import numpy as np
     from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 except ImportError as _e:  # pragma: no cover
-    sys.exit(f"motion.py needs numpy and Pillow ({_e}). Install them: python3 -m pip install numpy==2.5.3 pillow==12.3.0")
+    sys.exit(f"motion.py needs numpy and Pillow ({_e}). Install them: {INSTALL_LIBS}")
 
 SS = 2  # supersampling: layers are drawn at 2x and reduced with a box filter
 HERE = Path(__file__).resolve().parent
@@ -352,6 +356,32 @@ def _type_ok(v, t):
     return True
 
 
+def suggest(value, options):
+    """Up to three names in `options` that `value` most likely meant: case, dashes and underscores are ignored, so "ease-out" and
+    "pushin" find their names, and a longer or shorter form ("fadeout", "words") finds its stem; then the closest spellings."""
+    norm = lambda x: re.sub(r"[^a-z0-9]", "", str(x).lower())  # noqa: E731
+    v = norm(value)
+    names = [str(o) for o in options]
+    if not v:
+        return []
+    same = [o for o in names if norm(o) == v]
+    if same:
+        return same[:1]
+    stem = [o for o in names if len(norm(o)) >= 3 and (norm(o).startswith(v) or v.startswith(norm(o)))]
+    out = []
+    for o in stem + difflib.get_close_matches(str(value), names, 3, 0.6):
+        if o not in out:
+            out.append(o)
+    return out[:3]
+
+
+def did_you_mean(hints):
+    q = [f'"{h}"' for h in hints]
+    if not q:
+        return ""
+    return " (did you mean " + (q[0] if len(q) == 1 else ", ".join(q[:-1]) + " or " + q[-1]) + "?)"
+
+
 def _describe(v):
     s = json.dumps(v, ensure_ascii=False)
     return s if len(s) <= 40 else s[:37] + "..."
@@ -388,8 +418,7 @@ def schema_errors(value, schema, root, path="spec"):
             names = [b["properties"][disc]["const"] for b in schema["oneOf"]]
             got = value.get(disc)
             if got not in names:
-                hint = difflib.get_close_matches(str(got), names, 1)
-                return [(path, f'"{disc}" must be one of: {", ".join(names)}' + (f' (did you mean "{hint[0]}"?)' if hint else "") + (f", got {_describe(got)}" if got is not None else ", and it is missing"))]
+                return [(path, f'"{disc}" must be one of: {", ".join(names)}' + did_you_mean(suggest(got, names)) + (f", got {_describe(got)}" if got is not None else ", and it is missing"))]
             branch = schema["oneOf"][names.index(got)]
             return schema_errors(value, branch, root, path)
         for sub in schema["oneOf"]:
@@ -405,9 +434,8 @@ def schema_errors(value, schema, root, path="spec"):
             return [(path, f"must be {_type_words(t)}, got {_describe(value)}")]
     if "enum" in schema and value not in schema["enum"]:
         opts = schema["enum"]
-        hint = difflib.get_close_matches(str(value), [str(o) for o in opts], 1)
         shown = ", ".join(str(o) for o in opts)
-        return [(path, f"must be one of: {shown}" + (f' (did you mean "{hint[0]}"?)' if hint else "") + f", got {_describe(value)}")]
+        return [(path, f"must be one of: {shown}" + did_you_mean(suggest(value, opts)) + f", got {_describe(value)}")]
     if isinstance(value, str):
         if "pattern" in schema and not re.search(schema["pattern"], value):
             return [(path, schema.get("x-pattern-help") or f"{_describe(value)} is not in the right form")]
@@ -437,6 +465,8 @@ def schema_errors(value, schema, root, path="spec"):
         for k, v in value.items():
             if k in props:
                 errs += schema_errors(v, props[k], root, f"{path}.{k}")
+            elif k in schema.get("x-not-used", {}):
+                errs.append((path, f'"{k}" {schema["x-not-used"][k]}'))
             elif schema.get("additionalProperties") is False:
                 hint = difflib.get_close_matches(k, list(props), 1, 0.6)
                 allowed = ", ".join(p for p in props if not p.startswith("$"))
@@ -523,6 +553,17 @@ def _draw_sample(name: str, w: int, h: int) -> Image.Image:
 # --------------------------------------------------------------------------------------------
 # The model: a spec compiled into scenes, layers and timelines
 # --------------------------------------------------------------------------------------------
+# the fields each shape kind draws; one it does not draw is refused by --check instead of being ignored
+SHAPE_FIELDS = {
+    "rect": {"w", "h", "fill", "stroke"},
+    "rounded": {"w", "h", "fill", "stroke", "radius"},
+    "ellipse": {"w", "h", "fill", "stroke"},
+    "circle": {"w", "fill", "stroke"},
+    "line": {"from", "to", "stroke"},
+    "polygon": {"points", "fill", "stroke"},
+    "path": {"d", "fill", "stroke"},
+}
+SHAPE_ONLY = {"w", "h", "radius", "fill", "stroke", "from", "to", "points", "d"}
 ANCHORS = {"center": (0.5, 0.5), "left": (0, 0.5), "right": (1, 0.5), "top": (0.5, 0), "bottom": (0.5, 1), "topleft": (0, 0), "topright": (1, 0), "bottomleft": (0, 1), "bottomright": (1, 1)}
 NUM_PROPS = ("x", "y", "w", "h", "scale", "rotation", "opacity", "reveal")
 ENTER_DUR = {"fade": 0.6, "rise": 0.7, "drop": 0.7, "slide-from-left": 0.7, "slide-from-right": 0.7, "zoom": 0.7, "pop": 0.6, "wipe": 0.8, "grow": 0.8, "draw": 1.0}
@@ -551,6 +592,8 @@ class Layer:
         self.label = ""
         self.overlay = False
         self.anim_end = 0.0
+        self.units = 0  # pieces a split text layer animates, set when it compiles
+        self.exit_wipe_at = None  # layer second at which an exit "wipe" starts, on text
         self.path = None
         self.paths = None
         self.cue = None
@@ -688,11 +731,12 @@ def resolve_path(p, base):
     return p if p.is_absolute() else Path(base) / p
 
 
-def split_units(L):
-    """About how many pieces a split text layer animates (words, lines or characters)."""
+def split_units(L, R):
+    """How many pieces a split text layer animates (words, lines or characters). A line is a line of the layout the renderer
+    draws, wrapped in the layer's box, so ask that layout (`R` is a Renderer) instead of guessing from the newlines."""
     txt = L.final_text() if L.kind == "text" else ""
     if L.split == "line":
-        return max(1, len(txt.split("\n")) + (0 if L.box is None else 3))
+        return max(1, sum(1 for ln in R.layout(L, txt)["lines"] if ln["s"]))
     if L.split == "word":
         return max(1, len(txt.split()))
     return max(1, len(txt.replace(" ", "").replace("\n", "")))
@@ -704,12 +748,24 @@ class Compiler:
         self.problems = list(schema_problems)
         self.uid = 0
         self.m = Model()
+        self._layout = None
 
     def err(self, where, msg):
         self.problems.append(Problem("error", where, msg))
 
     def warn(self, where, msg):
         self.problems.append(Problem("warn", where, msg))
+
+    def layout_renderer(self):
+        """A renderer at full size, for the line counts of split text (the same layout the checks and the render use)."""
+        if self._layout is None:
+            self._layout = Renderer(self.m, 1.0)
+        return self._layout
+
+    def ease(self, name, default):
+        """An easing we have. A misspelled one is already a schema problem with a suggestion; the default keeps the model
+        drawable, so the other checks still run instead of stopping on a KeyError."""
+        return name if name in EASES else default
 
     # ---- top level
     def compile(self):
@@ -813,7 +869,7 @@ class Compiler:
             f, t = cd.get("from", {}), cd.get("to", {})
             z0, x0, y0 = f.get("zoom", 1.0), f.get("x", 0.5), f.get("y", 0.5)
             z1, x1, y1 = t.get("zoom", z0), t.get("x", x0), t.get("y", y0)
-        return {"a": (z0, x0, y0), "b": (z1, x1, y1), "ease": cd.get("ease", "easeInOutSine")}
+        return {"a": (z0, x0, y0), "b": (z1, x1, y1), "ease": self.ease(cd.get("ease"), "easeInOutSine")}
 
     # ---- layers
     def compile_layer_maybe_group(self, sc, ld, j):
@@ -915,7 +971,7 @@ class Compiler:
         L.outline = {"color": parse_color(ol.get("color", "#000000")), "width": float(ol.get("width", 0.25))} if ol else None
         if L.count:
             c = L.count
-            L.count = {"from": float(c.get("from", 0)), "to": float(c["to"]), "decimals": int(c.get("decimals", 0)), "thousands": bool(c.get("thousands", True)), "at": float(c.get("at", 0.0)), "duration": float(c.get("duration", 1.2)), "ease": c.get("ease", "easeOutCubic")}
+            L.count = {"from": float(c.get("from", 0)), "to": float(c["to"]), "decimals": int(c.get("decimals", 0)), "thousands": bool(c.get("thousands", True)), "at": float(c.get("at", 0.0)), "duration": float(c.get("duration", 1.2)), "ease": self.ease(c.get("ease"), "easeOutCubic")}
             if "{n}" not in L.text:
                 self.err(w, 'has "count" but its text has no {n} to put the number in. Fix: write the text like "{n} riders" or "{n}%".')
         L.words = max(1, len(L.final_text().split()))
@@ -923,12 +979,19 @@ class Compiler:
 
     def compile_shape(self, L, d, w):
         L.shape = d.get("shape", "rect")
+        for k in sorted(SHAPE_ONLY & set(d)):
+            if k not in SHAPE_FIELDS[L.shape]:
+                self.err(w, f'a {L.shape} does not use "{k}", so it would be ignored. Fix: remove it. A {L.shape} takes {", ".join(sorted(SHAPE_FIELDS[L.shape]))}.')
+        if L.shape in ("line", "polygon", "path") and "anchor" in d:
+            self.err(w, f'a {L.shape} has no "anchor": its points are placed by themselves, and "x" and "y" move it. Fix: remove "anchor".')
         L.fill = parse_paint(d["fill"]) if "fill" in d else (("solid", (255.0, 255.0, 255.0, 1.0)) if L.shape not in ("line",) and "stroke" not in d else None)
         st = d.get("stroke")
         L.stroke = {"color": parse_color(st.get("color", "#ffffff")), "width": float(st.get("width", 0.4)), "round": bool(st.get("round", True))} if st else None
         if L.shape == "line" and not L.stroke:
             L.stroke = {"color": parse_color("#ffffff"), "width": 0.4, "round": True}
         L.radius = float(d.get("radius", 1.5 if L.shape == "rounded" else 0.0))
+        if L.shape in ("line", "polygon", "path") and L.stroke and not L.fill and "direction" in d:
+            self.err(w, f'a stroked {L.shape} without a fill draws itself along its length, so "direction" would be ignored. Fix: remove "direction", or give it a "fill".')
         L.base["color"] = L.fill[1] if (L.fill and L.fill[0] == "solid") else (L.stroke["color"] if L.stroke else (255.0, 255.0, 255.0, 1.0))
         L.paths = None
         try:
@@ -1005,7 +1068,7 @@ class Compiler:
                 if L.kind == "shape" and L.fill and L.fill[0] == "grad":
                     self.err(w, "animates color but its fill is a gradient. Fix: give it a solid fill color.")
                     continue
-                add("color", Seg(float(a.get("at", 0.0)), float(a.get("duration", 0.6)), a.get("ease", "easeInOutCubic"), frm, to))
+                add("color", Seg(float(a.get("at", 0.0)), float(a.get("duration", 0.6)), self.ease(a.get("ease"), "easeInOutCubic"), frm, to))
                 continue
             if prop in ("w", "h") and L.kind == "text":
                 self.err(w, f'text has no "{prop}" to animate. Fix: animate "scale" instead.')
@@ -1019,7 +1082,7 @@ class Compiler:
             frm = a.get("from", b[prop] if b.get(prop) is not None else (1.0 if prop == "reveal" else 0.0))
             if frm is None:
                 frm = 0.0
-            add(prop, Seg(float(a.get("at", 0.0)), float(a.get("duration", 0.6)), a.get("ease", "easeInOutCubic"), float(frm), float(to)))
+            add(prop, Seg(float(a.get("at", 0.0)), float(a.get("duration", 0.6)), self.ease(a.get("ease"), "easeInOutCubic"), float(frm), float(to)))
         # presets
         if enter:
             self.apply_preset(L, d, enter, "enter", segs, w)
@@ -1040,9 +1103,9 @@ class Compiler:
         ends = [s.end for lst in segs.values() for s in lst]
         if L.kind == "text" and L.count:
             ends.append(L.count["at"] + L.count["duration"])
-        if L.split and L.unit_segs:
-            n = split_units(L)
-            ends += [s.end + (n - 1) * L.stagger for lst in L.unit_segs.values() for s in lst]
+        if L.split:
+            L.units = split_units(L, self.layout_renderer())
+            ends += [s.end + (L.units - 1) * L.stagger for lst in L.unit_segs.values() for s in lst]
         L.anim_end = max(ends) if ends else 0.0
 
     def apply_preset(self, L, d, pd, phase, segs, w):
@@ -1082,7 +1145,7 @@ class Compiler:
             s = Seg(at + off, dur if dd is None else dd, ease, a, bb, src)
             target.setdefault(prop, []).append(s)
 
-        ease = pd.get("ease")
+        ease = self.ease(pd.get("ease"), None)
         x, y, sc = b["x"], b["y"], b["scale"]
         op = b["opacity"]
         if is_enter:
@@ -1141,10 +1204,12 @@ class Compiler:
                 put("scale", sc, sc * 1.12, ease or "easeInCubic")
             elif kind == "wipe":
                 put("reveal", 1.0, 0.0, ease or "easeInOutCubic")
+                if L.kind == "text":
+                    L.exit_wipe_at = at  # text types its reveal by default; from here the edge wipes it away
 
     # ---- bars (a chart expands into ordinary layers, so every check applies to it)
     def expand_bars(self, sc, d, j):
-        w = f'{sc.name} layer {j + 1} (bars)'
+        w = f'{sc.name} layer {j + 1}' + (f' "{d["id"]}"' if d.get("id") else "") + " (bars)"
         data = d["data"]
         n = len(data)
         cx, cy = d.get("x", 0.5), d.get("y", 0.55)
@@ -1171,8 +1236,9 @@ class Compiler:
         decimals, prefix, suffix = int(d.get("decimals", 0)), d.get("prefix", ""), d.get("suffix", "")
         out = []
         common = {"start": d.get("start", 0.0), "end": d.get("end", sc.dur), "_group": f"bars{j}"}
-        if "exit" in d:
-            common["exit"] = d["exit"]
+        for k in ("exit", "safe", "camera"):  # what a chart shares with its parts; the schema refuses the rest
+            if k in d:
+                common[k] = d[k]
         axis = {**common, "type": "shape", "shape": "rect", "x": left + cw / 2, "y": base_y, "w": cw, "h": 0.003, "anchor": "top", "fill": d.get("axis_color", "#ffffff55"), "_group": f"bars{j}a"}
         out.append(axis)
         for i, item in enumerate(data):
@@ -1622,7 +1688,8 @@ class Renderer:
         color = st["color"]
         total = sum(len(ln["s"]) for ln in lay["lines"])
         reveal = st["reveal"]
-        typed = L.reveal_style == "type" and reveal < 0.9999
+        style = self.reveal_style(L, llt)
+        typed = style == "type" and reveal < 0.9999
         nshown = int(round(reveal * total)) if typed else None
         bw, bh = lay["w"] * S, lay["h"] * S
         P = int(math.ceil(max(self.run_pad(L, S), self.backing_pad(L, S)))) + 2
@@ -1632,7 +1699,7 @@ class Renderer:
             hit = self.cget(key)
             if hit is not None:
                 img, piv = hit
-                return self.maybe_wipe(L, img, st, P, bw, bh), piv
+                return self.maybe_wipe(L, img, st, P, bw, bh, style), piv
         img = Image.new("RGBA", (int(math.ceil(bw)) + 2 * P, int(math.ceil(bh)) + 2 * P), (0, 0, 0, 0))
         if L.backing:
             bp = self.backing_pad(L, S)
@@ -1663,10 +1730,16 @@ class Renderer:
         piv = (P + L.anchor[0] * bw, P + L.anchor[1] * bh)
         if key is not None:
             self.cput(key, (img, piv))
-        return self.maybe_wipe(L, img, st, P, bw, bh), piv
+        return self.maybe_wipe(L, img, st, P, bw, bh, style), piv
 
-    def maybe_wipe(self, L, img, st, P, bw, bh):
-        if L.reveal_style == "wipe" and st["reveal"] < 0.9999:
+    def reveal_style(self, L, llt):
+        """How a text layer's reveal shows at layer time `llt`: typed or wiped. An exit "wipe" always wipes."""
+        if L.exit_wipe_at is not None and llt >= L.exit_wipe_at - 1e-9:
+            return "wipe"
+        return L.reveal_style
+
+    def maybe_wipe(self, L, img, st, P, bw, bh, style):
+        if style == "wipe" and st["reveal"] < 0.9999:
             m = np.ones((img.height, img.width), dtype=np.float32)
             inner = ramp_mask(int(math.ceil(bw)), int(math.ceil(bh)), st["reveal"], L.direction, max(4.0, 0.08 * (bw if L.direction in ("left", "right") else bh)))
             m[P : P + inner.shape[0], P : P + inner.shape[1]] = inner
@@ -2092,7 +2165,7 @@ class Renderer:
             sig.append(self.text_string(L, st, llt))
             if L.split:
                 f = self.unit_state_fn(L, llt)
-                sig.append(tuple(tuple(f(i).values()) for i in range(split_units(L) + 1)))
+                sig.append(tuple(tuple(f(i).values()) for i in range(L.units + 1)))
         return tuple(sig)
 
     def signature(self, t):
@@ -2163,8 +2236,7 @@ class Checker:
     def ready_after(self, L):
         r = 0.0
         if L.split and L.unit_segs:
-            n = split_units(L)
-            r = max(s.end for lst in L.unit_segs.values() for s in lst) + (n - 1) * L.stagger
+            r = max(s.end for lst in L.unit_segs.values() for s in lst) + (L.units - 1) * L.stagger
         return r
 
     def readable(self, L):
@@ -2176,10 +2248,20 @@ class Checker:
             lo = max(lo, sc.t_in - L.start)
             hi = min(hi, sc.dur - sc.t_out - L.start)
         ready = self.ready_after(L)
+        # "Fully on screen" is the layer's own fullest moment: a line set to opacity 0.8 or revealed to 0.6 is fully there at
+        # 0.8 or 0.6. Contrast then judges whether that is readable, so a faint line fails there, with a number, not here.
+        top_op = top_rv = 0.0
+        t = 0.0
+        while t <= L.dur + 1e-9:
+            st = R.state(L, t)
+            top_op, top_rv = max(top_op, st["opacity"]), max(top_rv, st["reveal"])
+            t += self.dt
+        if top_rv < 0.05:  # never revealed at all
+            top_rv = 1.0
         ts, t = [], max(lo, 0.0)
         while t <= hi + 1e-9:
             st = R.state(L, t)
-            if st["opacity"] >= 0.95 and st["reveal"] >= 0.999 and t >= ready - 1e-9:
+            if st["opacity"] >= 0.95 * top_op and st["reveal"] >= top_rv - 1e-3 and t >= ready - 1e-9:
                 ts.append(t)
             t += self.dt
         return ts
@@ -2232,8 +2314,10 @@ class Checker:
                 ends = [s.end for lst in L.segs.values() for s in lst if s.src != "exit"]
                 if L.kind == "text" and L.count:
                     ends.append(L.count["at"] + L.count["duration"])
+                if L.split:
+                    ends += [s.end + (L.units - 1) * L.stagger for lst in L.unit_segs.values() for s in lst]
                 if ends:
-                    last_motion = max(last_motion, sc.start + L.start + max(ends) + (L.stagger * 8 if L.split else 0))
+                    last_motion = max(last_motion, sc.start + L.start + max(ends))
         if m.scenes and m.duration - last_motion < 0.99 and last_motion > 0:
             self.warn("ending", f"the last thing moves at {last_motion:.1f} s and the video ends at {m.duration:.1f} s. Hold the final frame for 1 s: lengthen the last scene by {1 - (m.duration - last_motion):.1f} s.")
 
@@ -2637,7 +2721,7 @@ def render_video(model, out, scale=1.0, fps=None, hashes=None, quiet=False):
     R = Renderer(model, scale)
     enc = pick_encoder()
     if enc is None:
-        sys.exit("No video encoder: install ffmpeg (on PATH) or PyAV (python3 -m pip install av==19.0.1).")
+        sys.exit("No video encoder: install ffmpeg (on PATH) or PyAV ({INSTALL_AV}).")
     if model.audio and enc != "ffmpeg":
         sys.exit("Audio needs ffmpeg on PATH. Install ffmpeg, or remove \"audio\" from the spec.")
     Sink = FfmpegSink if enc == "ffmpeg" else AvSink
@@ -2762,7 +2846,12 @@ def main(argv=None):
         ap.error("the spec comes first: python3 motion.py spec.json out.mp4")
     model, problems = compile_spec(a.spec)
     if model is not None:
-        problems = problems + run_checks(model)
+        try:
+            problems = problems + run_checks(model)
+        except Exception as e:  # noqa: BLE001 - a spec with problems may not be measurable; say the problems, not a traceback
+            if not any(p.level == "error" for p in problems):
+                raise
+            problems.append(Problem("error", "check", f"could not finish the measuring checks ({type(e).__name__}) because of the problems above. Fix them, then run --check again."))
     errors = [p for p in problems if p.level == "error"]
     if a.check or model is None or (errors and not a.out and not a.preview):
         print_report(a.spec, model, problems, a.json)
