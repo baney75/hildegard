@@ -21,7 +21,7 @@ case $ARM in
   main) SK=$E/skills-main
         if [ ! -d "$SK/skills" ]; then mkdir -p "$SK.tmp" && git -C "$REPO" archive origin/main skills | tar -x -C "$SK.tmp" && mv "$SK.tmp" "$SK"; fi ;;
   new)  SK=$(dirname "${NEW_SKILLS:-$REPO/skills}"); [ "$(basename "${NEW_SKILLS:-$REPO/skills}")" = skills ] || { echo "NEW_SKILLS must end in /skills" >&2; exit 2; } ;;
-  *) echo "arm: none|main|new" >&2; exit 2 ;;
+  *) if [ -d "$E/arms/$ARM/skills" ]; then SK=$E/arms/$ARM; else echo "arm: none|main|new, or a folder made by arms.py in $E/arms" >&2; exit 2; fi ;;
 esac
 
 # The task's inputs, and the prompt.
@@ -29,7 +29,8 @@ esac
 PROMPT=$(python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
 import json, sys, os
 here, tid, arm, model = sys.argv[1:]
-t = next(t for f in ('tasks.json', 'heldout.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
+import glob
+t = next(t for f in sorted(glob.glob(os.path.join(here, 'tasks*.json')) + glob.glob(os.path.join(here, 'heldout*.json'))) for t in json.load(open(f)) if t['id'] == tid)
 chrome = os.environ.get('HILDEGARD_EVAL_CHROMIUM') or ''
 if not chrome:
     import glob
@@ -50,6 +51,20 @@ elif d == 'video':
 elif d == 'audio':
     tail = (f"Files in the current folder: {inputs}. Deliver one bash script named process.sh in the current folder that uses only ffmpeg and ffprobe (sox is also installed) and ordinary shell tools: no Python, no network. "
             "It will be run later as `bash process.sh` in a folder that holds only the input files above, and it must write out.wav in that folder in under 120 seconds. Test it yourself on the files here before you finish. Print only a one-line note when you are done.")
+elif d == 'logo':
+    tail = (f"Deliver in the current folder: mark.svg (the mark alone: the symbol or monogram that becomes the favicon), logo.svg (the main lockup: the mark and the name together, side by side), "
+            f"and sheet.png, a logo sheet that shows the lockups, the mark at 16, 32 and 64 px, one-color and reversed versions, clear space and the minimum size. Each SVG must be self-contained (no external files or fonts). "
+            f"Tools here: python3 with Pillow, rsvg-convert, and Chromium at {chrome} (for example `{chrome} --no-sandbox --hide-scrollbars --window-size=1200,1600 --screenshot=out.png file://$PWD/page.html`). The internet is available for Google Fonts. Print only a one-line note when you are done.")
+elif d == 'brand':
+    tail = (f"Files in the current folder: {inputs} (the client's logo). Deliver in the current folder: brand.json, the brand system as data (palette with each color's role and hex, the contrast of the text and background pairs, "
+            f"the type pairing and scale, the voice in three lines with do and don't examples, imagery rules); and guide.html, a one-page brand guide built from it, exactly one US letter page: 816 x 1056 CSS px, html and body margin 0, nothing beyond that size. "
+            f"Google Fonts through a <link> are allowed; images must be inline or files in this folder. It will be rendered with Chromium at 816 x 1056. You can render it yourself: `{chrome} --no-sandbox --hide-scrollbars --window-size=816,1056 --screenshot=check.png file://$PWD/guide.html`. Print only a one-line note when you are done.")
+elif d == 'app':
+    w, h = t['size']
+    states = ' and '.join(f'{s}.html' for s in t['states'])
+    tail = (f"Deliver in the current folder: {states}, each one self-contained HTML file (inline CSS and SVG; Google Fonts through a <link> are allowed; no JavaScript needed) showing the app screen at exactly {w} x {h} CSS px "
+            f"on a {t['platform']} device, as the brief describes each state. They will be rendered with Chromium in a {w} x {h} viewport. You can render one yourself: `{chrome} --no-sandbox --hide-scrollbars --window-size={max(w, 520)},{h} --screenshot=check.png file://$PWD/screen.html` "
+            f"(the window can't be narrower than about 500 px, so crop to {w} px wide). Print only a one-line note when you are done.")
 elif d == 'writing':
     tail = "Save the final text as draft.md in the current folder, and print only the final text."
 elif d == 'videoedit':
@@ -66,16 +81,28 @@ PY
 )
 printf '%s' "$PROMPT" > "$RUN/prompt.txt"
 
+# The responder sees none of the host: an empty HOME (so no shell profile puts ~/.local/bin, the hildegard CLI or a
+# browser launcher on PATH), only the CLIs it needs, its own process namespace (no view of the real Hildegard service)
+# and no new privileges (no sudo). The real sign-ins come through CLAUDE_CONFIG_DIR and CODEX_HOME; no auth file is read.
+BIN=$E/bin; mkdir -p "$BIN" "$RUN/home"
+ln -sf "${CLAUDE_BIN:-$(mise which claude 2>/dev/null || command -v claude)}" "$BIN/claude"
+ln -sf "$(command -v node)" "$BIN/node"; ln -sf "$(readlink -f "$(command -v codex)")" "$BIN/codex"
+CHROME=$(ls -d "$HOME"/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell 2>/dev/null | sort | tail -1)
+JAIL=(env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR HOME="$RUN/home"
+      CLAUDE_CONFIG_DIR="$HOME/.claude" CODEX_HOME="${CODEX_HOME:-$HOME/.codex}" PATH="$BIN:/usr/bin:/bin" HILDEGARD_CHROMIUM="$CHROME"
+      unshare -rpf --mount-proc setpriv --no-new-privs)
+LIMIT=1200; case $TASK in l*|b*|p*) LIMIT=2700;; esac
+
 T0=$(date +%s)
 if [ "$MODEL" = haiku ]; then
   ARGS=(-p --model haiku --setting-sources "" --strict-mcp-config --mcp-config '{"mcpServers":{}}' --no-session-persistence
-        --tools "Read,Write,Bash,Skill" --allowedTools "Read,Write,Bash,Skill" --max-turns 60 --output-format stream-json --verbose)
+        --tools "Read,Write,Bash,Skill,Agent" --allowedTools "Read,Write,Bash,Skill,Agent" --max-turns 120 --output-format stream-json --verbose)
   if [ -n "$SK" ]; then
     mkdir -p "$RUN/plug/.claude-plugin" && cp -r "$SK/skills" "$RUN/plug/skills"
     printf '{"name":"hildegard","version":"0.0.0","description":"eval copy of the skills"}' > "$RUN/plug/.claude-plugin/plugin.json"
     ARGS+=(--plugin-dir "$RUN/plug")
   fi
-  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 claude "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
+  (cd "$WORK" && printf '%s' "$PROMPT" | timeout "$LIMIT" "${JAIL[@]}" claude "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 elif [ "$MODEL" = luna ]; then
   [ -n "$SK" ] && { mkdir -p "$WORK/.agents" && cp -r "$SK/skills" "$WORK/.agents/skills"; }
   # Codex also reads the owner's global skills (~/.agents/skills, ~/.codex/skills); switch each off by path so both arms see
@@ -86,7 +113,7 @@ ps = [p for r in ('~/.agents/skills', '~/.codex/skills') for p in glob.glob(os.p
 print('skills.config=[' + ','.join('{path="%s",enabled=false}' % p for p in ps) + ']')
 PY
 )
-  (printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 codex exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
+  (printf '%s' "$PROMPT" | timeout "$LIMIT" "${JAIL[@]}" codex exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
       --skip-git-repo-check --ignore-user-config --ephemeral -s workspace-write -C "$WORK" --json - > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 else
   echo "model: haiku|luna" >&2; exit 2

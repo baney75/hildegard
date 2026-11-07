@@ -5,6 +5,20 @@ description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make
 
 # Hildegard — the midwife's craft
 
+## Start here: the one place to look
+
+| The request | Read |
+|---|---|
+| A logo, wordmark, favicon or app icon; a brand's palette, type, voice and guide | **hildegard-brand** |
+| An app screen or flow (iOS, Android, desktop, web app) and its states | **hildegard-app** |
+| A website, landing page or product page | **hildegard-web** |
+| A review of a logo, guide, screen, page, image or film before revising it, or a pick between variants | **hildegard-council** |
+| A painting, illustration, poster or art image | **hildegard-art** |
+| Cut, caption or finish a video; plan or make a film | **hildegard-video-edit**, **hildegard-film** |
+| Clean up or mix audio, voice, music | **hildegard-sound** |
+
+Anything else, and open-ended work with no brief yet: the method below.
+
 Named for Saint Hildegard of Bingen (1098–1179): composer of the *Symphonia* and the *Ordo Virtutum*, visionary whose *Scivias* was illuminated under her direction, writer on theology, medicine and nature. She was one person working in every form, all of it serving one vision. That is this skill's pattern: many systems, one claim.
 
 > "Well, my art of midwifery is in most respects like theirs; but differs, in that I attend men and not women; and look after their souls when they are in labour, and not after their bodies: and the triumph of my art is in thoroughly examining whether the thought which the mind of the young man brings forth is a false idol or a noble and true birth." (Plato, *Theaetetus* 150b–c, trans. Jowett)

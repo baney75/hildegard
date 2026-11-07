@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-label="Brickyard Press mark">
+  <!-- Grid: 16 x 16 cells of 32 units. Every stroke is at least 64 units (2 cells), every gap 32 (1 cell):
+       1/16 of the width, so it holds at 32 px and embroiders at 1 inch. Idea: a B set from the wooden
+       furniture blocks a printer locks around type. Three blocks, two counters, one ink. -->
+  <g fill="#7a2e1d" fill-rule="evenodd">
+    <rect x="64" y="32" width="96" height="448"/>
+    <path d="M192 32 H336 A112 112 0 0 1 336 240 H192 Z M224 96 V176 H320 A40 40 0 0 0 320 96 Z"/>
+    <path d="M192 272 H352 A104 104 0 0 1 352 480 H192 Z M224 336 V416 H336 A40 40 0 0 0 336 336 Z"/>
+  </g>
+</svg>

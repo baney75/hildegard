@@ -11,7 +11,9 @@ the words first, a system of type, space and colour, the phone and the desktop b
 before it ships. Hildegard does the looking with you. Your design is the code itself, so nothing drifts between the
 design and what ships.
 
-Read **hildegard-craft** first (the brief and the gates), and **hildegard-loop** for the rounds.
+Read **hildegard-craft** first (the brief and the gates), and **hildegard-loop** for the rounds. The screens inside an
+app (iOS, Android, desktop, a web app's working screens) are **hildegard-app**'s; a logo or brand guide is
+**hildegard-brand**'s.
 
 ## 0. Start from something good
 
@@ -115,6 +117,13 @@ magenta. And the checks:
 Then critique with the web questions (intent, hierarchy, content, type, space, colour, specific, responsive, images,
 states, themes), each with the screen and the width that shows it. Failing checks first, then the worst "no", one
 change a round. Five rounds is the default.
+<!-- council:start -->
+
+**Council.** Before your user sees a round you think is ready, run the **hildegard-council** protocol on its sheet with
+`--medium page`: six critics, each blind, each with a rubric. Fix every hard fail and every area two critics flag, at
+most two council rounds. Without that skill, play the six roles one at a time (art director, typographer, brand
+strategist, legibility, the customer, production), writing each review in full before starting the next.
+<!-- council:end -->
 
 **Variants.** To compare directions (a quiet, typographic page against an image-led one), start one loop per
 direction with the same brief and a different `what`, take each two or three rounds, and put the two sheets in front

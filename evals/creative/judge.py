@@ -33,6 +33,21 @@ RUBRIC = {
 3. Does it do the job the brief asks (the right length, the ask, the tone the writer wanted) using the brief's specifics well.
 4. Line-level craft: plain, varied sentences, nothing that makes a reader's eyes slide.""",
     'videoedit': """You are an editor reviewing two ffmpeg scripts that cut the same four clips and their measured results, choosing which finished video you would rather put on the client's website. The objective table is measured from the script's actual output and is reliable; weigh it, then look at each contact sheet (twelve frames across the finished piece, the last near the end) for the title and closing card (legible, correctly spelled, placed well), whether the vertical clip is handled properly (not stretched), shot variety and pacing, and read each script for sensible structure. A script that failed to produce a video loses to one that did.""",
+    'logo': """You are a senior identity designer choosing which logo you would hand this client. Each image is a logo sheet made the same way from each logo's own files: the main lockup and the mark, the mark at 512, 64, 32 and 16 px (actual pixels, then magnified so you can see the pixels), and one-color and reversed versions. Weigh, in this order:
+1. Facts: the name spelled exactly as the brief gives it; nothing invented (a tagline, a year, a claim the client didn't give). An invented or misspelled word is a serious fault.
+2. It survives where the brief says it will live: the 16 and 32 px views are the same recognizable shape, not mush; it reads in one color and reversed; nothing is so thin it would vanish when embroidered, cut in vinyl or stamped. A logo that only works large and in color loses.
+3. The idea: drawn from this client's own subject, one clear idea, not a category cliche (swoosh, globe, lightbulb, generic leaf or tree, cartoon mascot, bean and steam) and not something a competitor could use unchanged.
+4. Craft: a deliberate typeface, even letter spacing, consistent stroke weights and corners, a balanced lockup. Generic clip art or a default font set in a box loses.""",
+    'brand': """You are a brand director choosing which one-page brand guide you would hand to this client's printer, staff and web person. Weigh, in this order:
+1. Facts: everything on the page is supported by the brief (no invented prices, awards, years, claims or testimonials, no made-up statistics). Invented facts are serious faults.
+2. Usable and legible: text readable at print size with enough contrast; colors given with hex values and clear roles (which is text, which is background, which is the accent); the type pairing and sizes are named; nothing cut off, overlapping or running off the page.
+3. A system that fits the client: colors, type, voice and imagery rules all feel like this particular client and audience, and stand apart from the generic look of their category; the voice lines and examples sound like them and could guide a writer; the imagery rules are specific enough to judge a photo against.
+4. Craft of the page itself: hierarchy, alignment, spacing, a layout with intent. A generic template or a wall of bullet points loses.""",
+    'app': """You are a senior product designer choosing which set of app screens you would ship. The image shows each state the brief asked for, side by side, at the device's size. Weigh, in this order:
+1. Facts: the screens use the brief's real content (names, items, prices, times) correctly, and invent nothing (no fake ratings, prices, people or features the brief doesn't mention). Invented or wrong facts are serious faults.
+2. Does it work for the person in the brief: the one job of the screen and its primary action are obvious in three seconds; tap targets are big enough for a thumb; text is readable and has enough contrast; nothing is cut off or overflowing.
+3. The states: each state the brief asked for (empty, error, offline) is designed for what actually happened, says what to do next, and keeps the person's place, not a generic message.
+4. Platform and craft: it follows the platform's conventions (iOS, Android or desktop), uses a consistent system of type, spacing and color, and looks like a real, careful product rather than a template or a wireframe.""",
 }
 FILES = {'design': ('png',), 'video': ('md',), 'writing': ('md',), 'audio': ('sh',), 'videoedit': ('sh', 'png')}
 
@@ -62,6 +77,12 @@ def available(arm, model, task):
     s, d = load_score(arm, model, task), task['domain']
     if d == 'design':
         return bool(s.get('rendered')) and not s.get('blank')
+    if d == 'logo':
+        return bool(s.get('sheet_rendered'))
+    if d == 'brand':
+        return bool(s.get('rendered'))
+    if d == 'app':
+        return bool(s.get('sheet'))
     if d == 'video':
         return s.get('words', 0) >= 80
     if d == 'writing':
@@ -127,8 +148,9 @@ def judge(job):
         extra = ''
         for tag, arm in (('A', a_arm), ('B', b_arm)):
             rd = run_dir(arm, model, task)
-            if d == 'design':
-                shutil.copy(os.path.join(rd, 'design.png'), os.path.join(w, f'{tag}.png'))
+            if d in ('design', 'logo', 'brand', 'app'):
+                pic = {'design': 'design.png', 'logo': 'logo-sheet.png', 'brand': 'guide.png', 'app': 'screens.png'}[d]
+                shutil.copy(os.path.join(rd, pic), os.path.join(w, f'{tag}.png'))
             elif d in ('video', 'writing'):
                 open(os.path.join(w, f'{tag}.md'), 'w').write(body(os.path.join(rd, 'work', task.get('deliverable') or ('plan.md' if d == 'video' else 'draft.md'))))
             else:
@@ -137,6 +159,13 @@ def judge(job):
                     shutil.copy(os.path.join(rd, 'sheet.png'), os.path.join(w, f'{tag}-frames.png'))
         if d == 'design':
             extra = f"Read the two images A.png and B.png in the current folder (both rendered at {task['size'][0]} x {task['size'][1]} px)."
+        elif d == 'logo':
+            extra = 'Read the two images A.png and B.png in the current folder: two logo sheets for this brief, made the same way.'
+        elif d == 'brand':
+            extra = 'Read the two images A.png and B.png in the current folder: two one-page brand guides for this brief, each rendered at US letter size (1275 x 1650 px).'
+        elif d == 'app':
+            extra = (f"Read the two images A.png and B.png in the current folder: two designs of the app screens for this brief, each state side by side "
+                     f"at {task['size'][0]} x {task['size'][1]} px ({', '.join(task['states'])}).")
         elif d in ('video', 'writing'):
             extra = f"Read A.md and B.md in the current folder."
         else:

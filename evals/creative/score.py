@@ -20,7 +20,11 @@ HERE = sa.HERE
 ROOT = os.path.dirname(os.path.dirname(HERE))
 LINT = os.path.join(ROOT, 'skills', 'hildegard', 'scripts', 'prose_lint.py')
 FRONT = re.compile(r'\A﻿?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|\Z)')
-DELIVERABLE = {'design': 'design.html', 'video': 'plan.md', 'audio': 'process.sh', 'writing': 'draft.md', 'videoedit': 'edit.sh'}
+DELIVERABLE = {'design': 'design.html', 'video': 'plan.md', 'audio': 'process.sh', 'writing': 'draft.md', 'videoedit': 'edit.sh',
+               'logo': 'logo.svg', 'brand': 'guide.html', 'app': 'screen.html'}
+BRAND_SCRIPTS = os.path.join(ROOT, 'skills', 'hildegard-brand', 'scripts')
+APP_SCRIPTS = os.path.join(ROOT, 'skills', 'hildegard-app', 'scripts')
+PLATFORM = lambda t: 'ios' if 'iOS' in t['platform'] else 'android' if 'Android' in t['platform'] else 'desktop'
 
 
 def chromium():
@@ -219,6 +223,101 @@ def videoedit(task, work, run):
     return res
 
 
+def py(script, *args, timeout=600):
+    """Run one of the skills' checkers (from this checkout, the same for every arm) on a responder's files."""
+    env = {'PATH': '/usr/bin:/bin', 'HOME': os.path.expanduser('~'), 'HILDEGARD_CHROMIUM': chromium()}
+    return subprocess.run([sys.executable, '-I', script, *args], capture_output=True, text=True, timeout=timeout, env=env)
+
+
+def logo(task, work, run):
+    """logo_check.py on the responder's mark and lockup: the measured checks, and a plain sheet (pictures only) for the judge."""
+    mark, lg = os.path.join(work, 'mark.svg'), os.path.join(work, 'logo.svg')
+    res = {'deliverable': os.path.exists(lg) or os.path.exists(mark), 'has_mark': os.path.exists(mark), 'has_logo': os.path.exists(lg),
+           'has_sheet': os.path.exists(os.path.join(work, 'sheet.png'))}
+    if not res['deliverable']:
+        return res
+    files = [mark if os.path.exists(mark) else lg] + ([lg] if os.path.exists(mark) and os.path.exists(lg) else [])
+    out = os.path.join(run, 'logo-check')
+    shutil.rmtree(out, ignore_errors=True)
+    r = py(os.path.join(BRAND_SCRIPTS, 'logo_check.py'), *files, '--name', ' ', '--out', out, '--json', '--plain')
+    try:
+        rep = json.load(open(os.path.join(out, 'report.json')))
+    except (OSError, ValueError):
+        res['score_error'] = (r.stderr or r.stdout)[-400:]
+        return res
+    checks = {}
+    for f, fr in rep['files'].items():
+        for k, (state, msg) in fr['checks'].items():
+            checks[f'{f}:{k}'] = state
+    res['checks_failed'] = sorted(k for k, v in checks.items() if v == 'fail')
+    res['checks_warned'] = sorted(k for k, v in checks.items() if v == 'warn')
+    res['fails'] = len(res['checks_failed'])
+    m = rep['files'].get(os.path.basename(files[0]), {})
+    for k in ('hairlines', 'embroidery', 'one-color', 'favicon-16', 'text', 'flat', 'colors'):
+        if k in m.get('checks', {}):
+            res[k] = m['checks'][k][0]
+    res['min_size'] = m.get('min_size', {}).get('text')
+    res['live_text'] = any(fr['checks'].get('text', ('pass',))[0] == 'fail' for fr in rep['files'].values())
+    if rep.get('sheet_png') and os.path.exists(rep['sheet_png']):
+        shutil.copy(rep['sheet_png'], os.path.join(run, 'logo-sheet.png'))
+        res['sheet_rendered'] = True
+    return res
+
+
+def brand(task, work, run):
+    """guide.html rendered at one US letter page; brand.json parsed; the page's text contrast, overflow and clipping audited."""
+    g, bj = os.path.join(work, 'guide.html'), os.path.join(work, 'brand.json')
+    res = {'deliverable': os.path.exists(g), 'has_json': os.path.exists(bj)}
+    try:
+        b = json.load(open(bj))
+        res['json_ok'] = True
+        res['json_keys'] = sorted(b)[:20] if isinstance(b, dict) else []
+    except (OSError, ValueError):
+        res['json_ok'] = False
+    if not res['deliverable']:
+        return res
+    sys.path.insert(0, APP_SCRIPTS)
+    import browser, screen_check
+    os.environ['HILDEGARD_CHROMIUM'] = chromium()
+    png = os.path.join(run, 'guide.png')
+    res['rendered'] = browser.chromium_shot(g, png, 816, 1056, scale=1275 / 816)
+    a = screen_check.audit(g, 816, 1056, 'web') or {}
+    if a and not a.get('error'):
+        res.update(contrast_fails=len(a['contrast']), contrast_examples=a['contrast'][:3], clipped=len(a['clipped']) + len(a['offscreen']),
+                   one_page=a['scrollH'] <= 1056 + 4 and a['scrollW'] <= 816 + 4, scroll=[a['scrollW'], a['scrollH']],
+                   placeholder=len(a['placeholder']), fonts=a['fonts'], smallest_px=min((x[0] for x in a['sizes']), default=None))
+    return res
+
+
+def app(task, work, run):
+    """screen_check.py on every state the brief asks for, at the device size; screens.png side by side for the judge."""
+    w, h = task['size']
+    files = [os.path.join(work, f'{s}.html') for s in task['states']]
+    have = [f for f in files if os.path.exists(f)]
+    res = {'deliverable': bool(have), 'states_delivered': len(have), 'states_asked': len(files)}
+    if not have:
+        return res
+    out = os.path.join(run, 'screen-check')
+    shutil.rmtree(out, ignore_errors=True)
+    py(os.path.join(APP_SCRIPTS, 'screen_check.py'), *have, '--device', f'{w}x{h}', '--platform', PLATFORM(task), '--out', out, '--json')
+    try:
+        rep = json.load(open(os.path.join(out, 'report.json')))
+    except (OSError, ValueError):
+        res['score_error'] = 'screen_check gave no report'
+        return res
+    fails = [f'{n}:{c["check"]}' for n, sc in rep['screens'].items() for c in sc['checks'] if c['state'] == 'fail']
+    warns = [f'{n}:{c["check"]}' for n, sc in rep['screens'].items() for c in sc['checks'] if c['state'] == 'warn']
+    res.update(checks_failed=fails, checks_warned=warns, fails=len(fails) + len(files) - len(have))
+    au = [sc['audit'] for sc in rep['screens'].values()]
+    res.update(contrast_fails=sum(len(x.get('contrast', [])) for x in au), small_targets=sum(len(x.get('small', [])) for x in au),
+               overflow=any(x.get('scrollW', 0) > w + 1 for x in au), clipped=sum(len(x.get('clipped', [])) + len(x.get('offscreen', [])) for x in au),
+               placeholder=sum(len(x.get('placeholder', [])) for x in au))
+    if rep.get('sheet') and os.path.exists(rep['sheet']):
+        shutil.copy(rep['sheet'], os.path.join(run, 'screens.png'))
+        res['sheet'] = True
+    return res
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
     paths = args[args.index('--tasks') + 1:] if '--tasks' in args else [os.path.join(HERE, 'tasks.json'), os.path.join(HERE, 'heldout.json')]
@@ -226,5 +325,6 @@ if __name__ == '__main__':
     task = next(t for t in tasks if t['id'] == args[0])
     run = args[1]
     res = {'task': task['id'], 'domain': task['domain']}
-    res.update({'design': design, 'writing': writing, 'video': video, 'audio': audio, 'videoedit': videoedit}[task['domain']](task, os.path.join(run, 'work'), run))
+    res.update({'design': design, 'writing': writing, 'video': video, 'audio': audio, 'videoedit': videoedit,
+                'logo': logo, 'brand': brand, 'app': app}[task['domain']](task, os.path.join(run, 'work'), run))
     json.dump(res, open(os.path.join(run, 'score.json'), 'w'), indent=1)

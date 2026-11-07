@@ -828,6 +828,9 @@ describe('the skills Hildegard ships', () => {
         'hildegard-video-edit',
         'hildegard-photo-edit',
         'hildegard-art',
+        'hildegard-brand',
+        'hildegard-app',
+        'hildegard-council',
         'hildegard-sound',
         'hildegard-setup',
       ]),
@@ -846,5 +849,19 @@ describe('the skills Hildegard ships', () => {
       for (const [, link] of md.matchAll(/\]\(((?!https?:)[^)#]+)\)/g))
         expect(existsSync(join(s.dir, link!))).toBe(true);
     }
+  });
+
+  it('carries the council and the browser helper into each skill that uses them, byte for byte', () => {
+    // Each skill is also uploaded alone (one zip per skill), so hildegard-brand and hildegard-app hold their own
+    // copies; the source is hildegard-council (the council) and hildegard-brand (browser.py).
+    const same = (from: string, to: string) =>
+      expect(readFileSync(join(dir, to), 'utf8'), `${to} differs from ${from}`).toBe(
+        readFileSync(join(dir, from), 'utf8'),
+      );
+    for (const skill of ['hildegard-brand', 'hildegard-app']) {
+      same('hildegard-council/scripts/council.py', `${skill}/scripts/council.py`);
+      same('hildegard-council/references/rubrics.md', `${skill}/references/rubrics.md`);
+    }
+    same('hildegard-brand/scripts/browser.py', 'hildegard-app/scripts/browser.py');
   });
 });

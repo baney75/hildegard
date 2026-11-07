@@ -27,8 +27,20 @@
     "brief": "Our church puts the Sunday sermon online. voice_raw.wav is last week's recording from a phone on the pulpit (mono, 44.1 kHz, about 50 seconds). It has a loud air-handler rumble and a steady electrical hum, a lot of hiss, the preacher leans away from the phone twice so those parts are soft, and a hymnal got dropped near the end: that is the loud bang. Clean it so it is ready to post: take out the rumble, hum and hiss without making him sound thin or underwater, even out the soft parts, make sure the bang doesn't blast anyone's earbuds, and deliver mono at -18 LUFS integrated with a true peak no higher than -1.5 dBTP. Keep the same length. Don't ask me questions.",
     "inputs": ["voice_raw.wav"],
     "deliverable": "process.sh",
-    "gen": {"kind": "clean", "voice_start": 100.5, "dur": 50.0, "seed": 41, "hum_hz": 60, "hum_amp": 0.02, "hiss_rms": 0.011, "rumble_rms": 0.03, "dips": [[9.0, 12.5, -12.0], [31.0, 35.0, -10.0]], "pops": [14.2, 44.0], "reverb": 0.3},
-    "score": {"kind": "clean", "lufs": -18.0, "tp": -1.5, "hum_hz": 60, "same_length": true}
+    "gen": {
+      "kind": "clean",
+      "voice_start": 100.5,
+      "dur": 50.0,
+      "seed": 41,
+      "hum_hz": 60,
+      "hum_amp": 0.02,
+      "hiss_rms": 0.011,
+      "rumble_rms": 0.03,
+      "dips": [[9.0, 12.5, -12.0], [31.0, 35.0, -10.0]],
+      "pops": [14.2, 44.0],
+      "reverb": 0.3
+    },
+    "score": { "kind": "clean", "lufs": -18.0, "tp": -1.5, "hum_hz": 60, "same_length": true }
   },
   {
     "id": "a5-farm-vo",
@@ -36,8 +48,26 @@
     "brief": "I'm putting together the voice-over for a 30-second video about our farm. voice.wav is my daughter reading the script (mono, 44.1 kHz, about 22 seconds, clean). music.wav is an ambient acoustic bed (stereo, 44.1 kHz, 40 seconds) that is mixed much louder than the voice. Make the final audio exactly 30 seconds, give or take a quarter second: the music starts at the very beginning and plays alone for about 3 seconds, she comes in at 3 seconds, the music sits well under her while she speaks and rises back up in the gaps between sentences, and after her last word the music swells up to full for the rest of the clip and fades out over the final 2 seconds so it ends exactly at 30 seconds. Deliver stereo at -14 LUFS integrated (this is for social video) with a true peak no higher than -1 dBTP. Her words must stay easy to understand. Don't ask me questions.",
     "inputs": ["voice.wav", "music.wav"],
     "deliverable": "process.sh",
-    "gen": {"kind": "duck", "voice_start": 139.94, "dur": 22.0, "seed": 51, "music": "pad_c", "music_dur": 40.0, "music_rms_db": -15.0},
-    "score": {"kind": "duck", "lufs": -14.0, "tp": -1.0, "voice_start": 3.0, "tail": null, "total": 30.0, "dur_tol": 0.3, "min_duck_db": 8.0, "min_vmr_db": 10.0}
+    "gen": {
+      "kind": "duck",
+      "voice_start": 139.94,
+      "dur": 22.0,
+      "seed": 51,
+      "music": "pad_c",
+      "music_dur": 40.0,
+      "music_rms_db": -15.0
+    },
+    "score": {
+      "kind": "duck",
+      "lufs": -14.0,
+      "tp": -1.0,
+      "voice_start": 3.0,
+      "tail": null,
+      "total": 30.0,
+      "dur_tol": 0.3,
+      "min_duck_db": 8.0,
+      "min_vmr_db": 10.0
+    }
   },
   {
     "id": "w4-cabinetmaker-bio",
