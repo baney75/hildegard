@@ -81,7 +81,7 @@ export function zip(entries) {
 }
 
 /** Every file under dir, as [path inside the zip, bytes], with `prefix` before each path. */
-function tree(dir, prefix) {
+export function tree(dir, prefix) {
   const out = [];
   const walk = (at) => {
     for (const name of readdirSync(at)) {

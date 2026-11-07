@@ -1,0 +1,93 @@
+name: Listing
+
+# Builds the store listings (scripts/pack-listing.mjs) and checks them against the rules each store states
+# (scripts/check-listing.mjs). On a push to main it also publishes the Claude directory's plugin tree to its own public
+# repository, but only when the repository secret LISTING_DEPLOY_KEY exists: a write-enabled deploy key for
+# baney75/hildegard-plugin, which the owner creates (docs/listings.md). Without the secret this workflow only checks.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/**'
+      - '.claude-plugin/**'
+      - '.codex-plugin/**'
+      - 'plugin/README.md'
+      - 'LICENSE'
+      - 'LICENSE-APACHE'
+      - 'package.json'
+      - 'scripts/pack-listing.mjs'
+      - 'scripts/check-listing.mjs'
+      - 'scripts/pack-skills.mjs'
+      - '.github/workflows/listing.yml'
+  pull_request:
+    paths:
+      - 'skills/**'
+      - '.claude-plugin/**'
+      - '.codex-plugin/**'
+      - 'plugin/README.md'
+      - 'LICENSE'
+      - 'LICENSE-APACHE'
+      - 'package.json'
+      - 'scripts/pack-listing.mjs'
+      - 'scripts/check-listing.mjs'
+      - 'scripts/pack-skills.mjs'
+      - '.github/workflows/listing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listing-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  LISTING_DEPLOY_KEY: ${{ secrets.LISTING_DEPLOY_KEY }}
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the listings
+        run: node scripts/pack-listing.mjs "$RUNNER_TEMP/plugin" --extras "$RUNNER_TEMP/extras"
+      - name: Check them against the stores' rules
+        run: node scripts/check-listing.mjs "$RUNNER_TEMP/plugin" "$RUNNER_TEMP/extras/hildegard-openai.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: listings
+          path: |
+            ${{ runner.temp }}/extras
+          retention-days: 14
+      # Only a push to main, and only once the owner has made the repository and the key.
+      - name: Publish the Claude plugin to baney75/hildegard-plugin
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.LISTING_DEPLOY_KEY != ''
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LISTING_DEPLOY_KEY" > ~/.ssh/listing_deploy_key
+          chmod 600 ~/.ssh/listing_deploy_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/listing_deploy_key -o IdentitiesOnly=yes"
+          git clone --quiet git@github.com:baney75/hildegard-plugin.git "$RUNNER_TEMP/target"
+          cd "$RUNNER_TEMP/target"
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/plugin/." .
+          # The tree must stand on its own: no git-lfs filters can come with it.
+          test ! -e .gitattributes
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The listing repository already matches $GITHUB_SHA."
+            exit 0
+          fi
+          git -c user.name="hildegard listing" -c user.email="listing@users.noreply.github.com" \
+            commit --quiet -m "Hildegard Craft from baney75/hildegard@${GITHUB_SHA::7}"
+          git push --quiet origin HEAD:main
+          echo "Published to baney75/hildegard-plugin."
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/listing_deploy_key
