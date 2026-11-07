@@ -287,6 +287,31 @@ describe('the upload', () => {
     expect((await send(voice2.token, speech('after.wav', 3))).status).toBe(200);
   }, 60_000);
 
+  it('takes the audio/mp4 an iPhone records, whatever brand its ftyp carries, and still refuses a picture', async () => {
+    // Safari's MediaRecorder writes AAC in an MP4 with no picture; its brand is iso5, mp42 or M4A, not always M4A.
+    for (const brand of ['iso5', 'mp42', 'M4A ']) {
+      make('m4a', join(work, `phone-${brand.trim()}.m4a`), '3', brand);
+      const bytes = readFileSync(join(work, `phone-${brand.trim()}.m4a`));
+      expect(bytes.subarray(4, 12).toString('latin1'), brand).toBe(`ftyp${brand}`);
+      expect(sniffRecording(bytes, 'voice'), brand).toBe('m4a');
+      const l = await link(null, 'voice');
+      expect((await send(l.token, bytes)).status, brand).toBe(200);
+      const got = (await (await local(`/api/record/${l.id}`)).json()) as {
+        status: string;
+        kind: string;
+        seconds: number;
+      };
+      expect(got, brand).toMatchObject({ status: 'received', kind: 'voice' });
+      expect(got.seconds).toBeCloseTo(3, 0);
+    }
+    // The same container with a picture in it is a video, and a voice link refuses it.
+    make('video', join(work, 'phone-video.mp4'), '3', '2');
+    const l = await link(null, 'voice');
+    const res = await send(l.token, readFileSync(join(work, 'phone-video.mp4')));
+    expect(res.status).toBe(415);
+    expect(((await res.json()) as { error: string }).error).toMatch(/picture/);
+  }, 60_000);
+
   it('refuses a recording over the cap before reading it: 100 MB for sound, 500 MB for video', async () => {
     const tooBig = (token: string, length: number) =>
       new Promise<number>((resolve, reject) => {
@@ -638,6 +663,39 @@ describe('a voice-over in a film', () => {
         arguments: { film_id: film.id, voiceover: { path: join(work, 'over.wav'), media_id: l.id } },
       })) as CallToolResult;
       expect(both.isError).toBe(true);
+
+      // A plain export of the film is running: a voice-over export does not join it, or say it has the voice. It is
+      // refused, with nothing imported, and works once the plain one is done.
+      const files = () => readdirSync(join(dataDir, 'media', 'recordings', 'local')).length;
+      const started = await local(`/api/projects/${film.id}/export`, 'POST');
+      expect(started.status).toBe(202);
+      const plainRun = (await started.json()) as ExportState;
+      const before = files();
+      for (const voiceover of [{ path: join(work, 'over.wav') }, { media_id: l.id }]) {
+        const refused = (await c.callTool({
+          name: 'export_film',
+          arguments: { film_id: film.id, voiceover },
+        })) as CallToolResult;
+        const why = refused.content.map((x) => (x as { text: string }).text).join('\n');
+        expect(refused.isError, why).toBe(true);
+        expect(why).toMatch(/already exporting.*again after it finishes/);
+        expect(why).not.toMatch(/Exported/);
+      }
+      // The refusals came while it was still going, and left no recording behind.
+      expect(((await (await local(`/api/exports/${plainRun.id}`)).json()) as ExportState).status).toBe(
+        'running',
+      );
+      expect(files()).toBe(before);
+      await until(
+        async () =>
+          ((await (await local(`/api/exports/${plainRun.id}`)).json()) as ExportState).status === 'done',
+        60_000,
+      );
+      const afterwards = (await c.callTool({
+        name: 'export_film',
+        arguments: { film_id: film.id, voiceover: { media_id: l.id } },
+      })) as CallToolResult;
+      expect(afterwards.isError).toBeFalsy();
     } finally {
       await c.close();
     }
@@ -710,6 +768,54 @@ describe('the store on its own', () => {
     await expect(s.receive(token, stream(wavHead, Buffer.alloc(100)))).resolves.toMatchObject({
       status: 'received',
     });
+  });
+
+  it('keeps the link an upload is streaming through when 21 more are made meanwhile', async () => {
+    const s = fresh(() => 1);
+    const { token, id } = s.makeLink('local', { kind: 'voice' });
+    let finish!: () => void;
+    const slow = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(wavHead);
+        c.enqueue(Buffer.alloc(2000));
+        finish = () => c.close();
+      },
+    });
+    const upload = s.receive(token, slow);
+    const busy = (s as unknown as { busy: Set<string> }).busy;
+    await until(() => busy.has(id));
+    // The owner's agent, looping on record_link, goes past the 20 links one person may have waiting.
+    for (let i = 0; i < 21; i++) s.makeLink('local', { kind: 'voice' });
+    finish();
+    await expect(upload).resolves.toMatchObject({ id, status: 'received' });
+    expect(s.get(id)).toBeDefined();
+    expect(s.view(s.get(id)!).status).toBe('received');
+    // It is on disk, so a restart finds it too.
+    const file = JSON.parse(readFileSync((s as unknown as { file: string }).file, 'utf8')) as {
+      entries: { id: string; state: string }[];
+    };
+    expect(file.entries.find((e) => e.id === id)?.state).toBe('received');
+  });
+
+  it('still has the entry for an upload that outlasts the days an unused link is kept', async () => {
+    let t = 1_000;
+    const s = fresh(() => t);
+    const { token, id } = s.makeLink('local', { kind: 'voice' });
+    let finish!: () => void;
+    const slow = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(wavHead);
+        c.enqueue(Buffer.alloc(2000));
+        finish = () => c.close();
+      },
+    });
+    const upload = s.receive(token, slow);
+    await until(() => (s as unknown as { busy: Set<string> }).busy.has(id));
+    t += 30 * 60_000 + 24 * 3600_000 + 1;
+    s.makeLink('local', { kind: 'voice' });
+    finish();
+    await expect(upload).resolves.toMatchObject({ id, status: 'received' });
+    expect(s.get(id)).toBeDefined();
   });
 
   it('recognizes recordings by their first bytes', () => {

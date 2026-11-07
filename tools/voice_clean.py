@@ -393,11 +393,9 @@ def mux_with_video(src, out, y, ext):
         ain = dst.add_stream(codec, rate=RATE, layout="mono")
         ain.bit_rate = 96000
         ain.time_base = Fraction(1, RATE)
-        for pkt in inp.demux(vin):
-            if pkt.dts is None:
-                continue
-            pkt.stream = vout
-            dst.mux(pkt)
+        # The sound is encoded first, so the two can be written in time order. A muxer holds a stream back only so
+        # long (10 s by default); all the picture before any of the sound would leave the sound far behind it.
+        sound = []
         fifo = av.AudioFifo()
         size = ain.codec_context.frame_size or 1024
         pts = 0
@@ -409,8 +407,7 @@ def mux_with_video(src, out, y, ext):
                 fr.pts = pts
                 fr.time_base = Fraction(1, RATE)
                 pts += fr.samples
-                for p in ain.encode(fr):
-                    dst.mux(p)
+                sound.extend(ain.encode(fr))
 
         step = 4096
         for i in range(0, y.shape[1], step):
@@ -421,7 +418,21 @@ def mux_with_video(src, out, y, ext):
             fifo.write(fr)
             flush(size)
         flush(1)
-        for p in ain.encode():
+        sound.extend(ain.encode())
+
+        def at(pkt):
+            return float(pkt.dts * pkt.time_base)
+
+        nxt = 0
+        for pkt in inp.demux(vin):
+            if pkt.dts is None:
+                continue
+            while nxt < len(sound) and at(sound[nxt]) <= at(pkt):
+                dst.mux(sound[nxt])
+                nxt += 1
+            pkt.stream = vout
+            dst.mux(pkt)
+        for p in sound[nxt:]:
             dst.mux(p)
 
 

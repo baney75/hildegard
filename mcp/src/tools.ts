@@ -692,10 +692,21 @@ export function registerTools(
     },
     guard(async (a) => {
       let voiceover: VoiceoverArgs | undefined;
+      // An export already running has no voice-over, so one asked for is never joined to it; this film's plain
+      // export is left alone and the asker tries again once it is done.
+      const exporting = new HildegardError(
+        409,
+        'This film is already exporting, without the voice-over. Call export_film with the voice-over again after it finishes.',
+      );
       if (a.voiceover) {
         const v = a.voiceover as { media_id?: string; path?: string };
         if (!!v.media_id === !!v.path)
           throw new HildegardError(422, 'The voice-over needs media_id or path, one of the two.');
+        // Before a path is imported, so a refusal leaves no recording behind.
+        if (
+          (await client.snapshot()).exports.some((x) => x.projectId === a.film_id && x.status === 'running')
+        )
+          throw exporting;
         voiceover = {
           mediaId: v.media_id ?? (await importPath(client, v.path!, !!remote, 'voice')).id,
           startSeconds: a.voiceover.start_seconds,
@@ -703,11 +714,12 @@ export function registerTools(
           duckDb: a.voiceover.duck_db,
         };
       }
-      // A second call while it runs follows the export already going.
+      // A second call while it runs follows the export already going (a plain one, never one asked to carry a voice-over).
       let e = await client.exportFilm(a.film_id, voiceover).catch(async (err) => {
         const going = (await client.snapshot()).exports.find(
           (x) => x.projectId === a.film_id && x.status === 'running',
         );
+        if (going && voiceover) throw exporting;
         if (going) return going;
         throw err;
       });

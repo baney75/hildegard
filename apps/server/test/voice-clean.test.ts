@@ -118,6 +118,20 @@ describe('voice_clean.py', () => {
     });
   }, 60_000);
 
+  it('writes the sound and the picture of a long clip in time order, past the muxer’s 10 s hold (mp4 and webm)', () => {
+    for (const ext of ['mp4', 'webm']) {
+      make('video', f(`long.${ext}`), '20', '2');
+      const r = clean(f(`long.${ext}`), f(`long-clean.${ext}`));
+      expect(r, ext).toMatchObject({ ok: true });
+      const i = info(f(`long-clean.${ext}`));
+      expect(i.types.sort(), ext).toEqual(['audio', 'video']);
+      expect(Math.abs((i.seconds ?? 0) - 20), ext).toBeLessThan(0.1);
+      expect(Math.abs(i.audio_seconds - 20), ext).toBeLessThan(0.1);
+      // In file order the two never sit more than half a second apart; all the picture first would be ~10 s.
+      expect(check<{ max_gap: number }>('gaps', f(`long-clean.${ext}`)).max_gap, ext).toBeLessThan(0.5);
+    }
+  }, 120_000);
+
   it('works on the speech clip in the repo’s fixtures', () => {
     copyFileSync(
       fileURLToPath(new URL('./fixtures/talk/lighthouse.wav', import.meta.url)),
@@ -200,4 +214,45 @@ describe('export_film.py with a voice-over', () => {
     const after = film('after', { path: f('vo.wav'), start_seconds: 9 });
     expect(after).toMatchObject({ ok: false, error: 'The voice-over starts after the film ends.' });
   }, 120_000);
+
+  it('lays a voice over takes with no sound, or sound shorter than their picture, and keeps the sound as long as the picture', () => {
+    make('speech', f('v2-raw.wav'), '2', '6');
+    expect(clean(f('v2-raw.wav'), f('v2.wav'))).toMatchObject({ ok: true });
+    const frame = 1 / 24;
+    const level = (file: string, t0: string, t1: string) => check<{ db: number }>('level', file, t0, t1).db;
+    const one = (name: string, inputs: string[]) => {
+      const spec = f(`${name}.json`);
+      writeFileSync(
+        spec,
+        JSON.stringify({
+          out: f(`${name}.mp4`),
+          inputs,
+          voiceover: { path: f('v2.wav'), start_seconds: 1 },
+        }),
+      );
+      return runTool(exportScript, spec);
+    };
+    // A take with no audio track at all (a Wan take), then one whose tone stops at 1 s, in a 4 s picture.
+    make('silent', f('nosound.mp4'), '4');
+    make('film', f('shortsound.mp4'), '4', '0.2', '6000', '1');
+    for (const [name, take] of [
+      ['nosound', f('nosound.mp4')],
+      ['shortsound', f('shortsound.mp4')],
+    ] as const) {
+      expect(one(`vo-${name}`, [take]), name).toMatchObject({ ok: true, seconds: 4 });
+      const i = info(f(`vo-${name}.mp4`));
+      expect(Math.abs(i.audio_seconds - 4), name).toBeLessThanOrEqual(frame);
+      expect(Math.abs((i.seconds ?? 0) - 4), name).toBeLessThanOrEqual(frame);
+      // The voice is at its place: 1 s to 3 s. Before it and after it the film has no sound (for the short sound, its
+      // tone ended at 1 s and was padded with silence).
+      const speaking = level(f(`vo-${name}.mp4`), '1.2', '2.8');
+      expect(speaking, name).toBeGreaterThan(-40);
+      expect(level(f(`vo-${name}.mp4`), '3.3', '3.9'), name).toBeLessThan(speaking - 30);
+      if (name === 'nosound')
+        expect(level(f(`vo-${name}.mp4`), '0.1', '0.9'), name).toBeLessThan(speaking - 30);
+    }
+    // And two takes in a row, the first with no sound and the second with, stay in step.
+    expect(one('vo-mixed', [f('nosound.mp4'), f('shortsound.mp4')])).toMatchObject({ ok: true, seconds: 8 });
+    expect(Math.abs(info(f('vo-mixed.mp4')).audio_seconds - 8)).toBeLessThanOrEqual(frame);
+  }, 180_000);
 });

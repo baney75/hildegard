@@ -5,10 +5,17 @@ tools/voice_clean.py with the code it is grading. Loudness is ITU-R BS.1770-4 wr
 
     python audio_check.py speech OUT SECONDS [SEED]       noisy speech-like WAV (hum, hiss, bursts), 48 kHz mono
     python audio_check.py video OUT SECONDS [SEED]        the same as a clip's sound, under a moving picture (.mp4 or .webm)
-    python audio_check.py film OUT SECONDS [LEVEL] [HZ]  a picture with a steady tone for sound, 440 Hz unless told (.mp4)
+    python audio_check.py film OUT SECONDS [LEVEL] [HZ] [TONE_SECONDS]
+                                                          a picture with a steady tone for sound, 440 Hz unless told (.mp4);
+                                                          the tone stops at TONE_SECONDS if that is under SECONDS
+    python audio_check.py m4a OUT SECONDS BRAND           AAC speech in an MP4 with no picture, its ftyp brand set (iso5, mp42, "M4A ")
+    python audio_check.py silent OUT SECONDS              a picture with no audio track at all (.mp4)
     python audio_check.py measure FILE                    {"lufs", "true_peak", "seconds"}
     python audio_check.py band FILE HZ T0 T1              level of one frequency between T0 and T1 seconds, in dBFS
+    python audio_check.py level FILE T0 T1                {"db"}: RMS level of the sound between T0 and T1 seconds, in dBFS
     python audio_check.py info FILE                       {"types", "seconds", "audio_seconds", "channels"}
+    python audio_check.py gaps FILE                       {"max_gap"}: the most seconds the audio and the video packets, in
+                                                          file order, ever sit apart (an interleaved file stays near zero)
 """
 
 import json
@@ -54,12 +61,17 @@ def write_wav(path, x):
 
 
 def write_av(path, seconds, audio, fps=24):
-    """A moving picture with `audio` ((channels, n) float32) for sound, as mp4 (AAC) or webm (VP8, Opus)."""
+    """A moving picture with `audio` ((channels, n) float32) for sound, as mp4 (AAC) or webm (VP8, Opus).
+    With audio=None the file has no audio track."""
     webm = path.endswith(".webm")
     with av.open(path, "w") as c:
         v = c.add_stream("libvpx" if webm else "libx264", rate=fps)
         v.width, v.height, v.pix_fmt = 320, 180, "yuv420p"
-        a = c.add_stream("libopus" if webm else "aac", rate=RATE, layout="stereo" if audio.shape[0] == 2 else "mono")
+        a = (
+            c.add_stream("libopus" if webm else "aac", rate=RATE, layout="stereo" if audio.shape[0] == 2 else "mono")
+            if audio is not None
+            else None
+        )
         for i in range(round(seconds * fps)):
             f = av.VideoFrame.from_ndarray(np.full((180, 320, 3), (i * 5) % 255, np.uint8), format="rgb24")
             f.pts = i
@@ -68,6 +80,8 @@ def write_av(path, seconds, audio, fps=24):
                 c.mux(p)
         for p in v.encode():
             c.mux(p)
+        if a is None:
+            return
         size = a.codec_context.frame_size or 1024
         layout = "stereo" if audio.shape[0] == 2 else "mono"
         fifo = av.AudioFifo()
@@ -80,6 +94,23 @@ def write_av(path, seconds, audio, fps=24):
             out.pts, out.time_base = pts, Fraction(1, RATE)
             pts += out.samples
             for p in a.encode(out):
+                c.mux(p)
+        for p in a.encode():
+            c.mux(p)
+
+
+def write_m4a(path, seconds, brand):
+    """What Safari's MediaRecorder makes for audio/mp4: AAC in an MP4 with no picture, under whatever brand."""
+    x = speechlike(seconds, 3)
+    with av.open(path, "w", format="mp4", options={"brand": brand}) as c:
+        a = c.add_stream("aac", rate=RATE, layout="mono")
+        size = a.codec_context.frame_size or 1024
+        pts = 0
+        for i in range(0, len(x) - size + 1, size):
+            fr = av.AudioFrame.from_ndarray(x[None, i : i + size], format="fltp", layout="mono")
+            fr.sample_rate, fr.pts, fr.time_base = RATE, pts, Fraction(1, RATE)
+            pts += size
+            for p in a.encode(fr):
                 c.mux(p)
         for p in a.encode():
             c.mux(p)
@@ -149,6 +180,19 @@ def band(x, hz, t0, t1):
     return float(20 * np.log10(abs(c) + 1e-12))
 
 
+def gaps(path):
+    """Walking the packets in file order, the most the last audio and last video times ever differ by."""
+    last, worst = {}, 0.0
+    with av.open(path) as c:
+        for pkt in c.demux():
+            if pkt.dts is None or pkt.size == 0:
+                continue
+            last[pkt.stream.type] = float(pkt.dts * pkt.time_base)
+            if len(last) == 2:
+                worst = max(worst, abs(last["audio"] - last["video"]))
+    return worst
+
+
 def main(argv):
     cmd = argv[1]
     if cmd == "speech":
@@ -161,12 +205,21 @@ def main(argv):
         hz = float(argv[5]) if len(argv) > 5 else 440.0
         t = np.arange(int(seconds * RATE)) / RATE
         tone = (level * np.sin(2 * np.pi * hz * t)).astype(np.float32)
+        if len(argv) > 6:
+            tone = tone[: int(float(argv[6]) * RATE)]
         write_av(argv[2], seconds, np.stack([tone, tone]))
+    elif cmd == "m4a":
+        write_m4a(argv[2], float(argv[3]), argv[4])
+    elif cmd == "silent":
+        write_av(argv[2], float(argv[3]), None)
     elif cmd == "measure":
         x = decode(argv[2])
         print(json.dumps({"lufs": lufs(x), "true_peak": true_peak(x), "seconds": x.shape[1] / RATE}))
     elif cmd == "band":
         print(json.dumps({"db": band(decode(argv[2]), float(argv[3]), float(argv[4]), float(argv[5]))}))
+    elif cmd == "level":
+        seg = decode(argv[2])[:, int(float(argv[3]) * RATE) : int(float(argv[4]) * RATE)]
+        print(json.dumps({"db": float(10 * np.log10(np.mean(seg * seg) + 1e-12))}))
     elif cmd == "info":
         with av.open(argv[2]) as c:
             types = [s.type for s in c.streams]
@@ -174,6 +227,8 @@ def main(argv):
             ch = c.streams.audio[0].channels if c.streams.audio else 0
         x = decode(argv[2]) if "audio" in types else np.zeros((1, 0))
         print(json.dumps({"types": types, "seconds": dur, "audio_seconds": x.shape[1] / RATE, "channels": ch}))
+    elif cmd == "gaps":
+        print(json.dumps({"max_gap": gaps(argv[2])}))
     else:
         raise SystemExit(f"unknown command {cmd}")
 

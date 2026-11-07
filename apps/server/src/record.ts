@@ -195,7 +195,10 @@ export class RecordStore {
   ): { id: string; token: string; expiresAt: number } {
     if (!OWNER_RE.test(owner)) throw new RecordError(400, 'owner', 'Who is asking?');
     this.prune();
-    const mine = this.entries.filter((e) => e.owner === owner && e.state === 'pending' && e.hash);
+    // A link an upload is streaming through stays, however many are made meanwhile.
+    const mine = this.entries.filter(
+      (e) => e.owner === owner && e.state === 'pending' && e.hash && !this.busy.has(e.id),
+    );
     while (mine.length >= MAX_PENDING) this.entries.splice(this.entries.indexOf(mine.shift()!), 1);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = this.now() + LINK_MINUTES * 60_000;
@@ -292,6 +295,8 @@ export class RecordStore {
     try {
       const stored = await this.store(e.owner, e.id, e.kind, body, declared);
       Object.assign(e, stored, { state: 'received', receivedAt: new Date(this.now()).toISOString() });
+      // Pruned meanwhile (an upload that outlasted its link and the days kept): the recording still has an entry.
+      if (!this.entries.includes(e)) this.entries.push(e);
       this.persist();
       return this.view(e);
     } finally {
