@@ -29,10 +29,14 @@ export const CLEAN_DEFAULTS = { targetLufs: -16, peak: -1.5 } as const;
 
 const script = () => resource(join('tools', 'voice_clean.py'));
 
-/** What a media file holds and how long it is, with tools/voice_clean.py --probe; null where Python can't run it. */
+/**
+ * What a media file holds and how long it is, with tools/voice_clean.py --probe. Null where Python can't be asked
+ * (no script, no Python, no answer); a file Python read and refused is a RecordError, so a malformed one with a
+ * right-looking header is not taken for one nobody could check.
+ */
 export function probeMedia(dataDir: string): (file: string) => Promise<MediaInfo | null> {
   return (file) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       let py: string;
       try {
         py = script();
@@ -53,6 +57,8 @@ export function probeMedia(dataDir: string): (file: string) => Promise<MediaInfo
         clearTimeout(timer);
         try {
           const m = JSON.parse(out.trim().split('\n').at(-1) ?? '') as Partial<MediaInfo> & { ok?: boolean };
+          if (m.ok === false)
+            return reject(new RecordError(415, 'type', 'Hildegard couldn’t read that recording.'));
           resolve(
             m.ok && typeof m.seconds === 'number'
               ? { seconds: m.seconds, audio: !!m.audio, video: !!m.video }

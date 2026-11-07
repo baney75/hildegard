@@ -26,6 +26,25 @@ export type RecordKind = 'voice' | 'video';
 export const LINK_MINUTES = 30;
 /** The most one upload may be: sound only, or camera and sound. */
 export const MAX_BYTES: Record<RecordKind, number> = { voice: 100 * 1024 * 1024, video: 500 * 1024 * 1024 };
+/** What one person may bring in (not record by link) in a day, so no one can fill the disk for everyone else. */
+export interface ImportLimits {
+  perDay: number;
+  bytesPerDay: number;
+}
+export const IMPORT_LIMITS: ImportLimits = { perDay: 20, bytesPerDay: 5 * 1024 ** 3 };
+/** The limits, with the owner's own from HILDEGARD_RECORD_IMPORTS_PER_DAY and HILDEGARD_RECORD_IMPORT_GB_PER_DAY. */
+export function importLimits(env: NodeJS.ProcessEnv = process.env): ImportLimits {
+  const n = Number(env.HILDEGARD_RECORD_IMPORTS_PER_DAY);
+  const gb = Number(env.HILDEGARD_RECORD_IMPORT_GB_PER_DAY);
+  return {
+    perDay: Number.isInteger(n) && n > 0 ? n : IMPORT_LIMITS.perDay,
+    bytesPerDay: gb > 0 && Number.isFinite(gb) ? Math.floor(gb * 1024 ** 3) : IMPORT_LIMITS.bytesPerDay,
+  };
+}
+const DAY_MS = 24 * 3600_000;
+const human = (n: number) =>
+  n >= 1024 ** 3 ? `${+(n / 1024 ** 3).toFixed(1)} GB` : `${Math.round(n / 1024 ** 2)} MB`;
+
 /** A person's links waiting to be used, at most; the oldest goes when they ask for more. */
 const MAX_PENDING = 20;
 /** Unused links stay on file this long past their end, so the page can say "expired" instead of "unknown". */
@@ -127,10 +146,12 @@ export interface RecordOptions {
   dataDir: string;
   mediaDir: string;
   now?: () => number;
-  /** What a file holds and how long it is; null when that can't be read here (no Python). */
+  /** What a file holds and how long it is; null when that can't be asked here (no Python), a RecordError when it was read and refused. */
   probe?: (file: string) => Promise<MediaInfo | null>;
   /** Smaller caps than MAX_BYTES, for tests. */
   maxBytes?: Partial<Record<RecordKind, number>>;
+  /** Smaller or larger limits on what one person brings in each day (see `importLimits`). */
+  imports?: Partial<ImportLimits>;
 }
 
 export class RecordStore {
@@ -139,6 +160,9 @@ export class RecordStore {
   private readonly now: () => number;
   private readonly probe: (file: string) => Promise<MediaInfo | null>;
   private readonly max: Record<RecordKind, number>;
+  private readonly limits: ImportLimits;
+  /** Imports in the middle of arriving, per person: they count against the day before they are on file. */
+  private readonly arriving = new Map<string, { n: number; bytes: number }>();
   private entries: Entry[] = [];
   /** Links an upload is in the middle of: a second upload at the same moment is refused. */
   private readonly busy = new Set<string>();
@@ -147,6 +171,7 @@ export class RecordStore {
     this.now = opts.now ?? Date.now;
     this.probe = opts.probe ?? (async () => null);
     this.max = { ...MAX_BYTES, ...opts.maxBytes };
+    this.limits = { ...IMPORT_LIMITS, ...opts.imports };
     this.root = join(opts.mediaDir, 'recordings');
     const dir = join(opts.dataDir, 'record');
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -312,8 +337,41 @@ export class RecordStore {
     declared?: number,
   ): Promise<RecordingView> {
     if (!OWNER_RE.test(owner)) throw new RecordError(400, 'owner', 'Who is asking?');
+    // The day is the last 24 hours. Owners and directors alike have it; the owner of this Hildegard raises it for all.
+    const since = this.now() - DAY_MS;
+    const done = this.entries.filter(
+      (e) =>
+        e.owner === owner && e.hash === null && e.from === null && Date.parse(e.receivedAt ?? '') > since,
+    );
+    const live = this.arriving.get(owner) ?? { n: 0, bytes: 0 };
+    const usedBytes = done.reduce((t, e) => t + (e.bytes ?? 0), 0) + live.bytes;
+    const room = this.limits.bytesPerDay - usedBytes;
+    if (done.length + live.n >= this.limits.perDay)
+      throw new RecordError(
+        429,
+        'quota',
+        `You can bring in ${this.limits.perDay} recordings a day. Try again tomorrow.`,
+      );
+    const cap = this.max[kind === 'auto' ? 'video' : kind];
+    const byteQuota = () =>
+      new RecordError(
+        429,
+        'quota',
+        `You can bring in ${human(this.limits.bytesPerDay)} of recordings a day. Try again tomorrow.`,
+      );
+    if (room <= 0 || (declared !== undefined && declared > room)) throw byteQuota();
+    // An upload of unknown length may be as long as the cap, and holds that much of the day while it arrives.
+    const hold = declared !== undefined && Number.isFinite(declared) ? Math.min(declared, cap) : cap;
+    this.arriving.set(owner, { n: live.n + 1, bytes: live.bytes + hold });
     const id = newId();
-    const stored = await this.store(owner, id, kind, body, declared);
+    let stored: Awaited<ReturnType<RecordStore['store']>>;
+    try {
+      stored = await this.store(owner, id, kind, body, declared, { room, error: byteQuota });
+    } finally {
+      const now = this.arriving.get(owner)!;
+      if (now.n <= 1) this.arriving.delete(owner);
+      else this.arriving.set(owner, { n: now.n - 1, bytes: now.bytes - hold });
+    }
     const e: Entry = {
       id,
       owner,
@@ -343,6 +401,7 @@ export class RecordStore {
     asked: RecordKind | 'auto',
     body: ReadableStream<Uint8Array> | null,
     declared?: number,
+    quota?: { room: number; error: () => RecordError },
   ): Promise<{ kind: RecordKind; file: string; bytes: number; seconds: number | null }> {
     const cap = this.max[asked === 'auto' ? 'video' : asked];
     const sizeError = () =>
@@ -371,6 +430,7 @@ export class RecordStore {
         if (done) break;
         size += value.length;
         if (size > cap) throw sizeError();
+        if (quota && size > quota.room) throw quota.error();
         if (!ext) {
           const joined = new Uint8Array(head.length + value.length);
           joined.set(head);
@@ -392,7 +452,8 @@ export class RecordStore {
     } catch (err) {
       // Past the cap there is no point reading on. For a wrong kind of file the caller reads a modest rest of the
       // body before answering, so the answer reaches the sender instead of a closed socket.
-      if (err instanceof RecordError && err.status === 413) await reader.cancel().catch(() => {});
+      if (err instanceof RecordError && (err.status === 413 || err.code === 'quota'))
+        await reader.cancel().catch(() => {});
       else reader.releaseLock();
       await fh.close().catch(() => {});
       await rm(tmp, { force: true });
@@ -402,7 +463,18 @@ export class RecordStore {
     const name = `${owner}/${id}.${ext}`;
     const dest = join(this.root, name);
     renameSync(tmp, dest);
-    const info = await this.probe(dest).catch(() => null);
+    // A probe that can't be asked (null, or a failure of its own) leaves the file as it came; one that read the file
+    // and refused it is a refusal, and the link is not used up.
+    let info: MediaInfo | null;
+    try {
+      info = await this.probe(dest);
+    } catch (err) {
+      if (!(err instanceof RecordError)) info = null;
+      else {
+        rmSync(dest, { force: true });
+        throw err;
+      }
+    }
     // What a file holds settles what kind of recording it is. A voice has no picture; a video has one.
     let kind: RecordKind = asked === 'auto' ? (info?.video ? 'video' : 'voice') : asked;
     let refuse: string | null = null;

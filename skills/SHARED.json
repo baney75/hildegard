@@ -1,0 +1,74 @@
+{
+  "about": "Files that several skills need, kept in each of them so a skill works alone (one zip per skill). Each has ONE source; the listed skills get a byte-for-byte copy. Edit the source, then run: node scripts/sync-skill-shared.mjs. scripts/check-skills.mjs fails when a copy differs. `to` is the folder inside each skill (default scripts).",
+  "copies": [
+    {
+      "source": "skills/hildegard/scripts/prose_lint.py",
+      "skills": ["hildegard-blog"]
+    },
+    {
+      "source": "skills/hildegard/scripts/prose_rules.json",
+      "skills": ["hildegard-blog"]
+    },
+    {
+      "source": "skills/hildegard/scripts/contact_sheet.py",
+      "skills": [
+        "hildegard-art",
+        "hildegard-craft",
+        "hildegard-film",
+        "hildegard-loop",
+        "hildegard-photo-edit",
+        "hildegard-video-edit"
+      ]
+    },
+    {
+      "source": "tools/review_media.py",
+      "skills": [
+        "hildegard-art",
+        "hildegard-craft",
+        "hildegard-film",
+        "hildegard-loop",
+        "hildegard-photo-edit",
+        "hildegard-video-edit"
+      ]
+    },
+    {
+      "source": "tools/review_mesh.py",
+      "skills": ["hildegard-3d", "hildegard-loop", "hildegard-openscad", "hildegard-print"]
+    },
+    {
+      "source": "skills/hildegard-3d/scripts/mesh_kit.py",
+      "skills": ["hildegard-print"]
+    },
+    {
+      "source": "skills/hildegard-sound/scripts/clean_voice.py",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "skills/hildegard-sound/scripts/duck_mix.py",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "skills/hildegard-sound/scripts/spot.py",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "skills/hildegard-craft/references/slop.md",
+      "to": "references",
+      "skills": [
+        "hildegard-3d",
+        "hildegard-art",
+        "hildegard-film",
+        "hildegard-loop",
+        "hildegard-photo-edit",
+        "hildegard-sound",
+        "hildegard-video-edit",
+        "hildegard-web"
+      ]
+    },
+    {
+      "source": "skills/hildegard-print/references/print3d-license.md",
+      "to": "references",
+      "skills": ["hildegard-3d", "hildegard-loop", "hildegard-openscad"]
+    }
+  ]
+}
