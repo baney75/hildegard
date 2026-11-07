@@ -103,7 +103,7 @@ ffmpeg -hide_banner -nostats -i "$OUT" -af ebur128=peak=true -f null - 2>&1 | gr
 
 ### Recipe C: a radio spot
 
-Edit `LINES`, `TOTAL`, `FIRST` (seconds before line 1), `GAP` (quiet between lines). Each line is cut to its speech, the sting ends 0.1 s before the end, and the music fades out under it. If the lines and sting do not fit, the gaps shrink to 0.3 s first.
+Edit `LINES`, `TOTAL`, `FIRST` (seconds before line 1), `GAP` (quiet between lines). Each line is cut to its speech, the sting ends 0.1 s before the end, and the music fades out under it. If the lines and sting do not fit, the gaps shrink to 0.3 s first. If they still do not fit, the recipe stops and says how many seconds over; it never cuts a line. Shorten the lines, raise `TOTAL`, or run it with `ALLOW_OVERRUN=1` to let the total grow.
 
 ```bash
 #!/usr/bin/env bash
@@ -127,15 +127,20 @@ for f in "${LINES[@]}"; do n=$((n+1))
 done
 SL=$(dur "$STING")
 # 2) timeline: gap between speech = GAP (never less than the recordings' own quiet ends need); the sting ends 0.1 s before TOTAL.
-read -r STARTS STS < <(awk -v first="$FIRST" -v gap="$GAP" -v total="$TOTAL" -v sl="$SL" '
+AW=$(awk -v first="$FIRST" -v gap="$GAP" -v total="$TOTAL" -v sl="$SL" -v allow="${ALLOW_OVERRUN:-0}" '
  {d[NR]=$1; lead[NR]=$2; trail[NR]=$3} END{
   for(i=1;i<NR;i++){ g[i]=trail[i]+lead[i+1]+0.02; if(g[i]<gap)g[i]=gap }
   latest=total-0.1-sl; f=first
   for(pass=0;pass<2;pass++){ t=f-0.05; for(i=1;i<=NR;i++){ p[i]=t; t+=d[i]; if(i<NR)t+=g[i]-0.1 } endl=t-0.05
     if(endl+0.05<=latest)break
     if(pass==0){ for(i=1;i<NR;i++){ m=trail[i]+lead[i+1]+0.02; if(m<0.3)m=0.3; over=endl+0.05-latest; g[i]-=over/(NR-1); if(g[i]<m)g[i]=m }; f=0.3 } }
-  for(i=1;i<=NR;i++) s=s (i>1?",":"") sprintf("%.3f",p[i]); printf "%s %.3f\n", s, latest }' "$TMP/rows.txt")
-echo "files start at $STARTS; sting at $STS" >&2
+  nt=total
+  if(endl>latest){ need=endl+0.05+0.1+sl
+    if(!allow){ printf "the lines and the sting need %.2f s but TOTAL is %s s: %.2f s over, even with the gaps at 0.3 s. Use shorter lines, a TOTAL of at least %.1f, or ALLOW_OVERRUN=1 to let the total grow. Nothing was written.\n", need, total, need-total, int(need*10+0.999999)/10 > "/dev/stderr"; exit 1 }
+    nt=need; latest=nt-0.1-sl }
+  for(i=1;i<=NR;i++) s=s (i>1?",":"") sprintf("%.3f",p[i]); printf "%s %.3f %.3f\n", s, latest, nt }' "$TMP/rows.txt")
+read -r STARTS STS NT <<< "$AW"; TOTAL=$NT
+echo "lines start at $STARTS; sting at $STS; total $TOTAL" >&2
 IFS=, read -ra ST <<< "$STARTS"
 # 3) the voice stem
 IN=(); FC=""; MIXIN=""; for i in $(seq 1 $n); do IN+=(-i "$TMP/l$i.wav"); ms=$(awk -v s="${ST[$((i-1))]}" 'BEGIN{printf "%d", s*1000}'); FC="$FC[$((i-1)):a]adelay=${ms}:all=1[d$i];"; MIXIN="$MIXIN[d$i]"; done

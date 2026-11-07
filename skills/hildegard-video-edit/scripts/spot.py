@@ -3,7 +3,7 @@
 """Assemble a radio spot: voice lines in order over a music bed, ducked, with a closing sting, to an exact length.
 
   python3 spot.py OUT --music music.wav --sting sting.wav --lines line1.wav line2.wav line3.wav
-                  [--total 15] [--first 0.5] [--gap 0.5] [--duck 16] [--under -8] [--lufs -16] [--peak -1.5]
+                  [--total 15] [--first 0.5] [--gap 0.5] [--duck 16] [--under -8] [--lufs -16] [--peak -1.5] [--allow-overrun]
 
 --total   exact length of the spot in seconds (default 15)
 --first   seconds before the first line (default 0.5); the music starts on the first frame
@@ -11,12 +11,15 @@
           carries its own silence at the ends can force a longer gap; lines never overlap.
 --duck    dB the music drops under each line (default 16); it comes back up between lines
 --under   music loudness between lines, dB against the voice (default -8)
+--allow-overrun
+          when the lines and the sting cannot fit in --total, let the total grow to fit them (it says the new length)
 
 Each line is cut to its speech plus 50 ms; the sting ends 0.1 s before the end; the music fades out over the last 0.9 s.
-If the lines and the sting do not fit in --total, the gaps shrink to 0.3 s first, then the first line moves up. It says
-so when they still do not fit. Output is stereo, loudnorm in two passes. Needs only Python 3, ffmpeg and ffprobe on PATH.
+If the lines and the sting do not fit in --total, the gaps shrink to 0.3 s first, then the first line moves up. If they
+still do not fit it writes nothing and exits 1 with how many seconds over: a voice line is never cut. Shorten the lines,
+lengthen --total, or pass --allow-overrun. Output is stereo, loudnorm in two passes. Needs only Python 3, ffmpeg and ffprobe on PATH.
 """
-import argparse, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
 
 FFMPEG = shutil.which("ffmpeg")
 FFPROBE = shutil.which("ffprobe")
@@ -70,6 +73,7 @@ def main():
     ap.add_argument("--under", type=float, default=-8.0)
     ap.add_argument("--lufs", type=float, default=-16.0)
     ap.add_argument("--peak", type=float, default=-1.5)
+    ap.add_argument("--allow-overrun", action="store_true")
     a = ap.parse_args()
     if not (FFMPEG and FFPROBE):
         sys.exit("ffmpeg and ffprobe must be on PATH")
@@ -109,7 +113,13 @@ def main():
             first = 0.3
             starts, end = place(first, gaps)
         if end > latest:
-            print(f"warning: the lines end at {end:.2f} s but the sting must start by {latest:.2f} s; they overlap by {end - latest:.2f} s", file=sys.stderr)
+            need = end + 0.05 + 0.1 + sting_len
+            if not a.allow_overrun:
+                sys.exit(f"the lines and the sting need {need:.2f} s but --total is {a.total:g} s: {need - a.total:.2f} s over, even with the gaps at 0.3 s. "
+                         f"Use shorter lines, a --total of at least {math.ceil(need * 10) / 10:.1f}, or --allow-overrun to let the total grow. Nothing was written.")
+            print(f"note: the lines and the sting need {need:.2f} s, so the total grows from {a.total:g} s to {need:.2f} s", file=sys.stderr)
+            a.total = need
+            latest = a.total - 0.1 - sting_len
         # 3) the voice stem, and the levels of the bed and the sting against it
         ins, fc, mixin = [], [], ""
         for i, r in enumerate(rows):
