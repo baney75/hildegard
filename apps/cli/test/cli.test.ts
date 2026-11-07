@@ -1395,6 +1395,21 @@ describe('hildegard lint', () => {
     expect(await lint([good, '--strict'])).toEqual({ code: 0, stdout: 'Clean: no tells in 10 words.\n' });
   });
 
+  it('takes --strict as a flag in any position, never as the name of the next file', async () => {
+    const dashed = join(dir, 'dashed2.md');
+    writeFileSync(dashed, 'We painted the barn in May\u2014the weather held.\n');
+    for (const args of [
+      ['--strict', dashed],
+      [dashed, '--strict'],
+      ['--max', '3', '--strict', dashed, good],
+      ['--strict', good, dashed],
+    ])
+      expect((await lint(args)).code, args.join(' ')).toBe(1);
+    // The file after --strict is linted, not swallowed as its value.
+    expect((await lint(['--strict', dashed])).stdout).toMatch(/^Fails: 1 tell to fix/);
+    expect((await lint(['--strict', good])).code).toBe(0);
+  });
+
   it('exits 2, not the 1 of a failing lint, when it was used wrongly or has nothing to read', async () => {
     expect((await lint([bad])).code).toBe(1);
     expect((await lint([])).code).toBe(2);
