@@ -47,7 +47,8 @@ function start(load: Loader<any>): Entry {
         e.error = err;
       },
     );
-    loaded.set(load, (entry = e));
+    loaded.set(load, e);
+    entry = e;
   }
   return entry;
 }
