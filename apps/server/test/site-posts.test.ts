@@ -353,6 +353,35 @@ describe('previewing a site that has notes and drafts', () => {
   });
 });
 
+describe('a post that is too hostile to render', () => {
+  const hostile: [string, string][] = [
+    ['backticks', `a${'`'.repeat(499_999)}`],
+    ['brackets', `${'['.repeat(200_000)}${']('.repeat(150_000)}`],
+  ];
+  it.each(hostile)(
+    'refuses a run of %s and keeps the server answering',
+    async (_name, body_md) => {
+      const t0 = performance.now();
+      const refused = post(blank, { title: 'Too much', body_md, slug: 'too-much' });
+      await h.local('/api/health');
+      const healthMs = performance.now() - t0;
+      const res = await refused;
+      expect(performance.now() - t0).toBeLessThan(2_000);
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as { error: string }).error).toContain('too complex to render');
+      expect(healthMs).toBeLessThan(200);
+      expect(siteJson(blank).posts.map((p) => p.slug)).not.toContain('too-much');
+    },
+    10_000,
+  );
+  it('renders an ordinary post exactly as the renderer does', async () => {
+    const body_md =
+      '# One\n\nA *soft* and **hard** `code` line, a [link](https://example.com/a?b=1&c=2).\n\n- x\n  - y';
+    await post(blank, { title: 'Plain', body_md, slug: 'plain', date: '2026-11-03' });
+    expect(await read(blank, 'blog/plain/index.html')).toContain(markdown(body_md));
+  });
+});
+
 describe('who may post', () => {
   it('is the owner’s: a director can’t, over REST or over their agent', async () => {
     const ada = await h.director('Ada');
