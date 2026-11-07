@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const tauri = join(import.meta.dirname, '..', 'src-tauri');
-const read = (f: string) => readFileSync(join(tauri, f), 'utf8');
+// A Windows checkout turns line endings into CRLF; these files are read for their text, not their line endings.
+const read = (f: string) => readFileSync(join(tauri, f), 'utf8').replace(/\r\n/g, '\n');
 /** The string value under a key in a plist. */
 const plistString = (plist: string, key: string) =>
   new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`).exec(plist)?.[1];
