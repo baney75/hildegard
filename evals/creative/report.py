@@ -67,6 +67,10 @@ def main():
         if n:
             c = sum(v['winner'] == cand for v in allv[m]) + 0.5 * sum(v['winner'] == 'tie' for v in allv[m])
             P(f'{"all":<10} {m:<6} {cand} rate {c / n:.2f} over {n} verdicts')
+    P('\nCouncil run (runs that tallied a council / runs; critic subagents started):')
+    for arm in arms:
+        P('  ' + arm + ': ' + ', '.join(f'{m} {sum(1 for r in runs[arm][m].values() if r["meta"].get("council_ran"))}/{sum(1 for r in runs[arm][m].values() if r["meta"])}'
+                                         f' ({sum(r["meta"].get("subagents", 0) for r in runs[arm][m].values())} subagents)' for m in models))
     P('\nSkill loaded (runs where the responder loaded or read a Hildegard skill / runs):')
     for arm in arms:
         P('  ' + arm + ': ' + ', '.join(f'{m} {x[0]}/{x[1]}' for m, x in skill[arm].items()))

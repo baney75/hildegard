@@ -16,7 +16,7 @@ names every pair off by more than 20%, with a first guess at the kern. The numbe
 
 The SVG carries data-cap-height, data-x-height and data-baseline (in its own units) so lockup.py can line it up with
 the mark. Standard library only for the paths; TrueType outlines (glyf) only, which is what Google Fonts serves."""
-import argparse, json, os, re, struct, sys, urllib.parse, urllib.request
+import argparse, json, os, re, struct, sys, urllib.error, urllib.parse, urllib.request
 
 CACHE = os.path.join(os.path.expanduser('~'), '.cache', 'hildegard-fonts')
 
@@ -266,23 +266,63 @@ class Font:
         return 0
 
 
+def cache_dir():
+    """~/.cache/hildegard-fonts, or ./.fonts when the home folder can't be written (a sandboxed agent)."""
+    for d in (CACHE, os.path.join(os.getcwd(), '.fonts')):
+        try:
+            os.makedirs(d, exist_ok=True)
+            probe = os.path.join(d, '.write-test')
+            open(probe, 'w').close()
+            os.remove(probe)
+            return d
+        except OSError:
+            continue
+    raise SystemExit('no folder to keep the font in: pass --font with a .ttf you already have')
+
+
+def installed_fonts(limit=12):
+    """TrueType files on this computer, to fall back on when Google Fonts can't be reached."""
+    roots = ['/usr/share/fonts', '/usr/local/share/fonts', os.path.expanduser('~/.fonts'), os.path.expanduser('~/.local/share/fonts'),
+             '/System/Library/Fonts', '/Library/Fonts', os.path.expanduser('~/Library/Fonts'), 'C:\\Windows\\Fonts']
+    out = []
+    for r in roots:
+        for dp, _, fs in os.walk(r):
+            out += [os.path.join(dp, f) for f in fs if f.lower().endswith('.ttf')]
+    keep = [f for f in out if re.search(r'(Bold|SemiBold|Medium|Regular)', os.path.basename(f))] or out
+    free = lambda f: 0 if re.search(r'noto|dejavu|liberation|google|ofl', f, re.I) else 1  # open licenses first
+    return sorted(keep, key=lambda f: (free(f), f))[:limit]
+
+
 def fetch(family, weight, italic=False):
-    os.makedirs(CACHE, exist_ok=True)
+    d = cache_dir()
     key = re.sub(r'\W+', '-', f'{family}-{weight}{"-italic" if italic else ""}').lower()
-    path = os.path.join(CACHE, key + '.ttf')
+    path = os.path.join(d, key + '.ttf')
     if os.path.exists(path):
         return path
     spec = f'{family}:ital,wght@{1 if italic else 0},{weight}'
     url = 'https://fonts.googleapis.com/css2?family=' + urllib.parse.quote(spec, safe=':,@')
     try:
         css = urllib.request.urlopen(url, timeout=20).read().decode()
+        m = re.search(r'url\((https://[^)]+\.ttf)\)', css)
+        if not m:
+            raise SystemExit(f'Google Fonts gave no TrueType file for {family} {weight}: check the name and weight on fonts.google.com')
+        data = urllib.request.urlopen(m.group(1), timeout=30).read()
+    except SystemExit:
+        raise
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f'Google Fonts has no {family} at weight {weight} (HTTP {e.code}): check the exact name and the weights '
+                         f'it offers on fonts.google.com')
     except Exception as e:
-        raise SystemExit(f'could not fetch {family} {weight} from Google Fonts ({e}). Check the family name on '
-                         f'fonts.google.com, or download the .ttf yourself and pass --font')
-    m = re.search(r'url\((https://[^)]+\.ttf)\)', css)
-    if not m:
-        raise SystemExit(f'Google Fonts gave no TrueType file for {family} {weight}')
-    data = urllib.request.urlopen(m.group(1), timeout=30).read()
+        have = installed_fonts()
+        msg = [f'could not fetch {family} {weight} from Google Fonts ({type(e).__name__}: {e}).',
+               'In a sandbox with no network, your user can turn network access on, or download the .ttf from '
+               'fonts.google.com; then pass --font <file>.']
+        if have:
+            msg.append('TrueType fonts already on this computer. Use one only if its license allows a logo (OFL or Apache, as Noto, '
+                       'DejaVu and Liberation are; most fonts that come with an operating system do not), pass it with --font, and '
+                       'say in your delivery which you used:')
+            msg += ['  ' + f for f in have]
+        raise SystemExit('\n'.join(msg))
     open(path, 'wb').write(data)
     return path
 

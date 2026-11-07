@@ -154,7 +154,7 @@ def recolor(text, ink, paper):
     return out
 
 
-def svg_checks(path, max_colors):
+def svg_checks(path, max_colors, is_mark=True):
     text = open(path, encoding='utf-8', errors='replace').read()
     res = {}
     try:
@@ -188,7 +188,8 @@ def svg_checks(path, max_colors):
                      + ('' if n <= max_colors else f' (at most {max_colors})'))
     # stroke widths from attributes: a first pass before the pixels say for sure
     if vb:
-        scale = 32 / max(vb[2], vb[3])
+        # the mark at 32 px on its long side; a lockup at 40 px on its short side (a website header)
+        scale, at = (32 / max(vb[2], vb[3]), '32 px') if is_mark else (40 / min(vb[2], vb[3]), '40 px tall')
         thin = []
         for m in re.finditer(r'<(\w+)\b([^>]*)>', text):
             attrs = m.group(2)
@@ -196,8 +197,8 @@ def svg_checks(path, max_colors):
                 sw = re.search(r'stroke-width\s*[:=]\s*["\']?\s*([\d.]+)', attrs)
                 w = float(sw.group(1)) if sw else 1.0
                 if w * scale < 1:
-                    thin.append(f'<{m.group(1)}> stroke-width {w:g} = {w * scale:.2f} px at 32 px')
-        res['strokes'] = ('fail', '; '.join(thin[:4])) if thin else ('pass', 'no stroke under 1 px at 32 px')
+                    thin.append(f'<{m.group(1)}> stroke-width {w:g} = {w * scale:.2f} px at {at}')
+        res['strokes'] = ('fail', '; '.join(thin[:4])) if thin else ('pass', f'no stroke under 1 px at {at}')
     return res, cols, text
 
 
@@ -392,7 +393,7 @@ def trim_bottom(png, bg=(244, 242, 238)):
 
 def check_file(path, is_mark, a, tool, out):
     s = os.path.splitext(os.path.basename(path))[0]
-    checks, cols, text = svg_checks(path, a.max_colors)
+    checks, cols, text = svg_checks(path, a.max_colors, is_mark)
     r = {'checks': checks, 'colors': sorted(cols)}
     one = os.path.join(out, f'{s}-1c.svg')
     open(one, 'w', encoding='utf-8').write(recolor(text, '#000000', '#ffffff'))

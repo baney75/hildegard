@@ -22,6 +22,10 @@ standard library, Pillow, and a rasterizer (rsvg-convert, cairosvg or Chromium) 
 | `templates/example/` | a finished logo set and `brand.json` (Brickyard Press, a letterpress shop) to copy the shape of |
 
 Run every script from this skill's folder, or give its full path. Each prints what failed and how to fix it.
+<!-- council:start -->
+Every logo and every guide made here goes through the council before it is delivered. It is a step, not an extra:
+work without a `council/r1/tally.md` is not finished.
+<!-- council:end -->
 
 ## A logo
 
@@ -60,15 +64,24 @@ Run every script from this skill's folder, or give its full path. Each prints wh
    three. A `favicon-16` warning means drawing a simpler favicon (`logo.md`). Then open `logo-check/sheet.png` at full
    size and look at the 16 and 32 px views: is it the same shape as at 512? Done when no check fails and you have looked.
 <!-- council:start -->
-7. **Council.** Run the **hildegard-council** protocol on `logo-check/sheet.png` with `--medium logo` (its six roles,
-   each blind; `scripts/council.py` and `references/rubrics.md` are here too, so it works without that skill). Fix
-   every hard fail and every area two critics flag, re-run step 6, and hold a second round only if the tally says so.
-   Done when the tally's must-fix list is empty or each item is answered.
+7. **Council (required).** Judge the sheet blind, with six critics, before anyone sees it:
+   1. Print each critic's prompt: for each role in `art-director typographer brand-strategist legibility customer
+      production`, run `python3 scripts/council.py brief --role <role> --medium logo --brief brief.md --render
+      logo-check/sheet.png`.
+   2. If you can start subagents (an Agent or Task tool, Codex subagents), start one per role, all at once, each given
+      only its printed prompt. If you can't, be each critic in turn: read one prompt, look at the sheet, write that
+      review's JSON file in full, then go to the next prompt. Never reread an earlier review.
+   3. `python3 scripts/council.py tally`, then make every change in its "Must fix" list (check each hard fail against
+      the brief first: a critic who misquotes the brief is wrong), re-run step 6, and run a second round only if the
+      tally says one is due.
+
+   The **hildegard-council** skill explains the protocol; everything it needs is in this skill. Done when
+   `council/r1/tally.md` exists and every must-fix item is changed or answered.
 <!-- council:end -->
 8. **Deliver**: `mark.svg`, `logo-horizontal.svg`, `logo-stacked.svg`, the one-color and reversed files from
    `logo-check/`, the PNGs at 16, 32, 64 and 512 px for the favicon and app icon, and `sheet.png`. Say the idea in one
-   sentence, the face and its license (Google Fonts, free for logos), the minimum sizes from the sheet<!-- council:start -->, and the council's
-   scores and what you changed<!-- council:end -->.
+   sentence, the face and its license (Google Fonts, free for logos), the minimum sizes from the sheet<!-- council:start -->, `council/r1/tally.md`, and the
+   council's scores and what you changed for each must-fix item<!-- council:end -->.
 
 ## A brand system
 
@@ -88,9 +101,11 @@ Run every script from this skill's folder, or give its full path. Each prints wh
    `guide/guide.png`, then look at the whole page: does every section look like the same client? Done when it passes
    and you have looked.
 <!-- council:start -->
-4. **Council** on `guide/guide.png` with `--medium brand`, as in logo step 7.
+4. **Council (required)** on `guide/guide.png` with `--medium brand`: the three parts of logo step 7, each critic
+   blind. Done when `council/r1/tally.md` exists and every must-fix item is changed or answered.
 <!-- council:end -->
-5. **Deliver** `brand.json`, `guide/guide.pdf`, `guide/guide.png`, `guide/guide.html` and the logo files.
+5. **Deliver** `brand.json`, `guide/guide.pdf`, `guide/guide.png`, `guide/guide.html` and the logo files<!-- council:start -->, with
+   the council's scores and what you changed<!-- council:end -->.
 
 ## Rules that are never relaxed
 

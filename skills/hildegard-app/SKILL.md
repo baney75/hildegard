@@ -8,6 +8,10 @@ description: Use for an app screen or flow (iOS, Android, desktop or web app) an
 An app screen is judged in a person's hand, in a hurry, with one thumb. It is built here as HTML and CSS at the
 device's exact size, from tokens, rendered, measured by a script, and judged blind before anyone sees it. Websites,
 landing pages and marketing pages are **hildegard-web**'s work; this skill is for the screens inside an app.
+<!-- council:start -->
+Every screen made here goes through the council (step 7) before it is delivered: work without a
+`council/r1/tally.md` is not finished.
+<!-- council:end -->
 
 | File | What it does |
 | --- | --- |
@@ -45,9 +49,17 @@ browser's device mode at the size below and check the same list by eye; say plai
    length; can you tell in three seconds what the screen is for and what to tap? Done when no check fails and you
    have looked.
 <!-- council:start -->
-7. **Council.** Run the **hildegard-council** protocol on `screen-check/screens.png` with `--medium screen` (six blind
-   roles; `scripts/council.py` and `references/rubrics.md` are here, so it works without that skill). Fix every hard
-   fail and every area two critics flag, check again, and hold a second round only if the tally says so.
+7. **Council (required).** Judge the screens blind, with six critics, before anyone sees them:
+   1. For each role in `art-director typographer brand-strategist legibility customer production`, print its prompt:
+      `python3 scripts/council.py brief --role <role> --medium screen --brief brief.md --render screen-check/screens.png`.
+   2. If you can start subagents (an Agent or Task tool, Codex subagents), start one per role, all at once, each given
+      only its printed prompt. If you can't, be each critic in turn: read one prompt, look at the screens, write that
+      review's JSON file in full, then go to the next. Never reread an earlier review.
+   3. `python3 scripts/council.py tally`, make every change in its "Must fix" list (check each hard fail against the
+      brief first), run step 6 again, and run a second round only if the tally says one is due.
+
+   The **hildegard-council** skill explains the protocol; everything it needs is in this skill. Done when
+   `council/r1/tally.md` exists and every must-fix item is changed or answered.
 <!-- council:end -->
 8. **Deliver** the HTML files, `tokens.css`, the PNGs and `screens.png`, with one line per state on what it shows,
    and what wasn't checked (a real device, a screen reader, dark mode if not designed)<!-- council:start -->, and the council's scores and
