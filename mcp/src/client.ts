@@ -155,6 +155,8 @@ export interface SiteSummary {
   bytes: number;
   notes: string[];
   reference: { file: string; width: number } | null;
+  /** Whether everyone can read it at /s/<id>/. */
+  published: boolean;
   /** The preview's path on the server: /preview/<id>/<key>/. */
   preview: string;
 }
@@ -170,11 +172,81 @@ export interface TemplateInfo {
   images: { file: string; aspect: string; prompt: string }[];
   pages: string[];
 }
+export interface WritingEdit {
+  at: string;
+  draftWords: number;
+  finalWords: number;
+  removed: string[];
+  added: string[];
+  lintBefore: { fails: number; warns: number };
+  lintAfter: { fails: number; warns: number };
+  note: string;
+}
+export interface WritingVoice {
+  person: string;
+  voice: { md: string; updatedAt: string | null; versions: number };
+  samples: { id: string; title: string; source: string; addedAt: string; words: number }[];
+  /** The last ten edits, newest first. */
+  edits: WritingEdit[];
+  topCut: { phrase: string; count: number }[];
+}
+export interface PostResult {
+  slug: string;
+  draft: boolean;
+  path: string;
+  date: string;
+  site: SiteDetail & { path: string; address: string | null };
+  lint: { ok: boolean; fails: string[]; warns: string[] };
+}
 export interface SiteToken {
   name: string;
   value: string;
   dark: boolean;
   file: string;
+}
+
+/** A voice mixed over a film's sound (export_film). */
+export interface VoiceoverArgs {
+  mediaId: string;
+  startSeconds?: number;
+  gainDb?: number;
+  duckDb?: number;
+}
+export interface RecordLink {
+  id: string;
+  /** The secret that opens the link. Only the call that made the link ever returns it. */
+  token: string;
+  path: string;
+  url: string;
+  /** `url` is Hildegard's own link, which a phone can reach; otherwise it is only the address the request came to. */
+  viaLink: boolean;
+  expiresAt: string;
+  /** The link opens only on the computer Hildegard runs on, not on a phone. */
+  localOnly: boolean;
+}
+export interface Recording {
+  id: string;
+  kind: 'voice' | 'video';
+  purpose: string | null;
+  filmId: string | null;
+  status: 'pending' | 'received' | 'expired';
+  expiresAt: string | null;
+  receivedAt: string | null;
+  seconds: number | null;
+  bytes: number | null;
+  url: string | null;
+  from: string | null;
+  clean: { lufs: number; truePeak: number; targetLufs: number; peak: number; backend: string } | null;
+  /** Where the file is on this computer, for agents running here. */
+  file?: string | null;
+}
+export interface CleanJobView {
+  id: string;
+  from: string;
+  status: 'running' | 'done' | 'failed';
+  stage: string | null;
+  error: string | null;
+  recording: Recording | null;
 }
 
 const filePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
@@ -227,8 +299,26 @@ export class HildegardClient {
     this.call<{ project: Project; shot: Shot; takes: Take[] }>('POST', '/api/shots', body);
   /** Stops a waiting or rendering take, as the Studio's Cancel does; a finished one answers 409. */
   cancelTake = (id: string) => this.call<Take>('POST', `/api/takes/${encodeURIComponent(id)}/cancel`);
-  exportFilm = (id: string) =>
-    this.call<ExportState>('POST', `/api/projects/${encodeURIComponent(id)}/export`);
+  exportFilm = (id: string, voiceover?: VoiceoverArgs) =>
+    this.call<ExportState>(
+      'POST',
+      `/api/projects/${encodeURIComponent(id)}/export`,
+      voiceover ? { voiceover } : undefined,
+    );
+  // ── Recording from any chat ──
+  recordLink = (body: { kind: 'voice' | 'video'; purpose?: string; filmId?: string }) =>
+    this.call<RecordLink>('POST', '/api/record/links', body);
+  /** A recording by its id, or by the link's token (which travels in the body, never the address). */
+  recording = (by: { id: string } | { token: string }) =>
+    'id' in by
+      ? this.call<Recording>('GET', `/api/record/${encodeURIComponent(by.id)}`)
+      : this.call<Recording>('POST', '/api/record/status', { token: by.token });
+  /** Brings a file in as a recording, for cleaning or a film; the server checks what it is. */
+  importRecording = (bytes: Uint8Array, kind: 'voice' | 'video' | 'auto' = 'auto') =>
+    this.call<Recording>('POST', `/api/record/imports?kind=${kind}`, undefined, bytes);
+  cleanRecording = (id: string, body: { target_lufs?: number; peak?: number }) =>
+    this.call<CleanJobView>('POST', `/api/record/${encodeURIComponent(id)}/clean`, body);
+  cleanJob = (id: string) => this.call<CleanJobView>('GET', `/api/record/clean/${encodeURIComponent(id)}`);
   exportState = (id: string) =>
     this.call<ExportState & { file: string | null }>('GET', `/api/exports/${encodeURIComponent(id)}`);
   /** Technical checks on a finished take, and where its contact sheet is. */
@@ -343,6 +433,32 @@ export class HildegardClient {
     }
     return new Uint8Array(await res.arrayBuffer());
   }
+  postToSite = (id: string, body: Record<string, unknown>) =>
+    this.call<PostResult>('POST', `/api/sites/${encodeURIComponent(id)}/posts`, body);
+  publishSite = (id: string, published: boolean) =>
+    this.call<SiteDetail & { path: string; address: string | null }>(
+      'PUT',
+      `/api/sites/${encodeURIComponent(id)}/publish`,
+      { published },
+    );
+  // ── Writing ──
+  writingVoice = () => this.call<WritingVoice>('GET', '/api/writing/voice');
+  setWritingVoice = (md: string) =>
+    this.call<{ person: string; voice: WritingVoice['voice'] }>('PUT', '/api/writing/voice', { md });
+  addWritingSample = (body: { title: string; text: string; source?: string }) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] }>(
+      'POST',
+      '/api/writing/samples',
+      body,
+    );
+  /** One saved sample, with its text. */
+  writingSample = (id: string) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] & { text: string } }>(
+      'GET',
+      `/api/writing/samples/${encodeURIComponent(id)}`,
+    );
+  recordWritingEdit = (body: { draft: string; final: string; note?: string }) =>
+    this.call<{ person: string; edit: WritingEdit }>('POST', '/api/writing/edits', body);
   siteZip = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/zip`);
   siteReference = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/reference`);
   // ── The printer ──

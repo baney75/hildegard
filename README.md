@@ -215,8 +215,8 @@ Each app's config is backed up once before Hildegard adds itself. The Studio's A
 what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
-`get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`, and for characters `list_characters`,
-`create_character`, `make_character_stills` and `keep_still`. `direct_shot` takes a `film`: a film's id, or a title,
+`get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
+`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
@@ -275,7 +275,29 @@ owner's key from `hildegard host key`.
 ## At a link, for your other devices and the people you invite
 
 Hildegard can be a server: your own studio at an HTTPS link, for your phone and laptop and for people you invite, all
-signing in. It uses [Tailscale](https://tailscale.com); install it and sign in first. Then, on the computer with the GPU:
+signing in. The link runs through a tunnel on an account you own: [Tailscale](https://tailscale.com) for your own
+devices, or [Cloudflare](https://www.cloudflare.com) for a name on your own domain. Both have free accounts, which you
+make on their own pages; Hildegard never makes one for you.
+
+```sh
+hildegard tunnel                                   # where Tailscale and Cloudflare stand here, and what each needs
+hildegard tunnel tailscale                         # your own devices only (add --funnel for the public internet)
+hildegard tunnel cloudflare --hostname hildegard.example.com   # a name on your domain, through a named tunnel
+hildegard tunnel cloudflare --quick                # no account: a temporary trycloudflare.com name
+hildegard tunnel off                               # off, read back: nothing forwards here
+```
+
+`hildegard tunnel` skips what is already done: the tool installed, this computer signed in, a tunnel already in your
+account. `--signup` with either opens its free-account page. `hildegard tunnel install cloudflare` fetches Cloudflare's
+own `cloudflared`, checked against a pinned hash, into Hildegard's folder (no administrator); Tailscale you install
+yourself. `hildegard tunnel cloudflare --login` signs this computer in to your Cloudflare account on Cloudflare's page,
+and Hildegard then makes the tunnel `hildegard-<computer>`, its DNS record (never replacing one already there) and runs
+`cloudflared`, starting it again if it stops. Its credentials go to your keychain (on a computer with none, a file only you can read in Hildegard's data folder, as Hildegard's other secrets do), never a command line or a log. A quick tunnel
+is the fallback: its name changes every time Hildegard starts, and Cloudflare doesn't pass the Studio's live updates
+through it. Settings › Sharing does all of this with buttons. `hildegard doctor` says what is broken and the command
+that fixes it.
+
+Then, on the computer with the GPU:
 
 ```sh
 hildegard host owner        # your name and a passphrase, for signing in from other devices
@@ -312,7 +334,10 @@ hildegard host status                                         # "HTTPS through y
 hildegard doctor                                              # reads <link>/.well-known/oauth-protected-resource
 ```
 
-Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
+`hildegard tunnel cloudflare --hostname hildegard.example.com` does everything below for you on this computer. The
+rest of this section is for a tunnel you run yourself, here or on another computer.
+
+With `--public-url`, Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
 request signs in, and treats a request for that name there as HTTPS. The name can't also be in `--allow-host`, and
 the saved front door's name stays refused on the Studio's own port, on or off, until you set a different door. (To
 use that name for the Studio again: set another door with `hildegard host --public-url`, or stop Hildegard and remove
@@ -371,6 +396,25 @@ in there with your name and passphrase. Hildegard counts wrong passphrases by th
 saw (the right-most `X-Forwarded-For` entry), and by account name, so keep the hosted port reachable only by your
 tunnel. `hildegard host off` removes the name again; the tunnel and the DNS record are
 yours to remove with `cloudflared tunnel delete hildegard`.
+
+## Posts, and a site that anyone can read
+
+A site Hildegard keeps (Sites in the Studio, or `site_new` from your AI app) can carry a blog and be shown to the
+public from your own computer.
+
+- **Posts.** Your AI app writes one with `site_post`: a title, the body in Markdown, and a byline such as
+  “By Jane Doe, with Hildegard”. Hildegard draws `blog/<slug>/index.html` from the site's own stylesheet and keeps
+  `blog/index.html` (newest first), `feed.xml` (RSS 2.0) and `sitemap.xml` current. Raw HTML in the body is shown as
+  text, never run. A draft gets its page with a noindex tag and stays out of the list, the feed and the sitemap. The
+  interview or notes behind a post are kept at `notes/<slug>.md` and are never served.
+- **Publishing.** Nothing is public until you say so: `hildegard sites publish <id>` (or `site_publish`, or
+  `PUT /api/sites/<id>/publish`), and `--off` takes it down. Only an owner can. A published site answers at `/s/<id>/`
+  with no sign-in, on this computer and on your link (`hildegard host`), and nowhere else: GET and HEAD only, only the
+  site's own pages and files, never `notes/`, drafts, `site.json` or a name that starts with a dot. Every page is
+  sandboxed, with no scripts unless the site has scripts of its own, and Hildegard's cookies are neither read nor sent
+  there. `--address https://example.com/` says where the front page lives on the web, so the feed and sitemap link to it.
+- **Your own voice.** Settings › Writing keeps samples of what you wrote and notes on how you write, for you alone.
+  See [docs/writing.md](docs/writing.md#your-own-voice).
 
 ## Render on another device
 
@@ -451,10 +495,12 @@ hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
+hildegard tunnel [status] | tailscale [--funnel] | cloudflare [--hostname <name> | --quick | --login] | install cloudflare | off  (--signup)
 hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host code | key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin
 hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
+hildegard sites publish <id> [--off] [--address <https://example.com/>]   Show a site to anyone at /s/<id>/, or take it down
 hildegard mcp [--remote <link>]   The MCP server, on stdio (AI apps run this); also at /mcp over HTTP
 ```
 
@@ -478,7 +524,7 @@ include corepack).
 
 ```sh
 pnpm install
-pnpm dev                                   # server on :7341 with a fake GPU, Studio on :5173
+pnpm dev                                   # server on :7361 with a fake GPU (data in .dev-data), Studio on :5173
 pnpm test && pnpm typecheck && pnpm lint
 pnpm e2e                                   # Playwright, desktop and phone
 ```

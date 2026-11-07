@@ -25,6 +25,18 @@ import { safeName } from './zip.ts';
 
 export type SiteSource = 'template' | 'figma' | 'pen' | 'url' | 'files' | 'empty';
 
+/** A post on a site's blog, as site.json keeps it. The words are in blog/<slug>/index.html. */
+export interface PostMeta {
+  slug: string;
+  title: string;
+  /** The date shown and sorted by, YYYY-MM-DD. */
+  date: string;
+  summary: string;
+  byline: string;
+  /** When it was written here (ISO), to order posts of the same day. */
+  at: string;
+}
+
 export interface Site {
   id: string;
   title: string;
@@ -37,6 +49,14 @@ export interface Site {
   reference: { file: string; width: number } | null;
   /** What the import couldn't carry over, and what's left to do. */
   notes: string[];
+  /** Whether /s/<id>/ shows it to anyone. Only the owner changes this. */
+  published: boolean;
+  /** Where the site's front page is on the public web (ends in a slash), so feeds and sitemaps link absolutely. */
+  publicUrl: string | null;
+  /** Posts in the blog, the feed and the sitemap. */
+  posts: PostMeta[];
+  /** Posts written but not shown: they have a page that asks search engines to skip it, and are in none of the lists. */
+  drafts: PostMeta[];
 }
 
 export interface SiteView extends Site {
@@ -67,6 +87,23 @@ export function sitePath(p: string): string {
   return s;
 }
 
+/** The address a site's front page has on the public web: http or https, a name, no login, no query; ends in a slash. */
+export function publicBase(v: string): string {
+  let u: URL;
+  try {
+    u = new URL(v.trim());
+  } catch {
+    throw new SiteError(422, 'public_url', 'That isn’t a web address. Give it like https://example.com/.');
+  }
+  if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.search || u.hash)
+    throw new SiteError(
+      422,
+      'public_url',
+      'Give the site’s address as https://example.com/, with no login, query or fragment.',
+    );
+  return `${u.origin}${u.pathname.replace(/\/?$/, '/')}`;
+}
+
 export class Sites {
   readonly dir: string;
   private readonly now: () => Date;
@@ -93,7 +130,16 @@ export class Sites {
   get(id: string): Site {
     if (!ID.test(id) || !existsSync(this.meta(id)))
       throw new SiteError(404, 'no_site', 'There’s no such site.');
-    return JSON.parse(readFileSync(this.meta(id), 'utf8')) as Site;
+    // Sites made before posts and publishing have none of those fields.
+    const site = JSON.parse(readFileSync(this.meta(id), 'utf8')) as Partial<Site> &
+      Omit<Site, 'published' | 'publicUrl' | 'posts' | 'drafts'>;
+    return {
+      ...site,
+      published: site.published === true,
+      publicUrl: site.publicUrl ?? null,
+      posts: site.posts ?? [],
+      drafts: site.drafts ?? [],
+    };
   }
 
   view(id: string): SiteView {
@@ -150,6 +196,10 @@ export class Sites {
       previewKey: randomBytes(18).toString('base64url'),
       reference: null,
       notes: (input.notes ?? []).map((n) => n.slice(0, 1000)).slice(0, 40),
+      published: false,
+      publicUrl: null,
+      posts: [],
+      drafts: [],
     };
     mkdirSync(join(root, 'files'), { recursive: true });
     try {
@@ -215,11 +265,33 @@ export class Sites {
   }
 
   /** Changes the title, or makes a new preview key (which retires every preview link given out). */
-  update(id: string, patch: { title?: string; newPreviewKey?: boolean; notes?: string[] }): SiteView {
+  update(
+    id: string,
+    patch: { title?: string; newPreviewKey?: boolean; notes?: string[]; publicUrl?: string | null },
+  ): SiteView {
     const s = this.get(id);
     if (patch.title !== undefined) s.title = patch.title.trim().slice(0, 120) || s.title;
+    if (patch.publicUrl !== undefined)
+      s.publicUrl = patch.publicUrl === null ? null : publicBase(patch.publicUrl);
     if (patch.newPreviewKey) s.previewKey = randomBytes(18).toString('base64url');
     if (patch.notes) s.notes = patch.notes.map((n) => n.slice(0, 1000)).slice(0, 40);
+    this.touch(s);
+    return this.view(id);
+  }
+
+  /** Shows the site to anyone at /s/<id>/, or stops. */
+  setPublished(id: string, published: boolean): SiteView {
+    const s = this.get(id);
+    s.published = published;
+    this.touch(s);
+    return this.view(id);
+  }
+
+  /** Records the blog's posts and drafts. */
+  setPosts(id: string, lists: { posts: PostMeta[]; drafts: PostMeta[] }): SiteView {
+    const s = this.get(id);
+    s.posts = lists.posts;
+    s.drafts = lists.drafts;
     this.touch(s);
     return this.view(id);
   }

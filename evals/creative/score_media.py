@@ -3,7 +3,7 @@
 
 Called by score.py (`score.py <task id> <run dir> --tasks ...`); each function takes (task, work folder, run folder) and returns
 the dict that becomes score.json. The responder's script is never trusted: it is copied into a temp folder holding only the
-task's input files and run there with no network (`unshare -rn`), `PATH=/usr/bin:/bin:/usr/local/bin` (no ~/.local/bin, which
+task's input files and run there under sandbox.py (no network, read-only filesystem), `PATH=/usr/bin:/bin:/usr/local/bin` (no ~/.local/bin, which
 holds a Chrome launcher that must never render here; the picture and video tasks name Playwright's Chromium instead), and a
 timeout. See score_sound.py for sound and music, and the README for what each check means.
 
@@ -21,6 +21,7 @@ import difflib, glob, json, os, re, shutil, subprocess, sys, tempfile, time
 import numpy as np
 from PIL import Image, ImageDraw
 import imglib
+import sandbox
 
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,8 +41,7 @@ def run_script(task_id, work, names, out_name, timeout=120):
     shutil.copy(os.path.join(work, name), os.path.join(tmp, name))
     env = {'PATH': SANDBOX_PATH, 'HOME': tmp, 'LANG': 'C.UTF-8', 'TMPDIR': tmp}
     cmd = ['python3', name] if name.endswith('.py') else ['bash', name]
-    if shutil.which('unshare') and subprocess.run(['unshare', '-rn', 'true']).returncode == 0:
-        cmd = ['unshare', '-rn'] + cmd
+    cmd = sandbox.wrap(cmd, tmp)
     t0 = time.time()
     try:
         r = subprocess.run(cmd, cwd=tmp, env=env, capture_output=True, text=True, timeout=timeout)

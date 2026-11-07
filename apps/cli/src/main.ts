@@ -23,6 +23,7 @@ import { doctor } from './doctor.ts';
 import { host } from './host.ts';
 import { loop } from './loop.ts';
 import { bold, dim, printResult, type Result } from './output.ts';
+import { tunnel } from './tunnel.ts';
 
 const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own GPU.
 
@@ -66,6 +67,13 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet;
                              --public-url https://<name>: your own HTTPS front door, such as a Cloudflare tunnel)
+  hildegard tunnel           Reach Hildegard from your other devices through an account you own: where Tailscale
+                             and Cloudflare stand here, and what each still needs (--signup: their free-account page)
+  hildegard tunnel tailscale Your own devices only (Tailscale Serve); --funnel for the public internet
+  hildegard tunnel cloudflare --hostname <name>
+                             A Cloudflare named tunnel on your domain, at a name that stays (--login signs in;
+                             --quick: a temporary trycloudflare.com name, no account). tunnel install cloudflare
+                             fetches cloudflared; tunnel off turns the link off and reads it back
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard host code        A one-time code (HG-XXXX-XXXX, 10 minutes) to approve claude.ai or ChatGPT
@@ -77,6 +85,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard llm direct "<idea>"  Let a local model direct shots with Hildegard's tools (--film, --model, --plan)
   hildegard sites            Websites made here (sites templates; sites new [<template>] [--figma <link> |
                              --url <address>] [--name <name>]). Open them on the Studio's canvas
+  hildegard sites publish <id>  Show a site to anyone at /s/<id>/ (--off takes it down; --address
+                             <https://example.com/> says where its front page is for feeds and sitemaps)
   hildegard figma token      Link Figma for imports (--token-stdin; figma status | unlink)
   hildegard mcp              The MCP server, on stdio (AI apps run this). It's also at /mcp, over HTTP
   hildegard skills install   Put Hildegard's skills where Claude Code, Codex, OMP, Pi, Gemini CLI and OpenCode look
@@ -210,6 +220,11 @@ async function main(): Promise<Result | null> {
     console.log(VERSION);
     return null;
   }
+  // `<command> --help` (or -h) asks what a command does: it must never run it. `stop --help` once stopped Hildegard.
+  if (flags.has('help') || argv.includes('-h')) {
+    console.log(HELP);
+    return null;
+  }
   switch (command) {
     case 'install':
       return install(ctx);
@@ -234,6 +249,8 @@ async function main(): Promise<Result | null> {
       return doctor(ctx);
     case 'host':
       return host(ctx, rest);
+    case 'tunnel':
+      return tunnel(ctx, rest);
     case 'llm':
       return (await import('./llm.ts')).llm(ctx, rest);
     case 'open':
@@ -282,7 +299,6 @@ async function main(): Promise<Result | null> {
       return null;
     }
     case 'help':
-    case '--help':
       console.log(HELP);
       return null;
     default:
