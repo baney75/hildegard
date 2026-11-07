@@ -97,7 +97,7 @@ Never answer for them, and never put a word in their mouth to save a question. S
 
 `voice.md` is short, specific and theirs. Write it from samples, and improve it from edits:
 
-- **From samples.** Read every sample, then write what's true of them: typical sentence length and how much it
+- **From samples.** Read every sample (with Hildegard linked, `writing_voice_samples` gives their text; without it, the files or pasted text), then write what's true of them: typical sentence length and how much it
   varies; how they open and close; how they address the reader ("y'all", "friends", none); words and phrases they
   use often; words they never use; punctuation habits (dashes, exclamation points, parentheses); humor; faith,
   family, place or trade they bring up; how long their pieces run. Quote short examples from the samples for each.
