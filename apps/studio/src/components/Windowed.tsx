@@ -25,11 +25,15 @@ export type Range = [start: number, end: number];
  * so scrolling inside them touches nothing; then a new range is made, with OVERSCAN rows either side of the screen.
  */
 export function nextRange(old: Range, from: number, view: number, pitch: number, n: number): Range {
-  const seenFrom = Math.max(0, Math.floor(from / pitch));
-  const seenTo = Math.min(n, Math.ceil((from + view) / pitch));
+  if (n <= 0) return old[0] === 0 && old[1] === 0 ? old : [0, 0];
+  // The screen may be above the list or past its end (another group is on screen): hold on to the nearest rows, so
+  // there is always at least one row to measure and the range comes back when the screen does.
+  const seenFrom = Math.min(n - 1, Math.max(0, Math.floor(from / pitch)));
+  const seenTo = Math.max(seenFrom + 1, Math.min(n, Math.ceil((from + view) / pitch)));
+  const valid = old[0] < old[1] && old[1] <= n;
   const lowOk = old[0] === 0 || seenFrom >= old[0] + EDGE;
   const highOk = old[1] === n || seenTo <= old[1] - EDGE;
-  if (lowOk && highOk && old[1] <= n) return old;
+  if (valid && lowOk && highOk) return old;
   return [Math.max(0, seenFrom - OVERSCAN), Math.min(n, seenTo + OVERSCAN)];
 }
 
@@ -45,6 +49,7 @@ export function WindowedRows({ rows, className }: { rows: ReactNode[]; className
   const [range, setRange] = useState<Range>([0, Math.min(n, FIRST)]);
   // Space for the rows that are not drawn: set from what the drawn ones measure.
   const [pitch, setPitch] = useState(0);
+  const lastPitch = useRef(0);
 
   useLayoutEffect(() => {
     const el = list.current;
@@ -54,13 +59,16 @@ export function WindowedRows({ rows, className }: { rows: ReactNode[]; className
     const measure = () => {
       frame = 0;
       const drawn = el.children.length;
-      if (!drawn) return;
       const cs = getComputedStyle(el);
       const gap = Number.parseFloat(cs.rowGap) || 0;
       const space = Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom);
-      // One row and its gap, from the rows drawn now.
-      const p = (el.getBoundingClientRect().height - space + gap) / drawn;
-      if (!(p > 0)) return;
+      // One row and its gap, from the rows drawn now, or the last measure when none are drawn (the list shrank).
+      const p = drawn ? (el.getBoundingClientRect().height - space + gap) / drawn : lastPitch.current;
+      if (!(p > 0)) {
+        setRange((old) => (old[0] < old[1] && old[1] <= n ? old : [0, Math.min(n, FIRST)]));
+        return;
+      }
+      lastPitch.current = p;
       const top = el.getBoundingClientRect().top - sp.getBoundingClientRect().top + sp.scrollTop;
       const from = sp.scrollTop - top;
       setPitch((old) => (Math.abs(old - p) > 0.5 ? p : old));

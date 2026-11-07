@@ -61,7 +61,7 @@ function page<P extends object>(load: Loader<P>): ComponentType<P> {
   return function Page(props: P) {
     const entry = start(load);
     if (entry.error) {
-      // A chunk that failed to load is asked for again the next time the page is drawn.
+      // Forget the failed load; PageGate (App.tsx) says so, and reloads once when an update took the chunk away.
       loaded.delete(load);
       throw entry.error;
     }

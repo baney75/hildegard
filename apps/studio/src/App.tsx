@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useId, useRef, useState } from 'react';
 import markGreen from './assets/mark-green.svg';
 import markVellum from './assets/mark-vellum.svg';
+import { PageGate } from './components/PageGate.tsx';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
@@ -27,7 +28,11 @@ import { allowedIn, isOwner, useStore } from './lib/store.ts';
 import { useTheme } from './lib/theme.ts';
 
 /** The standalone pages (sign-in, consent links, the welcome) show nothing while their code loads. */
-const Wait = ({ children }: { children: React.ReactNode }) => <Suspense fallback={null}>{children}</Suspense>;
+const Wait = ({ children }: { children: React.ReactNode }) => (
+  <PageGate>
+    <Suspense fallback={null}>{children}</Suspense>
+  </PageGate>
+);
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
@@ -209,7 +214,9 @@ export function App() {
           {nav.slice(0, -1).map((n) => item(n, 'hg-nav-item'))}
           <div className="hg-app__navfoot">{item(nav.at(-1)!, 'hg-nav-item')}</div>
         </nav>
-        <Suspense fallback={<main id="main" aria-busy="true" />}>{page}</Suspense>
+        <PageGate>
+          <Suspense fallback={<main id="main" aria-busy="true" />}>{page}</Suspense>
+        </PageGate>
         <nav className="hg-tabbar" aria-label="Main">
           {nav.length <= MAX_TABS ? (
             nav.map((n) => item(n, 'hg-tab', 22))
