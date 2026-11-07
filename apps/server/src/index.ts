@@ -14,4 +14,5 @@ export * from './report.ts';
 export * from './scheduler.ts';
 export * from './server.ts';
 export * from './store.ts';
+export * from './tunnel.ts';
 export * from './update.ts';

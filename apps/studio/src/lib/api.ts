@@ -28,6 +28,7 @@ import type {
   SpeakRequestInput,
   Still,
   Take,
+  TunnelReport,
   UpdateState,
   Voice,
   VoiceJob,
@@ -319,7 +320,15 @@ export const api = {
   changePassphrase: (current: string, next: string) =>
     call<AuthState>('POST', '/api/auth/passphrase', { current, next }),
   host: () => call<HostState>('GET', '/api/host'),
-  hostOn: (via: 'tailscale' | 'funnel') => call<HostState>('POST', '/api/host', { via }),
+  hostOn: (via: 'tailscale' | 'funnel' | 'quick') => call<HostState>('POST', '/api/host', { via }),
+  cloudflareOn: (hostname: string) => call<HostState>('POST', '/api/host', { via: 'cloudflare', hostname }),
+  tunnel: () => call<TunnelReport>('GET', '/api/tunnel'),
+  cloudflareLogin: () =>
+    call<{ done: boolean; url: string | null; opened: boolean }>('POST', '/api/tunnel/login', {
+      provider: 'cloudflare',
+    }),
+  cloudflareInstall: () =>
+    call<{ installed: boolean; version: string }>('POST', '/api/tunnel/install', { provider: 'cloudflare' }),
   hostOff: () => call<HostState>('POST', '/api/host/off'),
   createCharacter: (body: {
     name: string;

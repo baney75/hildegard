@@ -37,7 +37,18 @@ const hostStep = (h: HostState): Step =>
         id: 'host',
         title: 'Host at a link',
         status: 'done',
-        detail: `${h.url} · ${{ tailscale: 'HTTPS on your tailnet (Tailscale Serve)', funnel: 'HTTPS on the public internet (Tailscale Funnel)', address: 'plain HTTP on your tailnet, which WireGuard encrypts', custom: 'HTTPS through your own front door' }[h.via!]}. Everyone signs in there.`,
+        detail: `${h.url} · ${
+          h.via === 'custom' && h.tunnel === 'cloudflare'
+            ? 'HTTPS on the public internet, through your Cloudflare tunnel'
+            : h.via === 'custom' && h.tunnel === 'quick'
+              ? 'HTTPS on the public internet, through a temporary Cloudflare quick tunnel whose name changes each time Hildegard starts'
+              : {
+                  tailscale: 'HTTPS on your tailnet (Tailscale Serve)',
+                  funnel: 'HTTPS on the public internet (Tailscale Funnel)',
+                  address: 'plain HTTP on your tailnet, which WireGuard encrypts',
+                  custom: 'HTTPS through your own front door',
+                }[h.via!]
+        }. Everyone signs in there.`,
       }
     : h.on
       ? {
@@ -110,6 +121,54 @@ function failure(id: string, title: string, e: unknown): Result {
       },
     ],
     err.message,
+  );
+}
+
+/** The body of `POST /api/host`: how to put this Hildegard at a link. */
+export interface HostBody {
+  via: 'tailscale' | 'funnel' | 'address' | 'custom' | 'cloudflare' | 'quick';
+  address?: string;
+  url?: string;
+  hostname?: string;
+}
+
+/**
+ * Put this Hildegard at a link: the owner account first (asked for here at a terminal), then the route. The host step
+ * comes last, as agents read it.
+ */
+export async function hostOn(ctx: Ctx, body: HostBody, warning: string | null): Promise<Result> {
+  const c = ctx.config;
+  const interactive = process.stdin.isTTY && !ctx.json;
+  if (warning && !ctx.json) console.log(`${bold('Careful.')} ${warning}\n`);
+  let h = await api<HostState>(c, '/api/host');
+  const steps: Step[] = [];
+  if (!h.owner) {
+    if (!interactive) return result([ownerStep()], 'Waiting on the owner account.', { host: h });
+    const made = await host(ctx, ['owner']);
+    steps.push(...made.steps);
+    if (!made.ok || made.needsOwner) return { ...made, steps };
+  }
+  try {
+    // A named tunnel makes the tunnel and its DNS record, then waits for Cloudflare: give it time.
+    h = await api<HostState>(c, '/api/host', { method: 'POST', body, timeoutMs: 120_000 });
+  } catch (e) {
+    const f = failure('host', 'Host at a link', e);
+    return { ...f, steps: [...steps, ...f.steps] };
+  }
+  steps.push(hostStep(h));
+  const mcp = mcpStep(h);
+  return result(
+    steps,
+    h.url
+      ? `Open ${h.url} on your other devices and sign in. Invite people with \`hildegard host invite\`.`
+      : (h.problem ?? ''),
+    {
+      host: h,
+      url: h.url,
+      mcpUrl: h.url ? `${h.url}/mcp` : null,
+      ...(mcp ? { mcp: mcp.detail } : {}),
+      ...(warning ? { warning } : {}),
+    },
   );
 }
 
@@ -218,37 +277,7 @@ export async function host(ctx: Ctx, args: string[]): Promise<Result> {
       }
       const via = publicUrl !== undefined ? 'custom' : funnel ? 'funnel' : address ? 'address' : 'tailscale';
       const warning = funnel ? FUNNEL_WARNING : publicUrl !== undefined ? FRONT_DOOR_WARNING : null;
-      if (warning && !ctx.json) console.log(`${bold('Careful.')} ${warning}\n`);
-      let h = await api<HostState>(c, '/api/host');
-      const steps: Step[] = [];
-      if (!h.owner) {
-        if (!interactive) return result([ownerStep()], 'Waiting on the owner account.', { host: h });
-        const made = await host(ctx, ['owner']);
-        steps.push(...made.steps);
-        if (!made.ok || made.needsOwner) return { ...made, steps };
-      }
-      try {
-        h = await api<HostState>(c, '/api/host', { method: 'POST', body: { via, address, url: publicUrl } });
-      } catch (e) {
-        const f = failure('host', 'Host at a link', e);
-        return { ...f, steps: [...steps, ...f.steps] };
-      }
-      steps.push(hostStep(h));
-      // The host step stays last, as agents read it; how AI apps reach the MCP rides along as fields.
-      const mcp = mcpStep(h);
-      return result(
-        steps,
-        h.url
-          ? `Open ${h.url} on your other devices and sign in. Invite people with \`hildegard host invite\`.`
-          : (h.problem ?? ''),
-        {
-          host: h,
-          url: h.url,
-          mcpUrl: h.url ? `${h.url}/mcp` : null,
-          ...(mcp ? { mcp: mcp.detail } : {}),
-          ...(warning ? { warning } : {}),
-        },
-      );
+      return hostOn(ctx, { via, address, url: publicUrl }, warning);
     }
 
     case 'off': {
