@@ -1042,6 +1042,25 @@ describe('host and doctor', () => {
       expect(made.ok, made.message).toBe(true);
       expect(made.site).toMatchObject({ title: 'Corner Bakery', pages: ['index.html'] });
       expect((await hildegard(home, 'sites', ...at)).steps[0]).toMatchObject({ title: 'Corner Bakery' });
+      // Publishing: nobody sees the site until the owner says so, and --off takes it down again.
+      const id = (made.site as { id: string }).id;
+      const front = `${new URL(srv.url).origin}/s/${id}/`;
+      expect((await fetch(front)).status).toBe(404);
+      expect((await hildegard(home, 'sites', 'publish', ...at)).ok).toBe(false);
+      const pub = await hildegard(
+        home,
+        'sites',
+        'publish',
+        id,
+        '--address',
+        'https://bakery.example/',
+        ...at,
+      );
+      expect(pub.ok, pub.message).toBe(true);
+      expect(pub.message).toContain('https://bakery.example/');
+      expect((await fetch(front)).status).toBe(200);
+      expect((await hildegard(home, 'sites', 'publish', id, '--off', ...at)).ok).toBe(true);
+      expect((await fetch(front)).status).toBe(404);
       const needs = await hildegard(
         home,
         'sites',

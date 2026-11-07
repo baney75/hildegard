@@ -43,3 +43,33 @@ All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so t
 The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
 It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
 at the top of `docs/`, so the two cannot drift apart without the tests failing.
+
+## Your own voice
+
+An AI app writes better for you when it knows how you write. Hildegard keeps that for each person, apart from
+everyone else's, in the data folder under `writing/<person>/`:
+
+- `voice.md`: short rules in your own words. What to do, what never to do, and a phrase of yours for each. Every time
+  it is replaced, the old version goes to `history/voice-<time>.md`, and the last 20 are kept.
+- `samples/`: things you wrote, up to 50,000 characters each and 200 in all.
+- `edits.jsonl`: one line each time you changed a draft an app wrote: the phrases you cut and the ones you added, the
+  word counts, and how many fails and warnings the prose lint found in the draft and in your final text. The last
+  2,000 lines are kept.
+
+Folders are readable by you alone (0700) and files too (0600). On this computer the voice is the first owner's. From
+another device it is the person who signed in. A director reaches only their own: asking for someone else's is
+refused. An owner can name another person with `?person=<id>`.
+
+| Where | How |
+| --- | --- |
+| Studio | Settings › Writing: paste or choose `.md` and `.txt` samples, remove them, read and edit the voice notes, and see what you changed lately and the phrases you cut most. |
+| API | `GET` and `PUT /api/writing/voice`, `GET` and `POST /api/writing/samples`, `DELETE /api/writing/samples/<id>`, `GET` and `POST /api/writing/edits` (body `{ draft, final, note? }`). |
+| MCP | `writing_voice` reads the notes, the sample titles, the last 10 edits and the 30 phrases cut most. `writing_voice_add_sample`, `writing_voice_record_edit` and `writing_voice_update` write. |
+
+How an agent uses it: read `writing_voice` before writing anything in a person's name. When they hand over something
+they wrote, add it as a sample. When they change a draft, send both versions with `writing_voice_record_edit`. When
+the same phrases keep going, write a rule for it with `writing_voice_update`, then lint the next draft as usual.
+
+The server finds the phrases by comparing sentences in order, then the words inside any sentence that was rewritten,
+so “delve into” turning into “look at” is recorded as that. Nothing is learned without a person: Hildegard never
+changes `voice.md` by itself.

@@ -5,7 +5,9 @@
  * /preview/<id>/<key>/, where its pages run sandboxed, with no way to Hildegard's API.
  */
 import { readFileSync } from 'node:fs';
+import { lintProse } from '@hildegard/craft';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import type { Ctx, HgEnv } from './access.ts';
 import { TYPES } from './browser.ts';
@@ -15,6 +17,7 @@ import { designSite, esc } from './design.ts';
 import { FigmaError, type FigmaFetch, importFigma } from './figma.ts';
 import type { SecretStore } from './hf.ts';
 import { PenError, parseJsonc, penDesign, penImages } from './pen.ts';
+import { rebuildBlog, writePost } from './posts.ts';
 import { ImportError, type importUrl } from './site-import.ts';
 import { SiteError, type Sites, sitePath } from './sites.ts';
 import { listTemplates, templateFiles } from './templates.ts';
@@ -29,6 +32,10 @@ export interface SiteRouteDeps {
   importUrl?: (url: string) => ReturnType<typeof importUrl>;
   /** Figma's API, for the tests. */
   figmaFetch?: FigmaFetch;
+  /** The link this computer is at, if it is at one (no trailing slash). */
+  hostUrl?: () => string | null;
+  /** The clock a post's date comes from; tests give a fixed one. */
+  now?: () => Date;
 }
 
 const TEXT = /\.(html?|css|js|mjs|json|svg|txt|md|xml|webmanifest)$/i;
@@ -111,10 +118,20 @@ export function siteRoutes(d: SiteRouteDeps) {
       }
     };
   const body = async (c: Ctx) => (await c.req.json().catch(() => ({}))) as unknown;
+  /** Where the site's front page is on the public web: the address the owner gave, else the host link's /s/<id>/. */
+  const baseOf = (id: string): string | null => {
+    const given = sites.get(id).publicUrl;
+    if (given) return given;
+    const link = d.hostUrl?.();
+    return link ? `${link.replace(/\/$/, '')}/s/${id}/` : null;
+  };
   const view = (id: string) => ({
     ...sites.view(id),
     preview: `/preview/${id}/${sites.get(id).previewKey}/`,
     fileList: sites.files(id),
+    /** Where it is for everyone when published (a path on this server). */
+    path: `/s/${id}/`,
+    address: baseOf(id),
   });
   const figmaToken = () => d.secrets('figma').get();
 
@@ -304,11 +321,72 @@ export function siteRoutes(d: SiteRouteDeps) {
         .object({
           title: z.string().trim().min(1).max(120).optional(),
           newPreviewKey: z.boolean().optional(),
+          /** Where the site's front page is on the public web, or null to take it back to the host link. */
+          publicUrl: z.string().trim().max(500).nullable().optional(),
         })
         .parse(await body(c));
-      sites.update(c.req.param('id') ?? '', b);
-      return view(c.req.param('id') ?? '');
+      const id = c.req.param('id') ?? '';
+      sites.update(id, b);
+      // Feeds and sitemaps link to the address, so they are written again with the new one.
+      if (b.publicUrl !== undefined && sites.get(id).posts.length) rebuildBlog(sites, id, baseOf(id));
+      return view(id);
     }),
+  );
+
+  // Publishing changes what the public sees, so only the owner does it (every route here is the owner's).
+  app.put(
+    '/:id/publish',
+    go(async (c) => {
+      const id = c.req.param('id') ?? '';
+      const b = z.object({ published: z.boolean() }).parse(await body(c));
+      sites.setPublished(id, b.published);
+      // The feed and sitemap carry the address it is published at.
+      if (sites.get(id).posts.length) rebuildBlog(sites, id, baseOf(id));
+      return view(id);
+    }),
+  );
+
+  // Posts: a page for each under blog/, with the list, the feed and the sitemap kept in step.
+  const Post = z.object({
+    title: z.string().trim().min(1, 'Give the post a title.').max(200),
+    body_md: z.string().min(1, 'Give the post some words.').max(500_000),
+    byline: z.string().trim().min(1, 'Give a byline, such as “By Jane Doe, with Hildegard”.').max(200),
+    date: z.string().max(10).optional(),
+    slug: z.string().trim().max(60).optional(),
+    summary: z.string().max(600).optional(),
+    draft: z.boolean().optional(),
+    notes_md: z.string().max(500_000).optional(),
+  });
+  app.get(
+    '/:id/posts',
+    go((c) => {
+      const s = sites.get(c.req.param('id') ?? '');
+      return { posts: s.posts, drafts: s.drafts };
+    }),
+  );
+  app.post(
+    '/:id/posts',
+    bodyLimit({
+      maxSize: 4_000_000,
+      onError: (c) =>
+        c.json({ error: 'That post is too long to send at once.' }, 413, { connection: 'close' }),
+    }),
+    go(async (c) => {
+      const id = c.req.param('id') ?? '';
+      const b = Post.parse(await body(c));
+      sites.get(id);
+      const out = writePost(sites, id, b, { base: baseOf(id), now: d.now });
+      const lint = lintProse(b.body_md);
+      return {
+        ...out,
+        site: view(id),
+        lint: {
+          ok: lint.ok,
+          fails: lint.findings.filter((f) => f.severity === 'fail').map((f) => f.id),
+          warns: lint.findings.filter((f) => f.severity === 'warn').map((f) => f.id),
+        },
+      };
+    }, 201),
   );
   app.delete(
     '/:id',

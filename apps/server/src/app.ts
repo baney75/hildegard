@@ -100,6 +100,7 @@ import {
   type PrinterProfile,
   type Slicer,
 } from './printer.ts';
+import { publicSiteRoutes } from './public-sites.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
@@ -111,6 +112,8 @@ import type { Updates } from './update.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
+import { WritingStore } from './writing.ts';
+import { writingRoutes } from './writing-routes.ts';
 
 export const VERSION = '0.1.17';
 
@@ -213,6 +216,8 @@ export interface AppDeps {
     libraries: string[];
     sandbox: 'sandbox-exec' | 'bwrap' | null;
   };
+  /** Each person's own writing voice; in the data folder unless a test says otherwise. */
+  writing?: WritingStore;
   /** The owner's websites: templates, imports, files and previews. */
   sites?: {
     store: Sites;
@@ -341,9 +346,11 @@ export function createApp(deps: AppDeps) {
     c.header('referrer-policy', 'no-referrer');
     // A site's preview is framed by the Studio's canvas, and its page (sandboxed, so of no origin) loads its own files.
     const preview = c.req.path.startsWith('/preview/');
+    // A published site is public and sandboxed: its own pictures and fonts load across origins, and nothing frames it.
+    const published = c.req.path.startsWith('/s/');
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
-    c.header('cross-origin-resource-policy', preview ? 'cross-origin' : 'same-origin');
+    c.header('cross-origin-resource-policy', preview || published ? 'cross-origin' : 'same-origin');
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
@@ -367,6 +374,11 @@ export function createApp(deps: AppDeps) {
     // MCP and OAuth check their own bearer tokens and passphrases; a cookie means nothing to them.
     if (ownAuth(path) && !c.env?.as) {
       c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
+      return next();
+    }
+    // A published site is for everyone: no cookie is read, none is rotated, and nobody here counts as the owner.
+    if (path.startsWith('/s/')) {
+      c.set('who', null);
       return next();
     }
     // A link from an MCP result: one file, until it expires, without signing in.
@@ -2208,6 +2220,21 @@ export function createApp(deps: AppDeps) {
     },
   );
 
+  // ── A writer's own voice: samples, the rules learned from them, and what they changed in drafts ──────────────
+  const writing = deps.writing ?? new WritingStore(join(deps.config.dataDir, 'writing'));
+  app.route(
+    '/api/writing',
+    writingRoutes({
+      store: writing,
+      people: () =>
+        people
+          .list()
+          .slice()
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map((p) => ({ id: p.id, role: p.role })),
+    }),
+  );
+
   // ── Reports: bugs and ideas for Hildegard's makers, drafted by agents and filed only once the person said yes ──
   const reports = deps.reports ?? new Reports({ dir: join(deps.config.dataDir, 'reports') });
   const ReportBody = z.object({
@@ -2487,9 +2514,12 @@ export function createApp(deps: AppDeps) {
         secrets: deps.sites.secrets,
         importUrl: deps.sites.importUrl,
         figmaFetch: deps.sites.figmaFetch,
+        // The link this computer is at, when it is at one, so a published site can say its address.
+        hostUrl: () => host.state().url,
       }),
     );
     app.route('/preview', previewRoutes(deps.sites.store));
+    app.route('/s', publicSiteRoutes(deps.sites.store));
   }
 
   // ── The printer ─────────────────────────────────────────────────────────────────────────────────────────────
