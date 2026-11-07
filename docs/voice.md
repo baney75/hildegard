@@ -70,6 +70,53 @@ MCP, but only a person in the Studio can start a clone: `clone_voice` tells the 
 
 “Is this ours?” on the Recordings page, and the `check_watermark` tool, say whether a clip carries Hildegard’s mark.
 
+## Record from any chat
+
+No chat app reliably lets a panel inside it use the microphone, so Hildegard has its own page for it, and the chat
+shows a link to that page. The person opens the link on a phone or computer, taps Record, listens (or watches) back,
+records again if they like, and taps Send. The page never starts the microphone or camera until that tap.
+
+1. **A link.** An agent calls `record_link` (`kind` voice or video, a short `purpose` the page shows, and the
+   `film_id` it is for, if any), or the Studio's `POST /api/record/links` does the same. The link is
+   `<the person’s Hildegard link, or this computer’s address>/record/<token>`. The token is 256 random bits and only its
+   SHA-256 is kept (`<data>/record/recordings.json`, 0600). It works once and for 30 minutes. A file that is the wrong type or too
+   big doesn’t use it up. The link belongs to whoever asked: nothing but that call returns it, and it is never logged.
+2. **The page.** `GET /record/<token>` is the Studio’s page for a live link, 404 for one nobody made and 410 once it
+   has run out. It asks for the microphone, or the camera and microphone, with the browser’s noise suppression and echo
+   cancellation on (the clone recorder turns them off, because a clone should hear the raw voice; a voice-over is
+   cleaned anyway, and room noise is what spoils it). The token is the only credential: it can read what is asked
+   (`GET /api/record/<token>`) and send one recording (`POST /api/record/<token>`, 100 MB for sound, 500 MB for video,
+   the type checked by the file’s first bytes, and against what it holds: a voice has no picture, a video has one).
+3. **Where it goes.** `<media>/recordings/<person>/<id>.<ext>`, with an id of its own (`rec_…`). A person sees their
+   own recordings and links; the owner of this Hildegard and this computer see everyone’s, as they do films. Another
+   person’s recording is answered “no such recording”, over REST and over the MCP. `recording_status` (by id, or by
+   the token, which travels in the body and never the address) says pending, received (with the length and a path, or
+   a link that opens without signing in for an app on another device) or expired.
+
+### Clean it
+
+`clean_voice` (the MCP tool; `POST /api/record/<id>/clean` with `target_lufs`, default -16, and `peak`, default -1.5, is
+the job behind it) makes a new recording from a voice or a video and returns its id with the loudness and true peak it
+measured on the result. The original stays. The chain is in `tools/voice_clean.py` and nowhere else; the skills point
+there. In order: two cascaded 80 Hz high-passes, notches at 50 and 60 Hz and their harmonics (100, 120, 150, 180,
+240), click removal, FFT denoise, level evening, a lighter second denoise, a gate (threshold 0.06, ratio 2, range 0.4),
+a gentle compressor, then two-pass loudnorm with the measured values and `linear=true`. Linear mode needs the take’s
+peak to leave room for the gain, and speech often doesn’t, so when the measured result is off target or over the
+ceiling the gain is set to the target and a look-ahead limiter holds the peak. A video keeps its picture, copied and not
+re-encoded, with the cleaned sound.
+
+It runs on PyAV’s filter graph when that build has every filter in the chain (`highpass`, `bandreject`, `adeclick`,
+`afftdn`, `dynaudnorm`, `agate`, `acompressor`, `loudnorm`, `alimiter`), else on an `ffmpeg` found on PATH, else it says
+that cleaning needs one of the two. `HILDEGARD_CLEAN_BACKEND=pyav` or `ffmpeg` forces one.
+
+### Put it in a film
+
+`export_film` takes an optional `voiceover`: `{ media_id | path, start_seconds: 0, gain_db: 0, duck_db: 12 }`. The voice
+is mixed over the film’s own sound. The film dips by `duck_db` while the voice speaks (the voice’s level sets the
+envelope: it follows within 30 ms, starts 50 ms before the first word, and lets go over 300 ms), the voice is padded or
+cut to the film’s length, and the mix is set to -14 LUFS and -1 dBTP (`tools/export_film.py`, PyAV and numpy). A
+`path` is read by the AI app’s own computer and brought in; an app on another device uses `media_id`.
+
 ## How it fits together
 
 - `voice-engine/` (Apache-2.0): Python workers, one per environment, speaking JSON lines over stdin and stdout
@@ -79,6 +126,9 @@ MCP, but only a person in the Studio can start a clone: `clone_voice` tells the 
 - `apps/server/src/voice-models.ts`: weights, verified like video models.
 - `packages/runtime/src/voice.ts`: the installer behind `hildegard voice install`.
 - `mcp/src/voice-tools.ts`: the MCP tools.
+- `apps/server/src/record.ts`, `record-routes.ts`, `record-clean.ts`: record links, what comes back, and the cleaning job.
+  `mcp/src/record-tools.ts`: `record_link`, `recording_status`, `clean_voice`. `apps/studio/src/pages/Record.tsx`: the page.
+  `tools/voice_clean.py`: the cleanup chain.
 - `apps/studio/src/pages/Voice.tsx` and `pages/voice/`: Speak, Voices, Design, Clone, Recordings, and the phone page
   for consent.
 
