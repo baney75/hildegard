@@ -53,6 +53,46 @@ test('directs a shot: drafts render with progress, then finalize', async ({ page
   expect(errors).toEqual([]);
 });
 
+test('every take has its next step on its card: keep, one more, finalize, try again', async ({
+  page,
+  request,
+}) => {
+  const errors = watchErrors(page);
+  await freshFilm(page, request);
+  await createShot(page, 'A heron lifts off a misty river at first light');
+  const shot = page.getByRole('region', { name: /A heron lifts off/ });
+  await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
+  const first = shot.locator('.cs-card').first();
+  // Keep is a toggle the card shows at once.
+  await first.getByRole('button', { name: 'Keep Draft 1' }).click();
+  await expect(first.getByRole('button', { name: 'Kept Draft 1 · kept' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  // One more like this: a new take of the same shot, with a new seed.
+  await first.getByRole('button', { name: /^One more like Draft 1/ }).click();
+  await expect(shot.locator('.cs-card')).toHaveCount(3);
+  // Finalize: the draft's seed at full quality.
+  await first.getByRole('button', { name: /^Finalize Draft 1/ }).click();
+  await expect(shot.getByRole('button', { name: /^Open Take 4,/ })).toBeVisible();
+  await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
+  // The shot's own button adds one more take, too.
+  await shot.getByRole('button', { name: 'One more take of shot 1' }).click();
+  await expect(shot.locator('.cs-card')).toHaveCount(5);
+  await expectAccessible(page, 'take cards with their actions');
+
+  // A take that failed says why and tries again from its card.
+  await createShot(page, 'A lantern gutters in the wind [fail:oom]');
+  const failed = page.getByRole('region', { name: /A lantern gutters/ });
+  await expect(failed.getByText('Your GPU ran out of memory.').first()).toBeVisible({ timeout: 15_000 });
+  const retries = page.waitForRequest(
+    (r) => r.method() === 'POST' && /\/api\/takes\/\w+\/retry$/.test(r.url()),
+  );
+  await failed.locator('.cs-card').first().getByRole('button', { name: 'Try again' }).click();
+  await retries;
+  expect(errors).toEqual([]);
+});
+
 test('rig, motion, look and format sheets change the next shot', async ({ page, request }) => {
   const errors = watchErrors(page);
   await freshFilm(page, request);

@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Making: takes fill the board at a size worth judging, and every take has its next step one tap away. */
+.hg-app:not([data-wc="compact"]) .cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 420px)); gap: 20px 16px; }
+.hg-app:not([data-wc="compact"]) .cs-grid .cs-card { width: auto; }
+
+.cs-card__meta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; min-height: 32px; }
+.cs-card__meta > * { grid-column: 1 / -1; }
+.cs-card__meta > b { grid-column: 1; grid-row: 1; }
+.cs-quick { grid-column: 2; grid-row: 1; display: flex; gap: 4px; }
+.cs-quick__b { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background-color .16s ease, color .16s ease; }
+.cs-quick__b:hover { background: var(--raised); color: var(--text-primary); }
+.cs-quick__b[aria-pressed="true"] { color: var(--gold-text); }
+.cs-quick__b:disabled { opacity: .5; cursor: progress; }
+@media (pointer: coarse) { .cs-quick__b { width: 44px; height: 44px; } }
+
+.cs-folio__more { flex: none; }

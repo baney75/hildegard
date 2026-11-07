@@ -3,8 +3,9 @@ import type { Project, Shot, Take } from '@hildegard/presets';
 import { useEffect, useRef } from 'react';
 import { about, roman } from '../lib/format.ts';
 import { useStore } from '../lib/store.ts';
+import { takeAgain } from '../lib/takes.ts';
 import { TakeCard } from './TakeCard.tsx';
-import { Icon } from './ui.tsx';
+import { Icon, toastError } from './ui.tsx';
 
 export function Board({
   project,
@@ -67,6 +68,17 @@ export function Board({
               </h2>
               <span className="cs-folio__rule" />
               <span className="cs-folio__m">{meta}</span>
+              {ts.length ? (
+                <button
+                  type="button"
+                  className="hg-btn hg-btn--sm hg-btn--ghost cs-folio__more"
+                  aria-label={`One more take of shot ${i + 1}`}
+                  onClick={() => takeAgain(ts.at(-1)!).catch(toastError)}
+                >
+                  <Icon name="plus" size={16} />
+                  Take
+                </button>
+              ) : null}
             </div>
             <div className="cs-grid">
               {ts.map((t) => {
