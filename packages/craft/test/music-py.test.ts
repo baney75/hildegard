@@ -301,6 +301,30 @@ suite('hildegard-music: music templates', () => {
     expect(r.report.stats!.duration_s).toBeCloseTo(14, 1);
   });
 
+  it('a shuffle lands the swung eighths and the triplet-grid shaker together', async () => {
+    const code = `
+import sys, json, math
+sys.path.insert(0, ${JSON.stringify(join(skill, 'scripts'))})
+import music
+sc = json.load(open(${JSON.stringify(join(skill, 'templates/country_shuffle.json'))}))
+e, w = [], []
+p = music.Piece(sc); p.build_events(e)
+at = {}
+for tr in music.build_tracks(p, e, w):
+    for n in tr['notes']:
+        frac = round(n['q'] - math.floor(n['q'] + 1e-9), 3)
+        at.setdefault(str(frac), set()).add(round(p.t(n['q']) / p.spq - math.floor(n['q'] + 1e-9), 3))
+print(json.dumps({'swing': p.swing, 'at': {k: sorted(v) for k, v in at.items()}}))
+`;
+    const { stdout } = await run(python, ['-c', code]);
+    const r: { swing: number; at: Record<string, number[]> } = JSON.parse(stdout);
+    expect(r.swing).toBe(1);
+    // The off-beat eighths (0.5) and the shaker's triplet (0.667) both land on the triplet, never a ninth of a beat late.
+    expect(r.at['0.5']).toEqual([0.667]);
+    expect(r.at['0.667']).toEqual([0.667]);
+    expect(Object.values(r.at).flat()).not.toContain(0.778);
+  });
+
   it('the chorale has no parallel fifths or octaves and keeps its voices in order', async () => {
     const code = `
 import sys, json
@@ -461,7 +485,7 @@ print(json.dumps({"instruments": list(voices.INSTRUMENTS), "patterns": pats, "dr
       expect(sounds, t).toContain(`\`${t}\``);
     expect(md).toContain('headphones');
     expect(md).toMatch(/No health claims/i);
-    expect(md).toContain('references/song-suno.md');
+    expect(md).toContain("**hildegard** skill's `song-suno.md`");
     expect(existsSync(join(skill, 'references/models.md'))).toBe(true);
   });
 });

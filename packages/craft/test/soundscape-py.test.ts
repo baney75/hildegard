@@ -196,6 +196,16 @@ suite('hildegard-music: soundscapes', () => {
     const j = await go([join(skill, 'soundscapes/binaural_wind_down.json'), '--check', '--minutes', '60']);
     expect(j.report.errors).toEqual([]);
     expect(j.report.warnings.join(' ')).not.toMatch(/stages/);
+    // and every one of its four stages is measured in the file, the last (3 Hz) included
+    const w = await go([
+      join(skill, 'soundscapes/binaural_wind_down.json'),
+      join(work, 'wind.wav'),
+      '--minutes',
+      '1.5',
+    ]);
+    expect(w.report.errors).toEqual([]);
+    expect(w.report.beats.map((b) => b.expected_hz)).toEqual([14, 10, 6, 3]);
+    for (const b of w.report.beats) expect(Math.abs(b.measured_hz - b.expected_hz)).toBeLessThanOrEqual(0.1);
   });
 
   it('an isochronic layer pulses at the rate in the recipe', async () => {

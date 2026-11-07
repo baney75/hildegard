@@ -604,7 +604,10 @@ class Piece:
         if self.swing <= 0:
             return q * self.spq
         base = math.floor(q + 1e-9)
-        return (base + swing_warp(q - base, self.swing)) * self.spq
+        x = q - base
+        if abs(x * 3 - round(x * 3)) < 1e-6:
+            return q * self.spq  # already on the triplet grid (a shuffle's 2/3): swinging it again would land it late
+        return (base + swing_warp(x, self.swing)) * self.spq
 
 
 def section_value(track, name):

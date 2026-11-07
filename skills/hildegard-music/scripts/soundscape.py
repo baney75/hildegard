@@ -1005,13 +1005,12 @@ def beat_checks(recipe, total_s, path):
         key = "beat_hz" if L["type"] == "binaural" else "rate_hz"
         sched = stage_sched(L, key, 10.0, total_s)
         car = stage_sched(L, "carrier_hz", 200.0, total_s)
-        for t0, t1, v0, v1, kind in zip(sched.t0, sched.t1, sched.v0, sched.v1, sched.kind):
-            if kind != 0 or t0 >= total_s:
-                continue
-            t1 = min(t1, total_s)
+        steady = [(t0, min(t1, total_s), v0) for t0, t1, v0, kind in zip(sched.t0, sched.t1, sched.v0, sched.kind)
+                  if kind == 0 and t0 < total_s and min(t1, total_s) - t0 >= 9]
+        if len(steady) > 8:  # a long journey: eight stages spread over it, the first and the last always among them
+            steady = [steady[j] for j in sorted({round(k * (len(steady) - 1) / 7) for k in range(8)})]
+        for t0, t1, v0 in steady:
             span = t1 - t0
-            if span < 9:
-                continue
             tc = t0 + span / 2
             win = min(12.0, span - 2)
             c = float(car.value(tc))
@@ -1024,8 +1023,6 @@ def beat_checks(recipe, total_s, path):
             else:
                 measured = measure_rate(path, tc, win, v0)
                 out.append({"layer": i, "type": "isochronic", "at_s": round(tc, 1), "expected_hz": v0, "measured_hz": round(measured, 3)})
-            if len([o for o in out if o["layer"] == i]) >= 3:
-                break
     return out
 
 
