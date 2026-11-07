@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Posts on a site: a page in the site's own look, the list newest first, the feed and the sitemap; drafts left out;
 // Markdown that can't carry HTML; notes kept private.
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { markdown } from '../src/markdown.ts';
+import { CASES } from './fixtures/markdown-cases.ts';
 import { boot, type Harness, textOf } from './harness.ts';
 
 let h: Harness;
@@ -58,6 +60,36 @@ describe('the Markdown renderer', () => {
     expect(out).toContain('<ol>');
     expect(out).toContain('<hr class="break">');
     expect(out).toMatch(/<ul>\n<li>x\n<ul>\n<li>y<\/li>/);
+  });
+
+  // Each hostile post is rendered in a child process with a timeout, so a renderer that backtracks is killed and the
+  // test fails, rather than freezing the suite. The child measures CPU time (best of three), as the edit-size tests do.
+  it.each(Object.keys(CASES))(
+    'renders 500,000 characters of %s in under 200 ms',
+    (name) => {
+      const run = spawnSync(
+        process.execPath,
+        [join(import.meta.dirname, 'fixtures', 'markdown-cpu.ts'), name],
+        { encoding: 'utf8', timeout: 40_000 },
+      );
+      expect(run.error, `${name}: ${run.error?.message}`).toBeUndefined();
+      expect(run.status, `${name}: ${run.stderr.slice(-300)}`).toBe(0);
+      const out = JSON.parse(run.stdout) as { ms: number; length: number };
+      expect(out.length).toBeGreaterThan(0);
+      expect(out.ms).toBeLessThan(200);
+    },
+    60_000,
+  );
+  it('reads code spans by CommonMark’s rule: a span closes at the next run of the same length', () => {
+    expect(markdown('a `x` b ``y ` z`` c ```k``` d')).toBe(
+      '<p>a <code>x</code> b <code>y ` z</code> c <code>k</code> d</p>',
+    );
+    expect(markdown('`one` and ``two`` and `` `three` ``')).toContain('<code>`three`</code>');
+    // Runs of different lengths do not close each other, and an unmatched run is text.
+    expect(markdown('``a` b')).toBe('<p>``a` b</p>');
+    expect(markdown('x ```a`` b')).toBe('<p>x ```a`` b</p>');
+    // What is inside a span is literal.
+    expect(markdown('`*a* <b>`')).toBe('<p><code>*a* &lt;b&gt;</code></p>');
   });
 });
 
