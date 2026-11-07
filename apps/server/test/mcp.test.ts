@@ -97,6 +97,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'writing_voice',
       'writing_voice_add_sample',
       'writing_voice_record_edit',
+      'writing_voice_samples',
       'writing_voice_update',
     ]);
     expect(client.getInstructions()).toContain('hildegard_status');
