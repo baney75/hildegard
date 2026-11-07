@@ -66,7 +66,7 @@ ffmpeg -hide_banner -nostats -i "$OUT" -af ebur128=peak=true -f null - 2>&1 | gr
 
 ### Recipe B: music under a voice-over
 
-Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (seconds after the last word) and the target. The music drops 16 dB while the voice speaks and comes back in pauses of 0.6 s or more. It is read from the voice with silencedetect, so it needs no sidechain graph.
+Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (seconds after the last word) and the target. The music drops 16 dB while the voice speaks and comes back in pauses of 0.6 s or more. It is read from the voice with silencedetect, so it needs no sidechain graph. It never cuts the voice: if `TOTAL` ends before the last spoken word it stops and says how many seconds over. Raise `TOTAL`, or run it with `ALLOW_OVERRUN=1` to let the total grow to the last word plus `TAIL`.
 
 ```bash
 #!/usr/bin/env bash
@@ -75,7 +75,7 @@ Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (s
 set -euo pipefail
 VOICE=${VOICE:-voice.wav}; MUSIC=${MUSIC:-music.wav}; OUT=${OUT:-out.wav}
 START=${START:-4}; FADEIN=${FADEIN:-3}; FADEOUT=${FADEOUT:-4}; TAIL=${TAIL:-4}; DUCK=${DUCK:-16}; REL=${REL:--8}
-TARGET=${TARGET:--16}; PEAK=${PEAK:--1.5}; TOTAL=${TOTAL:-}   # TOTAL empty = START + the voice's last word + TAIL
+TARGET=${TARGET:--16}; PEAK=${PEAK:--1.5}; TOTAL=${TOTAL:-}   # TOTAL empty = START + the voice's last word + TAIL; ALLOW_OVERRUN=1 grows a TOTAL that is too short
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 # 1) where the voice speaks: silencedetect finds pauses of 0.6 s or more; speech is what lies between them.
 VD=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VOICE")
@@ -86,7 +86,13 @@ ffmpeg -hide_banner -i "$VOICE" -af "silencedetect=noise=${NOISE}dB:d=0.6" -f nu
 SEG=$(awk -v vd="$VD" '/start/{s[++n]=$2} /end/{e[++m]=$2} END{a=0; for(i=1;i<=n;i++){ if(s[i]>a+0.05) print a, s[i]; a=(i<=m)?e[i]:vd } if(a<vd-0.05) print a, vd}' "$TMP/sil.txt")
 EXPR=$(printf '%s\n' "$SEG" | awk -v st="$START" -v d="$DUCK" 'BEGIN{g=10^(-d/20)} {a=$1+st; b=$2+st; x=x (x?"+":"") sprintf("clip((t-%.3f)/0.3,0,1)*clip((%.3f-t)/0.5,0,1)", a-0.3, b+0.5)} END{printf "1-(1-%.5f)*min(1,%s)", g, x}')
 LASTEND=$(printf '%s\n' "$SEG" | awk 'END{print $2}')
-[ -n "$TOTAL" ] || TOTAL=$(awk -v s="$START" -v e="$LASTEND" -v t="$TAIL" 'BEGIN{printf "%.2f", s+e+t}')
+FULL=$(awk -v s="$START" -v e="$LASTEND" -v t="$TAIL" 'BEGIN{printf "%.2f", s+e+t}')
+if [ -z "$TOTAL" ]; then TOTAL=$FULL
+elif awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{exit !(t < s+e+0.1)}'; then
+  OVER=$(awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{printf "%.2f", s+e+0.1-t}')
+  [ "${ALLOW_OVERRUN:-0}" = 1 ] || { echo "the voice speaks until $(awk -v s="$START" -v e="$LASTEND" 'BEGIN{printf "%.2f", s+e}') s but TOTAL is $TOTAL s: $OVER s over. Use a TOTAL of at least $(awk -v t="$TOTAL" -v o="$OVER" 'BEGIN{printf "%.1f", int((t+o)*10+0.999999)/10}'), a shorter voice or a smaller START, or ALLOW_OVERRUN=1 to let the total grow. Nothing was written." >&2; exit 1; }
+  echo "note: the voice needs $OVER s more than TOTAL, so the total grows from $TOTAL s to $FULL s" >&2; TOTAL=$FULL
+fi
 # 2) music level: set REL dB from the voice's own loudness, before ducking.
 lufs() { ffmpeg -hide_banner -nostats -i "$1" ${2:-} -af ebur128 -f null - 2>&1 | sed -n 's/.*  I: *\(-*[0-9.]*\) LUFS.*/\1/p' | tail -1; }
 VL=$(lufs "$VOICE"); ML=$(lufs "$MUSIC")

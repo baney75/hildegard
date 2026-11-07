@@ -3,12 +3,14 @@
 """Put music under a voice-over: the music drops 16 dB while the voice speaks and comes back in the pauses.
 
   python3 duck_mix.py VOICE MUSIC OUT [--voice-start 4] [--fade-in 3] [--fade-out 4] [--tail 4] [--total SECONDS]
-                      [--duck 16] [--under -8] [--lufs -16] [--peak -1.5]
+                      [--duck 16] [--under -8] [--lufs -16] [--peak -1.5] [--allow-overrun]
 
 --voice-start  seconds of music before the voice comes in (default 4)
 --fade-in      music fade-in, seconds from the start (default 3)
 --tail         seconds of music after the last spoken word (default 4); the length is voice-start + speech + tail
---total        exact length in seconds; overrides --tail
+--total        exact length in seconds; overrides --tail. The voice is never cut: if it speaks past --total the script stops
+               and says how many seconds over, before writing anything
+--allow-overrun  grow the total to voice-start + speech + tail instead of stopping
 --fade-out     music fade-out at the very end, seconds (default 4)
 --duck         how far the music drops while the voice speaks, dB (default 16; at least 12 is the rule)
 --under        music loudness between words, dB against the voice's own loudness (default -8)
@@ -18,7 +20,7 @@ The voice is read with silencedetect: a pause of 0.6 s or more lets the music co
 keep it down. The music loops if it is shorter than the piece. Output is stereo, written by loudnorm in two passes.
 Needs only Python 3, ffmpeg and ffprobe on PATH.
 """
-import argparse, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
 
 FFMPEG = shutil.which("ffmpeg")
 FFPROBE = shutil.which("ffprobe")
@@ -99,12 +101,22 @@ def main():
     ap.add_argument("--under", type=float, default=-8.0)
     ap.add_argument("--lufs", type=float, default=-16.0)
     ap.add_argument("--peak", type=float, default=-1.5)
+    ap.add_argument("--allow-overrun", action="store_true")
     a = ap.parse_args()
     if not (FFMPEG and FFPROBE):
         sys.exit("ffmpeg and ffprobe must be on PATH")
     vd = duration(a.voice)
     segs = speech_segments(a.voice, vd)
-    total = a.total if a.total else a.voice_start + segs[-1][1] + a.tail
+    spoken_to = a.voice_start + segs[-1][1]
+    total = a.total if a.total else spoken_to + a.tail
+    if a.total and a.total < spoken_to + 0.1:
+        need = spoken_to + 0.1
+        if not a.allow_overrun:
+            sys.exit(f"the voice speaks until {spoken_to:.2f} s (--voice-start {a.voice_start:g} s plus {segs[-1][1]:.2f} s of voice) but --total is {a.total:g} s: "
+                     f"{need - a.total:.2f} s over. Use a --total of at least {math.ceil(need * 10) / 10:.1f}, a shorter voice or a smaller --voice-start, "
+                     "or --allow-overrun to let the total grow. Nothing was written.")
+        total = spoken_to + a.tail
+        print(f"note: the voice needs {need:.2f} s, so the total grows from {a.total:g} s to {total:.2f} s", file=sys.stderr)
     g = 10 ** (-a.duck / 20)
     # music gain curve: 1 = full, down to g while the voice speaks; ramps of 0.3 s before and 0.5 s after each stretch of speech
     terms = "+".join(f"clip((t-{s + a.voice_start - 0.3:.3f})/0.3,0,1)*clip(({e + a.voice_start + 0.5:.3f}-t)/0.5,0,1)" for s, e in segs)
@@ -116,7 +128,7 @@ def main():
         mix = os.path.join(tmp, "mix.wav")
         fc = (f"[0:a]aformat=channel_layouts=stereo,afade=t=in:d=0.01,adelay={int(a.voice_start * 1000)}:all=1[v];"
               f"[1:a]aformat=channel_layouts=stereo,atrim=duration={total:.3f},asetpts=PTS-STARTPTS,volume={music_gain:.2f}dB,"
-              f"volume='{expr}':eval=frame:precision=float,afade=t=in:d={a.fade_in},afade=t=out:st={total - a.fade_out:.3f}:d={a.fade_out}[m];"
+              f"volume='{expr}':eval=frame:precision=float,afade=t=in:d={a.fade_in},afade=t=out:st={max(0.0, total - a.fade_out):.3f}:d={a.fade_out}[m];"
               "[v][m]amix=inputs=2:duration=longest:normalize=0")
         ff("-i", a.voice, "-stream_loop", "-1", "-i", a.music, "-filter_complex", fc, "-t", f"{total:.3f}", "-c:a", "pcm_f32le", mix)
         peak = a.peak
