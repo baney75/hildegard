@@ -1,16 +1,82 @@
 ---
 name: hildegard-video-edit
-description: Use when asked to edit, cut, trim, grade, caption, reframe, mix or finish a video - FFmpeg to a professional standard, on Hildegard's footage or the user's, checked with hildegard review.
+description: Use when asked to edit, cut, tighten, caption, blur or reframe a video, or cut fillers, pauses or bad takes - an edit list rendered and proven on the output, plus FFmpeg recipes for the rest.
 ---
 
 # Editing video
 
-Read **hildegard-craft** first. Editing is where most slop is either made (transitions, filler, loud music) or
-removed. Your job is to make it shorter, clearer and cleaner.
+Read **hildegard-craft** first. Editing is where most slop is either made (transitions, filler, loud music) or removed. Your job is to make it shorter, clearer and cleaner, and to prove it on the finished file.
 
-Work on copies. Never overwrite your user's originals; write to a new folder such as `edit/`. Every command below is
-plain FFmpeg (any build from 5.0 up). Check a recipe's output with `hildegard review <file> --sheet sheet.jpg` and look
-at the sheet before moving on.
+## Fast path: write an edit list, render it, prove it
+
+Don't hand-write FFmpeg for a cut. Write (or generate) an **edit list**, `edl.json`: what to keep, what to hide, what to put on it, where it goes. One script renders it on the frame grid and a gate then reads the **output file** and fails unless it matches. Done means the gate passed, not that it rendered.
+
+**With Hildegard linked** (its MCP tools):
+
+1. `edit_plan` with `media_id` (a recording id from `record_link`) or `source_path`, a `target_seconds` and a `target` (`youtube`, `shorts`, `reels`, `tiktok`, `x`, `podcast`). It transcribes (word times, on the owner's GPU) and proposes the list: filler words, earlier takes of a line said again (the last take stays), long dead pauses. It returns every cut with its reason, the list, and the transcript as text.
+2. Read the cuts. To cut exact words, delete them from the transcript text and call `edit_plan` again with `edited_text`. Never retype words: the sound can't change.
+3. For anything else (hide a key, add a title, music, reframe), change the list with `edit_write`. It names each problem by field (`keep[2].end`) and refuses unknown fields; fix and call again.
+4. `edit_render`. It returns a **contact sheet**: look at it. The bottom rows show every cut as a before-and-after pair; a cut mid-motion, a title over a face, or a region still readable is yours to fix.
+5. `edit_verify`. If it fails, it says what: change the list, render, verify again. If it says OCR is **unproven**, tell your user the hidden text was not checked.
+
+**Without Hildegard** (Python 3, `pip install av numpy pillow`; `tesseract` optional but needed to prove a blur):
+
+```sh
+python3 scripts/edit_video.py plan talk.mp4 -o edit/edl.json --transcript words.json --target-seconds 90 --target shorts
+python3 scripts/edit_video.py check edit/edl.json              # every problem named by field
+python3 scripts/edit_video.py render edit/edl.json edit/out.mp4
+python3 scripts/edit_video.py sheet edit/out.mp4 --edl edit/edl.json -o edit/sheet.jpg   # look at it
+python3 scripts/edit_video.py verify edit/out.mp4 edit/edl.json    # exit 0 only if the output proves the list
+```
+
+`words.json` is a transcript with word times: `{"segments":[{"words":[{"start":1.2,"end":1.6,"word":"Hello"}]}]}`, which Whisper (`--word_timestamps True`) and most transcribers give. No transcript? `plan --auto` (no `--transcript`) cuts where it is quiet and still, and you write the rest of the list by hand. To edit by words: `python3 scripts/edit_video.py transcript-text words.json -o words.txt`, delete words or lines in `words.txt`, then `plan ... --text words.txt`. `python3 scripts/edit_video.py schema` prints the JSON Schema of the list; `selftest` proves the gate on a planted fake key.
+
+### The edit list, in one screen
+
+```json
+{
+  "version": 1,
+  "sources": { "a": { "path": "talk.mp4" } },
+  "keep": [{ "start": 2.0, "end": 71.5 }],
+  "cuts": [{ "start": 14.2, "end": 15.1, "why": "um" }],
+  "pauses": { "max": 0.7, "keep": 0.3 },
+  "blur": [{ "start": 30, "end": 41, "box": [0.05, 0.40, 0.90, 0.10], "style": "solid", "label": "api key" }],
+  "boxes": [{ "start": 50, "end": 55, "box": [0.6, 0.3, 0.2, 0.1], "color": "#ffcc00" }],
+  "titles": [{ "text": "Deploying in 60 seconds", "start": 0.3, "end": 3, "kind": "lower_third" }],
+  "captions": { "transcript": "transcript.json" },
+  "chapters": [{ "at": 0, "title": "Intro" }, { "at": 20, "title": "Setup" }, { "at": 45, "title": "Deploy" }],
+  "music": { "path": "bed.wav", "duck_db": 16, "under_db": -8 },
+  "reframe": { "aspect": "9:16", "mode": "auto" },
+  "target": "shorts",
+  "secrets": ["sk-live-the-key-that-is-on-screen"]
+}
+```
+
+- Seconds are **source seconds**, except `titles` and `chapters` (output seconds). `keep` is the order of play; leave it out to keep everything. `cuts` are removed from whatever `keep` says. Everything snaps to the frame grid, so the output's frame count is known before it renders.
+- A **box** is `[x, y, width, height]` as fractions of the frame, 0 to 1. Find it on a contact sheet. `box_px` takes pixels, `keys` makes a region that moves (`[{"t": 31, "box": [...]}, ...]`).
+- **Hide secrets with `"style": "solid"`**, and give a window a second wider than the secret is on screen: blur and solid are applied to the source picture before any crop or zoom. List what must not be readable under `secrets` (a string as it appears, a `{"regex": ...}`, or `{"kind": "api_key" | "email" | "ip" | "hostname"}`); the gate OCRs the output around every hidden stretch for them and for those four kinds.
+- `pauses` shortens dead air found from the energy of the speech, not a fixed silence level: fan noise doesn't hide a pause and typing doesn't count as one. A pause that has typing or clicking in it is **kept** (something is happening on screen); `"activity": "cut"` treats it like dead air.
+- `captions` come from the transcript and are re-timed to the cut; words you cut never appear. `music` is cut to length, mixed 8 dB under the voice and ducked 16 dB while anyone speaks.
+- `reframe` crops to 9:16, 1:1 or 4:5 around the subject: a face when OpenCV 4 is installed (`pip install "opencv-python-headless<5"`), else where the motion is, else the middle. It never stretches, and never scales up past the source.
+- `target` sets the shape and loudness (-14 LUFS, -16 for `podcast`, true peak under -1). The sound is cleaned and mastered, and **the sound as it was is kept as a second audio track** (not for the vertical social targets).
+- Two sources? Every range needs `"source": "a"`. Name footage in Hildegard as `recording:<id>`, never by path.
+
+### What the gate checks, and what to do when it fails
+
+| It says | Do this |
+| --- | --- |
+| `frames`: N frames, the list resolves to M | The file isn't this list's render. Render again. |
+| `sync`: a track is longer or shorter than the picture | Render again; if it persists, the source's own sound is broken: `audio.mute` or another `audio_track`. |
+| `loudness`: LUFS or peak off target | Render again; a source with no speech and no music can't be mastered: set `audio.master` to false only if the sound is on purpose. |
+| `black` / `frozen` | A black or still stretch longer than allowed. Cut it, or raise `verify.max_black` / `verify.max_frozen` if it is on purpose. |
+| `overlays`: outside the frame | Shorten the text, or give less to `captions.max_chars`. |
+| `ocr`: readable text found | Add a blur over it, widen the window by a second, use `"style": "solid"`, render, verify. Don't remove the secret from `secrets`. |
+
+Never say a video is fixed or finished from the render alone. The gate's report is the evidence.
+
+## Recipes: plain FFmpeg, when you need one thing the edit list doesn't do
+
+The rest of this page is plain FFmpeg for work outside the edit list (a grade, stabilizing, a one-off trim). Work on copies, never over your user's originals; write to a new folder such as `edit/`.
 
 ## 0. Look first
 

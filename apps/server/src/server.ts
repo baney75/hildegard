@@ -36,6 +36,7 @@ import {
 import { redeemRoutes } from './choir-redeem.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
+import { EditJobs, type EditRunner, EditStore, pyRunner } from './edit.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
 import type { FigmaFetch } from './figma.ts';
 import { Grants } from './grants.ts';
@@ -169,6 +170,8 @@ async function serveStudio(
     tunnelHome?: string;
     /** The clock for short codes and their limits: tests give a fake one. */
     now?: () => number;
+    /** Runs tools/edit_video.py for video edits: tests give a stand-in. */
+    editRunner?: EditRunner;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
     /** Reads OAuth apps' metadata documents: tests give a stand-in. */
@@ -624,6 +627,12 @@ async function serveStudio(
     store: recordStore,
     cleaner: new CleanJobs({ dataDir: config.dataDir, store: recordStore }),
   };
+  // Video edits: an edit list per edit, rendered and proven on the output; tests give a stand-in for the script.
+  const editStore = new EditStore({ dir: join(mediaDir, 'edits'), now: opts.now });
+  const edits = {
+    store: editStore,
+    jobs: new EditJobs({ store: editStore, runner: opts.editRunner ?? pyRunner(config.dataDir) }),
+  };
   // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
   // git. The port is the one this server listens on, known once it does.
   const entry = process.env.HILDEGARD_ENTRY;
@@ -682,6 +691,7 @@ async function serveStudio(
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     records,
+    edits,
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,

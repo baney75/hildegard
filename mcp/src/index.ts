@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HildegardClient } from './client.ts';
+import { registerEditTools } from './edit-tools.ts';
 import { registerLoopTools } from './loop-tools.ts';
 import { registerRecordTools } from './record-tools.ts';
 import { registerReportTools } from './report-tools.ts';
@@ -27,6 +28,7 @@ Sites: for a website, start from site_templates, a Figma link, a pen.dev file or
 Loops: to make a 3D model or a part to print, to design a web page or site, or to iterate on any image, video or sound until it is right, loop_start, then loop_submit each version, look at what comes back, and loop_critique it honestly before the next round; loop_finish delivers the best round.
 Reports: when Hildegard itself fails (a tool errors, or a take fails, in a way no change to the request fixes), or your user wants something it can't do yet, offer to tell its makers. report_draft writes it with the computer's details, private things taken out; show your user the exact text and any matching issues, and call report_file only after they say yes. Never file without asking, and add to a matching issue rather than open a new one.
 Writing: run lint_writing on every piece of prose before you show it to anyone. For everyday prose (posts, emails, pages, captions, announcements) fix every fail, fix each warn unless it is your writer's deliberate voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning: keep what the writer's voice, form or field needs, and say which you kept.
+Video editing: edit_plan (transcribe, then cut fillers, false starts and dead pauses toward a length), edit_write (your own edit list), edit_render (the video and a contact sheet to look at), then edit_verify: the gate that reads the finished file. It isn't finished until edit_verify passes. Read the hildegard-video-edit skill first.
 Quality gate: review_prompt before you render, and review_take on every finished take before you choose or show it. Look at the contact sheet and answer its questions honestly; fix and re-render (at most three rounds) rather than deliver work that fails.`;
 
 export interface McpOptions {
@@ -81,6 +83,7 @@ export function createMcpServer(client = new HildegardClient(), opts: McpOptions
   );
   registerSiteTools(server, client, opts.remote);
   registerRecordTools(server, client, opts.remote);
+  registerEditTools(server, client, opts.remote);
   registerSkillTools(server, opts.skillsDir === undefined ? findSkills() : opts.skillsDir);
   return server;
 }

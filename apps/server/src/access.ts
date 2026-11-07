@@ -115,6 +115,8 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/consent\/[^/]+$/,
     // A recording link's page, a recording of their own, and a cleaning job they started.
     /^\/api\/record\/(rec_[0-9a-f]{16}|[A-Za-z0-9_-]{43}|clean\/rcj_[0-9a-f]{16})$/,
+    // Video edits of their own: the list, the words, the finished video's page.
+    /^\/api\/edits(\/ed_[0-9a-f]{16}(\/words)?)?$/,
     /^\/api\/characters\/[^/]+\/consent$/,
     /^\/api\/stills\/[^/]+\/preview$/,
     /^\/media\//,
@@ -128,6 +130,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/auth\//,
     /^\/api\/consent\/[^/]+\/recording$/,
     /^\/api\/record\/(links|imports|status|rec_[0-9a-f]{16}\/clean|[A-Za-z0-9_-]{43})$/,
+    /^\/api\/edits(\/ed_[0-9a-f]{16}\/(check|plan|render|verify))?$/,
     /^\/api\/characters$/,
     /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
     /^\/api\/images$/,
@@ -135,6 +138,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/stills\/[^/]+\/(cancel|force|retry|keep)$/,
     /^\/api\/report\/(draft|file)$/,
   ],
+  PUT: [/^\/api\/edits\/ed_[0-9a-f]{16}\/edl$/],
   PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/, /^\/api\/characters\/[^/]+$/],
   DELETE: [
     /^\/api\/shots\/[^/]+$/,
@@ -143,6 +147,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/characters\/[^/]+$/,
     /^\/api\/characters\/[^/]+\/references\/[^/]+$/,
     /^\/api\/stills\/[^/]+$/,
+    /^\/api\/edits\/ed_[0-9a-f]{16}$/,
   ],
 };
 export function directorMay(method: string, path: string): boolean {
