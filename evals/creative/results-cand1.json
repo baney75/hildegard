@@ -1,0 +1,2904 @@
+{
+  "label": "cand1",
+  "base": "main",
+  "cand": "new",
+  "models": ["haiku", "luna"],
+  "tasks": [
+    "d1-fall-festival",
+    "d2-bluegrass-cover",
+    "d3-hardware-anniversary",
+    "v1-detailing-reel",
+    "v2-christmas-eve",
+    "v3-woodshop-film",
+    "a1-podcast-clean",
+    "a2-church-duck",
+    "a3-radio-spot",
+    "w1-congregation-email",
+    "w2-groomer-blog",
+    "w3-5k-page",
+    "e1-canoe-cut"
+  ],
+  "summary": {
+    "design": {
+      "haiku": {
+        "cand": 4,
+        "base": 2,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 1,
+        "cand_rate": 0.67
+      },
+      "luna": {
+        "cand": 4,
+        "base": 2,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 1,
+        "cand_rate": 0.67
+      }
+    },
+    "video": {
+      "haiku": {
+        "cand": 3,
+        "base": 3,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 1,
+        "cand_rate": 0.5
+      },
+      "luna": {
+        "cand": 3,
+        "base": 3,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 1,
+        "cand_rate": 0.5
+      }
+    },
+    "audio": {
+      "haiku": {
+        "cand": 5,
+        "base": 1,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 0,
+        "cand_rate": 0.83
+      },
+      "luna": {
+        "cand": 4,
+        "base": 2,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 1,
+        "cand_rate": 0.67
+      }
+    },
+    "writing": {
+      "haiku": {
+        "cand": 0,
+        "base": 6,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 0,
+        "tasks_lost": 3,
+        "cand_rate": 0.0
+      },
+      "luna": {
+        "cand": 4,
+        "base": 2,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 0,
+        "cand_rate": 0.67
+      }
+    },
+    "videoedit": {
+      "haiku": {
+        "cand": 2,
+        "base": 0,
+        "tie": 0,
+        "n": 2,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 0,
+        "cand_rate": 1.0
+      },
+      "luna": {
+        "cand": 2,
+        "base": 0,
+        "tie": 0,
+        "n": 2,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 0,
+        "cand_rate": 1.0
+      }
+    }
+  },
+  "skill_loaded": {
+    "main": {
+      "haiku": [13, 13],
+      "luna": [13, 13]
+    },
+    "new": {
+      "haiku": [13, 13],
+      "luna": [13, 13]
+    }
+  },
+  "runs": {
+    "main": {
+      "haiku": {
+        "d1-fall-festival": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-art", "hildegard:hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 11,
+            "is_error": false,
+            "seconds": 58,
+            "cost_usd_reported": 0.014831970000000002
+          },
+          "score": {
+            "task": "d1-fall-festival",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1350],
+            "pixel_std": 87.0,
+            "colors": 111,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 7389
+          }
+        },
+        "d2-bluegrass-cover": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-art"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard/references/color.md"],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 39,
+            "cost_usd_reported": 0.01066446
+          },
+          "score": {
+            "task": "d2-bluegrass-cover",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1400, 1400],
+            "pixel_std": 83.2,
+            "colors": 113,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 3702
+          }
+        },
+        "d3-hardware-anniversary": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-web/references/tokens.css"],
+            "tool_calls": 8,
+            "is_error": false,
+            "seconds": 46,
+            "cost_usd_reported": 0.01127925
+          },
+          "score": {
+            "task": "d3-hardware-anniversary",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 79.6,
+            "colors": 92,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4862
+          }
+        },
+        "v1-detailing-reel": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 96,
+            "cost_usd_reported": 0.01822121
+          },
+          "score": {
+            "task": "v1-detailing-reel",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2198,
+            "has_table_or_list": true
+          }
+        },
+        "v2-christmas-eve": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 117,
+            "cost_usd_reported": 0.021022730000000003
+          },
+          "score": {
+            "task": "v2-christmas-eve",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2427,
+            "has_table_or_list": true
+          }
+        },
+        "v3-woodshop-film": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-sound", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 8,
+            "is_error": false,
+            "seconds": 151,
+            "cost_usd_reported": 0.027588140000000004
+          },
+          "score": {
+            "task": "v3-woodshop-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 3210,
+            "has_table_or_list": true
+          }
+        },
+        "a1-podcast-clean": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-video-edit", "hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard/references/podcast.md", "hildegard/references/sound-design.md"],
+            "tool_calls": 32,
+            "is_error": false,
+            "seconds": 253,
+            "cost_usd_reported": 0.05730447999999999
+          },
+          "score": {
+            "task": "a1-podcast-clean",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.1,
+            "dur": 45.22,
+            "channels": 1,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.4,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "len_diff_s": 0.0,
+            "speech_in_db": -23.6,
+            "pause_gap_in_db": 13.8,
+            "hum_prom_in_db": 43.8,
+            "dip_gap_in_db": -8.4,
+            "pop_rel_in_db": 23.6,
+            "fidelity_in": 0.841,
+            "speech_out_db": -13.1,
+            "pause_gap_out_db": 20.2,
+            "hum_prom_out_db": 0.7,
+            "dip_gap_out_db": -4.4,
+            "pop_rel_out_db": 11.3,
+            "fidelity_out": 0.868,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "same_length": true,
+              "hum_gone": true,
+              "pauses_quieter": true,
+              "speech_kept": true,
+              "levels_evened": false,
+              "pop_tamed": true
+            },
+            "passed": 9,
+            "total": 10,
+            "deliverable": true
+          }
+        },
+        "a2-church-duck": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 16,
+            "is_error": false,
+            "seconds": 128,
+            "cost_usd_reported": 0.02511124
+          },
+          "score": {
+            "task": "a2-church-duck",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.2,
+            "dur": 36.57,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -16.1,
+            "tp": -1.5,
+            "clip_count": 0,
+            "lufs_err": -0.1,
+            "voice_at": [4.0],
+            "voice_found": true,
+            "music_found": true,
+            "duck_db": 9.4,
+            "vmr_db": 17.2,
+            "voice_fidelity": 0.943,
+            "end_peak_db": -52.7,
+            "voice_end_s": 32.07,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": true,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "voice_start": true,
+              "tail_length": true
+            },
+            "passed": 12,
+            "total": 12,
+            "deliverable": true
+          }
+        },
+        "a3-radio-spot": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 12,
+            "is_error": false,
+            "seconds": 73,
+            "cost_usd_reported": 0.0198535
+          },
+          "score": {
+            "task": "a3-radio-spot",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 0.9,
+            "dur": 15.0,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.4,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "voice_at": [0.5, 4.86, 10.0],
+            "voice_found": true,
+            "music_found": true,
+            "sting_at": 13.5,
+            "order_ok": true,
+            "duck_db": 5.5,
+            "vmr_db": -3.5,
+            "voice_fidelity": 0.588,
+            "end_peak_db": -31.1,
+            "voice_end_s": 13.3,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": false,
+              "voice_above_music": false,
+              "voice_intact": false,
+              "ends_cleanly": true,
+              "length": true,
+              "lines_in_order": true,
+              "sting_at_end": true
+            },
+            "passed": 10,
+            "total": 13,
+            "deliverable": true
+          }
+        },
+        "w1-congregation-email": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard/references/blog.md", "hildegard/references/pitfalls.md"],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 18,
+            "cost_usd_reported": 0.01056093
+          },
+          "score": {
+            "task": "w1-congregation-email",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 216,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w2-groomer-blog": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard/references/blog.md", "hildegard/references/pitfalls.md"],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 35,
+            "cost_usd_reported": 0.01220011
+          },
+          "score": {
+            "task": "w2-groomer-blog",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 333,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w3-5k-page": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard/references/blog.md", "hildegard/references/pitfalls.md"],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 33,
+            "cost_usd_reported": 0.013084880000000002
+          },
+          "score": {
+            "task": "w3-5k-page",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 203,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "e1-canoe-cut": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-craft", "hildegard:hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 82,
+            "cost_usd_reported": 0.01684258
+          },
+          "score": {
+            "task": "e1-canoe-cut",
+            "domain": "videoedit",
+            "deliverable": true,
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 5.1,
+            "dur": 23.0,
+            "size": [1280, 720],
+            "fps": 30.0,
+            "vcodec": "h264",
+            "acodec": "aac",
+            "lufs": -15.8,
+            "tp": -5.7,
+            "scene_changes": 0,
+            "black_segments": [],
+            "clips_used_estimate": ["a", "b", "c", "d"],
+            "source_switches": 4,
+            "checks": {
+              "wrote_out_mp4": true,
+              "duration_in_range": true,
+              "size_1280x720": true,
+              "fps_30": true,
+              "h264_aac": true,
+              "five_cuts": false,
+              "loudness_within_2LU": true,
+              "no_long_black": true,
+              "all_four_clips": true
+            },
+            "passed": 8,
+            "total": 9
+          }
+        }
+      },
+      "luna": {
+        "d1-fall-festival": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/color.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 8,
+            "is_error": false,
+            "seconds": 96,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d1-fall-festival",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1350],
+            "pixel_std": 89.5,
+            "colors": 86,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com"],
+            "has_script": false,
+            "bytes": 7004
+          }
+        },
+        "d2-bluegrass-cover": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-art",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/code-rendering.md",
+              "hildegard/references/color.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 89,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d2-bluegrass-cover",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1400, 1400],
+            "pixel_std": 44.8,
+            "colors": 83,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4742
+          }
+        },
+        "d3-hardware-anniversary": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/blog.md",
+              "hildegard/references/color.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 75,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d3-hardware-anniversary",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 62.9,
+            "colors": 98,
+            "blank": false,
+            "external_refs": [],
+            "has_script": false,
+            "bytes": 5967
+          }
+        },
+        "v1-detailing-reel": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film", "hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 64,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v1-detailing-reel",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1476,
+            "has_table_or_list": true
+          }
+        },
+        "v2-christmas-eve": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 4,
+            "is_error": false,
+            "seconds": 65,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v2-christmas-eve",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1753,
+            "has_table_or_list": true
+          }
+        },
+        "v3-woodshop-film": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-craft",
+              "hildegard-craft/SKILL.md;",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard-film",
+              "hildegard-film/SKILL.md;",
+              "hildegard/SKILL.md;",
+              "hildegard/references/color.md",
+              "hildegard/references/color.md;",
+              "hildegard/references/drafting-storyboards.md;",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/film-animation.md;",
+              "hildegard/references/objects-materials.md;",
+              "hildegard/references/pitfalls.md;",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 89,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v3-woodshop-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1847,
+            "has_table_or_list": true
+          }
+        },
+        "a1-podcast-clean": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard-sound"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 62,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a1-podcast-clean",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.4,
+            "dur": 45.22,
+            "channels": 1,
+            "sr": 44100,
+            "lufs": -18.8,
+            "tp": -1.0,
+            "clip_count": 0,
+            "lufs_err": -2.8,
+            "len_diff_s": 0.0,
+            "speech_in_db": -23.6,
+            "pause_gap_in_db": 13.8,
+            "hum_prom_in_db": 43.8,
+            "dip_gap_in_db": -8.4,
+            "pop_rel_in_db": 23.6,
+            "fidelity_in": 0.841,
+            "speech_out_db": -15.8,
+            "pause_gap_out_db": 16.6,
+            "hum_prom_out_db": 38.5,
+            "dip_gap_out_db": -3.6,
+            "pop_rel_out_db": 14.8,
+            "fidelity_out": 0.804,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": false,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "same_length": true,
+              "hum_gone": false,
+              "pauses_quieter": false,
+              "speech_kept": true,
+              "levels_evened": true,
+              "pop_tamed": true
+            },
+            "passed": 7,
+            "total": 10,
+            "deliverable": true
+          }
+        },
+        "a2-church-duck": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-sound", "hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-video-edit/SKILL.md;",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 18,
+            "is_error": false,
+            "seconds": 120,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a2-church-duck",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.8,
+            "dur": 36.04,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -15.2,
+            "tp": -1.5,
+            "clip_count": 0,
+            "lufs_err": 0.8,
+            "voice_at": [4.01],
+            "voice_found": true,
+            "music_found": true,
+            "duck_db": 10.3,
+            "vmr_db": 12.8,
+            "voice_fidelity": 0.913,
+            "end_peak_db": -48.9,
+            "voice_end_s": 32.08,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": true,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "voice_start": true,
+              "tail_length": true
+            },
+            "passed": 12,
+            "total": 12,
+            "deliverable": true
+          }
+        },
+        "a3-radio-spot": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-sound", "hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-sound", "hildegard-video-edit"],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 73,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a3-radio-spot",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 1.0,
+            "dur": 15.0,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -16.2,
+            "tp": -1.0,
+            "clip_count": 0,
+            "lufs_err": -0.2,
+            "voice_at": [0.0, 0.1, 0.97],
+            "voice_found": true,
+            "music_found": true,
+            "sting_at": 13.5,
+            "order_ok": false,
+            "duck_db": 2.7,
+            "vmr_db": -11.6,
+            "voice_fidelity": 0.291,
+            "end_peak_db": -43.6,
+            "voice_end_s": 4.74,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": false,
+              "voice_above_music": false,
+              "voice_intact": false,
+              "ends_cleanly": true,
+              "length": true,
+              "lines_in_order": false,
+              "sting_at_end": true
+            },
+            "passed": 9,
+            "total": 13,
+            "deliverable": true
+          }
+        },
+        "w1-congregation-email": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/blog.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/writing-craft.md",
+              "hildegard/scripts/prose_lint.py"
+            ],
+            "tool_calls": 4,
+            "is_error": false,
+            "seconds": 28,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w1-congregation-email",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 147,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w2-groomer-blog": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/blog.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/scripts/prose_lint.py",
+              "hildegard/scripts;"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 43,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w2-groomer-blog",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 253,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w3-5k-page": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-loop", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-web/references/tokens.css",
+              "hildegard/references/blog.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/scripts/prose_lint.py"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 40,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w3-5k-page",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 201,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "e1-canoe-cut": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/color.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/given-media.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 91,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "e1-canoe-cut",
+            "domain": "videoedit",
+            "deliverable": true,
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 3.0,
+            "dur": 25.0,
+            "size": [1280, 720],
+            "fps": 30.0,
+            "vcodec": "h264",
+            "acodec": "aac",
+            "lufs": -15.9,
+            "tp": -5.1,
+            "scene_changes": 6,
+            "black_segments": [],
+            "clips_used_estimate": ["a", "b", "c", "d"],
+            "source_switches": 5,
+            "checks": {
+              "wrote_out_mp4": true,
+              "duration_in_range": true,
+              "size_1280x720": true,
+              "fps_30": true,
+              "h264_aac": true,
+              "five_cuts": true,
+              "loudness_within_2LU": true,
+              "no_long_black": true,
+              "all_four_clips": true
+            },
+            "passed": 9,
+            "total": 9
+          }
+        }
+      }
+    },
+    "new": {
+      "haiku": {
+        "d1-fall-festival": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 14,
+            "is_error": false,
+            "seconds": 58,
+            "cost_usd_reported": 0.01576856
+          },
+          "score": {
+            "task": "d1-fall-festival",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1350],
+            "pixel_std": 32.3,
+            "colors": 72,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 6217
+          }
+        },
+        "d2-bluegrass-cover": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 24,
+            "cost_usd_reported": 0.00651378
+          },
+          "score": {
+            "task": "d2-bluegrass-cover",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1400, 1400],
+            "pixel_std": 67.6,
+            "colors": 107,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 2320
+          }
+        },
+        "d3-hardware-anniversary": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 31,
+            "cost_usd_reported": 0.008140159999999999
+          },
+          "score": {
+            "task": "d3-hardware-anniversary",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 58.4,
+            "colors": 84,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4705
+          }
+        },
+        "v1-detailing-reel": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 106,
+            "cost_usd_reported": 0.02064978
+          },
+          "score": {
+            "task": "v1-detailing-reel",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2364,
+            "has_table_or_list": true
+          }
+        },
+        "v2-christmas-eve": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/sound-design.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 133,
+            "cost_usd_reported": 0.02635353
+          },
+          "score": {
+            "task": "v2-christmas-eve",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2817,
+            "has_table_or_list": true
+          }
+        },
+        "v3-woodshop-film": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard/references/film-animation.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 87,
+            "cost_usd_reported": 0.017231080000000003
+          },
+          "score": {
+            "task": "v3-woodshop-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2321,
+            "has_table_or_list": true
+          }
+        },
+        "a1-podcast-clean": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 43,
+            "cost_usd_reported": 0.01086574
+          },
+          "score": {
+            "task": "a1-podcast-clean",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 3.9,
+            "dur": 45.22,
+            "channels": 1,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.5,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "len_diff_s": 0.0,
+            "speech_in_db": -23.6,
+            "pause_gap_in_db": 13.8,
+            "hum_prom_in_db": 43.8,
+            "dip_gap_in_db": -8.4,
+            "pop_rel_in_db": 23.6,
+            "fidelity_in": 0.841,
+            "speech_out_db": -13.2,
+            "pause_gap_out_db": 23.7,
+            "hum_prom_out_db": 3.0,
+            "dip_gap_out_db": -2.3,
+            "pop_rel_out_db": 10.1,
+            "fidelity_out": 0.786,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "same_length": true,
+              "hum_gone": true,
+              "pauses_quieter": true,
+              "speech_kept": true,
+              "levels_evened": true,
+              "pop_tamed": true
+            },
+            "passed": 10,
+            "total": 10,
+            "deliverable": true
+          }
+        },
+        "a2-church-duck": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 125,
+            "cost_usd_reported": 0.024390410000000008
+          },
+          "score": {
+            "task": "a2-church-duck",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.7,
+            "dur": 36.07,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -15.9,
+            "tp": -1.5,
+            "clip_count": 0,
+            "lufs_err": 0.1,
+            "voice_at": [4.0],
+            "voice_found": true,
+            "music_found": true,
+            "duck_db": 21.1,
+            "vmr_db": 22.5,
+            "voice_fidelity": 0.962,
+            "end_peak_db": -72.2,
+            "voice_end_s": 32.07,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": true,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "voice_start": true,
+              "tail_length": true
+            },
+            "passed": 12,
+            "total": 12,
+            "deliverable": true
+          }
+        },
+        "a3-radio-spot": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 46,
+            "cost_usd_reported": 0.01147367
+          },
+          "score": {
+            "task": "a3-radio-spot",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 3.1,
+            "dur": 15.0,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.5,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "voice_at": [0.45, 4.42, 9.46],
+            "voice_found": true,
+            "music_found": true,
+            "sting_at": 13.4,
+            "order_ok": true,
+            "duck_db": 16.3,
+            "vmr_db": 22.8,
+            "voice_fidelity": 0.933,
+            "end_peak_db": -59.7,
+            "voice_end_s": 12.76,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": true,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "length": true,
+              "lines_in_order": true,
+              "sting_at_end": true
+            },
+            "passed": 13,
+            "total": 13,
+            "deliverable": true
+          }
+        },
+        "w1-congregation-email": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-blog"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 20,
+            "cost_usd_reported": 0.007739610000000001
+          },
+          "score": {
+            "task": "w1-congregation-email",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 163,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w2-groomer-blog": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-blog"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 28,
+            "cost_usd_reported": 0.007072770000000001
+          },
+          "score": {
+            "task": "w2-groomer-blog",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 193,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w3-5k-page": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 3,
+            "is_error": false,
+            "seconds": 14,
+            "cost_usd_reported": 0.00446198
+          },
+          "score": {
+            "task": "w3-5k-page",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 206,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 2,
+            "fail_ids": [],
+            "warn_ids": ["rhythm", "bold"]
+          }
+        },
+        "e1-canoe-cut": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-craft", "hildegard:hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 40,
+            "cost_usd_reported": 0.010796730000000001
+          },
+          "score": {
+            "task": "e1-canoe-cut",
+            "domain": "videoedit",
+            "deliverable": true,
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 10.4,
+            "dur": 27.0,
+            "size": [1280, 720],
+            "fps": 30.0,
+            "vcodec": "h264",
+            "acodec": "aac",
+            "lufs": -15.9,
+            "tp": -6.0,
+            "scene_changes": 0,
+            "black_segments": [],
+            "clips_used_estimate": ["a", "b", "c", "d"],
+            "source_switches": 7,
+            "checks": {
+              "wrote_out_mp4": true,
+              "duration_in_range": true,
+              "size_1280x720": true,
+              "fps_30": true,
+              "h264_aac": true,
+              "five_cuts": true,
+              "loudness_within_2LU": true,
+              "no_long_black": true,
+              "all_four_clips": true
+            },
+            "passed": 9,
+            "total": 9
+          }
+        }
+      },
+      "luna": {
+        "d1-fall-festival": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/color.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 65,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d1-fall-festival",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1350],
+            "pixel_std": 28.1,
+            "colors": 95,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4981
+          }
+        },
+        "d2-bluegrass-cover": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md;",
+              "hildegard-craft/references/slop.md;"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 39,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d2-bluegrass-cover",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1400, 1400],
+            "pixel_std": 31.9,
+            "colors": 60,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 2393
+          }
+        },
+        "d3-hardware-anniversary": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-craft/references/slop.md", "hildegard-design/references/*"],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 52,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d3-hardware-anniversary",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 62.3,
+            "colors": 94,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4352
+          }
+        },
+        "v1-detailing-reel": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 98,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v1-detailing-reel",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2105,
+            "has_table_or_list": true
+          }
+        },
+        "v2-christmas-eve": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/prompting.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 93,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v2-christmas-eve",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2218,
+            "has_table_or_list": true
+          }
+        },
+        "v3-woodshop-film": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 101,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v3-woodshop-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1950,
+            "has_table_or_list": true
+          }
+        },
+        "a1-podcast-clean": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-sound",
+              "hildegard-sound/scripts/clean_voice.py",
+              "hildegard-sound/scripts/measure.py;"
+            ],
+            "tool_calls": 4,
+            "is_error": false,
+            "seconds": 41,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a1-podcast-clean",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 3.2,
+            "dur": 45.22,
+            "channels": 1,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.0,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "len_diff_s": 0.0,
+            "speech_in_db": -23.6,
+            "pause_gap_in_db": 13.8,
+            "hum_prom_in_db": 43.8,
+            "dip_gap_in_db": -8.4,
+            "pop_rel_in_db": 23.6,
+            "fidelity_in": 0.841,
+            "speech_out_db": -13.1,
+            "pause_gap_out_db": 18.1,
+            "hum_prom_out_db": 2.3,
+            "dip_gap_out_db": -2.7,
+            "pop_rel_out_db": 10.9,
+            "fidelity_out": 0.804,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "same_length": true,
+              "hum_gone": true,
+              "pauses_quieter": true,
+              "speech_kept": true,
+              "levels_evened": true,
+              "pop_tamed": true
+            },
+            "passed": 10,
+            "total": 10,
+            "deliverable": true
+          }
+        },
+        "a2-church-duck": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-sound/references/sound-design.md;",
+              "hildegard/references/sound-design.md;"
+            ],
+            "tool_calls": 13,
+            "is_error": false,
+            "seconds": 92,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a2-church-duck",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 1.7,
+            "dur": 34.73,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -15.9,
+            "tp": -1.3,
+            "clip_count": 0,
+            "lufs_err": 0.1,
+            "voice_at": [4.0],
+            "voice_found": true,
+            "music_found": true,
+            "duck_db": 0.0,
+            "vmr_db": 23.2,
+            "voice_fidelity": 0.963,
+            "end_peak_db": -87.6,
+            "voice_end_s": 32.07,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": false,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "voice_start": true,
+              "tail_length": true
+            },
+            "passed": 11,
+            "total": 12,
+            "deliverable": true
+          }
+        },
+        "a3-radio-spot": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-sound"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard-sound"
+            ],
+            "tool_calls": 8,
+            "is_error": false,
+            "seconds": 73,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "a3-radio-spot",
+            "domain": "audio",
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 2.0,
+            "dur": 15.0,
+            "channels": 2,
+            "sr": 44100,
+            "lufs": -16.0,
+            "tp": -1.0,
+            "clip_count": 0,
+            "lufs_err": 0.0,
+            "voice_at": [0.5, 4.57, 9.71],
+            "voice_found": true,
+            "music_found": true,
+            "sting_at": 13.4,
+            "order_ok": true,
+            "duck_db": 15.3,
+            "vmr_db": 22.1,
+            "voice_fidelity": 0.931,
+            "end_peak_db": -59.7,
+            "voice_end_s": 13.01,
+            "checks": {
+              "wrote_out_wav": true,
+              "loudness_within_1LU": true,
+              "true_peak_ok": true,
+              "no_clipping": true,
+              "voice_present": true,
+              "music_present": true,
+              "ducks": true,
+              "voice_above_music": true,
+              "voice_intact": true,
+              "ends_cleanly": true,
+              "length": true,
+              "lines_in_order": true,
+              "sting_at_end": true
+            },
+            "passed": 13,
+            "total": 13,
+            "deliverable": true
+          }
+        },
+        "w1-congregation-email": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-blog"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-blog",
+              "hildegard/references/blog.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/scripts/prose_lint.py"
+            ],
+            "tool_calls": 4,
+            "is_error": false,
+            "seconds": 27,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w1-congregation-email",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 143,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w2-groomer-blog": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-blog"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-blog",
+              "hildegard/references/blog.md;",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/writing-craft.md;",
+              "hildegard/scripts/prose_lint.py"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 34,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w2-groomer-blog",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 194,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "w3-5k-page": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-blog", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard/references/blog.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/scripts/prose_lint.py"
+            ],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 37,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "w3-5k-page",
+            "domain": "writing",
+            "deliverable": true,
+            "words": 173,
+            "lint_ok": true,
+            "fails": 0,
+            "warns": 0,
+            "fail_ids": [],
+            "warn_ids": []
+          }
+        },
+        "e1-canoe-cut": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-video-edit"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md;",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 89,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "e1-canoe-cut",
+            "domain": "videoedit",
+            "deliverable": true,
+            "ran": true,
+            "exit_code": 0,
+            "seconds": 7.8,
+            "dur": 25.0,
+            "size": [1280, 720],
+            "fps": 30.0,
+            "vcodec": "h264",
+            "acodec": "aac",
+            "lufs": -15.9,
+            "tp": -5.9,
+            "scene_changes": 0,
+            "black_segments": [],
+            "clips_used_estimate": ["a", "b", "c", "d"],
+            "source_switches": 7,
+            "checks": {
+              "wrote_out_mp4": true,
+              "duration_in_range": true,
+              "size_1280x720": true,
+              "fps_30": true,
+              "h264_aac": true,
+              "five_cuts": true,
+              "loudness_within_2LU": true,
+              "no_long_black": true,
+              "all_four_clips": true
+            },
+            "passed": 9,
+            "total": 9
+          }
+        }
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "model": "haiku",
+      "task": "d1-fall-festival",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A's headline reads \"Fall & Festival\" because a stray gold ampersand sits in front of \"Festival\". That garbles the event name, which is the first thing anyone reads, and the leaves crowd the title while the rain line is jammed against the bottom edge. B has every fact correct and clean, with clear hierarchy from title to date to free admission to location and activities, and good contrast at phone size. Its weaknesses are mismatched filler icons (a credit card for the cake walk, a droplet for the bake sale) and a lot of empty space on the right of the top half, but those are minor next to a broken headline.",
+      "invented": {
+        "main": ["stray '&' making the title read 'Fall & Festival'"],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d1-fall-festival",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B has a stray decorative ampersand that makes the headline read \"Fall & Festival\", which garbles the event name. Its footer is also cramped, with the rain line pressed against the bottom edge. A has every fact correct, a clean serif/sans pairing and clear hierarchy, and its only real weakness is mismatched filler icons (a credit card for the cake walk, a water drop for the bake sale), a much smaller fault than a broken title.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d2-bluegrass-cover",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "B has one clear thing to read first: a huge woodtype-style slab 'Sorghum Hill', set left-aligned against a framed landscape. That reads as deliberate and old-time, like a letterpress poster. A is a centered stack: the band name and the italic title compete for attention, and the large centered sun over hills looks more like a generic 70s retro template. A's band name is easier to read at thumbnail size than B's smaller caps line, but B's stronger hierarchy and more distinctive type outweigh that.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d2-bluegrass-cover",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both covers are factually clean and use nearly the same sunset, hills and sorghum-stalk motif. A has the clearer hierarchy: the huge heavy slab-serif 'Sorghum Hill' reads first even at thumbnail size, and its left-aligned, asymmetric layout with a framed landscape feels like an old-time poster. In B, the large centered band name, the dominant sun and the elegant italic title all compete for attention, and the high-contrast italic leans toward the slick look the client wanted to avoid. B's full-bleed composition is more polished, but its centered stack is more template-like.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d3-hardware-anniversary",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both designs include every fact correctly and invent nothing. A gives the 70th anniversary, the occasion the client cares about, the first and loudest read, then lists the three offers in clear rows. Its hours sit in a high-contrast footer that is still easy to read on a phone. B's huge '20% OFF' demotes the anniversary to a small tag, its hours line is too small to read at thumbnail size, and the coffee box is lopsided with empty space, though its little ruler is a nice hardware-store touch.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d3-hardware-anniversary",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both designs get every fact right and invent nothing. A has the clearest single read at phone size (a huge 20% OFF), but the 70th anniversary shrinks to a small tag, and the two offer boxes look unbalanced, with dead space under the coffee line. B makes the 70th anniversary the headline and sets each offer as a row with a bold red word on the left, like a hardware-store ledger, and its dark band at the bottom makes the hours and address easy to scan; its only weaknesses are the red words competing a little and 'OFF' being split from '20%'.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v1-detailing-reel",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's prompts are more consistent and safer for the model. Every shot repeats the same continuity block, no faces appear (only gloved hands), the orange stripe is the one strong color, and the cuts are motion matches timed to a 120 BPM beat grid that lines up with an EDL adding up to 30.00 s. A's car continuity breaks: shot 3 foams a black SUV, shot 6 shows the detailer stepping back from a shining silver sedan, and shot 7 shows the SUV again with nothing linking them. A also depends on a recurring detailer's face and a smiling customer, both risky for a 5B model, and lists VO1 (00:00.6\u201303.4) in the shot 2 row, which is a bookkeeping slip. A's dirty-wipe hook is stronger than B's static stripe opener, and A uses the 'three cars a day' fact that B leaves out on purpose, but neither outweighs B's cleaner, more renderable plan.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v1-detailing-reel",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A pastes its continuity block into every prompt (place, overcast light from the left, the same sedan, SUV and van), keeps each shot to one slow action, and lines up its EDL, VO and on-screen text so they add to 30.00 s without overlaps. B drops setting and light from several prompts (the interior shots and the dusk ending), swaps warm afternoon for dusk, files VO1 under the wrong EDL event and runs VO3 past its cut, and adds hard-to-render material: a van driving in, a smiling customer and a recurring generated face. B also turns the brief's 'about three cars a day' into an exact count, while A leaves that line out on purpose and uses only the brief's facts.",
+      "invented": {
+        "new": [],
+        "main": [
+          "'We take three cars a day' / '3 cars a day' stated as an exact count (brief says about three)",
+          "an invented on-screen detailer, a man about 30 with a beard, who reads as the business's worker",
+          "a smiling woman customer in her forties"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v2-christmas-eve",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete, and both EDLs add up to exactly 35.0 s. A's voice-over and captions give every fact in the brief, in a sensible order: date, 4 p.m. with the children's choir, childcare, 9 p.m. with communion, parking, and Silent Night. B's voice-over has only three vague lines, puts the 9 p.m. service after the parking card, and its music section contradicts itself ('0:09 to 0:14: the first phrase enters at 0:14'). B has some real strengths: negative prompts on every shot, an opening and closing exterior that match, and careful notes on loudness and encoding. But its S5 silhouettes of people in the pews are riskier for faces than anything A generates. A's weak spots are the hands in S06 and the many children's boots in S03, and A names both as risks with fallbacks.",
+      "invented": {
+        "main": [
+          "falling snow and snow on sills and the lot",
+          "silver communion cup and silver plate of bread",
+          "childcare room look (blue rug, wooden blocks, plaid blanket)",
+          "tall lamp post and bare trees in the back lot"
+        ],
+        "new": [
+          "falling snow and a snowy lawn",
+          "low stone ledge at the front of the sanctuary (flagged for confirmation)",
+          "lit back doorway and parked cars in the lot",
+          "candles on window sills and pew ends before the service"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v2-christmas-eve",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete and their edit decision lists add up to 35.0 s. A's prompts are fully self-contained and repeat the brick, clear-window and amber/blue light in every shot. They also avoid what models render badly: no hands, a reject-and-fallback rule for the silhouette shot, and a bookended exterior shape that rises to the all-candles-lit peak. B depends on risky shots (two hands with a match struck off-frame, several pairs of children's boots that may morph). Its childcare-room and minimal candle prompts also drop the continuity phrases. B's voice-over carries every fact, but six VO lines crowd a 35 s film that is meant to feel quiet, while A puts the facts in on-screen text and keeps its three VO lines sparse.",
+      "invented": {
+        "new": [
+          "low stone ledge at the front of the sanctuary",
+          "lit back doorway with a path to the parking lot",
+          "candle on the window sill"
+        ],
+        "main": [
+          "silver communion cup and plate of bread on a white linen cloth",
+          "childcare room look (blue rug, wooden blocks, plaid blanket)",
+          "wooden chancel step where the children's choir stands",
+          "tall lamp post in the back lot"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v3-woodshop-film",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete and add to 25.0 s. A's prompts are cleaner for the model: they repeat the same subject, setting and light phrases word for word, carry no stray content, share a negative prompt, and use a 0.5 s dissolve built into the loop. B's prompts describe sounds (hiss, clink, squeak) that a silent video model cannot make, set pale maple on a pale maple bench where the two will blur together, rub the finish into maple so cherry never gets its own shot, and open with a fade from black that breaks its own loop. B's real strengths are that it ends on an ask (farmers market and online) and its voice-over covers more of the facts, while A leaves out the farmers market and small tables, but A's frame-accurate EDL and sound sync make it the plan to generate tomorrow.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v3-woodshop-film",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "B's prompts are better suited to the model. They are free of sound descriptions, which a silent Wan model can't use. They share a negative prompt that rules out faces, extra fingers and text, and fixed wording keeps the wood colours and light the same from shot to shot. B's loop dissolve sits inside the last 12 frames of shot 7, so the timecodes still total exactly 25.00 s. A's 0.8 s dissolve uses untrimmed clips, which would cut the total short. B's silent loop also carries the craft facts on text cards, while A's silent version shows only the name, the town and where to buy. B's weakness is that it never mentions the farmers market or online sales, so it has no closing ask. A covers that, and A's walnut table end shot is a good touch, but these are not quite enough to outweigh B's stronger, cleaner generation plan.",
+      "invented": {
+        "new": ["faint hum in the garage room tone", "plain grey work sleeves"],
+        "main": [
+          "tin container for the finish (lid click)",
+          "dark green flannel sleeves",
+          "grey-painted garage walls"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a1-podcast-clean",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "B cuts harder: two afftdn passes at nr=30, a 10 kHz lowpass and ten notches up to 300 Hz. That drops its fidelity to 0.786, below the raw input's 0.841, which suggests the underwater sound the client asked to avoid. It also adds synthetic pink noise and shifts timing with an extra 0.05 s start trim. A's gentler chain improves fidelity to 0.868 and removes more hum (0.7 vs 3.0 dB). A's one failed check is levels_evened: it narrowed the dip gap from -8.4 to -4.4 dB against B's -2.3, and that shortfall is smaller than B's damage to the voice.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a1-podcast-clean",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "A passes all 10 checks. Its dip gap closes to -2.3 dB, while B only reaches -4.4 dB and fails levels_evened, so B misses the brief's explicit request to bring the quiet drift passages up to match. A pays for this with heavier processing: two afftdn passes at nr=30, a 10 kHz low-pass, a gate and added pink noise drop its fidelity to 0.786, against B's 0.868, which is a real risk of the 'underwater' sound. B is the gentler and more natural-sounding script with better hum removal, but a missed brief item outweighs that, so A wins only slightly.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a2-church-duck",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B sets the music level from the measured loudness of both files and ducks with a gain curve built from silencedetect speech segments. That gives a deep 21 dB duck, a 22.5 dB voice-to-music ratio and higher voice fidelity (0.962), and the bed still comes back up in the pauses. A uses a fixed -20 dB bed cut and a ratio-6 sidechain compressor, which only ducks 9.4 dB. That falls short of 'well below the voice', and the hard-coded threshold and pre-gain only suit this particular music file. B's post-speech bump overlaps the fade-out, which is a small flaw, but it still ends cleanly about 4 s after the last word, so overall B is the better mix to ship.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a2-church-duck",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A sets the music level from the measured loudness of both files and ducks it with a gain curve built from the detected speech segments. That gives a deep, deliberate duck (21.1 dB, 22.5 dB voice-over-music) that comes back in the pauses, plus the best voice fidelity (0.962) and a cleaner ending (-72 dB). B cuts the music by a fixed -20 dB that only suits this one file, and its 6:1 sidechain compressor ducks just 9.4 dB with a 500 ms release that may not recover in short pauses, so the words have less clear space and the bed is less 'well below' the voice.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a3-radio-spot",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A's sidechain compressor barely ducks the bed (5.5 dB). The music ends up louder than the voice (VMR -3.5 dB) and voice fidelity is poor (0.588), so it fails the ducks, voice_above_music and voice_intact checks. B sets the voice-to-music balance from measured loudness and uses a scripted duck curve that drops the bed 16 dB under each line and brings it back up between lines. It passes all 13 checks and fades the bed and sting out properly for a much cleaner ending (-59.7 vs -31.1 dB). B's silence-trimming and timeline logic is more complex, but it handles leading and trailing silence in the takes, while A's fixed music level and sidechain settings only work if the levels happen to line up.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "a3-radio-spot",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's music bed sits above the voice (vmr -3.5 dB) and ducks only 5.5 dB. Its sidechain compressor uses a ratio of 4 and never sets music level relative to voice loudness, so the voice is buried and voice fidelity drops to 0.588. It fails the ducks, voice_above_music and voice_intact checks. A trims each line, sets the music level from measured voice LUFS and draws an explicit 16 dB duck envelope with ramps around each line. It passes all 13 checks with a much quieter tail (-59.7 vs -31.1 dB).",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w1-congregation-email",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both drafts get every fact right and leave nothing out. A handles the no-guilt instruction better: 'If you can give nothing right now, you are still fully one of us' sounds like a pastor speaking to his own people. B's 'no one should feel behind on this' is awkward, and its run of short sentences makes it read like a notice. A also has a subject line and a fuller sign-off, and its only stretch is a reasonable inference that the boiler heats the fellowship hall and nursery.",
+      "invented": {
+        "main": [
+          "the boiler is described as the one that heats the fellowship hall and nursery (implied by the brief, not stated)"
+        ],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w1-congregation-email",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both drafts get every fact in the brief right. B reads more like a pastor writing to his own people: the subject line, the reassurance that someone who gives nothing is still fully one of us, and the warm sign-off all fit Dale's wish not to guilt anyone. A is accurate but reads like a list of facts, and its line 'no one should feel behind on this' is awkward. B loses a little for 'Please hear this clearly,' which sounds like a lecture, and for saying the boiler specifically heats the fellowship hall and nursery, which the brief only implies.",
+      "invented": {
+        "new": [],
+        "main": [
+          "the boiler is described as the one that heats the fellowship hall and nursery (inferred, not stated in the brief)",
+          "'stretch a budget or go into debt' (small addition to the brief's 'beyond what they can')"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w2-groomer-blog",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "A does more to keep readers from feeling nickel-and-dimed. It works out that the raise is about 12% against an 18% rise in costs, explains why Biscuit is mentioned, and makes clear that the booking date is what counts for the old price. B sticks closely to the facts but reads like a bare notice, and Biscuit and the 1,900 dogs are tacked on at the end with no purpose. A does add a few things the brief doesn't support: a reason for the size of the increase, Biscuit's gender, and reading 'seniors' as senior dogs.",
+      "invented": {
+        "main": [
+          "the increase is 'the one I can make without losing the clients I'd like to keep'",
+          "Biscuit referred to as 'him'",
+          "reading 'seniors' as senior dogs ('If your dog is a senior')",
+          "old price holds 'even if the groom falls after January 1' (an inference)"
+        ],
+        "new": [
+          "costs up 18% 'since March 2023' (the brief says since 2023)",
+          "'Those stay at $60' (an implied promise)"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w2-groomer-blog",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "B does more of what the brief asks. It works out that both increases come to about 12%, below the 18% rise in costs, which directly answers the worry about feeling nickel-and-dimed, and it makes clear that the booking date is what counts for keeping the old price. A has fewer inventions but reads like a bare notice that doesn't really make the case, and it uses Biscuit and the 1,900 dogs only as a tacked-on closing line. B loses some ground for adding its own reasons, such as raising prices 'without losing the clients' and Biscuit being 'the reason' for the post, for reading 'seniors' as senior dogs, and for repeating the booking-date point at the end. Both drafts also say 'almost three years' since the last raise, which is too short if the post runs this fall, since March 2023 is about three and a half years back.",
+      "invented": {
+        "new": [
+          "costs up 18% 'since March 2023' (the brief says since 2023)",
+          "'almost three years' of absorbing costs (out of date at the time of posting)"
+        ],
+        "main": [
+          "the increase is 'the one I can make without losing the clients I'd like to keep'",
+          "Biscuit is 'the reason I want to explain this'",
+          "reads 'seniors' as senior dogs ('If your dog is a senior')",
+          "'almost three years' of absorbing costs (out of date at the time of posting)"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w3-5k-page",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "B adds things the brief never said: that the department's tools are aging, that crews answer every call, that the course ground is uneven, and that last year's money went toward the tool fund. Those are claims I'd be making under my name without any basis. A sticks almost entirely to the facts I gave, in a plain voice that sounds like a fire lieutenant wrote it. B's scannable schedule and price lists are easier to read, but they don't make up for the invented details or its stock closing line.",
+      "invented": {
+        "main": [
+          "this year's money goes to the same purpose (implies last year's funds went to rescue tools)",
+          "register at check-in on race day starting at 7:30 a.m. (race-day registration time inferred)"
+        ],
+        "new": [
+          "Those tools are aging",
+          "Our crews answer every call with the tools we have",
+          "Past the first mile the ground is uneven",
+          "Last year 112 runners raised $6,100 toward that goal (brief doesn't say last year's money went to the tools)",
+          "This year we want to get further",
+          "Harvest Dash shirt (shirt branding)"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "w3-5k-page",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "A makes up several details: the tools are 'aging', the ground past the first mile is 'uneven', and a line about crews answering every call. It also states outright that last year's $6,100 went toward the tool goal. B sticks closer to the brief, is signed by Lt. Pruitt and reads like a plain note from the department. A's headed lists are easier to scan, but its 'Why we run' section leans on stock fundraiser phrasing, and B covers every fact in a natural voice.",
+      "invented": {
+        "new": [
+          "Those tools are aging",
+          "Past the first mile the ground is uneven",
+          "Our crews answer every call with the tools we have",
+          "Last year 112 runners raised $6,100 toward that goal (says last year's money went to the tools)",
+          "Harvest Dash shirt (brief just says a shirt)"
+        ],
+        "main": [
+          "this year's money goes to the same purpose (says last year's money went to the tools)",
+          "race-day registration at check-in starting at 7:30 a.m. (the brief doesn't say when or where race-day sign-up happens)"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "e1-canoe-cut",
+      "domain": "videoedit",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B passes all 9 checks. It cuts eight shots, two from each clip, plus a closing card, for good variety and pacing at 27 s. A fails the five-cuts check: it has only four transitions between shots before the card, and it reuses clip_a, so the piece feels thin. A's closing card is cleaner and on screen longer, and B's card is caught mid-fade in the last frame. Both titles are legible and correctly spelled, and both set the vertical clip over a blurred copy of itself without stretching it, so neither of those points outweighs A's failed requirement.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "e1-canoe-cut",
+      "domain": "videoedit",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A passes all 9 measured checks. It uses eight shots and eight crossfades and draws material from every clip twice, so it has more variety and better pacing. B has only five crossfades, which fails the measured five-cuts check, and it shows one shot from each of three clips plus one reuse. A handles the vertical clip properly with a blurred background and puts its title in a readable box; B's thin-outlined title is harder to read over bright footage. B's main advantage is a longer, steadier closing card, and that doesn't make up for its failed check.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d1-fall-festival",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A adds copy the client never supplied: a 'festival favorite for all ages' line and a 'day of good food and fall fun' tagline. It also uses a dome illustration that reads more like a mosque or observatory than a Lutheran church, plus filler letter icons (P, H, C), and repeats the address. B keeps strictly to the brief, with a strong serif/sans pairing, a clear order of title, date and time, place, then events, and a fitting pie motif. Its weaknesses are a dead gap above the event list, a small rain line at phone size, and an odd ring ornament over the 'i' in Festival.",
+      "invented": {
+        "main": [
+          "A festival favorite for all ages (Cake Walk descriptor)",
+          "A day of good food and fall fun (tagline)"
+        ],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d1-fall-festival",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A has every fact right and adds nothing. B makes up copy: 'A festival favorite for all ages' and the tagline 'A day of good food and fall fun'. B also has a domed building illustration that reads as a mosque or observatory rather than a Lutheran church, filler letter-in-circle icons, and a spacing slip in '\u2022FREE ADMISSION'. B has the bolder palette and stronger hierarchy, but A's restrained serif-and-sans layout fits the church better, even though it has a large empty gap above the event list, a stray ring glyph over the 'i' in Festival, and event text on the small side for a phone.",
+      "invented": {
+        "new": [],
+        "main": ["A festival favorite for all ages", "A day of good food and fall fun"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d2-bluegrass-cover",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "B prints the band name twice, once as a small spaced caps line and again as a large red display line. That looks like a mistake, and the whole type stack is a small centered column with a lot of dead space, so it gets weak at phone size. A has one dominant, rough-hewn 'Sorghum Hill' title, a sorghum stalk on rolling hills in a warm red, green and cream palette, and a clear reading order that suits an old-time family band. A's craft has flaws: the hill shape's left and right edges are cut off straight, and the title's caps crowd the bottom of the red band.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d2-bluegrass-cover",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "A prints the band name twice, once as a spaced caps kicker and again as a red ornate subtitle. That repetition reads as a mistake, and A is otherwise a small, centered stack of text floating in a lot of empty cream space. B has a real composition: a sorghum stalk on layered hills, a big wide 'Sorghum Hill' that reads well at phone size, and a green and rust palette that suits an old-time band. Its weaknesses are the hill block's hard, squared-off sides and the title's cap tops butting against the hill's bottom edge.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d3-hardware-anniversary",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "In A, the yardstick illustration covers the offer qualifier, so it reads 'ANY SINGLE REGULAR-PR\u2026'. That is the key condition of the sale, it is clipped, and A also prints the dates twice. B shows every fact in full: the offer terms, dates, both Saturday perks, the address and a clean hours table. Its hierarchy is clear, with the big 20% first and then a solid date bar. B has some empty space around the ruler and inside the perk boxes, but A's clipped offer text and busier, repetitive stack would embarrass the client more.",
+      "invented": {
+        "main": [
+          "'3 DAYS ONLY' badge (minor restatement)",
+          "'Thank you for 70 years \u00b7 1955\u20132025' tagline (harmless)"
+        ],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d3-hardware-anniversary",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B cuts off the offer's key condition: 'ANY SINGLE REGULAR-PR...' runs under the ruler graphic. It also repeats the dates, and its yardstick is marked to 60 inches, though a yardstick is 36. A gives every fact cleanly, with nothing clipped or overlapping, and has a clear order: the big 20% OFF first, then the dates bar, the two Saturday offers, the address and the hours. A's boxes leave a lot of empty space, but B's stronger 70th-anniversary headline doesn't make up for a cut-off offer line.",
+      "invented": {
+        "new": [],
+        "main": [
+          "Yardstick graphic marked 48 and 60, past a yardstick's 36 inches",
+          "'Thank you for 70 years \u00b7 1955\u20132025' tagline (based on the brief, but not something the client supplied)"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v1-detailing-reel",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete and add up to 30 seconds. B has more shot variety (an 85mm insert, ambience, an end card split into two 4-second clips), but its voice-over and on-screen text are out of step: the VO says the prices at 00:14\u201300:18 while the screen shows 'Full interior + exterior', and the price card then appears under the 'three cars a day' line. B also packs two people and two hand actions into Shots 1 and 5, and it names 'Tre' and assigns him a race the brief never gives. A keeps every VO line in sync with its matching text and uses one person with one action per shot; its main fault is a 6-second final clip that runs past the roughly 5-second model limit.",
+      "invented": {
+        "main": [],
+        "new": [
+          "Tre depicted as 'an adult Black man' (ethnicity not stated in brief)",
+          "graphite-gray midsize sedan specified as the featured car (minor creative assumption)"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v1-detailing-reel",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "A splits the spot into eight 3\u20134 s clips with self-contained prompts and real variety in shot size (28mm wide, 50mm macro steam insert, 85mm hood close-up, over-the-shoulder interior), with well-motivated match cuts and a clean 30 s total. B also adds up to 30 s, but its 6 s final clip goes over the ~5 s model limit, it has fewer and more similar shot sizes, and some of its match cuts are weak (console edge to foam arc). A's faults are smaller: its VO is one beat ahead of the matching text cards (prices spoken at 14\u201318 s but shown at 18\u201322 s), Shot 5 asks the model for two people and busy hand action, and it states Tre's race, which the brief never gave.",
+      "invented": {
+        "new": ["Describes Tre as 'an adult Black man', a detail not in the brief"],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v2-christmas-eve",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both EDLs add up to 35 seconds, and each plan has a clip-length flaw. A's 10-second final shot breaks its own five-second limit without comment. B fixes its 6-second shot but wrongly says it is the only long one, when its 8-second shot 5 is longer. A wins on shape and shot variety: an exterior, a wide interior, a detail, a window medium, a candle close-up, and a closing wide of silhouetted worshippers holding candles that pays off the 'Silent Night' ending. B's second half repeats three near-identical candle-bokeh shots and uses a hedged prompt ('pews only if naturally present'), although its voice-over is timed more precisely to the cards.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v2-christmas-eve",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both EDLs add up to 35 s, and both break their own 5-second generation cap: B's shot 6 runs 10 s with no plan to split it. A's shots 4, 5 and 6 run 6, 8 and 6 s, and A wrongly claims that every clip except shot 4 meets the cap. A also contradicts itself on title timings, with 0:10\u20130:16 in the text section but 0:10\u20130:15 in the EDL. B has a better shape: an empty exterior, the room waiting, choir preparation, people arriving, one flame, and a closing candlelit congregation. Its shot sizes and lenses (24/28/35/50/85 mm with stops) vary more than A's three near-identical candle close-ups. B's weaknesses are smaller: hymn sheets that risk generated text, candle-holding hands in the final wide, and a voice-over with no line-by-line timing.",
+      "invented": {
+        "new": [],
+        "main": ["brass candle holders on pew ends (minor visual detail, not a factual claim)"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v3-woodshop-film",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B keeps the same striped maple, walnut and cherry board and the same navy-sleeved hands in every prompt, and its process runs in a sensible order. A's subject changes from a rough maple board to a walnut board to three loose strips and then to a finished three-wood board, so the film shows glue-up after planing and the model has no steady subject to hold. B also gives the brief's ask a proper ending: a SOLBERG WOODWORKS title plus a voice-over line pointing viewers to the farmers market and online. A never puts the brand name on screen and leaves the market and online line out of its voice-over. Both plans add up to exactly 25 seconds and have complete sound plans; B has small slips, such as calling the shot 3 cut both straight and a match and a few negative prompt phrases.",
+      "invented": {
+        "main": [],
+        "new": ["describes the three woods as 'local-to-the-shop' wood colors"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v3-woodshop-film",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A keeps one striped maple, walnut and cherry board, the same navy-sleeved hands and the same left-side north-window light in every self-contained prompt, so it is much easier to generate as one continuous film. B's continuity breaks: shot 2 planes a plain maple board, shot 3 shows a walnut board, and shot 4 lines up loose strips before the finished board appears. B's first cut also matches on a window that isn't in shot 2. B does have a better wide establishing shot of the garage, but A's edit list, voice-over and on-screen text cover more of the brief's facts, including small tables, the farmers market and online sales, all tied to clear actions and cuts.",
+      "invented": {
+        "new": [],
+        "main": ["faint distant Duluth street/wind ambience bed (not in brief, minor)"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a1-podcast-clean",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B passes all 10 checks. It hits -16.0 LUFS exactly by running a two-pass linear loudnorm, and its notch filters cut the hum prominence from 43.8 to 2.3 dB. A misses loudness by 2.8 LU because it uses single-pass loudnorm, and it barely touches the hum (38.5 dB), since it has no notch filters and only gentle afftdn. A also hard-codes volume boosts at fixed timestamps (13.0-17.4 s and 28.3-32.2 s), which only works for this one file. B's dynaudnorm and gentle gate level the quiet parts more robustly, and fidelity is the same for both (0.804), so B's heavier processing doesn't cost it any speech quality.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a1-podcast-clean",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A passes all 10 checks. It lands exactly on -16 LUFS with -1 dBTP, and its notch filters cut the hum from 43.8 dB to 2.3 dB above the floor, while B leaves the hum almost untouched (38.5 dB) because it has no notch filters. B also misses loudness by 2.8 LU, since it uses single-pass loudnorm with no measurement pass. On top of that, B boosts the two quiet passages using timestamps hard-coded for this one file, which is fragile, while A evens levels with dynaudnorm, which adapts to whatever file it gets. A's hum notches and gate are fairly aggressive, but its fidelity score equals B's, so it doesn't appear to have damaged the voice.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a2-church-duck",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's music never actually ducks (0.0 dB measured): its pause detection found no gaps, so the bed sits flat at -16 dB the whole time and never comes back up between sentences or rises after the last word, which misses a core part of the brief. A's voice-keyed sidechain compressor gives a real 10 dB duck with a 500 ms release, so the music returns in the pauses and swells after the speech while keeping a healthy 12.8 dB voice-to-music margin. A is a bit further from the loudness target (-15.2 vs -15.9 LUFS) and uses a fixed 0.18 music gain, but both of those still meet the spec.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a2-church-duck",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Ducking is the main thing the brief asks for, and A doesn't do it: its pause-driven gain curve gives 0 dB of measured duck. The bed just sits flat about 23 dB under the voice, so it never comes up between sentences. B's voice-keyed sidechaincompress gives a real 10.3 dB duck that lets go in the pauses, with a healthy 12.8 dB voice-to-music ratio, and it passes all 12 checks. B has flaws: its music fade-in starts at 4 s instead of 0, so the intro is silent and the pastor comes in over a fading-in bed. It also uses dynamic loudnorm and lands 0.8 LU hot, but these are smaller problems than a mix that never ducks.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a3-radio-spot",
+      "domain": "audio",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B passes all 13 checks: the lines land at 0.5, 4.57 and 9.71 s in order, the bed ducks by 15 dB, the voice sits 22 dB above the music and comes through intact (fidelity 0.93). A fails the order, ducking, voice-above-music and voice-intact checks. Its voice track feeds both the sidechain and the final mix without being split first, so the voice is badly damaged (fidelity 0.29) and buried 11.6 dB under the music. A also hard-codes the fade points and delays for these exact files, while B measures the line lengths, trims silence, works out the start times and sets the bed level from measured loudness, so B holds up better if the recordings change.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "a3-radio-spot",
+      "domain": "audio",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A passes all 13 checks. Its lines land at 0.5, 4.57 and 9.71 s in the right order, the music ducks by 15 dB, and the voice stays intact (fidelity 0.93). Line starts and the duck envelope are worked out from the trimmed line lengths, and the final loudnorm pass is linear. B fails ordering, ducking, voice-above-music and voice integrity. Its measured voice onsets of 0.0, 0.1 and 0.97 s and fidelity of 0.29 suggest its graph mangled the voice: it uses the [voice] label twice without asplit and hard-codes fade and delay times that only fit one set of takes. On top of that it adds an alimiter and a dynamic loudnorm pass, and its sidechaincompress ducks the music by only 2.7 dB.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w1-congregation-email",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both drafts get every fact right and are almost identical in structure. B states the pastor's wish directly ('We do not want anyone to give beyond their means') and closes with 'In Christ', which sounds like a Baptist pastor. A ends on the stock line 'Thank you for your care for our church and one another,' and its phrase 'mark a gift in the offering plate \"boiler\"' is clumsy. B's flaw is minor: its 'mark your offering' drops the mention of the offering plate.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w1-congregation-email",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "The two drafts are almost the same and neither invents anything. B gives the giving instructions the way the brief does, naming the offering plate marked 'boiler', and puts them right after the ask. A says only 'mark your offering' and leaves the instructions until after the building news. B's closing thank-you is a bit stock, and A's 'In Christ' sign-off sounds more like a pastor, but B's clearer ask with its own reassurance still edges it.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w2-groomer-blog",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B gives both the old and new prices ($85 to $95, $120 to $135), so readers can see how big the increase is. A leaves out the old prices completely and repeats the new ones twice instead, which is a factual gap and padding. B also mentions Tulsa and reads a little warmer and less repetitive, though both are plain and similar in tone.",
+      "invented": {
+        "main": ["welcoming Muddy Paws to your driveway (implies driveway service, not in brief)"],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w2-groomer-blog",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A gives both the old and new prices, so readers can see the size of the increase. B never mentions $85 or $120, then repeats the new prices and the December 15 deadline, which makes it read padded. B also adds small details the brief doesn't give (doing the work safely, clients of many years, the driveway). A is plainer and shorter, though saying \"nickel-and-dimed\" outright is a bit clumsy.",
+      "invented": {
+        "new": [],
+        "main": [
+          "do the work safely",
+          "Some of you have been with me for years",
+          "welcoming Muddy Paws to your driveway"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w3-5k-page",
+      "domain": "writing",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both drafts get every fact right and add nothing the brief doesn't support, so the choice comes down to layout and voice. B puts the date, check-in and start times in a block readers can scan, which suits an event page. A runs everything as prose and ends on a filler line with a list of three ('run, walk, and support'). A is signed by Ray, which helps, but both read as flat and generic, and B's closing line is also a bit hollow.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "w3-5k-page",
+      "domain": "writing",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both drafts stick to the brief's facts and are equally flat. B puts the $38,000 rescue-tool goal in the opening paragraph and is signed by Lt. Pruitt, so it reads as his page, while A only mentions the cause at the end and closes with the generic line 'helps the department work toward this equipment for the community.' A's separate schedule block is easier to scan, but B's closing triple ('run, walk, and support') is a smaller fault than A's impersonal tone.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "e1-canoe-cut",
+      "domain": "videoedit",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both pass all 9 checks, show the correctly spelled title and closing card legibly, and keep the vertical clip at its true shape over a blurred background. B is the better website piece: eight shots that rotate through all four clips with short dissolves, a lower-third title and end card on semi-transparent boxes that fade in and out, and two-pass loudness normalization (one pass to measure, one to apply). A is a sound single-pass script but plainer: six hard cuts, a long hold on one gradient shot from about 19 to 22 s, and title text sitting bare over busy footage.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "e1-canoe-cut",
+      "domain": "videoedit",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A cuts eight shots, two from each clip, joined by short dissolves, and ends on a card. B uses only six hard-cut shots, so its pacing is slower and less varied. Both handle the vertical clip correctly, placing it uncropped over a blurred copy, and both cards are spelled correctly. A's title and closing card sit on semi-opaque boxes and are easier to read than B's thin outlined text at the top of the frame. A also normalizes the music in two passes (measure, then linear gain), which is more careful than B's single dynamic loudnorm pass. A's scene-change count of 0 comes from the dissolves, which the detector doesn't register as cuts, so it isn't a real flaw.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    }
+  ]
+}
