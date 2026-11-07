@@ -1,0 +1,2 @@
+import subprocess
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=__W__x__H__:r=30', '-t', '__DUR__', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'out.mp4'])

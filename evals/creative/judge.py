@@ -10,6 +10,7 @@ only judges what is missing.
 A missing deliverable never goes to the judge: if only one arm produced one it wins automatically (auto: true), and if neither
 did the verdict is a tie. For audio and video edit "produced one" means the script ran and wrote its file."""
 import concurrent.futures as cf, json, os, re, shutil, subprocess, sys
+import judge_media
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
@@ -34,6 +35,7 @@ RUBRIC = {
 4. Line-level craft: plain, varied sentences, nothing that makes a reader's eyes slide.""",
     'videoedit': """You are an editor reviewing two ffmpeg scripts that cut the same four clips and their measured results, choosing which finished video you would rather put on the client's website. The objective table is measured from the script's actual output and is reliable; weigh it, then look at each contact sheet (twelve frames across the finished piece, the last near the end) for the title and closing card (legible, correctly spelled, placed well), whether the vertical clip is handled properly (not stretched), shot variety and pacing, and read each script for sensible structure. A script that failed to produce a video loses to one that did.""",
 }
+RUBRIC.update(judge_media.RUBRIC)
 FILES = {'design': ('png',), 'video': ('md',), 'writing': ('md',), 'audio': ('sh',), 'videoedit': ('sh', 'png')}
 
 
@@ -60,6 +62,8 @@ def load_score(arm, model, task):
 
 def available(arm, model, task):
     s, d = load_score(arm, model, task), task['domain']
+    if d in judge_media.DOMAINS:
+        return judge_media.available(s, d)
     if d == 'design':
         return bool(s.get('rendered')) and not s.get('blank')
     if d == 'video':
@@ -125,9 +129,13 @@ def judge(job):
         os.makedirs(w)
         d = task['domain']
         extra = ''
+        if d in judge_media.DOMAINS:
+            judge_media.stage_shared(w, task, E)
         for tag, arm in (('A', a_arm), ('B', b_arm)):
             rd = run_dir(arm, model, task)
-            if d == 'design':
+            if d in judge_media.DOMAINS:
+                judge_media.stage(w, tag, rd, task, E)
+            elif d == 'design':
                 shutil.copy(os.path.join(rd, 'design.png'), os.path.join(w, f'{tag}.png'))
             elif d in ('video', 'writing'):
                 open(os.path.join(w, f'{tag}.md'), 'w').write(body(os.path.join(rd, 'work', task.get('deliverable') or ('plan.md' if d == 'video' else 'draft.md'))))
@@ -135,13 +143,15 @@ def judge(job):
                 shutil.copy(os.path.join(rd, 'work', task.get('deliverable') or ('edit.sh' if d == 'videoedit' else 'process.sh')), os.path.join(w, f'{tag}.sh'))
                 if d == 'videoedit' and os.path.exists(os.path.join(rd, 'sheet.png')):
                     shutil.copy(os.path.join(rd, 'sheet.png'), os.path.join(w, f'{tag}-frames.png'))
-        if d == 'design':
+        if d in judge_media.DOMAINS:
+            extra = judge_media.extra(task, load_score(a_arm, model, task), load_score(b_arm, model, task))
+        elif d == 'design':
             extra = f"Read the two images A.png and B.png in the current folder (both rendered at {task['size'][0]} x {task['size'][1]} px)."
         elif d in ('video', 'writing'):
             extra = f"Read A.md and B.md in the current folder."
         else:
             extra = 'Read A.sh and B.sh in the current folder' + (', and look at A-frames.png and B-frames.png' if d == 'videoedit' else '') + '.\n\nMEASURED RESULTS (each script was run on a fresh copy of the inputs with no network):\n' + metrics_table(load_score(a_arm, model, task), load_score(b_arm, model, task), d)
-        inv = '' if d in ('audio', 'videoedit') else ', "invented_A": [strings], "invented_B": [strings]'
+        inv = '' if d in ('audio', 'videoedit') or (d in judge_media.DOMAINS and d not in judge_media.INVENTS) else ', "invented_A": [strings], "invented_B": [strings]'
         prompt = f"""You are judging two deliverables made for the same client brief. You do not know how either was made, and the labels A and B carry no information.
 
 CLIENT BRIEF:

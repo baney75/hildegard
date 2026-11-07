@@ -1,0 +1,48 @@
+# Reference for the selftest: pad, bass, optional drums, a plucked line, in the asked key and tempo, ending in a long decay.
+import numpy as np, wave, subprocess, re
+BPM, TONIC, MODE, DUR, LUFS, DRUMS = __BPM__, __TONIC__, '__MODE__', __DUR__, __LUFS__, __DRUMS__
+sr = 44100; rng = np.random.default_rng(2)
+scale = [0, 2, 4, 5, 7, 9, 11] if MODE == 'major' else [0, 2, 3, 5, 7, 8, 10]
+prog = [0, 5, 3, 4] if MODE == 'major' else [0, 5, 2, 6]
+def midi(p): return 440.0 * 2 ** ((p - 69) / 12)
+def deg(d, octave): return 12 * octave + TONIC + scale[d % 7] + 12 * (d // 7)
+beat = 60 / BPM; bar = 4 * beat
+n = int(DUR * sr); out = np.zeros(n + 6 * sr)
+def add(a, s, g=1.0):
+    a = int(a * sr); m = min(len(s), len(out) - a)
+    if m > 0: out[a:a + m] += s[:m] * g
+def tone(f, d, kind):
+    t = np.arange(int(d * sr)) / sr
+    if kind == 'pad':
+        s = sum(np.sin(2 * np.pi * f * (1 + e) * t) + 0.3 * np.sin(4 * np.pi * f * (1 + e) * t) for e in (-0.003, 0, 0.003))
+        return s * np.minimum(1, t / 0.5) * np.minimum(1, (d - t) / 0.6) / 3
+    return sum(np.sin(2 * np.pi * f * k * t) / k * np.exp(-t * (3 + 1.5 * k)) for k in range(1, 6)) * np.minimum(1, t / 0.004)
+nb = int(DUR / bar) + 2
+for b in range(nb):
+    r = prog[b % 4]; t0 = b * bar
+    for j in (0, 2, 4):
+        add(t0, tone(midi(deg(r + j, 4) - 12), bar + 0.5, 'pad'), 0.5)
+    add(t0, tone(midi(deg(r, 2)), beat * 1.5, 'pluck'), 0.9)
+    add(t0 + 2 * beat, tone(midi(deg(r, 2)), beat * 1.5, 'pluck'), 0.7)
+    for i, j in enumerate([0, 2, 4, 2, 7, 4, 2, 4]):
+        add(t0 + i * beat / 2, tone(midi(deg(r + j, 5)), beat, 'pluck'), 0.35)
+    if DRUMS:
+        for q in range(4):
+            tk = np.arange(int(0.15 * sr)) / sr
+            add(t0 + q * beat, np.sin(2 * np.pi * (55 + 90 * np.exp(-tk * 30)) * tk) * np.exp(-tk * 14), 1.2)
+        for q in range(8):
+            h = rng.standard_normal(int(0.04 * sr)) * np.exp(-np.arange(int(0.04 * sr)) / sr / 0.008)
+            add(t0 + q * beat / 2, h, 0.25 if q % 2 else 0.12)
+y = out[:n]
+fade = int(min(4.0, DUR * 0.2) * sr)
+y[-fade:] *= np.linspace(1, 0, fade) ** 2
+def write(path, v):
+    w = wave.open(path, 'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes((np.clip(v, -1, 1) * 32767).astype('<i2').tobytes()); w.close()
+y = np.tanh(2.5 * y / np.max(np.abs(y)))  # tame drum peaks so the loudness target is reachable
+y /= np.max(np.abs(y)) * 1.2
+write('raw.wav', y)
+r = subprocess.run(['ffmpeg', '-nostats', '-i', 'raw.wav', '-af', 'ebur128=peak=true', '-f', 'null', '-'], capture_output=True, text=True).stderr
+i = float(re.findall(r'I:\s+(-?[\d.]+) LUFS', r[r.rfind('Summary:'):])[0])
+y *= 10 ** ((LUFS - i) / 20)
+y *= min(1.0, 10 ** (-2.0 / 20) / np.max(np.abs(y)))
+write('out.wav', y)

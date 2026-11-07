@@ -20,6 +20,20 @@ by measurement. Run it before and after any change to `skills/` and keep a chang
 evidence, and read `tasks.json` results as the set you tune against. Every brief carries the client's facts and says "don't
 ask me questions", so the eval measures making the work, not the interview.
 
+### Media domains (`tasks-media.json`, `heldout-media.json`)
+
+Five more domains for making pictures, sounds and motion with code. Each has 3 tuned tasks and 2 held-out ones, with real small-business,
+church, family and creator briefs that carry their facts and say "don't ask me questions". They live in their own files so the first
+13 + 8 tasks stay as they were; run them with `--set media` (tuned), `--set media-heldout`, or `--tasks-file a.json,b.json`.
+
+| Domain | Tasks (tuned + held-out) | Deliverable | Scored by |
+| --- | --- | --- | --- |
+| photoedit | 3 + 2: a beach-retreat hero (tilt 3 degrees, cold cast, dark, 16:9); a farm-stand photo (blue-green cast, a stop under, grain, 4:5); a barn Christmas card (tilt, blown sky, 7:5); a bakery shelf (dark, yellow, noisy, square); a sanctuary slide (tilt 4 degrees, crushed shadows, cold, 4:5) | ONE script, `process.sh` (ImageMagick and/or inline Python) or `process.py` (Pillow, numpy), that writes `out.jpg` at the exact size under a byte cap | measurement against the clean photo (below), then Opus sees before, reference, and both edits |
+| photocreate | 3 + 2: an Advent bulletin cover, a farm-stand logo mark, a soup recipe-card illustration; a minimalist foothills print, a VBS lighthouse | an image made by code: `art.svg`, `art.html` (rendered here by Playwright's Chromium) or `make.py` (Pillow, numpy) writing `art.png`, at the exact size | file facts (below), then Opus looks at both PNGs on craft |
+| sfx | 3 + 2: a UI success chime, a page turn, 30 s of rain on a tin roof; a whoosh into a title card, a shop-door bell | `make.py` (numpy) or `make.sh` (sox, ffmpeg) writing `out.wav` | length, loudness, true peak, clipping, spectral checks per effect, then Opus reads the metrics and spectrogram PNGs (it cannot hear, and its rubric says so) |
+| music | 3 + 2: a church announcement bed (30 s, 72 BPM, G major), a shop promo (30 s, 124 BPM, A major), a podcast intro (20 s, 80 BPM, A minor); a 15 s radio jingle bed (108 BPM, F major), a memorial slideshow bed (36 s, 60 BPM, E-flat major) | `make.py` or `make.sh` writing `out.wav` | length, loudness, true peak, tempo, key, dead air, no hard cut, then Opus reads the metrics, spectrogram and chromagram PNGs |
+| codevideo | 3 + 2: a fire-department pancake promo (1080 x 1920), a verse card with gentle motion (1080 x 1080), a data reveal with the brief's numbers; a photo slideshow with captions from three given photos, a save-the-date | `make.py` or `make.sh` writing `out.mp4` (14 to 17 s, H.264) | duration, size, fps, size cap, black stretches, motion, OCR of the frames for every required line and for no extra number or date, then Opus sees a contact sheet of 8 frames |
+
 ## Method
 
 - **Responders** (subscriptions only; `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are unset, and a quota or billing message stops the run):
@@ -52,9 +66,37 @@ ask me questions", so the eval measures making the work, not the interview.
   under speech), the voice-to-music ratio while speaking, whether the lines are in order, where the sting lands, and whether the ending is a
   hard cut. Each metric becomes a pass/fail check, and the full table goes to the judge.
 - **Video-edit scoring** (`score.py`): ran, length in range, 1280x720, 30 fps, H.264 and AAC, scene changes (ffmpeg scene score above 0.12), loudness
-  within 2 LU, `blackdetect` for black stretches over half a second, and an estimate of which of the four clips appear (colour-histogram match).
+  within 2 LU, `blackdetect` for black stretches over half a second, and an estimate of which of the four clips appear (luma correlation of 48 x 27 thumbnails).
 - **Writing scoring** (`score.py`): `skills/hildegard/scripts/prose_lint.py --json` on the draft with front matter removed (the repo's `lint` command
   needs a built workspace; the Python lint reproduces it rule for rule). Note that the skill arms know about this lint and the `none` arm does not.
+- **Media inputs** (`make_media.py`, reproducible): the photos are public-domain or CC0 pictures from Wikimedia Commons (`media-sources.json` lists
+  page, license, author and SHA-256 of each), downloaded once to `~/.cache/hildegard-creative-eval/photos` (override with `PHOTOS_DIR`) and never put in git; a
+  file that does not match its pin is refused. Each photo-edit input is the clean photo run through known operations with a fixed seed: a tilt of 3 to 4 degrees, a
+  channel-gain colour cast, exposure in stops (linear light), a raised black point (crushed shadows), noise (luma and colour, heavier in the lights), then JPEG at q90.
+  The tilt is applied to the full photo and the input is the largest window with no empty corners, so a responder meets the corners only when it straightens.
+  The clean window is kept as `ref/<task>/reference.png` and is never shown to a responder. The slideshow task gets three of the photos at 1280 px wide.
+- **Photo-edit scoring** (`score_media.py`, `imglib.py`): the script is re-run in a temp folder with no network and `PATH=/usr/bin:/bin:/usr/local/bin`
+  (never `~/.local/bin`, which holds a Chrome launcher). `out.jpg` is checked for being a JPEG, the exact size, a byte cap, and empty corners. Then it is located inside
+  the reference (normalized cross-correlation over crop width and offset, on blurred luma, so colour and exposure do not matter), and everything else is measured against
+  that aligned reference crop: whether the named subject survived the crop; straightness (a projection-profile tilt estimate of the horizon or the vertical lines, a proxy
+  read against the reference's own estimate, within 0.75 degrees; each task names the line family its photo has); white balance (distance between the log R/G and B/G ratios
+  of the means; for a cast task at most 30 percent of the input's, and at most 0.05); exposure (mean luma within 0.06, clipped highlights and shadows no worse than the reference by 0.02 and 0.03);
+  noise (Immerkaer's estimate, excess over the reference at most half the input's) and detail (gradient energy 0.6 to 1.35 of the reference); and SSIM against the reference crop
+  (uniform 7 x 7 window, 384 px wide, lightly blurred; at least 0.75). `selftest/test_media_scorers.py` runs an oracle that undoes the known operations (it must pass every check) and a
+  pass-through (it must fail white balance, exposure, straightness and denoising where the photo has them).
+- **Picture scoring**: `art.svg` and `art.html` are rendered by Playwright's Chromium at the asked size, `make.py` is run and its `art.png` taken. Checks are the file facts only (rendered,
+  exact size, not blank, value range, a few colours, no network references); the look is the judge's.
+- **Sound scoring** (`score_sound.py`, numpy only): `out.wav` from `make.py` or `make.sh`, run as above with a 180 s limit. Every sound: length, true peak, clipping. Effects add the checks in that
+  file's docstring (a chime has a clear pitch that steps upward with a fast attack and a decay; a page turn is noisy with its centroid in 1.5 to 9 kHz; rain is broadband and steady with no tonal peak and
+  droplets in the 4 to 8 kHz band; a whoosh is noisy with a spectral centroid that rises at least 1.8 times then falls at least 1.5 times, peaking mid-sound; a bell has a clear pitch and rings on for a second).
+  Music adds integrated loudness against the brief, dead air, a hard cut at the end, tempo (onset-flux autocorrelation with a harmonic sum; within 5 percent of the asked BPM, or of half or double it, which is
+  reported as the octave), and key (chroma from spectral peaks at A = 440 with overtones removed: at least 0.85 of the energy inside the asked scale, at least 0.8 in each third, and that scale holding more energy than
+  any other seven-note scale; the Krumhansl-Schmuckler estimate is reported). The judge cannot hear: it gets the metrics, a spectrogram with a loudness strip (and a chromagram for music) as a PNG, and the script,
+  and its rubric says so.
+- **Video scoring** (`score_media.py`): `out.mp4` from `make.py` or `make.sh` with a 300 s limit. Checks: duration in range, exact size, 24 to 60 fps, H.264 yuv420p, a size cap, no black stretch over half a second,
+  and motion (the share of one-second windows with no frame change at all stays under the task's limit). Text is read with tesseract (sparse mode, also on the inverted frame when it is dark) from 14 frames across the
+  piece: every required line must be found in one frame (each word within 0.8 similarity of an OCR word), and no OCR number or month or weekday that is not in the required lines may appear in two frames (a count-up task
+  checks only the last three frames); the slideshow also checks every given image shows (luma correlation of 48 x 27 thumbnails). Without tesseract those checks are skipped and the result says so. The judge gets a contact sheet of 8 frames.
 - **Judge** (`judge.py`): Opus (`claude -p --model opus`, no MCP, Read only) sees each task's two deliverables in both orders as `A` and `B`, with
   file names neutralized, front matter stripped and no arm names, against a domain rubric (in the file). Design: the two rendered PNGs. Video:
   the two plans. Audio and video edit: the measured table, the scripts and, for video edit, a frame contact sheet. It returns the winner, the
@@ -68,7 +110,10 @@ ask me questions", so the eval measures making the work, not the interview.
 ```sh
 evals/creative/run.sh <label>                       # tuned set, none vs main, haiku and luna; resumable
 evals/creative/run.sh <label> --set heldout         # the held-out set
+evals/creative/run.sh <label> --set media           # the media tuned set (media-heldout, media-both)
+evals/creative/run.sh <label> --tasks-file tasks-media.json,/path/to/more.json   # any task files
 evals/creative/run.sh <label> --cand new --base main   # this checkout's skills/ (or $NEW_SKILLS) against main
+evals/creative/run.sh <label> --cand new --base main --new-skills ~/work/hildegard-motion/skills   # any folder of skill folders
 evals/creative/run.sh <label> --only a1-podcast-clean,d1-fall-festival --models haiku
 ```
 

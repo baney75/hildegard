@@ -9,7 +9,8 @@ judge looks at: design.png (the HTML rendered by Playwright's Chromium) or sheet
   video     the plan is judged by rubric only; here only its size is recorded
   audio     score_audio.py
   videoedit runs edit.sh in a copy of the clips with no network; duration, size, fps, codecs, loudness, scene changes
-            (ffmpeg scene score above 0.12), black stretches over half a second (blackdetect), which clips appear"""
+            (ffmpeg scene score above 0.12), black stretches over half a second (blackdetect), which clips appear
+  photoedit, photocreate, sfx, music, codevideo   score_media.py (and score_sound.py for sound and music)"""
 import glob, json, os, re, shutil, subprocess, sys
 import numpy as np
 from audiolib import SR
@@ -226,5 +227,7 @@ if __name__ == '__main__':
     task = next(t for t in tasks if t['id'] == args[0])
     run = args[1]
     res = {'task': task['id'], 'domain': task['domain']}
-    res.update({'design': design, 'writing': writing, 'video': video, 'audio': audio, 'videoedit': videoedit}[task['domain']](task, os.path.join(run, 'work'), run))
+    import score_media  # photo editing, pictures and video drawn in code, sound effects, music
+    fns = {'design': design, 'writing': writing, 'video': video, 'audio': audio, 'videoedit': videoedit, **score_media.DOMAINS}
+    res.update(fns[task['domain']](task, os.path.join(run, 'work'), run))
     json.dump(res, open(os.path.join(run, 'score.json'), 'w'), indent=1)

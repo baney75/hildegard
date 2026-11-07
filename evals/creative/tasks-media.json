@@ -1,0 +1,352 @@
+[
+  {
+    "id": "p1-retreat-hero",
+    "domain": "photoedit",
+    "brief": "I'm Dale Okafor, the youth pastor at Shoreline Community Church in Oceanside, California. photo.jpg is my phone shot of the sunset from the bluff at our overnight beach retreat, and I want it as the wide hero image at the top of the retreat page on our website. I held the phone crooked, so the horizon is tilted, and it came out cold and a bit dark. Straighten it, correct the color so it looks the way the evening felt (warm light going down over the water, nothing garish), and crop it to exactly 1600 x 900 pixels. Keep the sun and the horizon glow in the frame. No text, borders, filters or watermark. Save a JPEG under 400 KB. Don't ask me questions.",
+    "inputs": [
+      "photo.jpg"
+    ],
+    "deliverable": [
+      "process.sh",
+      "process.py"
+    ],
+    "media": {
+      "photo": "pacific-sunset",
+      "ops": {
+        "tilt": 3.0,
+        "cast": [
+          0.9,
+          0.95,
+          1.12
+        ],
+        "stops": -0.4
+      },
+      "seed": 11
+    },
+    "score": {
+      "size": [
+        1600,
+        900
+      ],
+      "max_bytes": 400000,
+      "subject": [
+        0.35,
+        0.3,
+        0.6,
+        0.47
+      ],
+      "tilt_family": "h"
+    }
+  },
+  {
+    "id": "p2-farm-stand",
+    "domain": "photoedit",
+    "brief": "I'm Rosa Delgado of Delgado Family Produce. We sell at the Saturday farmers market in Findlay, Ohio. photo.jpg of our tomatoes, peppers and plums was taken under the tent: it is too dark, the shade turned everything blue-green, and it is grainy. I want it for Instagram as a 4:5 portrait, exactly 1080 x 1350 pixels. Make the colors honest (red tomatoes, green jalapeños, purple-red plums, white sign), remove the grain without turning it to mush, and keep the hand-lettered price sign in the frame. No text added, no filters, no borders. Save a JPEG under 300 KB. Don't ask me questions.",
+    "inputs": [
+      "photo.jpg"
+    ],
+    "deliverable": [
+      "process.sh",
+      "process.py"
+    ],
+    "media": {
+      "photo": "produce-stand",
+      "ops": {
+        "stops": -1.0,
+        "cast": [
+          0.8,
+          1.02,
+          1.18
+        ],
+        "noise": 8
+      },
+      "seed": 12
+    },
+    "score": {
+      "size": [
+        1080,
+        1350
+      ],
+      "max_bytes": 300000,
+      "subject": [
+        0.52,
+        0.0,
+        0.76,
+        0.22
+      ],
+      "tilt_family": "v"
+    }
+  },
+  {
+    "id": "p3-barn-card",
+    "domain": "photoedit",
+    "brief": "I'm Hank Brenner. photo.jpg is the barn on our family farm at dusk, and it is going on this year's Christmas card, printed 7 x 5 inches landscape. Two problems: I shot it leaning, so the horizon, fence line and barn corner are tilted, and the sky is washed out. Level it, bring the sky back to a deep dusk with its orange glow, keep the barn's white walls from blowing out, and crop to exactly 1750 x 1250 pixels (7:5). Keep the barn and its tree in the frame. No text or borders. Save a JPEG under 500 KB. Don't ask me questions.",
+    "inputs": [
+      "photo.jpg"
+    ],
+    "deliverable": [
+      "process.sh",
+      "process.py"
+    ],
+    "media": {
+      "photo": "iowa-barn",
+      "ops": {
+        "tilt": -3.0,
+        "stops": 0.8,
+        "cast": [
+          1.05,
+          1.0,
+          0.94
+        ]
+      },
+      "seed": 13
+    },
+    "score": {
+      "size": [
+        1750,
+        1250
+      ],
+      "max_bytes": 500000,
+      "subject": [
+        0.62,
+        0.22,
+        0.95,
+        0.62
+      ],
+      "tilt_family": "h"
+    }
+  },
+  {
+    "id": "c1-advent-cover",
+    "domain": "photocreate",
+    "size": [
+      1275,
+      1650
+    ],
+    "brief": "I'm Linda Park, the administrator at Grace Lutheran Church in Findlay, Ohio. I need the cover illustration for our Advent worship bulletin, 1275 x 1650 pixels (portrait, letter size at 150 dpi). The theme is waiting in the dark for the light. Leave the top quarter calm and uncluttered; I will set the word 'Advent' there myself, so put no text anywhere in the art. Style: flat or paper-cut illustration with a limited palette of four to six colors, warm and reverent, not clip-art. No faces. It must be made by code: an SVG, an HTML/CSS page, or a Python (Pillow, numpy) script. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "art.svg",
+      "art.html"
+    ],
+    "score": {}
+  },
+  {
+    "id": "c2-farmstand-logo",
+    "domain": "photocreate",
+    "size": [
+      1024,
+      1024
+    ],
+    "brief": "I'm Sam Hollis. My family runs Hollis Family Farm Stand in Carroll County, Maryland. We sell tomatoes, sweet corn and honey from a red roadside stand with a green roof. I need a logo mark for the stand sign and our bags, as a 1024 x 1024 pixel image on a plain cream background. A mark only: no text (the wordmark is set separately). It has to stay recognizable at 64 pixels, use at most four colors (think tomato red, leaf green, honey gold, cream), and feel handmade and friendly, not corporate. It must be made by code: an SVG, an HTML/CSS page, or a Python (Pillow, numpy) script. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "art.svg",
+      "art.html"
+    ],
+    "score": {}
+  },
+  {
+    "id": "c3-soup-card",
+    "domain": "photocreate",
+    "size": [
+      1500,
+      1000
+    ],
+    "brief": "I'm Priya Nair. I write a small food blog called Sunday Table. I need the illustration for the top of a recipe card, 1500 x 1000 pixels (3:2 landscape): a bowl of tomato soup with a slice of grilled cheese beside it on a worn wooden table by a window on a rainy day. Cozy and warm, an illustration in a hand-made style, not a photo and not clip-art. No text in the image. It must be made by code: an SVG, an HTML/CSS page, or a Python (Pillow, numpy) script. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "art.svg",
+      "art.html"
+    ],
+    "score": {}
+  },
+  {
+    "id": "s1-ui-chime",
+    "domain": "sfx",
+    "brief": "I'm Marcus Webb. I'm building a small budgeting app called Ledgerly. I need the sound for when someone finishes entering the month's expenses: a short, bright success chime of two or three notes that step upward, between 0.6 and 1.2 seconds long, friendly and clean (not cartoonish, no vocals, no noise, no reverb wash). Peak between -6 and -1 dBTP. Deliver a mono or stereo 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "sfx",
+      "effect": "chime",
+      "dur": [
+        0.5,
+        1.5
+      ],
+      "peak_min": -8
+    }
+  },
+  {
+    "id": "s2-page-turn",
+    "domain": "sfx",
+    "brief": "I produce audiobooks, and I need the sound of one paper page being turned for the intro of a children's story: a single close, soft page turn, about one second long (0.8 to 1.6 s), with the airy swish of paper and a faint settle at the end. No music, no tones, no room reverb. Peak between -8 and -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "sfx",
+      "effect": "page",
+      "dur": [
+        0.6,
+        2.2
+      ],
+      "peak_min": -9
+    }
+  },
+  {
+    "id": "s3-rain-tin-roof",
+    "domain": "sfx",
+    "brief": "I make the video for our church youth group's Quiet Night retreat, and I need a rain-on-a-tin-roof bed to sit under the slides: 30 seconds (29 to 31.5), steady and loopable, no thunder, no hum or musical tone, no voices. It should sound like many separate drops on metal over a soft wash of rain, not like plain static. Integrated loudness -24 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "sfx",
+      "effect": "rain",
+      "dur": [
+        29.0,
+        31.5
+      ],
+      "lufs": -24,
+      "lufs_tol": 1.5
+    }
+  },
+  {
+    "id": "m1-church-announce",
+    "domain": "music",
+    "brief": "I'm the sound volunteer at Trinity Presbyterian in Dayton, Ohio. I need a bed of music to play softly under our spoken announcements before the service: 30 seconds (within 2), gentle and reverent, about 72 beats per minute, in G major, no vocals, nothing that fights a speaking voice (keep it sparse and low in the mix), a quiet natural ending (not a hard cut). Integrated loudness -23 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "music",
+      "dur": 30,
+      "lufs": -23,
+      "bpm": 72,
+      "key": "G major",
+      "dur_tol": 2.0
+    }
+  },
+  {
+    "id": "m2-shop-promo",
+    "domain": "music",
+    "brief": "I run Hartwell Hardware in Bellefontaine, Ohio. I need the music bed for a 30-second promo for our anniversary sale: upbeat and friendly, a steady 124 beats per minute, in A major, with a clear pulse (drums or a bass and chord groove, plucked or mallet melody on top), no vocals, no guitar-solo cliches, and an ending that lands on a chord, not a hard cut. 30 seconds (within 2). Integrated loudness -16 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "music",
+      "dur": 30,
+      "lufs": -16,
+      "bpm": 124,
+      "key": "A major",
+      "dur_tol": 2.0
+    }
+  },
+  {
+    "id": "m3-podcast-intro",
+    "domain": "music",
+    "brief": "I host a weekly small-town history podcast. I need a 20-second intro bed: calm, curious, a little wistful, about 80 beats per minute, in A minor, no vocals, soft pulse, some movement so it is not one held chord, and a graceful ending. 20 seconds (within 1.5). Integrated loudness -18 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "kind": "music",
+      "dur": 20,
+      "lufs": -18,
+      "bpm": 80,
+      "key": "A minor",
+      "dur_tol": 1.5
+    }
+  },
+  {
+    "id": "v1-pancake-promo",
+    "domain": "codevideo",
+    "brief": "I'm the secretary for the Ridgeview Volunteer Fire Department. I need a 15-second vertical (1080 x 1920) motion piece to post on Facebook and Instagram stories for our pancake breakfast. Show exactly this text and nothing else: 'Ridgeview Volunteer Fire Department'; 'Pancake Breakfast'; 'Saturday, March 14'; '7 a.m. to 11 a.m.'; 'Station 2, 410 Mill Road'; '$8 all you can eat'; 'Kids under 6 eat free'. Do not add a phone number, a website, a sponsor or any other date or number. Motion should feel warm and local, with a clear order: what, when, where, price. Between 14 and 16 seconds, H.264 MP4, no audio needed. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "size": [
+        1080,
+        1920
+      ],
+      "dur": [
+        14.0,
+        16.0
+      ],
+      "lines": [
+        "Ridgeview Volunteer Fire Department",
+        "Pancake Breakfast",
+        "Saturday, March 14",
+        "7 a.m. to 11 a.m.",
+        "Station 2, 410 Mill Road",
+        "$8 all you can eat",
+        "Kids under 6 eat free"
+      ]
+    }
+  },
+  {
+    "id": "v2-verse-card",
+    "domain": "codevideo",
+    "brief": "I do the Sunday-morning social posts for Cornerstone Chapel. I need a 12-second square (1080 x 1080) verse card with gentle motion, so it feels still and prayerful and not like an ad. Show the verse in the King James Version and its reference, and nothing else: 'Be still, and know that I am God:' 'I will be exalted among the heathen,' 'I will be exalted in the earth.' and 'Psalm 46:10'. No other text, numbers or logos. The motion should be slow (a drift, a fade, a light shift); lines may arrive one at a time. Between 10 and 14 seconds, H.264 MP4, no audio needed. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "size": [
+        1080,
+        1080
+      ],
+      "dur": [
+        10.0,
+        14.0
+      ],
+      "lines": [
+        "Be still, and know that I am God:",
+        "I will be exalted among the heathen,",
+        "I will be exalted in the earth.",
+        "Psalm 46:10"
+      ],
+      "max_static": 0.5
+    }
+  },
+  {
+    "id": "v3-pantry-reveal",
+    "domain": "codevideo",
+    "brief": "I coordinate volunteers at the Maple Ridge Food Pantry. For our annual meeting I need a 16-second widescreen (1280 x 720) data reveal of last year's numbers. Show exactly these: 'Maple Ridge Food Pantry', '2025', '1,842 households served', '61,300 pounds of food', '214 volunteers', '38% from local farms'. Do not show any other number, percentage or date. A count-up to each number is welcome (the numbers on screen while counting are fine, but each must settle on the exact figure and hold), with a bar, ring or other simple graphic if it helps. Between 15 and 17 seconds, H.264 MP4, no audio needed. Don't ask me questions.",
+    "deliverable": [
+      "make.py",
+      "make.sh"
+    ],
+    "score": {
+      "size": [
+        1280,
+        720
+      ],
+      "dur": [
+        15.0,
+        17.0
+      ],
+      "lines": [
+        "Maple Ridge Food Pantry",
+        "2025",
+        "1,842 households served",
+        "61,300 pounds of food",
+        "214 volunteers",
+        "38% from local farms"
+      ],
+      "count_up": true
+    }
+  }
+]

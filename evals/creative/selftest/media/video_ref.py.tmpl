@@ -1,0 +1,53 @@
+# Reference for the selftest: lines arrive one at a time over a slowly moving background; optional slow-zoom photos under them.
+import subprocess, numpy as np
+from PIL import Image, ImageDraw, ImageFont
+W, H = __SIZE__
+DUR = __DUR__
+LINES = __LINES__
+IMAGES = __IMAGES__
+FPS = 30
+FONT = '/usr/share/fonts/liberation/LiberationSans-Bold.ttf'
+size = max(24, int(min(W / 16, H / (len(LINES) * 2.6))))
+font = ImageFont.truetype(FONT, size)
+def wrap(draw, text, maxw):
+    words, out, cur = text.split(), [], ''
+    for w in words:
+        t = (cur + ' ' + w).strip()
+        if draw.textlength(t, font=font) <= maxw: cur = t
+        else: out.append(cur); cur = w
+    return out + [cur]
+dr = ImageDraw.Draw(Image.new('RGB', (10, 10)))
+blocks = [wrap(dr, l, W * 0.86) for l in LINES]
+heights = [len(b) * int(size * 1.25) + int(size * 0.5) for b in blocks]
+top = (H - sum(heights)) // 2
+n = int(DUR * FPS)
+imgs = [Image.open(p).convert('RGB') for p in IMAGES]
+ff = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
+                       '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', 'out.mp4'], stdin=subprocess.PIPE)
+yy, xx = np.mgrid[0:H, 0:W]
+for f in range(n):
+    t = f / FPS
+    if imgs:
+        k = min(len(imgs) - 1, int(t / (DUR / len(imgs))))
+        im = imgs[k]; z = 1.0 + 0.06 * ((t % (DUR / len(imgs))) / (DUR / len(imgs)))
+        cw, ch = int(im.width / z), int(im.height / z)
+        base = im.crop(((im.width - cw) // 2, (im.height - ch) // 2, (im.width + cw) // 2, (im.height + ch) // 2)).resize((W, H))
+        base = Image.blend(base, Image.new('RGB', (W, H), (0, 0, 0)), 0.45)
+    else:
+        g = (0.5 + 0.5 * np.sin((xx / W + yy / H) * 3 + t * 0.6))[..., None]
+        a = np.array([245, 236, 218]) * g + np.array([232, 214, 186]) * (1 - g)
+        base = Image.fromarray(a.astype(np.uint8))
+    d = ImageDraw.Draw(base)
+    y = top
+    for i, b in enumerate(blocks):
+        t0 = 0.6 + i * (DUR - 2.0) / max(1, len(blocks))
+        a = min(1.0, max(0.0, (t - t0) / 0.6))
+        if a > 0:
+            col = (250, 250, 250) if imgs else (40, 30, 24)
+            c = tuple(int(bg + (cc - bg) * a) for bg, cc in zip(base.getpixel((5, 5)), col))
+            for j, line in enumerate(b):
+                w = d.textlength(line, font=font)
+                d.text(((W - w) / 2, y + j * int(size * 1.25) + (1 - a) * 18), line, font=font, fill=c)
+        y += heights[i]
+    ff.stdin.write(base.tobytes())
+ff.stdin.close(); ff.wait()
