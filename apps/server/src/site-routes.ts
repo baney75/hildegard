@@ -18,6 +18,7 @@ import { FigmaError, type FigmaFetch, importFigma } from './figma.ts';
 import type { SecretStore } from './hf.ts';
 import { PenError, parseJsonc, penDesign, penImages } from './pen.ts';
 import { rebuildBlog, writePost } from './posts.ts';
+import { isNotes } from './public-sites.ts';
 import { ImportError, type importUrl } from './site-import.ts';
 import { SiteError, type Sites, sitePath } from './sites.ts';
 import { listTemplates, templateFiles } from './templates.ts';
@@ -587,6 +588,8 @@ export function previewRoutes(sites: Sites) {
     if (rel === '' || rel.endsWith('/')) rel += 'index.html';
     let data: Buffer;
     try {
+      // A preview link is shared to show a design, and shows drafts, but the notes and interviews stay with the owner.
+      if (isNotes(sitePath(rel).split('/'))) return c.body(null, 404);
       data = sites.read(id, rel);
     } catch {
       return c.body(null, 404);

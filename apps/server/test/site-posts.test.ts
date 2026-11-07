@@ -8,7 +8,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { markdown } from '../src/markdown.ts';
 import { CASES } from './fixtures/markdown-cases.ts';
-import { boot, type Harness, textOf } from './harness.ts';
+import { boot, type Harness, raw, textOf } from './harness.ts';
 
 let h: Harness;
 let journal: string;
@@ -308,6 +308,48 @@ describe('writing a post', () => {
     const out = (await res.json()) as { lint: { ok: boolean; fails: string[] } };
     expect(out.lint.ok).toBe(false);
     expect(out.lint.fails).toContain('stock-words');
+  });
+});
+
+describe('previewing a site that has notes and drafts', () => {
+  it('shows a draft, as a preview is for, but never the interview notes', async () => {
+    const made = await h.local('/api/sites', 'POST', { from: 'empty', title: 'Preview Notes' });
+    const site = ((await made.json()) as { id: string }).id;
+    await post(site, {
+      title: 'Held',
+      body_md: 'Draft words for the preview.',
+      date: '2026-11-04',
+      draft: true,
+      notes_md: 'Q: Who said it?\nA: Private answer one.',
+    });
+    await post(site, {
+      title: 'Out',
+      body_md: 'Public words.',
+      date: '2026-11-05',
+      notes_md: 'Q: Why?\nA: Private answer two.',
+    });
+    const view = (await (await h.local(`/api/sites/${site}`)).json()) as { preview: string };
+    const get = (rel: string) => raw(h.srv.url, `${view.preview}${rel}`);
+    const draft = await get('blog/held/');
+    expect(draft.status).toBe(200);
+    expect(draft.body).toContain('Draft words for the preview.');
+    expect((await get('blog/out/')).status).toBe(200);
+    expect((await get('')).status).toBe(200);
+    for (const rel of [
+      'notes/held.md',
+      'notes/out.md',
+      'NOTES/held.md',
+      'Notes/out.md',
+      'notes%2Fheld.md',
+      'blog/%2e%2e/notes/held.md',
+      'blog/out/%2e%2e/../notes/out.md',
+      'notes/',
+      'notes',
+    ]) {
+      const r = await get(rel);
+      expect(r.status, rel).toBe(404);
+      expect(r.body, rel).not.toContain('Private answer');
+    }
   });
 });
 
