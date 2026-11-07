@@ -8,7 +8,9 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
   F4  a responder that dies leaves meta.json with the error and no `done`
   F5  model HTML renders with a throwaway profile and HOME, and its requests to anything but Google Fonts go nowhere
   F8  a quota message halts the dispatch of every later job
-  F9  the judge works in a fresh folder outside the eval tree holding only A.* and B.*, and a leak scan guards it"""
+  F9  the judge works in a fresh folder outside the eval tree holding only A.* and B.*, and a leak scan guards it
+  F10 a run with no `done` (the responder timed out or died) is never scored or judged; it is an automatic loss
+  F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
@@ -207,6 +209,8 @@ with tempfile.TemporaryDirectory() as ev:
         os.makedirs(os.path.join(rd, 'work'))
         open(os.path.join(rd, 'work', 'draft.md'), 'w').write(f'---\nname: x\n---\nThe bake sale is on Saturday at nine, in the church hall, and every pie is five dollars ({arm} copy).')
         json.dump({'words': 30}, open(os.path.join(rd, 'score.json'), 'w'))
+        json.dump({'finished': True, 'error': None, 'is_error': False}, open(os.path.join(rd, 'meta.json'), 'w'))
+        open(os.path.join(rd, 'done'), 'w').close()
     seen = []
 
     def spy(prompt, cwd):
@@ -231,6 +235,64 @@ with tempfile.TemporaryDirectory() as ev:
         check('F9 a deliverable that names the eval tree is refused', False)
     except SystemExit as e:
         check('F9 a deliverable that names the eval tree is refused', 'leak' in str(e), e)
+
+    # F10: the responder timed out after writing part of its draft: no done file, but a draft long enough to be judged
+    judge.ask = spy
+    seen.clear()
+    part = os.path.join(ev, 'runs', 'main', 'haiku', task['id'])
+    open(os.path.join(part, 'work', 'draft.md'), 'w').write('The bake sale is on Saturday at nine, in the church hall, and every pie is five dollars, come early for the apple.')
+    os.remove(os.path.join(part, 'done'))
+    shutil.rmtree(os.path.join(ev, 'judge'), ignore_errors=True)
+    judge.E = ev
+    json.dump([task], open(os.path.join(ev, 't.json'), 'w'))
+    os.remove(os.path.join(part, 'score.json'))
+    r = subprocess.run([sys.executable, os.path.join(CR, 'score.py'), task['id'], part, '--tasks', os.path.join(ev, 't.json')], capture_output=True, text=True, env={**os.environ, 'EVAL_DIR': ev})
+    check('F10 score.py refuses a run with no done file and writes no score.json', r.returncode != 0 and not os.path.exists(os.path.join(part, 'score.json')), (r.returncode, r.stdout, r.stderr))
+    json.dump({'words': 30}, open(os.path.join(part, 'score.json'), 'w'))  # even a stale score cannot get it judged
+    v = judge.judge(('lbl3', 'haiku', task, 0, 'none', 'main'))
+    check('F10 an unfinished run is an automatic loss and the judge is never called', not seen and v['auto'] and v['winner'] == 'none' and v['unfinished'] == ['main'], (v, seen))
+    open(os.path.join(part, 'done'), 'w').close()
+    json.dump({'finished': True, 'error': 'no finished transcript: died', 'is_error': True}, open(os.path.join(part, 'meta.json'), 'w'))
+    check('F10 a done run whose meta.json carries an error is not available either', not judge.available('main', 'haiku', task))
+    json.dump({'finished': True, 'error': None, 'is_error': False}, open(os.path.join(part, 'meta.json'), 'w'))
+    check('F10 a finished run is available again', judge.available('main', 'haiku', task))
+
+    # F11: a deliverable that cites the skills it read
+    shutil.rmtree(os.path.join(ev, 'judge'), ignore_errors=True)
+    seen.clear()
+    cites = {'none': 'The bake sale is on Saturday at nine, in the church hall, and every pie is five dollars, see the apple pie.',
+             'main': ('Per .agents/skills/hildegard-film/references/video-editing.md and skills/hildegard-art/SKILL.md, from the hildegard-web skill and the sheet '
+                      'in prose-craft.md: the bake sale is on Saturday at nine, in the church hall, and every pie is five dollars.')}
+    ref_dir = os.path.join(ev, 'skills-main-abc', 'skills', 'hildegard-art', 'references')
+    os.makedirs(ref_dir)
+    open(os.path.join(ref_dir, 'prose-craft.md'), 'w').write('x')
+    for arm, text in cites.items():
+        open(os.path.join(ev, 'runs', arm, 'haiku', task['id'], 'work', 'draft.md'), 'w').write(text)
+    v = judge.judge(('lbl4', 'haiku', task, 0, 'none', 'main'))
+    check('F11 a draft citing skill paths is still judged', not v['auto'] and len(seen) == 1, (v, len(seen)))
+    texts = {}
+    judge.ask = lambda prompt, cwd: (texts.update({f: open(os.path.join(cwd, f)).read() for f in os.listdir(cwd)}), spy(prompt, cwd))[1]
+    shutil.rmtree(os.path.join(ev, 'judge'), ignore_errors=True)
+    judge.judge(('lbl5', 'haiku', task, 0, 'none', 'main'))
+    both = ' '.join(texts.values())
+    check('F11 the paths, the skill names and the reference file name are replaced in the copy the judge reads',
+          texts and not any(w in both for w in ('.agents', 'skills/', 'SKILL.md', 'hildegard-', 'video-editing.md', 'prose-craft.md')) and '[reference]' in texts['B.md'], texts)
+    check('F11 the other arm is redacted the same way (nothing to redact there, text unchanged)', texts['A.md'] == cites['none'], texts.get('A.md'))
+    left = tempfile.mkdtemp()
+    open(os.path.join(left, 'A.md'), 'w').write('read prose-craft.md first')
+    try:
+        judge.scan(left, ('none', 'main'))
+        check('F11 the leak scan fails on a reference file name that is left', False)
+    except SystemExit as e:
+        check('F11 the leak scan fails on a reference file name that is left', 'leak' in str(e), e)
+    for t in ('see skills/hildegard-art', 'the hildegard-web skill', 'SKILL.md'):
+        open(os.path.join(left, 'A.md'), 'w').write(t)
+        try:
+            judge.scan(left, ('none', 'main'))
+            check(f'F11 the leak scan fails on {t!r}', False)
+        except SystemExit as e:
+            check(f'F11 the leak scan fails on {t!r}', 'leak' in str(e), e)
+    shutil.rmtree(left)
     # the real ask: Read is scoped to the judge folder, and no other folder is added
     cmds = []
     real = subprocess.run

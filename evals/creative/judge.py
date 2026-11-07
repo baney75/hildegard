@@ -8,10 +8,13 @@ objective metrics table, the script, and (video edit) a contact sheet of frames.
 only judges what is missing.
 
 A missing deliverable never goes to the judge: if only one arm produced one it wins automatically (auto: true), and if neither
-did the verdict is a tie. For audio and video edit "produced one" means the script ran and wrote its file."""
-import concurrent.futures as cf, json, os, re, shutil, subprocess, sys, tempfile
+did the verdict is a tie. "Produced one" means the responder finished (a `done` file and a meta.json with no error; a run that timed
+out or died leaves partial files that are never scored or judged) and, for audio and video edit, the script ran and wrote its file.
+Text deliverables have any skill path, skill name or reference file name replaced by "[reference]" in both arms before the judge sees them."""
+import concurrent.futures as cf, glob, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
 FRONT = re.compile(r'\A﻿?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|\Z)')
 
@@ -58,7 +61,18 @@ def load_score(arm, model, task):
     return json.load(open(p)) if os.path.exists(p) else {}
 
 
+def finished(arm, model, task):
+    rd = run_dir(arm, model, task)
+    try:
+        meta = json.load(open(os.path.join(rd, 'meta.json')))
+    except (OSError, ValueError):
+        return False
+    return os.path.exists(os.path.join(rd, 'done')) and not meta.get('error') and not meta.get('is_error')
+
+
 def available(arm, model, task):
+    if not finished(arm, model, task):
+        return False
     s, d = load_score(arm, model, task), task['domain']
     if d == 'design':
         return bool(s.get('rendered')) and not s.get('blank')
@@ -108,21 +122,46 @@ def ask(prompt, cwd):
     raise SystemExit(f'the judge gave no verdict twice in {cwd}')
 
 
-LEAKS = re.compile(r'hildegard-creative-eval|/runs/(?:none|main|new)\b|\border[01]\.json|\bskills-main\b|\.agents/skills|/plug/skills', re.I)
+LEAKS = re.compile(r'hildegard-creative-eval|/runs/(?:none|main|new)\b|\border[01]\.json|\bskills-main\b|\.agents/skills|/plug/skills|\bskills/hildegard|SKILL\.md', re.I)
+PATHREF = re.compile(r"[^\s'\"`()<>\[\]]*(?:\.agents/skills|/plug/skills|\bskills/hildegard|SKILL\.md|skills-main)[^\s'\"`()<>\[\]]*", re.I)
+
+
+def skill_words():
+    """One regex for the names of every skill folder (the hyphenated ones; bare "hildegard" is also a saint) and one for every
+    reference file name, from this checkout, $NEW_SKILLS and each archived main."""
+    names, files = set(), set()
+    roots = [os.path.join(REPO, 'skills'), os.environ.get('NEW_SKILLS', '')] + sorted(glob.glob(os.path.join(E, 'skills-main-*', 'skills')))
+    for root in filter(os.path.isdir, roots):
+        for dp, dn, fn in os.walk(root):
+            names.update(d for d in dn if d.startswith('hildegard-'))
+            if os.sep + 'references' in dp:
+                files.update(f for f in fn if re.search(r'[-_]', f))
+    rx = lambda ws, pre='': re.compile(pre + '(?:' + '|'.join(re.escape(w) for w in sorted(ws, key=len, reverse=True)) + r')\b', re.I) if ws else None
+    return rx(names, r'\b'), rx(files, r'(?<![\w-])')
+
+
+def redact(text):
+    """Replace anything that points at a skill with "[reference]": a path into the skills, a skill name, a reference file name."""
+    text = PATHREF.sub('[reference]', text)
+    for rx in skill_words():
+        text = rx.sub('[reference]', text) if rx else text
+    return text
 
 
 def scan(w, arms):
     """Refuse to call the judge unless the folder holds only A and B files, no file name names an arm, and nothing in them points
-    into the eval tree (the run, order and skills folders). A bare word like "new" in prose is not a leak and is not checked."""
+    into the eval tree (the run, order and skills folders) or names a skill path, skill or reference file (redact() takes those out
+    first, so this catches a gap in it). A bare word like "new" in prose is not a leak and is not checked."""
     for f in sorted(os.listdir(w)):
         if not re.fullmatch(r'[AB](-frames)?\.(md|png|sh)', f):
             raise SystemExit(f'leak: {f} does not belong in the judge folder')
         if any(a in f.lower() for a in arms):
             raise SystemExit(f'leak: file name {f} names an arm')
         if not f.endswith('.png'):
-            m = LEAKS.search(open(os.path.join(w, f), errors='replace').read())
+            text = open(os.path.join(w, f), errors='replace').read()
+            m = LEAKS.search(text) or next((m for m in (rx.search(text) for rx in skill_words() if rx) if m), None)
             if m:
-                raise SystemExit(f'leak: {f} contains {m.group(0)!r}, which points into the eval tree')
+                raise SystemExit(f'leak: {f} contains {m.group(0)!r}, which points into the eval tree or the skills')
 
 
 def judge(job):
@@ -136,7 +175,7 @@ def judge(job):
     if not ok[a_arm] or not ok[b_arm]:
         win = a_arm if ok[a_arm] else b_arm if ok[b_arm] else 'tie'
         rec.update(winner=win, margin='clear' if win != 'tie' else '', auto=True, why='no usable deliverable from ' + ('either arm' if win == 'tie' else (b_arm if win == a_arm else a_arm)),
-                   invented={})
+                   invented={}, unfinished=[a for a in (a_arm, b_arm) if not finished(a, model, task)])
     else:
         # A fresh folder outside the eval tree holding only the neutralized deliverables; the verdict is written elsewhere.
         w = tempfile.mkdtemp(prefix='creative-judge-')
@@ -149,9 +188,9 @@ def judge(job):
             if d == 'design':
                 shutil.copy(os.path.join(rd, 'design.png'), os.path.join(w, f'{tag}.png'))
             elif d in ('video', 'writing'):
-                open(os.path.join(w, f'{tag}.md'), 'w').write(body(os.path.join(rd, 'work', task.get('deliverable') or ('plan.md' if d == 'video' else 'draft.md'))))
+                open(os.path.join(w, f'{tag}.md'), 'w').write(redact(body(os.path.join(rd, 'work', task.get('deliverable') or ('plan.md' if d == 'video' else 'draft.md')))))
             else:
-                shutil.copy(os.path.join(rd, 'work', task.get('deliverable') or ('edit.sh' if d == 'videoedit' else 'process.sh')), os.path.join(w, f'{tag}.sh'))
+                open(os.path.join(w, f'{tag}.sh'), 'w').write(redact(open(os.path.join(rd, 'work', task.get('deliverable') or ('edit.sh' if d == 'videoedit' else 'process.sh')), errors='replace').read()))
                 if d == 'videoedit' and os.path.exists(os.path.join(rd, 'sheet.png')):
                     shutil.copy(os.path.join(rd, 'sheet.png'), os.path.join(w, f'{tag}-frames.png'))
         if d == 'design':

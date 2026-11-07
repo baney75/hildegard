@@ -44,7 +44,7 @@ echo "== 3/5 scores"
 for d in "$EVAL_DIR"/runs/*/*/*/; do [ -f "$d/transcript.jsonl" ] && python3 runmeta.py "$(basename "$(dirname "$d")")" "${d%/}" 2>/dev/null; done
 for a in $BASE $CAND; do for m in $MODELS; do for t in $IDS; do
   R=$EVAL_DIR/runs/$a/$m/$t
-  [ -f "$R/score.json" ] || [ ! -d "$R/work" ] || echo "$t $R"
+  [ -f "$R/score.json" ] || [ ! -f "$R/done" ] || echo "$t $R"
 done; done; done | xargs -P "$JOBS" -L 1 sh -c 'python3 score.py "$0" "$1" --tasks '"${FILES[*]}"' || echo "score failed for $0 $1" >&2'
 
 fi

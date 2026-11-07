@@ -65,7 +65,10 @@ ask me questions", so the eval measures making the work, not the interview.
   name the arms, are written elsewhere, and a scan refuses to call the judge if the folder holds anything else, a file name names an arm, or a file points into the eval tree. Design: the two rendered PNGs. Video:
   the two plans. Audio and video edit: the measured table, the scripts and, for video edit, a frame contact sheet. It returns the winner, the
   margin (slight or clear), the reasons, and the invented facts it found. If one arm has no usable deliverable, it wins automatically and the verdict is
-  flagged `auto`; the report prints how many verdicts were automatic. A skill-arm plan can still mention a Hildegard tool by name, which is a small leak.
+  flagged `auto`; the report prints how many verdicts were automatic. A run counts only if the responder finished (a `done` file and a `meta.json` with no error): one that timed out or died
+  after writing part of its deliverable is never scored or judged, loses automatically, and the report says how many verdicts had such an arm. Before the files are copied, any skill path
+  (`.agents/skills/...`, `skills/hildegard-...`, `SKILL.md`), skill name or reference file name in a text deliverable becomes `[reference]`, the same way in both arms, and the scan fails the judgment if one is left.
+  A skill-arm plan can still mention a Hildegard tool by name, which is a small leak.
 - **Selftest**: `python3 evals/creative/selftest/test_scorers.py` runs a passthrough control and a competent reference script through the scorers;
   the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
   sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render

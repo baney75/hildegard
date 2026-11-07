@@ -55,7 +55,8 @@ def main():
             for t in tasks:
                 h = runs[arm][m][t['id']]['meta'].get('skills_hash') if runs[arm][m][t['id']]['meta'] else None
                 hashes[arm][h or 'unrecorded'] = hashes[arm].get(h or 'unrecorded', 0) + 1
-    out = {'label': label, 'base': base, 'cand': cand, 'models': models, 'tasks': [t['id'] for t in tasks], 'summary': summary, 'skill_loaded': skill, 'skills_hash': hashes, 'runs': runs, 'verdicts': verdicts}
+    unfinished = sum(1 for v in verdicts if v.get('unfinished'))
+    out = {'label': label, 'base': base, 'cand': cand, 'models': models, 'tasks': [t['id'] for t in tasks], 'summary': summary, 'skill_loaded': skill, 'skills_hash': hashes, 'unfinished_verdicts': unfinished, 'runs': runs, 'verdicts': verdicts}
     path = opt('--out', os.path.join(HERE, f'results-{label}.json'))
     json.dump(out, open(path, 'w'), indent=1)
 
@@ -68,6 +69,8 @@ def main():
             s = summary.get(d, {}).get(m)
             if s:
                 P(f'{d:<10} {m:<6} {s["cand"]:>9} {s["base"]:>9} {s["tie"]:>5} {s["n"]:>3} {s["cand_rate"]:>6.2f}  {s["tasks_won"]}/{s["tasks_lost"]}            ({s["auto"]})')
+    if unfinished:
+        P(f'{unfinished} of {len(verdicts)} verdicts had an arm whose responder did not finish (timed out or died): no usable deliverable, scored and judged as none.')
     allv = {m: [v for v in verdicts if v['model'] == m] for m in models}
     for m in models:
         n = len(allv[m])

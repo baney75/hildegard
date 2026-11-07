@@ -247,6 +247,8 @@ if __name__ == '__main__':
     tasks = [t for p in paths for t in json.load(open(p))]
     task = next(t for t in tasks if t['id'] == args[0])
     run = args[1]
+    if not os.path.exists(os.path.join(run, 'done')):  # the responder timed out or died: whatever it left is partial work
+        sys.exit(f'not scoring {run}: no done file (the responder did not finish)')
     res = {'task': task['id'], 'domain': task['domain']}
     res.update({'design': design, 'writing': writing, 'video': video, 'audio': audio, 'videoedit': videoedit}[task['domain']](task, os.path.join(run, 'work'), run))
     json.dump(res, open(os.path.join(run, 'score.json'), 'w'), indent=1)
