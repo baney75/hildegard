@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Posts on a site: a page in the site's own look, the list newest first, the feed and the sitemap; drafts left out;
 // Markdown that can't carry HTML; notes kept private.
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -95,6 +95,41 @@ describe('writing a post', () => {
     expect(html).toContain('<body class="hg-post">');
     expect(html).toContain('var(--ground,');
     expect(html).toContain('var(--accent,');
+  });
+
+  it('uses the stylesheets the site’s own front page links, wherever they are', async () => {
+    const res = await h.local('/api/sites', 'POST', { from: 'empty', title: 'Nested Look' });
+    const site = ((await res.json()) as { id: string }).id;
+    const files = join(h.dir, 'sites', site, 'files');
+    await h.local(`/api/sites/${site}/files/styles.css`, 'DELETE');
+    mkdirSync(join(files, 'assets', 'css'), { recursive: true });
+    writeFileSync(join(files, 'assets', 'theme.css'), ':root{--ground:#fff}');
+    writeFileSync(join(files, 'assets', 'css', 'extra.css'), '.x{color:red}');
+    writeFileSync(
+      join(files, 'index.html'),
+      `<!doctype html><html><head><title>Nested</title>
+<link rel="preconnect" href="https://fonts.example">
+<link href="https://fonts.example/x.css" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css?v=3">
+<link href='./assets/css/extra.css' rel=stylesheet>
+<link rel="stylesheet" href="../../outside.css">
+<link rel="stylesheet" href="missing.css">
+</head><body>Hi</body></html>`,
+    );
+    expect((await post(site, { title: 'Deep', body_md: 'Words.', date: '2026-11-04' })).status).toBe(201);
+    const html = await read(site, 'blog/deep/index.html');
+    expect(html).toContain('<link rel="stylesheet" href="../../assets/theme.css">');
+    expect(html).toContain('<link rel="stylesheet" href="../../assets/css/extra.css">');
+    expect(html.indexOf('theme.css')).toBeLessThan(html.indexOf('extra.css'));
+    for (const never of ['fonts.example', 'outside.css', 'missing.css'])
+      expect(html, never).not.toContain(never);
+    expect(await read(site, 'blog/index.html')).toContain(
+      '<link rel="stylesheet" href="../assets/theme.css">',
+    );
+    // A site with no stylesheet to link still gets a page.
+    writeFileSync(join(files, 'index.html'), '<!doctype html><title>Bare</title><p>Hi');
+    await post(site, { title: 'Bare', body_md: 'Words.', date: '2026-11-04' });
+    expect(await read(site, 'blog/bare/index.html')).not.toContain('rel="stylesheet"');
   });
 
   it('keeps the list, the feed and the sitemap newest first', async () => {

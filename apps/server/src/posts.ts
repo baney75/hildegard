@@ -5,6 +5,7 @@
  * with a noindex tag and is left out of the list, the feed and the sitemap; site.json records it as a draft. The
  * writer's notes or interview go to `notes/<slug>.md`, which the public address never serves.
  */
+import { posix } from 'node:path';
 import { escapeHtml as esc, markdown, plainText } from './markdown.ts';
 import { type PostMeta, SiteError, type Sites } from './sites.ts';
 
@@ -84,14 +85,54 @@ const excerpt = (html: string) => {
 /** Newest first: by date, then by when it was written here. */
 const newest = (a: PostMeta, b: PostMeta) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at);
 
-/** The site's own stylesheet, and whether it is the journal's (so its article classes are already styled). */
-function look(sites: Sites, id: string): { css: string | null; journal: boolean } {
-  const css = sites.files(id).filter((f) => /^[^/]+\.css$/i.test(f.path));
-  const pick = css.find((f) => f.path === 'styles.css') ?? css[0];
-  if (!pick) return { css: null, journal: false };
-  const text = sites.read(id, pick.path).toString('utf8');
-  return { css: pick.path, journal: /\.story__head\b/.test(text) };
+/**
+ * The stylesheets the site's own front page links, as paths inside the site (in the order it links them, nested
+ * ones such as assets/theme.css included), found by reading the page's `<link rel="stylesheet">` tags. An address
+ * outside the site, a file that isn't there and a path that climbs out of the folder are left out.
+ */
+function linkedStyles(sites: Sites, id: string, have: Set<string>): string[] {
+  let html: string;
+  try {
+    html = sites.read(id, 'index.html').toString('utf8');
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
+    if (!/\brel\s*=\s*["']?[^"'>]*\bstylesheet\b/i.test(tag)) continue;
+    const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i.exec(tag);
+    const raw = (href?.[1] ?? href?.[2] ?? href?.[3] ?? '').trim();
+    if (!raw || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(raw)) continue;
+    let rel: string;
+    try {
+      rel = posix.normalize(decodeURIComponent(raw.replace(/[?#].*$/, '')).replace(/^\/+/, ''));
+    } catch {
+      continue;
+    }
+    if (rel === '..' || rel.startsWith('../') || !have.has(rel) || out.includes(rel)) continue;
+    out.push(rel);
+  }
+  return out;
 }
+
+/** The site's own stylesheets, and whether one is the journal's (so its article classes are already styled). */
+function look(sites: Sites, id: string): { css: string[]; journal: boolean } {
+  const files = sites.files(id).filter((f) => /\.css$/i.test(f.path));
+  let css = linkedStyles(sites, id, new Set(files.map((f) => f.path)));
+  if (!css.length) {
+    // No page to read, or none that links a stylesheet of its own: a stylesheet beside it, if there is one.
+    const top = files.filter((f) => !f.path.includes('/'));
+    const pick = top.find((f) => f.path === 'styles.css') ?? top[0];
+    css = pick ? [pick.path] : [];
+  }
+  return {
+    css,
+    journal: css.some((p) => /\.story__head\b/.test(sites.read(id, p).toString('utf8'))),
+  };
+}
+
+/** A path inside the site as a web address part: each segment encoded, the slashes kept. */
+const href = (p: string) => p.split('/').map(encodeURIComponent).join('/');
 
 /** What a page the site's stylesheet doesn't already dress gets: its tokens (--ground, --ink, --accent …) with fallbacks. */
 const ARTICLE_CSS = `:root{color-scheme:light dark}
@@ -123,7 +164,7 @@ interface Page {
   site: { title: string };
   /** From the page's folder to the site's front page, such as "../../". */
   up: string;
-  css: string | null;
+  css: string[];
   journal: boolean;
 }
 
@@ -135,7 +176,7 @@ const head = (p: Page, title: string, description: string, extra = '') =>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-${p.css ? `<link rel="stylesheet" href="${esc(p.up + p.css)}">\n` : ''}<link rel="alternate" type="application/rss+xml" title="${esc(p.site.title)}" href="${esc(`${p.up}feed.xml`)}">
+${p.css.map((c) => `<link rel="stylesheet" href="${esc(p.up + href(c))}">\n`).join('')}<link rel="alternate" type="application/rss+xml" title="${esc(p.site.title)}" href="${esc(`${p.up}feed.xml`)}">
 ${extra}</head>`;
 
 const masthead = (p: Page) =>
