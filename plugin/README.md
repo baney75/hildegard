@@ -8,11 +8,17 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-3d**: 3D models for screens and for printing, built in code and checked by Hildegard view by view.
 - **hildegard-print**: working parts to 3D print, measured from a photo or a shop listing, sized from your printer's
   fits, sliced, and handed over with a print sheet.
+- **hildegard-blog**: blog posts, newsletters, emails and pages in the writer's own voice, learned from their samples
+  and every edit they make; interviews them for the material and posts to their Hildegard site.
+- **hildegard-design**: posters, flyers, social posts, covers, invitations, menus and signs, built in HTML at their exact
+  size, rendered, and read back line by line so no word is cut or invented.
 - **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
   light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
   file or a live page; your user watches the site on Hildegard's canvas while you build it.
 - **hildegard-openscad**: exact, parametric parts in OpenSCAD code, sent as source; Hildegard renders it, checks the
   mesh and measures how the parts fit.
+- **hildegard-motion**: animated video drawn in code from a checked spec: title cards, promos, quotes, data reveals, photo
+  slideshows and kinetic type, from six finished templates, with no GPU.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
 - **hildegard-music**: music, jingles, background beds, sound effects, and hour-long seamless soundscapes (binaural beats,
   isochronic tones, ocean, rain, wind, creek, crickets, fire) from recipes any model can fill in, rendered by tested

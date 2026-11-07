@@ -34,8 +34,16 @@ import math
 import struct
 import sys
 
-import numpy as np
-from PIL import Image, ImageDraw
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw
+except ImportError as e:
+    # One plain line, not a traceback, in the shape every caller already reads.
+    _msg = (f"{'Pillow' if e.name == 'PIL' else e.name or 'a package'} is not installed and review_mesh.py needs numpy "
+            "and Pillow. Install them with: python3 -m pip install pillow numpy")
+    print(json.dumps({"ok": False, "error": _msg}))
+    print(_msg, file=sys.stderr)
+    sys.exit(1)
 
 MAX_BYTES = 512 * 1024 * 1024
 MAX_TRIANGLES = 5_000_000

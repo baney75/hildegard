@@ -138,7 +138,7 @@ table lacks, say so and pick the nearest row.
 When the user wants a real song, with a singer, or a sound this tool cannot make (a full band, a recorded drum
 kit, a vocal), do not fake it with this tool. Write the brief instead, and say you did.
 
-- Read the **hildegard** skill's `references/song-suno.md` for the method, the output contract and Suno's
+- Read the **hildegard** skill's `song-suno.md` for the method, the output contract and Suno's
   limits. It owns lyrics, hooks, hymns, the Styles box and the Exclude box. Follow it; do not restate it here.
 - Fill this brief first, in plain words, from the user's request and the mood table (not from your taste):
   - **Use and length**: "45 s bed under a talk" or "3 min worship song".
@@ -152,7 +152,8 @@ kit, a vocal), do not fake it with this tool. Write the brief instead, and say y
   a demo of the form and chords; the Suno prompt then names the same chords and sections.
 - If Hildegard has a music model installed (`hildegard_status` and `list_presets` show it), use it with the same
   gates as the other models. The catalog's candidate and its license terms are in `references/models.md`. Nothing is
-  downloaded or its license accepted on the owner's behalf; that is a `needs-owner` step.
+  downloaded or its license accepted on the owner's behalf; that is a `needs-owner` step. Without Hildegard, the brief
+  and the sketch are the whole job.
 
 ## Going further (for a strong model)
 
@@ -177,7 +178,7 @@ Once the preset path works, a capable model can leave it, and keeps the same che
 - **Judge it as music**: does the bar count give a real phrase shape (4 or 8 bars), does the melody land on chord
   tones on the strong beats (`--check` warns when it does not), is one instrument owning each register. Replace
   whatever fails; the templates are starting points, not finished art.
-- **Reference check.** The audio check snippet in the **hildegard** skill's `references/sound-design.md` draws a
+- **Reference check.** The audio check snippet in the **hildegard** skill's `sound-design.md` draws a
   spectrogram and measures a file; the scripts' `--json` output carries the same numbers.
 
 ## What the sheet shows
