@@ -215,8 +215,8 @@ Each app's config is backed up once before Hildegard adds itself. The Studio's A
 what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
-`get_shot`, `cancel_take`, `make_sequence`, `export_film`, `install_model`, and for characters `list_characters`,
-`create_character`, `make_character_stills` and `keep_still`. `direct_shot` takes a `film`: a film's id, or a title,
+`get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
+`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"

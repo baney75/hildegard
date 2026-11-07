@@ -90,6 +90,14 @@ export function meshReviewer(dataDir: string): ((spec: MeshSpec) => Promise<Revi
   return (spec) => reviewMesh(exportPython(dataDir), script, spec);
 }
 
+/** A voice mixed over a film's own sound: the recording's file, where it starts, how loud, and how far the film dips. */
+export interface Voiceover {
+  path: string;
+  startSeconds: number;
+  gainDb: number;
+  duckDb: number;
+}
+
 export interface ExporterOptions {
   store: Store;
   catalog: Catalog;
@@ -123,7 +131,7 @@ export class Exporter {
     return join(this.dir, `${e.id}.mp4`);
   }
 
-  start(projectId: string): ExportState {
+  start(projectId: string, voiceover?: Voiceover): ExportState {
     const { store, catalog } = this.opts;
     const project = store.projects.get(projectId);
     if (!project) throw new ExportError('No such film', 404);
@@ -167,6 +175,16 @@ export class Exporter {
         inputs: takes.map((t) => join(this.opts.mediaDir, t.video!.replace(/^\/media\//, ''))),
         title: project.title,
         comment: `AI-generated video, made with ${models.join(' and ')}. ${this.opts.credit}`,
+        ...(voiceover
+          ? {
+              voiceover: {
+                path: voiceover.path,
+                start_seconds: voiceover.startSeconds,
+                gain_db: voiceover.gainDb,
+                duck_db: voiceover.duckDb,
+              },
+            }
+          : {}),
       }),
     );
     void this.run(e, spec);
