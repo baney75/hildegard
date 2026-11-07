@@ -194,8 +194,17 @@ People reach a Hildegard from other devices and sign in. Three parts, all in `ap
   name; `hostPort` (`--host-port`, else the main port plus one) is a listener where every request is from elsewhere.
   `--address` answers on a Tailscale address instead; anything outside the tailnet is refused. The state is
   `<data>/host.json`, and `resume()` sets the link up again at start.
+- **Tunnels** (`tunnel.ts`, `apps/cli/src/tunnel.ts`). `hildegard tunnel` reads where Tailscale and Cloudflare stand
+  (`GET /api/tunnel`: missing, signed-out, ready, on, problem) and skips what is done. `Cloudflared` signs in
+  (`cloudflared tunnel login`, with no browser of its own on Linux), makes the named tunnel `hildegard-<computer>` and its
+  DNS record, and runs `cloudflared` as a child it restarts; `Host.on({ via: 'cloudflare' | 'quick' })` saves its URL as
+  the `custom` front door with `tunnel` set, so the door's checks apply unchanged. Credentials go to `secretStores` and
+  reach cloudflared as `TUNNEL_CRED_CONTENTS`; cert.pem is checked for, never read. `POST /api/tunnel/install` fetches
+  the pinned cloudflared (`CLOUDFLARED` in pins.ts) only on the owner's word.
 
-Rules for changes here: a new route a director may use goes in `DIRECTOR` and checks `sees()`; anything that changes
+Rules for changes here: never make an account, sign in, or install a tool without the owner's click or command, and
+never overwrite a DNS record; tests in `tunnel.test.ts` cover each path (no tool, no sign-in, signed in, already there,
+off). A new route a director may use goes in `DIRECTOR` and checks `sees()`; anything that changes
 the computer stays loopback only (`local(c)`), even for owners signed in elsewhere; never let `/api/node/*` or ComfyUI
 behind the hosted listener; tests in `host.test.ts` cover each refusal, and `people.test.ts` the crypto and expiry.
 

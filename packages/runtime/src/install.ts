@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
+  chmodSync,
   cpSync,
   createWriteStream,
   existsSync,
@@ -20,7 +21,7 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { type Backend, detectGpu, type Gpu, type Probe, systemProbe } from './gpu.ts';
-import { COMFYUI, PROXY, PYTHON, UV } from './pins.ts';
+import { CLOUDFLARED, COMFYUI, PROXY, PYTHON, UV } from './pins.ts';
 
 export type StepStatus = 'done' | 'skipped' | 'needs-owner' | 'failed';
 
@@ -338,6 +339,47 @@ export async function downloadUv(
   renameSync(inner, dest);
   rmSync(tmp, { recursive: true, force: true });
   rmSync(archive, { force: true });
+  return dest;
+}
+
+/** Where `downloadCloudflared` puts the pinned cloudflared: a folder of its own under tools, named by version. */
+export const cloudflaredPath = (dataDir: string) =>
+  join(layout(dataDir).tools, `cloudflared-${CLOUDFLARED.version}`, win ? 'cloudflared.exe' : 'cloudflared');
+
+/**
+ * The pinned cloudflared, into Hildegard's own tools folder: no administrator, no system package, and only when the
+ * owner asks for it. Returns its path.
+ */
+export async function downloadCloudflared(
+  dataDir: string,
+  fetchFn: typeof fetch = fetch,
+  log: (l: string) => void = () => {},
+): Promise<string> {
+  const key = `${process.platform}-${process.arch}`;
+  const asset = CLOUDFLARED.assets[key];
+  if (!asset)
+    throw new Error(
+      `Cloudflare has no cloudflared build for ${key} that Hildegard knows. Install it from Cloudflare's downloads page.`,
+    );
+  const [file, sha] = asset;
+  const L = layout(dataDir);
+  mkdirSync(L.downloads, { recursive: true });
+  const dest = cloudflaredPath(dataDir);
+  mkdirSync(dirname(dest), { recursive: true });
+  const fetched = join(L.downloads, file);
+  await download(CLOUDFLARED.url(file), fetched, sha, fetchFn, log);
+  if (file.endsWith('.tgz')) {
+    const tmp = mkdtempSync(join(L.downloads, 'cloudflared-'));
+    await run(tar, ['-xmzf', fetched, '-C', tmp], { log });
+    rmSync(dest, { force: true });
+    renameSync(join(tmp, 'cloudflared'), dest);
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(fetched, { force: true });
+  } else {
+    rmSync(dest, { force: true });
+    renameSync(fetched, dest);
+  }
+  if (!win) chmodSync(dest, 0o755);
   return dest;
 }
 

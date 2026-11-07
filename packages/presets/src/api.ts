@@ -425,6 +425,59 @@ export interface HostState {
   tailscale: { running: boolean; name: string | null; ip: string | null };
   /** An owner account exists. */
   owner: boolean;
+  /**
+   * With `via: 'custom'`, whether Hildegard runs the front door itself: a Cloudflare named tunnel on the owner's own
+   * domain, or a quick tunnel (a temporary trycloudflare.com name, with no account). Null for a door the owner runs.
+   */
+  tunnel?: 'cloudflare' | 'quick' | null;
+}
+
+/**
+ * Where one tunnel provider stands on this computer, so each step that is already done is skipped: `missing` (its
+ * tool isn't installed), `signed-out` (installed, not signed in to an account), `ready` (signed in, no link yet), `on`
+ * (Hildegard's link runs through it) or `problem` (it should be on and isn't; `problem` and `fix` say why).
+ */
+export type TunnelProviderState = 'missing' | 'signed-out' | 'ready' | 'on' | 'problem';
+
+export interface TunnelProvider {
+  state: TunnelProviderState;
+  installed: boolean;
+  signedIn: boolean;
+  /** The tool's version, when it answered. */
+  version: string | null;
+  /** The provider's own page for making a free account. Hildegard never makes one. */
+  signup: string;
+  /** The provider's own download page. */
+  download: string;
+  /** The command that installs the tool on this kind of computer, for the owner to run. */
+  install: string | null;
+  /** The command that signs this computer in to an account the owner already has. */
+  signIn: string;
+  problem: string | null;
+  fix: string | null;
+}
+
+/** GET /api/tunnel */
+export interface TunnelReport {
+  tailscale: TunnelProvider & {
+    /** This computer's MagicDNS name, once signed in. */
+    name: string | null;
+    /** Funnel (the public internet) carries the link, not Serve (the tailnet only). */
+    funnel: boolean;
+  };
+  cloudflare: TunnelProvider & {
+    /** The named tunnel Hildegard uses on this computer, `hildegard-<computer>`, once it exists in the account. */
+    tunnel: { name: string; id: string } | null;
+    /** The name people open, for a named tunnel. */
+    hostname: string | null;
+    /** The link runs through a quick tunnel: its name changes on every start, and it has no account. */
+    temporary: boolean;
+    /** Hildegard can fetch the pinned cloudflared itself on this kind of computer. */
+    canFetch: boolean;
+    /** A sign-in Hildegard started is waiting for the owner on this page. */
+    signingIn: string | null;
+  };
+  host: HostState;
 }
 
 /**
