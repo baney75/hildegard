@@ -29,17 +29,17 @@ CARD_COLOR = "0x16324f"
 
 
 def ff(*a):
-    r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-y", *a], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-y", *a], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         sys.exit("ffmpeg failed:\n" + r.stderr[-2000:])
 
 
 def err(*a):
-    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True).stderr
+    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
 
 
 def duration(path):
-    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return float(r.stdout.strip())
     except ValueError:
@@ -49,7 +49,7 @@ def duration(path):
 def find_font():
     """A bold sans font that exists on this computer: fontconfig first, then the usual places on Linux, macOS and Windows."""
     if shutil.which("fc-match"):
-        r = subprocess.run(["fc-match", "-f", "%{file}", "sans:bold"], capture_output=True, text=True)
+        r = subprocess.run(["fc-match", "-f", "%{file}", "sans:bold"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 0 and os.path.exists(r.stdout.strip()):
             return r.stdout.strip()
     for f in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",

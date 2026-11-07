@@ -14,7 +14,7 @@ FFPROBE = shutil.which("ffprobe")
 
 
 def err(*a):
-    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True).stderr
+    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     if not (FFMPEG and FFPROBE):
         sys.exit("ffmpeg and ffprobe must be on PATH")
     p = json.loads(subprocess.run([FFPROBE, "-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate",
-                                   "-show_entries", "format=duration", "-of", "json", a.file], capture_output=True, text=True).stdout or "{}")
+                                   "-show_entries", "format=duration", "-of", "json", a.file], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout or "{}")
     v = next((s for s in p.get("streams", []) if s["codec_type"] == "video"), None)
     au = next((s for s in p.get("streams", []) if s["codec_type"] == "audio"), None)
     if not v:

@@ -23,17 +23,17 @@ FFPROBE = shutil.which("ffprobe")
 
 
 def ff(*a):
-    r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-y", *a], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-y", *a], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         sys.exit("ffmpeg failed:\n" + r.stderr[-1500:])
 
 
 def err(*a):
-    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True).stderr
+    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
 
 
 def duration(path):
-    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True, encoding="utf-8", errors="replace")
     return float(r.stdout.strip())
 
 

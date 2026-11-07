@@ -62,13 +62,13 @@ def main():
     if not (FFMPEG and FFPROBE):
         sys.exit("ffmpeg and ffprobe must be on PATH")
     p = json.loads(subprocess.run([FFPROBE, "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=channels,sample_rate",
-                                   "-show_entries", "format=duration", "-of", "json", a.file], capture_output=True, text=True).stdout or "{}")
+                                   "-show_entries", "format=duration", "-of", "json", a.file], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout or "{}")
     if not p.get("streams"):
         sys.exit(f"{a.file}: no audio stream")
     s = p["streams"][0]
     print(f"duration: {float(p['format']['duration']):.2f} s   channels: {s['channels']}   sample rate: {s['sample_rate']} Hz")
     t = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", a.file, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"],
-                       capture_output=True, text=True).stderr
+                       capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
     t = t[t.rfind("Summary:"):]
     lufs = float(re.search(r"I:\s+(-?[\d.]+) LUFS", t).group(1))
     lra = re.search(r"LRA:\s+(-?[\d.]+) LU", t)
@@ -79,7 +79,7 @@ def main():
         print(f"loudness range: {lra.group(1)} LU")
     print(f"true peak: {tp:.1f} dBTP (limit {a.peak:g}, {'OK' if ok_p else 'TOO HOT: lower the true-peak ceiling and run loudnorm again'})")
     v = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", a.file, "-vn", "-af", "volumedetect", "-f", "null", "-"],
-                       capture_output=True, text=True).stderr
+                       capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
     mx = re.search(r"max_volume: (-?[\d.]+) dB", v)
     print(f"sample peak: {mx.group(1)} dBFS ({'CLIPPING: a sample is at full scale' if mx and float(mx.group(1)) >= -0.05 else 'no clipping'})" if mx else "sample peak: unknown")
     h = hum_prominence(a.file)

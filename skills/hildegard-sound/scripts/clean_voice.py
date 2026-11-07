@@ -24,7 +24,7 @@ FFPROBE = shutil.which("ffprobe")
 
 
 def run(args, capture=False):
-    r = subprocess.run(args, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    r = subprocess.run(args, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         sys.exit("ffmpeg failed:\n" + r.stderr[-1500:])
     return r
@@ -36,7 +36,7 @@ def ff(*a, capture=False):
 
 def probe(path):
     r = subprocess.run([FFPROBE, "-v", "error", "-select_streams", "a:0", "-show_entries",
-                        "stream=sample_rate,channels:format=duration", "-of", "json", path], capture_output=True, text=True)
+                        "stream=sample_rate,channels:format=duration", "-of", "json", path], capture_output=True, text=True, encoding="utf-8", errors="replace")
     d = json.loads(r.stdout or "{}")
     if not d.get("streams"):
         sys.exit(f"{path}: no audio stream")
@@ -47,7 +47,7 @@ def probe(path):
 def loudness(path):
     """Integrated loudness (LUFS) and true peak (dBTP) of a file."""
     r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     t = r.stderr[r.stderr.rfind("Summary:"):]
     i = re.search(r"I:\s+(-?[\d.]+) LUFS", t)
     p = re.search(r"Peak:\s+(-?[\d.]+) dBFS", t)
@@ -58,7 +58,7 @@ def loudnorm_two_pass(src, dst, target, peak, sr, codec):
     """Measure, then apply with the measured values and linear=true, so the result lands on the target."""
     base = f"loudnorm=I={target}:TP={peak}:LRA=11"
     r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", src, "-af", base + ":print_format=json", "-f", "null", "-"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     m = json.loads(r.stderr[r.stderr.rfind("{"):r.stderr.rfind("}") + 1])
     af = (f"{base}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
           f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
@@ -78,7 +78,7 @@ def pause_gate_threshold(path):
     """Linear gate threshold between the file's floor (10th percentile of 100 ms RMS) and its speech level (90th)."""
     r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", path, "-af",
                         "asetnsamples=n=4410:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-",
-                        "-f", "null", "-"], capture_output=True, text=True)
+                        "-f", "null", "-"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     lv = sorted(float(x) for x in re.findall(r"RMS_level=(-?[\d.]+)", r.stdout))
     if len(lv) < 10:
         return 0.01
