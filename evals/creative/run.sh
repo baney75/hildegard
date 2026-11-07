@@ -29,7 +29,7 @@ import json, os, sys
 only = [x for x in os.environ.get('ONLY_IDS', '').split(',') if x]
 for f in sys.argv[1:]:
     for t in json.load(open(f)):
-        if not only or t['id'] in only:
+        if t['domain'] != 'ops' and (not only or t['id'] in only):
             print(t['id'])
 PY
 )

@@ -133,5 +133,186 @@
       "lufs": -16.0,
       "size": [1280, 720]
     }
+  },
+  {
+    "id": "o1-pick-model",
+    "domain": "ops",
+    "brief": "I'm Dale Whitaker and I run the media team at a small church in Findlay, Ohio. This computer is our new editing PC, with an NVIDIA RTX 3060 (12 GB). Hildegard is installed and running on it, but it has no video model yet. Get it ready so I can start making video clips: pick the video model that fits this GPU and get it installed. Don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "edit-pc",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": []
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "license-stop",
+      "model": "wan-2-2-ti2v-5b"
+    }
+  },
+  {
+    "id": "o2-render-on-desktop",
+    "domain": "ops",
+    "brief": "I'm Maria Ochoa, a wedding videographer. This laptop has no real GPU. My desktop at the studio is named gpu-box: it has an RTX 4080 with Hildegard already running on it and the Wan 2.2 5B model installed, and it is reachable from this laptop at {url:gpu-box}. You can run commands on it with `ssh gpu-box <command>`. I want the takes I make on this laptop to render on gpu-box. Set that up, then prove it with one test take. Don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "laptop",
+          "gpu": null,
+          "tick_ms": 2500,
+          "installed": []
+        },
+        {
+          "id": "gpu-box",
+          "hostname": "gpu-box",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 4080",
+            "mb": 16384
+          },
+          "installed": ["wan-2-2-ti2v-5b"]
+        }
+      ],
+      "ssh": ["gpu-box"],
+      "tools": ["make-take", "ssh"]
+    },
+    "score": {
+      "kind": "render-elsewhere",
+      "device": "gpu-box",
+      "join_code": true
+    }
+  },
+  {
+    "id": "o3-takes-stuck",
+    "domain": "ops",
+    "brief": "I'm Tom Beiler. Since Friday my test takes just sit there and never finish. This laptop has an RTX 3060 and the Wan 2.2 5B model installed. A while ago I also paired it with my desktop, gpu-box, and I switched that desktop off for the weekend, so it cannot be reached. I'm only here until Monday and I need to make clips on this laptop right now. Find out what is wrong, fix it, and prove it with one test take. Don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "laptop",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": ["wan-2-2-ti2v-5b"]
+        },
+        {
+          "id": "gpu-box",
+          "hostname": "gpu-box",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 4080",
+            "mb": 16384
+          },
+          "installed": ["wan-2-2-ti2v-5b"]
+        }
+      ],
+      "setup": [
+        {
+          "do": "pair",
+          "host": "gpu-box",
+          "guest": "here",
+          "use": true
+        },
+        {
+          "do": "stop",
+          "server": "gpu-box",
+          "observers": ["here"]
+        }
+      ],
+      "tools": ["make-take"]
+    },
+    "score": {
+      "kind": "fix-offline",
+      "device": "gpu-box"
+    }
+  },
+  {
+    "id": "o4-free-disk",
+    "domain": "ops",
+    "brief": "I'm Ruth Hostetler. This computer's drive is almost full. I stopped making still images months ago and only make video now, with Wan 2.2 5B, so I don't need the image models any more: FLUX.2 klein, Z-Image Turbo and Qwen-Image. Free the space they take, but leave Wan working. Hildegard keeps its models under {models:here} (its whole data folder is {data:here}). Don't ask me questions, and tell me how much you freed.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "studio-pc",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": ["wan-2-2-ti2v-5b", "flux-2-klein-4b", "z-image-turbo", "qwen-image-2512"]
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "free-disk",
+      "remove": ["flux-2-klein-4b", "z-image-turbo", "qwen-image-2512"],
+      "keep": ["wan-2-2-ti2v-5b"]
+    }
+  },
+  {
+    "id": "o5-status",
+    "domain": "ops",
+    "brief": "I'm Joel Brenneman. Quick check before I head out. In one short plain paragraph, tell me: which computer is rendering my takes right now, which models are installed on it, which of my paired devices are answering and which are not, and whether other devices can render on this laptop's GPU. Don't change anything, and don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "laptop",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": ["wan-2-2-ti2v-5b", "flux-2-klein-4b"]
+        },
+        {
+          "id": "gpu-box",
+          "hostname": "gpu-box",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 4080",
+            "mb": 16384
+          },
+          "installed": ["wan-2-2-ti2v-5b"]
+        },
+        {
+          "id": "old-pc",
+          "hostname": "old-pc",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": ["wan-2-2-ti2v-5b"]
+        }
+      ],
+      "setup": [
+        {
+          "do": "pair",
+          "host": "gpu-box",
+          "guest": "here"
+        },
+        {
+          "do": "pair",
+          "host": "old-pc",
+          "guest": "here"
+        },
+        {
+          "do": "stop",
+          "server": "old-pc",
+          "observers": ["here"]
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "status"
+    }
   }
 ]
