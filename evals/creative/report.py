@@ -48,7 +48,14 @@ def main():
                 s['tasks_won'] += w.count(cand) == len(w) and len(w) == 2
                 s['tasks_lost'] += w.count(base) == len(w) and len(w) == 2
     skill = {arm: {m: [sum(1 for r in runs[arm][m].values() if r['meta'].get('skill_loaded')), sum(1 for r in runs[arm][m].values() if r['meta'])] for m in models} for arm in arms}
-    out = {'label': label, 'base': base, 'cand': cand, 'models': models, 'tasks': [t['id'] for t in tasks], 'summary': summary, 'skill_loaded': skill, 'runs': runs, 'verdicts': verdicts}
+    # Which skills each arm's responses were made with (the hash of the skills folder, recorded per run; older runs have none).
+    hashes = {arm: {} for arm in arms}
+    for arm in arms:
+        for m in models:
+            for t in tasks:
+                h = runs[arm][m][t['id']]['meta'].get('skills_hash') if runs[arm][m][t['id']]['meta'] else None
+                hashes[arm][h or 'unrecorded'] = hashes[arm].get(h or 'unrecorded', 0) + 1
+    out = {'label': label, 'base': base, 'cand': cand, 'models': models, 'tasks': [t['id'] for t in tasks], 'summary': summary, 'skill_loaded': skill, 'skills_hash': hashes, 'runs': runs, 'verdicts': verdicts}
     path = opt('--out', os.path.join(HERE, f'results-{label}.json'))
     json.dump(out, open(path, 'w'), indent=1)
 
@@ -67,6 +74,9 @@ def main():
         if n:
             c = sum(v['winner'] == cand for v in allv[m]) + 0.5 * sum(v['winner'] == 'tie' for v in allv[m])
             P(f'{"all":<10} {m:<6} {cand} rate {c / n:.2f} over {n} verdicts')
+    P('\nSkills used (hash of the skills folder -> responses; "unrecorded" = made before runs recorded it; none = no skills):')
+    for arm in arms:
+        P('  ' + arm + ': ' + ', '.join(f'{h[:12]} x{n}' for h, n in sorted(hashes[arm].items())))
     P('\nSkill loaded (runs where the responder loaded or read a Hildegard skill / runs):')
     for arm in arms:
         P('  ' + arm + ': ' + ', '.join(f'{m} {x[0]}/{x[1]}' for m, x in skill[arm].items()))

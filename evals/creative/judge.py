@@ -9,7 +9,7 @@ only judges what is missing.
 
 A missing deliverable never goes to the judge: if only one arm produced one it wins automatically (auto: true), and if neither
 did the verdict is a tie. For audio and video edit "produced one" means the script ran and wrote its file."""
-import concurrent.futures as cf, json, os, re, shutil, subprocess, sys
+import concurrent.futures as cf, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
@@ -90,10 +90,11 @@ def metrics_table(sa, sb, domain):
 
 
 def ask(prompt, cwd):
+    # Read is limited to the judge's own folder (a bare `Read` reads anywhere the owner can, checked live), and --add-dir is not used.
     env = {k: v for k, v in os.environ.items() if k not in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY')}
     for _ in range(2):
         r = subprocess.run(['claude', '-p', '--model', 'opus', '--setting-sources', '', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',
-                            '--no-session-persistence', '--tools', 'Read', '--allowedTools', 'Read'],
+                            '--no-session-persistence', '--tools', 'Read', '--allowedTools', 'Read(./**)'],
                            input=prompt, capture_output=True, text=True, cwd=cwd, env=env, timeout=900)
         out = r.stdout.strip()
         if re.search(r'usage limit|quota|billing|credit balance', out + r.stderr, re.I) and 'winner' not in out:
@@ -105,6 +106,23 @@ def ask(prompt, cwd):
         except ValueError:
             pass
     raise SystemExit(f'the judge gave no verdict twice in {cwd}')
+
+
+LEAKS = re.compile(r'hildegard-creative-eval|/runs/(?:none|main|new)\b|\border[01]\.json|\bskills-main\b|\.agents/skills|/plug/skills', re.I)
+
+
+def scan(w, arms):
+    """Refuse to call the judge unless the folder holds only A and B files, no file name names an arm, and nothing in them points
+    into the eval tree (the run, order and skills folders). A bare word like "new" in prose is not a leak and is not checked."""
+    for f in sorted(os.listdir(w)):
+        if not re.fullmatch(r'[AB](-frames)?\.(md|png|sh)', f):
+            raise SystemExit(f'leak: {f} does not belong in the judge folder')
+        if any(a in f.lower() for a in arms):
+            raise SystemExit(f'leak: file name {f} names an arm')
+        if not f.endswith('.png'):
+            m = LEAKS.search(open(os.path.join(w, f), errors='replace').read())
+            if m:
+                raise SystemExit(f'leak: {f} contains {m.group(0)!r}, which points into the eval tree')
 
 
 def judge(job):
@@ -120,9 +138,10 @@ def judge(job):
         rec.update(winner=win, margin='clear' if win != 'tie' else '', auto=True, why='no usable deliverable from ' + ('either arm' if win == 'tie' else (b_arm if win == a_arm else a_arm)),
                    invented={})
     else:
-        w = os.path.join(E, 'judge', label, model, task['id'], f'o{order}')
-        shutil.rmtree(w, ignore_errors=True)
-        os.makedirs(w)
+        # A fresh folder outside the eval tree holding only the neutralized deliverables; the verdict is written elsewhere.
+        w = tempfile.mkdtemp(prefix='creative-judge-')
+        if os.path.abspath(w).startswith(os.path.abspath(E) + os.sep):
+            raise SystemExit(f'the temp folder {w} is inside the eval tree; set TMPDIR elsewhere')
         d = task['domain']
         extra = ''
         for tag, arm in (('A', a_arm), ('B', b_arm)):
@@ -152,7 +171,11 @@ CLIENT BRIEF:
 {RUBRIC[d]}
 
 Reply with only JSON: {{"winner": "A" or "B", "margin": "slight" or "clear", "why": "two or three sentences naming the decisive differences"{inv}}}"""
-        v = ask(prompt, w)
+        try:
+            scan(w, (a_arm, b_arm))
+            v = ask(prompt, w)
+        finally:
+            shutil.rmtree(w, ignore_errors=True)
         arm = {'A': a_arm, 'B': b_arm}
         rec.update(winner=arm[v['winner']], margin=v.get('margin', ''), auto=False, why=v.get('why', ''),
                    invented={a_arm: v.get('invented_A', []), b_arm: v.get('invented_B', [])})

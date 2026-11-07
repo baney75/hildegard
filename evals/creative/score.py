@@ -8,9 +8,9 @@ judge looks at: design.png (the HTML rendered by Playwright's Chromium) or sheet
   writing   runs skills/hildegard/scripts/prose_lint.py on the draft (front matter removed): fails and warns
   video     the plan is judged by rubric only; here only its size is recorded
   audio     score_audio.py
-  videoedit runs edit.sh in a copy of the clips with no network; duration, size, fps, codecs, loudness, scene changes
+  videoedit runs edit.sh in a copy of the clips under sandbox.py (no network, read-only filesystem); duration, size, fps, codecs, loudness, scene changes
             (ffmpeg scene score above 0.12), black stretches over half a second (blackdetect), which clips appear"""
-import glob, json, os, re, shutil, subprocess, sys
+import glob, json, os, re, shutil, subprocess, sys, tempfile
 import numpy as np
 from audiolib import SR
 import score_audio as sa
@@ -34,10 +34,32 @@ def chromium():
     return c[-1]
 
 
+GOOGLE_FONTS = ('fonts.googleapis.com', 'fonts.gstatic.com')
+
+
 def render(html, png, w, h):
-    subprocess.run([chromium(), '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
-                    f'--window-size={w},{h}', '--virtual-time-budget=12000', f'--screenshot={png}', 'file://' + os.path.abspath(html)],
-                   capture_output=True, timeout=120, env={'PATH': '/usr/bin:/bin', 'HOME': os.path.expanduser('~'), 'DISPLAY': ''})
+    """Render model HTML as untrusted: a throwaway profile and HOME, Chromium's own sandbox (dropped only if this machine cannot run
+    it, which the return value says), and every request but Google Fonts sent to a dead proxy, loopback and IP addresses included.
+    Returns {'sandbox': bool}."""
+    base = tempfile.mkdtemp(prefix='creative-chromium-')
+    env = {'PATH': '/usr/bin:/bin', 'HOME': base, 'XDG_CONFIG_HOME': base + '/config', 'XDG_CACHE_HOME': base + '/cache',
+           'XDG_DATA_HOME': base + '/data', 'TMPDIR': base, 'DISPLAY': ''}
+    try:
+        for sandbox in (True, False):
+            if os.path.exists(png):
+                os.remove(png)
+            subprocess.run([chromium(), '--headless=new'] + ([] if sandbox else ['--no-sandbox']) +
+                           ['--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1', f'--window-size={w},{h}',
+                            '--virtual-time-budget=12000', f'--user-data-dir={base}/profile', '--proxy-server=socks5://127.0.0.1:9',
+                            '--proxy-bypass-list=<-loopback>;' + ';'.join(GOOGLE_FONTS),
+                            '--host-resolver-rules=MAP * ~NOTFOUND, ' + ', '.join('EXCLUDE ' + h for h in GOOGLE_FONTS),
+                            f'--screenshot={png}', 'file://' + os.path.abspath(html)],
+                           capture_output=True, timeout=120, env=env)
+            if os.path.exists(png):
+                return {'sandbox': sandbox}
+        return {'sandbox': False}
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
 
 
 def png_size(png):
@@ -53,7 +75,7 @@ def design(task, work, run):
         return res
     w, h = task['size']
     png = os.path.join(run, 'design.png')
-    render(f, png, w, h)
+    res['chromium_sandbox'] = render(f, png, w, h)['sandbox']
     res['rendered'] = os.path.exists(png)
     if res['rendered']:
         from PIL import Image
