@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Shared helpers for the performance bench: a throwaway server, timers, percentiles and bundle sizes.
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -271,9 +280,11 @@ export function seedLargeState(data, { takes = 500, stills = 500 } = {}) {
   // Small real images for the posters and stills, so the browser decodes them like it would real ones.
   const media = join(data, 'media');
   mkdirSync(join(media, 'stills'), { recursive: true });
-  const png = gradientPng(320, 180);
-  for (let i = 0; i < takes; i++) writeFileSync(join(media, `take-seed-${i}.jpg`), png);
-  for (let i = 0; i < stills; i++) writeFileSync(join(media, 'stills', `still-seed-${i}.png`), png);
+  // One image, linked under every name, so a thousand posters cost one file's space.
+  const first = join(media, 'take-seed-0.jpg');
+  writeFileSync(first, gradientPng(320, 180));
+  for (let i = 1; i < takes; i++) linkSync(first, join(media, `take-seed-${i}.jpg`));
+  for (let i = 0; i < stills; i++) linkSync(first, join(media, 'stills', `still-seed-${i}.png`));
   return { media, takes, stills };
 }
 

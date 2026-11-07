@@ -75,7 +75,7 @@ function themeInit(): Plugin {
   return {
     name: 'hildegard-theme-init',
     transformIndexHtml: () => [
-      { tag: 'script', attrs: { src: '/theme-init.js' }, injectTo: 'head-prepend' as const },
+      { tag: 'script', attrs: { src: '/theme-init.js' }, injectTo: 'head' as const },
     ],
     configureServer(dev) {
       dev.middlewares.use('/theme-init.js', (_req, res) => {

@@ -42,7 +42,9 @@ const COLLECTOR = `
     mo.observe(document, { childList: true, subtree: true, attributes: true, characterData: true });
     location.hash = hash;
     const tick = () => {
-      if (performance.now() - last > 150 && performance.now() - t0 > 160) {
+      // The page must have changed at least once (a route whose code is still loading keeps the old page on screen).
+      const changed = last > t0 || performance.now() - t0 > 3000;
+      if (changed && performance.now() - last > 150 && performance.now() - t0 > 160) {
         mo.disconnect();
         requestAnimationFrame(() => resolve({
           ms: last - t0,
@@ -279,9 +281,19 @@ export async function benchStudio({
       for (const mode of ['cold', 'warm']) {
         const runs = [];
         for (let i = 0; i < repeats; i++) {
-          const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-          runs.push(await loadRoute(context, srv.url, route, { throttle, warm: mode === 'warm' }));
-          await context.close();
+          // A page that crashes under memory pressure is loaded again, not counted.
+          for (let attempt = 1; ; attempt++) {
+            const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+            try {
+              runs.push(await loadRoute(context, srv.url, route, { throttle, warm: mode === 'warm' }));
+              break;
+            } catch (e) {
+              if (attempt >= 3) throw e;
+              log(`${name} ${mode}: ${String(e.message).split('\n')[0]}; trying again`);
+            } finally {
+              await context.close().catch(() => {});
+            }
+          }
         }
         // Bytes are the same every run; times are the median of the runs.
         // PERF_STAT=min takes the best run instead: on a busy machine the fastest is the one least disturbed.

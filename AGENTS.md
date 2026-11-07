@@ -25,6 +25,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `comfy-nodes/hildegard_guard` | The safety ComfyUI node (Python): refuses frames an image classifier scores as sexual. See [docs/safety.md](docs/safety.md) |
 | `brand/app-icons` | The design system's app icons, the source for every icon file: `node scripts/app-icons.mjs` renders them |
 | `omarchy/` | The Omarchy bar widget (QML, a bash backend, `Model.js` for what it shows). Its own README, tests and rules: `node scripts/check-omarchy.mjs` |
+| `scripts/perf` | The performance bench (`pnpm perf`), its before/after table and the budgets CI holds (`budgets.json`). See CONTRIBUTING.md, “Speed” |
 | `install/` | `install.sh` and `install.ps1`; `scripts/build-release.mjs` fills in versions and hashes |
 | `presets/` | Apache-2.0 preset data. `models.lock.json` pins every model file by revision and SHA-256 |
 
@@ -44,6 +45,7 @@ UI works without a GPU. Put `[fail:oom]` or `[fail:node]` in a prompt to see fai
 ```sh
 pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you touched omarchy/
+pnpm --filter @hildegard/studio build && pnpm perf:budgets                # speed budgets (CONTRIBUTING.md, “Speed”)
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if you touched apps/desktop/
 ```
 
