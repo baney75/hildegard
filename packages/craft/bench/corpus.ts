@@ -45,7 +45,7 @@ export function loadCommitted(): Piece[] {
     split: 'dev' | 'test';
   }>;
   for (const model of readdirSync(join(corpusDir, 'ai')).sort()) {
-    if (!existsSync(join(corpusDir, 'ai', model, briefs[0]!.id + '.md'))) continue;
+    if (!existsSync(join(corpusDir, 'ai', model, `${briefs[0]!.id}.md`))) continue;
     for (const b of briefs)
       for (const kind of ['facts', 'generic'] as const) {
         const f = join(corpusDir, 'ai', model, `${b.id}${kind === 'generic' ? '-generic' : ''}.md`);

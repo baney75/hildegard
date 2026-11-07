@@ -52,7 +52,7 @@ describe('prose lint', () => {
   });
 
   it('lints the largest text the server takes in well under a second, even made of nothing but tells', () => {
-    for (const unit of ['delve ', 'a — b\n']) {
+    for (const unit of ['delve ', 'TODO a\n']) {
       const text = unit.repeat(Math.floor(200_000 / unit.length));
       const started = performance.now();
       const l = lintProse(text);
@@ -108,9 +108,9 @@ describe('prose lint', () => {
     expect(describeProseLint(lintProse('A plain sentence about a red barn.'))).toMatch(
       /^Clean: no tells in 7 words/,
     );
-    const d = describeProseLint(lintProse('We delve into it — fast.'));
+    const d = describeProseLint(lintProse('We delve into it. TODO fast.'));
     expect(d).toMatch(/^Fails: 2 tells to fix/);
-    expect(d).toMatch(/- fail dashes: .+ At 1:\d+ “—”/);
+    expect(d).toMatch(/- fail unfinished: .+ At 1:\d+ “TODO”/);
   });
 
   it('tells an agent which lint fails bind: everyday prose yes, craft and academic work no', () => {

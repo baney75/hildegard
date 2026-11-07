@@ -1343,7 +1343,7 @@ describe('hildegard lint', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hg-lint-'));
   const bad = join(dir, 'bad.md');
   const good = join(dir, 'good.md');
-  writeFileSync(bad, 'A red barn.\n\nWe will delve into it \u2014 fast.\n');
+  writeFileSync(bad, 'A red barn.\n\nWe will delve into it. TODO fast.\n');
   writeFileSync(good, 'We bought a red barn in 2019 and painted it.\n');
 
   it('lists the tells with where they are, and exits 1 when a file fails', async () => {
@@ -1365,8 +1365,8 @@ describe('hildegard lint', () => {
 
   it('prints the lint itself with --json, and names each file when given several', async () => {
     const one = JSON.parse((await lint([bad, '--json'])).stdout);
-    expect(one).toMatchObject({ ok: false, words: 9 });
-    expect(one.findings.map((f: { id: string }) => f.id)).toEqual(['stock-words', 'dashes']);
+    expect(one).toMatchObject({ ok: false, words: 10 });
+    expect(one.findings.map((f: { id: string }) => f.id)).toEqual(['stock-words', 'unfinished']);
     const both = await lint([good, bad, '--json']);
     expect(both.code).toBe(1);
     expect(JSON.parse(both.stdout).map((r: { file: string; ok: boolean }) => [r.file, r.ok])).toEqual([

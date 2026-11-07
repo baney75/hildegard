@@ -236,12 +236,12 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
   });
 
   it('lints writing before the agent shows it, from text or from a file', async () => {
-    const stock = 'We will delve into the realm of it — and it is robust.';
+    const stock = 'We will delve into the realm of it. TODO make it robust.';
     const bad = await call('lint_writing', { text: stock });
     expect(bad.isError).toBeFalsy();
     expect(textOf(bad)).toMatch(/^Fails: \d tells? to fix/);
     expect(textOf(bad)).toMatch(/- fail stock-words: .+ At 1:9 “delve”/);
-    expect(textOf(bad)).toMatch(/- fail dashes: /);
+    expect(textOf(bad)).toMatch(/- fail unfinished: /);
 
     const file = join(dir, 'post.md');
     writeFileSync(file, 'We bought a red barn in 2019 and painted it.\n\nWe will delve into it.\n');

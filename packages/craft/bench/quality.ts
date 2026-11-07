@@ -3,6 +3,7 @@
 // for each rule how often it fires on each.
 //   node packages/craft/bench/quality.ts [--json] [--cached] [--show <rule>] [--py]
 //   --cached  add drafts found in ~/.cache (more no-skill AI writing, and drafts made with the skill, reported apart)
+//   --split   report one split only (`dev` or `test`)
 //   --show    print what a rule matched in `dev` pieces (test pieces are never shown one by one)
 //   --py      also run the Python script over the same pieces and fail if it differs from the package
 import { execFileSync } from 'node:child_process';
@@ -89,7 +90,8 @@ if (import.meta.main) {
   const args = process.argv.slice(2);
   const pieces = loadCommitted();
   const cached = args.includes('--cached') ? loadCached() : [];
-  const all = [...pieces, ...cached];
+  const only = args.includes('--split') ? args[args.indexOf('--split') + 1] : undefined;
+  const all = [...pieces, ...cached].filter((p) => !only || p.split === only);
   const { rows, report } = measure(all);
 
   const show = args.includes('--show') ? args[args.indexOf('--show') + 1] : undefined;

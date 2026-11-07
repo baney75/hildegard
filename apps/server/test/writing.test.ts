@@ -14,7 +14,7 @@ import { memoryStore } from './helpers.ts';
 
 const H = { 'x-hildegard': '1', 'content-type': 'application/json' };
 const PASS = 'a long and private passphrase';
-const STOCK = 'We will delve into the realm of it — and it is robust.';
+const STOCK = 'We will delve into the realm of it. TODO make it robust.';
 
 const freePort = () =>
   new Promise<number>((resolve) => {
@@ -56,7 +56,7 @@ describe('POST /api/writing/lint', () => {
     const got = (await res.json()) as ProseLint;
     expect(got).toEqual(lintProse(STOCK));
     expect(got.ok).toBe(false);
-    expect(got.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['stock-words', 'dashes']));
+    expect(got.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['stock-words', 'unfinished']));
     expect(got.findings[0]!.matches[0]).toMatchObject({ line: 1, column: expect.any(Number) });
   });
 
