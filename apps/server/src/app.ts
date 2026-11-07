@@ -110,6 +110,9 @@ import type { Scheduler } from './scheduler.ts';
 import { previewRoutes, type SiteRouteDeps, siteRoutes } from './site-routes.ts';
 import type { Sites } from './sites.ts';
 import type { Store } from './store.ts';
+import type { Streamer } from './stream.ts';
+import type { Obs } from './stream-obs.ts';
+import { streamRoutes } from './stream-routes.ts';
 import { type TalkRouteDeps, talkRoutes } from './talk-routes.ts';
 import { type Cloudflared, tunnelReport } from './tunnel.ts';
 import type { Updates } from './update.ts';
@@ -201,6 +204,8 @@ export interface AppDeps {
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
   /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
   records?: { store: RecordStore; cleaner: CleanJobs };
+  /** Go live: the streamer and OBS. */
+  stream?: { streamer: Streamer; obs: Obs };
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -2569,6 +2574,11 @@ export function createApp(deps: AppDeps) {
         },
         sees: (c, filmId) => sees(c, filmId),
       }),
+    );
+  if (deps.stream)
+    app.route(
+      '/api/stream',
+      streamRoutes({ streamer: deps.stream.streamer, obs: deps.stream.obs, local, owner: isOwner }),
     );
   if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 

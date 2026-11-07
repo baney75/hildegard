@@ -19,6 +19,7 @@ import type {
   MarkCheck,
   ModelState,
   NewInvite,
+  ObsState,
   PeopleResponse,
   Project,
   Role,
@@ -27,6 +28,10 @@ import type {
   Snapshot,
   SpeakRequestInput,
   Still,
+  StreamDestinationId,
+  StreamDevices,
+  StreamPreflight,
+  StreamState,
   Take,
   TunnelReport,
   UpdateState,
@@ -450,6 +455,29 @@ export const api = {
   checkConsent: (id: string) => call<VoiceJob>('POST', `/api/voice/consent/${id}/check`),
   finishClone: (id: string, name: string) => call<Voice>('POST', `/api/voice/consent/${id}/finish`, { name }),
   consentLink: (token: string) => call<ConsentLink>('GET', `/api/consent/${encodeURIComponent(token)}`),
+  // ── Go live ──
+  stream: () => call<StreamState>('GET', '/api/stream'),
+  streamSettings: (patch: Record<string, unknown>) => call<StreamState>('PUT', '/api/stream/settings', patch),
+  /** The key goes in this request's body and nowhere else; nothing ever reads it back. */
+  streamKey: (id: StreamDestinationId, key: string) =>
+    call<StreamState>('PUT', `/api/stream/keys/${id}`, { key }),
+  streamKeyRemove: (id: StreamDestinationId) => call<StreamState>('DELETE', `/api/stream/keys/${id}`),
+  streamDevices: () => call<StreamDevices>('GET', '/api/stream/devices'),
+  streamPreflight: () => call<StreamPreflight>('POST', '/api/stream/preflight'),
+  streamPreview: (on: boolean) => call<StreamState>('POST', `/api/stream/preview/${on ? 'start' : 'stop'}`),
+  streamGoLive: () => call<StreamState>('POST', '/api/stream/go-live'),
+  streamCancel: () => call<StreamState>('POST', '/api/stream/cancel'),
+  streamStop: () => call<StreamState>('POST', '/api/stream/stop'),
+  streamLog: () => call<{ lines: string[] }>('GET', '/api/stream/log'),
+  obs: () => call<ObsState & { passwordSaved: boolean }>('GET', '/api/stream/obs'),
+  obsPassword: (password: string) =>
+    call<ObsState & { passwordSaved: boolean }>('PUT', '/api/stream/obs/password', { password }),
+  obsScene: (scene: string) =>
+    call<ObsState & { passwordSaved: boolean }>('POST', '/api/stream/obs/scene', { scene }),
+  obsStream: (on: boolean) =>
+    call<ObsState & { passwordSaved: boolean }>('POST', `/api/stream/obs/${on ? 'start' : 'stop'}`),
+  obsService: (destination: StreamDestinationId) =>
+    call<ObsState & { passwordSaved: boolean }>('POST', '/api/stream/obs/service', { destination }),
   recordLinkInfo: (token: string) => call<RecordLinkInfo>('GET', `/api/record/${encodeURIComponent(token)}`),
   /** Sends the recording a link was made for. The link works once. */
   recordSend: (token: string, clip: Blob) =>

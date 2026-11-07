@@ -12,6 +12,7 @@ import './styles/images.css';
 import './styles/studio.css';
 import './styles/app.css';
 import './styles/sites.css';
+import './styles/stream.css';
 
 // Before the first render, so a light Studio never flashes dark.
 applyTheme();

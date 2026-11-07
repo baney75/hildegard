@@ -10,6 +10,7 @@ import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
 import { Characters } from './pages/Characters.tsx';
 import { Cinema } from './pages/Cinema.tsx';
+import { GoLive } from './pages/GoLive.tsx';
 import { Images } from './pages/Images.tsx';
 import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
@@ -29,6 +30,7 @@ const NAV = [
   { to: '/talk', match: /^\/talk/, label: 'Talk', icon: 'mic' },
   { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
   { to: '/sites', match: /^\/sites/, label: 'Sites', icon: 'desktop' },
+  { to: '/live', match: /^\/live/, label: 'Go live', icon: 'video' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
   { to: '/queue', match: /^\/queue/, label: 'Queue', icon: 'queue' },
   { to: '/settings', match: /^\/settings/, label: 'Settings', icon: 'settings' },
@@ -111,7 +113,7 @@ export function App() {
   // Linked AI apps, voices and sites live on the computer Hildegard runs on: the owner's.
   const nav = isOwner(auth)
     ? NAV
-    : NAV.filter((n) => !['/agents', '/voice', '/talk', '/sites'].includes(n.to));
+    : NAV.filter((n) => !['/agents', '/voice', '/talk', '/sites', '/live'].includes(n.to));
   if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
 
   const parts = route.split('/').filter(Boolean);
@@ -120,6 +122,7 @@ export function App() {
   else if (parts[0] === 'images') page = <Images catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
+  else if (parts[0] === 'live' && isOwner(auth)) page = <GoLive wc={wc} />;
   else if (parts[0] === 'sites' && isOwner(auth))
     page = <Sites wc={wc} go={go} siteParam={parts[1] ?? null} />;
   else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;

@@ -16,6 +16,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
 | `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` and `reviewMesh` (run `tools/review_media.py` and `tools/review_mesh.py`), and critique rubrics |
 | `packages/agents` | Runs Claude Code, Codex, OMP and Pi only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
+| `apps/server/src/stream*.ts` | Go live: the FFmpeg command (`stream-plan.ts`), the key relay (`stream-relay.ts`), the streamer (`stream.ts`), devices, OBS and the routes. See [docs/streaming.md](docs/streaming.md) |
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
 | `skills/` | Agent skills for creative work (hildegard), film, video and photo editing, art, sound, 3D, the loop, setup and cloud, with Hildegard's quality gates. Packed for uploads by `scripts/pack-skills.mjs` |
 | `.claude-plugin/`, `plugin/` | The repository as a Claude Code plugin and marketplace; `plugin/mcp.mjs` starts the installed Hildegard's MCP server. See [docs/chatbots.md](docs/chatbots.md) |
@@ -208,6 +209,24 @@ never overwrite a DNS record; tests in `tunnel.test.ts` cover each path (no tool
 off). A new route a director may use goes in `DIRECTOR` and checks `sees()`; anything that changes
 the computer stays loopback only (`local(c)`), even for owners signed in elsewhere; never let `/api/node/*` or ComfyUI
 behind the hosted listener; tests in `host.test.ts` cover each refusal, and `people.test.ts` the crypto and expiry.
+
+## Go live: streaming
+
+[docs/streaming.md](docs/streaming.md) has the design. Rules for changes here:
+
+- **A stream key is only ever in the keychain (`SecretStore`, account `stream-<destination>`) and in a relay's memory.**
+  Never in argv, an environment variable, a file, a log, an error message, a project, an API answer or an MCP result.
+  FFmpeg gets a random stand-in as long as the key, and `stream-relay.ts` swaps the key in on the wire. A change that
+  hands FFmpeg an address with a key in it fails `test/stream.test.ts`, which looks for the key everywhere.
+- **Starting is the owner's click at this computer.** `go-live`, keys, settings that move the stream, devices, the preview
+  and OBS are `here()` in `stream-routes.ts`: loopback, and never a request with an app's identity (`c.env.as`). The MCP has
+  `stream_status` only; `stream_start` and `stream_stop` return `needs-owner`. A new route that starts, or reads a device,
+  gets the same and a test in `stream-unit.test.ts`.
+- **Stop always works.** It is not queued behind a start, ends the whole process group (SIGTERM, then SIGKILL) inside two
+  seconds, and a start that was in flight gives up when Stop bumps `gen`. Keep FFmpeg's preview output on stdout: when
+  the server dies, the broken pipe ends FFmpeg.
+- **Tests never touch a video card.** Give the streamer `encoders: async () => ['libx264']`; the probe is lazy and runs only
+  when a person asks for a check or a stream with the encoder on Auto.
 
 ## Claude export docs
 

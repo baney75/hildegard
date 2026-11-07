@@ -166,6 +166,16 @@ pnpm --filter @hildegard/desktop tauri build     # or tauri dev
 Still to do: signing (Authenticode on Windows, a Developer ID and notarization on macOS), a universal macOS build
 and Linux on arm64, and notices for the Rust crates inside the app.
 
+## Go live
+
+Stream your screen, camera and microphone to YouTube, X, Twitch and Kick, or any RTMP server, to several at once, from
+the Studio's **Go live** page (or run OBS from it). It needs FFmpeg on your PATH, and nothing else. Scenes (screen,
+camera, camera over screen, starting soon, be right back), a lower third, a caption and a logo; a preview from the same
+picture that goes out; a check of your devices, encoder and upload speed; a five second countdown; a Stop that always
+works; and a copy kept on your computer if you want one. Stream keys go to your keychain and are never shown again, not
+even to FFmpeg. Only you, at this computer, can start a stream: an AI app can read how it is going and no more.
+[docs/streaming.md](docs/streaming.md) has the details, and the permissions each system asks for.
+
 ## Hugging Face
 
 Wan downloads without an account. LTX asks you to accept its license on Hugging Face first, so Hildegard needs your
@@ -217,7 +227,7 @@ what each app made.
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
 `create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
-which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
+which reuses the film with that title or makes one; and `characters`, to cast them. `stream_status` says how the owner’s stream is going; going live is theirs to press ([docs/streaming.md](docs/streaming.md)). The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
 --kind model` hands a whole loop to a coding agent.

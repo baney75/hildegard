@@ -56,12 +56,18 @@
         "bundleMediaFramework": true
       },
       "deb": {
-        "recommends": ["gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-libav"]
+        "recommends": [
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-bad",
+          "gstreamer1.0-libav",
+          "ffmpeg"
+        ]
       }
     },
     "macOS": {
       "minimumSystemVersion": "11.0",
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "entitlements": "entitlements.plist"
     },
     "windows": {
       "webviewInstallMode": {
