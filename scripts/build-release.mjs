@@ -80,6 +80,28 @@ await build({
   logLevel: 'warning',
 });
 
+// The Markdown renderer's worker thread, which the server starts for each post (render-markdown.ts).
+await build({
+  entryPoints: [join(root, 'apps', 'server', 'src', 'markdown-worker.ts')],
+  outfile: join(stage, 'markdown-worker.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});
+
+// The Markdown renderer's worker thread, which the server starts for each post (render-markdown.ts).
+await build({
+  entryPoints: [join(root, 'apps', 'server', 'src', 'markdown-worker.ts')],
+  outfile: join(stage, 'markdown-worker.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});
+
 const copy = (from, to, filter) => cpSync(join(root, from), join(stage, to), { recursive: true, filter });
 copy('apps/studio/dist', 'studio');
 copy('presets', 'presets');
@@ -93,6 +115,7 @@ copy('tools/poster.py', 'tools/poster.py');
 copy('tools/review_media.py', 'tools/review_media.py');
 copy('tools/review_mesh.py', 'tools/review_mesh.py');
 copy('tools/review_web.js', 'tools/review_web.js');
+copy('tools/voice_clean.py', 'tools/voice_clean.py');
 copy('skills', 'skills');
 copy('deploy/runpod/boot.sh', 'deploy/runpod/boot.sh');
 copy('licenses', 'licenses');

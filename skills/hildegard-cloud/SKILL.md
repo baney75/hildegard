@@ -10,6 +10,12 @@ billed to their own Runpod account by the second; tell them that before you star
 
 Every command takes `--json` and prints `{ ok, needsOwner, steps[], message }`. Rerunning is safe.
 
+**Without Hildegard** installed on this computer there is nothing to rent for: the pod joins Hildegard's fleet. Say so,
+and point your user at the hildegard-setup skill's install line (or the guide at
+https://github.com/baney75/hildegard/blob/main/docs/agents.md). You can still explain what a Runpod pod costs, what
+leaves their computer, and what to ask first (below), and they can rent a GPU in the Runpod console
+(https://console.runpod.io) by hand and run any ComfyUI workflow there on their own.
+
 ## Runpod: a GPU that joins the fleet
 
 1. **Their API key.** Ask your user to make one at https://console.runpod.io/user/settings (API Keys, read and write)

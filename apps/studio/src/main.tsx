@@ -5,6 +5,7 @@ import { App } from './App.tsx';
 import { preloadRoute } from './lib/pages.ts';
 import { connect } from './lib/store.ts';
 import { applyTheme } from './lib/theme.ts';
+import { RecordPage } from './pages/Record.tsx';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/cinema.css';
@@ -15,11 +16,14 @@ import './styles/sites.css';
 
 // Before the first render, so a light Studio never flashes dark.
 applyTheme();
-void connect();
-// The page this address shows downloads while the sign-in and snapshot requests run, not after them.
-preloadRoute(window.location.hash.replace(/^#/, '') || '/');
+// A link from a chat (/record/<token>) opens the record page alone: no account, and no connection to the rest of the
+// Studio, since the token is all it has.
+const record = /^\/record\/([A-Za-z0-9_-]{43})$/.exec(location.pathname)?.[1];
+if (!record) {
+  void connect();
+  // The page this address shows downloads while the sign-in and snapshot requests run, not after them.
+  preloadRoute(window.location.hash.replace(/^#/, '') || '/');
+}
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <StrictMode>{record ? <RecordPage token={record} /> : <App />}</StrictMode>,
 );

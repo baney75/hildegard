@@ -109,10 +109,14 @@ const DIRECTOR: Record<string, RegExp[]> = {
   GET: [
     /^\/api\/(health|catalog|snapshot|events)$/,
     /^\/api\/auth\//,
+    /^\/api\/writing\/(voice|samples|edits)$/,
+    /^\/api\/writing\/samples\/[^/]+$/,
     /^\/api\/shots\/[^/]+$/,
     /^\/api\/exports\/[^/]+$/,
     /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,
     /^\/api\/consent\/[^/]+$/,
+    // A recording link's page, a recording of their own, and a cleaning job they started.
+    /^\/api\/record\/(rec_[0-9a-f]{16}|[A-Za-z0-9_-]{43}|clean\/rcj_[0-9a-f]{16})$/,
     /^\/api\/characters\/[^/]+\/consent$/,
     /^\/api\/stills\/[^/]+\/preview$/,
     /^\/media\//,
@@ -125,13 +129,16 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/uploads$/,
     /^\/api\/auth\//,
     /^\/api\/consent\/[^/]+\/recording$/,
+    /^\/api\/record\/(links|imports|status|rec_[0-9a-f]{16}\/clean|[A-Za-z0-9_-]{43})$/,
     /^\/api\/characters$/,
     /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
     /^\/api\/images$/,
     /^\/api\/writing\/lint$/,
+    /^\/api\/writing\/(samples|edits)$/,
     /^\/api\/stills\/[^/]+\/(cancel|force|retry|keep)$/,
     /^\/api\/report\/(draft|file)$/,
   ],
+  PUT: [/^\/api\/writing\/voice$/],
   PATCH: [/^\/api\/projects\/[^/]+$/, /^\/api\/shots\/[^/]+$/, /^\/api\/characters\/[^/]+$/],
   DELETE: [
     /^\/api\/shots\/[^/]+$/,
@@ -140,6 +147,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/characters\/[^/]+$/,
     /^\/api\/characters\/[^/]+\/references\/[^/]+$/,
     /^\/api\/stills\/[^/]+$/,
+    /^\/api\/writing\/samples\/[^/]+$/,
   ],
 };
 export function directorMay(method: string, path: string): boolean {
@@ -159,8 +167,14 @@ export function open(method: string, path: string): boolean {
   // refuses the hosted listener, and any request that is not from this computer, from Tailscale Serve on a loopback
   // socket with the sharing address as Host, or on a socket opened to the sharing address itself.
   if (method === 'POST' && path === '/api/choir/redeem') return true;
+  // A published site, for anyone: the route itself serves only sites the owner published, and only GET and HEAD.
+  if ((method === 'GET' || method === 'HEAD') && path.startsWith('/s/')) return true;
   // A speaker reading their consent line on their own phone: the link's token is the key.
   if (/^\/api\/consent\/[^/]+(\/recording)?$/.test(path)) return true;
+  // Someone recording on their own device from a link a chat showed them: the link's token is the key, and it can only
+  // be read to see what is asked and used once to send it. Everything else under /api/record (making links, status,
+  // cleaning) needs a sign-in, and a token is 43 characters where those paths are not.
+  if ((method === 'GET' || method === 'POST') && /^\/api\/record\/[A-Za-z0-9_-]{43}$/.test(path)) return true;
   // A real person giving (or taking back) consent for a character of them: the one-time link is their key.
   if (path.startsWith('/api/likeness/')) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))

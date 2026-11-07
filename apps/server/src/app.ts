@@ -68,6 +68,7 @@ import {
   type HgEnv,
   LOOPBACK_ADDR,
   open,
+  originOf,
   ownAuth,
   secureRequest,
   seesCharacter,
@@ -101,6 +102,10 @@ import {
   type PrinterProfile,
   type Slicer,
 } from './printer.ts';
+import { publicSiteRoutes } from './public-sites.ts';
+import type { RecordStore } from './record.ts';
+import type { CleanJobs } from './record-clean.ts';
+import { mayOpen, recordRoutes } from './record-routes.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
@@ -114,6 +119,8 @@ import { VERSION } from './version.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
+import { WritingStore } from './writing.ts';
+import { writingRoutes } from './writing-routes.ts';
 
 export { VERSION };
 
@@ -202,6 +209,8 @@ export interface AppDeps {
   updates: Updates;
   /** The voice studio: speech, voices, consent. */
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
+  /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
+  records?: { store: RecordStore; cleaner: CleanJobs };
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -223,6 +232,8 @@ export interface AppDeps {
     libraries: string[];
     sandbox: 'sandbox-exec' | 'bwrap' | null;
   };
+  /** Each person's own writing voice; in the data folder unless a test says otherwise. */
+  writing?: WritingStore;
   /** The owner's websites: templates, imports, files and previews. */
   sites?: {
     store: Sites;
@@ -351,9 +362,11 @@ export function createApp(deps: AppDeps) {
     c.header('referrer-policy', 'no-referrer');
     // A site's preview is framed by the Studio's canvas, and its page (sandboxed, so of no origin) loads its own files.
     const preview = c.req.path.startsWith('/preview/');
+    // A published site is public and sandboxed: its own pictures and fonts load across origins, and nothing frames it.
+    const published = c.req.path.startsWith('/s/');
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
-    c.header('cross-origin-resource-policy', preview ? 'cross-origin' : 'same-origin');
+    c.header('cross-origin-resource-policy', preview || published ? 'cross-origin' : 'same-origin');
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
@@ -377,6 +390,11 @@ export function createApp(deps: AppDeps) {
     // MCP and OAuth check their own bearer tokens and passphrases; a cookie means nothing to them.
     if (ownAuth(path) && !c.env?.as) {
       c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
+      return next();
+    }
+    // A published site is for everyone: no cookie is read, none is rotated, and nobody here counts as the owner.
+    if (path.startsWith('/s/')) {
+      c.set('who', null);
       return next();
     }
     // A link from an MCP result: one file, until it expires, without signing in.
@@ -617,10 +635,37 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── Export film ─────────────────────────────────────────────────────────────────────────────────────────────
-  app.post('/api/projects/:id/export', (c) => {
+  app.post('/api/projects/:id/export', async (c) => {
     if (!sees(c, c.req.param('id'))) return c.json({ error: 'No such film' }, 404);
+    // A voice-over is a recording the asker may see, by its id; the body is otherwise empty.
+    const body = z
+      .object({
+        voiceover: z
+          .object({
+            mediaId: z.string().max(64),
+            startSeconds: z.number().min(0).max(86_400).default(0),
+            gainDb: z.number().min(-40).max(20).default(0),
+            duckDb: z.number().min(0).max(40).default(12),
+          })
+          .optional(),
+      })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'The voice-over isn’t right.', field: 'voiceover' }, 400);
+    let voiceover: Parameters<Exporter['start']>[1];
+    if (body.data.voiceover) {
+      const v = body.data.voiceover;
+      const rec = deps.records?.store.get(v.mediaId);
+      if (!rec || !mayOpen(whoOf(c), rec) || rec.state !== 'received' || !deps.records!.store.exists(rec))
+        return c.json({ error: 'No such recording to use as the voice-over.', field: 'voiceover' }, 404);
+      voiceover = {
+        path: deps.records!.store.path(rec)!,
+        startSeconds: v.startSeconds,
+        gainDb: v.gainDb,
+        duckDb: v.duckDb,
+      };
+    }
     try {
-      return c.json(deps.exporter.start(c.req.param('id')), 202);
+      return c.json(deps.exporter.start(c.req.param('id'), voiceover), 202);
     } catch (e) {
       if (e instanceof ExportError) return c.json({ error: e.message }, e.status);
       throw e;
@@ -2218,6 +2263,21 @@ export function createApp(deps: AppDeps) {
     },
   );
 
+  // ── A writer's own voice: samples, the rules learned from them, and what they changed in drafts ──────────────
+  const writing = deps.writing ?? new WritingStore(join(deps.config.dataDir, 'writing'));
+  app.route(
+    '/api/writing',
+    writingRoutes({
+      store: writing,
+      people: () =>
+        people
+          .list()
+          .slice()
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map((p) => ({ id: p.id, role: p.role })),
+    }),
+  );
+
   // ── Reports: bugs and ideas for Hildegard's makers, drafted by agents and filed only once the person said yes ──
   const reports = deps.reports ?? new Reports({ dir: join(deps.config.dataDir, 'reports') });
   const ReportBody = z.object({
@@ -2540,6 +2600,22 @@ export function createApp(deps: AppDeps) {
     );
     app.route('/api/consent', consentLinkRoutes(v.studio));
   }
+  if (deps.records)
+    app.route(
+      '/api/record',
+      recordRoutes({
+        records: deps.records.store,
+        cleaner: deps.records.cleaner,
+        who: whoOf,
+        // The link the person opens on their own device: this Hildegard's link if it has one; else the address this
+        // request came to (this computer's own, or the device a signed-in person is on).
+        linkBase: (c) => {
+          const shared = host.state().url;
+          return shared ? { base: shared, viaLink: true } : { base: originOf(c), viaLink: false };
+        },
+        sees: (c, filmId) => sees(c, filmId),
+      }),
+    );
   if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 
   // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2563,9 +2639,12 @@ export function createApp(deps: AppDeps) {
         secrets: deps.sites.secrets,
         importUrl: deps.sites.importUrl,
         figmaFetch: deps.sites.figmaFetch,
+        // The link this computer is at, when it is at one, so a published site can say its address.
+        hostUrl: () => host.state().url,
       }),
     );
     app.route('/preview', previewRoutes(deps.sites.store));
+    app.route('/s', publicSiteRoutes(deps.sites.store));
   }
 
   // ── The printer ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -2640,6 +2719,7 @@ export function createApp(deps: AppDeps) {
   // ── Media with byte ranges, so videos seek ─────────────────────────────────────────────────────────────────
   const TYPES: Record<string, string> = {
     '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
     '.jpg': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
@@ -2652,8 +2732,27 @@ export function createApp(deps: AppDeps) {
   };
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
-    if (!/^((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+$/.test(rel) || rel.includes('..'))
+    if (
+      !/^(recordings\/[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]+|((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+)$/.test(
+        rel,
+      ) ||
+      rel.includes('..')
+    )
       return c.body(null, 404);
+    // A recording is its owner's: the person who made the link, the owner of this Hildegard and this computer, or a
+    // signed link from an MCP result.
+    if (rel.startsWith('recordings/')) {
+      const rec = deps.records?.store.byFile(rel.slice('recordings/'.length));
+      if (!rec || !(c.get('signedMedia') || mayOpen(whoOf(c), rec))) return c.body(null, 404);
+      return sendFile(
+        c,
+        resolve(mediaDir, rel),
+        rec.kind === 'video' && extname(rel) === '.webm'
+          ? 'video/webm'
+          : (TYPES[extname(rel)] ?? 'application/octet-stream'),
+        'private, no-store',
+      );
+    }
     // Voice is the owner's alone: clips, uploads and consent recordings.
     if (rel.startsWith('voice/') && !isOwner(c) && !c.get('signedMedia')) return c.body(null, 404);
     const file = resolve(mediaDir, rel);
@@ -2709,6 +2808,22 @@ export function createApp(deps: AppDeps) {
     };
     app.get('*', (c) => {
       const p = decodeURIComponent(c.req.path);
+      // A record page answers only for a link that exists and hasn't run out; the Studio draws it from there.
+      const link = /^\/record\/([^/]*)$/.exec(p);
+      if (link && deps.records) {
+        const gate = deps.records.store.gate(link[1]!);
+        if (gate !== 'ok') {
+          const text =
+            gate === 'expired'
+              ? 'This link has run out. Ask for a new one; each works for 30 minutes.'
+              : 'This link doesn’t work. Ask for a new one.';
+          c.header('cache-control', 'no-store');
+          return c.html(
+            `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hildegard</title><body style="font:18px system-ui;margin:3rem 1.5rem;max-width:30rem"><h1 style="font-size:1.4rem">${gate === 'expired' ? 'This link has run out' : 'This link doesn’t work'}</h1><p>${text}</p>`,
+            gate === 'expired' ? 410 : 404,
+          );
+        }
+      }
       let file = resolve(ui, `.${p}`);
       if (!file.startsWith(ui + sep) || !existsSync(file) || statSync(file).isDirectory())
         file = join(ui, 'index.html');
@@ -2721,7 +2836,7 @@ export function createApp(deps: AppDeps) {
         c,
         file,
         UI_TYPES[extname(file)] ?? 'application/octet-stream',
-        hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
+        hashed ? 'public, max-age=31536000, immutable' : link ? 'no-store' : 'no-cache',
       );
     });
   }
