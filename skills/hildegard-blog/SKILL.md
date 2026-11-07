@@ -53,8 +53,14 @@ Never answer for them, and never put a word in their mouth to save a question. S
   quote, customer, scene, feeling, price, date, piece of advice or opinion, even a common one. An estimate stays an
   estimate: "about three a day" never becomes "three a day". If the piece needs a fact you don't have, ask, or mark
   it for them to confirm.
-- **Their voice.** Their greeting and sign-off, their phrases where they fit, their sentence length, their humor and
-  convictions as they stated them. Write to their readers the way they talk to them.
+- **Their voice, and warmth.** Warmth comes from how the writer talks to these readers, not from invented detail.
+  Write as them, to people they know: "you", the plain greeting and sign-off they'd use, the joke they made in the
+  interview, their humor and convictions as they stated them. Use their phrases where they fit, and vary sentence
+  length the way they talk: a run of short sentences reads like a notice, not a person.
+- **No samples yet?** Take the voice from who is writing to whom: a pastor to his own congregation writes warmly and
+  plainly, as "we" and "you", and reassures as well as informs; a shop owner to regulars writes like they talk over
+  the counter. Say in your reply that you'll match their voice better once they share a few pieces.
+- **An email** gets a subject line, the greeting they'd use, and their sign-off with their name.
 - Under about 600 words, usually no headings. Never a bold label on every paragraph. A list only for a real list.
 - End on the ask, said their way, or on the last concrete point. No recap, no moral, no line written to sound wise.
 - **The portability test.** Pick three sentences at random. If any could move unchanged into someone else's post on

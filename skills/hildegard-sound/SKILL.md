@@ -7,7 +7,7 @@ description: Clean up a voice recording, remove hum or hiss, podcast or sermon a
 
 ## Fast path
 
-This skill is all you need to clean a voice, put music under it, build a spot and measure the result. Don't write a filter graph by hand. Run a script from `scripts/` (Python 3, FFmpeg only), or, if you can deliver only one script, paste a recipe from below and change the names and numbers on its first lines.
+This skill is all you need to clean a voice, put music under it, build a spot and measure the result. Don't write a filter graph, a gain curve or a ducking envelope of your own: the recipes below are tested and yours won't be. Run a script from `scripts/` (Python 3, FFmpeg only), or, if you can deliver only one script, copy a recipe from below exactly and change only the file names and numbers on its first lines.
 
 1. **Clean a voice recording** (hum, hiss, rumble, quiet passages, loudness): `python3 scripts/clean_voice.py voice_raw.wav out.wav --lufs -16 --peak -1.5`, or paste **Recipe A**.
 2. **Music under speech** (announcement, sermon, voice-over): `python3 scripts/duck_mix.py voice.wav music.wav out.wav --voice-start 4 --fade-in 3 --tail 4 --fade-out 4`, or paste **Recipe B**. The music drops 16 dB under the voice and rises in pauses.
