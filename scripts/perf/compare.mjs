@@ -34,6 +34,7 @@ for (const route of ['Cinema', 'Images', 'Queue', 'Settings', 'Sites', 'Voice', 
     row(`${route}: ${name}, cold`, `studio.routes.${route}.cold.${key}`);
   }
   row(`${route}: long tasks, cold`, `studio.routes.${route}.cold.longMs`);
+  row(`${route}: main-thread CPU, cold`, `studio.routes.${route}.cold.cpuMs`);
   row(`${route}: FCP, warm`, `studio.routes.${route}.warm.fcp`);
 }
 for (const route of ['Images', 'Queue', 'Settings', 'Sites', 'Voice', 'Talk', 'Cinema']) {

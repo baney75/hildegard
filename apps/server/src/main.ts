@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import './compile-cache.ts';
 import { VERSION } from './app.ts';
 import { parseArgs } from './config.ts';
 import { guardProcess } from './lifecycle.ts';

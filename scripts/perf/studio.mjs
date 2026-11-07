@@ -62,6 +62,7 @@ async function loadRoute(context, base, route, { throttle, warm }) {
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   if (throttle > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+  await cdp.send('Performance.enable');
   const responses = new Map();
   page.on('requestfinished', async (req) => {
     try {
@@ -104,6 +105,9 @@ async function loadRoute(context, base, route, { throttle, warm }) {
       load: nav?.loadEventEnd ?? null,
     };
   });
+  // Main-thread work (unthrottled CPU seconds), which a busy machine disturbs far less than the clock does.
+  const { metrics } = await cdp.send('Performance.getMetrics');
+  const metric = (n) => metrics.find((x) => x.name === n)?.value ?? 0;
   const files = [...responses.entries()].filter(([u]) => ASSET.test(new URL(u).pathname));
   const totals = {
     js: { files: 0, raw: 0, gzip: 0, brotli: 0 },
@@ -135,6 +139,8 @@ async function loadRoute(context, base, route, { throttle, warm }) {
     cls: round(m.cls, 4),
     longTasks: m.longTasks,
     longMs: round(m.longMs),
+    cpuMs: round(metric('TaskDuration') * 1000),
+    scriptMs: round(metric('ScriptDuration') * 1000),
   };
   await page.close();
   return out;
@@ -265,7 +271,10 @@ export async function benchStudio({
   const srv = await startServer({ port, data: s.data, home: s.home });
   const browser = await chromium.launch({ headless: true, executablePath });
   try {
-    for (const [name, route] of parts.includes('routes') ? ROUTES : []) {
+    const only = process.env.PERF_ROUTES?.split(',');
+    for (const [name, route] of parts.includes('routes')
+      ? ROUTES.filter(([n]) => !only || only.includes(n))
+      : []) {
       result.routes[name] = {};
       for (const mode of ['cold', 'warm']) {
         const runs = [];
@@ -275,8 +284,9 @@ export async function benchStudio({
           await context.close();
         }
         // Bytes are the same every run; times are the median of the runs.
-        const pick = (k) =>
-          round(median(runs.map((r) => r[k]).filter((v) => v !== null)), k === 'cls' ? 4 : 1);
+        // PERF_STAT=min takes the best run instead: on a busy machine the fastest is the one least disturbed.
+        const agg = process.env.PERF_STAT === 'min' ? (v) => Math.min(...v) : median;
+        const pick = (k) => round(agg(runs.map((r) => r[k]).filter((v) => v !== null)), k === 'cls' ? 4 : 1);
         result.routes[name][mode] = {
           requests: runs[0].requests,
           wireBytes: runs[0].wireBytes,
@@ -289,10 +299,12 @@ export async function benchStudio({
           cls: pick('cls'),
           longTasks: pick('longTasks'),
           longMs: pick('longMs'),
+          cpuMs: pick('cpuMs'),
+          scriptMs: pick('scriptMs'),
         };
         const r = result.routes[name][mode];
         log(
-          `${name} ${mode}: js ${(r.js.brotli / 1024).toFixed(0)} KB br, FCP ${r.fcp} ms, LCP ${r.lcp} ms, TTI ${r.tti} ms, long ${r.longTasks}x${r.longMs} ms`,
+          `${name} ${mode}: js ${(r.js.brotli / 1024).toFixed(0)} KB br, FCP ${r.fcp} ms, LCP ${r.lcp} ms, TTI ${r.tti} ms, long ${r.longTasks}x${r.longMs} ms, CPU ${r.cpuMs} ms`,
         );
       }
     }
