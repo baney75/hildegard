@@ -5,6 +5,28 @@ description: Use when asked to make a video, scene, short film, ad, music video 
 
 # Directing a film with Hildegard
 
+## Fast path: a production plan someone can shoot
+
+When the request is a plan (a shot list, prompts, an edit and a sound plan) rather than rendering right now:
+
+1. **Facts first.** List every fact the brief gives: names, what happens, numbers, places, lines to be spoken. The
+   voice-over and on-screen text use only these, in the person's own words. "About three cars a day" stays "about
+   three cars a day"; don't turn an estimate into a promise or add a claim.
+2. **Set the limits once, then obey them.** Write the total length, the aspect, and the longest single generation the
+   model makes (`list_presets` gives each model's `maxSeconds`: LTX-2.5 and LTX-2 make up to 10 s, Wan 2.2 up to 5 s;
+   a longer shot is two generations joined on a cut or a match). Every shot in
+   the list must fit them; add the shot lengths and check they sum to the total.
+3. **One shot, one idea.** For each shot: what we see, the camera (body, lens, height, move), the light, the length,
+   and the prompt for the model, written as one concrete paragraph: subject, action, place, light, camera, then what
+   is heard. No "cinematic", "stunning", "epic".
+4. **Continuity.** The same person, clothes, place and time of day carry from shot to shot unless the story changes
+   them; name them the same way in every prompt.
+5. **Edit and sound.** Cuts in order with their reason (on action, on a look), the music's shape against the cuts,
+   the voice-over timed to shots, and the ambience under each place.
+6. **Check before you hand it over:** every spoken line and on-screen fact is in the facts list; every shot is within
+   the model's limit; the lengths add up; nothing contradicts an earlier rule in your own plan.
+
+
 You direct; Hildegard renders on your user's GPU through ComfyUI. Read **hildegard-craft** first: its gates apply to
 every step here. Tools are Hildegard's MCP tools; if they aren't available, tell your user to run
 `hildegard connect <your app>` (see hildegard-setup).

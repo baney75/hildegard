@@ -1,6 +1,6 @@
 ---
 name: hildegard-art
-description: Use when asked to create art, an image, poster, cover, key art, illustration, mood board or visual style - art direction, variations, honest critique and finishing with Hildegard's image models.
+description: Use when asked to create art, an image, illustration, key art, mood board or visual style with Hildegard's image models - for posters and covers with words, use hildegard-design.
 ---
 
 # Making art

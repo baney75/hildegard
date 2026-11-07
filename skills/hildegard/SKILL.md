@@ -1,9 +1,33 @@
 ---
 name: hildegard
-description: Use for /hildegard, /art, /vus, /mus, /suno and any request to make, edit, design, write or compose creative work - art, cutouts, storyboards, film, music, podcasts, 3D, fiction, essays, APA papers.
+description: Use for /hildegard, /art, /vus, /mus, /suno and any creative or writing request - routes to the one skill each task needs; covers art, film, music, podcasts, 3D, fiction, essays and papers.
 ---
 
 # Hildegard — the midwife's craft
+
+## Start here: the one place to look
+
+Find the request in this table and read only what it names. For these, that is all you need: don't open other skills
+or references unless the one you're in sends you there.
+
+| The request | Read |
+|---|---|
+| A poster, flyer, social post, album or book cover, invitation, menu, sign, banner, logo | **hildegard-design** |
+| A website, landing page, product page or mockup of an app screen | **hildegard-web** |
+| Clean up or mix audio: a podcast, sermon or voice recording, music under a voice, a radio spot | **hildegard-sound** |
+| Cut, trim, caption or finish a video from clips you have | **hildegard-video-edit** |
+| Plan or make a film, ad or reel with Hildegard's video models | **hildegard-film** |
+| Everyday prose: a blog post, email, newsletter, web page copy, bio, announcement | `references/blog.md` here, then `scripts/prose_lint.py` on the draft |
+| A poem, story, script, sermon, speech or essay | `references/writing-craft.md` here (papers and books: `references/nonfiction-academic.md`) |
+| A painting, illustration or art image | **hildegard-art** |
+| Edit or retouch a photo | **hildegard-photo-edit** |
+| A 3D model, or a part to print | **hildegard-3d**, **hildegard-print** |
+| Install Hildegard, models, devices, linking apps, anything not working | **hildegard-setup** |
+
+Two rules hold everywhere: put in only the facts your user gave (no invented dates, numbers, names, quotes or
+taglines), and check the finished thing yourself before you hand it over: render it and look, measure it, or lint it.
+
+The rest of this file is the full method for open-ended work, a piece that has no brief yet.
 
 Named for Saint Hildegard of Bingen (1098–1179): composer of the *Symphonia* and the *Ordo Virtutum*, visionary whose *Scivias* was illuminated under her direction, writer on theology, medicine and nature. She was one person working in every form, all of it serving one vision. That is this skill's pattern: many systems, one claim.
 
