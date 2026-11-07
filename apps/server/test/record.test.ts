@@ -287,6 +287,39 @@ describe('the upload', () => {
     expect((await send(voice2.token, speech('after.wav', 3))).status).toBe(200);
   }, 60_000);
 
+  it('refuses a file with a right-looking header that Python can’t read, and leaves the link usable', async () => {
+    const trunc = Buffer.from('RIFF\0\0\0\0WAVEfmt ', 'latin1');
+    const junk = Buffer.concat([
+      Buffer.from('00000018', 'hex'),
+      Buffer.from('ftypisom', 'latin1'),
+      Buffer.alloc(4),
+      Buffer.from('garbage garbage garbage'),
+    ]);
+    const l = await link(null, 'voice');
+    for (const [what, bytes] of [
+      ['a truncated WAV header', trunc],
+      ['a garbage ftyp file', junk],
+    ] as const) {
+      const res = await send(l.token, bytes);
+      expect(res.status, what).toBe(415);
+      expect(((await res.json()) as { error: string }).error, what).toBe(
+        'Hildegard couldn’t read that recording.',
+      );
+    }
+    // Nothing is kept, the link is not used up, and a good file still goes through it.
+    const kept = readdirSync(join(dataDir, 'media', 'recordings', 'local'));
+    expect(kept.some((n) => n.startsWith(l.id))).toBe(false);
+    expect((await local(`/api/record/${l.id}`).then((r) => r.json())) as object).toMatchObject({
+      status: 'pending',
+    });
+    expect((await send(l.token, speech('after-junk.wav', 3))).status).toBe(200);
+    // The same through an import: refused, with nothing left on disk.
+    const before = readdirSync(join(dataDir, 'media', 'recordings', 'local')).length;
+    const bad = await fetch(`${srv.url}/api/record/imports`, { method: 'POST', headers: RAW, body: junk });
+    expect(bad.status).toBe(415);
+    expect(readdirSync(join(dataDir, 'media', 'recordings', 'local')).length).toBe(before);
+  }, 60_000);
+
   it('takes the audio/mp4 an iPhone records, whatever brand its ftyp carries, and still refuses a picture', async () => {
     // Safari's MediaRecorder writes AAC in an MP4 with no picture; its brand is iso5, mp42 or M4A, not always M4A.
     for (const brand of ['iso5', 'mp42', 'M4A ']) {
@@ -376,6 +409,24 @@ describe('the upload', () => {
       skew = 0;
     }
   });
+});
+
+describe('imports over REST', () => {
+  it('stop at 20 a day for one person with a plain 429, and leave everyone else alone', async () => {
+    const ada = await director('Quota');
+    const grace = await director('Roomy');
+    const tiny = speech('tiny.wav', 1);
+    const post = (cookie: string) =>
+      fetch(`${remote}/api/record/imports`, { method: 'POST', headers: { ...RAW, cookie }, body: tiny });
+    for (let i = 0; i < 20; i++) expect((await post(ada)).status, `import ${i + 1}`).toBe(201);
+    const over = await post(ada);
+    expect(over.status).toBe(429);
+    expect(await over.json()).toMatchObject({
+      code: 'quota',
+      error: expect.stringMatching(/20 recordings a day/),
+    });
+    expect((await post(grace)).status).toBe(201);
+  }, 120_000);
 });
 
 describe('whose recording it is', () => {
@@ -834,6 +885,44 @@ describe('the store on its own', () => {
     expect(sniffRecording(ascii('RIFF\0\0\0\0WAVE'), 'video')).toBeNull();
     for (const x of [b('89504e470d0a1a0a'), ascii('<html>'), ascii('MZ'), ascii('')])
       for (const k of ['voice', 'video', 'auto'] as const) expect(sniffRecording(x, k)).toBeNull();
+  });
+
+  it('limits what one person may bring in a day: 20 imports and 5 GB, each person on their own, and a new day starts clean', async () => {
+    let t = 10_000_000;
+    const s = fresh(() => t);
+    const body = () => stream(wavHead, Buffer.alloc(500));
+    for (let i = 0; i < 20; i++) await s.import('ada', 'auto', body());
+    await expect(s.import('ada', 'auto', body())).rejects.toMatchObject({ status: 429, code: 'quota' });
+    expect(readdirSync(join((s as unknown as { root: string }).root, 'ada'))).toHaveLength(20);
+    // Another person is unaffected, and so is this computer; a link for a recording is not an import.
+    await expect(s.import('grace', 'auto', body())).resolves.toMatchObject({ status: 'received' });
+    await expect(s.import('local', 'auto', body())).resolves.toMatchObject({ status: 'received' });
+    const { token } = s.makeLink('ada', { kind: 'voice' });
+    await expect(s.receive(token, body())).resolves.toMatchObject({ status: 'received' });
+    // A day later the count starts over.
+    t += 24 * 3600_000 + 1;
+    await expect(s.import('ada', 'auto', body())).resolves.toMatchObject({ status: 'received' });
+
+    // Bytes too, counted as they arrive: the quota stops the body, not just the count.
+    const b = fresh(() => t, { imports: { perDay: 20, bytesPerDay: 3000 } });
+    await b.import('ada', 'auto', stream(wavHead, Buffer.alloc(1500)));
+    await expect(b.import('ada', 'auto', stream(wavHead, Buffer.alloc(1800)))).rejects.toMatchObject({
+      status: 429,
+      code: 'quota',
+    });
+    await expect(b.import('ada', 'auto', stream(wavHead, Buffer.alloc(900)))).resolves.toMatchObject({
+      status: 'received',
+    });
+    await expect(b.import('ada', 'auto', stream(wavHead, Buffer.alloc(900)))).rejects.toMatchObject({
+      status: 429,
+    });
+    expect(
+      readdirSync(join((b as unknown as { root: string }).root, 'ada')).some((n) => n.endsWith('.part')),
+    ).toBe(false);
+    // The owner of the Hildegard can raise them.
+    const raised = fresh(() => t, { imports: { perDay: 22, bytesPerDay: 1 << 30 } });
+    for (let i = 0; i < 22; i++) await raised.import('ada', 'auto', body());
+    await expect(raised.import('ada', 'auto', body())).rejects.toMatchObject({ status: 429 });
   });
 
   it('keeps a person’s links to a limit, dropping the oldest', () => {
