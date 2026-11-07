@@ -17,9 +17,6 @@ type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
 
-/** What to ask before a link is turned on; the same words the server sends with `needsLink`. */
-const ASK_LINK = 'To record on your phone, Hildegard needs a private link to this computer. Turn one on?';
-
 const lu = (n: number) => `${n.toFixed(1)} LUFS`;
 const tp = (n: number) => `${n.toFixed(1)} dBTP`;
 
@@ -65,13 +62,19 @@ export function registerRecordTools(
     {
       title: 'Ask the person to record',
       description:
-        'Get a link where the person records their voice (a voice-over, a line, a narration) or a video of themselves, even though this chat can’t use their microphone. They open it, tap Record, listen or watch back, re-record if they like, and tap Send. Show them the link and the sentence it comes with. Then call recording_status until it says received. The link works once for 30 minutes and is a secret: share it only with the person you asked it for. For voice, call clean_voice on what comes back. `where` says what they record on: "here" is this computer (a link that opens in any browser on it, nothing to set up), "phone" is their phone (it needs Hildegard’s private link; if none is on, this does not turn one on but tells you what to ask them, and you call link_on only after they say yes), "auto" (the default) is here when you run on their computer, unless they said phone.',
+        'Get a link where the person records their voice (a voice-over, a line, a narration) or a video of themselves, even though this chat can’t use their microphone. They open it, tap Record, listen or watch back, re-record if they like, and tap Send. Show them the link and the sentence it comes with. Then call recording_status until it says received. The link works once for 30 minutes and is a secret: share it only with the person you asked it for. For voice, call clean_voice on what comes back. `where` says what they record on: "here" is this computer (a link that opens in any browser on it, nothing to set up), "phone" is their phone (it needs Hildegard’s own link; if none is on, this does not turn one on: it returns the route this computer would use and, for a private one, the question to ask them word for word, and you call link_on only after they say yes; a public route is never turned on from a chat, the person does that themselves), "auto" (the default) is here when you run on their computer, unless they said phone.',
       inputSchema: {
         kind: z.enum(['voice', 'video']).describe('voice: sound only. video: camera and sound.'),
         where: z
           .enum(['here', 'phone', 'auto'])
           .optional()
           .describe('here: this computer. phone: their phone. auto: here, unless they said phone.'),
+        private: z
+          .boolean()
+          .optional()
+          .describe(
+            'With where: phone, true when the person wants a link only their own devices can open. If the link that is on is public, you get the private route instead, or are told it is public.',
+          ),
         purpose: z
           .string()
           .max(200)
@@ -88,19 +91,33 @@ export function registerRecordTools(
       const l = await client.recordLink({
         kind: a.kind,
         where: a.where,
+        private: a.private,
         purpose: a.purpose,
         filmId: a.film_id,
       });
-      if (l.needsLink)
+      if (l.needsLink) {
+        const mayAsk = l.turnOn !== null && !l.plan.public;
         return text(
-          [
-            'There is no private link to this computer yet, so a phone can’t reach the recording page. Nothing was changed.',
-            `Ask the person, in these words: “${l.ask}”`,
-            'If they say yes, call link_on with confirmed: true, then call record_link again with where: "phone".',
-            'If they say no, offer to record on this computer instead: call record_link with where: "here".',
-            'Do not call link_on without their yes.',
-          ].join('\n'),
+          (mayAsk
+            ? [
+                l.existingPublic
+                  ? 'The link that is on now is public (anyone who has it can reach Hildegard’s sign-in page), and a private one was asked for. Nothing was changed.'
+                  : 'There is no link to this computer yet, so a phone can’t reach the recording page. Nothing was changed.',
+                `Ask the person, in these words: “${l.ask}”`,
+                `If they say yes, call link_on with confirmed: true and plan: "${l.plan.id}", then call record_link again with where: "phone".`,
+                'If they say no, offer to record on this computer instead: call record_link with where: "here".',
+                'Do not call link_on without their yes.',
+              ]
+            : [
+                l.existingPublic
+                  ? 'The link that is on now is public, and no private one is possible on this computer. Nothing was changed.'
+                  : 'There is no private link to this computer, so a phone can’t reach the recording page. Nothing was changed.',
+                `Tell the person, in these words: “${l.ask}”`,
+                'You cannot turn this on from a chat; do not try link_on. Offer to record on this computer instead: call record_link with where: "here".',
+              ]
+          ).join('\n'),
         );
+      }
       // On this computer the link is the loopback address the server made. For a phone it is Hildegard's own link when it
       // has one; else the address this app reached Hildegard at, which the page is on too.
       const url = l.where === 'here' ? l.url : !remote && l.viaLink ? l.url : `${client.url}${l.path}`;
@@ -118,6 +135,9 @@ export function registerRecordTools(
               phone
                 ? `Show the person this, in these words: “Open this link on your phone, or point its camera at the QR code. Tap Record, ${a.kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`
                 : `Show the person this, in these words: “Open this link in a browser on this computer. Tap Record, ${a.kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`,
+              phone && l.public
+                ? 'This link is PUBLIC: it goes through a tunnel anyone on the internet can reach, so anyone who has Hildegard’s link can see its sign-in page. Tell the person that plainly.'
+                : '',
               phone && !l.secure
                 ? 'This link is not https, so some phones will not let the page use the microphone; they can still choose a recording they already have.'
                 : '',
@@ -143,37 +163,47 @@ export function registerRecordTools(
     {
       title: 'Turn on Hildegard’s private link',
       description:
-        'Turn on the best link to this computer, so a phone can reach Hildegard: Tailscale Serve if Tailscale is signed in (private to the person’s own devices), else a temporary Cloudflare quick tunnel if cloudflared is installed (its sign-in page is public; tell the person). Call this only after the person said yes to turning a link on, usually after record_link asked, and pass confirmed: true. It changes the computer, so it works only when you run on it. If something is missing it changes nothing and says what the owner can do (make the owner account, install or sign in to Tailscale, install cloudflared). Hildegard never picks a passphrase or installs anything by itself.',
+        'Turn on a PRIVATE link to this computer so a phone can reach Hildegard: Tailscale Serve, which only devices signed in to the person’s own Tailscale account can open. Call it only after the person said yes to the question record_link gave you, and pass confirmed: true and the plan id that came with the question. The plan id ties their yes to the route that was described; if the computer changed since (Tailscale came up or went down), nothing is turned on and you get the new question to ask. A public route (a Cloudflare tunnel, Funnel) is never turned on from here, whatever you pass: the person does that in the Studio or a terminal, and you are told what to say. It changes the computer, so it works only when you run on it. Hildegard never picks a passphrase or installs anything by itself.',
       inputSchema: {
         confirmed: z
           .boolean()
           .optional()
           .describe(
-            'True only after your user said yes to turning a link on. Never decide this yourself. Without it nothing is changed.',
+            'True only after your user said yes to the question in the plan. Never decide this yourself. Without it nothing is changed.',
           ),
+        plan: z
+          .string()
+          .max(40)
+          .optional()
+          .describe('The plan id record_link or link_on gave you with the question your user said yes to.'),
       },
       annotations: { openWorldHint: true },
     },
-    guard(async (a: { confirmed?: boolean }) => {
-      if (a.confirmed !== true)
-        return text(
-          [
-            'Nothing was changed. Turning on a link needs your user’s yes.',
-            `Ask them, in these words: “${ASK_LINK}”`,
-            'If they say yes, call link_on again with confirmed: true.',
-          ].join('\n'),
-        );
-      const r = await client.linkOn();
+    guard(async (a: { confirmed?: boolean; plan?: string }) => {
+      // Without the person's yes and a plan, the server is only asked what it would do; it changes nothing.
+      const r = await client.linkOn(a.confirmed === true ? a.plan : undefined);
       if (r.status === 'on')
         return text(
           [
             r.message,
             r.url ? `Link: ${r.url}` : '',
-            r.temporary ? 'Tell the person this link is temporary and its sign-in page is public.' : '',
+            r.private
+              ? ''
+              : 'Tell the person this link is public: anyone who has it can reach Hildegard’s sign-in page.',
             'Now call record_link again with where: "phone".',
           ]
             .filter(Boolean)
             .join('\n'),
+        );
+      if (r.status === 'confirm' && r.plan && !r.plan.public)
+        return text(
+          [
+            a.confirmed === true && a.plan
+              ? 'Nothing was changed: the route changed since you asked.'
+              : 'Nothing was changed. Turning on a link needs your user’s yes.',
+            `Ask them, in these words: “${r.plan.ask}”`,
+            `If they say yes, call link_on with confirmed: true and plan: "${r.plan.id}".`,
+          ].join('\n'),
         );
       return {
         content: [
@@ -182,7 +212,9 @@ export function registerRecordTools(
             text: [
               r.message,
               ...r.steps.map((st) => `- ${st.title}: ${st.detail}${st.command ? ` (${st.command})` : ''}`),
-              'Nothing was changed. Tell the person what is needed; when it is done, call link_on again with confirmed: true.',
+              r.plan?.public
+                ? 'Nothing was changed. You cannot turn a public link on from a chat. Tell the person this, and offer to record on this computer instead (record_link with where: "here").'
+                : 'Nothing was changed. Tell the person what is needed; when it is done, ask for the record link again.',
             ].join('\n'),
           },
         ],

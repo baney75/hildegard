@@ -7,7 +7,7 @@
  * a yes. The microphone and camera start only when you tap Record.
  */
 import { useEffect, useId, useRef, useState } from 'react';
-import { api, type LinkOnAnswer, type RecordingInfo } from '../lib/api.ts';
+import { api, type LinkOnAnswer, type LinkPlan, type RecordingInfo } from '../lib/api.ts';
 import { clock } from '../lib/format.ts';
 import { useCapture } from '../lib/record.ts';
 import { Qr } from './Qr.tsx';
@@ -15,32 +15,13 @@ import { Button, Icon, Modal, Segmented, toastError, WithCode } from './ui.tsx';
 
 type Kind = 'voice' | 'video';
 
-/** The whole question the person is asked before a link is turned on, worded for what would actually happen. */
-const TURN_ON = {
-  private:
-    'Hildegard will turn on a private link to this computer through Tailscale. Only devices signed in to your Tailscale account can open it, so your phone needs Tailscale too.',
-  temporary:
-    'Hildegard will turn on a temporary link through Cloudflare. It needs no account, its name changes whenever Hildegard restarts, and anyone who finds the name can reach Hildegard’s sign-in page (only people you invite can get in). You can turn it off in Settings › Sharing.',
-  nothing:
-    'Hildegard has no way to make a link on this computer yet. It will tell you what to install: Tailscale for a private link, or cloudflared for a temporary one.',
-  unknown:
-    'Hildegard will turn on the best link it can: a private one through Tailscale if you’re signed in to it, else a temporary one through Cloudflare. It tells you which.',
-};
-
-async function whatWouldHappen(): Promise<string> {
-  try {
-    const r = await api.tunnel();
-    if (r.tailscale.state === 'ready') return TURN_ON.private;
-    if (r.cloudflare.installed) return TURN_ON.temporary;
-    return TURN_ON.nothing;
-  } catch {
-    return TURN_ON.unknown;
-  }
-}
+/** What the person is told when the link they are given is public. */
+const PUBLIC_NOTE =
+  'This link is public: it goes through a tunnel anyone on the internet can reach, so anyone who has Hildegard’s link can see its sign-in page (only people you invite can get in). Turn it off in Settings › Sharing when you’re done.';
 
 type Phone =
   | { at: 'asking' }
-  | { at: 'confirm'; what: string }
+  | { at: 'confirm'; plan: LinkPlan }
   | { at: 'turning' }
   | { at: 'missing'; answer: LinkOnAnswer }
   | { at: 'waiting'; id: string; url: string; secure: boolean; note: string | null }
@@ -102,17 +83,26 @@ export function RecordDialog({
     setPhone({ at: 'asking' });
     try {
       const l = await api.phoneRecordLink(kind);
-      if (l.needsLink) setPhone({ at: 'confirm', what: await whatWouldHappen() });
-      else setPhone({ at: 'waiting', id: l.id, url: l.url, secure: l.secure, note });
+      if (l.needsLink) setPhone({ at: 'confirm', plan: l.plan });
+      else
+        setPhone({
+          at: 'waiting',
+          id: l.id,
+          url: l.url,
+          secure: l.secure,
+          note: l.public ? [note, PUBLIC_NOTE].filter(Boolean).join(' ') : note,
+        });
     } catch (e) {
       setPhone({ at: 'error', message: (e as Error).message });
     }
   };
-  const turnOn = async () => {
+  const turnOn = async (plan: LinkPlan) => {
     setPhone({ at: 'turning' });
     try {
-      const a = await api.linkOn();
+      const a = await api.linkOn(plan);
       if (a.status === 'on') await askPhone(a.message);
+      // The computer changed since the question was asked: ask again, for what would happen now.
+      else if (a.status === 'confirm' && a.plan) setPhone({ at: 'confirm', plan: a.plan });
       else setPhone({ at: 'missing', answer: a });
     } catch (e) {
       setPhone({ at: 'error', message: (e as Error).message });
@@ -158,14 +148,24 @@ export function RecordDialog({
       case 'confirm':
         return (
           <div className="hg-recorddlg__stage">
-            <h3 className="st-h2">Turn on a link to this computer?</h3>
-            <p className="body-sm sec-text">{phone.what}</p>
+            <h3 className="st-h2">
+              {phone.plan.route === 'none'
+                ? 'No link is possible yet'
+                : phone.plan.public
+                  ? 'Turn on a public link to this computer?'
+                  : 'Turn on a private link to this computer?'}
+            </h3>
+            <p className="body-sm sec-text">{phone.plan.ask}</p>
             <div className="hg-record-actions">
               <Button kind="ghost" onClick={() => setPhone(null)} data-autofocus="">
                 Not now
               </Button>
-              <Button kind="primary" icon="link" onClick={() => void turnOn()}>
-                Turn on
+              <Button kind="primary" icon="link" onClick={() => void turnOn(phone.plan)}>
+                {phone.plan.route === 'none'
+                  ? 'What do I need?'
+                  : phone.plan.public
+                    ? 'Turn on public link'
+                    : 'Turn on'}
               </Button>
             </div>
           </div>

@@ -197,21 +197,36 @@ export interface RecordLink {
   url: string;
   /** `url` is Hildegard's own link, which a phone can reach; otherwise it is only the address the request came to. */
   viaLink: boolean;
+  /** The link is on the internet: anyone who has Hildegard's link can reach its sign-in page. */
+  public: boolean;
   expiresAt: string;
   /** The link opens only on the computer Hildegard runs on, not on a phone. */
   localOnly: boolean;
 }
-/** A phone link was asked for and Hildegard has no link on: nothing was made, and the person decides. */
+/** What turning on a link would do, decided once by the server. `id` goes back with the person's yes. */
+export interface LinkPlan {
+  route: 'tailscale' | 'quick' | 'none';
+  /** The sign-in page would be on the internet. */
+  public: boolean;
+  id: string;
+  ask: string;
+}
+/** A phone link was asked for and there is no (private) link on: nothing was made, and the person decides. */
 export interface NeedsLink {
   needsLink: true;
   where: 'phone';
-  /** What to ask the person, word for word. */
+  plan: LinkPlan;
+  /** For a private plan, the question to ask word for word; otherwise what the person has to do themselves. */
   ask: string;
-  turnOn: { tool: string; rest: string; next: string };
+  /** A link is on, but it is public, and a private one was asked for. */
+  existingPublic: boolean;
+  /** Null when no AI app may turn it on (a public route, or nothing to use). */
+  turnOn: { tool: string; rest: string; next: string } | null;
 }
 /** What `link_on` did, or why it needs the owner. */
 export interface LinkOnResult {
-  status: 'on' | 'needs-owner' | 'failed';
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  plan?: LinkPlan;
   already?: boolean;
   via?: string;
   url?: string;
@@ -307,9 +322,13 @@ export class HildegardClient {
     purpose?: string;
     filmId?: string;
     where?: 'here' | 'phone' | 'auto';
+    private?: boolean;
   }) => this.call<RecordLink | NeedsLink>('POST', '/api/record/links', body);
-  /** Turns on the best available link. Only this computer may ask. */
-  linkOn = () => this.call<LinkOnResult>('POST', '/api/link/on', {});
+  /**
+   * Turns on the private link a plan names. Only this computer may ask. It sends the plan id and never `acceptPublic`:
+   * a public link is the person's own to turn on (Studio, terminal), not an AI app's.
+   */
+  linkOn = (plan?: string) => this.call<LinkOnResult>('POST', '/api/link/on', plan ? { plan } : {});
   /** A recording by its id, or by the link's token (which travels in the body, never the address). */
   recording = (by: { id: string } | { token: string }) =>
     'id' in by

@@ -115,7 +115,13 @@ describe('hildegard tunnel', () => {
       );
 
       // A quick tunnel needs no account, only the owner account here. It says it is temporary.
-      const noOwner = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
+      // A public link is the person's to confirm: with no terminal and no --yes-public, nothing is turned on.
+      const unconfirmed = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
+      expect(unconfirmed.needsOwner).toBe(true);
+      expect(unconfirmed.steps[0]).toMatchObject({ id: 'public', status: 'needs-owner' });
+      expect(unconfirmed.steps[0]!.detail).toMatch(/public/);
+      expect(children).toHaveLength(0);
+      const noOwner = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
       expect(noOwner.steps.at(-1)).toMatchObject({ id: 'owner', status: 'needs-owner' });
       const owner = await fetch(`${srv.url}/api/people/owner`, {
         method: 'POST',
@@ -123,7 +129,7 @@ describe('hildegard tunnel', () => {
         body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
       });
       expect(owner.status).toBe(201);
-      const quick = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
+      const quick = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
       expect(quick.ok).toBe(true);
       expect(quick.url).toBe('https://calm-river-test-name.trycloudflare.com');
       expect(quick.warning).toMatch(/temporary/);
@@ -194,9 +200,14 @@ describe('hildegard tunnel', () => {
       expect(none.steps.map((s) => s.id)).toEqual(['cloudflared', 'tailscale']);
       expect(none.steps[0]!.command).toBe('hildegard tunnel install cloudflare');
       expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
-      // cloudflared here: a quick tunnel, said to be temporary.
+      // cloudflared here: a quick tunnel would be public, so it is the person's to confirm; nothing starts without that.
       world.cloudflared = true;
-      const on = await hildegard(home, 'tunnel', 'auto', ...at);
+      const unconfirmed = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(unconfirmed.needsOwner).toBe(true);
+      expect(unconfirmed.steps[0]).toMatchObject({ id: 'public' });
+      expect(unconfirmed.steps[0]!.detail).toMatch(/PUBLIC/);
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
+      const on = await hildegard(home, 'tunnel', 'auto', '--yes-public', ...at);
       expect(on.ok).toBe(true);
       expect(on.url).toBe('https://auto-link-test-name.trycloudflare.com');
       expect(on).toMatchObject({ via: 'quick', temporary: true, private: false });

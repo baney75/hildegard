@@ -17,8 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { qrPng } from '../../../mcp/src/qr.ts';
 import { parseArgs } from '../src/config.ts';
 import type { Exec } from '../src/host.ts';
-import type { LinkOnResult } from '../src/link-on.ts';
-import { NEEDS_LINK_ASK } from '../src/record-routes.ts';
+import { ASK_PRIVATE, ASK_PUBLIC, type LinkOnResult, PUBLIC_REFUSED } from '../src/link-on.ts';
 import { type Running, startServer } from '../src/server.ts';
 import type { Child, Spawn } from '../src/tunnel.ts';
 import { memoryStore } from './helpers.ts';
@@ -57,6 +56,7 @@ class FakeChild extends EventEmitter implements Child {
 
 function pretend(w: World) {
   const calls: string[][] = [];
+  const spawned: string[][] = [];
   const served: Record<string, string> = {};
   const run: Exec = async (cmd, args) => {
     calls.push([cmd, ...args]);
@@ -88,7 +88,8 @@ function pretend(w: World) {
       return { ok: true, out: 'cloudflared version 2026.10.3 (built 2026-10-21)' };
     return { ok: false, out: '' };
   };
-  const spawn: Spawn = () => {
+  const spawn: Spawn = (_cmd, args) => {
+    spawned.push(args);
     const c = new FakeChild();
     setImmediate(() => {
       c.stderr.write('INF |  https://pretend-quick-name.trycloudflare.com  |\n');
@@ -96,7 +97,7 @@ function pretend(w: World) {
     });
     return c;
   };
-  return { calls, run, spawn };
+  return { calls, spawned, run, spawn };
 }
 
 let open: Running[] = [];
@@ -146,7 +147,18 @@ type Link = {
   viaLink: boolean;
   secure: boolean;
 };
-type NeedsLink = { needsLink: true; where: 'phone'; ask: string; turnOn: { tool: string } };
+type Plan = { route: 'tailscale' | 'quick' | 'none'; public: boolean; id: string; ask: string };
+type NeedsLink = {
+  needsLink: true;
+  where: 'phone';
+  ask: string;
+  plan: Plan;
+  existingPublic: boolean;
+  turnOn: { tool: string } | null;
+};
+
+const changes = (calls: string[][]) =>
+  calls.filter((c) => c[0] === 'tailscale' && (c[1] === 'serve' || c[1] === 'funnel') && c[2] !== 'status');
 
 describe('record_link: where', () => {
   it('auto picks a link on this computer for a caller on this computer, and says so', async () => {
@@ -174,11 +186,12 @@ describe('record_link: where', () => {
     expect(res.status).toBe(200);
     const need = (await res.json()) as NeedsLink & { token?: string };
     expect(need.needsLink).toBe(true);
-    expect(need.ask).toBe(NEEDS_LINK_ASK);
-    expect(need.ask).toBe(
-      'To record on your phone, Hildegard needs a private link to this computer. Turn one on?',
-    );
-    expect(need.turnOn.tool).toBe('link_on');
+    // The question is worded for the route this computer would use: Tailscale here, so private.
+    expect(need.plan).toMatchObject({ route: 'tailscale', public: false, ask: ASK_PRIVATE });
+    expect(need.plan.id).toMatch(/^[0-9a-f]{8}$/);
+    expect(need.ask).toBe(ASK_PRIVATE);
+    expect(need.ask).toMatch(/private/);
+    expect(need.turnOn?.tool).toBe('link_on');
     expect(need.token).toBeUndefined();
     // Tailscale was only read, never told to serve; the link is still off.
     expect(
@@ -205,6 +218,14 @@ describe('record_link: where', () => {
     const auto = (await (await local('/api/record/links', 'POST', { kind: 'voice' })).json()) as Link;
     expect(auto.where).toBe('here');
     expect(auto.url).toMatch(/^http:\/\/127\.0\.0\.1:/);
+  });
+
+  it('lets only the Studio’s own origin ask for the camera and microphone, so another origin’s frame can’t (first-F3)', async () => {
+    const { srv } = await boot({ tailscale: 'missing', cloudflared: false });
+    for (const path of ['/', '/record/anything', '/api/health']) {
+      const res = await fetch(srv.url + path);
+      expect(res.headers.get('permissions-policy'), path).toBe('camera=(self), microphone=(self)');
+    }
   });
 
   it('refuses a link that opens on this computer to anyone who is not on it', async () => {
@@ -248,10 +269,16 @@ describe('record_link: where', () => {
 });
 
 describe('link_on', () => {
-  const on = async (local: (p: string, m?: string, b?: unknown) => Promise<Response>) =>
-    (await (await local('/api/link/on', 'POST', {})).json()) as LinkOnResult;
-  const changes = (calls: string[][]) =>
-    calls.filter((c) => c[0] === 'tailscale' && (c[1] === 'serve' || c[1] === 'funnel') && c[2] !== 'status');
+  type Local = (p: string, m?: string, b?: unknown) => Promise<Response>;
+  const post = async (local: Local, body: unknown) =>
+    (await (await local('/api/link/on', 'POST', body)).json()) as LinkOnResult;
+  /** What the Studio or the CLI does: ask for the plan, then confirm exactly that plan (a public one is the person's own yes). */
+  const on = async (local: Local, opts: { person?: boolean } = {}) => {
+    const first = await post(local, {});
+    const plan = 'plan' in first ? first.plan : undefined;
+    if (first.status === 'on' || !plan || plan.route === 'none' || first.status === 'failed') return first;
+    return post(local, { plan: plan.id, ...(opts.person && plan.public ? { acceptPublic: true } : {}) });
+  };
 
   it('chooses Tailscale Serve when Tailscale is signed in, even with cloudflared here, and never Funnel', async () => {
     const { local, calls } = await boot({ tailscale: 'Running', cloudflared: true });
@@ -273,9 +300,9 @@ describe('link_on', () => {
     expect(changes(calls)).toHaveLength(1);
   });
 
-  it('runs a quick tunnel when only cloudflared is here, and says it is temporary and its sign-in page is public', async () => {
+  it('runs a quick tunnel only on the person’s own yes to the public plan, and says it is temporary and public', async () => {
     const { local, calls } = await boot({ tailscale: 'missing', cloudflared: true });
-    const r = await on(local);
+    const r = await on(local, { person: true });
     expect(r).toMatchObject({
       status: 'on',
       via: 'quick',
@@ -292,7 +319,7 @@ describe('link_on', () => {
 
   it('uses a quick tunnel when Tailscale is installed but signed out', async () => {
     const { local } = await boot({ tailscale: 'NeedsLogin', cloudflared: true });
-    expect(await on(local)).toMatchObject({ status: 'on', via: 'quick', temporary: true });
+    expect(await on(local, { person: true })).toMatchObject({ status: 'on', via: 'quick', temporary: true });
   });
 
   it('changes nothing and says what is missing when there is neither: one click or one command each', async () => {
@@ -321,6 +348,66 @@ describe('link_on', () => {
     expect(r.steps[0]!.command).toMatch(/login\.tailscale\.com/);
     expect(((await (await local('/api/host')).json()) as { on: boolean }).on).toBe(false);
     expect(changes(calls)).toEqual([]);
+  });
+
+  it('names the route in the plan and turns on nothing without the plan id (first-F1, first-F2)', async () => {
+    const { local, calls, spawned } = await boot({ tailscale: 'Running', cloudflared: true });
+    const first = await post(local, {});
+    expect(first).toMatchObject({ status: 'confirm', plan: { route: 'tailscale', public: false } });
+    expect(first.status === 'confirm' && first.message).toBe(ASK_PRIVATE);
+    // A wrong id is the same as none: the answer is the plan, and nothing was changed.
+    const wrong = await post(local, { plan: 'deadbeef' });
+    expect(wrong).toMatchObject({ status: 'confirm', plan: { route: 'tailscale' } });
+    expect(changes(calls)).toEqual([]);
+    expect(spawned).toEqual([]);
+  });
+
+  it('never turns on a public route without the person’s own yes, whatever else is sent (second-F7, sol-F1)', async () => {
+    const { local, spawned } = await boot({ tailscale: 'missing', cloudflared: true });
+    const first = await post(local, {});
+    expect(first.status).toBe('needs-owner');
+    const plan = (first as { plan: Plan }).plan;
+    expect(plan).toMatchObject({ route: 'quick', public: true, ask: ASK_PUBLIC });
+    expect((first as { message: string }).message).toBe(PUBLIC_REFUSED);
+    // The plan id alone (all an AI app can send) turns on nothing.
+    const withId = await post(local, { plan: plan.id });
+    expect(withId.status).toBe('needs-owner');
+    expect(spawned).toEqual([]);
+    expect(((await (await local('/api/host')).json()) as { on: boolean }).on).toBe(false);
+  });
+
+  it('refuses a plan that changed since it was shown, and shows the new one (first-F2)', async () => {
+    const world: World = { tailscale: 'missing', cloudflared: true };
+    const { local, calls, spawned } = await boot(world);
+    const shown = (await post(local, {})) as { plan: Plan };
+    expect(shown.plan.route).toBe('quick');
+    // Tailscale comes up before the person answers. Their yes was to a public tunnel; they get a new question.
+    world.tailscale = 'Running';
+    const stale = await post(local, { plan: shown.plan.id, acceptPublic: true });
+    expect(stale).toMatchObject({ status: 'confirm', plan: { route: 'tailscale', public: false } });
+    expect(spawned).toEqual([]);
+    expect(changes(calls)).toEqual([]);
+    // And the other way: yes to Tailscale, then Tailscale goes down: a public route is never swapped in.
+    const ts = (stale as { plan: Plan }).plan;
+    world.tailscale = 'NeedsLogin';
+    const down = await post(local, { plan: ts.id });
+    expect(down.status).toBe('needs-owner');
+    expect(spawned).toEqual([]);
+  });
+
+  it('turns on exactly the confirmed route once the plan still holds', async () => {
+    const world: World = { tailscale: 'Running', cloudflared: true };
+    const { local, calls, spawned } = await boot(world);
+    const plan = ((await post(local, {})) as { plan: Plan }).plan;
+    const done = await post(local, { plan: plan.id });
+    expect(done).toMatchObject({ status: 'on', via: 'tailscale', private: true });
+    expect(changes(calls).map((c) => c[1])).toEqual(['serve']);
+    expect(spawned).toEqual([]);
+  });
+
+  it('answers a bad body with 400', async () => {
+    const { local } = await boot({ tailscale: 'Running', cloudflared: true });
+    expect((await local('/api/link/on', 'POST', { plan: 5 })).status).toBe(400);
   });
 
   it('makes the owner account first, and never picks a passphrase', async () => {
@@ -423,20 +510,25 @@ describe('over the MCP', () => {
       // Phone with no link: nothing is made, and the AI is told what to ask and which tool to call on a yes.
       const need = await call(c, 'record_link', { kind: 'voice', where: 'phone' });
       const t = textOf(need);
-      expect(t).toContain(NEEDS_LINK_ASK);
+      expect(t).toContain(ASK_PRIVATE);
       expect(t).toMatch(/call link_on/);
+      const planId = /plan: "([0-9a-f]{8})"/.exec(t)![1]!;
       expect(t).toMatch(/Do not call link_on without their yes/);
       expect(t).not.toMatch(/\/record\//);
       expect(need.content.some((x) => x.type === 'image')).toBe(false);
 
       // Without the person's yes (confirmed: true) link_on turns nothing on, and gives the question again.
       const unasked = await call(c, 'link_on', {});
-      expect(textOf(unasked)).toContain(NEEDS_LINK_ASK);
+      expect(textOf(unasked)).toContain(ASK_PRIVATE);
       expect(textOf(unasked)).toMatch(/Nothing was changed/);
       expect(((await (await fetch(`${srv.url}/api/host`)).json()) as { on: boolean }).on).toBe(false);
+      // A yes with no plan id turns nothing on either: the yes has to be to a route that was described.
+      const noPlan = await call(c, 'link_on', { confirmed: true });
+      expect(textOf(noPlan)).toMatch(/Nothing was changed/);
+      expect(((await (await fetch(`${srv.url}/api/host`)).json()) as { on: boolean }).on).toBe(false);
 
-      // On the yes: link_on, then the phone link, with a QR code of exactly that address.
-      const turned = await call(c, 'link_on', { confirmed: true });
+      // On the yes: link_on with the plan id, then the phone link, with a QR code of exactly that address.
+      const turned = await call(c, 'link_on', { confirmed: true, plan: planId });
       expect(turned.isError).toBeFalsy();
       expect(textOf(turned)).toMatch(/https:\/\/studio\.example\.ts\.net/);
       expect(textOf(turned)).toMatch(/record_link again with where: "phone"/);
@@ -448,6 +540,117 @@ describe('over the MCP', () => {
         | undefined;
       expect(img?.mimeType).toBe('image/png');
       expect(Buffer.from(img!.data, 'base64').equals(qrPng(purl))).toBe(true);
+    } finally {
+      await c.close();
+    }
+  }, 60_000);
+
+  it('with only cloudflared, link_on confirmed: true is needs-owner and starts nothing (second-F7, first-F1, sol-F1)', async () => {
+    const { srv, local, calls, spawned } = await boot({ tailscale: 'missing', cloudflared: true });
+    const c = await mcpAt(srv.url);
+    try {
+      const need = await call(c, 'record_link', { kind: 'voice', where: 'phone' });
+      const t = textOf(need);
+      // The sentence says a phone link would be public, and the two ways the person can do it themselves.
+      expect(t).toContain(PUBLIC_REFUSED);
+      expect(t).toMatch(/public/);
+      expect(t).toMatch(/trycloudflare\.com/);
+      expect(t).toMatch(/Record on your phone/);
+      expect(t).toMatch(/hildegard tunnel cloudflare --quick/);
+      expect(t).not.toMatch(/Turn it on\?/);
+      expect(t).toMatch(/do not try link_on/);
+      expect(t).not.toMatch(/confirmed: true/);
+      // Even with the yes, and the right plan id, from the injected text's point of view: nothing starts.
+      const plan = ((await (await local('/api/link/on', 'POST', {})).json()) as { plan: Plan }).plan;
+      for (const args of [{ confirmed: true }, { confirmed: true, plan: plan.id }, { plan: plan.id }]) {
+        const r = await call(c, 'link_on', args);
+        expect(textOf(r)).toContain(PUBLIC_REFUSED);
+        expect(textOf(r)).toMatch(/Nothing was changed/);
+        expect(textOf(r)).toMatch(/cannot turn a public link on from a chat/);
+      }
+      expect(spawned).toEqual([]);
+      expect(changes(calls)).toEqual([]);
+      expect(((await (await fetch(`${srv.url}/api/host`)).json()) as { on: boolean }).on).toBe(false);
+    } finally {
+      await c.close();
+    }
+  }, 60_000);
+
+  it('turns on Serve, never Funnel, with Tailscale ready and the matching plan id; a stale id is refused', async () => {
+    const world: World = { tailscale: 'missing', cloudflared: true };
+    const { srv, calls, spawned } = await boot(world);
+    const c = await mcpAt(srv.url);
+    try {
+      // The plan the person was shown was public (no Tailscale yet) ...
+      const shown = await call(c, 'link_on', {});
+      expect(textOf(shown)).toContain(PUBLIC_REFUSED);
+      // ... then Tailscale came up. A private question is asked, with its own id.
+      world.tailscale = 'Running';
+      const q = await call(c, 'link_on', {});
+      expect(textOf(q)).toContain(ASK_PRIVATE);
+      const id = /plan: "([0-9a-f]{8})"/.exec(textOf(q))![1]!;
+      // A stale id (from before) changes nothing and asks the new question.
+      const stale = await call(c, 'link_on', { confirmed: true, plan: 'deadbeef' });
+      expect(textOf(stale)).toMatch(/Nothing was changed: the route changed/);
+      expect(textOf(stale)).toContain(ASK_PRIVATE);
+      expect(changes(calls)).toEqual([]);
+      const ok = await call(c, 'link_on', { confirmed: true, plan: id });
+      expect(ok.isError).toBeFalsy();
+      expect(textOf(ok)).toMatch(/private/);
+      expect(changes(calls).map((x) => x[1])).toEqual(['serve']);
+      expect(calls.some((x) => x[0] === 'tailscale' && x[1] === 'funnel')).toBe(false);
+      expect(spawned).toEqual([]);
+    } finally {
+      await c.close();
+    }
+  }, 60_000);
+
+  it('says plainly when the phone link is public, and offers the private route if the person asked for private (sol-F2)', async () => {
+    const { srv, local, spawned } = await boot({ tailscale: 'Running', cloudflared: true });
+    // A Funnel link is already on (the person's own doing).
+    expect((await local('/api/host', 'POST', { via: 'funnel' })).status).toBe(200);
+    const c = await mcpAt(srv.url);
+    try {
+      const phone = await call(c, 'record_link', { kind: 'voice', where: 'phone' });
+      const t = textOf(phone);
+      expect(t).toMatch(/Link for a voice recording: https:\/\/studio\.example\.ts\.net/);
+      expect(t).toMatch(/This link is PUBLIC/);
+      expect(t).not.toMatch(/private/);
+      const rest = (await (
+        await local('/api/record/links', 'POST', { kind: 'voice', where: 'phone' })
+      ).json()) as Link & { public: boolean };
+      expect(rest.public).toBe(true);
+      // Asked for private: the public link is not handed over; the private route is offered, with its plan.
+      const priv = await call(c, 'record_link', { kind: 'voice', where: 'phone', private: true });
+      const p = textOf(priv);
+      expect(p).not.toMatch(/Link for a voice recording/);
+      expect(p).toMatch(/that is on now is public/);
+      expect(p).toContain(ASK_PRIVATE);
+      const id = /plan: "([0-9a-f]{8})"/.exec(p)![1]!;
+      const moved = await call(c, 'link_on', { confirmed: true, plan: id });
+      expect(textOf(moved)).toMatch(/private/);
+      const host = (await (await fetch(`${srv.url}/api/host`)).json()) as { via: string };
+      expect(host.via).toBe('tailscale');
+      expect(spawned).toEqual([]);
+    } finally {
+      await c.close();
+    }
+  }, 60_000);
+
+  it('with a public link on and no private route, a request for private is told so and offered nothing to turn on', async () => {
+    const { srv, local } = await boot({ tailscale: 'missing', cloudflared: true });
+    const q = await local('/api/host', 'POST', { via: 'quick' });
+    expect(q.status).toBe(200);
+    const c = await mcpAt(srv.url);
+    try {
+      const priv = await call(c, 'record_link', { kind: 'voice', where: 'phone', private: true });
+      const p = textOf(priv);
+      expect(p).toMatch(/is public, and no private one is possible/);
+      expect(p).not.toMatch(/Link for a voice recording/);
+      expect(p).toMatch(/do not try link_on/);
+      // Without that ask, the quick link is handed over and called public.
+      const plain = await call(c, 'record_link', { kind: 'voice', where: 'phone' });
+      expect(textOf(plain)).toMatch(/This link is PUBLIC/);
     } finally {
       await c.close();
     }

@@ -38,7 +38,7 @@ describe('camera and microphone in the app', () => {
     const lib = read('src/lib.rs');
     expect(lib).toMatch(/\.on_permission_request\(/);
     expect(lib).toMatch(/PermissionKind::Microphone \| PermissionKind::Camera/);
-    expect(lib).toMatch(/media::may_capture\(&url, studio_port\.load/);
+    expect(lib).toMatch(/media::may_capture\(&url, None, studio_port\.load/);
     // Not the Studio (or no address to judge by): refused, never allowed by default.
     expect(lib).toMatch(/_ => PermissionResponse::Deny/);
     expect(lib).not.toMatch(/PermissionResponse::Allow,\s*_ => PermissionResponse::Allow/);

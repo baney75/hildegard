@@ -63,11 +63,27 @@ export interface RecordingInfo {
 }
 /** A link to record on a phone, or why there isn't one yet. */
 export type PhoneLink =
-  | { needsLink: true; ask: string }
-  | { needsLink?: undefined; id: string; url: string; expiresAt: string; secure: boolean };
+  | { needsLink: true; plan: LinkPlan; ask: string }
+  | {
+      needsLink?: undefined;
+      id: string;
+      url: string;
+      expiresAt: string;
+      secure: boolean;
+      /** The link is on the internet: anyone who has it can reach Hildegard’s sign-in page. */
+      public: boolean;
+    };
+/** What turning the link on would do, decided once by the server; `id` goes back with the person's yes. */
+export interface LinkPlan {
+  route: 'tailscale' | 'quick' | 'none';
+  public: boolean;
+  id: string;
+  ask: string;
+}
 /** What turning the link on did (the server's link-on.ts). */
 export interface LinkOnAnswer {
-  status: 'on' | 'needs-owner' | 'failed';
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  plan?: LinkPlan;
   url?: string;
   private?: boolean;
   temporary?: boolean;
@@ -490,8 +506,15 @@ export const api = {
   /** A link for recording on a phone. With no private link on, nothing is made and `needsLink` says so. */
   phoneRecordLink: (kind: 'voice' | 'video') =>
     call<PhoneLink>('POST', '/api/record/links', { kind, where: 'phone' }),
-  /** Turns on the best available link. This computer only. */
-  linkOn: () => call<LinkOnAnswer>('POST', '/api/link/on', {}),
+  /**
+   * Turns on the route of the plan the person just confirmed (and no other: a changed plan comes back as `confirm`).
+   * `acceptPublic` is their own yes to a public one; this dialog sends it only for a plan it named public.
+   */
+  linkOn: (plan: LinkPlan) =>
+    call<LinkOnAnswer>('POST', '/api/link/on', {
+      plan: plan.id,
+      ...(plan.public ? { acceptPublic: true } : {}),
+    }),
   /** Sends the recording a link was made for. The link works once. */
   recordSend: (token: string, clip: Blob) =>
     call<{ received: boolean }>('POST', `/api/record/${encodeURIComponent(token)}`, undefined, clip),

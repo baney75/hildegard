@@ -84,16 +84,38 @@ Recording needs no `hildegard host` and no account. Three ways, from easiest:
   for a caller on this computer (the stdio MCP, or a request on the loopback address) unless the person said phone, and
   a link for their own device for anyone else.
 - **A link for a phone.** `where: "phone"` needs Hildegard’s own link (Tailscale, or a tunnel). With none on, nothing is
-  made and nothing is turned on: the answer has `needsLink: true`, the sentence to ask (“To record on your phone,
-  Hildegard needs a private link to this computer. Turn one on?”) and the tool to call on a yes, `link_on` with `confirmed: true`. The phone
-  link comes with a QR code (an image in the MCP result, and in the Studio) to point the phone’s camera at.
+  made and nothing is turned on: the answer has `needsLink: true` and a **plan**, `{ route, public, id, ask }`, which the
+  server decides once. With Tailscale signed in the plan is Tailscale Serve (private), and `ask` is the question for
+  that route, word for word; the caller asks the person and, on a yes, calls `link_on` with `confirmed: true` and the
+  plan's `id`. The phone link comes with a QR code (an image in the MCP result, and in the Studio) to point the phone’s
+  camera at.
+- **An AI app turns on only a private route.** The yes of an AI app is its own word, and text it read can make it say
+  yes, so over MCP `link_on` turns on Tailscale Serve and nothing else, and never a public route (a Cloudflare quick
+  tunnel, Funnel, or anything reachable from the internet), confirmed or not. When the plan is public or there is none,
+  MCP gets `needs-owner` and changes nothing: “A phone link here would be public: Hildegard would make a temporary
+  trycloudflare.com name, and anyone who has the link can reach Hildegard’s sign-in page. An AI app can’t turn that on.”
+  and the two ways the person can: the Studio’s “Record on your phone” button, whose dialog says public or private and
+  only then calls the API with `acceptPublic`, or `hildegard tunnel cloudflare --quick` / `hildegard tunnel auto` in a
+  terminal (a confirm when the link would be public; `--yes-public` for a script the person runs themselves). The MCP
+  client never sends `acceptPublic`.
+- **The question and the action match.** `POST /api/link/on` takes `{ plan, acceptPublic? }` and turns on only the
+  route of the plan whose `id` it was sent. If the computer changed since (Tailscale came up or went down) it changes
+  nothing and answers `status: "confirm"` with the new plan to ask again; it never moves to another route after a yes.
+  With no `plan` it only answers what it would do.
+- **A public link already on is never called private.** `record_link` says plainly when the phone link it returns is
+  public (`public: true`, and the MCP text says so). Asked with `private: true`, a public link is not handed over: the
+  answer is the private route's plan if Tailscale is ready, or a plain statement that none is possible.
 
-`link_on` (the MCP tool, `POST /api/link/on`, and `hildegard tunnel auto`) turns on the best link this computer can,
-and only when asked from this computer itself: Tailscale Serve if Tailscale is signed in (private to the person’s own
-devices); else a Cloudflare quick tunnel if cloudflared is here (temporary, and its sign-in page is public, which the
-answer says); else it changes nothing and says what the owner can do (install or sign in to Tailscale, or
+`link_on` (the MCP tool, `POST /api/link/on`, and `hildegard tunnel auto`) works only when asked from this computer
+itself, in the order of the plan: Tailscale Serve if Tailscale is signed in (private to the person’s own devices); else
+a Cloudflare quick tunnel if cloudflared is here (temporary, its sign-in page public, and only on the person’s own
+confirm as above); else it changes nothing and says what the owner can do (install or sign in to Tailscale, or
 `hildegard tunnel install cloudflare`). Without an owner account it asks for one first (Settings › Sharing, or
-`hildegard host owner`) and never chooses a passphrase. It never uses Funnel. `link_on.ts` has the order.
+`hildegard host owner`) and never chooses a passphrase. It never uses Funnel. `link-on.ts` has the order.
+
+The server sends `Permissions-Policy: camera=(self), microphone=(self)`, so a frame from another origin can’t ask for the
+camera or microphone, even inside the app’s window (Tauri hands its permission handler no frame origin, so the engine
+enforces this; `media::may_capture` in the app also judges a frame separately once a runtime names it).
 
 ## Record from any chat
 

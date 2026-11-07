@@ -86,7 +86,7 @@ import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
 import { type Host, HostError, hostKey } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
-import { linkOn } from './link-on.ts';
+import { isPrivateLink, linkOn, planLink } from './link-on.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { Loops } from './loop.ts';
 import { loopRoutes } from './loop-routes.ts';
@@ -356,6 +356,9 @@ export function createApp(deps: AppDeps) {
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
     c.header('cross-origin-resource-policy', preview ? 'cross-origin' : 'same-origin');
+    // Record uses the camera and microphone. Only this page may ask: a frame from another origin (a site preview, a
+    // page a loop shows) can't, whatever the app's window allows.
+    c.header('permissions-policy', 'camera=(self), microphone=(self)');
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
@@ -2491,6 +2494,7 @@ export function createApp(deps: AppDeps) {
 
   // The best available link in one step, for a phone that needs to reach this computer. It changes the computer, so
   // only this computer may ask; a remote owner or an AI app on another device is told to ask here.
+  const linkDeps = { host, cloudflared: deps.cloudflared, owner: () => people.hasOwner() };
   app.post('/api/link/on', async (c) => {
     if (!local(c))
       return c.json(
@@ -2500,8 +2504,14 @@ export function createApp(deps: AppDeps) {
         },
         403,
       );
+    // `plan` is the id of the plan that was shown to the person; `acceptPublic` is the person's own yes to a public one
+    // (the Studio's dialog, the CLI's confirm). The MCP sends the first and never the second.
+    const body = z
+      .object({ plan: z.string().max(40).optional(), acceptPublic: z.boolean().optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Send the plan id you were shown.' }, 400);
     try {
-      return c.json(await linkOn({ host, cloudflared: deps.cloudflared, owner: () => people.hasOwner() }));
+      return c.json(await linkOn(linkDeps, body.data));
     } catch (e) {
       return hostFail(c, e);
     }
@@ -2585,9 +2595,12 @@ export function createApp(deps: AppDeps) {
         // The link the person opens on their own device: this Hildegard's link if it has one; else the address this
         // request came to (this computer's own, or the device a signed-in person is on).
         linkBase: (c) => {
-          const shared = host.state().url;
-          return shared ? { base: shared, viaLink: true } : { base: originOf(c), viaLink: false };
+          const h = host.state();
+          return h.url
+            ? { base: h.url, viaLink: true, public: !isPrivateLink(h) }
+            : { base: originOf(c), viaLink: false, public: false };
         },
+        plan: () => planLink(linkDeps),
         hereBase: () => `http://127.0.0.1:${deps.listeningPort?.() ?? config.port}`,
         sees: (c, filmId) => sees(c, filmId),
       }),

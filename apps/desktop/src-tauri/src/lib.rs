@@ -506,7 +506,7 @@ pub fn run() {
         // system asks the person on its own (Info.plist's usage strings on macOS).
         .on_permission_request(move |webview, kind| match kind {
           PermissionKind::Microphone | PermissionKind::Camera => match webview.url() {
-            Ok(url) if media::may_capture(&url, studio_port.load(Ordering::SeqCst)) => PermissionResponse::Allow,
+            Ok(url) if media::may_capture(&url, None, studio_port.load(Ordering::SeqCst)) => PermissionResponse::Allow,
             _ => PermissionResponse::Deny,
           },
           _ => PermissionResponse::Default,

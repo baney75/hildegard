@@ -11,6 +11,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Ctx, HgEnv, Who } from './access.ts';
+import { type LinkPlan, PUBLIC_REFUSED } from './link-on.ts';
 import { type Entry, ID_RE, RecordError, type RecordKind, type RecordStore, TOKEN_RE } from './record.ts';
 import { CLEAN_DEFAULTS, type CleanJob, type CleanJobs } from './record-clean.ts';
 
@@ -22,7 +23,9 @@ export interface RecordRouteDeps {
    * Where people reach this Hildegard from the device they are on: its link when it has one (`viaLink`), else the
    * address this request came to.
    */
-  linkBase: (c: Ctx) => { base: string; viaLink: boolean };
+  linkBase: (c: Ctx) => { base: string; viaLink: boolean; public: boolean };
+  /** What turning on a link would do now, decided once (link-on.ts); changes nothing. */
+  plan: () => Promise<LinkPlan>;
   /** This computer's own address, `http://127.0.0.1:<port>`: a link there opens in any browser on this computer. */
   hereBase: () => string;
   /** Whether the person asking may see this film. */
@@ -54,10 +57,6 @@ async function discard(body: ReadableStream<Uint8Array> | null) {
   } catch {}
 }
 
-/** What a caller asks the person before a phone link is turned on. */
-export const NEEDS_LINK_ASK =
-  'To record on your phone, Hildegard needs a private link to this computer. Turn one on?';
-
 const LOOPBACK_URL = /^https?:\/\/(127\.\d+\.\d+\.\d+|localhost|\[::1\])(:\d+)?(\/|$)/i;
 
 /** Where the person will record: on this computer, on their phone, or whichever fits the caller. */
@@ -65,6 +64,8 @@ export type RecordWhere = 'here' | 'phone' | 'auto';
 const NewLink = z.object({
   kind: z.enum(['voice', 'video']),
   where: z.enum(['here', 'phone', 'auto']).default('auto'),
+  /** The person wants a link only their own devices can open: a public one is not an answer. */
+  private: z.boolean().optional(),
   purpose: z.string().max(200).optional(),
   filmId: z.string().max(64).optional(),
 });
@@ -146,23 +147,32 @@ export function recordRoutes(d: RecordRouteDeps) {
           'here',
           'A link that opens on this computer can only be made from this computer. Ask for one for your phone.',
         );
-      const { base: raw, viaLink } = d.linkBase(c);
-      // A phone needs Hildegard's link. From this computer with none on, nothing is made and nothing is turned on:
-      // the caller asks the person, and turns one on only after a yes.
-      if (where === 'phone' && onThisComputer && !viaLink)
+      const { base: raw, viaLink, public: isPublic } = d.linkBase(c);
+      // A phone needs Hildegard's link. From this computer with none on, nothing is made and nothing is turned on: the
+      // caller asks the person about the plan below (the route this computer would use, private or public) and sends
+      // that plan's id back to turn it on. A link that is on but public is no answer to a request for a private one.
+      if (where === 'phone' && onThisComputer && (!viaLink || (isPublic && body.private))) {
+        const plan = await d.plan();
+        const privateRoute = plan.route === 'tailscale';
         return c.json(
           {
             needsLink: true,
             where,
-            ask: NEEDS_LINK_ASK,
-            turnOn: {
-              tool: 'link_on',
-              rest: 'POST /api/link/on',
-              next: 'Ask for the record link again with where: phone.',
-            },
+            plan,
+            // Private: the question, to ask word for word. Public or none: what the person has to do themselves.
+            ask: privateRoute ? plan.ask : plan.public ? PUBLIC_REFUSED : plan.ask,
+            existingPublic: viaLink && isPublic,
+            turnOn: privateRoute
+              ? {
+                  tool: 'link_on',
+                  rest: 'POST /api/link/on',
+                  next: 'After a yes, call link_on with confirmed: true and this plan id, then ask for the record link again with where: phone.',
+                }
+              : null,
           },
           200,
         );
+      }
       const { id, token, expiresAt } = records.makeLink(owner, body);
       const base = (where === 'here' ? d.hereBase() : raw).replace(/\/$/, '');
       return c.json(
@@ -174,6 +184,8 @@ export function recordRoutes(d: RecordRouteDeps) {
           where,
           // False when the address is only where this request came to; an in-process caller (the MCP) knows better.
           viaLink: where === 'here' ? false : viaLink,
+          // The phone link is on the internet: anyone who has Hildegard's link can reach its sign-in page.
+          public: where === 'phone' && viaLink && isPublic,
           expiresAt: new Date(expiresAt).toISOString(),
           localOnly: LOOPBACK_URL.test(base),
           // A phone's microphone works only on a secure page; over plain http it can still send a file.

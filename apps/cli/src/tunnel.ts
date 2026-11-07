@@ -197,6 +197,34 @@ async function cloudflareLogin(ctx: Ctx): Promise<{ done: boolean; result?: Resu
   };
 }
 
+/**
+ * A public link is the person's own to turn on: at a terminal they confirm it here, in a script they say `--yes-public`.
+ * Without either it changes nothing. (An AI app that runs this command in a pipe has neither.)
+ */
+async function confirmPublic(ctx: Ctx, what: string): Promise<{ ok: true } | { ok: false; result: Result }> {
+  if (ctx.flags.has('yes-public')) return { ok: true };
+  if (!ctx.json && process.stdin.isTTY) {
+    console.log(`This link would be public. ${what}\n`);
+    if (/^y(es)?$/i.test(await ask('Turn on a public link? [y/N] '))) return { ok: true };
+    return { ok: false, result: result([], 'Nothing was turned on.') };
+  }
+  return {
+    ok: false,
+    result: result(
+      [
+        {
+          id: 'public',
+          title: 'Confirm the public link',
+          status: 'needs-owner',
+          detail: `This link would be public. ${what} Run the command at a terminal and confirm, or add --yes-public if you mean it.`,
+          command: 'hildegard tunnel cloudflare --quick --yes-public',
+        },
+      ],
+      'A public link is yours to confirm; nothing was turned on.',
+    ),
+  };
+}
+
 async function tunnelCloudflare(ctx: Ctx, r: Report): Promise<Result> {
   const quick = ctx.flags.has('quick');
   let hostname = ctx.opts.get('hostname');
@@ -225,6 +253,8 @@ async function tunnelCloudflare(ctx: Ctx, r: Report): Promise<Result> {
   }
 
   if (quick) {
+    const yes = await confirmPublic(ctx, QUICK_WARNING);
+    if (!yes.ok) return yes.result;
     return hostOn(ctx, { via: 'quick' }, QUICK_WARNING);
   }
 
@@ -332,23 +362,57 @@ async function install(ctx: Ctx, what: string | undefined): Promise<Result> {
 
 /** The same type the server's link-on.ts answers with; the CLI only reads it. */
 interface LinkOnAnswer {
-  status: 'on' | 'needs-owner' | 'failed';
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
   already?: boolean;
   via?: string;
   url?: string;
   private?: boolean;
   temporary?: boolean;
   message: string;
+  plan?: { route: string; public: boolean; id: string; ask: string };
   steps: { id: string; title: string; detail: string; command?: string }[];
 }
 
-/** `tunnel auto`: the best link available, in one step (the server decides; it never picks Funnel). */
+/**
+ * `tunnel auto`: the best link available, in one step. The server decides the route once and says which; a private
+ * one (Tailscale) is turned on, since you typed the command, and a public one only after you confirm it (here, or
+ * `--yes-public`). It never picks Funnel.
+ */
 async function auto(ctx: Ctx): Promise<Result> {
-  const ask = () =>
-    api<LinkOnAnswer>(ctx.config, '/api/link/on', { method: 'POST', body: {}, timeoutMs: 120_000 });
+  const ask = (plan?: string, acceptPublic?: boolean) =>
+    api<LinkOnAnswer>(ctx.config, '/api/link/on', {
+      method: 'POST',
+      body: { ...(plan ? { plan } : {}), ...(acceptPublic ? { acceptPublic } : {}) },
+      timeoutMs: 120_000,
+    });
+  // Asks for the plan, then does exactly that plan: the question and the action are one answer of the server's.
+  const settle = async (): Promise<{ answer: LinkOnAnswer } | { stop: Result }> => {
+    let a = await ask();
+    if (a.status === 'confirm' && a.plan) a = await ask(a.plan.id);
+    else if (a.status === 'needs-owner' && a.plan?.public) {
+      const yes = await confirmPublic(ctx, a.plan.ask);
+      if (!yes.ok) return { stop: yes.result };
+      a = await ask(a.plan.id, true);
+      // The computer changed since it was asked (Tailscale came up): that is a new question, so ask it.
+      if (a.status === 'confirm' && a.plan && !a.plan.public) a = await ask(a.plan.id);
+      else if (a.status === 'confirm' || (a.status === 'needs-owner' && a.plan?.public))
+        return {
+          stop: result(
+            [],
+            'The computer changed while you were confirming. Run `hildegard tunnel auto` again.',
+            {
+              ok: false,
+            },
+          ),
+        };
+    }
+    return { answer: a };
+  };
   let a: LinkOnAnswer;
   try {
-    a = await ask();
+    const first = await settle();
+    if ('stop' in first) return first.stop;
+    a = first.answer;
   } catch (e) {
     const err = e as Error;
     return result(
@@ -360,7 +424,13 @@ async function auto(ctx: Ctx): Promise<Result> {
   if (a.status === 'needs-owner' && a.steps[0]?.id === 'owner' && process.stdin.isTTY && !ctx.json) {
     const made = await host(ctx, ['owner']);
     if (!made.ok || made.needsOwner) return made;
-    a = await ask().catch((e) => ({ status: 'failed' as const, message: (e as Error).message, steps: [] }));
+    try {
+      const again = await settle();
+      if ('stop' in again) return again.stop;
+      a = again.answer;
+    } catch (e) {
+      a = { status: 'failed', message: (e as Error).message, steps: [] };
+    }
   }
   if (a.status === 'on')
     return result(
@@ -428,7 +498,7 @@ export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
   if (action !== 'tailscale' && action !== 'cloudflare')
     return result(
       [],
-      'Use `hildegard tunnel`, `tunnel auto`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
+      'Use `hildegard tunnel`, `tunnel auto`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick [--yes-public] | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
       { ok: false },
     );
   if (ctx.flags.has('signup')) return signup(ctx, action, r);

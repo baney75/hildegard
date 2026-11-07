@@ -147,11 +147,13 @@ test('Record on your phone asks before turning a link on, then shows a QR code a
   let linkMade = 0;
   let polls = 0;
   const url = `https://studio.example.ts.net/record/${'Q'.repeat(43)}`;
-  await page.route('**/api/tunnel', (route) =>
-    route.fulfill({
-      json: { tailscale: { state: 'ready' }, cloudflare: { installed: false, state: 'missing' } },
-    }),
-  );
+  const plan = {
+    route: 'tailscale',
+    public: false,
+    id: 'a1b2c3d4',
+    ask: 'Hildegard will turn on a private link to this computer through Tailscale. Only devices signed in to your Tailscale account can open it, so your phone needs Tailscale too. Turn it on?',
+  };
+  let sent: Record<string, unknown> = {};
   await page.route('**/api/record/links', (route) => {
     linkMade++;
     return linkOn
@@ -161,6 +163,7 @@ test('Record on your phone asks before turning a link on, then shows a QR code a
             id: 'rec_0123456789abcdef',
             url,
             secure: true,
+            public: false,
             where: 'phone',
             expiresAt: new Date(Date.now() + 1.8e6).toISOString(),
           },
@@ -169,12 +172,14 @@ test('Record on your phone asks before turning a link on, then shows a QR code a
           json: {
             needsLink: true,
             where: 'phone',
-            ask: 'To record on your phone, Hildegard needs a private link to this computer. Turn one on?',
+            ask: plan.ask,
+            plan,
           },
         });
   });
   await page.route('**/api/link/on', (route) => {
     linkOn++;
+    sent = route.request().postDataJSON() as Record<string, unknown>;
     return route.fulfill({
       json: {
         status: 'on',
@@ -210,7 +215,7 @@ test('Record on your phone asks before turning a link on, then shows a QR code a
   await page.getByRole('banner').getByRole('button', { name: 'Record', exact: true }).click();
   const dlg = page.getByRole('dialog', { name: 'Record' });
   await dlg.getByRole('button', { name: 'Record on your phone' }).click();
-  await expect(dlg.getByRole('heading', { name: 'Turn on a link to this computer?' })).toBeVisible();
+  await expect(dlg.getByRole('heading', { name: 'Turn on a private link to this computer?' })).toBeVisible();
   await expect(dlg.getByText(/Only devices signed in to your Tailscale account/)).toBeVisible();
   await expectAccessible(page, 'turn on a link');
   await expectCurlyQuotes(page, 'turn on a link');
@@ -223,8 +228,56 @@ test('Record on your phone asks before turning a link on, then shows a QR code a
   await dlg.getByRole('button', { name: 'Turn on' }).click();
   await expect(dlg.getByRole('img', { name: /QR code/ })).toBeVisible();
   expect(linkOn).toBe(1);
+  // What was asked is what is turned on: the plan's id goes back, and a private plan never carries a public yes.
+  expect(sent).toEqual({ plan: 'a1b2c3d4' });
   await expect(dlg.getByText(/This link is private/)).toBeVisible();
   await expectAccessible(page, 'phone QR');
   await expect(dlg.getByRole('heading', { name: 'It arrived' })).toBeVisible({ timeout: 10_000 });
+  expect(errors.filter((e) => !e.includes('/api/record/links'))).toEqual([]);
+});
+
+test('Record on your phone says "public" in its confirm for a quick tunnel, sends the public yes only then, and asks again if the plan changed', async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  const quick = {
+    route: 'quick',
+    public: true,
+    id: 'q1q1q1q1',
+    ask: 'Hildegard will turn on a PUBLIC link to this computer through Cloudflare. It is temporary (a trycloudflare.com name that changes whenever Hildegard restarts), and anyone who has the link can reach Hildegard’s sign-in page; only people you invite can get in. Turn it on?',
+  };
+  const tailscale = {
+    route: 'tailscale',
+    public: false,
+    id: 't2t2t2t2',
+    ask: 'Hildegard will turn on a private link to this computer through Tailscale. Only devices signed in to your Tailscale account can open it, so your phone needs Tailscale too. Turn it on?',
+  };
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/api/record/links', (route) =>
+    route.fulfill({ json: { needsLink: true, where: 'phone', ask: quick.ask, plan: quick } }),
+  );
+  await page.route('**/api/link/on', (route) => {
+    bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    // Tailscale came up while the dialog was open: nothing is turned on, and the new plan comes back.
+    return route.fulfill({
+      json: { status: 'confirm', message: tailscale.ask, steps: [], plan: tailscale },
+    });
+  });
+
+  await page.goto('/#/voice');
+  await page.getByRole('banner').getByRole('button', { name: 'Record', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Record' });
+  await dlg.getByRole('button', { name: 'Record on your phone' }).click();
+  await expect(dlg.getByRole('heading', { name: 'Turn on a public link to this computer?' })).toBeVisible();
+  await expect(dlg.getByText(/PUBLIC link/)).toBeVisible();
+  await expect(dlg.getByText(/anyone who has the link can reach Hildegard’s sign-in page/)).toBeVisible();
+  await expectAccessible(page, 'public link confirm');
+  await expectCurlyQuotes(page, 'public link confirm');
+  await dlg.getByRole('button', { name: 'Turn on public link' }).click();
+  // Only the person's click on this dialog sends the public yes, with the id of the plan it showed.
+  expect(bodies).toEqual([{ plan: 'q1q1q1q1', acceptPublic: true }]);
+  // The plan changed: the dialog asks the new question, private this time, and the old yes isn't reused.
+  await expect(dlg.getByRole('heading', { name: 'Turn on a private link to this computer?' })).toBeVisible();
+  await expect(dlg.getByText(/Only devices signed in to your Tailscale account/)).toBeVisible();
   expect(errors.filter((e) => !e.includes('/api/record/links'))).toEqual([]);
 });
