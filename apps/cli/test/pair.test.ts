@@ -152,15 +152,9 @@ HOME="$STUB_REMOTE_HOME" PATH="/usr/bin:/bin" exec sh -c "$last"
 
 describe('pairing without anyone seeing the join code', () => {
   it('invite --code-only refuses on a terminal, and prints only the code into a pipe', async () => {
-    const out = (kind: 'fifo' | 'socket' | 'tty' | 'file') => ({
-      isFIFO: () => kind === 'fifo',
-      isSocket: () => kind === 'socket',
-      isCharacterDevice: () => kind === 'tty',
-    });
-    expect(codeOnlyRefusal(out('tty'))).toMatch(/screen/);
-    expect(codeOnlyRefusal(out('file'))).toMatch(/to a file/);
-    expect(codeOnlyRefusal(out('fifo'))).toBeNull();
-    expect(codeOnlyRefusal(out('socket'))).toBeNull();
+    expect(codeOnlyRefusal('tty')).toMatch(/screen/);
+    expect(codeOnlyRefusal('file')).toMatch(/to a file/);
+    expect(codeOnlyRefusal('pipe')).toBeNull();
 
     const r = await rig();
     const gpuArgs = [...r.at(r.gpu, r.gpuData), '--url', r.gpu.url];

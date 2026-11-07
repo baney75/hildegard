@@ -10,7 +10,7 @@
 // `pair` never holds the code in a variable, an argument or a file: it connects one process's stdout to the other's
 // stdin, and prints only what the join says back, with anything shaped like a code taken out.
 import { type ChildProcess, spawn } from 'node:child_process';
-import { fstatSync } from 'node:fs';
+import { Socket } from 'node:net';
 import type { Readable } from 'node:stream';
 import type { ChoirInvite } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
@@ -21,19 +21,17 @@ import { type Result, result } from './output.ts';
 export const NEVER_SHOW =
   'Scripts and AI agents: never print, echo, printf or paste a join code. Use `hildegard choir pair <ssh-host>`, or pipe it: `ssh <host> hildegard choir invite --code-only | hildegard choir join --code-stdin`.';
 
-/** What stdout is, from `fstatSync(1)`. */
-interface Out {
-  isFIFO(): boolean;
-  isSocket(): boolean;
-  isCharacterDevice(): boolean;
-}
+/**
+ * What stdout is. Node makes a terminal a tty stream and a pipe or socket a `net.Socket` (from libuv's handle check,
+ * which knows Windows pipes; `fstat` doesn't), and a file anything else.
+ */
+export const stdoutKind = (out: NodeJS.WriteStream): 'tty' | 'pipe' | 'file' =>
+  out.isTTY ? 'tty' : out instanceof Socket ? 'pipe' : 'file';
 
 /** Why `--code-only` won't print here, or null when stdout is a pipe or a socket (a shell `|`, or ssh). */
-export function codeOnlyRefusal(out: Out): string | null {
-  if (out.isFIFO() || out.isSocket()) return null;
-  const where = out.isCharacterDevice()
-    ? 'show the join code on your screen'
-    : 'write the join code to a file';
+export function codeOnlyRefusal(kind: 'tty' | 'pipe' | 'file'): string | null {
+  if (kind === 'pipe') return null;
+  const where = kind === 'tty' ? 'show the join code on your screen' : 'write the join code to a file';
   return `This would ${where}, and a code anyone can read is a key anyone can use. Pipe it into the other device instead: \`hildegard choir invite --code-only | ssh <host> hildegard choir join --code-stdin\`, or run \`hildegard choir pair <ssh-host>\` there.`;
 }
 
@@ -64,7 +62,7 @@ const stop = (message: string, code = 1): null => {
  * is not a terminal. Problems go to stderr with a status that says which: 1 failed, 2 Tailscale needs the owner.
  */
 export async function inviteCodeOnly(ctx: Ctx): Promise<null> {
-  const refused = codeOnlyRefusal(fstatSync(1));
+  const refused = codeOnlyRefusal(stdoutKind(process.stdout));
   if (refused) return stop(refused);
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return stop('Hildegard isn’t running here.');
