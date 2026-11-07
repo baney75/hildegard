@@ -49,22 +49,36 @@ Never answer for them, and never put a word in their mouth to save a question. S
 ## Draft rules
 
 - Lead with the point or the story. No opener about the world, the age we live in, or the reader's struggles.
-- **Only their facts.** Every claim traces to something they said or a source you can name. Never invent a number,
-  quote, customer, scene, feeling, price, date, piece of advice or opinion, even a common one. An estimate stays an
-  estimate: "about three a day" never becomes "three a day". If the piece needs a fact you don't have, ask, or mark
-  it for them to confirm.
-- **Their voice, and warmth.** Warmth comes from how the writer talks to these readers, not from invented detail.
-  Write as them, to people they know: "you", the plain greeting and sign-off they'd use, the joke they made in the
-  interview, their humor and convictions as they stated them. Use their phrases where they fit, and vary sentence
-  length the way they talk: a run of short sentences reads like a notice, not a person.
-- **No samples yet?** Take the voice from who is writing to whom: a pastor to his own congregation writes warmly and
-  plainly, as "we" and "you", and reassures as well as informs; a shop owner to regulars writes like they talk over
+- Every claim traces to an answer or a source you can name. Never invent a statistic, a quote, a study, a customer,
+  a scene or a feeling the writer didn't report. Don't put advice, services, prices, dates, promises or opinions in
+  the writer's mouth that they didn't give, even common ones: a shop owner's post that adds "store it somewhere dry"
+  is telling customers something the owner never said. An estimate stays an estimate: "about three a day" never
+  becomes "three a day". If the piece needs it, ask, or mark it for the writer to confirm and say so in the delivery.
+- **Every fact makes it in, with its conditions.** Before you show the draft, go down the brief: each fact, number,
+  date and condition is in the draft, said as precisely as the brief says it ("the member rate for families who
+  register by March 1", not "the member rate if you register by March 1").
+- **Put their numbers to work.** If the reader has a worry and the brief has the figures, do the arithmetic for them
+  ("about $4 more a month, while the feed we buy went up 20%"), as long as the math is exact.
+- Warmth comes from how the writer talks to these readers, not from invented detail. Write as them, to people they
+  know: "you", the plain greeting and sign-off they'd use, the joke they made in the interview. Use their phrases
+  where they fit, and vary sentence length the way they talk: a run of short sentences reads like a notice, not a
+  person.
+- **No samples yet?** Take the voice from who is writing to whom: a coach writing to the team's parents is warm and
+  plain, says "we" and "you", and reassures as well as informs; a shop owner to regulars writes like they talk over
   the counter. Say in your reply that you'll match their voice better once they share a few pieces.
-- **An email** gets a subject line, the greeting they'd use, and their sign-off with their name.
-- Under about 600 words, usually no headings. Never a bold label on every paragraph. A list only for a real list.
-- End on the ask, said their way, or on the last concrete point. No recap, no moral, no line written to sound wise.
-- **The portability test.** Pick three sentences at random. If any could move unchanged into someone else's post on
-  the subject, replace it with one of their facts, or cut it.
+- **An email** gets a subject line, the greeting they'd use, and their sign-off with their name. A personal email or
+  letter has no bullet list.
+- A post under about 600 words usually needs no headings at all. Over that, headings only where a reader would scan
+  for them, written as what the section says. Never a bold lead-in on every paragraph; that is a slide deck. A page
+  people use to plan (a race, an event, a schedule) may be laid out for scanning.
+- A list only for things that are really a list (steps, ingredients, a schedule). Elsewhere, pick the one example
+  that matters instead of three that sound balanced.
+- **No stock lines.** A line any shop or church could post ("we're excited to share", "your support means the
+  world", "don't miss out") is filler. Say it with their facts, or cut it.
+- End on the ask, said the way the writer would say it to these readers ("See you in the hall after the 10:30"), or
+  on the last concrete point. No recap, no moral, no line written to sound wise.
+- **The portability test.** Pick three sentences at random, and every paragraph's last sentence. If any could move
+  unchanged into someone else's post on the same subject, replace it with a fact from the interview, or cut it.
 
 ## Learning the voice
 
