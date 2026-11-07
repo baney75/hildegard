@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { ConnectCode, NewInvite, PeopleResponse, Person, Role } from '@hildegard/presets';
-import { type FormEvent, useEffect, useId, useState } from 'react';
+import type {
+  ConnectCode,
+  HostState,
+  NewInvite,
+  PeopleResponse,
+  Person,
+  Role,
+  TunnelReport,
+} from '@hildegard/presets';
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react';
 import { OneTimeCode } from '../components/OneTimeCode.tsx';
 import { loopbackOnly, Qr } from '../components/Qr.tsx';
 import { Button, Icon, Modal, Segmented, Status, toast, WithCode } from '../components/ui.tsx';
@@ -28,15 +36,24 @@ function useRunner() {
   return { busy, error, run };
 }
 
-/** A fix is a page to open or a command to run. */
+/** Whose page a fix opens, by its address. */
+const site = (url: string) =>
+  /(^|\.)tailscale\.com$/.test(new URL(url).hostname)
+    ? 'Tailscale’s page'
+    : /(^|\.)cloudflare\.com$/.test(new URL(url).hostname)
+      ? 'Cloudflare’s page'
+      : 'the page';
+
+/** A fix is a page to open, a log to read, or a command to run. */
 function Fix({ fix }: { fix: string }) {
-  return /^https:\/\//.test(fix) ? (
-    <a href={fix} target="_blank" rel="noreferrer noopener">
-      Open Tailscale’s page to turn it on
-    </a>
-  ) : (
-    <WithCode text={`Run \`${fix}\` on this computer.`} />
-  );
+  if (/^https:\/\//.test(fix))
+    return (
+      <a href={fix} target="_blank" rel="noreferrer noopener">
+        Open {site(fix)}
+      </a>
+    );
+  if (fix.startsWith('See ')) return <span>{fix}.</span>;
+  return <WithCode text={`Run \`${fix}\` on this computer.`} />;
 }
 
 function Problem({ error }: { error: { text: string; fix: string | null } | null }) {
@@ -48,6 +65,303 @@ function Problem({ error }: { error: { text: string; fix: string | null } | null
       </span>
     </div>
   ) : null;
+}
+
+type Provider = 'tailscale' | 'cloudflare';
+
+/** One step of a provider's setup: done steps say so and are skipped. */
+function Step({
+  n,
+  title,
+  done,
+  children,
+}: {
+  n: number;
+  title: string;
+  done: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <li className="hg-tstep" data-done={done || undefined}>
+      <span className="hg-tstep__n" aria-hidden="true">
+        {done ? <Icon name="check" size={14} /> : n}
+      </span>
+      <div className="hg-tstep__b">
+        <b>
+          {title} {done ? <Status kind="done">Done</Status> : null}
+        </b>
+        {done ? null : children}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * How other devices reach this Hildegard, through an account the owner holds: Tailscale (their own devices, or the
+ * public internet with Funnel) or Cloudflare (a name on their own domain, or a temporary quick link with no account).
+ * Each provider makes the account on its own page; Hildegard reads what is already done here and skips it.
+ */
+function Tunnels({ host, onFunnel }: { host: HostState; onFunnel: () => void }) {
+  const [report, setReport] = useState<TunnelReport | null>(null);
+  const [provider, setProvider] = useState<Provider>('tailscale');
+  const [have, setHave] = useState<Record<Provider, boolean>>({ tailscale: false, cloudflare: false });
+  const [hostname, setHostname] = useState('');
+  const [waiting, setWaiting] = useState(false);
+  const { busy, error, run } = useRunner();
+  const nameId = useId();
+
+  const refresh = () =>
+    api
+      .tunnel()
+      .then((r) => {
+        setReport(r);
+        setHostname((h) => h || r.cloudflare.hostname || '');
+        return r;
+      })
+      .catch(() => null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read once, and again when the link changes.
+  useEffect(() => {
+    void refresh();
+  }, [host.on, host.url]);
+  // Pick the provider that is furthest along, once.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only the first report decides.
+  useEffect(() => {
+    if (report && report.tailscale.state !== 'ready' && report.cloudflare.state === 'ready')
+      setProvider('cloudflare');
+  }, [!!report]);
+  // While Cloudflare's sign-in page is open, look every 2 seconds for it to finish.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh is stable enough for a poll.
+  useEffect(() => {
+    if (!waiting) return;
+    const t = setInterval(async () => {
+      const r = await refresh();
+      if (r?.cloudflare.signedIn || (r && !r.cloudflare.signingIn)) setWaiting(false);
+    }, 2000);
+    return () => clearInterval(t);
+  }, [waiting]);
+
+  if (!report) return <span className="body-sm muted">Looking at what’s set up here…</span>;
+  const ts = report.tailscale;
+  const cf = report.cloudflare;
+  const p = provider === 'tailscale' ? ts : cf;
+
+  const account = (
+    <>
+      <span className="body-sm sec-text">
+        {provider === 'tailscale'
+          ? 'Free for personal use. Make it on Tailscale’s own page; Hildegard never makes one for you.'
+          : 'Free. A name that stays needs a domain in the account. Make it on Cloudflare’s own page; Hildegard never makes one for you.'}
+      </span>
+      <div className="hg-devices__btns">
+        <a className="hg-btn" href={p.signup} target="_blank" rel="noreferrer noopener">
+          Create a free account
+        </a>
+        <Button
+          onClick={() => {
+            setHave((h) => ({ ...h, [provider]: true }));
+            if (provider === 'cloudflare' && cf.installed) signIn();
+          }}
+        >
+          I already have one
+        </Button>
+      </div>
+      {have[provider] && (!p.installed || provider === 'tailscale') ? (
+        <span className="body-sm muted">
+          {p.installed
+            ? 'Good. Sign this computer in to it in step 3.'
+            : 'Good. Get the app in step 2, then sign this computer in to your account in step 3.'}
+        </span>
+      ) : null}
+    </>
+  );
+
+  const signIn = () =>
+    run('signin', async () => {
+      // Opened now, on the click, so the browser doesn't block it; pointed at Cloudflare's page once it is known.
+      const tab = window.open('about:blank', '_blank');
+      const r = await api.cloudflareLogin();
+      if (r.done) {
+        tab?.close();
+        await refresh();
+        return;
+      }
+      if (tab && r.url && !r.opened) tab.location.href = r.url;
+      else tab?.close();
+      setWaiting(true);
+      await refresh();
+    });
+
+  return (
+    <div className="hg-tunnels">
+      <Segmented
+        label="How other devices reach Hildegard"
+        value={provider}
+        options={[
+          { value: 'tailscale', label: 'Tailscale' },
+          { value: 'cloudflare', label: 'Cloudflare' },
+        ]}
+        onChange={setProvider}
+      />
+      <span className="body-sm sec-text">
+        {provider === 'tailscale'
+          ? 'Your own phone and laptop, on your tailnet: nobody else can even reach the sign-in page. The public internet is a separate choice.'
+          : 'A name on your own domain, such as hildegard.example.com, that anyone can open and sign in at, through a tunnel in your Cloudflare account.'}
+      </span>
+      <Problem error={error} />
+      <ol className="hg-tsteps">
+        <Step n={1} title="An account" done={p.signedIn}>
+          {account}
+        </Step>
+        <Step
+          n={2}
+          title={provider === 'tailscale' ? 'Tailscale on this computer' : 'cloudflared on this computer'}
+          done={p.installed}
+        >
+          {provider === 'cloudflare' && cf.canFetch ? (
+            <>
+              <span className="body-sm sec-text">
+                Hildegard fetches Cloudflare’s own build, checked against its pinned hash, into its own
+                folder. Nothing else on this computer changes.
+              </span>
+              <Button
+                kind="primary"
+                busy={busy === 'install'}
+                disabled={!!busy}
+                onClick={() =>
+                  run('install', async () => {
+                    await api.cloudflareInstall();
+                    await refresh();
+                    toast('cloudflared is installed');
+                  })
+                }
+              >
+                Install cloudflared
+              </Button>
+            </>
+          ) : (
+            <span className="body-sm sec-text">
+              {p.install ? <WithCode text={`Run \`${p.install}\`, or get it from `} /> : 'Get it from '}
+              <a href={p.download} target="_blank" rel="noreferrer noopener">
+                {provider === 'tailscale' ? 'Tailscale' : 'Cloudflare'}’s download page
+              </a>
+              .{' '}
+              <Button kind="ghost" size="sm" onClick={() => void refresh()}>
+                Check again
+              </Button>
+            </span>
+          )}
+        </Step>
+        <Step n={3} title="This computer signed in" done={p.signedIn}>
+          {!p.installed ? (
+            <span className="body-sm muted">After step 2.</span>
+          ) : provider === 'tailscale' ? (
+            <span className="body-sm sec-text">
+              {ts.signIn.startsWith('Open ') ? (
+                `${ts.signIn}.`
+              ) : (
+                <WithCode text={`Run \`${ts.signIn}\` on this computer.`} />
+              )}{' '}
+              <Button kind="ghost" size="sm" onClick={() => void refresh()}>
+                Check again
+              </Button>
+            </span>
+          ) : waiting || cf.signingIn ? (
+            <span className="body-sm sec-text">
+              <span className="hg-spin" /> Waiting for you on Cloudflare’s page: sign in and pick the domain
+              for Hildegard.{' '}
+              {cf.signingIn ? (
+                <a href={cf.signingIn} target="_blank" rel="noreferrer noopener">
+                  Open it again
+                </a>
+              ) : null}
+            </span>
+          ) : (
+            <Button kind="primary" busy={busy === 'signin'} disabled={!!busy} onClick={signIn}>
+              Sign in to Cloudflare
+            </Button>
+          )}
+        </Step>
+        <Step n={4} title="Turn on the link" done={false}>
+          {provider === 'tailscale' ? (
+            <div className="hg-devices__btns">
+              <Button
+                kind="primary"
+                icon="link"
+                busy={busy === 'tailscale'}
+                disabled={!!busy || ts.state !== 'ready'}
+                onClick={() =>
+                  run('tailscale', async () => {
+                    setHost(await api.hostOn('tailscale'));
+                    toast('Hildegard is at its link');
+                  })
+                }
+              >
+                Turn on for my devices
+              </Button>
+              <Button kind="ghost" disabled={!!busy || ts.state !== 'ready'} onClick={onFunnel}>
+                On the public internet…
+              </Button>
+            </div>
+          ) : (
+            <form
+              className="hg-hfway"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void run('cloudflare', async () => {
+                  setHost(await api.cloudflareOn(hostname));
+                  toast('Hildegard is at its link');
+                });
+              }}
+            >
+              <label className="hg-field hg-field--block" htmlFor={nameId}>
+                The name people will open, on a domain in your account
+              </label>
+              <input
+                id={nameId}
+                value={hostname}
+                placeholder="hildegard.example.com"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={253}
+                disabled={!cf.signedIn}
+                onChange={(e) => setHostname(e.target.value)}
+              />
+              <Button
+                kind="primary"
+                type="submit"
+                icon="link"
+                busy={busy === 'cloudflare'}
+                disabled={!!busy || !cf.signedIn || !cf.installed || !hostname.trim()}
+              >
+                Turn on
+              </Button>
+            </form>
+          )}
+        </Step>
+      </ol>
+      {provider === 'cloudflare' && cf.installed ? (
+        <span className="body-sm muted">
+          No account or domain yet?{' '}
+          <Button
+            kind="ghost"
+            size="sm"
+            busy={busy === 'quick'}
+            disabled={!!busy}
+            onClick={() =>
+              run('quick', async () => {
+                setHost(await api.hostOn('quick'));
+                toast('Hildegard is at a temporary link');
+              })
+            }
+          >
+            Use a temporary link
+          </Button>{' '}
+          A quick tunnel needs no account, but its name changes each time Hildegard starts and live updates
+          don’t come through it.
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 /** A secret to hand over: shown once, copied with one press. */
@@ -159,11 +473,15 @@ export function Sharing() {
               <span className="body-sm sec-text">
                 {host.via === 'funnel'
                   ? 'Anyone on the internet can reach its sign-in page. Only people you invite can get in.'
-                  : host.via === 'custom'
-                    ? 'HTTPS through your own front door, such as a Cloudflare tunnel. Anyone who finds the link can reach its sign-in page; only people you invite can get in. Change it with hildegard host --public-url on the computer Hildegard runs on.'
-                    : host.via === 'tailscale'
-                      ? 'Devices on your tailnet reach it over HTTPS. Invite people to your tailnet, or move it to the internet.'
-                      : 'Devices on your tailnet reach it at this computer’s Tailscale address.'}
+                  : host.via === 'custom' && host.tunnel === 'quick'
+                    ? 'A temporary Cloudflare quick tunnel: its name changes each time Hildegard starts, and Cloudflare doesn’t pass live updates through it, so reload to see new takes. Anyone who finds the link can reach its sign-in page; only people you invite can get in.'
+                    : host.via === 'custom' && host.tunnel === 'cloudflare'
+                      ? 'Your Cloudflare tunnel, at a name on your own domain. Anyone who finds the link can reach its sign-in page; only people you invite can get in.'
+                      : host.via === 'custom'
+                        ? 'HTTPS through your own front door, such as a Cloudflare tunnel. Anyone who finds the link can reach its sign-in page; only people you invite can get in. Change it with hildegard host --public-url on the computer Hildegard runs on.'
+                        : host.via === 'tailscale'
+                          ? 'Devices on your tailnet reach it over HTTPS. Invite people to your tailnet, or move it to the internet.'
+                          : 'Devices on your tailnet reach it at this computer’s Tailscale address.'}
               </span>
               <Secret label="Link" value={host.url} />
               <Qr
@@ -179,16 +497,14 @@ export function Sharing() {
                 {host.problem} {host.fix ? <Fix fix={host.fix} /> : null}
               </span>
             </div>
+          ) : local ? (
+            <Tunnels host={host} onFunnel={() => setFunnel(true)} />
           ) : (
-            <span className="body-sm muted">
-              {host.tailscale.running
-                ? `Tailscale is running here as ${host.tailscale.name ?? host.tailscale.ip}. The link uses its HTTPS.`
-                : 'Tailscale isn’t running here. Install it from tailscale.com and sign in, then come back.'}
-            </span>
+            <span className="body-sm muted">Only this computer can use Hildegard now.</span>
           )}
-          {local ? (
+          {local && host.on ? (
             <div className="hg-devices__btns">
-              {!host.on || (host.via !== 'tailscale' && host.via !== 'custom') ? (
+              {host.via === 'funnel' ? (
                 <Button
                   kind={host.on ? undefined : 'primary'}
                   icon="link"
@@ -199,7 +515,7 @@ export function Sharing() {
                   {host.via === 'funnel' ? 'Only on your tailnet' : 'Put Hildegard at a link'}
                 </Button>
               ) : null}
-              {host.via !== 'funnel' && host.via !== 'custom' ? (
+              {host.via === 'tailscale' || host.via === 'address' ? (
                 <Button
                   kind="ghost"
                   disabled={!!busy || !host.tailscale.running}
@@ -224,9 +540,9 @@ export function Sharing() {
                 </Button>
               ) : null}
             </div>
-          ) : (
+          ) : !local ? (
             <span className="body-sm muted">Turn the link on or off on the computer Hildegard runs on.</span>
-          )}
+          ) : null}
         </div>
       ) : null}
       {host?.owner && isOwner(auth) ? (

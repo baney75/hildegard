@@ -108,6 +108,7 @@ import { previewRoutes, type SiteRouteDeps, siteRoutes } from './site-routes.ts'
 import type { Sites } from './sites.ts';
 import type { Store } from './store.ts';
 import { type TalkRouteDeps, talkRoutes } from './talk-routes.ts';
+import { type Cloudflared, tunnelReport } from './tunnel.ts';
 import type { Updates } from './update.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
@@ -177,6 +178,8 @@ export interface AppDeps {
   people: People;
   /** Host mode: this Hildegard at a link. */
   host: Host;
+  /** The Cloudflare tunnel Hildegard runs as a front door, when asked. */
+  cloudflared?: Cloudflared;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
   /** Keys and chatbots that use the MCP from other devices. */
@@ -2457,12 +2460,14 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
     const body = z
       .object({
-        via: z.enum(['tailscale', 'funnel', 'address', 'custom']).optional(),
+        via: z.enum(['tailscale', 'funnel', 'address', 'custom', 'cloudflare', 'quick']).optional(),
         address: z.string().max(64).optional(),
         url: z.string().max(300).optional(),
+        hostname: z.string().max(253).optional(),
       })
       .safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ error: 'Choose tailscale, funnel, address or custom.' }, 400);
+    if (!body.success)
+      return c.json({ error: 'Choose tailscale, funnel, address, custom, cloudflare or quick.' }, 400);
     try {
       return c.json(await host.on(body.data));
     } catch (e) {
@@ -2473,6 +2478,58 @@ export function createApp(deps: AppDeps) {
     if (!local(c))
       return c.json({ error: 'Turn the link on or off from the computer Hildegard runs on.' }, 403);
     return c.json(await host.off());
+  });
+
+  // ── Tunnels: where Tailscale and Cloudflare stand here, signing in, and fetching cloudflared on the owner's word ──
+  const cloudflared = deps.cloudflared;
+  app.get('/api/tunnel', async (c) => {
+    const refused = ownerOnly(c);
+    if (refused) return refused;
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    await host.tailscale();
+    return c.json(
+      await tunnelReport({
+        host: host.state(),
+        savedHostname: host.hostname,
+        cloudflared,
+        run: host.run,
+        forwarding: await host.forwarding(),
+      }),
+    );
+  });
+  const provider = async (c: Context) =>
+    z.object({ provider: z.literal('cloudflare') }).safeParse(await c.req.json().catch(() => ({}))).success;
+  app.post('/api/tunnel/login', async (c) => {
+    if (!local(c)) return c.json({ error: 'Sign in from the computer Hildegard runs on.' }, 403);
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    if (!(await provider(c)))
+      return c.json(
+        {
+          error:
+            'Hildegard signs in to Cloudflare only. Sign in to Tailscale with its own app or `tailscale up`.',
+        },
+        400,
+      );
+    try {
+      return c.json(await cloudflared.login());
+    } catch (e) {
+      return hostFail(c, e);
+    }
+  });
+  app.post('/api/tunnel/install', async (c) => {
+    if (!local(c)) return c.json({ error: 'Install it from the computer Hildegard runs on.' }, 403);
+    if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
+    if (!(await provider(c)))
+      return c.json(
+        { error: 'Hildegard fetches cloudflared only. Install Tailscale from tailscale.com.' },
+        400,
+      );
+    try {
+      const bin = await cloudflared.install();
+      return c.json({ installed: true, version: bin.version });
+    } catch (e) {
+      return hostFail(c, e);
+    }
   });
 
   // ── Voice ───────────────────────────────────────────────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ export const exec: Exec = (cmd, args, timeoutMs = 20_000) =>
     );
   });
 
-const tailscaleCmds = () =>
+export const tailscaleCmds = () =>
   process.platform === 'darwin'
     ? ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/Tailscale']
     : ['tailscale'];
@@ -76,9 +76,28 @@ export async function tailnetSelf(run: Exec = exec): Promise<Tailnet | null> {
 const HTTPS_PORTS = [443, 8443, 10000] as const;
 const LOGIN_LINK = /https:\/\/login\.tailscale\.com\/\S+/;
 
+/**
+ * A front door Hildegard runs itself (tunnel.ts): it forwards to `target` and resolves with the link once it is
+ * connected.
+ */
+export interface TunnelControl {
+  up(kind: 'cloudflare' | 'quick', target: string, hostname?: string | null): Promise<string>;
+  down(): Promise<void>;
+  /** A tunnel is running, starting, or waiting to start again. */
+  readonly active: boolean;
+}
+
+type TunnelKind = 'cloudflare' | 'quick';
+const tunnelKind = (x: unknown): TunnelKind | undefined =>
+  x === 'cloudflare' || x === 'quick' ? x : undefined;
+
 interface HostFile {
   on: boolean;
   via: 'tailscale' | 'funnel' | 'address' | 'custom';
+  /** With `custom`: the door is a tunnel Hildegard runs, not the owner's own. */
+  tunnel?: TunnelKind;
+  /** The named tunnel's host name. */
+  hostname?: string;
   /** The Tailscale HTTPS port, for Serve and Funnel. */
   httpsPort?: number;
   /** The address to answer on, for `address`. */
@@ -94,7 +113,7 @@ interface HostDisk extends Partial<Omit<HostFile, 'via' | 'on'>> {
   /** `0` while the door is on and no older build has touched the file: see `readHostFile`. */
   on?: boolean | 0;
   via?: HostFile['via'];
-  door?: { url: string; on: boolean };
+  door?: { url: string; on: boolean; tunnel?: TunnelKind; hostname?: string };
 }
 
 /**
@@ -109,6 +128,8 @@ export function readHostFile(file: string): {
   saved: HostFile | null;
   door: string | null;
   migrated: boolean;
+  /** The named tunnel's host name, kept while the link is off, for the next time. */
+  hostname?: string | null;
 } {
   let raw: HostDisk | null = null;
   try {
@@ -124,11 +145,26 @@ export function readHostFile(file: string): {
   const door = raw.door && typeof raw.door.url === 'string' ? raw.door : null;
   // `on: false` beside a door that says on: an older build turned the link off since; the door is off.
   if (door?.on && raw.on === false) return { saved: null, door: door.url, migrated: true };
-  if (door?.on) return { saved: { on: true, via: 'custom', url: door.url }, door: door.url, migrated: false };
+  const hostname = door && typeof door.hostname === 'string' ? door.hostname : null;
+  if (door?.on) {
+    const tunnel = tunnelKind(door.tunnel);
+    return {
+      saved: {
+        on: true,
+        via: 'custom',
+        url: door.url,
+        ...(tunnel ? { tunnel } : {}),
+        ...(hostname ? { hostname } : {}),
+      },
+      door: door.url,
+      migrated: false,
+      hostname,
+    };
+  }
   const { door: _door, ...legacy } = raw;
   const saved =
     legacy.via && legacy.via !== 'custom' && typeof legacy.url === 'string' ? (legacy as HostFile) : null;
-  return { saved, door: door?.url ?? null, migrated: false };
+  return { saved, door: door?.url ?? null, migrated: false, hostname };
 }
 
 /** The front door saved in `dataDir`, for checks that must run before Hildegard opens anything. */
@@ -154,6 +190,10 @@ export interface HostOptions {
   onChange?: (s: HostState) => void;
   /** Whether the owner account exists. */
   owner: () => boolean;
+  /** How long to wait before trying a saved tunnel again when it couldn't start with Hildegard (30 s). */
+  retryMs?: number;
+  /** Runs a Cloudflare tunnel as the front door, when asked; none in tests that don't need one. */
+  tunnel?: TunnelControl;
 }
 
 export class Host {
@@ -161,12 +201,18 @@ export class Host {
   private saved: HostFile | null;
   /** The front door's URL, once there has been one. Its name stays off the Studio's own listener from then on. */
   private door: string | null;
-  private readonly run: Exec;
+  /** The named tunnel's host name, on or off: the one to offer next time. */
+  hostname: string | null;
+  readonly run: Exec;
   private readonly opts: HostOptions;
   private tailnet: Tailnet | null = null;
   private tailnetAt = 0;
   problem: string | null = null;
   fix: string | null = null;
+  /** The next try at a saved tunnel that couldn't start with Hildegard. */
+  private retry: NodeJS.Timeout | null = null;
+  /** Counts turning the link off: a tunnel that finishes starting after an off doesn't turn it back on. */
+  private gen = 0;
 
   constructor(opts: HostOptions) {
     this.opts = opts;
@@ -175,6 +221,7 @@ export class Host {
     const read = readHostFile(this.file);
     this.saved = read.saved;
     this.door = read.door;
+    this.hostname = read.hostname ?? null;
     if (read.migrated)
       try {
         this.write();
@@ -184,6 +231,7 @@ export class Host {
   private save(f: HostFile | null) {
     this.saved = f;
     if (f?.via === 'custom') this.door = f.url;
+    if (f?.hostname) this.hostname = f.hostname;
     this.write();
   }
 
@@ -195,7 +243,16 @@ export class Host {
     const out: HostDisk = {
       ...route,
       on: doorOn ? 0 : (route.on ?? false),
-      ...(this.door ? { door: { url: this.door, on: doorOn } } : {}),
+      ...(this.door
+        ? {
+            door: {
+              url: this.door,
+              on: doorOn,
+              ...(doorOn && f?.tunnel ? { tunnel: f.tunnel } : {}),
+              ...(this.hostname ? { hostname: this.hostname } : {}),
+            },
+          }
+        : {}),
     };
     mkdirSync(this.opts.dataDir, { recursive: true, mode: 0o700 });
     const tmp = `${this.file}.tmp`;
@@ -274,6 +331,7 @@ export class Host {
         ip: this.tailnet?.ip ?? null,
       },
       owner: this.opts.owner(),
+      tunnel: f?.via === 'custom' ? (f.tunnel ?? null) : null,
     };
   }
 
@@ -303,7 +361,12 @@ export class Host {
 
   /** Turn the link on. `via` defaults to Tailscale Serve; Funnel only ever when asked for by name. */
   async on(
-    opts: { via?: 'tailscale' | 'funnel' | 'address' | 'custom'; address?: string; url?: string } = {},
+    opts: {
+      via?: 'tailscale' | 'funnel' | 'address' | 'custom' | 'cloudflare' | 'quick';
+      address?: string;
+      url?: string;
+      hostname?: string;
+    } = {},
   ): Promise<HostState> {
     if (!this.opts.owner())
       throw new HostError(
@@ -314,15 +377,12 @@ export class Host {
     const ts = await this.tailscale(true);
     const via = opts.via ?? (opts.url ? 'custom' : opts.address ? 'address' : 'tailscale');
 
+    if (via === 'cloudflare' || via === 'quick') return this.tunnelOn(via, ts, opts.hostname);
+
     if (via === 'custom') {
       const p = parsePublicUrl(opts.url);
       if (!p.ok) throw new HostError(400, p.error);
-      const name = new URL(p.url).hostname;
-      if ((this.opts.reserved?.() ?? []).some((h) => hostKey(h) === hostKey(name)))
-        throw new HostError(
-          409,
-          `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,
-        );
+      this.checkReserved(new URL(p.url).hostname);
       // Going from Serve or Funnel to a front door of one's own: stop forwarding the old way first, so only one route
       // leads in. If that can't be done, nothing changes: the old route stays recorded, to be turned off later.
       const old = this.saved?.on && this.saved.httpsPort ? this.saved : null;
@@ -336,6 +396,7 @@ export class Host {
         const off = await this.tailscaleOff(ts, old.via, old.httpsPort!);
         if (!off.ok) throw this.explainOff(off.out, old.via);
       }
+      await this.dropTunnel();
       this.save({ on: true, via, url: p.url });
       this.problem = null;
       this.fix = null;
@@ -363,6 +424,7 @@ export class Host {
           400,
           'Hildegard answers over plain HTTP only on your Tailscale address, where WireGuard encrypts it, so passphrases never cross a network in the clear. For anything else, use Tailscale Serve or Funnel, which give it HTTPS.',
         );
+      await this.dropTunnel();
       this.save({ on: true, via, address, url: u.origin });
       this.problem = null;
       this.fix = null;
@@ -404,11 +466,110 @@ export class Host {
     ]);
     if (!r.ok) throw this.explain(r.out, via);
     const url = `https://${ts.dns}${port === 443 ? '' : `:${port}`}`;
+    await this.dropTunnel();
     this.save({ on: true, via, httpsPort: port, url });
     this.problem = null;
     this.fix = null;
     this.emit();
     return this.state();
+  }
+
+  /** A tunnel Hildegard runs is the door now: stop it when another route takes over. */
+  private async dropTunnel() {
+    if (this.saved?.on && this.saved.tunnel) await this.opts.tunnel?.down();
+  }
+
+  /** Refuse a door name the Studio's own listener is told to answer to. */
+  private checkReserved(name: string) {
+    if ((this.opts.reserved?.() ?? []).some((h) => hostKey(h) === hostKey(name)))
+      throw new HostError(
+        409,
+        `${name} is also in --allow-host (or HILDEGARD_ALLOWED_HOSTS), which would let this computer’s own Studio answer to it. Take it out of that list, restart Hildegard, then try again.`,
+      );
+  }
+
+  /**
+   * A Cloudflare tunnel Hildegard runs as the front door: a named tunnel on the owner's own domain, or a quick tunnel.
+   * The tunnel comes up first, then any Serve or Funnel route goes off, so a failure leaves the old link as it was.
+   */
+  private async tunnelOn(kind: TunnelKind, ts: Tailnet | null, hostname?: string): Promise<HostState> {
+    const tunnel = this.opts.tunnel;
+    if (!tunnel) throw new HostError(409, 'This Hildegard can’t run a tunnel.');
+    if (hostname) this.checkReserved(hostname.replace(/^https:\/\//i, '').replace(/\/$/, ''));
+    const prev = this.saved?.on && this.saved.tunnel ? this.saved : null;
+    const gen = this.gen;
+    let url: string;
+    try {
+      url = await tunnel.up(kind, this.target(), kind === 'cloudflare' ? hostname : null);
+      if (gen !== this.gen) {
+        await tunnel.down();
+        throw new HostError(409, 'The link was turned off while the tunnel started, so it stays off.');
+      }
+    } catch (e) {
+      if (gen !== this.gen) throw e;
+      // Refused before it stopped anything, the old tunnel still runs; failing after, it comes back.
+      await this.restoreTunnel(prev);
+      throw e;
+    }
+    try {
+      const p = parsePublicUrl(url);
+      if (!p.ok) throw new HostError(502, p.error);
+      this.checkReserved(new URL(p.url).hostname);
+      const old = this.saved?.on && this.saved.httpsPort ? this.saved : null;
+      if (old) {
+        if (!ts)
+          throw new HostError(
+            409,
+            `Tailscale isn’t running on this computer, so Hildegard can’t turn off the old ${old.via === 'funnel' ? 'Funnel' : 'Serve'} link first. Start Tailscale, then try again.`,
+            'tailscale up',
+          );
+        const off = await this.tailscaleOff(ts, old.via, old.httpsPort!);
+        if (!off.ok) throw this.explainOff(off.out, old.via);
+      }
+      const name = kind === 'cloudflare' ? new URL(p.url).hostname : undefined;
+      this.save({ on: true, via: 'custom', url: p.url, tunnel: kind, ...(name ? { hostname: name } : {}) });
+    } catch (e) {
+      await tunnel.down();
+      await this.restoreTunnel(prev);
+      throw e;
+    }
+    this.problem = null;
+    this.fix = null;
+    this.emit();
+    return this.state();
+  }
+
+  /**
+   * After a refused change, the tunnel that was the link before runs again, so the state never says on with nothing
+   * behind it. If it can't, the link says why.
+   */
+  private async restoreTunnel(prev: HostFile | null) {
+    const tunnel = this.opts.tunnel;
+    if (!prev?.tunnel || !tunnel || tunnel.active) return;
+    try {
+      const url = await tunnel.up(prev.tunnel, this.target(), prev.hostname ?? null);
+      if (url !== prev.url) this.save({ ...prev, url });
+    } catch (e) {
+      this.problem = (e as Error).message;
+      this.fix = e instanceof HostError ? e.fix : null;
+      this.emit();
+    }
+  }
+
+  /** A quick tunnel came back under a new name after cloudflared restarted: the door moves with it. */
+  tunnelMoved(url: string) {
+    const f = this.saved;
+    if (!f?.on || f.tunnel !== 'quick' || f.url === url) return;
+    this.save({ ...f, url });
+    this.emit();
+  }
+
+  /** The HTTPS ports where Tailscale forwards to the hosted listener right now, as Tailscale itself reports. */
+  async forwarding(): Promise<number[]> {
+    const ts = await this.tailscale(true);
+    if (!ts) return [];
+    const target = this.target();
+    return [...(await this.served(ts))].filter(([, to]) => to === target).map(([port]) => port);
   }
 
   /** Turn Tailscale's own failure into a sentence, and what to do about it. */
@@ -456,12 +617,17 @@ export class Host {
 
   /** Turn the link off. Accounts and sessions stay, for the next time. */
   async off(): Promise<HostState> {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
+    this.gen++;
     const f = this.saved;
+    // Also a tunnel still starting, saved or not: off means nothing forwards here.
+    if ((f?.on && f.tunnel) || this.opts.tunnel?.active) await this.opts.tunnel?.down();
     if (f?.on && f.httpsPort) {
       const ts = await this.tailscale(true);
       if (ts) await this.tailscaleOff(ts, f.via, f.httpsPort);
     }
-    this.save(f ? { ...f, on: false } : null);
+    this.save(f ? { ...f, on: false, tunnel: undefined } : null);
     this.problem = null;
     this.fix = null;
     this.emit();
@@ -472,6 +638,36 @@ export class Host {
   async resume(): Promise<void> {
     const f = this.saved;
     await this.tailscale(true);
+    // A tunnel Hildegard runs comes back up; a quick tunnel under a new name.
+    if (f?.on && f.via === 'custom' && f.tunnel && this.opts.tunnel) {
+      this.problem = 'The tunnel is starting.';
+      this.fix = null;
+      this.emit();
+      const gen = this.gen;
+      try {
+        const url = await this.opts.tunnel.up(f.tunnel, this.target(), f.hostname ?? null);
+        if (gen !== this.gen) {
+          await this.opts.tunnel.down();
+          return;
+        }
+        this.problem = null;
+        if (url !== f.url) this.save({ ...f, url });
+      } catch (e) {
+        // Turned off or closing meanwhile: nothing to say and nothing to try again.
+        if (gen !== this.gen) return;
+        // Started before the network was up, or Cloudflare was out of reach: try again until it works or is off.
+        this.problem = `${(e as Error).message} Hildegard tries again shortly.`;
+        this.fix = e instanceof HostError ? e.fix : null;
+        this.retry = setTimeout(() => {
+          this.retry = null;
+          const now = this.saved;
+          if (now?.on && now.tunnel === f.tunnel && now.url === f.url) void this.resume();
+        }, this.opts.retryMs ?? 30_000);
+        this.retry.unref?.();
+      }
+      this.emit();
+      return;
+    }
     // An address and a front door of one's own need nothing from Tailscale; the listeners follow the saved state.
     if (!f?.on || f.via === 'address' || f.via === 'custom') {
       this.emit();
@@ -484,6 +680,13 @@ export class Host {
       this.fix = e instanceof HostError ? e.fix : null;
       this.emit();
     }
+  }
+
+  /** Hildegard is closing: no tunnel is tried again, and one still starting is let go. */
+  stop() {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
+    this.gen++;
   }
 
   /** The bound listener couldn't open: say so on the state. */

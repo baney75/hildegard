@@ -275,7 +275,29 @@ owner's key from `hildegard host key`.
 ## At a link, for your other devices and the people you invite
 
 Hildegard can be a server: your own studio at an HTTPS link, for your phone and laptop and for people you invite, all
-signing in. It uses [Tailscale](https://tailscale.com); install it and sign in first. Then, on the computer with the GPU:
+signing in. The link runs through a tunnel on an account you own: [Tailscale](https://tailscale.com) for your own
+devices, or [Cloudflare](https://www.cloudflare.com) for a name on your own domain. Both have free accounts, which you
+make on their own pages; Hildegard never makes one for you.
+
+```sh
+hildegard tunnel                                   # where Tailscale and Cloudflare stand here, and what each needs
+hildegard tunnel tailscale                         # your own devices only (add --funnel for the public internet)
+hildegard tunnel cloudflare --hostname hildegard.example.com   # a name on your domain, through a named tunnel
+hildegard tunnel cloudflare --quick                # no account: a temporary trycloudflare.com name
+hildegard tunnel off                               # off, read back: nothing forwards here
+```
+
+`hildegard tunnel` skips what is already done: the tool installed, this computer signed in, a tunnel already in your
+account. `--signup` with either opens its free-account page. `hildegard tunnel install cloudflare` fetches Cloudflare's
+own `cloudflared`, checked against a pinned hash, into Hildegard's folder (no administrator); Tailscale you install
+yourself. `hildegard tunnel cloudflare --login` signs this computer in to your Cloudflare account on Cloudflare's page,
+and Hildegard then makes the tunnel `hildegard-<computer>`, its DNS record (never replacing one already there) and runs
+`cloudflared`, starting it again if it stops. Its credentials go to your keychain (on a computer with none, a file only you can read in Hildegard's data folder, as Hildegard's other secrets do), never a command line or a log. A quick tunnel
+is the fallback: its name changes every time Hildegard starts, and Cloudflare doesn't pass the Studio's live updates
+through it. Settings › Sharing does all of this with buttons. `hildegard doctor` says what is broken and the command
+that fixes it.
+
+Then, on the computer with the GPU:
 
 ```sh
 hildegard host owner        # your name and a passphrase, for signing in from other devices
@@ -312,7 +334,10 @@ hildegard host status                                         # "HTTPS through y
 hildegard doctor                                              # reads <link>/.well-known/oauth-protected-resource
 ```
 
-Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
+`hildegard tunnel cloudflare --hostname hildegard.example.com` does everything below for you on this computer. The
+rest of this section is for a tunnel you run yourself, here or on another computer.
+
+With `--public-url`, Hildegard doesn't run the tunnel; it only trusts the name on its hosted listener, `127.0.0.1:7342`, where every
 request signs in, and treats a request for that name there as HTTPS. The name can't also be in `--allow-host`, and
 the saved front door's name stays refused on the Studio's own port, on or off, until you set a different door. (To
 use that name for the Studio again: set another door with `hildegard host --public-url`, or stop Hildegard and remove
@@ -470,6 +495,7 @@ hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
 hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
+hildegard tunnel [status] | tailscale [--funnel] | cloudflare [--hostname <name> | --quick | --login] | install cloudflare | off  (--signup)
 hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host code | key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin

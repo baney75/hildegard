@@ -77,6 +77,7 @@ import {
 } from './talk.ts';
 import { type NodeTalkDeps, remoteLlm, remoteStt, remoteTts } from './talk-remote.ts';
 import type { TalkStatus } from './talk-routes.ts';
+import { Cloudflared, type Spawn } from './tunnel.ts';
 import { runUpdate, Updates } from './update.ts';
 import { llmTranslator, sniffAudio, VoiceError, VoiceStudio } from './voice.ts';
 import { FakeVoiceEngine, LocalVoiceEngine, type VoiceEngine } from './voice-engine.ts';
@@ -107,6 +108,7 @@ export interface Running {
   hf: HfLink;
   people: People;
   host: Host;
+  cloudflared: Cloudflared;
   /** Keys and chatbots that use the MCP from other devices. */
   grants: Grants;
   /** The language models running on this computer. */
@@ -155,8 +157,14 @@ async function serveStudio(
     /** Where joined devices' keys go; the keychain by default. */
     choirSecrets?: (account: string) => SecretStore;
     onStop?: () => void;
-    /** Runs `tailscale`: tests give a stand-in. */
+    /** Runs `tailscale` and `cloudflared`: tests give a stand-in. */
     exec?: Exec;
+    /** Starts cloudflared for a tunnel: tests give a stand-in. */
+    spawn?: Spawn;
+    /** Where tunnels' credentials go; the keychain (or `choirSecrets`) by default. */
+    tunnelSecrets?: (account: string) => SecretStore;
+    /** cloudflared's home for cert.pem, the Cloudflare sign-in; the user's home by default. */
+    tunnelHome?: string;
     /** The clock for short codes, their limits and sign-in sessions: tests give a fake one. */
     now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
@@ -572,7 +580,17 @@ async function serveStudio(
     files: talk.files,
     safety: loadSafety(),
   };
+  const cloudflared = new Cloudflared({
+    dataDir: config.dataDir,
+    run: opts.exec,
+    spawn: opts.spawn,
+    secrets: opts.tunnelSecrets ?? secretsFor,
+    home: opts.tunnelHome,
+    onUrl: (url) => host.tunnelMoved(url),
+    onChange: () => store.emit({ type: 'host', host: host.state() }),
+  });
   const host = new Host({
+    tunnel: cloudflared,
     dataDir: config.dataDir,
     port: () => port,
     hostPort: () => hostedPort,
@@ -665,6 +683,7 @@ async function serveStudio(
     home: homeId(config.dataDir),
     people,
     host,
+    cloudflared,
     limits: opts.limits,
     grants,
     signer,
@@ -978,6 +997,7 @@ async function serveStudio(
     hf,
     people,
     host,
+    cloudflared,
     grants,
     llm,
     hostedUrl: () => (hosted ? `http://127.0.0.1:${hostedPort}` : null),
@@ -991,6 +1011,8 @@ async function serveStudio(
       clearInterval(watch);
       clearInterval(fleet);
       updates.stop();
+      host.stop();
+      await cloudflared.stop();
       await syncingHost;
       if (shareRetry) clearTimeout(shareRetry);
       if (lapseTimer) clearTimeout(lapseTimer);
