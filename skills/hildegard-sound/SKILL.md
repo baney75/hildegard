@@ -10,11 +10,22 @@ narration are the sound of slop.
 
 ## What Hildegard has
 
-`hildegard_status` and `list_presets` show what's installed. Today LTX makes sound together with its video (from the
-prompt: say what is heard, "rain on a tin roof, a kettle starting to whistle"); Wan makes none. Music, voice and
-transcription models are on Hildegard's roadmap: when they appear in `list_presets`, use them with the same gates.
-Until then, work with sound your user provides or that your own tools can make, and mix it with FFmpeg
-(**hildegard-video-edit**, section 7).
+`hildegard_status` and `list_presets` show what's installed; `list_voices` shows the voices.
+
+- **Speech:** `speak` turns a script into speech on the owner's GPU, in a voice from `list_voices`. Act a line with
+  tags in square brackets (`[whispers]`, `[laughs]`) and `[pause 0.5s]`; give one line of `direction` ("warm, close
+  to the mic"). `design_voice` makes a new voice from a description, and `keep_designed_voice` saves it.
+- **Changing and reading speech:** `convert_voice` says a recording in another voice, `transcribe` turns speech into
+  text with timings, and `dub` does both into another language. Long jobs return an id: poll `voice_job_status`.
+- **Cloning a real person's voice** happens only in the Studio, with that person reading a fresh consent line aloud.
+  `clone_voice` explains it; you can't start one. Never imitate a real person's voice any other way.
+- **Sound with picture:** LTX makes sound together with its video, from the prompt: say what is heard ("rain on a
+  tin roof, a kettle starting to whistle"). Wan makes none.
+- **Music:** Hildegard has no music model. Use music your user provides or a library track with a license that
+  allows the use, write a brief for a music model they run elsewhere (below), and mix it with FFmpeg
+  (**hildegard-video-edit**, section 7).
+- If a voice model isn't installed, `install_voice_model` downloads it. Its first call returns the license terms:
+  show them to your user word for word, and call again with `accept_license` only if they say yes.
 
 ## Music
 
