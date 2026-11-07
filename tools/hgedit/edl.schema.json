@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hildegard-edl-1",
+  "title": "Hildegard edit list",
+  "description": "What to keep from the footage, what to put on it, and where it goes. Seconds are seconds; a box is [x, y, width, height] as fractions of the frame (0 to 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "sources"],
+  "properties": {
+    "version": { "const": 1 },
+    "title": { "type": "string", "maxLength": 200 },
+    "fps": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 120,
+      "description": "Output frames per second. Default: the first source's."
+    },
+    "sources": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_-]{0,31}$" },
+      "additionalProperties": { "$ref": "#/$defs/source" }
+    },
+    "keep": {
+      "type": "array",
+      "maxItems": 5000,
+      "description": "The pieces of footage to play, in order, in source seconds. Left out: every source whole, in the order they are listed.",
+      "items": { "$ref": "#/$defs/range" }
+    },
+    "cuts": {
+      "type": "array",
+      "maxItems": 20000,
+      "description": "Stretches of source footage to remove, whatever keep says.",
+      "items": { "$ref": "#/$defs/cut" }
+    },
+    "pauses": { "$ref": "#/$defs/pauses" },
+    "blur": {
+      "type": "array",
+      "maxItems": 500,
+      "description": "Regions to hide, with the stretch of source footage they apply to. Applied to the source picture before anything else, so what is hidden stays hidden through a crop or a zoom.",
+      "items": { "$ref": "#/$defs/blur" }
+    },
+    "boxes": {
+      "type": "array",
+      "maxItems": 500,
+      "description": "Outline or tint a region of the source footage for a while.",
+      "items": { "$ref": "#/$defs/box" }
+    },
+    "titles": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "Titles and lower thirds, in output seconds.",
+      "items": { "$ref": "#/$defs/title" }
+    },
+    "captions": { "$ref": "#/$defs/captions" },
+    "chapters": {
+      "type": "array",
+      "maxItems": 100,
+      "description": "Chapter marks in output seconds. Written beside the video as chapters.txt (YouTube's format) and, where possible, into the file.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "title"],
+        "properties": {
+          "at": { "type": "number", "minimum": 0 },
+          "title": { "type": "string", "minLength": 1, "maxLength": 100 }
+        }
+      }
+    },
+    "music": { "$ref": "#/$defs/music" },
+    "reframe": { "$ref": "#/$defs/reframe" },
+    "target": {
+      "description": "Where it is going: a name (youtube, shorts, reels, tiktok, x, podcast) or your own numbers.",
+      "oneOf": [
+        { "enum": ["youtube", "shorts", "reels", "tiktok", "x", "podcast"] },
+        { "$ref": "#/$defs/target" }
+      ]
+    },
+    "audio": { "$ref": "#/$defs/audio" },
+    "secrets": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "Text that must not be readable anywhere in the finished video's hidden stretches: a string to find as it is, or a pattern, or a built-in kind.",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 4, "maxLength": 300 },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "text": { "type": "string", "minLength": 4, "maxLength": 300 },
+              "regex": { "type": "string", "minLength": 3, "maxLength": 300 },
+              "kind": { "enum": ["api_key", "email", "ip", "hostname"] }
+            }
+          }
+        ]
+      }
+    },
+    "verify": { "$ref": "#/$defs/verify" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "audio_track": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7,
+          "description": "Which audio stream is the voice. Default 0."
+        },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "source": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "cut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "source": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "why": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "pauses": {
+      "description": "Shorten dead air. A pause is a stretch with no speech; it is dead only if it also has no typing or clicking. Speech is found from the energy of the cleaned sound, not from a fixed silence level, so a fan or a hum does not hide pauses and typing does not make them.",
+      "oneOf": [
+        { "const": false },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 30,
+              "description": "Pauses longer than this get shortened. Default 0.7."
+            },
+            "keep": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 5,
+              "description": "How much of a long pause is left. Default 0.3."
+            },
+            "margin": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Always kept before the next word and after the last one. Default 0.12."
+            },
+            "activity": {
+              "enum": ["keep", "cut"],
+              "description": "A quiet stretch with typing or clicking in it: keep it as it is (default) or treat it like dead air."
+            },
+            "source": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "blur": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "source": { "type": "string" },
+        "start": { "type": "number", "minimum": 0, "description": "Source seconds." },
+        "end": { "type": "number", "minimum": 0 },
+        "box": { "$ref": "#/$defs/fraction_box" },
+        "box_px": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "[x, y, width, height] in source pixels, instead of box."
+        },
+        "keys": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 500,
+          "description": "A moving region: at each time (source seconds) a box; between them it slides.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["t", "box"],
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "box": { "$ref": "#/$defs/fraction_box" }
+            }
+          }
+        },
+        "style": {
+          "enum": ["blur", "pixelate", "solid"],
+          "description": "Default blur. Use solid for a secret you must not leak."
+        },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "box"],
+      "properties": {
+        "source": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "box": { "$ref": "#/$defs/fraction_box" },
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40,
+          "description": "Outline thickness in output pixels at 1080 high."
+        },
+        "fill": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.6,
+          "description": "How much of the colour tints the inside, 0 to 0.6."
+        },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "fraction_box": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 },
+      "description": "[x, y, width, height] as fractions of the frame."
+    },
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "start", "end"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "subtitle": { "type": "string", "maxLength": 200 },
+        "start": { "type": "number", "minimum": 0, "description": "Output seconds." },
+        "end": { "type": "number", "minimum": 0 },
+        "kind": {
+          "enum": ["title", "lower_third"],
+          "description": "title: centred; lower_third: low left. Default lower_third."
+        }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transcript": {
+          "description": "The word-timed transcript (transcribe's result: segments with words) or a path to it, in source seconds.",
+          "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "object" }]
+        },
+        "source": {
+          "type": "string",
+          "description": "Which source the transcript is of. Default: the first."
+        },
+        "max_chars": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 80,
+          "description": "Per line. Default 38 (24 on a vertical video)."
+        },
+        "max_lines": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "min_seconds": { "type": "number", "minimum": 0.3, "maximum": 5 },
+        "max_seconds": { "type": "number", "minimum": 1, "maximum": 12 },
+        "position": { "enum": ["bottom", "middle", "top"] },
+        "size": {
+          "type": "number",
+          "minimum": 0.02,
+          "maximum": 0.12,
+          "description": "Type height as a fraction of the frame height."
+        },
+        "off": { "type": "boolean" }
+      }
+    },
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "start": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Output second the music comes in. Default 0."
+        },
+        "end": { "type": "number", "minimum": 0, "description": "Output second it ends. Default the end." },
+        "duck_db": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 30,
+          "description": "How far it drops under speech. Default 16 (12 is the least that works)."
+        },
+        "under_db": {
+          "type": "number",
+          "minimum": -30,
+          "maximum": 6,
+          "description": "Its level against the voice between words, in dB. Default -8."
+        },
+        "fade_in": { "type": "number", "minimum": 0, "maximum": 30 },
+        "fade_out": { "type": "number", "minimum": 0, "maximum": 30 }
+      }
+    },
+    "reframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "aspect": {
+          "type": "string",
+          "pattern": "^[0-9]{1,2}:[0-9]{1,2}$",
+          "description": "9:16, 1:1, 4:5 or 16:9. Default: the target's."
+        },
+        "mode": {
+          "enum": ["auto", "face", "motion", "center", "fixed"],
+          "description": "How the crop finds the subject. auto: a face if OpenCV is installed, else where the motion is, else the middle."
+        },
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "For fixed: the subject's place across the frame, 0 left to 1 right."
+        },
+        "fit": {
+          "enum": ["crop", "pad"],
+          "description": "crop (default) or pad: the whole picture over a blurred copy of itself."
+        },
+        "smooth": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "maxLength": 40 },
+        "aspect": { "type": "string", "pattern": "^[0-9]{1,2}:[0-9]{1,2}$" },
+        "height": { "type": "integer", "minimum": 144, "maximum": 4320 },
+        "lufs": { "type": "number", "minimum": -40, "maximum": -5 },
+        "peak": { "type": "number", "minimum": -9, "maximum": 0 },
+        "max_seconds": { "type": "number", "minimum": 1 },
+        "bitrate_kbps": { "type": "integer", "minimum": 500, "maximum": 100000 }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clean": {
+          "enum": ["auto", "yes", "no"],
+          "description": "Clean the voice (rumble, hum, hiss, even level) before mastering. auto: when most of the sound is speech."
+        },
+        "master": { "type": "boolean", "description": "Master the loudness to the target. Default true." },
+        "keep_original": {
+          "type": "boolean",
+          "description": "Also keep the sound as it was, cut the same way, as a second audio track. Default true for youtube, false for the vertical social targets."
+        },
+        "fade_ms": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Fade at every cut so nothing clicks. Default 10."
+        },
+        "mute": { "type": "boolean" }
+      }
+    },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_black": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Longest black stretch allowed, seconds. Default 0.5."
+        },
+        "max_frozen": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600,
+          "description": "Longest frozen stretch allowed, seconds. Default 6."
+        },
+        "allow_black": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number", "minimum": 0 }
+          },
+          "description": "Output-second ranges where black is on purpose."
+        },
+        "lufs_tolerance": { "type": "number", "minimum": 0.1, "maximum": 6 },
+        "require_ocr": {
+          "type": "boolean",
+          "description": "Fail, not skip, when tesseract is not installed. Default false."
+        },
+        "ocr_scan": {
+          "enum": ["windows", "all"],
+          "description": "windows (default): the hidden stretches and a second around them; all: the whole video."
+        },
+        "ocr_fps": { "type": "number", "minimum": 0.5, "maximum": 10 },
+        "ocr_kinds": {
+          "type": "array",
+          "items": { "enum": ["api_key", "email", "ip", "hostname"] },
+          "description": "Kinds of text to look for in the hidden stretches. Default: all four."
+        }
+      }
+    }
+  }
+}

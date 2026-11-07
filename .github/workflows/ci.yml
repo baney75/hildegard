@@ -61,10 +61,11 @@ jobs:
           python-version: '3.13'
       - run: python -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0 soundfile==0.13.1
       # Model loops render OpenSCAD source; the tests that render for real run where it installs from the OS. It runs in
-      # bubblewrap on Linux, which needs the user namespaces Ubuntu's AppArmor holds back by default.
+      # bubblewrap on Linux, which needs the user namespaces Ubuntu's AppArmor holds back by default. tesseract lets the
+      # video edit gate's planted-key test read the finished video (elsewhere that test is skipped and says so).
       - if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends openscad bubblewrap
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends openscad bubblewrap tesseract-ocr
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: pnpm typecheck
       - run: pnpm test

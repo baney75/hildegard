@@ -94,6 +94,8 @@ copy('tools/review_media.py', 'tools/review_media.py');
 copy('tools/review_mesh.py', 'tools/review_mesh.py');
 copy('tools/review_web.js', 'tools/review_web.js');
 copy('tools/voice_clean.py', 'tools/voice_clean.py');
+copy('tools/edit_video.py', 'tools/edit_video.py');
+copy('tools/hgedit', 'tools/hgedit', (s) => !/__pycache__|\.pyc$/.test(s));
 copy('skills', 'skills');
 copy('deploy/runpod/boot.sh', 'deploy/runpod/boot.sh');
 copy('licenses', 'licenses');
