@@ -50,10 +50,14 @@ export const BUSY_RECHECK_MS = 30_000;
 export const BUSY_SETTLE_MS = 3_000;
 
 /** Plain-language fixes for each failure. */
-export function explain(e: unknown): TakeError {
+export function explain(e: unknown, quality?: 'draft' | 'final' | null): TakeError {
   const err = e instanceof EngineError ? e : new EngineError('unknown', 'Something went wrong.', String(e));
   const hint: Record<string, string> = {
-    out_of_memory: 'Try Draft quality or a shorter take, or close other apps using the GPU.',
+    // A take already at Draft can't go lower: then only a shorter take or a freer GPU helps.
+    out_of_memory:
+      quality === 'draft'
+        ? 'Try a shorter take, or close other apps using the GPU.'
+        : 'Try Draft quality or a shorter take, or close other apps using the GPU.',
     model_missing: 'Install the model in Settings, then retry.',
     model_corrupt: 'Reinstall the model in Settings; Hildegard checks every file when it downloads.',
     engine_offline: 'Start ComfyUI with `hildegard start`, then retry.',
@@ -817,7 +821,7 @@ export class Scheduler {
         Object.assign(take, { status: 'queued', progress: null, startedAt: null } satisfies Partial<Take>);
       } else {
         take.status = e instanceof EngineError && e.code === 'canceled' ? 'canceled' : 'failed';
-        take.error = explain(e);
+        take.error = explain(e, take.quality);
       }
     } finally {
       // Set inside the try/catch above; TypeScript cannot see that.

@@ -143,7 +143,9 @@ test('a GPU failure explains itself and retries', async ({ page, request }) => {
   await expect(shot.getByText('Your GPU ran out of memory.').first()).toBeVisible({ timeout: 15_000 });
   await shot.getByRole('button', { name: /^Open Draft 1,/ }).click();
   const insp = page.locator('.cs-insp');
-  await expect(insp).toContainText('Try Draft quality or a shorter take');
+  // A Draft take can't go lower, so the hint asks for a shorter take, not Draft.
+  await expect(insp).toContainText('Try a shorter take, or close other apps using the GPU.');
+  await expect(insp).not.toContainText('Try Draft quality');
   await expect(insp).toContainText('nothing was spent');
   await insp.getByRole('button', { name: /^Retry/ }).click();
   await expect(shot.getByText('Your GPU ran out of memory.').first()).toBeVisible({ timeout: 15_000 });

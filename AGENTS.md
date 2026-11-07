@@ -32,7 +32,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 
 ```sh
 pnpm install
-pnpm dev                    # server with a fake GPU on :7341, Studio with hot reload on :5173
+pnpm dev                    # server with a fake GPU on :7361 (data in .dev-data, never an installed Hildegard's), Studio on :5173
 node apps/cli/src/main.ts   # the CLI from source (Node 22.18+ runs the TypeScript directly)
 ```
 
@@ -50,8 +50,9 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if yo
 The desktop app's Rust build wants what the app carries in place first: `pnpm --filter @hildegard/studio build`,
 `node apps/desktop/scripts/prepare-bundle.mjs`, then `pnpm --filter @hildegard/desktop build` (see the README).
 
-The server's film-export tests run `python3` with PyAV and numpy; install them as CI does:
-`python3 -m pip install av==19.0.1 numpy==2.5.3`.
+The server's film-export tests and `packages/craft` run `python3` with PyAV, numpy, Pillow and soundfile; install them
+as CI does: `python3 -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0 soundfile==0.13.1`. `pnpm e2e` serves the
+built Studio (`pnpm --filter @hildegard/studio build` first) on ports 7351 to 7353; `E2E_PORT=<n>` moves them.
 
 CI runs those on Linux, macOS and Windows; renders a real (tiny) video through ComfyUI and comfy-api-proxy; builds the
 release; and runs the real installer from it on all three, then renders through what it installed.
