@@ -38,8 +38,19 @@
     "brief": "I host a small-town history podcast. The file voice_raw.wav is my recording of one segment (mono, 44.1 kHz, about 45 seconds, 16-bit). It was recorded in a spare bedroom next to a refrigerator: there is a low electrical hum, hiss, I drift away from the mic in two places so those parts are quiet, I popped a P and clipped it once, and the room is echoey. Clean it up so it is ready to publish: remove the hum and hiss without making me sound underwater, bring the quiet parts up to match, tame the pop, and deliver at -16 LUFS integrated with a true peak no higher than -1 dBTP. Keep the same length and keep it sounding like a real person in a real room, not a robot. Don't ask me questions.",
     "inputs": ["voice_raw.wav"],
     "deliverable": "process.sh",
-    "gen": {"kind": "clean", "voice_start": 25.18, "dur": 45.0, "seed": 11, "hum_hz": 60, "hum_amp": 0.012, "hiss_rms": 0.007, "dips": [[11.0, 14.0, -11.0], [28.0, 31.5, -9.0]], "pops": [19.3], "reverb": 0.22},
-    "score": {"kind": "clean", "lufs": -16.0, "tp": -1.0, "hum_hz": 60, "same_length": true}
+    "gen": {
+      "kind": "clean",
+      "voice_start": 25.18,
+      "dur": 45.0,
+      "seed": 11,
+      "hum_hz": 60,
+      "hum_amp": 0.012,
+      "hiss_rms": 0.007,
+      "dips": [[11.0, 14.0, -11.0], [28.0, 31.5, -9.0]],
+      "pops": [19.3],
+      "reverb": 0.22
+    },
+    "score": { "kind": "clean", "lufs": -16.0, "tp": -1.0, "hum_hz": 60, "same_length": true }
   },
   {
     "id": "a2-church-duck",
@@ -47,8 +58,24 @@
     "brief": "I run the sound for our church's weekly video. voice.wav is the pastor reading the announcements (mono, 44.1 kHz, about 28 seconds, already clean). music.wav is a soft instrumental bed (stereo, 44.1 kHz, 60 seconds) and it is mixed much louder than the voice. Build the finished announcement: music fades in over 3 seconds, the pastor starts 4 seconds in, the music drops well below the voice while he speaks and comes back up in the pauses between sentences, and after he finishes the music rises for a moment and fades out over 4 seconds. The finished file should end about 4 seconds after the last word. Deliver stereo at -16 LUFS integrated with a true peak no higher than -1 dBTP. The words must stay easy to understand. Don't ask me questions.",
     "inputs": ["voice.wav", "music.wav"],
     "deliverable": "process.sh",
-    "gen": {"kind": "duck", "voice_start": 52.39, "dur": 28.0, "seed": 21, "music": "pad_a", "music_dur": 60.0, "music_rms_db": -15.0},
-    "score": {"kind": "duck", "lufs": -16.0, "tp": -1.0, "voice_start": 4.0, "tail": 4.0, "min_duck_db": 8.0, "min_vmr_db": 10.0}
+    "gen": {
+      "kind": "duck",
+      "voice_start": 52.39,
+      "dur": 28.0,
+      "seed": 21,
+      "music": "pad_a",
+      "music_dur": 60.0,
+      "music_rms_db": -15.0
+    },
+    "score": {
+      "kind": "duck",
+      "lufs": -16.0,
+      "tp": -1.0,
+      "voice_start": 4.0,
+      "tail": 4.0,
+      "min_duck_db": 8.0,
+      "min_vmr_db": 10.0
+    }
   },
   {
     "id": "a3-radio-spot",
@@ -56,8 +83,23 @@
     "brief": "I'm the owner of Findlay Feed & Seed and I'm buying a 15-second spot on the local AM station. I recorded three lines separately: line1.wav, line2.wav and line3.wav (mono, 44.1 kHz, clean; each a few seconds). music.wav is a 30-second bed (stereo) and sting.wav is a 1.5-second closing chime. Assemble the spot, exactly 15 seconds long (give or take a quarter second): music starts on the first frame, line 1 comes in at about 0.5 seconds, then line 2, then line 3, in that order, each separated by a short breath of about half a second, with the music ducked under the voice and coming up between lines; the sting plays at the end, and everything ends cleanly by 15.0 seconds with no click or abrupt cut. Radio is loud: deliver stereo at -16 LUFS integrated, true peak no higher than -1 dBTP. Don't ask me questions.",
     "inputs": ["line1.wav", "line2.wav", "line3.wav", "music.wav", "sting.wav"],
     "deliverable": "process.sh",
-    "gen": {"kind": "spot", "seed": 31, "lines": [[10.56, 4.4], [25.18, 4.6], [43.08, 3.9]], "music": "pad_b", "music_dur": 30.0, "music_rms_db": -15.0},
-    "score": {"kind": "spot", "lufs": -16.0, "tp": -1.0, "dur": 15.0, "dur_tol": 0.3, "min_duck_db": 6.0, "min_vmr_db": 8.0}
+    "gen": {
+      "kind": "spot",
+      "seed": 31,
+      "lines": [[10.56, 4.4], [25.18, 4.6], [43.08, 3.9]],
+      "music": "pad_b",
+      "music_dur": 30.0,
+      "music_rms_db": -15.0
+    },
+    "score": {
+      "kind": "spot",
+      "lufs": -16.0,
+      "tp": -1.0,
+      "dur": 15.0,
+      "dur_tol": 0.3,
+      "min_duck_db": 6.0,
+      "min_vmr_db": 8.0
+    }
   },
   {
     "id": "w1-congregation-email",
@@ -82,8 +124,15 @@
     "domain": "videoedit",
     "deliverable": "edit.sh",
     "brief": "I run Hollis Creek Canoe Rental in Hollis, New Hampshire. I shot four clips on different cameras and I need them cut together into one video for my website. The clips are in this folder: clip_a.mp4 (1280x720, 30 fps, 12 s), clip_b.mp4 (1920x1080, 24 fps, 10 s), clip_c.mp4 (a vertical phone clip, 720x1280, 30 fps, 8 s) and clip_d.mp4 (1280x720, 25 fps, 9 s); music.wav (45 s) is the music bed. Write a bash script that uses only ffmpeg and cuts them into one finished video called out.mp4, 1280x720, 30 fps, H.264 video with AAC audio, between 22 and 28 seconds long, with at least five cuts or transitions between shots, using material from all four clips (the vertical clip must not be stretched). Put the title 'Hollis Creek Canoe Rental' on screen near the start, and a closing card with the text 'Open May to October - Rt 122, Hollis NH' at the end. The music runs under the whole piece, fading in at the start and out at the end, at about -16 LUFS integrated. Avoid any black frames longer than half a second. Don't ask me questions.",
-    "gen": {"kind": "vedit"},
-    "score": {"kind": "vedit", "min_dur": 22.0, "max_dur": 28.0, "min_cuts": 5, "lufs": -16.0, "size": [1280, 720]}
+    "gen": { "kind": "vedit" },
+    "score": {
+      "kind": "vedit",
+      "min_dur": 22.0,
+      "max_dur": 28.0,
+      "min_cuts": 5,
+      "lufs": -16.0,
+      "size": [1280, 720]
+    }
   },
   {
     "id": "o1-pick-model",

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadCatalog, videoModels } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
-import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer, tailscaleInstall, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -1042,6 +1042,25 @@ describe('host and doctor', () => {
       expect(made.ok, made.message).toBe(true);
       expect(made.site).toMatchObject({ title: 'Corner Bakery', pages: ['index.html'] });
       expect((await hildegard(home, 'sites', ...at)).steps[0]).toMatchObject({ title: 'Corner Bakery' });
+      // Publishing: nobody sees the site until the owner says so, and --off takes it down again.
+      const id = (made.site as { id: string }).id;
+      const front = `${new URL(srv.url).origin}/s/${id}/`;
+      expect((await fetch(front)).status).toBe(404);
+      expect((await hildegard(home, 'sites', 'publish', ...at)).ok).toBe(false);
+      const pub = await hildegard(
+        home,
+        'sites',
+        'publish',
+        id,
+        '--address',
+        'https://bakery.example/',
+        ...at,
+      );
+      expect(pub.ok, pub.message).toBe(true);
+      expect(pub.message).toContain('https://bakery.example/');
+      expect((await fetch(front)).status).toBe(200);
+      expect((await hildegard(home, 'sites', 'publish', id, '--off', ...at)).ok).toBe(true);
+      expect((await fetch(front)).status).toBe(404);
       const needs = await hildegard(
         home,
         'sites',
@@ -1098,11 +1117,13 @@ describe('host and doctor', () => {
         ]),
       );
       expect(d.steps.find((s) => s.id === 'server')!.status).toBe('done');
-      // Tailscale isn't on this test's PATH.
-      expect(d.steps.find((s) => s.id === 'tailscale')).toMatchObject({
+      // Tailscale isn't on this test's PATH: not installed, so the fix is installing it, not `tailscale up`.
+      const ts = d.steps.find((s) => s.id === 'tailscale')!;
+      expect(ts).toMatchObject({
         status: 'skipped',
-        command: 'tailscale up',
+        command: tailscaleInstall() ?? 'tailscale up',
       });
+      expect(ts.detail).toMatch(/isn’t installed here.*https:\/\/tailscale\.com\/download/);
       expect(d.steps.find((s) => s.id === 'models')).toMatchObject({ status: 'needs-owner' });
       expect(d.host).toMatchObject({ on: false, owner: false });
       // Whatever is broken or waits on the owner comes with the command that fixes it.
@@ -1389,4 +1410,30 @@ describe('hildegard lint', () => {
       expect((await lint([good, ...max])).code, max.join(' ')).toBe(2);
     expect((await lint([bad, '--max', '1'])).code).toBe(1);
   });
+});
+
+describe('--help', () => {
+  it('prints help and runs nothing: `stop --help` leaves Hildegard running', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-help-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort: await freePort() },
+      { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')) },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    try {
+      for (const args of [['stop', '--help'], ['stop', '-h'], ['host', '--help'], ['-h']]) {
+        const { stdout } = await run(process.execPath, [main, ...args, ...at], {
+          env: cliEnv(home),
+          timeout: 30_000,
+        });
+        expect(stdout, args.join(' ')).toMatch(/^.*hildegard.*your own film studio/m);
+        expect(stdout, args.join(' ')).not.toMatch(/Stopped/);
+      }
+      expect((await fetch(`${srv.url}/api/health`)).ok).toBe(true);
+      expect(((await fetch(`${srv.url}/api/host`).then((r) => r.json())) as { on: boolean }).on).toBe(false);
+    } finally {
+      await srv.close();
+    }
+  }, 60_000);
 });

@@ -15,7 +15,7 @@ fixes, and models or presets that render well.
 
 ```sh
 pnpm install
-pnpm dev                                   # server on :7341 with a fake GPU, Studio on :5173
+pnpm dev                                   # server on :7361 with a fake GPU (data in .dev-data), Studio on :5173
 pnpm test && pnpm typecheck && pnpm lint
 pnpm e2e                                   # the Studio in Playwright, desktop and phone
 pnpm --filter @hildegard/studio e2e:site   # the install page in site/
@@ -23,6 +23,9 @@ pnpm --filter @hildegard/studio e2e:site   # the install page in site/
 
 - Node 22.18 or later and pnpm 10. The fake GPU renders in a second, so nothing needs a graphics card until you test a
   real model.
+- Some tests run `python3` with PyAV, numpy, Pillow and soundfile, as CI installs them:
+  `python3 -m pip install av==19.0.1 numpy==2.5.3 pillow==12.3.0 soundfile==0.13.1`. `pnpm e2e` needs the built Studio
+  (`pnpm --filter @hildegard/studio build`); `E2E_PORT=<n>` moves its ports off 7351 to 7353.
 - Pull requests need every CI check green. Add or change a test with each change in behaviour.
 - Write for people: short sentences, plain words, no em-dashes, curly quotes in anything a person reads.
 - New models or LoRAs go through the safety checks in [docs/safety.md](docs/safety.md), and their license is shown

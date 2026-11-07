@@ -836,7 +836,7 @@ export function askSecret(question: string): Promise<string> {
 }
 
 /** Opens a URL in the default browser. Windows' `start` would cut a URL at its first `&`, so it gets rundll32. */
-function openInBrowser(url: string) {
+export function openInBrowser(url: string) {
   const [cmd, args] =
     process.platform === 'darwin'
       ? ['open', [url]]

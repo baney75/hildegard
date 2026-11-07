@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """runmeta.py <model> <run dir>: read a responder's transcript and write final.txt (its last message) and meta.json
-(did it load a skill, which references it read, how many tool calls, whether the run errored)."""
+(did it load a skill, which references it read, how many tool calls, whether the run errored, whether the transcript finished, and
+the skills hash from skills.sha). Always writes meta.json, even when the transcript is missing or the responder died: then
+`finished` is false and `error` says why."""
 import json, os, re, sys
 
 model, run = sys.argv[1:3]
-final, skills, reads, calls, is_error, cost = '', [], [], 0, False, None
-for line in open(os.path.join(run, 'transcript.jsonl'), errors='replace'):
+final, skills, reads, calls, is_error, cost, finished = '', [], [], 0, False, None, False
+try:
+    lines = open(os.path.join(run, 'transcript.jsonl'), errors='replace').read().splitlines()
+except OSError:
+    lines = []
+for line in lines:
     try:
         d = json.loads(line)
     except ValueError:
@@ -23,6 +29,7 @@ for line in open(os.path.join(run, 'transcript.jsonl'), errors='replace'):
         elif d.get('type') == 'result':
             final = d.get('result') or ''
             is_error = bool(d.get('is_error'))
+            finished = True
             cost = d.get('total_cost_usd')
     else:
         it = d.get('item') or {}
@@ -31,19 +38,33 @@ for line in open(os.path.join(run, 'transcript.jsonl'), errors='replace'):
                 final = it.get('text', '')
             elif it.get('type') == 'command_execution':
                 calls += 1
-                m = re.findall(r'[^\s\'"]*\.agents/skills/[^\s\'"]*', it.get('command', ''))
+                m = re.findall(r'[^\s\'";&|()<>`]*\.agents/skills/[^\s\'";&|()<>`]*', it.get('command', ''))
                 reads += m
             elif it.get('type') in ('file_change', 'mcp_tool_call'):
                 calls += 1
+        if d.get('type') == 'turn.completed':
+            finished = True
         if d.get('type') in ('error', 'turn.failed'):
             is_error = True
+            finished = finished or d.get('type') == 'turn.failed'
             final = final or json.dumps(d)[:500]
 names = sorted({os.path.basename(os.path.dirname(r)) if r.endswith('SKILL.md') else r for r in reads if r.endswith('SKILL.md')} | set(skills))
 # Claude Code ships built-in skills (design, artifact-design, dataviz...) that every arm can load; only Hildegard's count here.
 loaded = [n for n in names if n.split(':')[-1].startswith('hildegard')]
 other = [n for n in names if n not in loaded]
 refs = sorted({r.split('/skills/')[-1] for r in reads if not r.endswith('SKILL.md')})
+def small(name):
+    try:
+        return open(os.path.join(run, name), errors='replace').read().strip()
+    except OSError:
+        return ''
+
+
+error = None
+if not finished:  # the responder died (or was killed at its time limit) before it finished a transcript
+    is_error = True
+    error = ('no finished transcript: ' if lines else 'no transcript: ') + (small('err.txt')[-300:] or 'the responder died with nothing on stderr')
 open(os.path.join(run, 'final.txt'), 'w').write(final)
-json.dump({'model': model, 'skill_loaded': bool(loaded), 'skills_loaded': loaded, 'other_skills_loaded': other, 'references_read': refs, 'tool_calls': calls,
+json.dump({'model': model, 'finished': finished, 'error': error, 'skills_hash': small('skills.sha') or None, 'skill_loaded': bool(loaded), 'skills_loaded': loaded, 'other_skills_loaded': other, 'references_read': refs, 'tool_calls': calls,
            'is_error': is_error, 'seconds': int(open(os.path.join(run, 'seconds')).read() or 0) if os.path.exists(os.path.join(run, 'seconds')) else None,
            'cost_usd_reported': cost}, open(os.path.join(run, 'meta.json'), 'w'), indent=1)

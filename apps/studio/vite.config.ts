@@ -52,7 +52,8 @@ function themeInit(): Plugin {
   };
 }
 
-const server = process.env.HILDEGARD_URL ?? 'http://127.0.0.1:7341';
+// `pnpm dev`'s server: its own port and data folder (.dev-data), never an installed Hildegard's 7341.
+const server = process.env.HILDEGARD_URL ?? 'http://127.0.0.1:7361';
 
 /** Write .br and .gz next to every text asset, so the server sends them without compressing on each request. */
 function precompress(): Plugin {
@@ -89,6 +90,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
+    strictPort: true,
     proxy: {
       '/api': { target: server, headers: { host: '127.0.0.1' } },
       '/media': { target: server, headers: { host: '127.0.0.1' } },

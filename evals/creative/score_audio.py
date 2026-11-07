@@ -2,7 +2,8 @@
 """Objective scores for an audio task: score_audio.py <task id> <script> [--tasks tasks.json heldout.json] > metrics.json
 
 The responder's process.sh is run here, not trusted: copied into a temp folder holding only the task's input files, then
-`unshare -rn bash process.sh` (no network) under a 120 s timeout. Its out.wav is measured:
+run under sandbox.py (bubblewrap: read-only filesystem, no home, only that folder writable, no network, no new privileges) and a 120 s
+timeout. Its out.wav is measured:
 
   ran, dur, channels, sr     did it run, how long, what format
   lufs, lufs_err, tp         integrated loudness and true peak (ffmpeg ebur128), error against the brief's target
@@ -27,6 +28,7 @@ The responder's process.sh is run here, not trusted: copied into a temp folder h
 are placed once, unchanged except for gain and mild filtering; a script that loops the music is scored on the first pass."""
 import json, os, re, shutil, subprocess, sys, tempfile, time
 import numpy as np
+import sandbox
 from audiolib import SR, read_audio, rms_db, db, frame_db, pause_frames, welch, segments_from_frames
 
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
@@ -40,9 +42,7 @@ def run_script(task_id, script, out_name, timeout=120):
         shutil.copy(os.path.join(E, 'inputs', task_id, f), tmp)
     shutil.copy(script, os.path.join(tmp, 'process.sh'))
     env = {'PATH': '/usr/bin:/bin:/usr/local/bin', 'HOME': tmp, 'LANG': 'C.UTF-8', 'TMPDIR': tmp}
-    cmd = ['bash', 'process.sh']
-    if shutil.which('unshare') and subprocess.run(['unshare', '-rn', 'true']).returncode == 0:
-        cmd = ['unshare', '-rn'] + cmd
+    cmd = sandbox.wrap(['bash', 'process.sh'], tmp)
     t0 = time.time()
     try:
         r = subprocess.run(cmd, cwd=tmp, env=env, capture_output=True, text=True, timeout=timeout)
