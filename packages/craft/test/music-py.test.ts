@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { measure } from './audio-meter.ts';
 
 // A template renders for several seconds of CPU, and CI machines are slow: this file sets its own limit, and renders
 // the long ones one at a time so ten Python processes never fight for two cores.
@@ -42,151 +43,6 @@ async function go(script: string, args: string[]): Promise<{ code: number; repor
     if (err.code === 1 && err.stdout) return { code: 1, report: JSON.parse(err.stdout) };
     throw e;
   }
-}
-
-// ---- an independent BS.1770-4 meter -------------------------------------------------------------------------------
-
-interface Wav {
-  rate: number;
-  ch: Float64Array[];
-}
-
-function readWav(path: string): Wav {
-  const b = readFileSync(path);
-  expect(b.toString('latin1', 0, 4)).toBe('RIFF');
-  let p = 12;
-  let rate = 0;
-  let nch = 0;
-  let bits = 0;
-  while (p + 8 <= b.length) {
-    const id = b.toString('latin1', p, p + 4);
-    const size = b.readUInt32LE(p + 4);
-    if (id === 'fmt ') {
-      nch = b.readUInt16LE(p + 10);
-      rate = b.readUInt32LE(p + 12);
-      bits = b.readUInt16LE(p + 22);
-    } else if (id === 'data') {
-      const bytes = bits / 8;
-      const n = Math.floor(size / (bytes * nch));
-      const ch = Array.from({ length: nch }, () => new Float64Array(n));
-      for (let i = 0; i < n; i++)
-        for (let c = 0; c < nch; c++) {
-          const o = p + 8 + (i * nch + c) * bytes;
-          ch[c]![i] = bits === 16 ? b.readInt16LE(o) / 32768 : b.readIntLE(o, 3) / 8388608;
-        }
-      return { rate, ch };
-    }
-    p += 8 + size + (size % 2);
-  }
-  throw new Error('no data chunk');
-}
-
-function biquad(x: Float64Array, b: number[], a: number[]): Float64Array {
-  const y = new Float64Array(x.length);
-  let x1 = 0;
-  let x2 = 0;
-  let y1 = 0;
-  let y2 = 0;
-  for (let i = 0; i < x.length; i++) {
-    const v = b[0]! * x[i]! + b[1]! * x1 + b[2]! * x2 - a[1]! * y1 - a[2]! * y2;
-    x2 = x1;
-    x1 = x[i]!;
-    y2 = y1;
-    y1 = v;
-    y[i] = v;
-  }
-  return y;
-}
-
-function kWeight(x: Float64Array, fs: number): Float64Array {
-  let f0 = 1681.974450955533;
-  let Q = 0.7071752369554196;
-  let K = Math.tan((Math.PI * f0) / fs);
-  const Vh = 10 ** (3.999843853973347 / 20);
-  const Vb = Vh ** 0.4996667741545416;
-  let a0 = 1 + K / Q + K * K;
-  const y = biquad(
-    x,
-    [(Vh + (Vb * K) / Q + K * K) / a0, (2 * (K * K - Vh)) / a0, (Vh - (Vb * K) / Q + K * K) / a0],
-    [1, (2 * (K * K - 1)) / a0, (1 - K / Q + K * K) / a0],
-  );
-  f0 = 38.13547087602444;
-  Q = 0.5003270373238773;
-  K = Math.tan((Math.PI * f0) / fs);
-  a0 = 1 + K / Q + K * K;
-  return biquad(y, [1, -2, 1], [1, (2 * (K * K - 1)) / a0, (1 - K / Q + K * K) / a0]);
-}
-
-/** Integrated loudness. A clip shorter than one 400 ms block is measured whole (the script documents the same rule). */
-function lufs(w: Wav): number {
-  const n = w.ch[0]!.length;
-  const sq = w.ch.map((c) => {
-    const y = kWeight(c, w.rate);
-    return y.map((v) => v * v);
-  });
-  const blk = Math.round(0.4 * w.rate);
-  const hop = Math.round(0.1 * w.rate);
-  const meanSq = (s: number, e: number) =>
-    sq.reduce((t, c) => t + c.subarray(s, e).reduce((u, v) => u + v, 0) / (e - s), 0);
-  if (n < blk) return -0.691 + 10 * Math.log10(Math.max(meanSq(0, n), 1e-20));
-  const z: number[] = [];
-  for (let s = 0; s + blk <= n; s += hop) z.push(meanSq(s, s + blk));
-  const l = (v: number) => -0.691 + 10 * Math.log10(Math.max(v, 1e-20));
-  const abs = z.filter((v) => l(v) > -70);
-  if (!abs.length) return Number.NEGATIVE_INFINITY;
-  const rel = l(abs.reduce((a, b) => a + b, 0) / abs.length) - 10;
-  const kept = z.filter((v) => l(v) > Math.max(rel, -70));
-  return l(kept.reduce((a, b) => a + b, 0) / kept.length);
-}
-
-/** Peak of the 4x oversampled signal (windowed sinc, 32 taps per phase side), in dBTP. */
-function truePeakDb(w: Wav): number {
-  const half = 16;
-  const phases = [0.25, 0.5, 0.75].map((f) => {
-    const h = new Float64Array(2 * half);
-    for (let k = -half + 1; k <= half; k++) {
-      const t = k - f;
-      const win = 0.5 + 0.5 * Math.cos((Math.PI * t) / (half + 1));
-      h[k + half - 1] = (t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t)) * win;
-    }
-    return h;
-  });
-  let peak = 0;
-  for (const c of w.ch) {
-    for (let i = 0; i < c.length; i++) peak = Math.max(peak, Math.abs(c[i]!));
-    for (const h of phases)
-      for (let i = half; i < c.length - half; i++) {
-        let s = 0;
-        for (let k = 0; k < 2 * half; k++) s += h[k]! * c[i - half + 1 + k]!;
-        peak = Math.max(peak, Math.abs(s));
-      }
-  }
-  return 20 * Math.log10(peak);
-}
-
-function measure(path: string) {
-  const w = readWav(path);
-  const n = w.ch[0]!.length;
-  let peak = 0;
-  let clipped = 0;
-  let ss = 0;
-  for (const c of w.ch)
-    for (let i = 0; i < n; i++) {
-      const v = Math.abs(c[i]!);
-      peak = Math.max(peak, v);
-      if (v >= 32767 / 32768) clipped++;
-      ss += v * v;
-    }
-  return {
-    seconds: n / w.rate,
-    rate: w.rate,
-    channels: w.ch.length,
-    peak,
-    clipped,
-    rmsDb: 10 * Math.log10(ss / (n * w.ch.length) + 1e-20),
-    lufs: lufs(w),
-    truePeak: truePeakDb(w),
-  };
 }
 
 // ---- recipes and scores -------------------------------------------------------------------------------------------
@@ -399,6 +255,14 @@ suite('hildegard-music: music templates', () => {
       else expect(m.seconds).toBeGreaterThanOrEqual(bodySeconds);
       // a hit of silence at the start or a cut-off middle would show here: the first and last second both carry sound
       expect(report.stats!.duration_s).toBeCloseTo(m.seconds, 1);
+      // balance, read off the contact sheet's octave bands (dB below the loudest band): no rumble, no hiss
+      const sheet = JSON.parse(
+        (await run(python, [join(skill, 'scripts/sheet.py'), out, join(work, `sheet-${f}.png`), '--json']))
+          .stdout,
+      );
+      expect(sheet.band_db['60'], `${f} bass`).toBeLessThanOrEqual(-2.5);
+      expect(sheet.band_db['16k'], `${f} air`).toBeLessThanOrEqual(-20);
+      expect(sheet.band_db['250'] > -12 || sheet.band_db['500'] > -12, `${f} has body`).toBe(true);
     });
   });
 
@@ -579,6 +443,24 @@ print(json.dumps({"instruments": list(voices.INSTRUMENTS), "patterns": pats, "dr
       ...list('templates').map((x) => x.replace(/\.json$/, '')),
     ])
       expect(md, f).toContain(`\`${f}\``);
+    for (const f of readdirSync(join(skill, 'soundscapes')).map((x) => x.replace(/\.json$/, '')))
+      expect(md, f).toContain(`\`${f}\``);
+    const sounds = readFileSync(join(skill, 'references/soundscapes.md'), 'utf8');
+    for (const t of [
+      'binaural',
+      'isochronic',
+      'noise',
+      'waves',
+      'rain',
+      'wind',
+      'creek',
+      'crickets',
+      'fire',
+      'pad',
+    ])
+      expect(sounds, t).toContain(`\`${t}\``);
+    expect(md).toContain('headphones');
+    expect(md).toMatch(/No health claims/i);
     expect(md).toContain('references/song-suno.md');
     expect(existsSync(join(skill, 'references/models.md'))).toBe(true);
   });

@@ -37,6 +37,10 @@ MODES = {
 }
 TIMES = ["2/4", "3/4", "4/4", "5/4", "6/8", "9/8", "12/8"]
 ROLES = ["pad", "bass", "keys", "plucked", "melody", "chorale", "drums"]
+# small, fixed timing habits in milliseconds (positive is late): a snare a hair behind, a bass a hair ahead, a pad lazy
+GROOVE_MS = {"pad": 10.0, "bass": -3.0, "keys": 3.0, "plucked": 2.0, "melody": 4.0, "chorale": 4.0}
+DRUM_GROOVE_MS = {"kick": -2.0, "snare": 6.0, "snare_brush": 5.0, "clap": 5.0, "hat": 2.0, "hat_open": 2.0, "shaker": 3.0, "rim": 3.0, "tom": 1.0, "ride": 2.0}
+HAT_ACCENT = {4: (1.0, 0.55, 0.82, 0.6), 3: (1.0, 0.55, 0.8)}
 LEVEL_DEFAULT = {"pad": -7.0, "bass": -1.0, "keys": -4.0, "plucked": -4.0, "melody": -2.0, "chorale": -4.0, "drums": -3.0}
 REVERB_DEFAULT = {"pad": 0.35, "bass": 0.0, "keys": 0.25, "plucked": 0.25, "melody": 0.3, "chorale": 0.4, "drums": 0.12}
 PAN_DEFAULT = {"pad": 0.0, "bass": 0.0, "keys": -0.15, "plucked": 0.2, "melody": 0.05, "chorale": 0.0, "drums": 0.0}
@@ -400,7 +404,7 @@ DRUM_BARS = {"four_floor": 4, "backbeat": 4, "rock": 4, "halftime": 4, "lofi": 4
 FILL = {"kick": "x...............", "tom": "........x.x.xxxx", "snare": "............x.x."}
 DRUM_PAN = {"hat": 0.25, "hat_open": 0.25, "shaker": -0.3, "tom": -0.15, "ride": 0.3, "rim": -0.1, "clap": 0.05}
 DRUM_VEL = {"x": 0.8, "X": 1.0, "o": 0.4}
-DRUM_GAIN = {"kick": 0.5, "snare": 0.7, "snare_brush": 0.8, "clap": 0.8, "hat": 0.4, "hat_open": 0.35, "shaker": 0.35, "rim": 0.6, "tom": 0.9, "ride": 0.3}
+DRUM_GAIN = {"kick": 0.42, "snare": 0.7, "snare_brush": 0.8, "clap": 0.8, "hat": 0.4, "hat_open": 0.35, "shaker": 0.35, "rim": 0.6, "tom": 0.9, "ride": 0.3}
 
 # ---------------------------------------------------------------- melody strings
 
@@ -549,6 +553,8 @@ SCORE = ("obj", {
         "loudness": ("obj", {"lufs": ("num", -30, -8), "true_peak": ("num", -6, 0), "limit_db": ("num", 0, 20)}, []),
         "eq": ("list", ("obj", {"type": ("enum", ["peak", "lowshelf", "highshelf", "lowcut", "highcut"]), "freq": ("num", 20, 20000), "gain_db": ("num", -24, 24), "q": ("num", 0.2, 10)}, ["type", "freq"]), 0, 8),
         "compressor": ("obj", {"threshold_db": ("num", -60, 0), "ratio": ("num", 1, 20), "attack_ms": ("num", 0.1, 200), "release_ms": ("num", 5, 2000), "makeup_db": ("num", 0, 24)}, []),
+        "multiband": ("obj", {"low_hz": ("num", 60, 400), "high_hz": ("num", 1500, 9000), "ratio": ("num", 1, 6), "threshold_db": ("num", -50, 0)}, []),
+        "saturation": ("obj", {"drive_db": ("num", 0, 18), "mix": ("num", 0, 1)}, []),
         "width": ("num", 0, 2), "fade_in": ("num", 0, 10), "fade_out": ("num", 0, 30), "tail": ("num", 0, 20), "normalize": ("bool",),
         "gain_db": ("num", -60, 24),
     }, []),
@@ -606,7 +612,10 @@ def section_value(track, name):
     return v
 
 
-def voicing_for(ch, prev, lo, hi, center):
+def voicing_for(ch, prev, lo, hi, center, open_=False):
+    """Notes of the chord for a pad, keys or guitar part. Chooses the inversion that moves least from the previous chord,
+    keeps common tones, and keeps the top line smooth. open_ spreads the chord (root, fifth, then the third an octave up;
+    drop-2 for four notes), which sounds fuller under a melody."""
     pcs = ch.pcs()
     n = len(pcs)
     best, bc = None, 1e9
@@ -621,10 +630,13 @@ def voicing_for(ch, prev, lo, hi, center):
                 while m % 12 != pc:
                     m += 1
                 notes.append(m)
-            if notes[-1] > hi + 4:
+            if open_ and n >= 3:
+                notes = [notes[0], notes[2], notes[1] + 12] if n == 3 else sorted([notes[-2] - 12] + [x for i, x in enumerate(notes) if i != n - 2])
+            if notes[-1] > hi + 4 or notes[0] < lo - 12:
                 continue
-            ref = prev if prev else [center + (i - (n - 1) / 2.0) * 4 for i in range(n)]
+            ref = prev if prev and len(prev) == len(notes) else [center + (i - (len(notes) - 1) / 2.0) * 4 for i in range(len(notes))]
             cost = sum(abs(a - b) for a, b in zip(notes, ref)) + 0.2 * max(0, notes[-1] - hi)
+            cost += 1.5 * abs(notes[-1] - ref[-1]) - 1.2 * len(set(notes) & set(prev or []))
             if cost < bc:
                 best, bc = notes, cost
     return best if best else [lo + p for p in range(n)]
@@ -749,7 +761,7 @@ def build_tracks(piece, errs, warns):
                 else:
                     lo, hi, center = {"pad": (48, 70, 60), "keys": (52, 74, 63), "plucked": (50, 72, 60)}[role]
                     lo, hi, center = lo + 12 * oct_shift, hi + 12 * oct_shift, center + 12 * oct_shift
-                    voicing = voicing_for(ch, prev_voicing, lo, hi, center)
+                    voicing = voicing_for(ch, prev_voicing, lo, hi, center, open_=role == "pad")
                     prev_voicing = voicing
                     bm = bass_midi(ch.bass_pc, oct_shift)
                 ctx = Ctx(ch, nxt, dq, piece.bpb, voicing, bm)
@@ -760,8 +772,9 @@ def build_tracks(piece, errs, warns):
         th, vh = hum["timing_ms"] / 1000.0, hum["velocity"]
         off = tr.get("offset_ms", 0.0) / 1000.0
         for n in notes:
-            n["t"] = max(piece.t(n["q"]) + off + float(np.clip(rng.normal(0, th * 0.5), -th, th)), 0.0)
-            n["dur"] = max(n["dq"] * piece.spq * 0.985, 0.04)
+            habit = DRUM_GROOVE_MS.get(n.get("drum"), 0.0) if role == "drums" else GROOVE_MS.get(role, 0.0)
+            n["t"] = max(piece.t(n["q"]) + off + habit / 1000.0 + float(np.clip(rng.normal(0, th * 0.5), -th, th)), 0.0)
+            n["dur"] = max(n["dq"] * piece.spq * 0.985 * (1.0 + float(np.clip(rng.normal(0, 0.04), -0.1, 0.1))), 0.04)
             n["vel"] = float(np.clip(n["vel"] * (1.0 + rng.normal(0, vh)), 0.05, 1.0))
         out.append({"track": tr, "index": ti, "notes": notes, "instrument": instr})
     return out
@@ -832,7 +845,8 @@ def _drum_section(piece, tr, spec, sec, label, notes, errs, rng, hum, gmul):
                 if ch in ".-":
                     continue
                 q = sec["start_q"] + b * piece.bpb + si / spq
-                notes.append({"q": q, "dq": 0.1, "drum": dname, "vel": DRUM_VEL[ch] * gmul * (0.85 if si % spq else 1.0), "pan": DRUM_PAN.get(dname, 0.0), "variant": int(rng.integers(0, 3)), "kit": kit})
+                acc = HAT_ACCENT.get(spq, (1.0,) * spq)[si % spq] if dname in ("hat", "shaker", "hat_open") else (0.85 if si % spq else 1.0)
+                notes.append({"q": q, "dq": 0.1, "drum": dname, "vel": DRUM_VEL[ch] * gmul * acc, "pan": DRUM_PAN.get(dname, 0.0), "variant": int(rng.integers(0, 3)), "kit": kit})
 
 
 # ---------------------------------------------------------------- rendering
@@ -855,6 +869,7 @@ def render_track(piece, tinfo, total, kick_times):
     cache = {}
     pan0 = tr.get("pan", PAN_DEFAULT[role])
     per_note_pan = False
+    hats = sorted(n["t"] for n in tinfo["notes"] if n.get("drum") in ("hat", "hat_open"))
     for n in tinfo["notes"]:
         s = int(n["t"] * SR)
         if s >= total:
@@ -866,6 +881,14 @@ def render_track(piece, tinfo, total, kick_times):
             if y is None:
                 y = cache.setdefault(key, voices.drum(n["drum"], n["kit"], vb, n["variant"]))
             amp = n["vel"] / vb * DRUM_GAIN[n["drum"]]
+            if n["drum"] == "hat_open":  # a closed hat (or the next open one) chokes the ring, as a foot on the pedal does
+                k = bisect.bisect_right(hats, n["t"] + 1e-4)
+                if k < len(hats):
+                    cut = int((hats[k] - n["t"]) * SR)
+                    if 0 < cut < len(y):
+                        y = y[:cut].copy()
+                        fl = min(int(0.004 * SR), len(y))
+                        y[-fl:] *= np.linspace(1.0, 0.0, fl)
         else:
             a = tr.get("attack")
             if "a_frac" in n:
@@ -883,6 +906,9 @@ def render_track(piece, tinfo, total, kick_times):
         l, r = dsp.pan_gains(p)
         buf[s:e, 0] += y[: e - s] * amp * l
         buf[s:e, 1] += y[: e - s] * amp * r
+    if role == "drums":  # parallel compression and a touch of saturation make a kit sound like one instrument
+        par = dsp.compress(buf, thr_db=-30.0, ratio=8.0, attack_ms=3.0, release_ms=70.0, makeup_db=10.0)
+        buf = dsp.saturate(buf * 0.85 + par * 0.3, 3.0, 0.35)
     ch = tr.get("chorus", 0.0)
     if ch > 0 and not per_note_pan and role != "drums":
         mono = buf.mean(axis=1)
@@ -948,12 +974,22 @@ def render(score, errs=None, warns=None):
     x = dry + wet * 10.0 ** (rv.get("level_db", -4.0) / 20.0)
     pk = float(np.max(np.abs(x))) or 1.0
     x = x * (0.5 / pk)
-    eq = m.get("eq", [{"type": "lowcut", "freq": 32.0}, {"type": "highshelf", "freq": 7000.0, "gain_db": -3.0}])
+    eq = m.get("eq", [{"type": "lowcut", "freq": 38.0}, {"type": "lowshelf", "freq": 110.0, "gain_db": -4.5}, {"type": "highshelf", "freq": 7000.0, "gain_db": -3.0}])
     x = dsp.apply_eq(x, eq)
-    c = m.get("compressor", {"threshold_db": -16.0, "ratio": 2.0, "attack_ms": 30.0, "release_ms": 220.0})
+    mb = m.get("multiband", {})
+    r = mb.get("ratio", 1.8)
+    if r > 1.0:
+        th = mb.get("threshold_db", -24.0)
+        x = dsp.multiband(x, (mb.get("low_hz", 150.0), mb.get("high_hz", 4000.0)), [
+            {"thr_db": th, "ratio": r, "attack_ms": 35.0, "release_ms": 240.0, "makeup_db": 0.0},
+            {"thr_db": th + 2.0, "ratio": r, "attack_ms": 18.0, "release_ms": 160.0, "makeup_db": 0.0},
+            {"thr_db": th, "ratio": r * 0.9, "attack_ms": 6.0, "release_ms": 90.0, "makeup_db": 0.0}])
+    sat = m.get("saturation", {"drive_db": 3.0, "mix": 0.25})
+    x = dsp.saturate(x, sat.get("drive_db", 3.0), sat.get("mix", 0.25))
+    c = m.get("compressor", {"threshold_db": -16.0, "ratio": 1.8, "attack_ms": 30.0, "release_ms": 220.0})
     if c:
-        x = dsp.compress(x, c.get("threshold_db", -16.0), c.get("ratio", 2.0), c.get("attack_ms", 30.0), c.get("release_ms", 220.0), c.get("makeup_db", 0.0))
-    x = dsp.width(x, m.get("width", 1.0)) * 10.0 ** (m.get("gain_db", 0.0) / 20.0)
+        x = dsp.compress(x, c.get("threshold_db", -16.0), c.get("ratio", 1.8), c.get("attack_ms", 30.0), c.get("release_ms", 220.0), c.get("makeup_db", 0.0))
+    x = dsp.width(x, m.get("width", 1.1)) * 10.0 ** (m.get("gain_db", 0.0) / 20.0)
     if "length_s" in score:
         n = int(score["length_s"] * SR)
         x = x[:n] if len(x) >= n else np.vstack([x, np.zeros((n - len(x), 2))])
@@ -1036,6 +1072,7 @@ def check_score(score):
         warns.append("the mix is nearly mono; pan some tracks or add chorus and reverb")
     a["bars_s"] = expect
     a["tracks"] = info.get("tracks")
+    a["sections"] = [(sec["start_q"] * piece.spq, sec["name"]) for sec in piece.sections]
     return errs, warns, a, x
 
 
@@ -1055,6 +1092,7 @@ def main(argv=None):
     ap.add_argument("--tempo", type=float)
     ap.add_argument("--length", type=float)
     ap.add_argument("--bits", type=int, choices=[16, 24], default=16)
+    ap.add_argument("--sheet", help="also draw a PNG contact sheet (waveform, spectrogram, loudness, band balance) to look at")
     args = ap.parse_args(argv)
     if args.list:
         for f in sorted(glob.glob(os.path.join(template_dir(), "*.json"))):
@@ -1092,6 +1130,10 @@ def main(argv=None):
     errs, warns, stats, wav = check_score(score)
     if not errs and out:
         dsp.write_audio(out, wav, args.bits)
+    if args.sheet and wav is not None:
+        import sheet
+
+        sheet.make_sheet(wav, args.sheet, markers=stats.get("sections") if stats else None, target_lufs=score.get("master", {}).get("loudness", {}).get("lufs", -14.0))
     if args.json:
         print(json.dumps(dsp.json_safe({"ok": not errs, "errors": errs, "warnings": warns, "stats": stats, "file": out if out and not errs else None}), indent=2))
     else:

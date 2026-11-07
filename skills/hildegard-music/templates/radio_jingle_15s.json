@@ -48,6 +48,7 @@
       "role": "bass",
       "instrument": "synth_bass",
       "level_db": -4,
+      "duck": 2.5,
       "sections": {
         "a": "eighths",
         "b": "eighths",
@@ -77,7 +78,7 @@
     {
       "role": "pad",
       "instrument": "strings",
-      "duck": 4,
+      "duck": 5,
       "sections": {
         "intro": "swell",
         "a": "sustain",

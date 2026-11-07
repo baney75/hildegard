@@ -350,46 +350,63 @@ def _drum_noise(kind, n, name, lo=None, hi=None, q=0.7):
     return x
 
 
+_HAT_FREQS = (205.3, 304.4, 369.6, 522.7, 540.0, 800.0)  # the six square oscillators of a classic analog hat circuit
+
+
+def _metal(n, scale=1.0):
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    for f in _HAT_FREQS:
+        out += dsp.oscillator("square", np.full(n, f * scale))
+    return out / len(_HAT_FREQS)
+
+
 def drum(name, kit, vel, variant=0):
     """A drum hit, peak about 0.8 * vel."""
     p = KITS[kit]
     t = lambda n: np.arange(n) / SR
+    rng = _rng(sum(map(ord, name)), variant, 17)
     if name in ("kick",):
         n = int(0.6 * SR)
         tt = t(n)
-        f = p["k1"] + (p["k0"] - p["k1"]) * np.exp(-tt / 0.028)
-        y = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt / p["kd"])
-        y = np.tanh(y * (1.0 + p["drive"] * 0.3))
-        click = np.convolve(_rng(variant, 3).standard_normal(n), np.ones(6) / 6.0, "same") * np.exp(-tt / 0.004) * p["kclick"]
-        y = y + click
+        f = p["k1"] + (p["k0"] - p["k1"]) * np.exp(-tt / 0.028) + 40.0 * np.exp(-tt / 0.004)
+        body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt / p["kd"])
+        body = np.tanh(body * (1.0 + p["drive"] * 0.3))
+        click = np.convolve(rng.standard_normal(n), np.ones(12) / 12.0, "same") * np.exp(-tt / 0.003) * p["kclick"] * 0.8
+        sub = np.sin(2 * np.pi * p["k1"] * tt) * np.exp(-tt / (p["kd"] * 1.4)) * 0.25
+        y = body + click + sub
     elif name == "snare":
-        n = int(0.4 * SR)
+        n = int(0.45 * SR)
         tt = t(n)
-        noise = _drum_noise("w", n, "snare" + str(variant), 1400.0, p["s_lp"]) * np.exp(-tt / 0.11) * p["s_noise"]
-        tone = (np.sin(2 * np.pi * 185.0 * tt) * np.exp(-tt / 0.07) + 0.5 * np.sin(2 * np.pi * 330.0 * tt) * np.exp(-tt / 0.045)) * p["s_tone"]
-        y = noise * 1.1 + tone * 0.9
+        wires = _drum_noise("w", n, "snare" + str(variant), 1500.0, min(p["s_lp"], 7000.0), 0.6) * (np.exp(-tt / 0.075) * 0.8 + np.exp(-tt / 0.16) * 0.35) * p["s_noise"]
+        f = 165.0 + 30.0 * np.exp(-tt / 0.02)
+        shell = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt / 0.06) + 0.45 * np.sin(2 * np.pi * np.cumsum(f * 1.83) / SR) * np.exp(-tt / 0.035)
+        crack = np.convolve(rng.standard_normal(n), np.ones(3) / 3.0, "same") * np.exp(-tt / 0.0018) * 0.8
+        y = wires * 1.4 + shell * (p["s_tone"] + 0.2) * 0.9 + crack * 0.4
     elif name == "snare_brush":
-        n = int(0.4 * SR)
+        n = int(0.45 * SR)
         tt = t(n)
         env = np.minimum(tt / 0.012, 1.0) * np.exp(-tt / 0.13)
-        y = _drum_noise("w", n, "brush" + str(variant), 900.0, 7500.0) * env + 0.1 * np.sin(2 * np.pi * 200 * tt) * np.exp(-tt / 0.05)
+        sweep = _drum_noise("w", n, "brush" + str(variant), 900.0, 7500.0) * env
+        y = sweep + 0.1 * np.sin(2 * np.pi * 200 * tt) * np.exp(-tt / 0.05)
     elif name == "clap":
-        n = int(0.4 * SR)
+        n = int(0.45 * SR)
         tt = t(n)
         raw = _drum_noise("w", n, "clap" + str(variant), 900.0, 3800.0, 1.2)
         env = np.zeros(n)
-        for off in (0.0, 0.011, 0.023):
+        for off in (0.0, 0.011 + 0.002 * (variant % 2), 0.023 + 0.003 * (variant % 3)):
             m = tt >= off
             env[m] += np.exp(-(tt[m] - off) / 0.006) * 0.7
-        env += np.where(tt >= 0.03, np.exp(-(tt - 0.03) / 0.07), 0.0)
+        env += np.where(tt >= 0.03, np.exp(-(tt - 0.03) / 0.08), 0.0)
         y = raw * env
     elif name in ("hat", "hat_open"):
-        dec = 0.025 if name == "hat" else 0.16
-        n = int(min(dec * 8, 0.8) * SR)
+        dec = 0.028 if name == "hat" else 0.2
+        n = int(min(dec * 8, 0.9) * SR)
         tt = t(n)
-        y = _drum_noise("w", n, name + str(variant), p["h_hp"], 15000.0) * np.exp(-tt / dec)
-        metal = sum(np.sign(np.sin(2 * np.pi * f * tt)) for f in (4180, 5870, 6930, 8210, 9380, 10750)) / 6.0
-        y = y + 0.18 * dsp.filt(metal * np.exp(-tt / dec), "highpass", p["h_hp"], 0.7)
+        metal = dsp.filt(_metal(n, 1.0 + 0.01 * (variant % 3)), "highpass", p["h_hp"], 1.1)
+        metal = dsp.filt(metal, "bandpass", 9500.0, 0.7) * 3.0 + metal
+        y = (metal * 0.8 + _drum_noise("w", n, name + str(variant), p["h_hp"], 15000.0) * 0.5) * (np.exp(-tt / dec) * 0.8 + np.exp(-tt / (dec * 3.0)) * 0.2)
+        y = y * np.minimum(tt / 0.0008, 1.0)
     elif name == "shaker":
         n = int(0.15 * SR)
         tt = t(n)
@@ -399,7 +416,7 @@ def drum(name, kit, vel, variant=0):
         tt = t(n)
         y = np.sin(2 * np.pi * 1750.0 * tt) * np.exp(-tt / 0.008) * 0.6 + _drum_noise("w", n, "rim" + str(variant), 2500.0, 8000.0) * np.exp(-tt / 0.01)
     elif name == "tom":
-        n = int(0.5 * SR)
+        n = int(0.55 * SR)
         tt = t(n)
         f = 95.0 + 85.0 * np.exp(-tt / 0.05)
         y = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt / 0.22) + _drum_noise("w", n, "tom", 1500.0, 6000.0) * np.exp(-tt / 0.01) * 0.15

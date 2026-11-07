@@ -1,0 +1,26 @@
+{
+  "name": "campfire",
+  "note": "A campfire: a low roar, a hiss, random crackles in small clusters and the occasional pop. Vary: roar (0.3 to 0.8), crackle (0.2 sparse to 0.9 lively).",
+  "vary": ["roar", "crackle", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "fire",
+      "roar": 0.55,
+      "crackle": 0.6
+    },
+    {
+      "type": "noise",
+      "color": "brown",
+      "lowpass": 400,
+      "gain_db": -14
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -23,
+      "true_peak": -1
+    }
+  }
+}

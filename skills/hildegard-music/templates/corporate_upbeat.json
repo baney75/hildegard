@@ -57,6 +57,7 @@
       "role": "bass",
       "instrument": "synth_bass",
       "level_db": -3,
+      "duck": 2.5,
       "sections": {
         "verse": "eighths",
         "chorus": {
@@ -70,6 +71,7 @@
       "role": "keys",
       "instrument": "piano",
       "level_db": -7,
+      "duck": 2,
       "sections": {
         "verse": {
           "pattern": "quarters",
@@ -92,7 +94,7 @@
     {
       "role": "pad",
       "instrument": "strings",
-      "duck": 4,
+      "duck": 5,
       "sections": {
         "intro": "swell",
         "verse": {

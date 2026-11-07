@@ -213,6 +213,21 @@ For a triplet feel add `"spq": 3` and use 12 characters per 4/4 bar. Drums: `kic
 ## How the mix works
 
 Each track is rendered note by note (cached), humanized, filtered, panned, ducked under the kick if asked, and summed.
-A shared reverb gets each track's `reverb` send. The master is a 32 Hz high-pass, a gentle shelf at 7 kHz, a glue
-compressor, then gain and a look-ahead limiter until the integrated loudness reaches `master.loudness.lufs` with the
-true peak under `true_peak`. The result is stereo, 44.1 kHz, 16 bit.
+A shared reverb gets each track's `reverb` send.
+
+- **Players.** Pads use open voicings (root, fifth, then the third an octave up) and every chord is the inversion that
+  moves least from the last one, keeps common tones and keeps the top line smooth. Notes get a small timing and length
+  wobble (`humanize`), and each role has a fixed habit: the pad a hair late, the bass a hair early, the snare a few
+  milliseconds behind the beat. `offset_ms` on a track adds to that.
+- **Drums.** A kit hit is chosen from three round-robin variants. Hats follow an accent pattern (strong, weak, medium,
+  weak), a closed hat chokes an open hat's ring as a foot on the pedal would, and the kit goes through parallel
+  compression and a touch of saturation so it sounds like one instrument.
+- **Master.** In order: a 38 Hz high-pass and shelves (bass down 4.5 dB under 110 Hz, highs down 3 dB above 7 kHz),
+  three-band glue compression (`master.multiband`: `low_hz` 150, `high_hz` 4000, `ratio` 1.8, `threshold_db` -24; ratio 1
+  turns it off), soft saturation blended in parallel (`master.saturation`: `drive_db` 3, `mix` 0.25), a bus compressor
+  (`master.compressor`), stereo width 1.1 with the bass kept in the middle, then gain and a look-ahead limiter until the
+  integrated loudness reaches `master.loudness.lufs` with the true peak under `true_peak`. Set `master.eq` to replace
+  the first stage. The result is stereo, 44.1 kHz, 16 bit.
+- **Look at it.** `--sheet out.png` draws the waveform, a log-frequency spectrogram, the short-term loudness against the
+  target and nine octave bands, with the sections marked. The tests hold every template to a balance read off those
+  bands: the 60 Hz octave at least 2.5 dB under the loudest, and the 16 kHz octave at least 20 dB under it.

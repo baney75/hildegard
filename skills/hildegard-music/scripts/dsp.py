@@ -462,6 +462,28 @@ def compress(x, thr_db=-18.0, ratio=2.0, attack_ms=20.0, release_ms=180.0, makeu
     return x * gs[:, None]
 
 
+def multiband(x, edges, bands):
+    """Glue compression per band on [n, ch]. edges are the crossover Hz (low, high); bands is three dicts of compress()
+    arguments. The bands are split in the frequency domain and sum back to the input exactly when the ratios are 1."""
+    low = apply_eq(x, [{"type": "highcut", "freq": edges[0]}])
+    high = apply_eq(x, [{"type": "lowcut", "freq": edges[1]}])
+    mid = x - low - high
+    out = np.zeros_like(x)
+    for part, kw in zip((low, mid, high), bands):
+        out += compress(part, **kw) if kw.get("ratio", 1.0) > 1.0 else part
+    return out
+
+
+def saturate(x, drive_db, mix):
+    """Soft tape-style saturation blended with the dry signal (parallel), keeping the peak level close to the input's."""
+    if mix <= 0:
+        return x
+    d = 10.0 ** (drive_db / 20.0)
+    pk = float(np.max(np.abs(x))) or 1.0
+    y = np.tanh(x / pk * d) / np.tanh(d) * pk
+    return x * (1.0 - mix) + y * mix
+
+
 # ---------------------------------------------------------------- reverb (Freeverb layout, block-vectorized)
 
 _COMBS = (1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617)

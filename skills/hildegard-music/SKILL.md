@@ -1,13 +1,14 @@
 ---
 name: hildegard-music
-description: Use to make music, a jingle, a background bed, a song sketch, or sound effects (whoosh, click, chime, impact, ambience) - from recipes, rendered and loudness-checked
+description: Use to make music, a jingle, a bed, sound effects, ambience, binaural beats or nature soundscapes (waves, rain, wind, fire) - from recipes, rendered and loudness-checked
 ---
 
 # Music and sound effects from recipes
 
-Read **hildegard-craft** first. This skill makes short instrumental music and sound effects with code you can run
-anywhere: `scripts/sfx.py` renders a sound effect from a JSON recipe, `scripts/music.py` renders a piece from a JSON
-score. Both check their own work, so a small model that fills in the recipe carefully gets a file that is in key, in
+Read **hildegard-craft** first. This skill makes instrumental music, sound effects and long soundscapes with code you
+can run anywhere: `scripts/sfx.py` renders a sound effect from a JSON recipe, `scripts/music.py` renders a piece from a
+JSON score, `scripts/soundscape.py` renders 10 to 60 minute seamless beds (binaural beats, isochronic tones, waves,
+rain, wind, creek, crickets, fire, noise) and `scripts/sheet.py` draws a picture of any audio. All of them check their own work, so a small model that fills in the recipe carefully gets a file that is in key, in
 time, unclipped and at the right loudness.
 
 **What this is not.** It is synthesized: subtractive, FM, additive and plucked-string models, played by a sequencer.
@@ -16,6 +17,11 @@ deliver. For a real song with a voice, write a brief for Suno or for a music mod
 
 Needs Python 3.10 or newer and numpy. ffmpeg is only needed to write `.mp3` or `.ogg`. No GPU, no network, no
 Hildegard server. Run the scripts from this skill's `scripts/` folder, or with their full path.
+
+**You cannot hear, so look.** Every script takes `--sheet out.png` and draws a contact sheet: the waveform, a
+spectrogram on a log frequency axis, the short-term loudness against its target, and the energy in nine octave bands,
+with the sections of a piece marked. Open the PNG (an image viewer or your file reader) before you deliver and read it
+with "What the sheet shows" below. `python3 scripts/sheet.py any.wav out.png` does the same for any file.
 
 ## FAST PATH
 
@@ -27,8 +33,9 @@ Hildegard server. Run the scripts from this skill's `scripts/` folder, or with t
    map to knobs through the mood table, and only through it.
 4. **Check**: `python3 scripts/music.py mine.json --check` (or `sfx.py`). Fix the first ERROR and run it again. Warnings
    are for you to read; fix any that your change caused.
-5. **Render**: `python3 scripts/music.py mine.json out.wav --check` (add `--bits 24` for a 24-bit master). The command
-   checks, then writes the file only when there is no error. `.mp3` and `.ogg` work when ffmpeg is installed.
+5. **Render**: `python3 scripts/music.py mine.json out.wav --check --sheet out.png` (add `--bits 24` for a 24-bit
+   master). The command checks, then writes the file only when there is no error. `.mp3` and `.ogg` work when ffmpeg is
+   installed. Look at `out.png`.
 6. **Measure and deliver.** The last line printed is the measurement. Deliver the file with: what it is (synthesized),
    length, loudness and true peak as measured, and what you changed from the preset. You cannot hear it; say the
    user's ears are the final check.
@@ -57,8 +64,28 @@ The same recipe and seed always give the same file.
 | a 15 second radio or ad bed | `radio_jingle_15s` |
 | a lullaby, a music box, a family video | `waltz_music_box` |
 
+| a long calming bed: ocean, rain, wind, a creek, crickets, a fire, brown or pink noise | `ocean_beach`, `rain_roof_light`, `rain_roof_heavy`, `rain_leaves`, `rain_storm_build`, `wind_gentle`, `wind_strong`, `creek`, `crickets_night`, `campfire`, `brown_noise`, `pink_noise`, `white_noise` in `soundscapes/` |
+| binaural beats (headphones) or isochronic tones (speakers) | `binaural_delta_3hz`, `binaural_theta_6hz`, `binaural_alpha_10hz`, `binaural_beta_14hz`, `binaural_wind_down`, `isochronic_10hz`, `isochronic_wind_down` |
+| a mix of beds | `beach_rain_alpha`, `forest_night`, `rainy_fireside` |
+
 Other lengths: change `--length`. A bed longer than the template: set `length_s` and repeat a section by raising its
 `bars` (a progression cycles to fill the bars). Bars needed = seconds x tempo / (60 x beats per bar).
+
+## Soundscapes: long, seamless, generated
+
+`python3 scripts/soundscape.py --list`, then `python3 scripts/soundscape.py ocean_beach out.wav --minutes 60`. Every
+sound is a function of absolute time with seeded randomness, so the hour never loops and the render is chunked with flat
+memory; a chunked file is byte for byte the same as a one-pass file. Rendering runs about 6 to 10 times faster than real
+time. The length is exact, loudness is trimmed to the target (-20 to -26 LUFS, quiet beds), true peak is under -1 dBTP.
+`references/soundscapes.md` has the recipe format, the layer types and the mixing rules.
+
+- **Pick one preset and set the length.** `--minutes` stretches a journey's stages in proportion.
+- **Mix with `gain_db`.** One bed at 0, a detail at about -8, a tone at about -12. At most four layers.
+- **Binaural beats need stereo headphones.** Say so in the delivery. On speakers use the isochronic presets.
+- **Make no health claim.** Never say a frequency helps sleep, focus, anxiety, pain or mood, or that it treats anything,
+  and do not repeat the user's own claims as fact. Say what it is: two tones a set number of hertz apart, one per ear.
+- `--check` measures the beat frequency from the finished file for each stage. A value more than 0.1 Hz off the recipe
+  is an error.
 
 ## Rules for a small model
 
@@ -78,7 +105,7 @@ These exist because small models drift. Follow them literally.
    pattern over a soft pad, 76 BPM, G major").
 7. **Keep the loudness target** (music -14 LUFS, true peak -1 dBTP; effects as the preset says) unless the user names a
    platform that needs another, and then say which.
-8. **No lyrics, no singing, no speech here.** Words belong in the Suno path below or in Hildegard's voice tools, with
+8. **No health claims, ever** (see Soundscapes). **No lyrics, no singing, no speech here.** Words belong in the Suno path below or in Hildegard's voice tools, with
    the consent rules in **hildegard-sound**.
 9. **Pieces stay short** (under three minutes). For more, render sections and join them with FFmpeg
    (**hildegard-video-edit**).
@@ -142,6 +169,9 @@ Once the preset path works, a capable model can leave it, and keeps the same che
   gives alternate takes. Render at `--bits 24` for a master and join pieces with FFmpeg.
 - **Targets.** Change `master.loudness` for a platform (podcast -16, broadcast -23); `limit_db` bounds how hard the
   limiter may work (it tells you when a mix cannot reach its target).
+- **Write a soundscape from scratch** with `references/soundscapes.md`: any mix of the ten layer types, `automation`
+  curves for slow changes (rain that builds over 20 minutes), `stages` with different carriers, `--chunk` for memory,
+  `--bits 24` for a master, `.mp3` for a small file.
 - **Layer sound and picture.** Time effects to the cut (**hildegard-sound**, **hildegard-video-edit**); duck the bed
   under speech with `duck` on the pad or with FFmpeg sidechain.
 - **Judge it as music**: does the bar count give a real phrase shape (4 or 8 bars), does the melody land on chord
@@ -149,6 +179,19 @@ Once the preset path works, a capable model can leave it, and keeps the same che
   whatever fails; the templates are starting points, not finished art.
 - **Reference check.** The audio check snippet in the **hildegard** skill's `references/sound-design.md` draws a
   spectrogram and measures a file; the scripts' `--json` output carries the same numbers.
+
+## What the sheet shows
+
+Read the PNG from top to bottom.
+
+| Panel | A good result | A problem and its fix |
+|---|---|---|
+| Waveform (top) | the body fills a steady band, with a clean fade at the end and the section lines where the sections change | a flat-topped block means clipping or over-limiting: lower `gain_db`; a huge spike means one hit dominates: lower it |
+| Spectrogram | the bass and kick at the bottom, chords and melody as horizontal lines, drums as vertical lines, a gentle fade toward the top | a solid bright band under 60 Hz is rumble: lower the bass or kick `level_db`; harsh bright columns above 8 kHz are hats or noise: lower them or set `highcut` |
+| Short-term loudness | close to the dashed target and steady; sections differ by a few LU on purpose | a long dip is a thin section; a rising line is a build. Fix unplanned jumps with `gain_db` per section |
+| Octave bands | a gentle slope: the 125 to 500 Hz bars highest, then falling toward 16 kHz | the 60 Hz bar near the top is too much bass; a high 8 kHz bar is too bright |
+
+A sheet shows what is in the file. It does not show whether the music is good: the user's ears decide that.
 
 ## What `--check` tells you
 

@@ -338,6 +338,7 @@ def main(argv=None):
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--bits", type=int, choices=[16, 24], default=16)
+    ap.add_argument("--sheet", help="also draw a PNG contact sheet (waveform, spectrogram, loudness, band balance) to look at")
     args = ap.parse_args(argv)
     if args.list:
         for f in sorted(glob.glob(os.path.join(preset_dir(), "*.json"))):
@@ -376,6 +377,10 @@ def main(argv=None):
         warns += w2
         if out and not errs:
             dsp.write_audio(out, x, args.bits)
+        if args.sheet:
+            import sheet
+
+            sheet.make_sheet(x, args.sheet, target_lufs=recipe.get("master", {}).get("loudness", {}).get("lufs", DEFAULT_LUFS) if recipe.get("master", {}).get("normalize", True) else None)
     if args.json:
         print(json.dumps(dsp.json_safe({"ok": not errs, "errors": errs, "warnings": warns, "stats": stats, "file": out if out and not errs else None}), indent=2))
     else:

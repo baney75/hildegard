@@ -36,6 +36,7 @@
       "instrument": "epiano",
       "chorus": 0.6,
       "level_db": -4,
+      "duck": 1.5,
       "sections": {
         "intro": "half",
         "a": "lofi_comp",
@@ -46,7 +47,7 @@
     {
       "role": "bass",
       "instrument": "sub_bass",
-      "level_db": -3,
+      "level_db": -6,
       "sections": {
         "a": "syncopated",
         "b": "syncopated",
@@ -69,6 +70,7 @@
       "instrument": "warm_pad",
       "level_db": -17,
       "highcut": 3500,
+      "duck": 3,
       "sections": {
         "intro": "sustain",
         "a": "sustain",
