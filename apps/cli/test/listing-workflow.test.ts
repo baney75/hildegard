@@ -7,10 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const live = readFileSync(
-  join(import.meta.dirname, '..', '..', '..', '.github', 'workflows', 'listing.yml'),
-  'utf8',
-);
+const repo = join(import.meta.dirname, '..', '..', '..');
+const live = readFileSync(join(repo, '.github', 'workflows', 'listing.yml'), 'utf8');
 
 /** What the workflow looked like in the round-1 review (fce5cbf), cut to the lines that mattered. */
 const OLD = `name: Listing
@@ -31,7 +29,8 @@ jobs:
         run: printf '%s\\n' "$LISTING_DEPLOY_KEY" > ~/.ssh/listing_deploy_key
 `;
 
-const MAIN_ONLY = /^ {4}if: .*github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/m;
+const MAIN_ONLY =
+  /^ {4}if: \(?github\.event_name == 'push'(?: \|\| github\.event_name == 'workflow_dispatch'\))? && github\.ref == 'refs\/heads\/main'/m;
 
 function problems(yml: string): string[] {
   const [head = '', body = ''] = yml.split(/^jobs:\s*$/m);
@@ -57,6 +56,18 @@ function problems(yml: string): string[] {
 }
 
 describe('the listing workflow', () => {
+  it('names an environment secret, and the docs limit that environment to main before the key goes in', () => {
+    const yml = readFileSync(join(repo, '.github/workflows/listing.yml'), 'utf8');
+    expect(yml).not.toMatch(/repository secret/);
+    expect(yml).toMatch(/environment secret LISTING_DEPLOY_KEY/);
+    const docs = readFileSync(join(repo, 'docs/listings.md'), 'utf8');
+    const step = docs.slice(docs.indexOf('**Before pressing submit**'));
+    const branches = step.indexOf('Deployment branches and tags');
+    expect(branches).toBeGreaterThan(-1);
+    expect(step.slice(branches, branches + 200)).toMatch(/`main`/);
+    expect(branches).toBeLessThan(step.indexOf('Environment secrets'));
+  });
+
   it('keeps the deploy key away from pull requests and pins every action', () => {
     expect(problems(live)).toEqual([]);
   });
