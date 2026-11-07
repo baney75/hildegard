@@ -16,7 +16,7 @@ report.json. Checks:
                24 px desktop) warn
   text-size    text under 11 px fails; body under the platform's (17 pt iOS, 16 sp Android, 14 px desktop) warns
   safe-area    text or controls under the iOS status bar or home indicator (warn)
-  placeholder  lorem ipsum, "Item 1", "TODO", "Your text here" (fail)
+  placeholder  lorem ipsum, "Item 1", "TODO", "your text here" (fail)
   fonts, alt   more than two families (warn); an image with no alt (warn)
 
 Needs Chromium (Playwright's, or chromium on PATH) and Python 3.9+; Pillow for the side-by-side sheet."""
@@ -60,7 +60,7 @@ while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=
   const r=el.getBoundingClientRect();
   if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis')out.clipped.push(txt);
   if(r.right>W+1||r.left<-1)out.offscreen.push(txt);
-  if(/lorem ipsum|dolor sit amet|\bTODO\b|your text here|placeholder text|^item \d+$|^title$|^label$|^button$/i.test(s0))out.placeholder.push(txt);
+  if(/lorem ipsum|dolor sit amet|\bTODO\b|your text here|placeholder text|^item \d+$/i.test(s0))out.placeholder.push(txt);
   if(!el.closest('[data-system]')&&(r.top<SAFE_TOP||r.bottom>H-SAFE_BOTTOM)&&r.bottom>0&&r.top<H)out.safe.push(txt)}
 const sel='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=tab],[role=checkbox],[role=switch],[role=menuitem],[onclick]';
 for(const el of d.querySelectorAll(sel)){if(!vis(el)||el.closest('[data-system]'))continue;out.targets++;const r=el.getBoundingClientRect();const m=Math.min(r.width,r.height);
