@@ -5,10 +5,15 @@ description: Use when asked to install, set up, connect, update or troubleshoot 
 
 # Setting up Hildegard for your user
 
-The full guide is `docs/agents.md` in the Hildegard repository
-(https://github.com/baney75/hildegard/blob/main/docs/agents.md). This is the short path. Every `hildegard` command
-takes `--json` and prints `{ ok, needsOwner, steps[], message }`; a step that's `needs-owner` is your user's to do.
-Rerunning any command is safe.
+The full guide is the agents page in the Hildegard repository
+(https://github.com/baney75/hildegard/blob/main/docs/agents.md); "the guide" below means that page. This is the short
+path, and it works alone: it is what you run to get Hildegard at all. Every `hildegard` command takes `--json` and
+prints `{ ok, needsOwner, steps[], message }`; a step that's `needs-owner` is your user's to do. Rerunning any command
+is safe.
+
+**Without Hildegard** (nothing installed yet, and no Hildegard tools in this chat), the first block below is the whole
+start: your user runs the install line for their system in a terminal, then `hildegard setup --yes`. If you can't run
+commands, give them those lines and ask what they print. Every other section assumes the `hildegard` command exists.
 
 ## The app and a model
 
@@ -39,7 +44,7 @@ instead. In Claude Code the plugin does both: `/plugin marketplace add baney75/h
 
 Chatbots that run on their makers' servers (claude.ai, ChatGPT, Grok, Grok Bot) need the public link, which only your
 user may ask for: `hildegard host --funnel --json`, then the app's custom connector with `mcpUrl`, and your user signs
-in on Hildegard's page. Each app's steps: `docs/chatbots.md`. They read these skills over MCP with `read_skill`.
+in on Hildegard's page. Each app's steps are on the chatbots page next to the guide (https://github.com/baney75/hildegard/blob/main/docs/chatbots.md). They read these skills over MCP with `read_skill`.
 
 ## Letting Hildegard run coding agents
 
@@ -59,11 +64,40 @@ that can get your user's account banned:
 `hildegard agents run claude-code "<task>"` runs one; add `--use key` to bill their key, `--unattended` for a run
 nobody is watching (needs a key).
 
+## Render on another device
+
+A laptop with no big GPU renders on a desktop that has one, over Tailscale. Fast path, run on the device **without**
+the GPU, with `ssh <host>` already working to the one that has it:
+
+```sh
+hildegard choir pair <ssh-host> --json
+```
+
+It joins that device and prints it with its models; then `hildegard choir list --json`. Without `ssh`, or from the GPU
+side, the same thing by hand is the pipe `ssh <host> 'hildegard choir invite --code-only' | hildegard choir join
+--code-stdin --json`, or `hildegard choir pair --to <ssh-host>` on the GPU device.
+
+**Never print, echo, printf or paste a join code, and never type one into a command.** It is a key. Not `choir invite
+--json` (leave that to the Studio and apps), not `ssh … invite | head`, not `printf %s "<code>" | …`, not a code in a
+reply or a file. `pair` and the pipe pass it from one process to the next and nothing shows it. If a step says
+`needs-owner` (Tailscale sign-in on either device, a missing `ssh`), give your user that step; if they have to type a
+code themselves, they run `hildegard choir invite` on the GPU device and read it off their own screen.
+
+## Models, space and licenses
+
+`hildegard models --json` lists them. **A license is always your user's to accept**: show it word for word and run
+`models install <id> --accept-license` only on their clear yes; installing a model for someone who hasn't said yes is
+not setup. To free space, `hildegard models remove <id> --dry-run --json` first: it lists what goes and which shared
+files (text encoders, VAEs) nothing else uses afterwards. Then `hildegard models remove <id> --with-unused --json`
+removes the model **and** those unused shared files; plain `remove` leaves them, so it frees less than your user
+expects. A shared file another installed model needs always stays. Say how much it freed, and `--with-unused` again
+after removing the next one.
+
 ## A link and a fleet
 
-- **Host at a link** (their phone, people they invite): `docs/agents.md`, section B. Tailscale sign-in and the owner
+- **Host at a link** (their phone, people they invite): the guide, section B. Tailscale sign-in and the owner
   passphrase are your user's to do.
-- **A fleet** (a laptop rendering on the desktop's GPU): `docs/agents.md`, section C.
+- **A fleet** beyond two devices: the guide, section C, and the section above for each device.
 - **Rented GPUs** (Runpod, Hugging Face, Colab): the **hildegard-cloud** skill.
 
 ## Updates
@@ -81,4 +115,4 @@ folder's `logs/`.
 If Hildegard itself is at fault, or your user wants something it can't do, offer to tell its makers: `report_draft`
 over MCP (or `hildegard report bug|idea "<title>" --what "<...>" --json`) writes the report with diagnostics, private
 things taken out. Show your user the exact text and the matching issues; only on their yes, `report_file` (or
-`hildegard report file <id>`). Add to a matching issue instead of opening a new one. `docs/agents.md` has the details.
+`hildegard report file <id>`). Add to a matching issue instead of opening a new one. The guide has the details.
