@@ -16,7 +16,7 @@ lyric and kinetic type. For footage use **hildegard-video-edit**; for generated 
 You need `python3` (3.10 or later), `numpy`, `Pillow`, and either `ffmpeg` on PATH or PyAV. Check once:
 
 ```sh
-python3 -c "import numpy, PIL; print('ok')" && (ffmpeg -version | head -1 || python3 -c "import av; print('av ok')")
+python3 -c "import numpy, PIL; print('ok')" && (command -v ffmpeg >/dev/null && echo "ffmpeg ok" || python3 -c "import av; print('av ok')")
 ```
 
 If something is missing, say so and give the install line (`python3 -m pip install "numpy>=1.26" "pillow>=10.1" "av>=12"`; leave
@@ -119,7 +119,7 @@ never mid-tone on mid-tone. On a photo, put a dark gradient under the text (the 
 | text `runs off the edge` or `sits inside the 5% safe margin` | set `"box"` (the message says what) so it wraps, lower `size`, or move `x` and `y` toward the middle |
 | `the word ... is wider than its box` | widen `box`, lower `size`, or use a shorter word |
 | `is fully on screen for X s but N words need Y s` | lengthen the scene, or shorten its entrance, or cut words |
-| `has contrast X:1 ... needs 4.5:1` | change the text color, add `"backing": {}`, or `"dim": 0.4` on the photo |
+| `has contrast X:1 ... needs 4.5:1` | change the text color, add `"backing": {"color": "#00000099"}`, or `"dim": 0.4` on the photo |
 | `overlaps ...` | move one with `y`, or show them at different times |
 | `is covered by ...` | move the covering layer earlier in `layers` (the last layer is on top) |
 | `has animation running until X s but the scene ends` | lengthen the scene or shorten the animation |

@@ -217,6 +217,13 @@ def parse_color(s):
     return (float(v[0]), float(v[1]), float(v[2]), (v[3] / 255.0) if len(v) == 4 else 1.0)
 
 
+def opt(v):
+    """An option object: absent, null and false are off; true and {} are on with every default."""
+    if v is None or v is False:
+        return None
+    return {} if v is True else v
+
+
 def _lin(c):
     c = c / 255.0
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
@@ -965,10 +972,9 @@ class Compiler:
             L.shadow = None
         if L.shadow is not None:
             L.shadow = {"color": parse_color(L.shadow.get("color", "#000000b3")), "blur": float(L.shadow.get("blur", 0.9)), "dx": float(L.shadow.get("dx", 0.0)), "dy": float(L.shadow.get("dy", 0.35))}
-        bk = d.get("backing")
-        L.backing = {"color": parse_color(bk.get("color", "#000000b3")), "pad": float(bk.get("pad", 1.6)), "radius": float(bk.get("radius", 1.2))} if bk else None
-        ol = d.get("outline")
-        L.outline = {"color": parse_color(ol.get("color", "#000000")), "width": float(ol.get("width", 0.25))} if ol else None
+        bk, ol = opt(d.get("backing")), opt(d.get("outline"))
+        L.backing = {"color": parse_color(bk.get("color", "#000000b3")), "pad": float(bk.get("pad", 1.6)), "radius": float(bk.get("radius", 1.2))} if bk is not None else None
+        L.outline = {"color": parse_color(ol.get("color", "#000000")), "width": float(ol.get("width", 0.25))} if ol is not None else None
         if L.count:
             c = L.count
             L.count = {"from": float(c.get("from", 0)), "to": float(c["to"]), "decimals": int(c.get("decimals", 0)), "thousands": bool(c.get("thousands", True)), "at": float(c.get("at", 0.0)), "duration": float(c.get("duration", 1.2)), "ease": self.ease(c.get("ease"), "easeOutCubic")}
@@ -984,9 +990,9 @@ class Compiler:
                 self.err(w, f'a {L.shape} does not use "{k}", so it would be ignored. Fix: remove it. A {L.shape} takes {", ".join(sorted(SHAPE_FIELDS[L.shape]))}.')
         if L.shape in ("line", "polygon", "path") and "anchor" in d:
             self.err(w, f'a {L.shape} has no "anchor": its points are placed by themselves, and "x" and "y" move it. Fix: remove "anchor".')
-        L.fill = parse_paint(d["fill"]) if "fill" in d else (("solid", (255.0, 255.0, 255.0, 1.0)) if L.shape not in ("line",) and "stroke" not in d else None)
-        st = d.get("stroke")
-        L.stroke = {"color": parse_color(st.get("color", "#ffffff")), "width": float(st.get("width", 0.4)), "round": bool(st.get("round", True))} if st else None
+        L.fill = parse_paint(d["fill"]) if "fill" in d else (("solid", (255.0, 255.0, 255.0, 1.0)) if L.shape not in ("line",) and d.get("stroke") in (None, False) else None)
+        st = opt(d.get("stroke"))
+        L.stroke = {"color": parse_color(st.get("color", "#ffffff")), "width": float(st.get("width", 0.4)), "round": bool(st.get("round", True))} if st is not None else None
         if L.shape == "line" and not L.stroke:
             L.stroke = {"color": parse_color("#ffffff"), "width": 0.4, "round": True}
         L.radius = float(d.get("radius", 1.5 if L.shape == "rounded" else 0.0))
@@ -1287,8 +1293,8 @@ class Compiler:
                 "backing": cd.get("backing", {"color": "#000000b8", "pad": 1.1, "radius": 0.9}),
                 "enter": {"type": "fade", "duration": min(0.1, (c["end"] - c["start"]) / 4)}, "exit": {"type": "fade", "duration": min(0.1, (c["end"] - c["start"]) / 4)},
             }
-            if cd.get("shadow"):
-                d["shadow"] = True
+            if opt(cd.get("shadow")) is not None:
+                d["shadow"] = cd["shadow"]
             L = self.compile_layer(None, d, i, global_dur=max(c["end"], 0.1))
             L.label = f'captions cue {i + 1} ("{snippet(c["text"])}")'
             L.overlay = True
@@ -2446,7 +2452,7 @@ class Checker:
             r10, bgc, gt = worst
             kind = "small" if L.size < SMALL_TEXT_VH else "large"
             photo = L.scene is not None and any(U.kind == "image" for U in L.scene.layers[: L.scene.layers.index(L)])
-            fix = 'darken the photo with "dim": 0.4, give the text a "backing": {}, or change its color' if photo else 'change the text color toward white or black (whichever is far from the background), or give it a "backing": {}'
+            fix = 'darken the photo with "dim": 0.4, give the text a "backing": {"color": "#00000099"}, or change its color' if photo else 'change the text color toward white or black (whichever is far from the background), or give it a "backing": {"color": "#00000099"}'
             self.err(L.label, f"has contrast {r10:.1f}:1 against what is behind it at {gt:.1f} s (text {hexcolor(L.color)} on about {hexcolor(bgc)}); {kind} text needs {need:g}:1. Fix: {fix}.")
 
     def check_nontext(self, L):

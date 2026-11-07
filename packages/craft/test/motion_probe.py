@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Probes for packages/craft/test/motion.test.ts: they import skills/hildegard-motion/scripts/motion.py, draw frames and print
-JSON for the test to judge. Usage: motion_probe.py <skill dir> fields | exits | wipe | units."""
+JSON for the test to judge. Usage: motion_probe.py <skill dir> fields | exits | wipe | units | empty."""
 
 import hashlib
 import json
@@ -163,4 +163,15 @@ def cmd_units():
     print(json.dumps({"lines": len(lines), "anim_end": L.anim_end, "expected": 0.5 + 1.0 + 0.7 * (len(lines) - 1)}))
 
 
-{"fields": cmd_fields, "exits": cmd_exits, "wipe": cmd_wipe, "units": cmd_units}[sys.argv[2]]()
+# ---- empty: an option that is present is on, even as {} (every default); it must not be dropped as falsy
+def cmd_empty():
+    off = []
+    for name, base, field in (("text", BASES["text"], "backing"), ("text", BASES["text"], "outline"), ("text", BASES["text"], "shadow"), ("rect", BASES["rect"], "stroke")):
+        m0, _ = compile_layers([base])
+        m1, errs = compile_layers([dict(base, **{field: {}})])
+        if errs or digest(frames(m0, (1.0,))) == digest(frames(m1, (1.0,))):
+            off.append(f"{name}.{field}: {errs or 'drawn the same as without it'}")
+    print(json.dumps(off))
+
+
+{"fields": cmd_fields, "exits": cmd_exits, "wipe": cmd_wipe, "units": cmd_units, "empty": cmd_empty}[sys.argv[2]]()

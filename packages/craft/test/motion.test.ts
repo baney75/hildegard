@@ -3,7 +3,15 @@
 // script: every template checks clean and renders an MP4 of the right size, rate and length; --check catches what weak
 // models get wrong; a render is repeatable frame for frame.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -159,6 +167,22 @@ describe.skipIf(!hasLibs)('hildegard-motion: --check catches what weak models ge
     expect(r.out).toMatch(/needs 4\.5:1/);
   });
 
+  it('treats an empty backing as on, so the documented contrast fix works', () => {
+    const faint = { size: 4, color: '#cccccc' };
+    const bad = motion([
+      '--check',
+      write('backing-off', [text('Faint words', faint)], {}, { background: '#ffffff' }),
+    ]);
+    expect(bad.out).toMatch(/contrast 1\.\d:1/);
+    expect(bad.out).toContain('"backing": {"color": "#00000099"}');
+    const fixed = motion([
+      '--check',
+      write('backing-empty', [text('Faint words', { ...faint, backing: {} })], {}, { background: '#ffffff' }),
+    ]);
+    expect(fixed.out).toContain('result: clean');
+    expect(fixed.status).toBe(0);
+  });
+
   it('measures contrast on the pixels behind the text, not on the background color alone', () => {
     // dark text over a dark shape that sits on a light page: fails; a light backing on the text fixes it
     const dark = { type: 'shape', shape: 'rect', x: 0.5, y: 0.5, w: 0.8, h: 0.4, fill: '#222222' };
@@ -288,6 +312,39 @@ function runProbe(kind: string) {
   expect(r.status, r.stderr).toBe(0);
   return JSON.parse(r.stdout);
 }
+
+describe.skipIf(!hasLibs)('hildegard-motion: an option present as {} is on, never dropped as falsy', () => {
+  it('draws an empty backing, outline, shadow and stroke', () => {
+    expect(runProbe('empty')).toEqual([]);
+  });
+});
+
+describe.skipIf(!hasLibs || process.platform === 'win32')(
+  'hildegard-motion: the prerequisite line in SKILL.md',
+  () => {
+    const line = readFileSync(join(skill, 'SKILL.md'), 'utf8')
+      .split('\n')
+      .find((l) => l.startsWith('python3 -c "import numpy, PIL'))!;
+    /** Runs the line with a PATH that holds only python3 (which refuses `import av` when noAv) and, if asked, an ffmpeg. */
+    function prereq(opts: { ffmpeg: boolean; noAv: boolean }) {
+      const bin = mkdtempSync(join(dir, 'bin-'));
+      const real = tryRun('sh', ['-c', 'command -v ' + python]).stdout.trim();
+      writeFileSync(
+        join(bin, 'python3'),
+        `#!/bin/sh\n${opts.noAv ? 'case "$*" in *"import av"*) exit 1;; esac\n' : ''}exec "${real}" "$@"\n`,
+        { mode: 0o755 },
+      );
+      symlinkSync(tryRun('sh', ['-c', 'command -v head']).stdout.trim(), join(bin, 'head'));
+      if (opts.ffmpeg) writeFileSync(join(bin, 'ffmpeg'), '#!/bin/sh\necho ffmpeg stub\n', { mode: 0o755 });
+      return spawnSync('/bin/sh', ['-c', line], { encoding: 'utf8', env: { ...env, PATH: bin } });
+    }
+
+    it('is found', () => expect(line).toBeTruthy());
+    it('fails with neither ffmpeg nor PyAV', () =>
+      expect(prereq({ ffmpeg: false, noAv: true }).status).not.toBe(0));
+    it('passes with ffmpeg alone', () => expect(prereq({ ffmpeg: true, noAv: true }).status).toBe(0));
+  },
+);
 
 describe.skipIf(!hasLibs)(
   'hildegard-motion: a name that is not in the list is a problem, never a traceback',
