@@ -240,10 +240,10 @@
     },
     {
       "name": "second-F9: summary-ending reports the paragraph as written",
-      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nOverall, run `lint_writing` and read [the guide](https://example.com/guide).",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nIn summary, run `lint_writing` and read [the guide](https://example.com/guide).",
       "fails": ["summary-ending"],
       "reports": {
-        "summary-ending": "Overall, run `lint_writing` and read [the guide](https://example.com/guide)."
+        "summary-ending": "In summary, run `lint_writing` and read [the guide](https://example.com/guide)."
       }
     },
     {
@@ -347,9 +347,9 @@
     },
     {
       "name": "two different weak tells together fail as stacked-tells",
-      "text": "# Fall Lawn Care\n\n## Mowing\n\n- **Height:** keep the blade at 2.5 inches.\n- **Timing:** mow until the first hard frost.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n",
+      "text": "Two things before the float trip:\n\n- **Height:** keep the blade at 2.5 inches.\n- **Timing:** mow until the first hard frost.\n\nWe’re grateful to everyone who came out. Thank you for being part of this.\n",
       "fails": ["stacked-tells"],
-      "warns": ["headings", "bold-list-leads"]
+      "warns": ["bold-list-leads", "warm-boilerplate"]
     },
     {
       "name": "the same weak tell twice is still one kind",
@@ -390,6 +390,18 @@
       "text": "In today’s fast-paced world, it’s worth noting that the realm of baking is intricate.",
       "fails": ["empty-phrases"],
       "ok": false
+    },
+    {
+      "name": "headings and short paragraphs alone are a web page, not a finding to fail",
+      "text": "# Fall Lawn Care\n\n## Mowing\n\nKeep the blade at 2.5 inches until the last cut.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n\n## Fertilizer\n\nStop by October 15.\n",
+      "warns": ["headings"],
+      "ok": true
+    },
+    {
+      "name": "a last paragraph that opens with Ultimately is a story, not a recap",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nUltimately, we decided to keep the old stove, because Grandmother’s biscuits never came out right on anything else.",
+      "warns": ["summary-ending"],
+      "ok": true
     }
   ]
 }

@@ -110,5 +110,47 @@
     "split": "dev",
     "brief": "Write the Our Story page for our hardware store's website. I'm Ray Becker, Becker Hardware in Hastings, Nebraska. Facts: my grandfather Walt opened it in 1955 with a loan of $2,000; we sell paint, plumbing, fasteners by the pound, and we cut keys and glass; my dad added the garden center in 1982; the 2019 flood put four feet of water in the basement and neighbors showed up with shop vacs; we have 11 employees, the longest is Doris who has worked the register for 31 years; we're open Monday to Saturday 7:30 to 6; we are not trying to compete with the big box stores on price. Write it now, don't ask me questions.",
     "generic": "Write the Our Story page for our family hardware store's website. Write it now, don't ask me questions."
+  },
+  {
+    "id": "vet",
+    "genre": "email",
+    "split": "holdout",
+    "brief": "Write an email to our clients about our new Saturday hours. I'm Dr. Ana Ruiz, Ruiz Animal Clinic in Yakima, Washington. Facts: starting March 1 we are open Saturdays 8 to noon for sick visits and vaccines only, no surgeries; Dr. Tom Pak joins us from Pullman on March 3; wellness visits stay Monday to Friday; walk-ins are first come first served, but call ahead if your pet is vomiting or limping; the after-hours emergency number is 509-555-0142; rabies clinic is March 15, $18 a shot with no exam fee; we are closing for lunch 12 to 1 on weekdays now. Write it now, don't ask me questions.",
+    "generic": "Write an email to our clients about our new Saturday hours at the animal clinic. Write it now, don't ask me questions."
+  },
+  {
+    "id": "florist",
+    "genre": "about",
+    "split": "holdout",
+    "brief": "Write the About page for my flower shop. I'm Nadine Fournier, Petal & Pine in Rutland, Vermont. Facts: opened in 2012 in a former hardware store on Center Street; two full-time designers, Josh and Leah, and three part-timers at holidays; we grow dahlias and zinnias on two acres in Pittsford and buy the rest from a co-op in Brattleboro; weddings book 9 months out; we deliver within 15 miles on Tuesdays through Saturdays for $12; we did 1,400 funeral arrangements last year; I don't do artificial flowers. Write it now, don't ask me questions.",
+    "generic": "Write the About page for my flower shop. Write it now, don't ask me questions."
+  },
+  {
+    "id": "littleleague",
+    "genre": "newsletter",
+    "split": "holdout",
+    "brief": "Write the spring newsletter for our Little League. I'm Gary Tolliver, president of the Maple Grove Little League in Maple Grove, Minnesota. Facts: registration closes March 12 and costs $95 a child, $60 for the second sibling; we have 14 teams this year, up from 11; the Saturday work day at Veterans Field is April 5 at 9 am, we need 20 parents with rakes and drills; coaches clinic is March 22 at the high school gym; opening day is April 26 with a parade from the fire station at 9; we lost the snack shack roof to the January ice storm and the insurance paid $7,800 of an $11,000 repair; the Kiwanis club gave us $1,500. Write it now, don't ask me questions.",
+    "generic": "Write the spring newsletter for our Little League. Write it now, don't ask me questions."
+  },
+  {
+    "id": "cabinetmaker",
+    "genre": "blog",
+    "split": "holdout",
+    "brief": "Write a blog post for my woodworking shop's website about finishing a walnut dining table. I'm Hank Oberg, Oberg Woodworks in Duluth, Georgia. Facts: I make about 30 tables a year; I use a hand-rubbed oil and wax finish, three coats of Danish oil, 24 hours between coats, then paste wax; a film finish like polyurethane looks like plastic and chips; water rings can be sanded out with 400 grit and re-oiled in an afternoon; a table I made in 2009 for the Hollis family has had weekly dinners for 15 years and only needed one re-oil; oil finish adds about $200 to the price; walnut darkens over the first year in sun. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my woodworking shop's website about finishing a walnut dining table. Write it now, don't ask me questions."
+  },
+  {
+    "id": "daycare",
+    "genre": "email",
+    "split": "holdout",
+    "brief": "Write a letter to parents from our home daycare about a policy change. I'm Marcy Ellison, Little Acorns Home Daycare in Bend, Oregon. Facts: starting June 1 the weekly rate goes from $265 to $285; late pickup after 5:30 is $1 a minute; I take 8 children, ages 1 to 4, with my assistant Priya; we are closed the week of July 4 and Thanksgiving Thursday and Friday; the new sunscreen policy requires parents to sign a form; we served 31 families in 6 years; we just replaced the fence, $3,200; I'll hold open houses on May 10 from 10 to noon. Write it now, don't ask me questions.",
+    "generic": "Write a letter to parents from our home daycare about a policy change. Write it now, don't ask me questions."
+  },
+  {
+    "id": "autoshop",
+    "genre": "blog",
+    "split": "holdout",
+    "brief": "Write a blog post for my auto repair shop about winter battery care. I'm Luis Moreno, Moreno Auto in Cheyenne, Wyoming. Facts: a battery loses about a third of its starting power at 32 degrees and half at zero; most last 3 to 5 years and ours in Wyoming average about 4; a load test is free at my shop and takes ten minutes; replacement runs $140 to $220 installed; clean corroded terminals with baking soda and a wire brush; if the engine cranks slow or the dash lights dim at idle, test it before the first cold snap; I jump-started 42 cars in the first week of last January. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my auto repair shop about winter battery care. Write it now, don't ask me questions."
   }
 ]

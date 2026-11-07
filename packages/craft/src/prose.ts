@@ -199,42 +199,116 @@ export function needleOf(p: string): string {
 }
 
 interface Phrase {
+  /** The rule this pattern belongs to. */
+  rule: string;
   all: RegExp;
-  /** The same pattern, sticky: tried only where `needle` occurs. */
+  /** The same pattern, sticky: tried only where `needle` could begin a match. */
   at: RegExp;
   needle: string;
 }
-const compile = (p: string): Phrase => ({ all: bounded(p), at: bounded(p, 'iy'), needle: needleOf(p) });
-/** Every phrase rule's patterns, compiled once. */
-const COMPILED: Record<string, Phrase[]> = Object.fromEntries(
-  Object.entries(PHRASES).map(([id, r]) => [id, r.patterns.map(compile)]),
+/** Every phrase pattern, in rule order and then pattern order, compiled once. */
+const COMPILED: Phrase[] = Object.entries(PHRASES).flatMap(([rule, r]) =>
+  r.patterns.map((p) => ({ rule, all: bounded(p), at: bounded(p, 'iy'), needle: needleOf(p) })),
 );
 
-/**
- * Where a phrase pattern matches, as RegExp.matchAll finds them. Most patterns open on a fixed word, so the text is
- * searched for that word with indexOf (fast) and the regex is tried only there: leftmost, non-overlapping, the same
- * matches as scanning the whole text with the pattern. `lower` is the lowercased text; with a different length (a few
- * capitals change length when lowercased) every pattern scans the whole text.
- */
-function phraseHits(ph: Phrase, prose: string, lower: string | null): RegExpExecArray[] {
-  const out: RegExpExecArray[] = [];
-  if (!lower || !ph.needle) {
-    for (const m of prose.matchAll(ph.all)) out.push(m);
-    return out;
+/** A prefix tree of the needles as a regex, so each position is tried against a handful of letters, not 170 words. */
+function trie(words: string[]): string {
+  type Node = { [c: string]: Node | true };
+  const root: Node = {};
+  for (const w of words) {
+    let n = root;
+    for (const c of w) {
+      n[c] ??= {};
+      n = n[c] as Node;
+    }
+    n[''] = true;
   }
-  let end = 0;
-  for (let i = lower.indexOf(ph.needle); i >= 0; i = lower.indexOf(ph.needle, i + 1)) {
-    if (i < end) continue;
-    ph.at.lastIndex = i;
-    const m = ph.at.exec(prose);
-    if (!m) continue;
-    end = i + m[0].length;
-    out.push(m);
+  const rx = (n: Node): string => {
+    const alts = Object.keys(n)
+      .filter((c) => c !== '')
+      .sort()
+      .map((c) => c.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&') + rx(n[c] as Node));
+    if (!alts.length) return '';
+    // A node that also ends a needle makes the rest optional.
+    return '' in n ? `(?:${alts.join('|')})?` : alts.length === 1 ? alts[0]! : `(?:${alts.join('|')})`;
+  };
+  return rx(root);
+}
+/** Word starts where some pattern's needle begins. Zero-width, so every start is found, overlaps included. */
+const STARTS = new RegExp(
+  `(?<![\\w-])(?=${trie([...new Set(COMPILED.map((c) => c.needle).filter(Boolean))])})`,
+  'gi',
+);
+/** The patterns whose needle begins with each character. */
+const BY_FIRST = new Map<number, number[]>();
+COMPILED.forEach((c, i) => {
+  if (!c.needle) return;
+  const key = c.needle.charCodeAt(0);
+  BY_FIRST.set(key, [...(BY_FIRST.get(key) ?? []), i]);
+});
+
+/** Every match of every phrase pattern, as RegExp.matchAll finds them one pattern at a time: the reference. */
+export function phraseHitsNaive(prose: string): RegExpExecArray[][] {
+  return COMPILED.map((c) => [...prose.matchAll(c.all)]);
+}
+
+/**
+ * The same hits, found fast. Most patterns open on fixed letters (their needle), so one pass finds the word starts where
+ * any needle begins, and a pattern's regex is tried only at a start whose first letter is its own: leftmost,
+ * non-overlapping, exactly what scanning the whole text with that pattern gives. The needle is checked against the
+ * lowercased text first when that text has the same length (a few capitals change length when lowercased); the check
+ * can only skip a place where the regex would fail anyway.
+ */
+export function phraseHits(prose: string): RegExpExecArray[][] {
+  const out: RegExpExecArray[][] = COMPILED.map(() => []);
+  const lower = prose.toLowerCase();
+  const exact = lower.length === prose.length;
+  const end = new Int32Array(COMPILED.length);
+  COMPILED.forEach((c, i) => {
+    if (!c.needle) out[i] = [...prose.matchAll(c.all)];
+  });
+  STARTS.lastIndex = 0;
+  for (let m = STARTS.exec(prose); m; m = STARTS.exec(prose)) {
+    const at = m.index;
+    STARTS.lastIndex = at + 1;
+    let key = prose.charCodeAt(at);
+    if (key >= 65 && key <= 90) key += 32;
+    for (const i of BY_FIRST.get(key) ?? []) {
+      const c = COMPILED[i]!;
+      if (at < end[i]! || (exact && !lower.startsWith(c.needle, at))) continue;
+      c.at.lastIndex = at;
+      const hit = c.at.exec(prose);
+      if (!hit) continue;
+      end[i] = at + hit[0].length;
+      out[i]!.push(hit);
+    }
   }
   return out;
 }
 
-const countWords = (s: string) => s.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+/** The reference: a word is a letter or number, then letters, numbers, apostrophes and hyphens. */
+export const countWordsRegex = (s: string) => s.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+const LETTER_OR_NUMBER = /^[\p{L}\p{N}]$/u;
+/** The same count in one pass over the characters, a fifth of the time: no match objects, and ASCII needs no regex. */
+export function countWords(s: string): number {
+  let n = 0;
+  let inWord = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    let letter: boolean;
+    if (c < 128) letter = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+    else {
+      const cp = s.codePointAt(i)!;
+      if (cp > 0xffff) i++;
+      letter = LETTER_OR_NUMBER.test(String.fromCodePoint(cp));
+    }
+    if (letter) {
+      if (!inWord) n++;
+      inWord = true;
+    } else if (!(inWord && (c === 39 || c === 0x2019 || c === 45))) inWord = false;
+  }
+  return n;
+}
 
 /** Paragraphs with their offsets and word counts: blocks between blank lines. */
 function paragraphs(prose: string): Array<{ text: string; index: number; words: number }> {
@@ -273,19 +347,40 @@ const BOLD = /\*\*[^*\n]+\*\*|__[^_\n]+__/g;
  */
 const TRIAD =
   /(?<![\p{L}\p{N}_'’-])[\p{L}'’-]+(?: [\p{L}'’-]+){0,3}, [\p{L}'’-]+(?: [\p{L}'’-]+){0,3},? (?:and|or) [\p{L}'’-]+/gu;
+/**
+ * Lists of three, found by clause. A list lies inside one run of letters, apostrophes, hyphens, spaces and commas, so
+ * only the runs that hold a comma and an “and” or “or” are matched, each from one character early so the lookbehind
+ * still sees what comes before. The same matches as scanning the whole text, in a third of the time.
+ */
+const CLAUSE = /[\p{L}'’ ,-]+/gu;
+function triads(prose: string, text: string): ProseMatch[] {
+  const out: ProseMatch[] = [];
+  for (const run of prose.matchAll(CLAUSE)) {
+    const clause = run[0];
+    if (clause.length < 10 || !clause.includes(', ') || !/ (?:and|or) /.test(clause)) continue;
+    const from = Math.max(0, run.index - 1);
+    for (const m of prose.slice(from, run.index + clause.length).matchAll(TRIAD)) {
+      const at = from + m.index;
+      out.push(locate(text, at, text.slice(at, at + m[0].length)));
+    }
+  }
+  return out;
+}
 const BOLD_LEAD = /^\s*(?:\*\*|__)[^*_\n]{2,80}(?:\*\*|__)/;
 /** A list item that opens on a bold label: “- **When:** Saturday”. */
 const BOLD_LIST_LEAD = /^[^\S\n]{0,3}[-*+][^\S\n]+(?:\*\*|__)[^*_\n]{1,60}(?:\*\*|__)/gm;
 /** A heading below the title, to the end of its line. */
 const HEADING_LINE = /^[^\S\n]{0,3}#{2,6}[^\S\n]+\S[^\n]*/gm;
-const ENDING = /^\s*(?:ultimately|overall|in the end|in conclusion|in summary|to sum up|all in all)\b[,:]?/i;
+/** A last paragraph that opens on a recap. The first group is the unmistakable ones; “ultimately” can open a story. */
+const ENDING =
+  /^\s*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?/i;
 
 /** The placeholder patterns, compiled once: capitals are whole words, the rest match in any case. */
 const MARKERS = RULES.markers.map(
   (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
 );
-/** The kinds of finding that count toward `stacked-tells`. */
-const STACKED = new Set<string>(RULES.stacked.ids);
+/** The kinds of weak tell that count toward `stacked-tells`: findings that come from one habit are one kind. */
+const KINDS: string[][] = RULES.stacked.kinds;
 
 /** Lint words a person will read. `ok` is false when any finding fails. */
 export function lintProse(text: string): ProseLint {
@@ -299,18 +394,20 @@ export function lintProse(text: string): ProseLint {
   };
 
   const unquoted = unquote(prose);
-  const lower = unquoted.toLowerCase();
+  const hits = phraseHits(unquoted);
   const nameOrHeading = (p: string, i: number, m: string) => isName(p, i, m) && !onHeading(text, p, i);
+  let first = 0;
   for (const [id, rule] of Object.entries(PHRASES)) {
     const skip = rule.exemptNames ? nameOrHeading : undefined;
-    const matches = COMPILED[id]!.flatMap((ph) =>
-      phraseHits(ph, unquoted, lower.length === unquoted.length ? lower : null),
-    )
+    const matches = hits
+      .slice(first, first + rule.patterns.length)
+      .flat()
       .filter((m) => !skip?.(unquoted, m.index, m[0]))
       .sort((a, b) => a.index - b.index)
       // Two patterns can open on the same words (“we’re grateful to”, “we’re grateful”): one phrase is one match.
       .filter((m, i, a) => i === 0 || m.index !== a[i - 1]!.index)
       .map((m) => locate(text, m.index, text.slice(m.index, m.index + m[0].length)));
+    first += rule.patterns.length;
     if (rule.density !== undefined && matches.length / Math.max(1, words) <= rule.density) continue;
     if (rule.minHits !== undefined && matches.length < rule.minHits) continue;
     add(id, rule.severity, rule.why, rule.fix, matches);
@@ -363,10 +460,11 @@ export function lintProse(text: string): ProseLint {
 
   const paras = allParas.filter((p) => !isHeading(p.text));
   const last = paras.at(-1);
-  if (last && paras.length > 2 && ENDING.test(last.text))
+  const ending = last && paras.length > 2 ? ENDING.exec(last.text) : null;
+  if (last && ending)
     add(
       'summary-ending',
-      'fail',
+      ending[1] ? 'fail' : 'warn',
       'The last paragraph sums up what the reader just read.',
       'End on the last concrete point, or on what to do next.',
       [
@@ -381,14 +479,14 @@ export function lintProse(text: string): ProseLint {
       ],
     );
 
-  const triads = all(TRIAD, prose, text);
-  if (words >= RULES.triads.minWords && (triads.length * 100) / words > RULES.triads.perHundred)
+  const lists = triads(prose, text);
+  if (words >= RULES.triads.minWords && (lists.length * 100) / words > RULES.triads.perHundred)
     add(
       'triads',
       'warn',
-      `${triads.length} lists of three or more in ${words} words. Generated prose falls into that rhythm.`,
+      `${lists.length} lists of three or more in ${words} words. Generated prose falls into that rhythm.`,
       'Keep the lists that are real lists. Elsewhere, name the one thing that matters.',
-      triads,
+      lists,
     );
 
   const leads = paras.filter((p) => BOLD_LEAD.test(p.text));
@@ -486,14 +584,17 @@ export function lintProse(text: string): ProseLint {
   );
 
   // No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
-  const weak = findings.filter((f) => STACKED.has(f.id));
+  const weak = KINDS.map((ids) => findings.filter((f) => ids.includes(f.id))).filter((fs) => fs.length);
   if (weak.length >= RULES.stacked.min)
     add(
       'stacked-tells',
       'fail',
-      `${weak.length} different small tells in ${words} words (${weak.map((f) => f.id).join(', ')}). Each one is common alone; together they read as machine-made.`,
-      'Rewrite the ones that are not your own voice until fewer than three kinds remain.',
-      weak.map((f) => f.matches[0]!).sort((a, b) => a.index - b.index),
+      `${weak.length} different small tells in ${words} words (${weak
+        .flat()
+        .map((f) => f.id)
+        .join(', ')}). Each one is common alone; together they read as machine-made.`,
+      'Rewrite the ones that are not your own voice until only one kind remains.',
+      weak.map((fs) => fs[0]!.matches[0]!).sort((a, b) => a.index - b.index),
     );
 
   return { ok: !findings.some((f) => f.severity === 'fail'), words, findings };

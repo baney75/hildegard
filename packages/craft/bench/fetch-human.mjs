@@ -8,7 +8,7 @@
 //   node packages/craft/bench/fetch-human.mjs --check    re-fetch and fail if any piece's hash changed
 //
 // Sources, all published before 2021 so no model wrote them:
-//   18F blog (CC0 and US public domain, github.com/18F/18f.gsa.gov, pinned commit)
+//   18F blog and site pages (CC0 and US public domain, github.com/18F/18f.gsa.gov, pinned commit)
 //   Digital.gov news (US public domain and CC0, github.com/GSA/digitalgov.gov, pinned commit)
 //   NASA blog and feature posts (US government work, generally not copyrighted)
 //   Creative Commons blog (CC BY 4.0)
@@ -121,11 +121,15 @@ function cut(md, max) {
 }
 
 const pieces = [];
-const take = (src, cands, count) => {
-  const picked = cands.sort((a, b) => sha1(a.url).localeCompare(sha1(b.url))).slice(0, count);
-  for (const c of picked)
+// The first `count` candidates by hash are the corpus; the next `holdout` are kept apart, unread, until the rules are final.
+const place = (src, picked, held, candidates) => {
+  for (const c of [...picked, ...held.map((h) => ({ ...h, holdout: true }))])
     pieces.push({ source: src.id, genre: src.genre, ...c, license: c.license ?? src.license });
-  console.log(`${src.id}: ${picked.length} of ${cands.length} candidates`);
+  console.log(`${src.id}: ${picked.length} and ${held.length} held out, of ${candidates} candidates`);
+};
+const take = (src, cands, count, holdout = 0) => {
+  const sorted = cands.sort((a, b) => sha1(a.url).localeCompare(sha1(b.url)));
+  place(src, sorted.slice(0, count), sorted.slice(count, count + holdout), cands.length);
 };
 const wanted = (md, min = 90) => {
   const w = words(md);
@@ -156,7 +160,15 @@ const stripMd = (b) =>
     .trim();
 
 // GitHub repositories of Markdown posts: a pinned commit, a path pattern.
-async function github(src, repo, commit, pathRe, count, authorsFmt) {
+async function github(
+  src,
+  repo,
+  commit,
+  pathRe,
+  count,
+  authorsFmt,
+  { dated = true, lead = false, holdout = 0 } = {},
+) {
   const tree = JSON.parse(await get(`https://api.github.com/repos/${repo}/git/trees/${commit}?recursive=1`));
   const files = tree.tree.map((t) => t.path).filter((p) => pathRe.test(p));
   const cands = [];
@@ -164,23 +176,23 @@ async function github(src, repo, commit, pathRe, count, authorsFmt) {
     const url = `https://raw.githubusercontent.com/${repo}/${commit}/${p}`;
     const { meta, authors, body } = front(await get(url));
     const date = (meta.date ?? '').slice(0, 10);
-    if (!/^20(1[4-9]|20)/.test(date)) continue;
-    const md = stripMd(body);
+    if (dated && !/^20(1[4-9]|20)/.test(date)) continue;
+    const md = stripMd(lead && meta.lead ? `${meta.lead}\n\n${body}` : body);
     const c = cut(md, target(p));
     if (!c || !wanted(c.text)) continue;
     cands.push({
       url: `https://github.com/${repo}/blob/${commit}/${p}`,
       title: meta.title ?? p,
       author: authorsFmt(authors ?? []),
-      date,
+      date: date || '2014/2020',
       ...c,
     });
   }
-  take(src, cands, count);
+  take(src, cands, count, holdout);
 }
 
 // WordPress sites with the REST API on: posts from 2016 to 2020.
-async function wordpress(src, base, count, pages = 3) {
+async function wordpress(src, base, count, pages = 3, holdout = 0) {
   const cands = [];
   for (let page = 1; page <= pages; page++) {
     const url = `${base}/wp-json/wp/v2/posts?per_page=100&page=${page}&after=2016-01-01T00:00:00&before=2021-01-01T00:00:00&_embed=author`;
@@ -197,13 +209,14 @@ async function wordpress(src, base, count, pages = 3) {
       });
     }
   }
-  take(src, cands, count);
+  take(src, cands, count, holdout);
 }
 
 // Stack Exchange answers (CC BY-SA), 2014 to 2020, best-voted first: practical writing about mowers, baking, chickens,
 // plumbing, pianos and the like, by people who answer for nothing.
-async function stackexchange(src, sites, perSite) {
+async function stackexchange(src, sites, perSite, heldPerSite) {
   const cands = [];
+  const held = [];
   for (const site of sites) {
     const url = `https://api.stackexchange.com/2.3/answers?order=desc&sort=votes&site=${site}&filter=withbody&fromdate=1388534400&todate=1609459200&pagesize=100`;
     const found = [];
@@ -220,9 +233,12 @@ async function stackexchange(src, sites, perSite) {
         ...c,
       });
     }
-    cands.push(...found.sort((a, b) => sha1(a.url).localeCompare(sha1(b.url))).slice(0, perSite));
+    found.sort((a, b) => sha1(a.url).localeCompare(sha1(b.url)));
+    cands.push(...found.slice(0, perSite));
+    held.push(...found.slice(perSite, perSite + heldPerSite));
   }
-  take(src, cands, cands.length);
+  const byHash = (a, b) => sha1(a.url).localeCompare(sha1(b.url));
+  place(src, cands.sort(byHash), held.sort(byHash), cands.length + held.length);
 }
 
 /** Paragraphs re-joined from Gutenberg's hard-wrapped lines; "--" is the em dash it stands for; _x_ is italics. */
@@ -243,7 +259,7 @@ const gutenberg = (raw) => {
     )
     .filter(Boolean);
 };
-async function book(src, id, headRe, count, { title, author, date }) {
+async function book(src, id, headRe, count, { title, author, date }, holdout = 0) {
   const paras = gutenberg(await get(`https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`));
   const cands = [];
   for (let i = 0; i < paras.length; i++) {
@@ -263,7 +279,7 @@ async function book(src, id, headRe, count, { title, author, date }) {
       ...c,
     });
   }
-  take(src, cands, count);
+  take(src, cands, count, holdout);
 }
 
 await github(
@@ -273,6 +289,26 @@ await github(
   /^content\/posts\/.*\.md$/,
   22,
   (a) => `18F staff (${a.join(', ') || 'unsigned'})`,
+  { holdout: 8 },
+);
+// What a team says about itself and its services on its own site: About, offerings, case studies, policies.
+await github(
+  { id: '18f-pages', genre: 'page', license: 'CC0 1.0 and US public domain (18F, a US government project)' },
+  '18F/18f.gsa.gov',
+  '292605ab095af8e70e2087aca63c2319ce892a4c',
+  /^content\/pages\/(about|contact\/|offerings\/|principles\/|pif\/|policies\/|projects\/).*\.md$/,
+  18,
+  () => '18F staff',
+  { dated: false, lead: true, holdout: 12 },
+);
+await github(
+  { id: 'digitalgov-guides', genre: 'page', license: 'CC0 1.0 and US public domain (GSA)' },
+  'GSA/digitalgov.gov',
+  '4979583206d90ff1707b097454a9b169ca9e95e4',
+  /^content\/resources\/.*\.md$/,
+  8,
+  (a) => `Digital.gov staff (${a.join(', ') || 'unsigned'})`,
+  { dated: false, holdout: 10 },
 );
 await github(
   { id: 'digitalgov', genre: 'newsletter', license: 'CC0 1.0 and US public domain (GSA)' },
@@ -281,6 +317,7 @@ await github(
   /^content\/news\/201[4-9]\/.*\.md$/,
   12,
   (a) => `Digital.gov staff (${a.join(', ') || 'unsigned'})`,
+  { holdout: 6 },
 );
 await wordpress(
   {
@@ -292,6 +329,7 @@ await wordpress(
   'https://www.nasa.gov',
   10,
   2,
+  5,
 );
 await wordpress(
   {
@@ -303,6 +341,7 @@ await wordpress(
   'https://creativecommons.org',
   8,
   2,
+  5,
 );
 await wordpress(
   {
@@ -314,6 +353,7 @@ await wordpress(
   'https://globalvoices.org',
   8,
   1,
+  5,
 );
 await stackexchange(
   { id: 'stackexchange', genre: 'answer', license: 'CC BY-SA' },
@@ -331,6 +371,7 @@ await stackexchange(
     'money',
   ],
   3,
+  2,
 );
 const PD = 'Public domain in the US (Project Gutenberg)';
 await book(
@@ -388,7 +429,7 @@ for (const p of pieces) {
   manifest.push({
     id,
     genre: p.genre,
-    split: parseInt(sha1(id)[0], 16) < 6 ? 'test' : 'dev',
+    split: p.holdout ? 'holdout' : parseInt(sha1(id)[0], 16) < 6 ? 'test' : 'dev',
     title: p.title,
     author: p.author,
     date: p.date,

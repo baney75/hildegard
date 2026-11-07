@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { blankNonProse, describeProseLint, lintProse } from '../src/index.ts';
+import { countWords, countWordsRegex, needleOf, phraseHits, phraseHitsNaive } from '../src/prose.ts';
 import FIXTURES from './prose-fixtures.json' with { type: 'json' };
 
 interface Case {
@@ -133,5 +134,55 @@ describe('prose lint', () => {
       'utf8',
     );
     expect(skill).toBe(pkg);
+  });
+
+  it('counts words as the regex does, for every kind of character', () => {
+    const samples = [
+      '',
+      ' ',
+      "it's a well-known x--y ’tis 'quoted' -- -a a- 2nd ² ½ ① é日本語 😀 𝒜 \ud800 a\udc00b",
+      "a-b c’d e'f",
+      '---',
+      "'a",
+      'x2y',
+      'ǅ ǆ',
+      'ⅷ',
+    ];
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    const alphabet = [..."abcXYZ09 \n\t'’-—,.é日😀𝒜²½ǅ\ud800\udc00_"];
+    for (let k = 0; k < 2000; k++) {
+      let t = '';
+      for (let i = Math.floor(rnd() * 60); i > 0; i--) t += alphabet[Math.floor(rnd() * alphabet.length)];
+      samples.push(t);
+    }
+    for (const t of samples) expect(countWords(t), JSON.stringify(t)).toBe(countWordsRegex(t));
+  });
+
+  it('opens each phrase pattern on the letters every match must start with', () => {
+    expect(needleOf('delve')).toBe('delve');
+    expect(needleOf('delves?')).toBe('delve');
+    expect(needleOf("it['’]?s worth noting( that)?")).toBe('it');
+    expect(needleOf('meticulous(ly)?')).toBe('meticulous');
+    expect(needleOf('game[- ]changer')).toBe('game');
+    expect(needleOf('(sets|set) the stage for')).toBe('');
+    expect(needleOf('delve|tapestry')).toBe('');
+    expect(needleOf('a (b|c)|d')).toBe('');
+    expect(needleOf('Stands as a TESTAMENT')).toBe('stands as a testament');
+  });
+
+  it('finds phrases the way scanning each pattern over the whole text does, even where lowercasing changes the text', () => {
+    const shape = (hits: RegExpExecArray[][]) => hits.map((h) => h.map((m) => [m.index, m[0]]));
+    for (const t of [
+      'Kelvin \u212Adelve it. DELVE. Delve—delve, x-delve, delved, delves.',
+      'İstanbul will delve into the realm, and we’re grateful to İ. It’s worth noting that it is IMPORTANT TO NOTE.',
+      'Unlock the full potential, unlock the door. Whether you’re a baker or a brewer, we look forward to seeing you.',
+      'ǅ delve ǅ tapestry ǅ',
+      'delvedelve delve-delve delve_delve',
+    ])
+      expect(shape(phraseHits(t)), t).toEqual(shape(phraseHitsNaive(t)));
   });
 });

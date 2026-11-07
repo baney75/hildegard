@@ -10,8 +10,11 @@ export interface Piece {
   /** For AI drafts, the model; for human pieces, the source. */
   from: string;
   genre: string;
-  /** `test` pieces are never read one by one while rules are tuned. */
-  split: 'dev' | 'test';
+  /**
+   * `test` pieces are never read one by one while rules are tuned. `holdout` pieces are not measured at all until the rules
+   * are final.
+   */
+  split: 'dev' | 'test' | 'holdout';
   text: string;
   /** AI drafts: from a brief with the writer's facts, or from the topic alone. */
   kind?: 'facts' | 'generic';
@@ -27,7 +30,7 @@ export function loadCommitted(): Piece[] {
   const human = JSON.parse(readFileSync(join(corpusDir, 'human/manifest.json'), 'utf8')) as Array<{
     id: string;
     genre: string;
-    split: 'dev' | 'test';
+    split: 'dev' | 'test' | 'holdout';
   }>;
   for (const m of human)
     out.push({
@@ -42,7 +45,7 @@ export function loadCommitted(): Piece[] {
   const briefs = JSON.parse(readFileSync(join(corpusDir, 'ai/briefs.json'), 'utf8')) as Array<{
     id: string;
     genre: string;
-    split: 'dev' | 'test';
+    split: 'dev' | 'test' | 'holdout';
   }>;
   for (const model of readdirSync(join(corpusDir, 'ai')).sort()) {
     if (!existsSync(join(corpusDir, 'ai', model, `${briefs[0]!.id}.md`))) continue;

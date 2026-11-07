@@ -1,0 +1,30 @@
+Python and the package agree on all 396 pieces
+Human writing: 220 pieces. Fail 0.0%, any warn 26.4%, any finding 26.4%.
+AI drafts (no skill): 176 pieces. Recall (fails) 30.7%, any finding 81.3%.
+  haiku                  n=44 recall 38.6%
+  luna                   n=44 recall 18.2%
+  opus                   n=44 recall 43.2%
+  sonnet                 n=44 recall 22.7%
+dev   human n=98 false-fail 0.0%; AI n=72 recall 33.3%
+test  human n=49 false-fail 0.0%; AI n=56 recall 26.8%
+holdout human n=73 false-fail 0.0%; AI n=48 recall 31.3%
+
+rule                  human ai    humanFail aiFail
+headings                9.1%  40.3%     0.0%     0.0%   (20/71)
+bold-list-leads         3.6%  31.8%     0.0%     0.0%   (8/56)
+stacked-tells           0.0%  17.0%     0.0%    17.0%   (0/30)
+unfinished              0.0%  14.8%     0.0%    14.8%   (0/26)
+warm-boilerplate        0.0%  12.5%     0.0%     0.0%   (0/22)
+bold                    4.1%  16.5%     0.0%     0.0%   (9/29)
+metadiscourse           0.5%  11.9%     0.0%     0.0%   (1/21)
+uniform-paragraphs      4.1%  15.3%     0.0%     0.0%   (9/27)
+triads                  4.1%  11.9%     0.0%     0.0%   (9/21)
+bold-leads              0.9%   7.4%     0.0%     0.0%   (2/13)
+colon-reveal            0.0%   1.7%     0.0%     0.0%   (0/3)
+throat-clearing         0.0%   1.1%     0.0%     1.1%   (0/2)
+summary-ending          0.5%   0.0%     0.0%     0.0%   (1/0)
+cliches                 0.5%   0.0%     0.0%     0.0%   (1/0)
+summary-openers         0.5%   0.0%     0.0%     0.0%   (1/0)
+loaded-words            0.5%   0.0%     0.0%     0.0%   (1/0)
+corporate-words         0.9%   0.0%     0.0%     0.0%   (2/0)
+not-but                 3.6%   2.3%     0.0%     0.0%   (8/4)

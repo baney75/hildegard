@@ -3,17 +3,38 @@
 // for each rule how often it fires on each.
 //   node packages/craft/bench/quality.ts [--json] [--cached] [--show <rule>] [--py]
 //   --cached  add drafts found in ~/.cache (more no-skill AI writing, and drafts made with the skill, reported apart)
-//   --split   report one split only (`dev` or `test`)
+//   --split   report one split only (`dev`, `test` or `holdout`)
+//   --holdout add the holdout pieces, which nothing reads until the rules are final
 //   --show    print what a rule matched in `dev` pieces (test pieces are never shown one by one)
+//   --ref     measure the lint as it stood at a git ref (say origin/main) instead of this tree
+//   --ratchet write baseline.json when the numbers are no worse and some are better (--rebase after the corpus changes)
 //   --py      also run the Python script over the same pieces and fail if it differs from the package
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lintProse, type ProseLint } from '../src/index.ts';
 import { loadCached, loadCommitted, type Piece } from './corpus.ts';
+import { engineAt } from './engine.ts';
+
+/** Whole numbers behind the rates: what `baseline.json` holds and the tests compare. */
+export interface Counts {
+  humanN: number;
+  humanFails: number;
+  aiN: number;
+  aiFails: number;
+  testHumanN: number;
+  testHumanFails: number;
+  testAiN: number;
+  testAiFails: number;
+  holdoutHumanN: number;
+  holdoutHumanFails: number;
+  holdoutAiN: number;
+  holdoutAiFails: number;
+}
 
 export interface Report {
+  counts: Counts;
   human: { n: number; failRate: number; warnRate: number; anyRate: number };
   ai: { n: number; recall: number; anyRate: number; byModel: Record<string, { n: number; recall: number }> };
   /** Split of the same two rates, `test` being the pieces nobody read while tuning. */
@@ -41,7 +62,7 @@ export function summarize(rows: Array<{ p: Piece; l: ProseLint }>): Report {
     models[m] = { n: rs.length, recall: rate(fails(rs), rs.length) };
   }
   const splits: Report['splits'] = {};
-  for (const s of ['dev', 'test'] as const) {
+  for (const s of ['dev', 'test', 'holdout'] as const) {
     const h = human.filter((r) => r.p.split === s);
     const a = ai.filter((r) => r.p.split === s);
     splits[s] = {
@@ -66,7 +87,26 @@ export function summarize(rows: Array<{ p: Piece; l: ProseLint }>): Report {
       }
     }
   }
+  const n = (rs: typeof rows) => rs.length;
+  const th = human.filter((r) => r.p.split === 'test');
+  const ta = ai.filter((r) => r.p.split === 'test');
+  const hh = human.filter((r) => r.p.split === 'holdout');
+  const ha = ai.filter((r) => r.p.split === 'holdout');
   return {
+    counts: {
+      humanN: n(human),
+      humanFails: fails(human),
+      aiN: n(ai),
+      aiFails: fails(ai),
+      testHumanN: n(th),
+      testHumanFails: fails(th),
+      testAiN: n(ta),
+      testAiFails: fails(ta),
+      holdoutHumanN: n(hh),
+      holdoutHumanFails: fails(hh),
+      holdoutAiN: n(ha),
+      holdoutAiFails: fails(ha),
+    },
     human: {
       n: human.length,
       failRate: rate(fails(human), human.length),
@@ -84,6 +124,27 @@ export function summarize(rows: Array<{ p: Piece; l: ProseLint }>): Report {
   };
 }
 
+export const baselinePath = join(import.meta.dirname, 'baseline.json');
+
+/** Whether `now` is no worse than `then` on every count (more AI drafts failing, no more human pieces failing). */
+export function noWorse(now: Counts, then: Counts): string[] {
+  const bad: string[] = [];
+  if (now.humanN !== then.humanN || now.aiN !== then.aiN)
+    bad.push('the corpus changed size: rebase the baseline');
+  if (now.humanFails > then.humanFails)
+    bad.push(`human pieces failing: ${now.humanFails} > ${then.humanFails}`);
+  if (now.testHumanFails > then.testHumanFails)
+    bad.push(`test-split human pieces failing: ${now.testHumanFails} > ${then.testHumanFails}`);
+  if (now.holdoutHumanFails > then.holdoutHumanFails)
+    bad.push(`holdout human pieces failing: ${now.holdoutHumanFails} > ${then.holdoutHumanFails}`);
+  if (now.holdoutAiFails < then.holdoutAiFails)
+    bad.push(`holdout AI drafts failing: ${now.holdoutAiFails} < ${then.holdoutAiFails}`);
+  if (now.aiFails < then.aiFails) bad.push(`AI drafts failing: ${now.aiFails} < ${then.aiFails}`);
+  if (now.testAiFails < then.testAiFails)
+    bad.push(`test-split AI drafts failing: ${now.testAiFails} < ${then.testAiFails}`);
+  return bad;
+}
+
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 if (import.meta.main) {
@@ -91,8 +152,15 @@ if (import.meta.main) {
   const pieces = loadCommitted();
   const cached = args.includes('--cached') ? loadCached() : [];
   const only = args.includes('--split') ? args[args.indexOf('--split') + 1] : undefined;
-  const all = [...pieces, ...cached].filter((p) => !only || p.split === only);
-  const { rows, report } = measure(all);
+  // The holdout is read once, when the rules are final: ask for it with --holdout or --split holdout.
+  const all = [...pieces, ...cached].filter((p) =>
+    only
+      ? p.split === only
+      : args.includes('--holdout') || args.includes('--ratchet') || p.split !== 'holdout',
+  );
+  const ref = args.includes('--ref') ? args[args.indexOf('--ref') + 1] : undefined;
+  const engine = ref ? await engineAt(ref) : undefined;
+  const { rows, report } = measure(all, engine?.lintProse);
 
   const show = args.includes('--show') ? args[args.indexOf('--show') + 1] : undefined;
   if (show) {
@@ -109,7 +177,7 @@ if (import.meta.main) {
     process.exit(0);
   }
 
-  if (args.includes('--py')) {
+  if (args.includes('--py') && !engine) {
     const dir = mkdtempSync(join(tmpdir(), 'prose-q-'));
     const list = all.map((p, i) => {
       const f = join(dir, `${i}.md`);
@@ -136,6 +204,20 @@ if (import.meta.main) {
     if (diff) process.exit(1);
   }
 
+  if (args.includes('--ratchet')) {
+    const then = JSON.parse(readFileSync(baselinePath, 'utf8')) as Counts;
+    const bad = args.includes('--rebase') ? [] : noWorse(report.counts, then);
+    if (bad.length) {
+      console.error(`Not ratcheting: ${bad.join('; ')}`);
+      process.exit(1);
+    }
+    const better = JSON.stringify(report.counts) !== JSON.stringify(then);
+    if (better) writeFileSync(baselinePath, `${JSON.stringify(report.counts, null, 2)}\n`);
+    console.log(
+      better ? `baseline.json updated: ${JSON.stringify(report.counts)}` : 'baseline.json already matches',
+    );
+    process.exit(0);
+  }
   if (args.includes('--json')) {
     console.log(JSON.stringify(report, null, 2));
     process.exit(0);

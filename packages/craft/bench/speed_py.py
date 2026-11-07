@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Time the Python prose lint in one process: python3 speed_py.py INPUT.json  (the shape speed.ts writes).
-Prints {name: {"ms": [..]}} as JSON. With --profile, prints the top functions by own time to stderr as well."""
+Prints {name: {"ms": [..]}} as JSON. --engine=PATH times another copy of the script. With --profile, prints the top functions by own time to stderr as well."""
 import cProfile
 import importlib.util
 import json
@@ -10,7 +10,10 @@ import sys
 import time
 
 here = os.path.dirname(os.path.abspath(__file__))
-spec = importlib.util.spec_from_file_location("prose_lint", os.path.join(here, "../../../skills/hildegard/scripts/prose_lint.py"))
+engine = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--engine=")), None)
+spec = importlib.util.spec_from_file_location(
+    "prose_lint", engine or os.path.join(here, "../../../skills/hildegard/scripts/prose_lint.py")
+)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 

@@ -15,8 +15,6 @@
         "tapestries",
         "testament to",
         "multifaceted",
-        "ever-evolving",
-        "ever-changing",
         "bustling",
         "nestled",
         "navigat(e|es|ed|ing) the (complexities|landscape|world|waters)",
@@ -59,7 +57,9 @@
         "realms",
         "intricate(ly)?",
         "meticulous(ly)?",
-        "dynamic landscape"
+        "dynamic landscape",
+        "ever-evolving",
+        "ever-changing"
       ]
     },
     "empty-phrases": {
@@ -333,16 +333,12 @@
   },
   "stacked": {
     "min": 2,
-    "ids": [
-      "warm-boilerplate",
-      "bold-list-leads",
-      "headings",
-      "bold",
-      "bold-leads",
-      "colon-reveal",
-      "metadiscourse",
-      "weasel",
-      "uniform-paragraphs"
+    "kinds": [
+      ["warm-boilerplate"],
+      ["metadiscourse"],
+      ["weasel"],
+      ["colon-reveal"],
+      ["bold", "bold-leads", "bold-list-leads"]
     ]
   },
   "uniform": {

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // How fast the prose lint is, in both engines, on realistic prose and on the adversarial inputs.
-//   node packages/craft/bench/speed.ts [--json] [--profile] [--runs N]
+//   node packages/craft/bench/speed.ts [--json] [--profile] [--runs N] [--before <git ref>]
 // Realistic prose is the corpus's own pieces joined (human and AI alike) and cut at a sentence to 1k, 10k, 100k and
 // 1M characters. Adversarial inputs are the `attacks` in test/prose-fixtures.json, each 200,000 characters. The
-// Python script runs in one process (its start-up is not counted). `--profile` adds where the time goes.
+// Python script runs in one process (its start-up is not counted). `--profile` adds where the time goes. `--before`
+// also times the engines as they stood at a git ref (say origin/main), the two copies alternating run by run so a busy
+// machine slows both alike, and prints the speed-up.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import inspector from 'node:inspector';
@@ -12,9 +14,11 @@ import { join } from 'node:path';
 import { lintProse } from '../src/index.ts';
 import FIXTURES from '../test/prose-fixtures.json' with { type: 'json' };
 import { loadCommitted } from './corpus.ts';
+import { engineAt } from './engine.ts';
 
 const args = process.argv.slice(2);
-const runsArg = args.includes('--runs') ? Number(args[args.indexOf('--runs') + 1]) : 0;
+const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+const runsArg = Number(opt('--runs') ?? 0);
 
 /** Pieces joined with blank lines until `chars` characters, cut after the last full sentence. */
 export function realistic(chars: number): string {
@@ -51,16 +55,32 @@ export function cases(): Case[] {
 }
 
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+type Lint = (t: string) => unknown;
 
-export function timeTs(c: Case): number[] {
-  for (let i = 0; i < Math.min(3, c.runs); i++) lintProse(c.text);
-  const ms: number[] = [];
-  for (let i = 0; i < c.runs; i++) {
-    const t = performance.now();
-    lintProse(c.text);
-    ms.push(performance.now() - t);
-  }
+/** Times each lint on the case, alternating them run by run. Returns the milliseconds of each, in order. */
+export function timeTs(c: Case, lints: Lint[] = [lintProse]): number[][] {
+  for (const l of lints) for (let i = 0; i < Math.min(3, c.runs); i++) l(c.text);
+  const ms = lints.map(() => [] as number[]);
+  for (let i = 0; i < c.runs; i++)
+    lints.forEach((l, k) => {
+      const t = performance.now();
+      l(c.text);
+      ms[k]!.push(performance.now() - t);
+    });
   return ms;
+}
+
+function runPy(file: string, engine?: string): Record<string, { ms: number[] }> {
+  const argv = ['-I', join(import.meta.dirname, 'speed_py.py'), file];
+  if (engine) argv.push(`--engine=${engine}`);
+  if (args.includes('--profile') && !engine) argv.push('--profile');
+  return JSON.parse(
+    execFileSync('python3', argv, {
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    }),
+  );
 }
 
 if (import.meta.main) {
@@ -68,64 +88,67 @@ if (import.meta.main) {
   const dir = mkdtempSync(join(tmpdir(), 'prose-speed-'));
   const file = join(dir, 'cases.json');
   writeFileSync(file, JSON.stringify(cs));
-  const py = JSON.parse(
-    execFileSync(
-      'python3',
-      [
-        '-I',
-        join(import.meta.dirname, 'speed_py.py'),
-        file,
-        ...(args.includes('--profile') ? ['--profile'] : []),
-      ],
-      {
-        encoding: 'utf8',
-        maxBuffer: 1 << 28,
-        stdio: ['ignore', 'pipe', 'inherit'],
-      },
-    ),
-  ) as Record<string, { ms: number[] }>;
+
+  // The engines as they stood at a git ref.
+  const ref = opt('--before');
+  const before = ref ? await engineAt(ref) : undefined;
+
+  const pyNow = runPy(file);
+  const pyThen = before ? runPy(file, before.py) : undefined;
   const rows = cs.map((c) => {
-    const ts = timeTs(c);
+    const [ts, tsThen] = timeTs(c, before ? [lintProse, before.lintProse] : [lintProse]) as [
+      number[],
+      number[] | undefined,
+    ];
     return {
       name: c.name,
       chars: c.text.length,
       tsMs: median(ts),
-      pyMs: median(py[c.name]!.ms),
+      pyMs: median(pyNow[c.name]!.ms),
       tsWorst: Math.max(...ts),
-      pyWorst: Math.max(...py[c.name]!.ms),
+      pyWorst: Math.max(...pyNow[c.name]!.ms),
+      tsBefore: tsThen && median(tsThen),
+      pyBefore: pyThen && median(pyThen[c.name]!.ms),
     };
   });
   if (args.includes('--json')) console.log(JSON.stringify(rows, null, 2));
   else {
+    const f = (n: number | undefined, w = 9) => (n === undefined ? '' : n.toFixed(2)).padStart(w);
     console.log(
       'case'.padEnd(52),
       'chars'.padStart(8),
       'ts ms'.padStart(9),
       'py ms'.padStart(9),
-      'ts/100k'.padStart(9),
-      'py/100k'.padStart(9),
+      ...(before ? ['ts was'.padStart(9), 'py was'.padStart(9)] : []),
     );
     for (const r of rows)
       console.log(
         r.name.padEnd(52),
         String(r.chars).padStart(8),
-        r.tsMs.toFixed(2).padStart(9),
-        r.pyMs.toFixed(2).padStart(9),
-        ((r.tsMs * 1e5) / r.chars).toFixed(2).padStart(9),
-        ((r.pyMs * 1e5) / r.chars).toFixed(2).padStart(9),
+        f(r.tsMs),
+        f(r.pyMs),
+        ...(before ? [f(r.tsBefore), f(r.pyBefore)] : []),
       );
-    const prose = rows.filter((r) => r.name.startsWith('prose'));
-    const per = (k: 'tsMs' | 'pyMs') =>
-      median(prose.filter((r) => r.chars > 50_000).map((r) => (r[k] * 1e5) / r.chars));
+    const big = rows.filter((r) => r.name.startsWith('prose') && r.chars > 50_000);
+    const per = (k: 'tsMs' | 'pyMs' | 'tsBefore' | 'pyBefore') =>
+      median(big.map((r) => ((r[k] ?? 0) * 1e5) / r.chars));
     console.log(
       `\nMedian ms per 100k characters (the 100k and 1M inputs): ts ${per('tsMs').toFixed(2)}, py ${per('pyMs').toFixed(2)}`,
     );
+    if (before)
+      console.log(
+        `Before: ts ${per('tsBefore').toFixed(2)}, py ${per('pyBefore').toFixed(2)}. Faster by ${(per('tsBefore') / per('tsMs')).toFixed(1)}x (ts) and ${(per('pyBefore') / per('pyMs')).toFixed(1)}x (py).`,
+      );
     const att = rows.filter((r) => r.name.startsWith('attack'));
-    const worst = (k: 'tsMs' | 'pyMs') =>
-      att.reduce((a, r) => (r[k] > a.v ? { n: r.name, v: r[k] } : a), { n: '', v: 0 });
+    const worst = (k: 'tsMs' | 'pyMs' | 'tsBefore' | 'pyBefore') =>
+      att.reduce((a, r) => ((r[k] ?? 0) > a.v ? { n: r.name, v: r[k] ?? 0 } : a), { n: '', v: 0 });
     console.log(
       `Worst adversarial case (200k chars): ts ${worst('tsMs').v.toFixed(0)} ms (${worst('tsMs').n}), py ${worst('pyMs').v.toFixed(0)} ms (${worst('pyMs').n})`,
     );
+    if (before)
+      console.log(
+        `  before: ts ${worst('tsBefore').v.toFixed(0)} ms, py ${worst('pyBefore').v.toFixed(0)} ms`,
+      );
   }
 
   if (args.includes('--profile')) {
@@ -140,7 +163,7 @@ if (import.meta.main) {
       const self = new Map<string, number>();
       const dt = profile.timeDeltas;
       const idx = new Map(profile.nodes.map((n) => [n.id, n]));
-      profile.samples!.forEach((id, i) => {
+      profile.samples?.forEach((id, i) => {
         const n = idx.get(id)!;
         const where = n.callFrame.url.split('/').pop() ?? '';
         const lines = n.positionTicks?.map((t) => `${where}:${t.line}`) ?? [

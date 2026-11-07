@@ -1,0 +1,55 @@
+         73322 function calls (73173 primitive calls) in 0.107 seconds
+
+   Ordered by: internal time
+   List reduced from 67 to 12 due to restriction <12>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.034    0.034    0.041    0.041 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:265(phrase_hits)
+        1    0.018    0.018    0.020    0.020 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:352(triads)
+       17    0.017    0.001    0.018    0.001 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:103(all)
+    158/9    0.008    0.000    0.008    0.001 {method 'sub' of 're.Pattern' objects}
+      529    0.007    0.000    0.007    0.000 {method 'findall' of 're.Pattern' objects}
+        1    0.006    0.006    0.107    0.107 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:387(lint_prose)
+    41809    0.004    0.000    0.004    0.000 {method 'startswith' of 'str' objects}
+     7528    0.002    0.000    0.002    0.000 {method 'match' of 're.Pattern' objects}
+        1    0.001    0.001    0.010    0.010 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:302(paragraphs)
+     4024    0.001    0.000    0.001    0.000 {method 'group' of 're.Match' objects}
+        1    0.001    0.001    0.001    0.001 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:83(__init__)
+     4747    0.001    0.000    0.001    0.000 {method 'start' of 're.Match' objects}
+
+
+case                                                    chars     ts ms     py ms    ts was    py was
+prose 1,000 chars                                         801      0.18      1.17      0.41      4.22
+prose 10,000 chars                                       9980      0.91     13.81      2.32     44.19
+prose 100,000 chars                                     99997      9.86     97.08     24.37    385.39
+prose 1,000,000 chars                                  999994    119.46    995.86    284.78   5930.68
+attack: blank lines of spaces (paragraph split)        200001     16.49    262.48     29.61   1154.98
+attack: accented letters (list of three)               200000      6.54    225.87     13.52    952.51
+attack: a run of exclamation marks (sentence split)    200000      8.29    198.40     23.16    893.64
+attack: unclosed tags                                  200000      8.67    110.48     23.47    835.88
+attack: unclosed tags with a name                      200000     13.36    180.19     17.35    597.62
+attack: unclosed code blocks                           200000      6.11    153.00     13.58    536.09
+attack: unclosed images                                200000     15.76    210.89     11.26    765.05
+attack: unclosed image targets                         200000      5.67    153.35     12.32    621.64
+attack: unclosed link targets                          200000      3.56    139.91      9.88    727.34
+
+Median ms per 100k characters (the 100k and 1M inputs): ts 11.95, py 99.59
+Before: ts 28.48, py 593.07. Faster by 2.4x (ts) and 6.0x (py).
+Worst adversarial case (200k chars): ts 16 ms (attack: blank lines of spaces (paragraph split)), py 262 ms (attack: blank lines of spaces (paragraph split))
+  before: ts 30 ms, py 1155 ms
+
+Where the TypeScript engine spends its time (100k realistic characters, own time):
+   44.9%  post node:inspector
+   15.9%  triads prose.ts
+   10.6%  phraseHits prose.ts
+    8.6%  all prose.ts
+    7.2%  prose.ts:268
+    3.8%  countWords prose.ts
+    3.2%  blankNonProse prose.ts
+    3.1%  lintProse prose.ts
+    0.9%  prose.ts:175
+    0.8%  paragraphs prose.ts
+    0.5%  blankBlocks prose.ts
+    0.2%  (anon) speed.ts
+    0.2%  prose.ts:50
+    0.2%  prose.ts:324

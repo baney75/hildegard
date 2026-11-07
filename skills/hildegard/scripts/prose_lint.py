@@ -73,13 +73,17 @@ def jstrip(s):
     return s.strip(JS_WS)
 
 
+NEWLINE = re.compile("\n")
+ASTRAL = re.compile("[\U00010000-\U0010ffff]")
+
+
 class Text:
     """The text as given, with where its lines start and where UTF-16 pairs fall, to report JavaScript's offsets."""
 
     def __init__(self, text):
         self.text = text
-        self.nl = [i for i, c in enumerate(text) if c == "\n"]
-        self.astral = [i for i, c in enumerate(text) if ord(c) > 0xFFFF]
+        self.nl = [m.start() for m in NEWLINE.finditer(text)]
+        self.astral = [m.start() for m in ASTRAL.finditer(text)]
 
     def u16(self, i):
         return i + bisect_left(self.astral, i) if self.astral else i
@@ -213,31 +217,74 @@ def needle_of(p):
 class Phrase:
     """One phrase pattern, compiled once, with the text its matches begin with."""
 
-    def __init__(self, p):
+    def __init__(self, rule, p):
+        self.rule = rule
         self.rx = bounded(p)
         self.needle = needle_of(p)
 
 
-# Every phrase rule's patterns, compiled once.
-COMPILED = {id_: [Phrase(p) for p in rule["patterns"]] for id_, rule in RULES["phrases"].items()}
+# Every phrase pattern, in rule order and then pattern order, compiled once.
+COMPILED = [Phrase(rule_id, p) for rule_id, rule in RULES["phrases"].items() for p in rule["patterns"]]
 
 
-def phrase_hits(ph, prose, lower):
-    """Where a phrase pattern matches, as finditer finds them. Most patterns open on a fixed word, so the text is
-    searched for that word with str.find (fast) and the regex is tried only there: leftmost, non-overlapping, the
-    same matches as scanning the whole text with the pattern. `lower` is the lowercased text, or None when its length
-    differs (a few capitals change length when lowercased), when every pattern scans the whole text."""
-    if lower is None or not ph.needle:
-        return list(ph.rx.finditer(prose))
-    out, end, needle, match = [], 0, ph.needle, ph.rx.match
-    i = lower.find(needle)
-    while i >= 0:
-        if i >= end:
-            m = match(prose, i)
-            if m:
-                end = m.end()
-                out.append(m)
-        i = lower.find(needle, i + 1)
+def trie_regex(words):
+    """A prefix tree of the needles as a regex, so each position is tried against a handful of letters, not 170 words."""
+    root = {}
+    for w in words:
+        n = root
+        for c in w:
+            n = n.setdefault(c, {})
+        n[""] = True
+
+    def rx_(n):
+        alts = [re.escape(c) + rx_(n[c]) for c in sorted(n) if c != ""]
+        if not alts:
+            return ""
+        # A node that also ends a needle makes the rest optional.
+        if "" in n:
+            return "(?:" + "|".join(alts) + ")?"
+        return alts[0] if len(alts) == 1 else "(?:" + "|".join(alts) + ")"
+
+    return rx_(root)
+
+
+# Word starts where some pattern's needle begins. Zero-width, so every start is found, overlaps included.
+STARTS = rx(r"(?<![\w-])(?=" + trie_regex(sorted({c.needle for c in COMPILED if c.needle})) + ")", re.I)
+# The patterns whose needle begins with each character.
+BY_FIRST = {}
+for _i, _c in enumerate(COMPILED):
+    if _c.needle:
+        BY_FIRST.setdefault(_c.needle[0], []).append(_i)
+
+
+def phrase_hits_naive(prose):
+    """Every match of every phrase pattern, as finditer finds them one pattern at a time: the reference."""
+    return [list(c.rx.finditer(prose)) for c in COMPILED]
+
+
+def phrase_hits(prose):
+    """The same hits, found fast. Most patterns open on fixed letters (their needle), so one pass finds the word starts
+    where any needle begins, and a pattern's regex is tried only at a start whose first letter is its own: leftmost,
+    non-overlapping, exactly what scanning the whole text with that pattern gives. The needle is checked against the
+    lowercased text first when that text has the same length (a few capitals change length when lowercased); the check
+    can only skip a place where the regex would fail anyway."""
+    out = [[] for _ in COMPILED]
+    lower = prose.lower()
+    exact = len(lower) == len(prose)
+    end = [0] * len(COMPILED)
+    for i, c in enumerate(COMPILED):
+        if not c.needle:
+            out[i] = list(c.rx.finditer(prose))
+    for m in STARTS.finditer(prose):
+        at = m.start()
+        for i in BY_FIRST.get(lower[at] if exact else prose[at].lower(), ()):
+            c = COMPILED[i]
+            if at < end[i] or (exact and not lower.startswith(c.needle, at)):
+                continue
+            hit = c.rx.match(prose, at)
+            if hit:
+                end[i] = hit.end()
+                out[i].append(hit)
     return out
 
 
@@ -295,8 +342,28 @@ BOLD = rx(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
 LW = r"(?:[^\W\d_]|['’-])"
 # "sleep, reading, play, or dinner": a list of three or more, the rhythm generated prose falls into.
 TRIAD = re.compile(rf"(?<![\w'’-]){LW}+(?: {LW}+){{0,3}}, {LW}+(?: {LW}+){{0,3}},? (?:and|or) {LW}+")
+# Lists of three, found by clause. A list lies inside one run of letters, apostrophes, hyphens, spaces and commas, so
+# only the runs that hold a comma and an "and" or "or" are matched, each from one character early so the lookbehind
+# still sees what comes before. The same matches as scanning the whole text, in a third of the time.
+CLAUSE = re.compile(rf"(?:{LW}| |,)+")
+AND_OR = re.compile(r" (?:and|or) ")
+
+
+def triads(prose, t):
+    out = []
+    for run in CLAUSE.finditer(prose):
+        clause = run.group(0)
+        if len(clause) < 10 or ", " not in clause or not AND_OR.search(clause):
+            continue
+        start = max(0, run.start() - 1)
+        for m in TRIAD.finditer(prose, start, run.end()):
+            out.append(t.locate(m.start(), t.text[m.start() : m.end()]))
+    return out
+
+
 BOLD_LEAD = rx(rf"\A{S}*(?:\*\*|__)[^*_\n]{{2,80}}(?:\*\*|__)")
-ENDING = rx(rf"\A{S}*(?:ultimately|overall|in the end|in conclusion|in summary|to sum up|all in all)\b[,:]?", re.I)
+# A last paragraph that opens on a recap. The first group is the unmistakable ones; "ultimately" can open a story.
+ENDING = rx(rf"\A{S}*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?", re.I)
 
 
 # A list item that opens on a bold label: "- **When:** Saturday".
@@ -313,8 +380,8 @@ def is_marker_word(m):
 MARKERS = [
     rx(rf"\b{m}\b" if is_marker_word(m) else js_pattern(m), 0 if is_marker_word(m) else re.I) for m in RULES["markers"]
 ]
-# The kinds of finding that count toward stacked-tells.
-STACKED = set(RULES["stacked"]["ids"])
+# The kinds of weak tell that count toward stacked-tells: findings that come from one habit are one kind.
+KINDS = RULES["stacked"]["kinds"]
 
 
 def lint_prose(text):
@@ -331,21 +398,21 @@ def lint_prose(text):
             findings.append({"id": id_, "severity": severity, "why": why, "fix": fix, "matches": matches})
 
     unquoted = unquote(prose)
-    lower = unquoted.lower()
-    if len(lower) != len(unquoted):
-        lower = None
+    hits = phrase_hits(unquoted)
     name_not_heading = lambda p, i, m: is_name(p, i, m) and not t.on_heading(p, i)
+    at = 0
     for id_, rule in RULES["phrases"].items():
         skip = name_not_heading if rule.get("exemptNames") else None
-        hits = sorted(
-            [m for ph in COMPILED[id_] for m in phrase_hits(ph, unquoted, lower) if not (skip and skip(unquoted, m.start(), m.group(0)))],
+        found = sorted(
+            [m for h in hits[at : at + len(rule["patterns"])] for m in h if not (skip and skip(unquoted, m.start(), m.group(0)))],
             key=lambda m: m.start(),
         )
+        at += len(rule["patterns"])
         # Two patterns can open on the same words ("we're grateful to", "we're grateful"): one phrase is one match.
         matches = [
             t.locate(m.start(), t.text[m.start() : m.end()])
-            for i, m in enumerate(hits)
-            if i == 0 or m.start() != hits[i - 1].start()
+            for i, m in enumerate(found)
+            if i == 0 or m.start() != found[i - 1].start()
         ]
         if "density" in rule and len(matches) / max(1, words) <= rule["density"]:
             continue
@@ -397,26 +464,27 @@ def lint_prose(text):
     )
 
     paras = [p for p in all_paras if not HEADING.match(p[0])]
-    if paras and len(paras) > 2 and ENDING.match(paras[-1][0]):
+    ending = ENDING.match(paras[-1][0]) if paras and len(paras) > 2 else None
+    if ending:
         ptext, pindex, _ = paras[-1]
         ptext = text[pindex : pindex + len(ptext)]
         add(
             "summary-ending",
-            "fail",
+            "fail" if ending.group(1) else "warn",
             "The last paragraph sums up what the reader just read.",
             "End on the last concrete point, or on what to do next.",
             [t.locate(pindex, jstrip(ptext).split("\n")[0])],
         )
 
-    triads = t.all(TRIAD, prose)
+    lists = triads(prose, t)
     tr = RULES["triads"]
-    if words >= tr["minWords"] and (len(triads) * 100) / words > tr["perHundred"]:
+    if words >= tr["minWords"] and (len(lists) * 100) / words > tr["perHundred"]:
         add(
             "triads",
             "warn",
-            f"{len(triads)} lists of three or more in {words} words. Generated prose falls into that rhythm.",
+            f"{len(lists)} lists of three or more in {words} words. Generated prose falls into that rhythm.",
             "Keep the lists that are real lists. Elsewhere, name the one thing that matters.",
-            triads,
+            lists,
         )
 
     bl = RULES["boldLeads"]
@@ -494,15 +562,15 @@ def lint_prose(text):
     )
 
     # No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
-    weak = [f for f in findings if f["id"] in STACKED]
+    weak = [fs for fs in ([f for f in findings if f["id"] in ids] for ids in KINDS) if fs]
     if len(weak) >= RULES["stacked"]["min"]:
         add(
             "stacked-tells",
             "fail",
-            f"{len(weak)} different small tells in {words} words ({', '.join(f['id'] for f in weak)}). "
+            f"{len(weak)} different small tells in {words} words ({', '.join(f['id'] for fs in weak for f in fs)}). "
             "Each one is common alone; together they read as machine-made.",
-            "Rewrite the ones that are not your own voice until fewer than three kinds remain.",
-            sorted([f["matches"][0] for f in weak], key=lambda m: m["index"]),
+            "Rewrite the ones that are not your own voice until only one kind remains.",
+            sorted([fs[0]["matches"][0] for fs in weak], key=lambda m: m["index"]),
         )
 
     return {"ok": not any(f["severity"] == "fail" for f in findings), "words": words, "findings": findings}

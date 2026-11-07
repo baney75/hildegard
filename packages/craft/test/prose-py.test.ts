@@ -4,6 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { loadCommitted } from '../bench/corpus.ts';
 import { lintProse, type ProseLint } from '../src/index.ts';
 import FIXTURES from './prose-fixtures.json' with { type: 'json' };
 
@@ -127,5 +128,33 @@ describe('prose lint: the Python script and the package agree', () => {
     };
     expect(run('We will delve into it.')).toBe(1);
     expect(run('A plain sentence about a red barn.')).toBe(0);
+  });
+
+  it('finds phrases the way scanning each pattern over the whole text does', () => {
+    const tricky = [
+      'Kelvin \u212Adelve it. DELVE. Delve—delve, x-delve, delved, delves.',
+      'İstanbul will delve into the realm, and we’re grateful to İ. It’s worth noting that it is IMPORTANT TO NOTE.',
+      'Unlock the full potential, unlock the door. Whether you’re a baker or a brewer, we look forward to seeing you.',
+      'ǅ delve ǅ tapestry ǅ',
+      'delvedelve delve-delve delve_delve',
+    ];
+    const texts = [
+      ...tricky,
+      ...(FIXTURES.cases as Array<{ text: string }>).map((c) => c.text),
+      ...loadCommitted().map((p) => p.text),
+    ];
+    const code = [
+      'import importlib.util, json, sys',
+      'spec = importlib.util.spec_from_file_location("p", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)',
+      'shape = lambda hits: [[(x.start(), x.group(0)) for x in h] for h in hits]',
+      'bad = [i for i, t in enumerate(json.load(sys.stdin)) if shape(m.phrase_hits(t)) != shape(m.phrase_hits_naive(t))]',
+      'print(json.dumps(bad))',
+    ].join('\n');
+    const out = execFileSync(python, ['-I', '-c', code, script], {
+      input: JSON.stringify(texts),
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+    });
+    expect(JSON.parse(out)).toEqual([]);
   });
 });

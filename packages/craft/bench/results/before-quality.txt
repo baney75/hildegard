@@ -1,31 +1,30 @@
-Python and the package agree on all 273 pieces
-Human writing: 121 pieces. Fail 35.5%, any warn 49.6%, any finding 71.9%.
-AI drafts (no skill): 134 pieces. Recall (fails) 11.9%, any finding 61.2%.
-  haiku                  n=32 recall 9.4%
-  luna                   n=32 recall 21.9%
-  opus                   n=32 recall 12.5%
-  sonnet                 n=32 recall 0.0%
-  haiku-none             n= 3 recall 0.0%
-  luna-none              n= 3 recall 66.7%
-dev   human n=80 false-fail 35.0%; AI n=78 recall 11.5%
-test  human n=41 false-fail 36.6%; AI n=56 recall 12.5%
-Drafts made with the skill: 18, failing 0
+Human writing: 220 pieces. Fail 32.3%, any warn 45.9%, any finding 63.2%.
+AI drafts (no skill): 176 pieces. Recall (fails) 11.4%, any finding 61.4%.
+  haiku                  n=44 recall 11.4%
+  luna                   n=44 recall 18.2%
+  opus                   n=44 recall 13.6%
+  sonnet                 n=44 recall 2.3%
+dev   human n=98 false-fail 35.7%; AI n=72 recall 9.7%
+test  human n=49 false-fail 34.7%; AI n=56 recall 12.5%
+holdout human n=73 false-fail 26.0%; AI n=48 recall 12.5%
 
 rule                  human ai    humanFail aiFail
-bold                    5.0%  17.2%     0.0%     0.0%   (6/23)
-triads                  3.3%  11.9%     0.0%     0.0%   (4/16)
-bold-leads              1.7%   6.7%     0.0%     0.0%   (2/9)
-colon-reveal            0.0%   2.2%     0.0%     0.0%   (0/3)
-unfinished              0.0%   1.5%     0.0%     1.5%   (0/2)
-throat-clearing         0.0%   1.5%     0.0%     1.5%   (0/2)
-chatbot                 0.0%   0.7%     0.0%     0.7%   (0/1)
-metadiscourse           0.0%   0.7%     0.0%     0.0%   (0/1)
-rhythm                  1.7%   1.5%     0.0%     0.0%   (2/2)
-summary-openers         0.8%   0.0%     0.8%     0.0%   (1/0)
-specifics              14.0%  11.9%     0.0%     0.0%   (17/16)
-fragments               5.0%   2.2%     0.0%     0.0%   (6/3)
-empty-phrases           5.8%   0.7%     5.8%     0.7%   (7/1)
-loaded-words            6.6%   0.0%     0.0%     0.0%   (8/0)
-not-but                 9.1%   1.5%     0.8%     0.0%   (11/2)
-stock-words            12.4%   1.5%    12.4%     1.5%   (15/2)
-dashes                 51.2%  23.9%    22.3%     6.0%   (62/32)
+bold                    4.1%  16.5%     0.0%     0.0%   (9/29)
+triads                  4.1%  11.9%     0.0%     0.0%   (9/21)
+bold-leads              0.9%   7.4%     0.0%     0.0%   (2/13)
+unfinished              0.0%   2.8%     0.0%     2.8%   (0/5)
+colon-reveal            0.0%   1.7%     0.0%     0.0%   (0/3)
+chatbot                 0.0%   1.1%     0.0%     1.1%   (0/2)
+throat-clearing         0.0%   1.1%     0.0%     1.1%   (0/2)
+metadiscourse           0.0%   0.6%     0.0%     0.0%   (0/1)
+puffery                 0.5%   0.0%     0.5%     0.0%   (1/0)
+summary-ending          0.5%   0.0%     0.5%     0.0%   (1/0)
+summary-openers         0.5%   0.0%     0.5%     0.0%   (1/0)
+rhythm                  2.7%   1.1%     0.0%     0.0%   (6/2)
+fragments               4.5%   1.7%     0.0%     0.0%   (10/3)
+empty-phrases           4.1%   1.1%     4.1%     1.1%   (9/2)
+specifics              15.5%  11.9%     0.0%     0.0%   (34/21)
+not-but                 6.4%   1.7%     0.5%     0.0%   (14/3)
+loaded-words            5.5%   0.0%     0.0%     0.0%   (12/0)
+stock-words            12.7%   1.1%    12.7%     1.1%   (28/2)
+dashes                 39.5%  22.2%    19.1%     4.0%   (87/39)

@@ -1,0 +1,14 @@
+{
+  "humanN": 220,
+  "humanFails": 0,
+  "aiN": 176,
+  "aiFails": 54,
+  "testHumanN": 49,
+  "testHumanFails": 0,
+  "testAiN": 56,
+  "testAiFails": 15,
+  "holdoutHumanN": 73,
+  "holdoutHumanFails": 0,
+  "holdoutAiN": 48,
+  "holdoutAiFails": 15
+}

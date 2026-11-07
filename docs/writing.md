@@ -10,19 +10,19 @@ each one by line and column, says why it reads that way, and says what to do ins
 video prompts: `review_prompt` does those. Code blocks, inline code, link targets and HTML are skipped, and so are
 words in quotation marks, since a list of banned words should not fail for naming them.
 
-It looks for 25 kinds of tell. The rule ids are in the output, and a few examples are:
+It looks for 28 kinds of tell. The rule ids are in the output, and a few examples are:
 
-- Stock words and empty openers: "delve", "tapestry", "it's worth noting", "in today's fast-paced world".
-- Dashes used for rhythm, and contrasts of the form "it's not X, it's Y".
-- A trailing "-ing" clause that claims meaning, and a colon followed by a reveal.
-- Stacked fragments, even sentence lengths, and lists of three on every other line.
-- Bold labels opening most paragraphs, emoji as headings, and a last paragraph that sums up the rest.
-- Placeholder text left in, such as "TODO", "lorem ipsum" or "[your name]".
+- Stock words and empty openers: "delve", "tapestry", "let's dive in", "as an AI".
+- Contrasts of the form "it's not X, it's Y", a trailing "-ing" clause that claims meaning, a colon followed by a reveal.
+- Template habits: bullets that each open on a bold label, a heading every few lines, bold sprinkled through a paragraph.
+- Placeholder text left in, such as "TODO", "lorem ipsum", "[your name]" or "[this week's produce]".
+- Stock warmth in pairs ("we're grateful to", "thank you for being part of", "it truly makes a difference").
+- Several small tells of different kinds in one piece, which is how a generated draft reads even when each tell is common.
 
-Every finding is either a fail or a warn. A fail is a tell that is almost never on purpose, so the text does not pass
-until you fix it. A warn is a judgment call: fix it unless it is the writer's own voice, such as a poet's
-deliberate fragments. A text passes when nothing fails, and is clean when nothing is found at all. Short pieces get
-stricter treatment than long ones: one dash fails a 100-word email and only warns in a 2,000-word essay.
+Every finding is either a fail or a warn. A fail is a tell that is almost never on purpose, or several small ones
+together, so the text does not pass until you fix it. A warn is a judgment call: fix it unless it is the writer's own
+voice, such as a poet's deliberate fragments. A text passes when nothing fails, and is clean when nothing is found at all.
+Some rules stay quiet until they find a few: one office word is a habit, three read as a press release.
 
 For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before
 showing it to anyone. For everyday prose (a post, an email, a page, an announcement), fix every fail, fix each warn
@@ -43,3 +43,101 @@ All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so t
 The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
 It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
 at the top of `docs/`, so the two cannot drift apart without the tests failing.
+
+## How well it works
+
+The rules were set by measurement, not by taste. The bench in `packages/craft/bench` runs the lint over 220 pieces
+people wrote and 176 drafts AI models wrote, and counts how often each rule fires on each. A rule that fires on people as
+often as on machines is noise, so it either warns only or is gone.
+
+- **People** (220 pieces, all published before 2021): blog posts, newsletters, announcements and web pages from 18F,
+  Digital.gov, NASA, Creative Commons and Global Voices (public domain, CC0, CC BY); Stack Exchange answers on
+  gardening, cooking, repairs, music, pets, parenting and money (CC BY-SA); sermons and letters from Project Gutenberg.
+  Each piece has its source, author, license and a SHA-256 in `corpus/human/manifest.json`.
+- **AI drafts** (176): 22 briefs (a bakery post, a parish newsletter item, a congregation email, a plumber's About page,
+  a sermon, a Little League newsletter) drafted by Claude Haiku, Sonnet and Opus and GPT-6 Luna with no skill, once
+  with the writer's facts and once from the topic alone.
+- **Splits.** `dev` pieces (98 human, 72 AI) were read to design rules. `test` pieces (49, 56) were read only as totals, apart from four noted in the bench README.
+  A `holdout` (73, 48) was set aside and not measured until the rules were final.
+
+| | Before | After |
+| --- | --- | --- |
+| AI drafts that fail (recall) | 11.4% (20 of 176) | 30.7% (54 of 176) |
+| People's pieces that fail | 32.3% (71 of 220) | 0.0% (0 of 220) |
+| People's pieces with any warn | 45.9% | 26.4% |
+| AI drafts with any finding | 61.4% | 81.3% |
+| Recall by model (Haiku, Sonnet, Opus, Luna) | 11, 2, 14, 18% | 39, 23, 43, 18% |
+| Holdout: AI recall, people failing | 12.5%, 26.0% | 31.3%, 0.0% |
+| 100,000 characters, TypeScript | 28 ms | 12 ms (2.4 times faster) |
+| 100,000 characters, Python script | 590 ms | 100 ms (6 times faster) |
+
+The speeds are medians on a busy laptop, so read them as ratios. Read the recall with care. Models in 2026 write cleaner prose than the lint was first built for: in this corpus no draft
+used "delve" or "tapestry", and 21 percent used a dash, against 40 percent of the people's pieces. So most of the
+catch now comes from structure and filler, not from banned words, and a plain short draft with none of them passes.
+Two things were looked at after the holdout was measured: it showed 3 people's pieces failing (4.1 percent), and the lint
+was changed so that bold in different forms counts as one kind of tell and "Ultimately" opening a last paragraph only
+warns. The table's holdout row is after that change, so it is no longer an untouched test. The corpus has no small-business
+pages, because no site of that kind carries a license that allows copies; web pages by a government team stand in
+for them. The bench's README says how to rebuild all of it.
+
+### What each rule does
+
+Hits are the share of the people's pieces and of the AI drafts the rule fired on. A rule with no hits in either stays
+for older models that wrote "delve" and "it's worth noting".
+
+| Rule | Tier | Catches | People | AI |
+| --- | --- | --- | --- | --- |
+| `stacked-tells` | fail | Two or more different kinds of weak tell in one piece | 0% | 17.0% |
+| `unfinished` | fail | TODO, lorem ipsum, `[your name]`, `[this week's produce]` | 0% | 14.8% |
+| `stock-words` | fail | "delve", "tapestry", "testament to", "multifaceted", "bustling", "nestled" | 0% | 0% |
+| `empty-phrases` | fail | "let's dive in", "as an AI", "I hope this helps", "look no further", "in today's fast-paced world" | 0% | 0% |
+| `throat-clearing`, `faux-insight`, `puffery`, `chatbot` | fail | "here's the thing", "most people skip", "stands as a testament", "great question" | 0% | 1.1% |
+| `negative-list`, `ing-tail`, `emoji-heading` | fail | "Not a X. Not a Y.", ", highlighting", emoji as headings | 0% | 0% |
+| `not-but` | warn, fail past one | "It's not X, it's Y", "more than a X. It was Y" | 3.6% | 2.3% |
+| `summary-ending` | fail for "In conclusion", warn for "Overall" | A last paragraph that recaps | 0.5% | 0% |
+| `headings` | warn | Three or more headings and one for every 125 words or fewer | 9.1% | 40.3% |
+| `bold-list-leads` | warn | Bullets that each open on a bold label | 3.6% | 31.8% |
+| `warm-boilerplate` | warn, two or more | "we're grateful to", "thank you for being part of", "feel free to reach out" | 0% | 12.5% |
+| `uniform-paragraphs` | warn | Six or more paragraphs, nearly all under 46 words, none over 60 | 4.1% | 15.3% |
+| `bold`, `bold-leads` | warn | Bold through a paragraph, or opening most paragraphs | 4.1%, 0.9% | 16.5%, 7.4% |
+| `triads`, `colon-reveal` | warn | Lists of three on every other line, a colon then a reveal | 4.1%, 0% | 11.9%, 1.7% |
+| `metadiscourse`, `weasel` | warn | "as you can see", "to be honest", "experts agree" | 0.5%, 0% | 11.9%, 0% |
+| `corporate-words`, `cliches`, `loaded-words`, `summary-openers`, `filler-adverbs` | warn, only when several | "leverage", "when it comes to", "crucial", "in summary", "actually" | 0.5% to 0.9% | 0% |
+
+Stacking counts kinds, not hits: `bold`, `bold-leads` and `bold-list-leads` are one habit, so a piece with all three and
+nothing else does not fail. `headings` and `uniform-paragraphs` warn but do not stack, because a web page has both.
+
+Dashes, stacked fragments, even sentence lengths and low counts of names and numbers were rules before. Each fired on
+people as often as on machines or more (dashes on 40 percent of the people's pieces against 22 percent of the AI drafts, and
+the more dashes, the more likely a person), so they are gone.
+
+, and is clean when nothing is found at all.
+Some rules stay quiet until they find a few: one office word is a habit, three read as a press release.
+
+For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before
+showing it to anyone. For everyday prose (a post, an email, a page, an announcement), fix every fail, fix each warn
+that is not the writer's voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and
+academic papers, every finding is a warning: keep what the voice, form or field needs, and say which you kept.
+
+## Four ways to run it
+
+All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so they agree on the same text.
+
+| Where | How | Needs |
+| --- | --- | --- |
+| Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }`, up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
+| MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, and `max` places to show for each finding. | A linked AI app |
+| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
+| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
+
+The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
+It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
+at the top of `docs/`, so the two cannot drift apart without the tests failing.
+
+### Changing a rule
+
+Run `node packages/craft/bench/quality.ts` before and after. `packages/craft/test/prose-quality.test.ts` fails when more
+of the people's pieces fail, or fewer of the AI drafts do, than `packages/craft/bench/baseline.json` records, in total and
+in each split. When a change earns better numbers, `node packages/craft/bench/quality.ts --ratchet` writes them (it
+refuses if anything got worse). `node packages/craft/bench/speed.ts --before origin/main` times both engines against a
+git ref, and `prose-speed.test.ts` keeps 100,000 characters under a generous ceiling on a slow machine.
