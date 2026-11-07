@@ -49,9 +49,11 @@ Write the brief (hildegard-craft, Gate 1) plus an **art direction** of five line
 2. Render each as a draft with two takes.
 3. Review every result (with Hildegard linked, `review_take`, or `hildegard review <file> --sheet` for stills).
    Without Hildegard, run `echo '{"path": "take-1.png", "sheet": "look-1.jpg"}' > spec.json` then
-   `python3 scripts/review_media.py spec.json` (needs `pip install av numpy pillow`) for the technical checks, and
+   `python3 scripts/review_media.py spec.json` for the technical checks, and
    `python3 scripts/contact_sheet.py sheet.png take-*.png --title "Round 1"` to put the takes side by side. Choose the
-   one that says the idea most clearly, not the prettiest.
+   one that says the idea most clearly, not the prettiest. Both scripts need Python packages: install them once with
+   `python3 -m pip install pillow numpy av`. A still needs only Pillow and numpy for `review_media.py`, and only Pillow for `contact_sheet.py`. Without
+   them, look at each image yourself against the critique questions and read its size with `ffprobe`.
 4. Refine the chosen one: change one thing per round (the crop, the light, a detail), at most three rounds.
 
 ## 4. Critique, out loud

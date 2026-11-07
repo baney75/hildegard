@@ -57,6 +57,18 @@ describe('each skill, opened alone from its own zip', () => {
     expect(problems).toEqual([]);
   });
 
+  it('hildegard-loop carries every web check of hildegard-web, so the loop works alone', () => {
+    const web = zips.get('hildegard-web')?.get('hildegard-web/SKILL.md')?.toString('utf8') ?? '';
+    const loop = zips.get('hildegard-loop')?.get('hildegard-loop/SKILL.md')?.toString('utf8') ?? '';
+    const table = web.slice(
+      web.indexOf('| Check | What fails it |'),
+      web.indexOf('Then critique with the web questions'),
+    );
+    const ids = [...table.matchAll(/`([a-z][a-z-]*)`/g)].map((m) => m[1]);
+    expect(ids.length).toBeGreaterThan(20);
+    for (const id of ids) expect(loop, `check ${id} in hildegard-loop`).toContain(`\`${id}\``);
+  });
+
   it('knows the Hildegard tools, so the "Without Hildegard" rule has something to find', () => {
     expect(tools.has('loop_start')).toBe(true);
     expect(tools.has('hildegard_status')).toBe(true);
@@ -193,13 +205,53 @@ describe('the checker itself', () => {
 
   it('fails a script another skill ships, named here without a copy', () => {
     const files = entries('demo', {
-      'demo/SKILL.md': `---\nname: demo\ndescription: ${'Use for a demo thing that exists only to test the checker, with words enough to pass 80 chars.'}\n---\n\nRun contact_sheet.py on the frames.\n`,
+      'demo/SKILL.md': `---\nname: demo\ndescription: ${'Use for a demo thing that exists only to test the checker, with words enough to pass 80 chars.'}\n---\n\nRun contact_sheet.py on the frames (install: python3 -m pip install pillow numpy av).\n`,
     });
     expect(standaloneProblems('demo', files, new Set(['contact_sheet.py'])).join('\n')).toMatch(
       /contact_sheet\.py/,
     );
     files.set('demo/scripts/contact_sheet.py', Buffer.from('x'));
     expect(standaloneProblems('demo', files, new Set(['contact_sheet.py']))).toEqual([]);
+  });
+
+  it('requires the install line wherever a skill names a script that needs Pillow, numpy or PyAV', () => {
+    const body = (text: string) =>
+      entries('demo', {
+        'demo/SKILL.md': `---\nname: demo\ndescription: ${'Use for a demo thing that exists only to test the checker, with words enough to pass 80 chars.'}\n---\n\n${text}\n`,
+        'demo/scripts/review_media.py': 'x',
+      });
+    expect(
+      standaloneProblems('demo', body('Run python3 scripts/review_media.py spec.json.')).join('\n'),
+    ).toMatch(/review_media\.py, which needs Python packages, but never gives the line/);
+    expect(standaloneProblems('demo', body('Run scripts/contact_sheet.py a.png.')).join('\n')).toMatch(
+      /contact_sheet\.py, which needs Python packages/,
+    );
+    // The scripts that need only Python and FFmpeg are not held to it.
+    expect(standaloneProblems('demo', body('Run check_video.py on out.mp4.'))).toEqual([]);
+    expect(
+      standaloneProblems(
+        'demo',
+        body('Run scripts/review_media.py spec.json (first: `python3 -m pip install pillow numpy av`).'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('fails a dependency on another skill’s check list, reference, template or script', () => {
+    const body = (text: string) =>
+      entries('demo', {
+        'demo/SKILL.md': `---\nname: demo\ndescription: ${'Use for a demo thing that exists only to test the checker, with words enough to pass 80 chars.'}\n---\n\n${text}\n`,
+      });
+    expect(
+      standaloneProblems('demo', body("Go through the **hildegard-web** skill's check list.")).join('\n'),
+    ).toMatch(/hildegard-web skill's check list/);
+    expect(
+      standaloneProblems('demo', body('Read the `hildegard-craft` skill’s references first.')).join('\n'),
+    ).toMatch(/hildegard-craft skill's references/);
+    // Naming another skill as an extra is fine; so is this skill's own.
+    expect(
+      standaloneProblems('demo', body('If you have it, the **hildegard-web** skill covers pages.')),
+    ).toEqual([]);
+    expect(standaloneProblems('demo', body("This skill's checks run first."))).toEqual([]);
   });
 
   it('holds the description, the name and the length of SKILL.md', () => {

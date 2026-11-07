@@ -86,7 +86,7 @@ Work on copies. Never overwrite your user's originals; write to a new folder suc
 plain FFmpeg (any build from 5.0 up). Check a recipe's output and look at the sheet before moving on. With Hildegard
 installed, that is `hildegard review <file> --sheet sheet.jpg`. Without Hildegard, it is
 `python3 scripts/contact_sheet.py sheet.png --video <file> --every 2` for the sheet, and for the technical checks
-(exposure, frozen frames, flicker, colour, black frames, sound clipping; needs `pip install av numpy pillow`)
+(exposure, frozen frames, flicker, colour, black frames, sound clipping; install the packages once with `python3 -m pip install pillow numpy av`; `check_video.py` and the sound scripts need none)
 `echo '{"path": "<file>", "sheet": "sheet.jpg", "final": false, "film": true, "audio": true}' > spec.json` then
 `python3 scripts/review_media.py spec.json`.
 

@@ -12,7 +12,8 @@ clearance, every round is sliced, and the part goes out with a sheet that says w
 
 This method follows print3d by mfranzon (MIT; see `references/print3d-license.md`), built on Hildegard's loop. It works
 alone: `scripts/print_kit.py` keeps the evidence, `scripts/mesh_kit.py` builds the part, and `scripts/review_mesh.py`
-measures and draws each round (Python with numpy and Pillow). With Hildegard linked, `printer_profile`, `loop_start`,
+measures and draws each round (Python with numpy and Pillow: `python3 -m pip install pillow numpy av`; `mesh_sdf` also needs `scikit-image`).
+Without them, take the sizes from the slicer and look at its renders. With Hildegard linked, `printer_profile`, `loop_start`,
 `loop_submit` and `loop_finish` do the measuring, slicing and the print sheet for you. If you have them, the
 **hildegard-3d** skill covers modeling and the sheet, **hildegard-openscad** building the part as parametric code (the
 strongest route for a part that has to fit), and **hildegard-loop** the rounds.
@@ -44,7 +45,7 @@ turns loosely `free`. Set those with `printer_profile {"clearance_mm": {...}}` (
 
 ## 2. Evidence: every number has a source
 
-`scripts/print_kit.py` (needs Python with Pillow and numpy; with Hildegard linked and no files, `read_skill
+`scripts/print_kit.py` (needs Pillow and numpy, installed as above; with Hildegard linked and no files, `read_skill
 hildegard-print scripts/print_kit.py` shows it) keeps the evidence in `print-job/spec.json`. Each dimension is one of:
 
 | Source | How | Example |

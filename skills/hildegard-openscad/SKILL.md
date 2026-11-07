@@ -12,7 +12,8 @@ signed-distance route or Blender; build parts here.
 
 This skill works alone. With Hildegard linked, it renders your `.scad`, measures it and draws it each round
 (`loop_submit`). Without Hildegard, you render with the `openscad` program yourself and measure the STL with
-`scripts/review_mesh.py` (Python with numpy and Pillow); section 6 has the commands. If you have them, the
+`scripts/review_mesh.py` (Python with numpy and Pillow: `python3 -m pip install pillow numpy av`); section 6 has the commands. Without them,
+read the size from OpenSCAD's own render and look at it. If you have them, the
 **hildegard-3d** skill covers the brief, the sheet and the checks, and **hildegard-print** (for a part that has to
 work) the evidence for every dimension and fits from the printer's clearance.
 

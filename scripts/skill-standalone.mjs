@@ -9,7 +9,9 @@
 // entries and reports: a link or a scripts/, references/ or templates/ path the skill names that is not inside the zip;
 // a path out of the folder (`../`) or into another skill (`skills/<name>`); a script that another skill ships and this
 // one names without carrying; a description over 200 characters or with ": " in it; a SKILL.md of 500 lines or more;
-// and a SKILL.md that names a Hildegard tool and never says what to do "Without Hildegard".
+// a SKILL.md that names a script needing Pillow, numpy or PyAV and never gives the install line; a SKILL.md that sends
+// the reader to "the <other> skill's check list" (or reference, template, script), which is not in this zip; and a
+// SKILL.md that names a Hildegard tool and never says what to do "Without Hildegard".
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
@@ -19,6 +21,19 @@ import { packSkills, skillNames } from './pack-skills.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const TEXT = /\.(md|txt|py|json|toml|ya?ml|css|html|svg|js|mjs)$/i;
+/** The line a SKILL.md gives for the Python packages its scripts import: Python alone does not carry them. */
+export const INSTALL_LINE = 'python3 -m pip install pillow numpy av';
+/** The bundled scripts that need a package Python does not ship (Pillow, numpy, PyAV). */
+export const NEEDS_PACKAGES = [
+  'review_media.py',
+  'review_mesh.py',
+  'contact_sheet.py',
+  'animatic.py',
+  'cutout.py',
+  'figure_rig.py',
+  'print_kit.py',
+  'mesh_kit.py',
+];
 const SPECIAL = /^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i;
 
 /** The entries of a zip, by reading its central directory: name -> bytes. */
@@ -143,6 +158,26 @@ export function standaloneProblems(skill, files, others = new Set(), tools = new
           );
       }
   }
+
+  // A script that imports Pillow, numpy or PyAV: the SKILL.md gives the install line, since "Python and FFmpeg" is not enough.
+  const packaged = NEEDS_PACKAGES.find((n) =>
+    new RegExp(`(?<![A-Za-z0-9_-])${n.replace('.', '\\.')}`).test(skillMd),
+  );
+  if (packaged && !skillMd.includes(INSTALL_LINE))
+    bad(
+      'SKILL.md',
+      `names ${packaged}, which needs Python packages, but never gives the line \`${INSTALL_LINE}\``,
+    );
+
+  // "Go through the hildegard-web skill's check list": a file of another skill is not in this zip, so it is not here.
+  for (const m of skillMd.matchAll(
+    /(hildegard(?:-[a-z0-9]+)*)[*`]*\s+skill[’']s\s+(check ?list|checks|references?|templates?|scripts?)/gi,
+  ))
+    if (m[1] !== skill)
+      bad(
+        'SKILL.md',
+        `sends the reader to the ${m[1]} skill's ${m[2]}, which is not in this zip; bundle it or write it here`,
+      );
 
   // A Hildegard tool needs a way around it: "With Hildegard linked: <tool>. Without Hildegard: <steps>."
   const tool = namesTool(

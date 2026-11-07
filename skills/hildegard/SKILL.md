@@ -95,7 +95,10 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
    - `figure_rig.py`: a proportioned, posable mannequin in head units;
    - `canon_check.py`: measures a face or figure against Leonardo's, Loomis's and Bridgman's canons and prints pass/fail.
 
-   The check scripts are in step 6 and in the domain files.
+   The check scripts are in step 6 and in the domain files. The ones that draw pictures need Python packages a bare
+   machine may lack; install them once with `python3 -m pip install pillow numpy av`. `contact_sheet.py` and `animatic.py` need only Pillow, `cutout.py` and
+   `figure_rig.py` Pillow and numpy, and the media checker of step 6 all three. `edit.py`, `canon_check.py` and `prose_lint.py` need only
+   Python and FFmpeg. Without the packages, look at the frames yourself and take the numbers from FFmpeg and `ffprobe`.
 4. **Composite works** (5j): several media serving one claim (a song with its cover, video, lyric sheet and podcast episode; a book with its illustrations; a paper with its figures). One seed and one bible, then each medium's layer, in a planned order.
 
 ## With Hildegard connected: make it on the user's own machines
@@ -115,7 +118,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 
 **The loop is step 6 made mechanical.** Every round comes back measured and drawn (a turntable with silhouettes for a model, a contact sheet for media); answer every question by pointing at a view or a check, change one thing, and send the next round. Hildegard won't take round two before the critique of round one, and it keeps every round so the user can see how the work got there.
 
-When the tools aren't here, everything else in this skill still works alone: the scripts in `scripts/` and the checks in the references need only Python and FFmpeg. If the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
+When the tools aren't here, everything else in this skill still works alone: the scripts in `scripts/` need Python and FFmpeg, plus the packages named in step 3 for the ones that draw pictures. If the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
 
 ## Lenses and styles: choose on purpose
 

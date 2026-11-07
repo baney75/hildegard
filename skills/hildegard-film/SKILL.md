@@ -116,7 +116,7 @@ Common fixes:
 3. `export_film` with the film id. It joins each shot's kept (or newest finished) take into one MP4.
 4. Check the exported file (or any clip your user brings). With Hildegard installed on this computer:
    `hildegard review <file> --film --final --sheet sheet.jpg`. Without Hildegard, from this skill's folder
-   (needs `pip install av numpy pillow`):
+   (install the packages once with `python3 -m pip install pillow numpy av`; without them FFmpeg still gives length, size, loudness and black frames, and you look at the sheet yourself):
 
    ```sh
    echo '{"path": "film.mp4", "sheet": "sheet.jpg", "final": true, "film": true, "audio": true}' > spec.json

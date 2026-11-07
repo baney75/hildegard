@@ -10,7 +10,7 @@ where it should. Over-editing (HDR glow, plastic skin, halos, crunchy saturation
 
 Work on copies in a new folder; never overwrite your user's originals. Commands are ImageMagick 7 (`magick`). With
 ImageMagick 6, write `convert` instead of `magick`. Check every result and look at it: with Hildegard installed,
-`hildegard review out.jpg --sheet look.jpg`; without it, from this skill's folder (needs `pip install av numpy pillow`)
+`hildegard review out.jpg --sheet look.jpg`; without it, from this skill's folder (install the packages once with `python3 -m pip install pillow numpy av`; a photo needs only Pillow and numpy, and without them you look at it and read its size with `magick identify`)
 `echo '{"path": "out.jpg", "sheet": "look.jpg"}' > spec.json && python3 scripts/review_media.py spec.json`. It prints
 each check (size, highlights, shadows, contrast, colour) as pass, warn or fail. For before and after side by side,
 `python3 scripts/contact_sheet.py compare.png in.jpg out.jpg`.

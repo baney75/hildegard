@@ -12,7 +12,8 @@ side, detail last. Hildegard's loop does the turning and the measuring; you do t
 This skill works alone. With Hildegard linked, `loop_start`, `loop_submit`, `loop_critique` and `loop_finish` run the
 rounds, and measure and draw each one. Without Hildegard, you run the same rounds yourself: build with
 `scripts/mesh_kit.py` or Blender, then measure and draw each round with `scripts/review_mesh.py` (section 3). Both
-need only Python with numpy and Pillow.
+need Python with numpy and Pillow: install them once with `python3 -m pip install pillow numpy av` (`av` is for the media checker; the
+mesher `mesh_sdf` also needs `scikit-image`). Without them, take the size from the exporter and look at renders.
 
 If you have them, the **hildegard** skill (its sculpture and figure-anatomy references) gives the method and the
 anatomy for any figure, face, hand or animal, and **hildegard-craft** the brief and the slop to avoid. Here,
