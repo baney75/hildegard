@@ -66,7 +66,7 @@ ffmpeg -hide_banner -nostats -i "$OUT" -af ebur128=peak=true -f null - 2>&1 | gr
 
 ### Recipe B: music under a voice-over
 
-Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (seconds after the last word) and the target. The music drops 16 dB while the voice speaks and comes back in pauses of 0.6 s or more. It is read from the voice with silencedetect, so it needs no sidechain graph.
+Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (seconds after the last word) and the target. The music drops 16 dB while the voice speaks and comes back in pauses of 0.6 s or more. It is read from the voice with silencedetect, so it needs no sidechain graph. It never cuts the voice: if `TOTAL` ends before the last spoken word it stops and says how many seconds over. Raise `TOTAL`, or run it with `ALLOW_OVERRUN=1` to let the total grow to the last word plus `TAIL`.
 
 ```bash
 #!/usr/bin/env bash
@@ -86,7 +86,12 @@ ffmpeg -hide_banner -i "$VOICE" -af "silencedetect=noise=${NOISE}dB:d=0.6" -f nu
 SEG=$(awk -v vd="$VD" '/start/{s[++n]=$2} /end/{e[++m]=$2} END{a=0; for(i=1;i<=n;i++){ if(s[i]>a+0.05) print a, s[i]; a=(i<=m)?e[i]:vd } if(a<vd-0.05) print a, vd}' "$TMP/sil.txt")
 EXPR=$(printf '%s\n' "$SEG" | awk -v st="$START" -v d="$DUCK" 'BEGIN{g=10^(-d/20)} {a=$1+st; b=$2+st; x=x (x?"+":"") sprintf("clip((t-%.3f)/0.3,0,1)*clip((%.3f-t)/0.5,0,1)", a-0.3, b+0.5)} END{printf "1-(1-%.5f)*min(1,%s)", g, x}')
 LASTEND=$(printf '%s\n' "$SEG" | awk 'END{print $2}')
-[ -n "$TOTAL" ] || TOTAL=$(awk -v s="$START" -v e="$LASTEND" -v t="$TAIL" 'BEGIN{printf "%.2f", s+e+t}')
+FULL=$(awk -v s="$START" -v e="$LASTEND" -v t="$TAIL" 'BEGIN{printf "%.2f", s+e+t}')
+if [ -z "$TOTAL" ]; then TOTAL=$FULL
+elif awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{exit !(t < s+e+0.1)}'; then
+  OVER=$(awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{printf "%.2f", s+e+0.1-t}')
+  [ "${ALLOW_OVERRUN:-0}" = 1 ] || { echo "the voice runs $OVER s over TOTAL ($TOTAL s). Use a TOTAL of at least $FULL or ALLOW_OVERRUN=1 to let it grow. Nothing was written." >&2; exit 1; }; TOTAL=$FULL
+fi
 # 2) music level: set REL dB from the voice's own loudness, before ducking.
 lufs() { ffmpeg -hide_banner -nostats -i "$1" ${2:-} -af ebur128 -f null - 2>&1 | sed -n 's/.*  I: *\(-*[0-9.]*\) LUFS.*/\1/p' | tail -1; }
 VL=$(lufs "$VOICE"); ML=$(lufs "$MUSIC")

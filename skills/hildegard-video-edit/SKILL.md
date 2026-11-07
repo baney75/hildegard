@@ -10,7 +10,7 @@ description: Cut clips into a reel with titles and music, edit or trim video, cr
 This skill is all you need to cut clips into a finished piece with titles, a closing card and a music bed, and to check it. Don't write the filter graph by hand. Run `scripts/cut_reel.py` (Python 3, FFmpeg only), or, if you can deliver only one script, paste **Recipe D** and edit its first lines.
 
 1. **Clean a voice recording:** `python3 scripts/clean_voice.py in.wav out.wav --lufs -16` (the same script as in the **hildegard-sound** skill, whose SKILL.md also has it as a paste-in Recipe A).
-2. **Music under speech:** `python3 scripts/duck_mix.py voice.wav music.wav out.wav` (hildegard-sound's Recipe B is the paste-in version).
+2. **Music under speech:** `python3 scripts/duck_mix.py voice.wav music.wav out.wav` (hildegard-sound's Recipe B is the paste-in version). With `--total` shorter than the voice it stops and says how many seconds over; it never cuts the voice. Raise `--total`, or add `--allow-overrun`.
 3. **A radio spot:** `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines a.wav b.wav c.wav --total 15` (hildegard-sound's Recipe C is the paste-in version). If the lines cannot fit `--total` it stops and says how many seconds over; it never cuts a line. Shorten the lines, raise `--total`, or add `--allow-overrun`.
 4. **Cut clips into a reel with titles and music:**
 
