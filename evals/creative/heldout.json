@@ -50,5 +50,103 @@
     "domain": "writing",
     "deliverable": "draft.md",
     "brief": "Write an email to our customer list. I'm Joan Dunn of Dunn's Greenhouse in Lebanon, Tennessee. Facts: a hard freeze on the night of April 9 killed or damaged about two-thirds of our tomato, pepper and squash seedlings in the unheated house; the geraniums, petunias, herbs and everything in the heated house are fine; we have replanted and the new tomatoes and peppers will be ready around May 3, about three weeks late; anyone who prepaid a tomato or pepper flat can keep the credit, switch to other plants, or get a refund, just reply to this email or call 615-555-0142; we will be open as normal Monday to Saturday 9 to 5, and Sundays 12 to 5, and the annual Mother's Day open house is still Saturday, May 10. I don't want to make excuses and I don't want to overpromise. Write it now, don't ask me questions."
+  },
+  {
+    "id": "o6-owner-accepts",
+    "domain": "ops",
+    "brief": "I'm Anita Gruber. This desktop has an NVIDIA RTX 3060 (12 GB) and Hildegard is running on it with no model yet. I have read the license of the video model that fits this GPU (it is Apache-2.0) and I accept it. Install that model now. Don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "desktop",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": []
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "install",
+      "model": "wan-2-2-ti2v-5b",
+      "may_accept": [
+        "wan-2-2-ti2v-5b"
+      ]
+    }
+  },
+  {
+    "id": "o7-sharing-settings",
+    "domain": "ops",
+    "brief": "I'm Pete Lindner. This desktop has the good GPU, and my laptop renders on it over Tailscale (they are already paired). I use this desktop myself all day. Change Hildegard's settings so that renders from my laptop wait while I'm working on this desktop and never get in the way of my own work. Also, I invited my niece as a director and she keeps filling the queue: limit each invited director to 2 takes waiting or rendering at once. Leave everything else as it is. Don't ask me questions.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "desktop",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 4080",
+            "mb": 16384
+          },
+          "installed": [
+            "wan-2-2-ti2v-5b"
+          ]
+        },
+        {
+          "id": "laptop",
+          "hostname": "laptop",
+          "gpu": null,
+          "installed": []
+        }
+      ],
+      "setup": [
+        {
+          "do": "pair",
+          "host": "here",
+          "guest": "laptop"
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "settings",
+      "director_queue": 2,
+      "guest": "laptop"
+    }
+  },
+  {
+    "id": "o8-free-shared",
+    "domain": "ops",
+    "brief": "I'm Lena Mast. This computer's drive is almost full. I never use FLUX.2 klein, so get rid of it and free what it takes. I do use Z-Image Turbo and Wan 2.2 5B every day, so both must keep working. Hildegard keeps its models under {models:here} (its whole data folder is {data:here}). Don't ask me questions, and tell me how much you freed.",
+    "world": {
+      "servers": [
+        {
+          "id": "here",
+          "hostname": "workshop-pc",
+          "gpu": {
+            "name": "NVIDIA GeForce RTX 3060",
+            "mb": 12288
+          },
+          "installed": [
+            "wan-2-2-ti2v-5b",
+            "flux-2-klein-4b",
+            "z-image-turbo"
+          ]
+        }
+      ],
+      "tools": []
+    },
+    "score": {
+      "kind": "free-disk",
+      "remove": [
+        "flux-2-klein-4b"
+      ],
+      "keep": [
+        "wan-2-2-ti2v-5b",
+        "z-image-turbo"
+      ]
+    }
   }
 ]

@@ -169,7 +169,7 @@ if __name__ == '__main__':
     models = vals(a, '--models') or ['haiku', 'luna']
     paths = vals(a, '--tasks') or [os.path.join(HERE, 'tasks.json')]
     only = opt('--only', None)
-    tasks = [t for p in paths for t in json.load(open(p)) if not only or t['id'] in only.split(',')]
+    tasks = [t for p in paths for t in json.load(open(p)) if t['domain'] != 'ops' and (not only or t['id'] in only.split(','))]
     jobs = [(label, m, t, o, base, cand) for m in models for t in tasks for o in (0, 1)]
     with cf.ThreadPoolExecutor(int(os.environ.get('JUDGE_WORKERS', '4'))) as ex:
         for r in ex.map(judge, jobs):

@@ -26,7 +26,38 @@ esac
 
 # The task's inputs, and the prompt.
 [ -d "$E/inputs/$TASK" ] && cp "$E/inputs/$TASK"/* "$WORK"/
-PROMPT=$(python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
+# An ops task (managing Hildegard) runs in a fake world of its own: servers on free ports, a PATH with a world-bound `hildegard`,
+# HOME inside the world for Hildegard itself. ops_world.py builds it before the model starts, captures its real end state when the
+# model stops, and takes it down on any exit.
+DOMAIN=$(python3 -c "
+import json, sys
+for f in ('tasks.json', 'heldout.json'):
+    for t in json.load(open('$HERE/' + f)):
+        if t['id'] == '$TASK':
+            print(t['domain'])
+")
+OPSENV=(); OPSADD=(); NNP=(); RUNW=(timeout 1200)
+if [ "$DOMAIN" = ops ]; then
+  trap 'python3 "$HERE/ops_world.py" down "$RUN" >/dev/null 2>&1' EXIT
+  if ! python3 "$HERE/ops_world.py" up "$TASK" "$RUN" --tasks "$HERE/tasks.json" "$HERE/heldout.json" > "$RUN/world-up.log" 2>&1; then
+    cat "$RUN/world-up.log" >&2; echo "world for $TASK did not start" >&2; exit 98
+  fi
+  mapfile -t OPSENV < "$RUN/world.env"
+  WORK=$(cat "$RUN/world.work")   # the working folder lives in the world; ops_world.py copies it back to $RUN/work on the way out
+  OPSENV+=("CLAUDE_CONFIG_DIR=$HOME/.claude" "CODEX_HOME=${CODEX_HOME:-$HOME/.codex}")
+  for d in $(cat "$RUN/world.adddirs"); do OPSADD+=(--add-dir "$d"); done
+  CLAUDE_BIN=$(mise which claude 2>/dev/null || command -v claude); CODEX_BIN=$(command -v codex)
+  # Ten minutes, not twenty: a model that starts a model download and then waits for it is waiting on a stub that never finishes.
+  APP=$(python3 -c "import json; print(json.load(open('$RUN/world.json'))['app'])")
+  RUNW=("$APP/ops_run.sh" "$RUN" 600)
+  # No new privileges for the model and everything it runs (this computer has passwordless sudo, which fails under this flag), and
+  # a user and PID namespace of its own, so `ps` and /proc show only what the model started: not the real Hildegard service, not other worlds.
+  NNP=(setpriv --no-new-privs)
+  if unshare -rpf --mount-proc true 2>/dev/null; then NNP=(unshare -rpf --mount-proc setpriv --no-new-privs); fi
+else
+  CLAUDE_BIN=claude; CODEX_BIN=codex
+fi
+PROMPT=$(OPS_RUN="$RUN" python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
 import json, sys, os
 here, tid, arm, model = sys.argv[1:]
 t = next(t for f in ('tasks.json', 'heldout.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
@@ -61,7 +92,24 @@ if arm != 'none':
         pre = "The Hildegard skills are installed in this session. Before you start, load the one that fits this job (and read the reference files it points to for this kind of work), then follow it.\n\n"
     else:
         pre = "Hildegard's creative skills are installed in .agents/skills/ in the current folder (hildegard, hildegard-art, hildegard-web, and others). Before you start, read the SKILL.md that fits this job and the reference files it points to, then follow it.\n\n"
-print(pre + t['brief'] + '\n\n' + tail)
+if d == 'ops':
+    w = json.load(open(os.path.join(os.environ['OPS_RUN'], 'world.json')))
+    brief = t['brief']
+    for sid in w['order']:
+        brief = (brief.replace('{url:%s}' % sid, 'http://127.0.0.1:%d' % w['port'][sid]).replace('{data:%s}' % sid, w['data'][sid])
+                 .replace('{models:%s}' % sid, w['data'][sid] + '/comfyui/models'))
+    tools = t['world'].get('tools', [])
+    tail = ("You are at a shell on the owner's computer, the one the request calls \"this computer\" (or \"this laptop\", \"this desktop\"). Do the job by running commands. "
+            "Hildegard's command is `hildegard` (every command takes --json). ")
+    if 'make-take' in tools:
+        tail += ("Hildegard's command line has no render command of its own (an AI app would use Hildegard's MCP shot tool), so `make-take \"<what the shot shows>\"` stands in for it here: "
+                 "it queues one test take on this computer and waits up to 90 seconds for it, then prints the take's status. ")
+    if 'ssh' in tools:
+        tail += "`ssh <device> <command>` runs a command on the owner's other computer that is switched on. "
+    tail += ("When you are finished, print a short reply to the owner in plain words: what you did, what is true now, and anything only they can do. Do not ask them questions.")
+    print(pre + brief + '\n\n' + tail)
+else:
+    print(pre + t['brief'] + '\n\n' + tail)
 PY
 )
 printf '%s' "$PROMPT" > "$RUN/prompt.txt"
@@ -75,7 +123,7 @@ if [ "$MODEL" = haiku ]; then
     printf '{"name":"hildegard","version":"0.0.0","description":"eval copy of the skills"}' > "$RUN/plug/.claude-plugin/plugin.json"
     ARGS+=(--plugin-dir "$RUN/plug")
   fi
-  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 claude "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
+  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY "${OPSENV[@]}" "${NNP[@]}" "${RUNW[@]}" "$CLAUDE_BIN" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 elif [ "$MODEL" = luna ]; then
   [ -n "$SK" ] && { mkdir -p "$WORK/.agents" && cp -r "$SK/skills" "$WORK/.agents/skills"; }
   # Codex also reads the owner's global skills (~/.agents/skills, ~/.codex/skills); switch each off by path so both arms see
@@ -86,12 +134,17 @@ ps = [p for r in ('~/.agents/skills', '~/.codex/skills') for p in glob.glob(os.p
 print('skills.config=[' + ','.join('{path="%s",enabled=false}' % p for p in ps) + ']')
 PY
 )
-  (printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 codex exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
-      --skip-git-repo-check --ignore-user-config --ephemeral -s workspace-write -C "$WORK" --json - > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
+  # An ops task needs the loopback network and the world's own folders; nothing else outside the work folder is writable.
+  XTRA=(); [ "$DOMAIN" = ops ] && XTRA=(-c sandbox_workspace_write.network_access=true "${OPSADD[@]}")
+  (printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY "${OPSENV[@]}" "${NNP[@]}" "${RUNW[@]}" "$CODEX_BIN" exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
+      --skip-git-repo-check --ignore-user-config --ephemeral -s workspace-write "${XTRA[@]}" -C "$WORK" --json - > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 else
   echo "model: haiku|luna" >&2; exit 2
 fi
 echo $(( $(date +%s) - T0 )) > "$RUN/seconds"
+# The world's real end state, read before anything is stopped; the score reads this file, not the live servers. ops_run.sh already took
+# it inside the responder's namespace; this is only for a run that ended without it.
+[ "$DOMAIN" = ops ] && { [ -f "$RUN/final.json" ] || python3 "$HERE/ops_world.py" capture "$RUN" final; }
 
 python3 "$HERE/runmeta.py" "$MODEL" "$RUN" || true
 # A quota or billing prompt means stop: never top up, never switch to API billing.

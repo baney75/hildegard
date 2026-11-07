@@ -17,7 +17,7 @@ def main():
     base, cand = opt('--base', 'none'), opt('--cand', 'main')
     models = vals(a, '--models') or ['haiku', 'luna']
     paths = vals(a, '--tasks') or [os.path.join(HERE, 'tasks.json')]
-    tasks = [t for p in paths for t in json.load(open(p))]
+    tasks = [t for p in paths for t in json.load(open(p)) if t['domain'] != 'ops']
     arms = [base, cand]
     runs, verdicts = {}, []
     for arm in arms:
