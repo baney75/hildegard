@@ -17,7 +17,7 @@ or references unless the one you're in sends you there.
 | Clean up or mix audio: a podcast, sermon or voice recording, music under a voice, a radio spot | **hildegard-sound** |
 | Cut, trim, caption or finish a video from clips you have | **hildegard-video-edit** |
 | Plan or make a film, ad or reel with Hildegard's video models | **hildegard-film** |
-| Everyday prose: a blog post, email, newsletter, web page copy, bio, announcement | `references/blog.md` here, then `scripts/prose_lint.py` on the draft |
+| Everyday prose in a person's own voice: a blog post, email, newsletter, page copy, bio, announcement | **hildegard-blog** |
 | A poem, story, script, sermon, speech or essay | `references/writing-craft.md` here (papers and books: `references/nonfiction-academic.md`) |
 | A painting, illustration or art image | **hildegard-art** |
 | Edit or retouch a photo | **hildegard-photo-edit** |
