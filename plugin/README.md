@@ -13,8 +13,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
   pair worked out.
 - **hildegard-app**: app screens for iOS, Android and desktop, built at device size from tokens, every state designed
   (empty, loading, error, offline), rendered and checked for contrast, tap targets and clipped text.
-- **hildegard-council**: six critics (art director, typographer, brand strategist, legibility, the customer,
-  production) who judge a design blind, each with a rubric, before the designer revises.
+- **hildegard-council**: on request, six critics (art director, typographer, brand strategist, legibility, the
+  customer, production) who judge a design blind, each with a rubric, or pick between variants shown as A and B.
 - **hildegard-web**: websites as real HTML and CSS, rendered at phone, tablet and desktop width in
   light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
   file or a live page; your user watches the site on Hildegard's canvas while you build it.

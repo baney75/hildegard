@@ -16,16 +16,11 @@ standard library, Pillow, and a rasterizer (rsvg-convert, cairosvg or Chromium) 
 | `scripts/lockup.py` | puts the mark and the wordmark together (horizontal, stacked) by ratio |
 | `scripts/logo_check.py` | renders at 16, 32, 64 and 512 px, measures hairlines, embroidery, one-color loss, colors and live text; makes the logo sheet |
 | `scripts/brand_guide.py` | checks `brand.json`, works out every contrast pair, and lays out the one-page guide (HTML, PNG, PDF) |
-| `scripts/council.py`, `references/rubrics.md` | the design council: six blind critics (the **hildegard-council** skill) |
 | `references/logo.md` | how to find the idea, build the mark on a grid, choose and kern the face, lock it up |
 | `references/brand-system.md` | color by role, type pairing and scale, voice in three lines, imagery rules |
 | `templates/example/` | a finished logo set and `brand.json` (Brickyard Press, a letterpress shop) to copy the shape of |
 
 Run every script from this skill's folder, or give its full path. Each prints what failed and how to fix it.
-<!-- council:start -->
-Every logo and every guide made here goes through the council before it is delivered. It is a step, not an extra:
-work without a `council/r1/tally.md` is not finished.
-<!-- council:end -->
 
 ## A logo
 
@@ -63,25 +58,9 @@ work without a `council/r1/tally.md` is not finished.
    Fix every FAIL and run it again: thicken what the magenta shows, outline live text, remove gradients, cut colors to
    three. A `favicon-16` warning means drawing a simpler favicon (`logo.md`). Then open `logo-check/sheet.png` at full
    size and look at the 16 and 32 px views: is it the same shape as at 512? Done when no check fails and you have looked.
-<!-- council:start -->
-7. **Council (required).** Judge the sheet blind, with six critics, before anyone sees it:
-   1. Print each critic's prompt: for each role in `art-director typographer brand-strategist legibility customer
-      production`, run `python3 scripts/council.py brief --role <role> --medium logo --brief brief.md --render
-      logo-check/sheet.png`.
-   2. If you can start subagents (an Agent or Task tool, Codex subagents), start one per role, all at once, each given
-      only its printed prompt. If you can't, be each critic in turn: read one prompt, look at the sheet, write that
-      review's JSON file in full, then go to the next prompt. Never reread an earlier review.
-   3. `python3 scripts/council.py tally`, then make every change in its "Must fix" list (check each hard fail against
-      the brief first: a critic who misquotes the brief is wrong), re-run step 6, and run a second round only if the
-      tally says one is due.
-
-   The **hildegard-council** skill explains the protocol; everything it needs is in this skill. Done when
-   `council/r1/tally.md` exists and every must-fix item is changed or answered.
-<!-- council:end -->
-8. **Deliver**: `mark.svg`, `logo-horizontal.svg`, `logo-stacked.svg`, the one-color and reversed files from
+7. **Deliver**: `mark.svg`, `logo-horizontal.svg`, `logo-stacked.svg`, the one-color and reversed files from
    `logo-check/`, the PNGs at 16, 32, 64 and 512 px for the favicon and app icon, and `sheet.png`. Say the idea in one
-   sentence, the face and its license (Google Fonts, free for logos), the minimum sizes from the sheet<!-- council:start -->, `council/r1/tally.md`, and the
-   council's scores and what you changed for each must-fix item<!-- council:end -->.
+   sentence, the face and its license (Google Fonts, free for logos), the minimum sizes from the sheet.
 
 ## A brand system
 
@@ -100,12 +79,7 @@ work without a `council/r1/tally.md` is not finished.
    Every FAIL names the fix (a failing color pair prints the nearest color that passes). Run it until it writes
    `guide/guide.png`, then look at the whole page: does every section look like the same client? Done when it passes
    and you have looked.
-<!-- council:start -->
-4. **Council (required)** on `guide/guide.png` with `--medium brand`: the three parts of logo step 7, each critic
-   blind. Done when `council/r1/tally.md` exists and every must-fix item is changed or answered.
-<!-- council:end -->
-5. **Deliver** `brand.json`, `guide/guide.pdf`, `guide/guide.png`, `guide/guide.html` and the logo files<!-- council:start -->, with
-   the council's scores and what you changed<!-- council:end -->.
+4. **Deliver** `brand.json`, `guide/guide.pdf`, `guide/guide.png`, `guide/guide.html` and the logo files.
 
 ## Rules that are never relaxed
 

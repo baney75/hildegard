@@ -851,17 +851,11 @@ describe('the skills Hildegard ships', () => {
     }
   });
 
-  it('carries the council and the browser helper into each skill that uses them, byte for byte', () => {
-    // Each skill is also uploaded alone (one zip per skill), so hildegard-brand and hildegard-app hold their own
-    // copies; the source is hildegard-council (the council) and hildegard-brand (browser.py).
-    const same = (from: string, to: string) =>
-      expect(readFileSync(join(dir, to), 'utf8'), `${to} differs from ${from}`).toBe(
-        readFileSync(join(dir, from), 'utf8'),
-      );
-    for (const skill of ['hildegard-brand', 'hildegard-app']) {
-      same('hildegard-council/scripts/council.py', `${skill}/scripts/council.py`);
-      same('hildegard-council/references/rubrics.md', `${skill}/references/rubrics.md`);
-    }
-    same('hildegard-brand/scripts/browser.py', 'hildegard-app/scripts/browser.py');
+  it('carries the browser helper into each skill that uses it, byte for byte', () => {
+    // Each skill is also uploaded alone (one zip per skill), so hildegard-app holds its own copy; the source is
+    // hildegard-brand's.
+    expect(readFileSync(join(dir, 'hildegard-app/scripts/browser.py'), 'utf8')).toBe(
+      readFileSync(join(dir, 'hildegard-brand/scripts/browser.py'), 'utf8'),
+    );
   });
 });

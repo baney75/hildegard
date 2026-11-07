@@ -1,0 +1,1601 @@
+{
+  "label": "brand-council",
+  "base": "nocouncil",
+  "cand": "council",
+  "models": ["haiku", "luna"],
+  "tasks": [
+    "l4-ironwood-tree",
+    "l5-blackwater-roasting",
+    "b4-kettle-river",
+    "b5-northfield-dental",
+    "p4-bus-tracker",
+    "p5-fair-checkin"
+  ],
+  "summary": {
+    "logo": {
+      "haiku": {
+        "cand": 4,
+        "base": 0,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 0,
+        "cand_rate": 1.0
+      },
+      "luna": {
+        "cand": 1,
+        "base": 3,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 0,
+        "tasks_lost": 1,
+        "cand_rate": 0.25
+      }
+    },
+    "brand": {
+      "haiku": {
+        "cand": 0,
+        "base": 4,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 0,
+        "tasks_lost": 2,
+        "cand_rate": 0.0
+      },
+      "luna": {
+        "cand": 2,
+        "base": 2,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 1,
+        "cand_rate": 0.5
+      }
+    },
+    "app": {
+      "haiku": {
+        "cand": 3,
+        "base": 1,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 0,
+        "cand_rate": 0.75
+      },
+      "luna": {
+        "cand": 2,
+        "base": 2,
+        "tie": 0,
+        "n": 4,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 1,
+        "cand_rate": 0.5
+      }
+    }
+  },
+  "skill_loaded": {
+    "nocouncil": {
+      "haiku": [6, 6],
+      "luna": [6, 6]
+    },
+    "council": {
+      "haiku": [6, 6],
+      "luna": [6, 6]
+    }
+  },
+  "runs": {
+    "nocouncil": {
+      "haiku": {
+        "l4-ironwood-tree": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/templates/example/mark.svg"
+            ],
+            "tool_calls": 21,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 154,
+            "cost_usd_reported": 0.029925199999999996
+          },
+          "score": {
+            "task": "l4-ironwood-tree",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery", "mark.svg:favicon-16"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "warn",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "23 px wide on screen (23 px tall), 6 mm printed, 23 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "l5-blackwater-roasting": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-brand/references/logo.md"],
+            "tool_calls": 11,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 66,
+            "cost_usd_reported": 0.01230065
+          },
+          "score": {
+            "task": "l5-blackwater-roasting",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "17 px wide on screen (17 px tall), 6 mm printed, 17 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "b4-kettle-river": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/templates/example/brand.json"
+            ],
+            "tool_calls": 26,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 104,
+            "cost_usd_reported": 0.025871069999999996
+          },
+          "score": {
+            "task": "b4-kettle-river",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Source Sans 3", "Bitter"],
+            "smallest_px": 9
+          }
+        },
+        "b5-northfield-dental": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/scripts/brand_guide.py",
+              "hildegard-brand/templates/example/brand.json"
+            ],
+            "tool_calls": 20,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 66,
+            "cost_usd_reported": 0.021714350000000004
+          },
+          "score": {
+            "task": "b5-northfield-dental",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "date",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Public Sans", "Figtree"],
+            "smallest_px": 9
+          }
+        },
+        "p4-bus-tracker": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-app"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 9,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 64,
+            "cost_usd_reported": 0.014258030000000001
+          },
+          "score": {
+            "task": "p4-bus-tracker",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        },
+        "p5-fair-checkin": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-app"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-app/references/platforms.md",
+              "hildegard-app/templates/screen.html",
+              "hildegard-app/templates/tokens.css"
+            ],
+            "tool_calls": 11,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 90,
+            "cost_usd_reported": 0.01476381
+          },
+          "score": {
+            "task": "p5-fair-checkin",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        }
+      },
+      "luna": {
+        "l4-ironwood-tree": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-brand",
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/browser.py",
+              "hildegard-brand/scripts/lockup.py",
+              "hildegard-brand/scripts/lockup.py;",
+              "hildegard-brand/scripts/logo_check.py",
+              "hildegard-brand/scripts/wordmark.py",
+              "hildegard-brand/scripts/wordmark.py;",
+              "hildegard-brand/scripts\\",
+              "hildegard-brand/templates/example/mark.svg;",
+              "hildegard-craft",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 27,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 386,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "l4-ironwood-tree",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "17 px wide on screen (17 px tall), 6 mm printed, 17 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "l5-blackwater-roasting": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/lockup.py",
+              "hildegard-brand/scripts/logo_check.py",
+              "hildegard-brand/scripts/logo_check.py;",
+              "hildegard-brand/scripts/wordmark.py",
+              "hildegard-brand/scripts/wordmark.py;",
+              "hildegard-brand/templates/example",
+              "hildegard-brand/templates/example/logo-horizontal.svg;",
+              "hildegard-brand/templates/example/logo-stacked.svg",
+              "hildegard-brand/templates/example/mark.svg",
+              "hildegard-brand/templates/example;",
+              "hildegard-craft/references",
+              "hildegard-craft/references/images.md",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 31,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 316,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "l5-blackwater-roasting",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": ["mark.svg:embroidery", "mark.svg:hairlines"],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 2,
+            "hairlines": "fail",
+            "embroidery": "fail",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "37 px wide on screen (37 px tall), 6 mm printed, 37 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "b4-kettle-river": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/scripts/brand_guide.py",
+              "hildegard-brand/templates/example/brand.json",
+              "hildegard-craft/references/color.md",
+              "hildegard/references/color.md"
+            ],
+            "tool_calls": 24,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 193,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "b4-kettle-river",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Work Sans", "Fraunces"],
+            "smallest_px": 9
+          }
+        },
+        "b5-northfield-dental": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand",
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/scripts/brand_guide.py",
+              "hildegard-brand/templates/example/brand.json",
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 15,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 125,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "b5-northfield-dental",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Public Sans", "Source Serif 4"],
+            "smallest_px": 9
+          }
+        },
+        "p4-bus-tracker": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-loop", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-app",
+              "hildegard-app/SKILL.md;",
+              "hildegard-app/references/platforms.md;",
+              "hildegard-app/scripts/screen_check.py",
+              "hildegard-app/templates/screen.html;",
+              "hildegard-app/templates/tokens.css;",
+              "hildegard-craft/SKILL.md;",
+              "hildegard-craft/references/slop.md;",
+              "hildegard-web/SKILL.md;"
+            ],
+            "tool_calls": 13,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 160,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "p4-bus-tracker",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": ["offline:safe-area"],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        },
+        "p5-fair-checkin": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": [
+              "hildegard",
+              "hildegard-app",
+              "hildegard-craft",
+              "hildegard-loop",
+              "hildegard-web"
+            ],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-app",
+              "hildegard-app/references/platforms.md",
+              "hildegard-app/scripts/screen_check.py",
+              "hildegard-app/templates/screen-empty.html",
+              "hildegard-app/templates/screen.html",
+              "hildegard-app/templates/tokens.css",
+              "hildegard-craft",
+              "hildegard-craft/references/slop.md",
+              "hildegard-loop",
+              "hildegard-web"
+            ],
+            "tool_calls": 14,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 147,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "p5-fair-checkin",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": ["screen:targets"],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 2,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        }
+      }
+    },
+    "council": {
+      "haiku": {
+        "l4-ironwood-tree": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-brand/references/logo.md"],
+            "tool_calls": 19,
+            "council_ran": true,
+            "council_tallies": 3,
+            "council_briefs": 1,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 133,
+            "cost_usd_reported": 0.026499370000000005
+          },
+          "score": {
+            "task": "l4-ironwood-tree",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "18 px wide on screen (18 px tall), 6 mm printed, 18 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "l5-blackwater-roasting": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 59,
+            "council_ran": true,
+            "council_tallies": 1,
+            "council_briefs": 2,
+            "subagents": 6,
+            "is_error": false,
+            "seconds": 842,
+            "cost_usd_reported": 0.05849926500000001
+          },
+          "score": {
+            "task": "l5-blackwater-roasting",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "11 px wide on screen (11 px tall), 6 mm printed, 11 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "b4-kettle-river": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 23,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 107,
+            "cost_usd_reported": 0.02514245999999999
+          },
+          "score": {
+            "task": "b4-kettle-river",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "date",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Work Sans", "Fraunces"],
+            "smallest_px": 9
+          }
+        },
+        "b5-northfield-dental": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-brand"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-brand/references/brand-system.md"],
+            "tool_calls": 28,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 151,
+            "cost_usd_reported": 0.03451257
+          },
+          "score": {
+            "task": "b5-northfield-dental",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "contrast",
+              "imagery",
+              "logo",
+              "name",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Instrument Sans", "Public Sans"],
+            "smallest_px": 13
+          }
+        },
+        "p4-bus-tracker": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-app"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 64,
+            "council_ran": true,
+            "council_tallies": 2,
+            "council_briefs": 2,
+            "subagents": 12,
+            "is_error": false,
+            "seconds": 184,
+            "cost_usd_reported": 0.06507479
+          },
+          "score": {
+            "task": "p4-bus-tracker",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        },
+        "p5-fair-checkin": {
+          "meta": {
+            "model": "haiku",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-app"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 11,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 95,
+            "cost_usd_reported": 0.0160875
+          },
+          "score": {
+            "task": "p5-fair-checkin",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        }
+      },
+      "luna": {
+        "l4-ironwood-tree": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/references/rubrics.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/browser.py;",
+              "hildegard-brand/scripts/council.py",
+              "hildegard-brand/scripts/council.py;",
+              "hildegard-brand/scripts/lockup.py",
+              "hildegard-brand/scripts/logo_check.py",
+              "hildegard-brand/scripts/logo_check.py;",
+              "hildegard-brand/scripts/wordmark.py",
+              "hildegard-brand/templates/example/logo-horizontal.svg;",
+              "hildegard-brand/templates/example/mark.svg"
+            ],
+            "tool_calls": 49,
+            "council_ran": true,
+            "council_tallies": 3,
+            "council_briefs": 1,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 354,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "l4-ironwood-tree",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "8 px wide on screen (7 px tall), 6 mm printed, 8 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "l5-blackwater-roasting": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/references/rubrics.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/browser.py",
+              "hildegard-brand/scripts/council.py",
+              "hildegard-brand/scripts/lockup.py",
+              "hildegard-brand/scripts/logo_check.py",
+              "hildegard-brand/scripts/wordmark.py",
+              "hildegard-brand/templates/example/mark.svg",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 26,
+            "council_ran": true,
+            "council_tallies": 1,
+            "council_briefs": 6,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 304,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "l5-blackwater-roasting",
+            "domain": "logo",
+            "deliverable": true,
+            "has_mark": true,
+            "has_logo": true,
+            "has_sheet": true,
+            "checks_failed": [],
+            "checks_warned": ["logo.svg:embroidery"],
+            "fails": 0,
+            "hairlines": "pass",
+            "embroidery": "pass",
+            "one-color": "pass",
+            "favicon-16": "pass",
+            "text": "pass",
+            "flat": "pass",
+            "colors": "pass",
+            "min_size": "11 px wide on screen (11 px tall), 6 mm printed, 11 mm embroidered",
+            "live_text": false,
+            "sheet_rendered": true
+          }
+        },
+        "b4-kettle-river": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md;",
+              "hildegard-brand/references/logo.md;",
+              "hildegard-brand/references/rubrics.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/brand_guide.py",
+              "hildegard-brand/scripts/brand_guide.py;",
+              "hildegard-brand/scripts/council.py",
+              "hildegard-brand/templates/example/brand.json;",
+              "hildegard-council/SKILL.md;"
+            ],
+            "tool_calls": 11,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 70,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "b4-kettle-river",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "imagery",
+              "logo",
+              "name",
+              "pairs",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Work Sans", "Fraunces"],
+            "smallest_px": 9
+          }
+        },
+        "b5-northfield-dental": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-brand", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-brand/references/brand-system.md",
+              "hildegard-brand/references/brand-system.md;",
+              "hildegard-brand/references/logo.md",
+              "hildegard-brand/references/rubrics.md",
+              "hildegard-brand/scripts",
+              "hildegard-brand/scripts/brand_guide.py;",
+              "hildegard-brand/scripts/council.py",
+              "hildegard-brand/templates/example/brand.json;",
+              "hildegard-brand;",
+              "hildegard-council/SKILL.md;",
+              "hildegard-council/references/rubrics.md",
+              "hildegard-craft/SKILL.md;",
+              "hildegard-web/SKILL.md;",
+              "hildegard/references/code-rendering.md;",
+              "hildegard/references/color.md"
+            ],
+            "tool_calls": 13,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 139,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "b5-northfield-dental",
+            "domain": "brand",
+            "deliverable": true,
+            "has_json": true,
+            "json_ok": true,
+            "json_keys": [
+              "audience",
+              "colors",
+              "contrast",
+              "imagery",
+              "logo",
+              "name",
+              "summary",
+              "type",
+              "voice"
+            ],
+            "rendered": true,
+            "contrast_fails": 0,
+            "contrast_examples": [],
+            "clipped": 0,
+            "one_page": true,
+            "scroll": [816, 1056],
+            "placeholder": 0,
+            "fonts": ["Public Sans", "Source Serif 4"],
+            "smallest_px": 8
+          }
+        },
+        "p4-bus-tracker": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-app", "hildegard-council", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-app/references/platforms.md",
+              "hildegard-app/scripts/browser.py",
+              "hildegard-app/scripts/screen_check.py",
+              "hildegard-app/templates/screen.html",
+              "hildegard-app/templates/tokens.css",
+              "hildegard-council/references/rubrics.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 18,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 150,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "p4-bus-tracker",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [
+              "screen:text-size",
+              "screen:safe-area",
+              "offline:text-size",
+              "offline:safe-area"
+            ],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        },
+        "p5-fair-checkin": {
+          "meta": {
+            "model": "luna",
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-app", "hildegard-council", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-app",
+              "hildegard-app/references/platforms.md",
+              "hildegard-app/references/rubrics.md;",
+              "hildegard-app/scripts",
+              "hildegard-app/scripts/browser.py",
+              "hildegard-app/scripts/screen_check.py",
+              "hildegard-app/templates/screen-empty.html",
+              "hildegard-app/templates/screen.html",
+              "hildegard-app/templates/tokens.css",
+              "hildegard-council"
+            ],
+            "tool_calls": 17,
+            "council_ran": false,
+            "council_tallies": 0,
+            "council_briefs": 0,
+            "subagents": 0,
+            "is_error": false,
+            "seconds": 146,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "p5-fair-checkin",
+            "domain": "app",
+            "deliverable": true,
+            "states_delivered": 2,
+            "states_asked": 2,
+            "checks_failed": [],
+            "checks_warned": [],
+            "fails": 0,
+            "contrast_fails": 0,
+            "small_targets": 0,
+            "overflow": false,
+            "clipped": 0,
+            "placeholder": 0,
+            "sheet": true
+          }
+        }
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "model": "haiku",
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both sheets spell the name exactly, add nothing, and use the same bold grotesque wordmark, so the marks decide it. B is a solid heartwood disc with a wedge cut into it, like a felling notch in a log. It holds as a clean, distinct shape at 16 and 32 px, and its few thick areas would cut cleanly in vinyl and embroider well. A's nested rings with a center dot and thin white gaps turn into a muddy bullseye at 16 px, and it reads more like a generic target than a tree.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both spell the name exactly and add nothing; both use the same idea, a cut growth-ring cross-section set in the same grotesque type. A uses two heavy rings, so it stays a clean, recognizable shape at 16 and 32 px and has no thin gaps to lose in embroidery or cut vinyl. B's three rings, small center dot and thin white gaps fill in at 16 px, and the mark also reads as a generic bullseye or target.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both spell the name exactly and add nothing, and both marks keep their shape at 16 and 32 px and in one color and reversed. B's split disc is the cleaner, more deliberate form, with solid weights that will stamp and embroider well. A's blocky pixel 'B' looks like a crude 8-bit initial with uneven, arbitrary counters and no tie to the mill, the falls or roasting. B's idea is still weak: it reads as a flattened coffee bean or a generic horizon disc, close to the clich\u00e9 the brief ruled out, so its lead is mostly on craft.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both spell the name exactly, add nothing, and hold up at 16 px, in one color and reversed. A's mark is a solid dark disc cut by a thick horizontal band. It reads as dark water at a horizon, its heavy shapes would stamp and embroider cleanly, and it pairs well with the refined serif. B's chunky, pixel-style stepped 'B' also survives at small sizes, but it looks like an 8-bit glyph with uneven counters. That has nothing to do with a 1940s feed mill and clashes with the serif wordmark. A's split circle is close to generic and could be read as a coffee bean's crease, so its lead is small.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "The two pages share almost the same layout, palette, contrast table and voice/imagery structure, so small errors decide it. B has a duplicated footer ('files: logo.svg, logo.svg'), stray capitalization in 'For Locals', and a '2026' date the brief never gives. B also names Fraunces as the logo face while its logo samples are set in a different serif. A's Bitter/Source Sans pairing matches its logo samples, and its 'Do' and 'Don't' imagery rules are a bit more specific: the brewhouse shot in daylight from the taproom, and cans close enough on a shelf to read the label. B's location-flavored color names (Bank Vault Cream) and its mention of the brothers in the voice rules don't outweigh those errors.",
+      "invented": {
+        "nocouncil": [],
+        "council": ["2026 date on the guide"]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "The two pages share the same layout, but B is more accurate and more consistent. A says its logo is set in Fraunces, but the wordmark shown is not Fraunces, while B names Bitter for both the wordmark and the headlines, which matches what is on the page. A also has small errors that B avoids: a '2026' date the brief never gave, 'files: logo.svg, logo.svg' listed twice in the footer, and 'Locals' capitalized by mistake. B also names the Lund brothers and uses imagery rules tied to the client, like the 7-barrel brewhouse and cans on county shelves.",
+      "invented": {
+        "council": [
+          "'2026' date on the brand guide",
+          "Fraunces named as the logo typeface, which the logo itself doesn't show"
+        ],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "clear",
+      "auto": false,
+      "why": "A covers the full system: logo use on light, dark and teal backgrounds, a contrast table showing which color pairs pass for text, two Say/Not voice pairs, and imagery rules labeled Do and Don't that fit nervous patients, such as banning frightening close-ups of drills and needles. B has no labels on its two picture columns, so it doesn't say which list to follow and which to avoid. B also encourages close-ups of tools, which works against its anxious audience, and gives only one voice example. B's layout is weaker too, with a large empty gap under the type sample and the picture list crowding the footer rule. A has a small slip in its table, labeling the 9.54:1 accent-on-surface pair as 'passes large' only.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's system is more complete and easier to use. It has a logo section showing the logo on light, dark and teal backgrounds with clear-space and minimum-size rules. Each color gets a role and a usage note, backed by a full contrast table. Its two Say/Not pairs and its imagery do's and don'ts are specific to nervous adults and toddlers, such as eye-level shots and no frightening close-ups of drills. A is clean and accurate but thinner: one voice example, logo rules squeezed into the footer, and a large empty area beside the type specimen. B's flaws are minor: the logo on the teal tile is too small to read, and there is an off-brief 'Made with Hildegard' credit in the footer.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both use the brief's facts correctly. B looks more like a finished product: the intermediate stops are unlabeled dots instead of A's placeholder-looking 'Stop / Stop' rows, the primary action sits at the bottom within thumb reach, and offline mode greys the bus marker and says 'Last known position', so the stale data shows at a glance. A's offline explanation is wordier but very clear, which keeps the margin slight.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both use only the brief's facts: Maya, bus 14, morning route, Oak St. and Ridgeway Ave., 3 stops, about 6 minutes, Mr. Dorsey, and the 2-minute-old update. A's offline state shows the data is stale through the design itself: the bus marker turns grey and is labeled 'Last known position', and the time reads 'Last known: about 6 minutes away'. It does this without repeating itself, and the Try again button is easy to reach with a thumb. B explains what happens next more clearly, but it says the 2-minute age three times, keeps the bus marker the same live yellow when offline, and fills the route with vague rows labeled 'Stop', which makes the screen feel busier than A's.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both use the brief's facts correctly, and neither keeps the searched number in the empty state. B fits the volunteer's job better: each animal has a thumb-sized \"Ear tag and health papers checked\" checkbox, and its check-in button stays disabled until that box is ticked, which enforces the brief's verify-then-check-in rule. A only says \"Check the ear tag and health papers first\" in plain text. A's empty-state message is a little more useful because it covers the case where the number is right but no animals are entered yet, but B's serif type, weigh-in card and clear status pills make it look more like a finished product.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both screens use the brief's facts correctly and make nothing up. B's check-in screen is clearer at a glance: 'Check in Biscuit' is a solid, obvious primary button, while A's greyed-out buttons look disabled and have weak contrast, even though A's tag-and-papers checkbox fits the workflow well. B's empty state is also more useful because it covers both a mistyped number and a correct number whose animals aren't entered yet. Neither empty screen keeps the number the volunteer searched for.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both spell the name correctly, invent nothing, and set it in a similar default bold sans, so the decision comes down to the mark. A's blocky tree, with branch shapes cut out of a solid crown, is pixel-aligned and stays crisp and recognizable at 32 and 16 px, and its heavy shapes would survive embroidery and cut vinyl. B's mark turns blurry and anti-aliased at small sizes, has a thin trunk that doesn't connect to the canopy, and reads more like a lamp or airplane than a tree. Neither mark is very distinctive, but B is the weaker one.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both spell the name exactly and add nothing, and both use the same default bold sans in a plain lockup, so the marks decide it. B's chunky crown with a forked-branch cutout snaps to the pixel grid and stays crisp and solid at 16 and 32 px, which suits embroidery and vinyl. A's mark reads more like an umbrella or a lamp on a base than a tree, and its 16 px view goes soft and blurry. Neither idea gets far past a generic pixel tree, so B's lead is small.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both spell the name exactly and invent nothing, and both hold up in one color and reversed. A's B is cut out of a gabled mill shape, which ties the mark to the 1940s feed mill. B is a plain heavy notched B that any company starting with B could use. B is sharper at 16 px, where A's inner letter blurs into grey, but A's building outline stays clear and its idea belongs to this client, which tips the choice.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both spell the name correctly and add nothing invented. A's heavy B monogram, with its notched counters, keeps the same solid shape at 32 and 16 px and holds up in one ink and reversed, so it would stamp and embroider well. B tries to put a B inside a mill-like silhouette, but the B's bowls break out of the shape awkwardly, the thin white slivers turn to mush at 16 px, and at small sizes the mark looks more like a folder or printer icon than a feed mill. B has the more specific idea, but it fails the small-size and production test that matters more, and A is the cleaner, more deliberate piece of craft.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "clear",
+      "auto": false,
+      "why": "A runs off the bottom of the page: its logo block and section 05 are cut off mid-word. Its color card also leaves a large empty area and gives each swatch only a one-word role. B fits on the page and shows the logo on light, dark and accent grounds. It also gives every color a hex value, a role and usage notes, lists more contrast pairs, and sets out a fuller type scale and more say/not examples, all drawn from the brief. B's flaws are small: the footer lists logo.svg twice and carries a stray 'Made with Hildegard' credit.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "clear",
+      "auto": false,
+      "why": "B runs off the bottom of the page: the logo block and section 05 are cut off mid-word, which makes it unusable as a printed one-page guide, and its color section leaves a large empty gap. A fits everything on the page and gives each color a clear role with its hex value and contrast ratio. It names its type pairing with a size scale, and its voice Say/Not examples and imagery do/don't rules are concrete enough to use. A's only flaws are minor: a duplicated 'logo.svg, logo.svg' in the footer and a stray capital in 'Taproom'.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "Neither page invents facts, and both use nearly the same palette, type pairing and Say/Skip voice structure, so the result turns on usability and fit. A gives every color a plain-language role (page background, headlines and copy, logo and actions), names the services and both key audiences up front, and fills the page evenly. B leaves the services out, sets a near-illegible minimum-size logo sample, says not to recolor the logo but then shows it reversed in white, and leaves large empty areas at the bottom of the page.",
+      "invented": {
+        "nocouncil": [],
+        "council": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both pages are factually clean and use nearly the same structure, palette and type pairing. B wins because it states what each color is for (page background, headlines and copy, logo and actions), names the real audience and services (nervous adults returning, toddlers, cleanings, fillings and crowns), uses larger and more readable voice and imagery text, and fills the page with a better-balanced layout. A leaves a large empty band at the bottom, has smaller text in its rules, and its reversed teal logo contradicts its own instruction not to recolor the logo.",
+      "invented": {
+        "council": [],
+        "nocouncil": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "council",
+      "margin": "clear",
+      "auto": false,
+      "why": "A's offline screen is broken: a huge empty yellow panel fills the screen and pushes the bus card off the bottom, so the parent can't see the bus's last known position. A also makes up intermediate stops (Cedar St., Maple & 3rd). B shows the offline banner with the 2-minute timestamp and keeps the parent's place. B has its own faults: its route list is illogical, putting the bus after Maya's stop and listing 'Ridgeway Ave.' as a separate stop. It doesn't say the 6-minute estimate may be stale or what to do next, and its status bar is plain text instead of icons. Even so, B's states work and A's offline state does not.",
+      "invented": {
+        "nocouncil": ["Lakeview Elementary as a route stop", "Cedar St. stop", "Maple & 3rd next stop"],
+        "council": [
+          "Lakeview School as a route stop",
+          "Ridgeway Ave. as a separate stop 2 stops away",
+          "'Bus tracking' tab bar item"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "council",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's offline screen is broken: the offline banner grows to fill almost the whole screen and pushes the bus status off the bottom, so the parent can't see their child's bus at all. B also makes up stop names (Lakeview Elementary, Cedar St., Maple & 3rd) that aren't in the brief. A keeps the same screen when offline and adds a clear 'Last update 2 minutes ago' banner, but it has its own problems: its route line doesn't make sense (Bus 14 is listed as a stop after Maya's stop, and Ridgeway Ave. shows as 2 stops away), and its offline screen still shows '3 stops away / 6 min' without saying that this may be out of date.",
+      "invented": {
+        "council": ["'Lakeview School' stop name", "'Ridgeway Ave.' as a separate stop 2 stops away"],
+        "nocouncil": ["'Lakeview Elementary' stop", "'Cedar St.' stop", "'Maple & 3rd' next stop"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "order": 0,
+      "A": "nocouncil",
+      "B": "council",
+      "winner": "nocouncil",
+      "margin": "clear",
+      "auto": false,
+      "why": "A's empty state keeps the place: it shows the number the volunteer searched, offers a fix (check the number or contact the 4-H office) and a clear way back. B clears the search field and only repeats the headline. A's per-animal action, 'Verify tag & health papers', matches the brief's check-in step, while B's plain 'Check in' drops that step. B also adds nav tabs (Exhibitors, Schedule) that the brief never mentions. A's one questionable addition is a 'Finish check-in' bar that sits oddly next to per-animal check-in.",
+      "invented": {
+        "nocouncil": [
+          "exhibitor number 18342",
+          "'Finish check-in' batch action",
+          "advice to contact the 4-H office"
+        ],
+        "council": ["bottom navigation with Exhibitors and Schedule tabs"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "order": 1,
+      "A": "council",
+      "B": "nocouncil",
+      "winner": "nocouncil",
+      "margin": "clear",
+      "auto": false,
+      "why": "B builds the brief's real step into each action: every unchecked animal has a 'Verify tag & health papers' button and a clear status chip, while A uses a generic 'Check in' button. B's empty state shows the number that was searched, gives a real next step (check the number or contact the 4-H office) and leaves the number in the field. A's empty state clears the search field and repeats the headline, which loses the volunteer's place. B makes up a few extras, like a sample exhibitor number, a 'Finish check-in' footer and a 'contact the 4-H office' instruction, but A also adds a Schedule tab and a duplicate 'Breeding gilt' subtitle, and its states are thinner.",
+      "invented": {
+        "council": [
+          "Bottom navigation with a 'Schedule' tab",
+          "'Exhibitors' search tab as a separate feature"
+        ],
+        "nocouncil": [
+          "Sample exhibitor number 18342",
+          "'Finish check-in' footer action",
+          "Instruction to have the exhibitor contact the 4-H office",
+          "Pig icons/avatars and 'HB' initials badge"
+        ]
+      }
+    }
+  ]
+}

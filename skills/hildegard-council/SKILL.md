@@ -7,8 +7,12 @@ description: Use to review a logo, brand, app screen, page, poster, image or fil
 
 A designer can't see their own work fresh. The council is six critics who each see only the brief and the render,
 score it against their own rubric, and never read each other's notes. The designer then fixes what the council agrees
-on. This skill is the whole protocol; **hildegard-brand**, **hildegard-app**, **hildegard-web**, **hildegard-art** and
-the motion skills send their work here by name.
+on. Use it when your user asks for a review, a critique or a choice between directions, for work from any skill
+(**hildegard-brand**, **hildegard-app**, **hildegard-web**, **hildegard-art**, the film and video skills).
+
+It is not a default step in those skills. In a blind test on 2026-11-07 (Claude Haiku and GPT-6 Luna, logos, brand
+guides and app screens), the same skills with a required council won 12 of 24 held-out verdicts against the skills
+without it: no better. Haiku gained on logos (4 of 4) and lost on brand guides (0 of 4); Luna rarely ran it.
 
 `scripts/council.py` does the paperwork (the prompts, the shuffle, the tally) with the standard library only.
 `references/rubrics.md` holds the six rubrics. Without the script, follow the same steps by hand: copy the role's
@@ -27,7 +31,7 @@ section of `rubrics.md` into each critic's prompt and add up the reviews as step
 
 The critics judge a picture, not your description of it. Before the council:
 
-1. Render the work and look at it yourself: the logo sheet (hildegard-brand `logo_check.py`), the guide PNG
+1. Render the work and look at it yourself: the logo sheet (hildegard-brand's `logo_check.py`), the guide PNG
    (`brand_guide.py`), the screen and its states (hildegard-app `screen_check.py`), the page at its widths, the image,
    or a contact sheet of the film's frames.
 2. Write `brief.md`: the client's brief word for word, then the copy deck (every word that should appear). Add

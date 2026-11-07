@@ -151,10 +151,5 @@ hildegard review final.mp4 --final --film --audio --sheet final-sheet.jpg
 ```
 
 Look at the sheet and listen through once.
-<!-- council:start -->
-For a piece a client will publish, run the **hildegard-council** protocol on the sheet with `--medium motion`
-(without `hildegard review`: `ffmpeg -i final.mp4 -vf fps=1/2,scale=480:-1,tile=4x3 final-sheet.jpg`); without that
-skill, play its six roles one at a time, each review written in full before the next.
-<!-- council:end -->
 Then tell your user the path, the length, what you cut and why, and
 anything you couldn't fix. Keep Hildegard's "made with" label in the file's metadata when the footage is generated.

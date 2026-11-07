@@ -70,6 +70,7 @@ evals/creative/run.sh <label>                       # tuned set, none vs main, h
 evals/creative/run.sh <label> --set heldout         # the held-out set
 evals/creative/run.sh <label> --cand new --base main   # this checkout's skills/ (or $NEW_SKILLS) against main
 evals/creative/run.sh <label> --only a1-podcast-clean,d1-fall-festival --models haiku
+evals/creative/run.sh brand-ship --set brand-both --base none --cand nocouncil   # logos, guides, app screens (arms.py makes the arms)
 ```
 
 State lives in `~/.cache/hildegard-creative-eval/` (`runs/<arm>/<model>/<task>/`, `judge/<label>/`); delete a run folder to redo it.
@@ -143,6 +144,56 @@ What I would try first: put the two-pass `loudnorm` recipe, a hum notch recipe a
 `skills/hildegard/references/sound-design.md`/`hildegard-sound` as copy-paste blocks; tell the design skills to render and read the PNG once and fix collisions before finishing
 and to add no copy that is not in the brief; add a 5-second-per-shot rule and "no facts beyond the brief" to the video-plan references. Those are
 changes for the session that owns `skills/`; this PR changes none.
+
+### Logos, brand guides and app screens, 2026-11-07 (`results-brand-*.json`)
+
+Fifteen tasks in `tasks-brand.json` (3 each of logo, brand guide, app screen) and `heldout-brand.json` (2 each), run with
+`--set brand-both`. Deliverables: `mark.svg`, `logo.svg` and a logo sheet; `brand.json` and a one-page `guide.html`
+(the client's logo given); each state the brief names as `<state>.html` at the device size. Three arms, one response
+each per task and model: `none`; `nocouncil`, the skills as they ship; `council`, the same skills with a required
+six-critic council (the text at commit 02d52da; `arms.py` builds both arms from one checkout by cutting the
+`<!-- council:start -->` blocks and the council's files, and fails if any council text is left). Responders run in their
+own process namespace with an empty HOME, no new privileges and only the CLIs they need on PATH, so they see neither
+the owner's `hildegard` CLI nor the running service. Scored by the skills' own checkers from this checkout (the same for
+every arm: `logo_check.py --plain`, the guide rendered at US letter and audited, `screen_check.py`), then judged blind by
+Opus on the logo sheet, the guide PNG or the states side by side, in both orders.
+
+Blind verdicts won by the first arm (rate counts a tie as half):
+
+| Comparison | Set | Haiku 5.5 | GPT-6 Luna (low) |
+| --- | --- | --- | --- |
+| skills as shipped against none | tuned | 11 of 18 (0.61) | 13 of 18 (0.72) |
+| skills as shipped against none | held-out | 8 of 12 (0.67) | 6 of 12 (0.50) |
+| council against none | held-out | 7 of 12 (0.58) | 8 of 12 (0.67) |
+| council against no council | tuned | 13 of 18 (0.72) | 8 of 18 (0.44) |
+| council against no council | held-out | 7 of 12 (0.58) | 5 of 12 (0.42) |
+
+Measured over all 15 tasks (checker fails; text under WCAG AA in guides and screens; tap targets under the platform's
+size):
+
+| Arm | Model | logo check fails | live text in logos | app check fails | text under AA | small targets |
+| --- | --- | --- | --- | --- | --- | --- |
+| none | Haiku | 14 | 0 of 5 | 8 | 21 | 44 |
+| shipped | Haiku | 0 | 0 of 5 | 0 | 0 | 0 |
+| none | Luna | 22 | 5 of 5 | 20 | 184 | 6 |
+| shipped | Luna | 2 | 0 of 5 | 13 | 32 | 4 |
+
+Invented facts per judgment (the judge's count), skills as shipped against none: brand guides Haiku 0.4 against 1.6,
+Luna 0 against 0.8; app screens Haiku 0.2 against 2.3, Luna 2.2 against 5.6; logos 0 everywhere.
+
+**The council stays out of the default steps.** On the held-out set the required council won 12 of 24 verdicts against
+the same skills without it: no better, so by the rule set for this work it is not a default. It is kept as
+`hildegard-council`, used when someone asks for a review or a choice between variants. Compliance was part of the
+result: with the council written as a pointer to another skill, Haiku skipped it on 3 of 3 logos; written as required
+commands with a tally in the delivery, Haiku ran it in 10 of 15 runs (67 critic subagents) and Luna in 3 of 15
+(`report.py` prints this from `runmeta.py`'s `council_ran`). Where Haiku ran it, it helped logos (held-out 4 of 4) and
+hurt brand guides (0 of 4). One critic called a fact the brief gives invented, so the council now checks every hard fail
+against the brief before acting on it.
+
+Bugs the run found, fixed before these numbers: a lockup's stroke widths were judged at 32 px wide instead of 40 px
+tall; `wordmark.py` could not keep its font cache under Codex's workspace sandbox (it now uses `./.fonts`, and offline
+lists installed fonts with a license warning; Luna's ten skill-arm logo runs were redone with the fix); the placeholder
+check matched a type-scale step named "Title".
 
 ### Limits
 

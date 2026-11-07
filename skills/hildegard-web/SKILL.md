@@ -117,13 +117,6 @@ magenta. And the checks:
 Then critique with the web questions (intent, hierarchy, content, type, space, colour, specific, responsive, images,
 states, themes), each with the screen and the width that shows it. Failing checks first, then the worst "no", one
 change a round. Five rounds is the default.
-<!-- council:start -->
-
-**Council.** Before your user sees a round you think is ready, run the **hildegard-council** protocol on its sheet with
-`--medium page`: six critics, each blind, each with a rubric. Fix every hard fail and every area two critics flag, at
-most two council rounds. Without that skill, play the six roles one at a time (art director, typographer, brand
-strategist, legibility, the customer, production), writing each review in full before starting the next.
-<!-- council:end -->
 
 **Variants.** To compare directions (a quiet, typographic page against an image-led one), start one loop per
 direction with the same brief and a different `what`, take each two or three rounds, and put the two sheets in front

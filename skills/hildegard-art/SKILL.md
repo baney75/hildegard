@@ -54,12 +54,6 @@ Before you show your user anything, answer in writing:
 - What would a good human illustrator change? Do it, or say why not.
 - What in it is a default the model chose for you (the glow, the centred subject, the generic face)? Replace it.
 - Could this have been made for any client? If yes, it isn't finished: add something only this client has.
-<!-- council:start -->
-
-For work a client will publish, run the **hildegard-council** protocol on the image with `--medium image` (to choose
-between directions, shuffle them as A and B first). Fix every hard fail and every area two critics flag. Without that
-skill, play its six roles one at a time, writing each review in full before starting the next.
-<!-- council:end -->
 
 ## 5. Finish
 

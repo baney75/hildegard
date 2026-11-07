@@ -86,13 +86,6 @@ Common fixes:
 4. If your agent runs on the computer Hildegard runs on: `hildegard review <file> --film --final --sheet sheet.jpg`
    on the exported file, and look at the sheet.
 5. Tell your user: the film's path, its length, what each shot is, and anything still imperfect.
-<!-- council:start -->
-
-Before step 5, run the **hildegard-council** protocol on a contact sheet of the film's frames (`hildegard review
-<file> --film --final --sheet sheet.jpg`, or `ffmpeg -i film.mp4 -vf fps=1/2,scale=480:-1,tile=4x3 sheet.jpg`)
-with `--medium motion`; the brief includes the script and the timings. Without that skill, play its six roles one
-at a time, writing each review in full before starting the next.
-<!-- council:end -->
 
 Sound: LTX makes sound with the picture; Wan doesn't. For music, voice-over or a mix, continue with
 **hildegard-video-edit**.
