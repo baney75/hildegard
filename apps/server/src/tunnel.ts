@@ -88,7 +88,8 @@ export async function tailscaleInfo(run: Exec = exec): Promise<TailscaleInfo> {
   return { installed: false, version: null, backend: null };
 }
 
-function tailscaleProvider(ts: TailscaleInfo, host: HostState): TunnelReport['tailscale'] {
+function tailscaleProvider(ts: TailscaleInfo, host: HostState, ports: number[]): TunnelReport['tailscale'] {
+  const forwarding = ports.length > 0;
   const signedIn = ts.backend === 'Running';
   const mine = host.on && (host.via === 'tailscale' || host.via === 'funnel');
   const base = {
@@ -103,9 +104,19 @@ function tailscaleProvider(ts: TailscaleInfo, host: HostState): TunnelReport['ta
         : 'tailscale up',
     name: host.tailscale.name,
     funnel: mine && host.via === 'funnel',
+    forwarding,
   };
   if (mine && host.problem) return { ...base, state: 'problem', problem: host.problem, fix: host.fix };
   if (mine && host.url) return { ...base, state: 'on', problem: null, fix: null };
+  // Off by Hildegard's account, but Tailscale still forwards here (it refused to turn the route off): say so.
+  if (forwarding && !mine)
+    return {
+      ...base,
+      state: 'problem',
+      problem: 'Tailscale still forwards a link to this Hildegard, though the link is off.',
+      // Only Hildegard's own route, by its port: never a reset, which would end every other route here too.
+      fix: `tailscale serve --https=${ports[0]} off`,
+    };
   if (!ts.installed)
     return {
       ...base,
@@ -538,7 +549,8 @@ export class Cloudflared implements TunnelControl {
    * connection. Replaces any tunnel already running.
    */
   async up(kind: 'cloudflare' | 'quick', target: string, hostname?: string | null): Promise<string> {
-    await this.down();
+    // Everything that can be refused (no cloudflared, no sign-in, a bad name, a DNS record in the way) is settled
+    // before a running tunnel stops, so a refused change leaves the working one as it was.
     const bin = await this.need();
     let want: Want;
     if (kind === 'cloudflare') {
@@ -585,6 +597,7 @@ export class Cloudflared implements TunnelControl {
         env: this.env,
       };
     }
+    await this.down();
     this.want = want;
     this.failures = 0;
     try {
@@ -689,21 +702,35 @@ export class Cloudflared implements TunnelControl {
           this.fix = `See ${this.log}`;
           this.o.onChange?.();
           if (Date.now() - this.startedAt > 60_000) this.failures = 0;
-          const wait = Math.min(60_000, (this.o.restartMs ?? 2000) * 2 ** this.failures++);
-          this.restartTimer = setTimeout(() => {
-            this.restartTimer = null;
-            if (this.want !== want) return;
-            this.launch(bin, want).catch((e: Error) => {
-              if (this.want !== want) return;
-              this.problem = e.message;
-              this.fix = e instanceof HostError ? e.fix : null;
-              this.o.onChange?.();
-            });
-          }, wait);
-          this.restartTimer.unref?.();
+          this.retry(bin, want);
         });
       });
     });
+  }
+
+  /**
+   * Start cloudflared again after it stopped on its own, waiting longer each time, and keep trying for as long as the
+   * tunnel is wanted: a start that fails before it connects schedules the next one.
+   */
+  private retry(bin: string, want: Want) {
+    const wait = Math.min(60_000, (this.o.restartMs ?? 2000) * 2 ** this.failures++);
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (this.want !== want) return;
+      this.launch(bin, want).catch((e: Error) => {
+        if (this.want !== want) return;
+        this.problem = `${e.message} Hildegard keeps trying.`;
+        this.fix = e instanceof HostError ? e.fix : null;
+        this.o.onChange?.();
+        this.retry(bin, want);
+      });
+    }, wait);
+    this.restartTimer.unref?.();
+  }
+
+  /** A tunnel is wanted: running, starting, or waiting to start again. */
+  get active(): boolean {
+    return this.want !== null;
   }
 
   /** Stop the tunnel. The named tunnel and its DNS record stay in the owner's account, for the next time. */
@@ -790,7 +817,9 @@ export async function tunnelReport(o: {
   savedHostname: string | null;
   cloudflared: Cloudflared;
   run?: Exec;
+  /** The HTTPS ports Tailscale forwards to the hosted listener now, as `tailscale serve status` says (Host.forwarding). */
+  forwarding?: number[];
 }): Promise<TunnelReport> {
   const [ts, cf] = await Promise.all([tailscaleInfo(o.run), o.cloudflared.provider(o.host, o.savedHostname)]);
-  return { tailscale: tailscaleProvider(ts, o.host), cloudflare: cf, host: o.host };
+  return { tailscale: tailscaleProvider(ts, o.host, o.forwarding ?? []), cloudflare: cf, host: o.host };
 }

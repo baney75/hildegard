@@ -176,4 +176,55 @@ describe('hildegard tunnel', () => {
       await srv.close();
     }
   }, 60_000);
+
+  it('says off failed when Tailscale won’t turn its route off, with the command for only that route', async () => {
+    const served: Record<string, string> = {};
+    const exec: Exec = async (cmd, args) => {
+      if (cmd !== 'tailscale') return { ok: false, out: '' };
+      if (args[0] === 'version') return { ok: true, out: '1.102.3' };
+      if (args[0] === 'status')
+        return {
+          ok: true,
+          out: JSON.stringify({
+            BackendState: 'Running',
+            Self: { DNSName: 'studio.example.ts.net.', TailscaleIPs: ['100.64.0.1'] },
+          }),
+        };
+      if (args[0] === 'serve' && args[1] === 'status') {
+        const Web: Record<string, unknown> = {};
+        for (const [p, to] of Object.entries(served))
+          Web[`studio.example.ts.net:${p}`] = { Handlers: { '/': { Proxy: to } } };
+        return { ok: true, out: JSON.stringify({ Web }) };
+      }
+      if (args[1] === '--bg') served[args[2]!.split('=')[1]!] = args[3]!;
+      if (args.at(-1) === 'off') return { ok: false, out: 'error: something went wrong' };
+      return { ok: true, out: '' };
+    };
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-tunnel-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort: await freePort() },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 's.json')),
+        exec,
+        tunnelHome: mkdtempSync(join(tmpdir(), 'hg-h-')),
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data, '--json'];
+    try {
+      await fetch(`${srv.url}/api/people/owner`, {
+        method: 'POST',
+        headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
+      });
+      expect((await hildegard(home, 'tunnel', 'tailscale', ...at)).ok).toBe(true);
+      const off = await hildegard(home, 'tunnel', 'off', ...at);
+      expect(off.ok).toBe(false);
+      expect(off.steps[0]).toMatchObject({ status: 'failed', command: 'tailscale serve --https=443 off' });
+      expect(off.steps[0]!.detail).toMatch(/Still on through Tailscale/);
+    } finally {
+      await srv.close();
+    }
+  }, 60_000);
 });

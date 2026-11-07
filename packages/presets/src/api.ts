@@ -464,6 +464,8 @@ export interface TunnelReport {
     name: string | null;
     /** Funnel (the public internet) carries the link, not Serve (the tailnet only). */
     funnel: boolean;
+    /** Tailscale itself says a Serve or Funnel route forwards to Hildegard's hosted listener right now. */
+    forwarding: boolean;
   };
   cloudflare: TunnelProvider & {
     /** The named tunnel Hildegard uses on this computer, `hildegard-<computer>`, once it exists in the account. */

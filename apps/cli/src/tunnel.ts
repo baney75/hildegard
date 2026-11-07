@@ -340,7 +340,10 @@ export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
     await api<HostState>(ctx.config, '/api/host/off', { method: 'POST', timeoutMs: 30_000 });
     // Read the real state back: off means nothing forwards here, not that the command ran.
     const r = await report(ctx);
-    const still = (['tailscale', 'cloudflare'] as const).filter((p) => r[p].state === 'on');
+    // Tailscale's own word, not Hildegard's: a route it refused to turn off still forwards here.
+    const still = (['tailscale', 'cloudflare'] as const).filter(
+      (p) => r[p].state === 'on' || (p === 'tailscale' && r.tailscale.forwarding),
+    );
     const ok = !r.host.on && still.length === 0;
     return result(
       [
@@ -350,7 +353,8 @@ export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
           status: ok ? 'done' : 'failed',
           detail: ok
             ? 'Off. Nothing forwards to this Hildegard now; only this computer can use it.'
-            : `Still on through ${still.map((p) => TITLE[p]).join(' and ') || 'the link'}. ${r.host.problem ?? ''}`.trim(),
+            : `Still on through ${still.map((p) => TITLE[p]).join(' and ') || 'the link'}. ${r.tailscale.forwarding ? (r.tailscale.problem ?? '') : (r.host.problem ?? '')}`.trim(),
+          ...(r.tailscale.forwarding && r.tailscale.fix ? { command: r.tailscale.fix } : {}),
         },
       ],
       ok

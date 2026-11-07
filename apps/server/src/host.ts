@@ -83,6 +83,8 @@ const LOGIN_LINK = /https:\/\/login\.tailscale\.com\/\S+/;
 export interface TunnelControl {
   up(kind: 'cloudflare' | 'quick', target: string, hostname?: string | null): Promise<string>;
   down(): Promise<void>;
+  /** A tunnel is running, starting, or waiting to start again. */
+  readonly active: boolean;
 }
 
 type TunnelKind = 'cloudflare' | 'quick';
@@ -188,6 +190,8 @@ export interface HostOptions {
   onChange?: (s: HostState) => void;
   /** Whether the owner account exists. */
   owner: () => boolean;
+  /** How long to wait before trying a saved tunnel again when it couldn't start with Hildegard (30 s). */
+  retryMs?: number;
   /** Runs a Cloudflare tunnel as the front door, when asked; none in tests that don't need one. */
   tunnel?: TunnelControl;
 }
@@ -205,6 +209,8 @@ export class Host {
   private tailnetAt = 0;
   problem: string | null = null;
   fix: string | null = null;
+  /** The next try at a saved tunnel that couldn't start with Hildegard. */
+  private retry: NodeJS.Timeout | null = null;
 
   constructor(opts: HostOptions) {
     this.opts = opts;
@@ -488,7 +494,15 @@ export class Host {
     const tunnel = this.opts.tunnel;
     if (!tunnel) throw new HostError(409, 'This Hildegard can’t run a tunnel.');
     if (hostname) this.checkReserved(hostname.replace(/^https:\/\//i, '').replace(/\/$/, ''));
-    const url = await tunnel.up(kind, this.target(), kind === 'cloudflare' ? hostname : null);
+    const prev = this.saved?.on && this.saved.tunnel ? this.saved : null;
+    let url: string;
+    try {
+      url = await tunnel.up(kind, this.target(), kind === 'cloudflare' ? hostname : null);
+    } catch (e) {
+      // Refused before it stopped anything, the old tunnel still runs; failing after, it comes back.
+      await this.restoreTunnel(prev);
+      throw e;
+    }
     try {
       const p = parsePublicUrl(url);
       if (!p.ok) throw new HostError(502, p.error);
@@ -508,6 +522,7 @@ export class Host {
       this.save({ on: true, via: 'custom', url: p.url, tunnel: kind, ...(name ? { hostname: name } : {}) });
     } catch (e) {
       await tunnel.down();
+      await this.restoreTunnel(prev);
       throw e;
     }
     this.problem = null;
@@ -516,12 +531,37 @@ export class Host {
     return this.state();
   }
 
+  /**
+   * After a refused change, the tunnel that was the link before runs again, so the state never says on with nothing
+   * behind it. If it can't, the link says why.
+   */
+  private async restoreTunnel(prev: HostFile | null) {
+    const tunnel = this.opts.tunnel;
+    if (!prev?.tunnel || !tunnel || tunnel.active) return;
+    try {
+      const url = await tunnel.up(prev.tunnel, this.target(), prev.hostname ?? null);
+      if (url !== prev.url) this.save({ ...prev, url });
+    } catch (e) {
+      this.problem = (e as Error).message;
+      this.fix = e instanceof HostError ? e.fix : null;
+      this.emit();
+    }
+  }
+
   /** A quick tunnel came back under a new name after cloudflared restarted: the door moves with it. */
   tunnelMoved(url: string) {
     const f = this.saved;
     if (!f?.on || f.tunnel !== 'quick' || f.url === url) return;
     this.save({ ...f, url });
     this.emit();
+  }
+
+  /** The HTTPS ports where Tailscale forwards to the hosted listener right now, as Tailscale itself reports. */
+  async forwarding(): Promise<number[]> {
+    const ts = await this.tailscale(true);
+    if (!ts) return [];
+    const target = this.target();
+    return [...(await this.served(ts))].filter(([, to]) => to === target).map(([port]) => port);
   }
 
   /** Turn Tailscale's own failure into a sentence, and what to do about it. */
@@ -569,6 +609,8 @@ export class Host {
 
   /** Turn the link off. Accounts and sessions stay, for the next time. */
   async off(): Promise<HostState> {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
     const f = this.saved;
     if (f?.on && f.tunnel) await this.opts.tunnel?.down();
     if (f?.on && f.httpsPort) {
@@ -596,8 +638,15 @@ export class Host {
         this.problem = null;
         if (url !== f.url) this.save({ ...f, url });
       } catch (e) {
-        this.problem = (e as Error).message;
+        // Started before the network was up, or Cloudflare was out of reach: try again until it works or is off.
+        this.problem = `${(e as Error).message} Hildegard tries again shortly.`;
         this.fix = e instanceof HostError ? e.fix : null;
+        this.retry = setTimeout(() => {
+          this.retry = null;
+          const now = this.saved;
+          if (now?.on && now.tunnel === f.tunnel && now.url === f.url) void this.resume();
+        }, this.opts.retryMs ?? 30_000);
+        this.retry.unref?.();
       }
       this.emit();
       return;

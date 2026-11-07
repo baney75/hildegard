@@ -2461,7 +2461,13 @@ export function createApp(deps: AppDeps) {
     if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
     await host.tailscale();
     return c.json(
-      await tunnelReport({ host: host.state(), savedHostname: host.hostname, cloudflared, run: host.run }),
+      await tunnelReport({
+        host: host.state(),
+        savedHostname: host.hostname,
+        cloudflared,
+        run: host.run,
+        forwarding: await host.forwarding(),
+      }),
     );
   });
   const provider = async (c: Context) =>

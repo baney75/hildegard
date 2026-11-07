@@ -38,6 +38,10 @@ interface World {
   /** What `tailscale serve status --json` reports, by HTTPS port. */
   served: Record<string, string>;
   quickNames: string[];
+  /** Tailscale refuses to turn a route off. */
+  offFails?: boolean;
+  /** How many cloudflared starts stop before they connect. */
+  failStarts?: number;
 }
 
 const fresh = (): World => ({
@@ -113,6 +117,12 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
           Web[`studio.example.ts.net:${port}`] = { Handlers: { '/': { Proxy: to } } };
         return { ok: true, out: JSON.stringify({ Web }) };
       }
+      // `serve|funnel --bg --https=P <target>` adds a route; `serve|funnel --https=P off` removes it, unless refused.
+      if (args[1] === '--bg') w.served[args[2]!.split('=')[1]!] = args[3]!;
+      if (args.at(-1) === 'off') {
+        if (w.offFails) return { ok: false, out: 'error: something went wrong' };
+        delete w.served[args[1]!.split('=')[1]!];
+      }
       return { ok: true, out: '' };
     }
     // Every other command is a cloudflared candidate: only the plain `cloudflared` on PATH is installed here.
@@ -172,6 +182,12 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
         );
         return;
       }
+      if (w.failStarts) {
+        w.failStarts--;
+        c.say('ERR failed to connect to the edge');
+        c.die();
+        return;
+      }
       if (args.includes('--url')) {
         c.say('Requesting new quick Tunnel on trycloudflare.com...');
         c.say(`|  https://${w.quickNames.shift()}.trycloudflare.com  |`);
@@ -202,7 +218,13 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
   });
   const report = async () => {
     await host.tailscale(true);
-    return tunnelReport({ host: host.state(), savedHostname: host.hostname, cloudflared, run });
+    return tunnelReport({
+      host: host.state(),
+      savedHostname: host.hostname,
+      cloudflared,
+      run,
+      forwarding: await host.forwarding(),
+    });
   };
   const live = () => children.filter((c) => !c.killed);
   /** Hildegard starting again over the same data folder. */
@@ -214,6 +236,7 @@ function setup(w: World, opts: { signedIn?: boolean } = {}) {
       run,
       owner: () => true,
       tunnel: cloudflared,
+      retryMs: 20,
     });
   return { dataDir, home, calls, children, live, secrets, cloudflared, host, report, restart, run, spawn };
 }
@@ -599,4 +622,81 @@ describe('tunnels: the API', () => {
     expect(after.host.on).toBe(false);
     expect(after.cloudflare.temporary).toBe(false);
   }, 30_000);
+});
+
+describe('tunnels: after review (round 1)', () => {
+  const until = async (fn: () => boolean, ms = 3000) => {
+    const end = Date.now() + ms;
+    while (!fn() && Date.now() < end) await new Promise((r) => setTimeout(r, 10));
+    return fn();
+  };
+
+  it('reads Tailscale’s own word after off: a route it refused to turn off is reported, with only its port', async () => {
+    const w = fresh();
+    const s = make(w);
+    await s.host.on({ via: 'tailscale' });
+    expect((await s.report()).tailscale.forwarding).toBe(true);
+    w.offFails = true;
+    await s.host.off();
+    const r = await s.report();
+    expect(r.host.on).toBe(false);
+    expect(r.tailscale).toMatchObject({
+      state: 'problem',
+      forwarding: true,
+      fix: 'tailscale serve --https=443 off',
+    });
+    w.offFails = false;
+    delete w.served['443'];
+    expect((await s.report()).tailscale).toMatchObject({ state: 'ready', forwarding: false });
+  });
+
+  it('keeps the working tunnel when a change is refused', async () => {
+    const s = make({ ...fresh(), route: 'taken' }, { signedIn: true });
+    await s.host.on({ via: 'quick' });
+    const quick = s.host.state().url;
+    await refusal(s.host.on({ via: 'cloudflare', hostname: 'hildegard.example.com' }));
+    await refusal(s.host.on({ via: 'cloudflare', hostname: 'not a name' }));
+    expect(s.live()).toHaveLength(1);
+    expect(s.host.state()).toMatchObject({ on: true, tunnel: 'quick', url: quick, problem: null });
+    expect((await s.report()).cloudflare.state).toBe('on');
+  });
+
+  it('brings the old tunnel back when the new one fails to connect', async () => {
+    const w = fresh();
+    const s = make(w, { signedIn: true });
+    await s.host.on({ via: 'quick' });
+    w.failStarts = 1;
+    await refusal(s.host.on({ via: 'cloudflare', hostname: 'hildegard.example.com' }));
+    expect(s.live()).toHaveLength(1);
+    expect(s.live()[0]!.args).toContain('--url');
+    expect(s.host.state()).toMatchObject({ on: true, tunnel: 'quick', problem: null });
+  });
+
+  it('keeps starting cloudflared again when a restart fails before it connects', async () => {
+    const w = fresh();
+    const s = make(w);
+    await s.host.on({ via: 'quick' });
+    w.failStarts = 2;
+    s.live()[0]!.die();
+    expect(await until(() => s.cloudflared.running && w.failStarts === 0)).toBe(true);
+    expect(s.live()).toHaveLength(1);
+    expect(s.host.state()).toMatchObject({ on: true, tunnel: 'quick' });
+  });
+
+  it('tries a saved tunnel again when it can’t start with Hildegard, until it works', async () => {
+    const w = fresh();
+    const s = make(w, { signedIn: true });
+    await s.host.on({ via: 'cloudflare', hostname: 'hildegard.example.com' });
+    await s.cloudflared.stop();
+    w.failStarts = 2;
+    const again = s.restart();
+    await again.resume();
+    expect(again.state().problem).toMatch(/tries again/);
+    expect(await until(() => again.state().problem === null && s.live().length === 1)).toBe(true);
+    expect(again.state()).toMatchObject({
+      on: true,
+      tunnel: 'cloudflare',
+      url: 'https://hildegard.example.com',
+    });
+  });
 });
