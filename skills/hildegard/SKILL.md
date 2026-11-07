@@ -66,6 +66,7 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
 | podcasts, audio documentaries, audiobooks | `podcast.md` |
 | songs, lyrics, hymns for Suno | `song-suno.md` (5h) |
 | music videos, lyric videos, visualizers, Canvas | `music-video.md` (5i) |
+| animated type and graphics drawn in code: title cards, promos, quotes, data reveals, photo slideshows, kinetic type | the `hildegard-motion` skill: copy a template, `scripts/motion.py --check`, render, look at the sheet |
 | sculpture, 3D models, printing, renders | `sculpture-3d.md` |
 | fiction, poetry, scripts, prayer, speech | `writing-craft.md` |
 | essays, nonfiction, research, APA, Chicago or MLA | `nonfiction-academic.md` |
