@@ -37,6 +37,21 @@ lyrics from one concrete scene.
 - Generate line by line, so a bad line can be redone alone. Listen to every line; re-generate any that are flat,
   rushed or mispronounced.
 
+### A person's own voice, for a voice-over
+
+You can't use your user's microphone from a chat, so ask Hildegard for a page that can. `record_link` with
+`kind: "voice"` and a short `purpose` gives a link that works once for 30 minutes. Show your user the link and the
+sentence it comes with, then call `recording_status` until it says received. The link is a secret for that person:
+don't paste it anywhere else. Then `clean_voice` with the `media_id`: it takes out hum, rumble, clicks and room noise,
+evens the level and sets it to -16 LUFS with the true peak under -1.5 dB (`target_lufs` and `peak` change that), and
+returns the loudness it measured. Listen to the cleaned file before you use it. The cleanup chain lives in one place,
+`tools/voice_clean.py`; point to that file and don't write the filters out again.
+
+Put it over a film with `export_film` and `voiceover: { media_id }`. The film's own sound ducks 12 dB while the voice
+speaks (`duck_db`), `start_seconds` and `gain_db` place and level it, and the mix is set to -14 LUFS and -1 dBTP at the
+film's length. For video of a person, `record_link` with `kind: "video"`; `clean_voice` cleans its sound and keeps
+the picture.
+
 ## Sound design
 
 Every shot has a sound even if nothing "happens": a room tone, wind, distant traffic. Silence reads as broken. Layer:

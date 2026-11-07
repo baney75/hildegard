@@ -59,6 +59,8 @@ import {
 import { People } from './people.ts';
 import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
+import { RecordStore } from './record.ts';
+import { CleanJobs, probeMedia } from './record-clean.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
 import { Scheduler } from './scheduler.ts';
@@ -611,6 +613,17 @@ async function serveStudio(
     credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
     onChange: (e) => store.emit({ type: 'export', export: e }),
   });
+  // Recording from any chat: links to a record page, what comes back, and cleaning it.
+  const recordStore = new RecordStore({
+    dataDir: config.dataDir,
+    mediaDir,
+    now: opts.now,
+    probe: probeMedia(config.dataDir),
+  });
+  const records = {
+    store: recordStore,
+    cleaner: new CleanJobs({ dataDir: config.dataDir, store: recordStore }),
+  };
   // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
   // git. The port is the one this server listens on, known once it does.
   const entry = process.env.HILDEGARD_ENTRY;
@@ -668,6 +681,7 @@ async function serveStudio(
     },
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
+    records,
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,

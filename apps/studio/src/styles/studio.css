@@ -395,6 +395,9 @@
 
 .hg-phone-consent { min-height: 100dvh; box-sizing: border-box; display: grid; justify-items: center; align-content: center; gap: 22px; padding: 32px 20px calc(32px + env(safe-area-inset-bottom)); text-align: center; background: var(--canvas); color: var(--text-primary); }
 .hg-phone-consent .st-prompter { margin: 0; font-size: 28px; line-height: 40px; }
+.hg-record-media { width: min(100%, 520px); max-height: 52dvh; border-radius: 12px; background: var(--surface-2, #000); }
+.hg-record-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+label.hg-btn { cursor: pointer; }
 .hg-phone-consent .hg-stack { justify-items: center; max-width: 520px; }
 .hg-phone-consent p { max-width: 520px; margin: 0; }
 
