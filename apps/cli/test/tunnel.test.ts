@@ -107,7 +107,12 @@ describe('hildegard tunnel', () => {
       });
       const tsOut = await hildegard(home, 'tunnel', 'tailscale', ...at);
       expect(tsOut.message).toBe('Sign this computer in to Tailscale first.');
-      expect(tsOut.steps[0]!.command).toBe('tailscale up');
+      // Tailscale's own app signs in on macOS and Windows; elsewhere the command does.
+      expect(tsOut.steps[0]!.command).toBe(
+        process.platform === 'darwin' || process.platform === 'win32'
+          ? 'Open the Tailscale app and sign in'
+          : 'tailscale up',
+      );
 
       // A quick tunnel needs no account, only the owner account here. It says it is temporary.
       const noOwner = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
