@@ -828,6 +828,7 @@ describe('the skills Hildegard ships', () => {
         'hildegard-video-edit',
         'hildegard-photo-edit',
         'hildegard-art',
+        'hildegard-design',
         'hildegard-sound',
         'hildegard-setup',
       ]),

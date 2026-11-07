@@ -8,6 +8,8 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-3d**: 3D models for screens and for printing, built in code and checked by Hildegard view by view.
 - **hildegard-print**: working parts to 3D print, measured from a photo or a shop listing, sized from your printer's
   fits, sliced, and handed over with a print sheet.
+- **hildegard-design**: posters, flyers, social posts, covers, invitations, menus and signs, built in HTML at their exact
+  size, rendered, and read back line by line so no word is cut or invented.
 - **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
   light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
   file or a live page; your user watches the site on Hildegard's canvas while you build it.
