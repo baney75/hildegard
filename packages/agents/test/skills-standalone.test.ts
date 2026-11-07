@@ -133,6 +133,43 @@ describe('the files shared between skills (skills/SHARED.json)', () => {
   });
 });
 
+describe('a copy is never written through a link (skills/SHARED.json)', () => {
+  it('refuses a linked scripts/ folder and a linked destination file, and writes nothing through them', (ctx) => {
+    const base = mkdtempSync(join(tmpdir(), 'hg-link-'));
+    const repo = join(base, 'repo');
+    const out = join(base, 'outside');
+    try {
+      for (const skill of ['a', 'b']) {
+        mkdirSync(join(repo, 'skills', skill, 'scripts'), { recursive: true });
+        writeFileSync(join(repo, 'skills', skill, 'SKILL.md'), '---\nname: x\n---\n');
+      }
+      mkdirSync(join(repo, 'tools'));
+      writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+      writeFileSync(
+        join(repo, 'skills', 'SHARED.json'),
+        JSON.stringify({ copies: [{ source: 'tools/x.py', skills: ['a', 'b'] }] }),
+      );
+      mkdirSync(out);
+      writeFileSync(join(out, 'victim.py'), 'keep\n');
+      rmSync(join(repo, 'skills', 'a', 'scripts'), { recursive: true });
+      try {
+        symlinkSync(out, join(repo, 'skills', 'a', 'scripts'), 'dir');
+        symlinkSync(join(out, 'victim.py'), join(repo, 'skills', 'b', 'scripts', 'x.py'));
+      } catch {
+        ctx.skip('this system needs extra privileges to make symbolic links');
+      }
+      expect(() => sync(repo)).toThrow(
+        /skills\/a\/scripts is a link[\s\S]*skills\/b\/scripts\/x\.py is a link/,
+      );
+      expect(drift(repo).join('\n')).toMatch(/is a link/);
+      expect(readFileSync(join(out, 'victim.py'), 'utf8')).toBe('keep\n');
+      expect(existsSync(join(out, 'x.py'))).toBe(false);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('a manifest that points outside the skills (skills/SHARED.json)', () => {
   it('is refused, and nothing is written outside skills/', () => {
     const parent = mkdtempSync(join(tmpdir(), 'hg-traversal-'));

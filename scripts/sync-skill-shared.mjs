@@ -9,12 +9,16 @@
 // repository root, `to` the folder inside each skill (default "scripts"). Edit the source, never a copy:
 // scripts/check-skills.mjs fails when a copy differs, and the standalone test (packages/agents/test) packs each skill
 // alone and fails when something it names is missing.
+// No link in a source or destination path is followed, and a copy is written to a temporary file and renamed.
+import { randomBytes } from 'node:crypto';
 import {
   existsSync,
   lstatSync,
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -36,6 +40,38 @@ function inside(dir, path) {
     );
   } catch {
     return false;
+  }
+}
+
+/** Why `rel` (slash-separated, from the repository root) has a link on the way, or '': each part that exists is lstat'ed. */
+function linkProblem(repo, rel) {
+  let cur = repo;
+  const done = [];
+  for (const part of rel.split('/')) {
+    cur = join(cur, part);
+    done.push(part);
+    if (lstatSync(cur, { throwIfNoEntry: false })?.isSymbolicLink()) return `${done.join('/')} is a link`;
+  }
+  return '';
+}
+
+/** Whether the nearest existing folder above `rel` really lies inside `skills/<skill>` (links followed). */
+function stays(repo, skill, rel) {
+  let dir = dirname(join(repo, rel));
+  while (!existsSync(dir) && dirname(dir) !== dir) dir = dirname(dir);
+  const base = join(repo, 'skills', skill);
+  return dir === base || inside(base, dir);
+}
+
+/** Writes through a temporary file in the same folder, then renames it over `at`. */
+function writeFileAtomic(at, data) {
+  mkdirSync(dirname(at), { recursive: true });
+  const tmp = join(dirname(at), `.${basename(at)}.${randomBytes(6).toString('hex')}.tmp`);
+  try {
+    writeFileSync(tmp, data, { flag: 'wx' });
+    renameSync(tmp, at);
+  } finally {
+    rmSync(tmp, { force: true });
   }
 }
 
@@ -62,7 +98,8 @@ export function copies(repo = root) {
       typeof c.source !== 'string' ||
       /^\/|\\|\.\.|^[A-Za-z]:/.test(c.source) ||
       !existsSync(join(repo, c.source)) ||
-      !inside(repo, join(repo, c.source))
+      !inside(repo, join(repo, c.source)) ||
+      linkProblem(repo, c.source)
     ) {
       problems.push(`${at}: source "${c.source}" is not a file in the repository`);
       continue;
@@ -91,6 +128,14 @@ export function copies(repo = root) {
       const dest = posix.join('skills', skill, to, basename(c.source));
       if (dest === c.source) {
         problems.push(`${at}: ${dest} is its own source; list only the skills that need a copy`);
+        continue;
+      }
+      // Nothing the copy is written through may be a link, and it must land inside its skill.
+      const through = linkProblem(repo, dest);
+      if (through || !stays(repo, skill, dest)) {
+        problems.push(
+          `${at}: ${dest} cannot be written: ${through || 'it resolves outside its skill folder'}`,
+        );
         continue;
       }
       if (seen.has(dest)) problems.push(`${at}: ${dest} is listed twice`);
@@ -125,8 +170,7 @@ export function sync(repo = root) {
     const want = readFileSync(join(repo, source));
     const at = join(repo, dest);
     if (existsSync(at) && readFileSync(at).equals(want)) continue;
-    mkdirSync(dirname(at), { recursive: true });
-    writeFileSync(at, want);
+    writeFileAtomic(at, want);
     wrote.push(dest);
   }
   return wrote;
