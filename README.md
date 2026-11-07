@@ -216,7 +216,7 @@ what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
-`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
+`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link` (a link that opens on this computer with nothing to set up, or `where: "phone"` with a QR code and `link_on` after a yes), follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
@@ -281,6 +281,7 @@ make on their own pages; Hildegard never makes one for you.
 
 ```sh
 hildegard tunnel                                   # where Tailscale and Cloudflare stand here, and what each needs
+hildegard tunnel auto                              # the best link this computer can make: Tailscale if signed in, else a quick tunnel
 hildegard tunnel tailscale                         # your own devices only (add --funnel for the public internet)
 hildegard tunnel cloudflare --hostname hildegard.example.com   # a name on your domain, through a named tunnel
 hildegard tunnel cloudflare --quick                # no account: a temporary trycloudflare.com name

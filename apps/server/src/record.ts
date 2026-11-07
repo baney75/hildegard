@@ -437,6 +437,13 @@ export class RecordStore {
     return ID_RE.test(id) ? this.entries.find((e) => e.id === id) : undefined;
   }
 
+  /** Every recording that has arrived, newest first. Callers filter by who may see them. */
+  list(): Entry[] {
+    return this.entries
+      .filter((e) => e.state === 'received')
+      .sort((a, b) => (b.receivedAt ?? '').localeCompare(a.receivedAt ?? ''));
+  }
+
   /** The recording a file under /media/recordings belongs to. */
   byFile(rel: string): Entry | undefined {
     return this.entries.find((e) => e.file === rel);

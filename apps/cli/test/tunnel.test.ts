@@ -148,6 +148,66 @@ describe('hildegard tunnel', () => {
     }
   }, 120_000);
 
+  it('`tunnel auto` turns on the best link in one step: the owner first, then what is missing, then a quick tunnel', async () => {
+    const world = { cloudflared: false };
+    const exec: Exec = async (cmd, args) =>
+      cmd === 'cloudflared' && world.cloudflared && args[0] === '--version'
+        ? { ok: true, out: 'cloudflared version 2026.10.3' }
+        : { ok: false, out: '' };
+    const spawn: Spawn = (_cmd, args) => {
+      const c = new FakeChild();
+      setImmediate(() => {
+        if (args.includes('--url'))
+          c.stderr.write('INF |  https://auto-link-test-name.trycloudflare.com  |\n');
+        c.stderr.write('INF Registered tunnel connection connIndex=0\n');
+      });
+      return c;
+    };
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-auto-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort: await freePort() },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 's.json')),
+        exec,
+        spawn,
+        tunnelHome: mkdtempSync(join(tmpdir(), 'hg-cli-auto-home-')),
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data, '--json'];
+    try {
+      // No owner account: it says to make one, and picks no passphrase.
+      const first = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(first.needsOwner).toBe(true);
+      expect(first.steps.map((s) => s.id)).toEqual(['owner']);
+      expect(first.steps[0]!.command).toBe('hildegard host owner');
+      const made = await fetch(`${srv.url}/api/people/owner`, {
+        method: 'POST',
+        headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
+      });
+      expect(made.status).toBe(201);
+      // Neither tool here: the one click or command for each, and nothing installed or turned on.
+      const none = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(none.needsOwner).toBe(true);
+      expect(none.steps.map((s) => s.id)).toEqual(['cloudflared', 'tailscale']);
+      expect(none.steps[0]!.command).toBe('hildegard tunnel install cloudflare');
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
+      // cloudflared here: a quick tunnel, said to be temporary.
+      world.cloudflared = true;
+      const on = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(on.ok).toBe(true);
+      expect(on.url).toBe('https://auto-link-test-name.trycloudflare.com');
+      expect(on).toMatchObject({ via: 'quick', temporary: true, private: false });
+      expect(on.steps[0]!.detail).toMatch(/temporary/);
+      expect(on.message).toMatch(/hildegard tunnel off/);
+      expect((await hildegard(home, 'tunnel', 'off', ...at)).ok).toBe(true);
+    } finally {
+      await srv.close();
+    }
+  }, 120_000);
+
   it('signs in to Cloudflare without a terminal: the page comes back for the owner, and nothing waits', async () => {
     const exec: Exec = async (cmd, args) =>
       cmd === 'cloudflared' && args[0] === '--version'

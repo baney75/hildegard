@@ -185,7 +185,12 @@ export interface VoiceoverArgs {
   duckDb?: number;
 }
 export interface RecordLink {
+  needsLink?: undefined;
   id: string;
+  /** Where the person records: on this computer, or on their phone. */
+  where: 'here' | 'phone';
+  /** The link is https, so a phone allows its microphone; over plain http it can only send a file. */
+  secure: boolean;
   /** The secret that opens the link. Only the call that made the link ever returns it. */
   token: string;
   path: string;
@@ -195,6 +200,25 @@ export interface RecordLink {
   expiresAt: string;
   /** The link opens only on the computer Hildegard runs on, not on a phone. */
   localOnly: boolean;
+}
+/** A phone link was asked for and Hildegard has no link on: nothing was made, and the person decides. */
+export interface NeedsLink {
+  needsLink: true;
+  where: 'phone';
+  /** What to ask the person, word for word. */
+  ask: string;
+  turnOn: { tool: string; rest: string; next: string };
+}
+/** What `link_on` did, or why it needs the owner. */
+export interface LinkOnResult {
+  status: 'on' | 'needs-owner' | 'failed';
+  already?: boolean;
+  via?: string;
+  url?: string;
+  private?: boolean;
+  temporary?: boolean;
+  message: string;
+  steps: { id: string; title: string; detail: string; command?: string }[];
 }
 export interface Recording {
   id: string;
@@ -278,8 +302,14 @@ export class HildegardClient {
       voiceover ? { voiceover } : undefined,
     );
   // ── Recording from any chat ──
-  recordLink = (body: { kind: 'voice' | 'video'; purpose?: string; filmId?: string }) =>
-    this.call<RecordLink>('POST', '/api/record/links', body);
+  recordLink = (body: {
+    kind: 'voice' | 'video';
+    purpose?: string;
+    filmId?: string;
+    where?: 'here' | 'phone' | 'auto';
+  }) => this.call<RecordLink | NeedsLink>('POST', '/api/record/links', body);
+  /** Turns on the best available link. Only this computer may ask. */
+  linkOn = () => this.call<LinkOnResult>('POST', '/api/link/on', {});
   /** A recording by its id, or by the link's token (which travels in the body, never the address). */
   recording = (by: { id: string } | { token: string }) =>
     'id' in by

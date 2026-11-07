@@ -23,6 +23,8 @@ export interface RecordRouteDeps {
    * address this request came to.
    */
   linkBase: (c: Ctx) => { base: string; viaLink: boolean };
+  /** This computer's own address, `http://127.0.0.1:<port>`: a link there opens in any browser on this computer. */
+  hereBase: () => string;
   /** Whether the person asking may see this film. */
   sees: (c: Ctx, filmId: string) => boolean;
 }
@@ -52,10 +54,17 @@ async function discard(body: ReadableStream<Uint8Array> | null) {
   } catch {}
 }
 
+/** What a caller asks the person before a phone link is turned on. */
+export const NEEDS_LINK_ASK =
+  'To record on your phone, Hildegard needs a private link to this computer. Turn one on?';
+
 const LOOPBACK_URL = /^https?:\/\/(127\.\d+\.\d+\.\d+|localhost|\[::1\])(:\d+)?(\/|$)/i;
 
+/** Where the person will record: on this computer, on their phone, or whichever fits the caller. */
+export type RecordWhere = 'here' | 'phone' | 'auto';
 const NewLink = z.object({
   kind: z.enum(['voice', 'video']),
+  where: z.enum(['here', 'phone', 'auto']).default('auto'),
   purpose: z.string().max(200).optional(),
   filmId: z.string().max(64).optional(),
 });
@@ -127,23 +136,68 @@ export function recordRoutes(d: RecordRouteDeps) {
       const owner = must(c);
       const body = NewLink.parse(await json(c));
       if (body.filmId && !d.sees(c, body.filmId)) throw new RecordError(404, 'film', 'No such film.');
-      const { id, token, expiresAt } = records.makeLink(owner, body);
+      const onThisComputer = local(c);
+      // Auto: a caller on this computer records here, unless they said phone; anyone else is on a device of their own.
+      const where: 'here' | 'phone' =
+        body.where === 'auto' ? (onThisComputer ? 'here' : 'phone') : body.where;
+      if (where === 'here' && !onThisComputer)
+        throw new RecordError(
+          400,
+          'here',
+          'A link that opens on this computer can only be made from this computer. Ask for one for your phone.',
+        );
       const { base: raw, viaLink } = d.linkBase(c);
-      const base = raw.replace(/\/$/, '');
+      // A phone needs Hildegard's link. From this computer with none on, nothing is made and nothing is turned on:
+      // the caller asks the person, and turns one on only after a yes.
+      if (where === 'phone' && onThisComputer && !viaLink)
+        return c.json(
+          {
+            needsLink: true,
+            where,
+            ask: NEEDS_LINK_ASK,
+            turnOn: {
+              tool: 'link_on',
+              rest: 'POST /api/link/on',
+              next: 'Ask for the record link again with where: phone.',
+            },
+          },
+          200,
+        );
+      const { id, token, expiresAt } = records.makeLink(owner, body);
+      const base = (where === 'here' ? d.hereBase() : raw).replace(/\/$/, '');
       return c.json(
         {
           id,
           token,
           path: `/record/${token}`,
           url: `${base}/record/${token}`,
+          where,
           // False when the address is only where this request came to; an in-process caller (the MCP) knows better.
-          viaLink,
+          viaLink: where === 'here' ? false : viaLink,
           expiresAt: new Date(expiresAt).toISOString(),
           localOnly: LOOPBACK_URL.test(base),
+          // A phone's microphone works only on a secure page; over plain http it can still send a file.
+          secure: base.startsWith('https://'),
         },
         201,
       );
     }, 201),
+  );
+
+  // The recordings the asker may see that have arrived, newest first.
+  app.get(
+    '/',
+    go((c) => {
+      must(c);
+      const who = d.who(c);
+      return {
+        recordings: records
+          .list()
+          .filter((e) => mayOpen(who, e))
+          .slice(0, 100)
+          .map((e) => shown(c, e)),
+      };
+    }),
   );
 
   app.post(

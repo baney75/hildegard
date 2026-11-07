@@ -114,6 +114,7 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/takes\/[^/]+\/(preview|review|sheet)$/,
     /^\/api\/consent\/[^/]+$/,
     // A recording link's page, a recording of their own, and a cleaning job they started.
+    /^\/api\/record\/?$/,
     /^\/api\/record\/(rec_[0-9a-f]{16}|[A-Za-z0-9_-]{43}|clean\/rcj_[0-9a-f]{16})$/,
     /^\/api\/characters\/[^/]+\/consent$/,
     /^\/api\/stills\/[^/]+\/preview$/,

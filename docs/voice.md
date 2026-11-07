@@ -70,6 +70,31 @@ MCP, but only a person in the Studio can start a clone: `clone_voice` tells the 
 
 “Is this ours?” on the Recordings page, and the `check_watermark` tool, say whether a clip carries Hildegard’s mark.
 
+## Record with nothing to set up
+
+Recording needs no `hildegard host` and no account. Three ways, from easiest:
+
+- **In the Studio.** Record is in the sidebar, on the Voice page and in the export dialog (for a film’s voice-over). It
+  records your voice, with the browser’s noise suppression on, or yourself on camera with sound; you listen or watch
+  back, record again, and Keep. The recording is kept like a record link’s would be (`POST /api/record/imports`), under
+  your recordings (`GET /api/record`). The Hildegard app’s window can use the microphone and camera too: the system
+  asks you the first time.
+- **A link on this computer.** `record_link` (or `POST /api/record/links`) takes `where`: `here` is
+  `http://127.0.0.1:<port>/record/<token>`, which opens in any browser on this computer. `auto`, the default, is `here`
+  for a caller on this computer (the stdio MCP, or a request on the loopback address) unless the person said phone, and
+  a link for their own device for anyone else.
+- **A link for a phone.** `where: "phone"` needs Hildegard’s own link (Tailscale, or a tunnel). With none on, nothing is
+  made and nothing is turned on: the answer has `needsLink: true`, the sentence to ask (“To record on your phone,
+  Hildegard needs a private link to this computer. Turn one on?”) and the tool to call on a yes, `link_on` with `confirmed: true`. The phone
+  link comes with a QR code (an image in the MCP result, and in the Studio) to point the phone’s camera at.
+
+`link_on` (the MCP tool, `POST /api/link/on`, and `hildegard tunnel auto`) turns on the best link this computer can,
+and only when asked from this computer itself: Tailscale Serve if Tailscale is signed in (private to the person’s own
+devices); else a Cloudflare quick tunnel if cloudflared is here (temporary, and its sign-in page is public, which the
+answer says); else it changes nothing and says what the owner can do (install or sign in to Tailscale, or
+`hildegard tunnel install cloudflare`). Without an owner account it asks for one first (Settings › Sharing, or
+`hildegard host owner`) and never chooses a passphrase. It never uses Funnel. `link_on.ts` has the order.
+
 ## Record from any chat
 
 No chat app reliably lets a panel inside it use the microphone, so Hildegard has its own page for it, and the chat
@@ -127,7 +152,7 @@ cut to the film’s length, and the mix is set to -14 LUFS and -1 dBTP (`tools/e
 - `packages/runtime/src/voice.ts`: the installer behind `hildegard voice install`.
 - `mcp/src/voice-tools.ts`: the MCP tools.
 - `apps/server/src/record.ts`, `record-routes.ts`, `record-clean.ts`: record links, what comes back, and the cleaning job.
-  `mcp/src/record-tools.ts`: `record_link`, `recording_status`, `clean_voice`. `apps/studio/src/pages/Record.tsx`: the page.
+  `mcp/src/record-tools.ts`: `record_link`, `link_on`, `recording_status`, `clean_voice`. `apps/server/src/link-on.ts`: the link, in one step. `apps/studio/src/components/RecordDialog.tsx`: Record in the Studio. `apps/studio/src/pages/Record.tsx`: the page.
   `tools/voice_clean.py`: the cleanup chain.
 - `apps/studio/src/pages/Voice.tsx` and `pages/voice/`: Speak, Voices, Design, Clone, Recordings, and the phone page
   for consent.

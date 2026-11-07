@@ -86,6 +86,7 @@ import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
 import { type Host, HostError, hostKey } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
+import { linkOn } from './link-on.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { Loops } from './loop.ts';
 import { loopRoutes } from './loop-routes.ts';
@@ -181,6 +182,8 @@ export interface AppDeps {
   host: Host;
   /** The Cloudflare tunnel Hildegard runs as a front door, when asked. */
   cloudflared?: Cloudflared;
+  /** The port the Studio's own listener answers on, once it is listening (config.port can be 0 until then). */
+  listeningPort?: () => number;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
   /** Keys and chatbots that use the MCP from other devices. */
@@ -2486,6 +2489,24 @@ export function createApp(deps: AppDeps) {
     return c.json(await host.off());
   });
 
+  // The best available link in one step, for a phone that needs to reach this computer. It changes the computer, so
+  // only this computer may ask; a remote owner or an AI app on another device is told to ask here.
+  app.post('/api/link/on', async (c) => {
+    if (!local(c))
+      return c.json(
+        {
+          error:
+            'Turn on the link from the computer Hildegard runs on: in the Studio there (Settings › Sharing), or with `hildegard tunnel auto`.',
+        },
+        403,
+      );
+    try {
+      return c.json(await linkOn({ host, cloudflared: deps.cloudflared, owner: () => people.hasOwner() }));
+    } catch (e) {
+      return hostFail(c, e);
+    }
+  });
+
   // ── Tunnels: where Tailscale and Cloudflare stand here, signing in, and fetching cloudflared on the owner's word ──
   const cloudflared = deps.cloudflared;
   app.get('/api/tunnel', async (c) => {
@@ -2567,6 +2588,7 @@ export function createApp(deps: AppDeps) {
           const shared = host.state().url;
           return shared ? { base: shared, viaLink: true } : { base: originOf(c), viaLink: false };
         },
+        hereBase: () => `http://127.0.0.1:${deps.listeningPort?.() ?? config.port}`,
         sees: (c, filmId) => sees(c, filmId),
       }),
     );

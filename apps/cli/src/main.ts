@@ -69,6 +69,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              --public-url https://<name>: your own HTTPS front door, such as a Cloudflare tunnel)
   hildegard tunnel           Reach Hildegard from your other devices through an account you own: where Tailscale
                              and Cloudflare stand here, and what each still needs (--signup: their free-account page)
+  hildegard tunnel auto      The best link this computer can make, in one step: Tailscale if signed in, else a
+                             temporary quick tunnel if cloudflared is here, else what is missing
   hildegard tunnel tailscale Your own devices only (Tailscale Serve); --funnel for the public internet
   hildegard tunnel cloudflare --hostname <name>
                              A Cloudflare named tunnel on your domain, at a name that stays (--login signs in;

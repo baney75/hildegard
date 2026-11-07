@@ -4,12 +4,13 @@
  * language, or check whether Hildegard made it.
  */
 import type { VoiceJob, VoiceState } from '@hildegard/presets';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Icon, LiveRing, Menu, Segmented, toastError } from '../../components/ui.tsx';
 import { Clip, DropAudio, PlayButton } from '../../components/voice.tsx';
 import { type AudioUpload, api } from '../../lib/api.ts';
 import { clock } from '../../lib/format.ts';
 import { useLocal } from '../../lib/hooks.ts';
+import { recordingLabel, useRecordings } from '../../lib/recordings.ts';
 import { upsert } from '../../lib/store.ts';
 import { LANGS, langName } from '../../lib/voice.ts';
 import { IsOurs } from './Clone.tsx';
@@ -18,7 +19,10 @@ type Action = 'transcribe' | 'convert' | 'dub';
 const KINDS = new Set(['transcribe', 'convert', 'dub']);
 const DUB_LANGS = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'zh', 'ko', 'hi', 'nl', 'pl', 'ru', 'ar', 'tr'];
 
-export function Recordings({ state }: { state: VoiceState }) {
+export function Recordings({ state, version = 0 }: { state: VoiceState; version?: number }) {
+  const mine = useRecordings('voice');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: looks again when one was just kept.
+  useEffect(() => mine.refresh(), [version, mine.refresh]);
   const [file, setFile] = useLocal<(AudioUpload & { label: string }) | null>(
     'hildegard.voice.recording',
     null,
@@ -145,6 +149,26 @@ export function Recordings({ state }: { state: VoiceState }) {
         </section>
         <IsOurs />
       </div>
+      <section aria-labelledby="mine-h" className="hg-stack">
+        <h2 id="mine-h" className="st-h2">
+          Recorded in Hildegard
+        </h2>
+        {mine.list?.length ? (
+          mine.list.slice(0, 8).map((r) => (
+            <article key={r.id} className="st-tile" aria-label={recordingLabel(r)}>
+              <div className="hg-between">
+                <b className="body-sm">{recordingLabel(r)}</b>
+              </div>
+              {r.url ? <Clip url={r.url} label={recordingLabel(r)} seconds={r.seconds} /> : null}
+            </article>
+          ))
+        ) : (
+          <p className="body-sm muted">
+            Voice recordings you make with Record, or on your phone, are kept here. Ask your AI app to clean
+            one up, or use it as a film’s voice-over when you export.
+          </p>
+        )}
+      </section>
       <section aria-labelledby="recjobs-h" className="hg-stack">
         <h2 id="recjobs-h" className="st-h2">
           Results
