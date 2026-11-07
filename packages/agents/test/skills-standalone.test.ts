@@ -4,7 +4,15 @@
 // skill names (a link, a scripts/ or references/ file, a script another skill ships) is not inside that zip, when a
 // file shared between skills differs from its source (skills/SHARED.json), or when a skill names a Hildegard tool and
 // never says what to do without Hildegard. It covers every folder in skills/, so a new skill is held to it at once.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -61,7 +69,11 @@ describe('the files shared between skills (skills/SHARED.json)', () => {
     const { copies: list, problems } = copies(root);
     expect(problems).toEqual([]);
     expect(list.length).toBeGreaterThan(0);
-    for (const { source, dest, skill } of list as { source: string; dest: string; skill: string }[]) {
+    for (const { source, dest, skill } of list as {
+      source: string;
+      dest: string;
+      skill: string;
+    }[]) {
       const inZip = zips.get(skill)?.get(dest.replace(/^skills\//, ''));
       expect(inZip, `${dest} in the ${skill} zip`).toBeDefined();
       expect(inZip?.equals(readFileSync(join(root, source))), `${dest} equals ${source}`).toBe(true);
@@ -106,6 +118,40 @@ describe('the files shared between skills (skills/SHARED.json)', () => {
     manifest({ source: 'skills/a/SKILL.md', to: '.', skills: ['a'] });
     expect(drift(repo).join('\n')).toMatch(/is its own source/);
     rmSync(repo, { recursive: true, force: true });
+  });
+});
+
+describe('a manifest that points outside the skills (skills/SHARED.json)', () => {
+  it('is refused, and nothing is written outside skills/', () => {
+    const parent = mkdtempSync(join(tmpdir(), 'hg-traversal-'));
+    const repo = join(parent, 'repo');
+    mkdirSync(join(repo, 'skills', 'a'), { recursive: true });
+    writeFileSync(join(repo, 'skills', 'a', 'SKILL.md'), '---\nname: a\n---\n');
+    mkdirSync(join(repo, 'tools'), { recursive: true });
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+    // A sibling of the repository with a SKILL.md: the old existence check accepted it.
+    mkdirSync(join(parent, 'victim'), { recursive: true });
+    writeFileSync(join(parent, 'victim', 'SKILL.md'), '---\nname: victim\n---\n');
+    mkdirSync(join(repo, 'skills', 'a', 'nested'), { recursive: true });
+    writeFileSync(join(repo, 'skills', 'a', 'nested', 'SKILL.md'), 'x');
+    const manifest = (c: object) =>
+      writeFileSync(join(repo, 'skills', 'SHARED.json'), JSON.stringify({ copies: [c] }));
+    for (const skill of ['../../victim', '../skills/a', 'a/nested', '/tmp', 'A', '.', '']) {
+      manifest({ source: 'tools/x.py', skills: [skill] });
+      expect(drift(repo).join('\n'), `skill "${skill}"`).toMatch(/is not a skill folder/);
+      expect(() => sync(repo), `skill "${skill}"`).toThrow(/is not a skill folder/);
+    }
+    expect(existsSync(join(parent, 'victim', 'scripts'))).toBe(false);
+    expect(existsSync(join(parent, 'victim', 'scripts', 'x.py'))).toBe(false);
+    expect(existsSync(join(repo, 'skills', 'a', 'nested', 'scripts'))).toBe(false);
+    // The source stays inside the repository, even through a symlink.
+    symlinkSync(parent, join(repo, 'tools', 'out'));
+    writeFileSync(join(parent, 'secret.py'), 'print(2)\n');
+    for (const source of ['../secret.py', 'tools/out/secret.py']) {
+      manifest({ source, skills: ['a'] });
+      expect(drift(repo).join('\n'), `source "${source}"`).toMatch(/not a file in the repository/);
+    }
+    rmSync(parent, { recursive: true, force: true });
   });
 });
 

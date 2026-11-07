@@ -9,11 +9,35 @@
 // repository root, `to` the folder inside each skill (default "scripts"). Edit the source, never a copy:
 // scripts/check-skills.mjs fails when a copy differs, and the standalone test (packages/agents/test) packs each skill
 // alone and fails when something it names is missing.
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, posix } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, join, posix, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+
+/** Whether `path` is a real path inside `dir`, links followed. */
+function inside(dir, path) {
+  try {
+    const rel = relative(realpathSync(dir), realpathSync(path));
+    return (
+      rel !== '' &&
+      rel !== '..' &&
+      !rel.startsWith(`..${sep}`) &&
+      !/^[A-Za-z]:/.test(rel) &&
+      !rel.startsWith(sep)
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** The copies the manifest asks for, as { source, dest, skill }, with the paths from the repository root. */
 export function copies(repo = root) {
@@ -25,7 +49,10 @@ export function copies(repo = root) {
   try {
     manifest = JSON.parse(readFileSync(file, 'utf8'));
   } catch (e) {
-    return { copies: out, problems: [`skills/SHARED.json is not JSON: ${e.message}`] };
+    return {
+      copies: out,
+      problems: [`skills/SHARED.json is not JSON: ${e.message}`],
+    };
   }
   const seen = new Set();
   for (const [i, c] of (manifest.copies ?? []).entries()) {
@@ -34,7 +61,8 @@ export function copies(repo = root) {
     if (
       typeof c.source !== 'string' ||
       /^\/|\\|\.\.|^[A-Za-z]:/.test(c.source) ||
-      !existsSync(join(repo, c.source))
+      !existsSync(join(repo, c.source)) ||
+      !inside(repo, join(repo, c.source))
     ) {
       problems.push(`${at}: source "${c.source}" is not a file in the repository`);
       continue;
@@ -48,7 +76,15 @@ export function copies(repo = root) {
       continue;
     }
     for (const skill of c.skills) {
-      if (!statSync(join(repo, 'skills', String(skill), 'SKILL.md'), { throwIfNoEntry: false })?.isFile()) {
+      // A plain folder name directly under skills/: never a path, never a link out.
+      const folder = join(repo, 'skills', String(skill));
+      if (
+        typeof skill !== 'string' ||
+        !/^[a-z0-9-]+$/.test(skill) ||
+        !lstatSync(folder, { throwIfNoEntry: false })?.isDirectory() ||
+        !inside(join(repo, 'skills'), folder) ||
+        !statSync(join(folder, 'SKILL.md'), { throwIfNoEntry: false })?.isFile()
+      ) {
         problems.push(`${at}: "${skill}" is not a skill folder`);
         continue;
       }
