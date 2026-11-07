@@ -64,10 +64,9 @@ export function Board({
             <div className="cs-folio__h">
               <h2 className="cs-folio__t" id={`shot-${shot.id}`}>
                 <span className="sr">Shot {i + 1}: </span>
-                {shot.title}
+                {/* A title cut from the prompt says too little: the whole prompt, in two lines at most. */}
+                {/(…|\.\.\.)$/.test(shot.title) && shot.prompt ? shot.prompt : shot.title}
               </h2>
-              <span className="cs-folio__rule" />
-              <span className="cs-folio__m">{meta}</span>
               {ts.length ? (
                 <button
                   type="button"
@@ -79,6 +78,8 @@ export function Board({
                   Take
                 </button>
               ) : null}
+              <span className="cs-folio__rule" />
+              <span className="cs-folio__m">{meta}</span>
             </div>
             <div className="cs-grid">
               {ts.map((t) => {

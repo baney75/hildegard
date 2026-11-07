@@ -35,6 +35,8 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // On a phone the idle composer is one line, without its settings, so the board keeps the screen.
+  const [awake, setAwake] = useState(false);
   const [error, setError] = useState<{ text: string; field?: string } | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -224,6 +226,11 @@ export function Composer({
       className="cs-comp"
       role="group"
       aria-label="Direct a shot"
+      data-idle={!awake && !sheet && !error && !draft.prompt.trim() ? '' : undefined}
+      onFocus={() => setAwake(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setAwake(false);
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);

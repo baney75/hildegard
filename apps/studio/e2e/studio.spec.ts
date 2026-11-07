@@ -24,6 +24,11 @@ test('opens fast with no errors and an accessible empty state', async ({ page, r
     };
   });
   expect(timing.dcl).toBeLessThan(1500);
+  // The composer sits at the foot of the stage, below the welcome words, never over them.
+  const words = (await page.getByText('Describe your first shot below').boundingBox())!;
+  const composer = (await page.locator('.cs-comp__box').boundingBox())!;
+  expect(composer.y).toBeGreaterThan(words.y + words.height);
+  expect(composer.y + composer.height).toBeGreaterThan(page.viewportSize()!.height * 0.75);
   await expectAccessible(page, 'empty');
   expect(errors).toEqual([]);
 });
