@@ -11,7 +11,7 @@ This skill is all you need to cut clips into a finished piece with titles, a clo
 
 1. **Clean a voice recording:** `python3 scripts/clean_voice.py in.wav out.wav --lufs -16` (the same script as in the **hildegard-sound** skill, whose SKILL.md also has it as a paste-in Recipe A).
 2. **Music under speech:** `python3 scripts/duck_mix.py voice.wav music.wav out.wav` (hildegard-sound's Recipe B is the paste-in version).
-3. **A radio spot:** `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines a.wav b.wav c.wav --total 15` (hildegard-sound's Recipe C is the paste-in version).
+3. **A radio spot:** `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines a.wav b.wav c.wav --total 15` (hildegard-sound's Recipe C is the paste-in version). If the lines cannot fit `--total` it stops and says how many seconds over; it never cuts a line. Shorten the lines, raise `--total`, or add `--allow-overrun`.
 4. **Cut clips into a reel with titles and music:**
 
 ```sh
@@ -29,7 +29,7 @@ python3 scripts/cut_reel.py out.mp4 --size 1280x720 --fps 30 --fade 0.4 --total 
 python3 scripts/check_video.py out.mp4 --min 22 --max 28 --size 1280x720 --fps 30 --lufs -16 --cuts 5
 ```
 
-Use the numbers from the brief. Every line must say `OK`: length in range, size and frame rate, H.264 and AAC, loudness within 1 LU of the target, no black stretch over half a second, enough cuts. Any `FIX` line says what to change; change it and run again. Then look at the picture: `python3 scripts/contact_sheet.py sheet.png --video out.mp4 --every 2` (or, with Hildegard installed, `hildegard review out.mp4 --sheet sheet.jpg`), and read the titles on the sheet. With no Python, Recipe D prints the same checks at its end.
+Use the numbers from the brief. Every line must say `OK`: length in range, size and frame rate, H.264 and AAC, loudness within 1 LU of the target, true peak under -1 dBTP (`--peak` changes it), no black stretch over half a second, enough cuts (counted from the picture: crossfades count, motion inside one shot does not). Any `FIX` line says what to change; change it and run again. Then look at the picture: `python3 scripts/contact_sheet.py sheet.png --video out.mp4 --every 2` (or, with Hildegard installed, `hildegard review out.mp4 --sheet sheet.jpg`), and read the titles on the sheet. With no Python, Recipe D prints the same checks at its end.
 
 ## Recipe D: cut clips into one piece (paste and edit)
 
