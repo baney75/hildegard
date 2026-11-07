@@ -10,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type LoopDetail, type LoopRound } from './client.ts';
+import { readable } from './private.ts';
 import { PackError, zipFolder } from './zip.ts';
 
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
@@ -266,7 +267,7 @@ export function registerLoopTools(
         if (!a.reference_width)
           throw new HildegardError(422, 'Give reference_width: the width the design image was drawn at.');
         const bytes = refPath
-          ? await readFile(refPath)
+          ? await readFile(readable(refPath))
           : Buffer.from(a.reference_data!.replace(/^data:[\w/+.-]+;base64,/, ''), 'base64');
         await client.setLoopReference(l.id, bytes, a.reference_width, a.reference_page);
         held = ` Every round is compared with the design image at ${a.reference_width} px.`;
@@ -379,7 +380,7 @@ export function registerLoopTools(
           } else {
             if (!s?.isFile()) throw new HildegardError(422, `There’s no file at ${a.file_path}.`);
             if (s.size > MAX_FILE) throw new HildegardError(413, 'Files up to 512 MB.');
-            bytes = await readFile(a.file_path);
+            bytes = await readFile(readable(a.file_path));
           }
         } else if (a.text !== undefined) bytes = new TextEncoder().encode(a.text);
         else if (a.data !== undefined) {

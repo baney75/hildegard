@@ -51,6 +51,7 @@ export default defineConfig({
       env: {
         HILDEGARD_FAKE_TICK_MS: '40',
         HILDEGARD_SECRETS: 'file',
+        HILDEGARD_NO_REVEAL: '1',
         HILDEGARD_E2E_HOME: home,
         HOME: home,
         USERPROFILE: home,

@@ -12,6 +12,7 @@ import {
   type EngineState,
   type LoadedCatalog,
   loadCatalog,
+  loadPostSites,
   loadSafety,
   loadVoiceCatalog,
   type ModelState,
@@ -20,6 +21,7 @@ import {
 import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
+import { BrowseSites } from './browse-sites.ts';
 import { findChrome } from './browser.ts';
 import { busyCheck, hostBusy } from './busy.ts';
 import { localCapabilities, STUB_LLM } from './capabilities.ts';
@@ -57,6 +59,7 @@ import {
   sandboxKind,
 } from './openscad.ts';
 import { People } from './people.ts';
+import { Poster, type PostRunner, pythonRunner, revealInFolder } from './post.ts';
 import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
 import { RecordStore } from './record.ts';
@@ -206,6 +209,10 @@ async function serveStudio(
     chrome?: string | null;
     /** Figma's API, for the tests. */
     figmaFetch?: FigmaFetch;
+    /** Prepares one platform's file for Post; the real one runs tools/export_post.py. */
+    postRunner?: PostRunner;
+    /** Shows a file in the file manager for Post; tests give a stand-in. */
+    reveal?: (path: string) => void;
   },
   made: { runtime?: ComfyRuntime },
 ): Promise<Running> {
@@ -613,6 +620,16 @@ async function serveStudio(
     credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
     onChange: (e) => store.emit({ type: 'export', export: e }),
   });
+  // Posting: files and words for each platform in a "Ready to post" folder. Hildegard never posts.
+  const poster = new Poster({
+    store,
+    catalog,
+    exporter,
+    mediaDir,
+    readyDir: join(config.dataDir, 'Ready to post'),
+    credit: `Made with Hildegard ${VERSION} (${SOURCE.url}).`,
+    run: opts.postRunner ?? pythonRunner(config.dataDir),
+  });
   // Recording from any chat: links to a record page, what comes back, and cleaning it.
   const recordStore = new RecordStore({
     dataDir: config.dataDir,
@@ -640,6 +657,7 @@ async function serveStudio(
       scheduler.guestTakes().length > 0 ||
       models.states().some((m) => m.downloading) ||
       exporter.list().some((e) => e.status === 'running') ||
+      poster.list().some((p) => p.status === 'running') ||
       voice.state().jobs.some((j) => j.status === 'queued' || j.status === 'running') ||
       voiceModels.states().some((m) => m.downloading),
     run:
@@ -685,6 +703,12 @@ async function serveStudio(
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,
+    post: {
+      poster,
+      sites: loadPostSites(),
+      browse: new BrowseSites(config.dataDir),
+      reveal: opts.reveal ?? revealInFolder,
+    },
     config,
     store,
     scheduler,

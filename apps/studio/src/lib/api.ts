@@ -20,6 +20,10 @@ import type {
   ModelState,
   NewInvite,
   PeopleResponse,
+  PostRequest,
+  PostSite,
+  PostState,
+  PostTarget,
   Project,
   Role,
   SetupStep,
@@ -230,7 +234,26 @@ export interface TalkTurn {
   device: string;
 }
 
+/** GET /api/post/browse: the sites in the Hildegard app's Browse menu. */
+export interface BrowseSites {
+  sites: PostSite[];
+  custom: Array<{ id: string; name: string; url: string }>;
+  /** macOS 11 to 13 keeps every site's cookies in one store. */
+  sharedCookies: boolean;
+}
+
 export const api = {
+  postTargets: () => call<{ targets: PostTarget[]; sites: PostSite[] }>('GET', '/api/post/targets'),
+  posts: () => call<PostState[]>('GET', '/api/post'),
+  post: (id: string) => call<PostState>('GET', `/api/post/${id}`),
+  preparePost: (body: PostRequest) => call<PostState>('POST', '/api/post', body),
+  tickPosted: (id: string, target: string, posted: boolean) =>
+    call<PostState>('PATCH', `/api/post/${id}/files/${target}`, { posted }),
+  revealPost: (id: string, target?: string) =>
+    call<{ ok: true }>('POST', `/api/post/${id}/reveal`, { target }),
+  browse: () => call<BrowseSites>('GET', '/api/post/browse'),
+  addBrowseSite: (name: string, url: string) => call<BrowseSites>('POST', '/api/post/browse', { name, url }),
+  removeBrowseSite: (id: string) => call<BrowseSites>('DELETE', `/api/post/browse/${id}`),
   sites: () =>
     call<{
       sites: SiteSummary[];

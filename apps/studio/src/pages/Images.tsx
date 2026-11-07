@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Catalog, Still } from '@hildegard/presets';
 import { type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { PostSheet } from '../components/PostSheet.tsx';
 import { LookSheet, lookSummary, RigSheet } from '../components/sheets.tsx';
 import {
   Button,
@@ -781,93 +782,111 @@ function Lightbox({
   onEdit: () => void;
   onFrame: () => void;
 }) {
+  const [posting, setPosting] = useState(false);
+  const owner = isOwner(useStore((st) => st.auth));
   return (
-    <Modal
-      open
-      onClose={onClose}
-      labelledBy="im-lb-t"
-      variant={compact ? 'bottom' : 'center'}
-      className="im-lightbox"
-    >
-      <div className="cs-sheet__h">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 id="im-lb-t">Image</h2>
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        labelledBy="im-lb-t"
+        variant={compact ? 'bottom' : 'center'}
+        className="im-lightbox"
+      >
+        <div className="cs-sheet__h">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 id="im-lb-t">Image</h2>
+          </div>
+          <button
+            type="button"
+            className="hg-btn hg-btn--icon hg-btn--ghost"
+            aria-label="Close"
+            data-autofocus=""
+            onClick={onClose}
+          >
+            <Icon name="close" />
+          </button>
         </div>
-        <button
-          type="button"
-          className="hg-btn hg-btn--icon hg-btn--ghost"
-          aria-label="Close"
-          data-autofocus=""
-          onClick={onClose}
-        >
-          <Icon name="close" />
-        </button>
-      </div>
-      <div className="im-lightbox__b">
-        <div className="im-lightbox__img">
-          {s.image ? <img src={s.image} alt={cut(s.prompt, 140)} /> : null}
-        </div>
-        <div className="im-lightbox__side">
-          <p className="im-lightbox__prompt">{s.prompt}</p>
-          <dl className="hg-kv">
-            <dt>Seed</dt>
-            <dd className="num">{s.seed}</dd>
-            <dt>Size</dt>
-            <dd className="num">
-              {s.width} × {s.height}
-            </dd>
-            {s.aspect ? (
-              <>
-                <dt>Shape</dt>
-                <dd className="num">{s.aspect}</dd>
-              </>
-            ) : null}
-            {s.quality ? (
-              <>
-                <dt>Quality</dt>
-                <dd>{s.quality === 'final' ? 'Final' : 'Draft'}</dd>
-              </>
-            ) : null}
-            {s.summary ? (
-              <>
-                <dt>Camera</dt>
-                <dd>{s.summary}</dd>
-              </>
-            ) : null}
-            {s.references.length ? (
-              <>
-                <dt>From</dt>
-                <dd>{plural(s.references.length, 'reference image', 'reference images')}</dd>
-              </>
-            ) : null}
-          </dl>
-          <div className="im-lightbox__acts">
-            <a
-              className="hg-btn hg-btn--primary"
-              href={s.image ?? undefined}
-              download={`hildegard-${s.id}.png`}
-            >
-              <Icon name="download" size={18} />
-              Download
-            </a>
-            <Button icon="pen" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button icon="film" onClick={onFrame}>
-              Use as start frame
-            </Button>
-            <Button
-              kind="ghost"
-              icon="trash"
-              onClick={async () => {
-                await discard(s);
-              }}
-            >
-              Delete
-            </Button>
+        <div className="im-lightbox__b">
+          <div className="im-lightbox__img">
+            {s.image ? <img src={s.image} alt={cut(s.prompt, 140)} /> : null}
+          </div>
+          <div className="im-lightbox__side">
+            <p className="im-lightbox__prompt">{s.prompt}</p>
+            <dl className="hg-kv">
+              <dt>Seed</dt>
+              <dd className="num">{s.seed}</dd>
+              <dt>Size</dt>
+              <dd className="num">
+                {s.width} × {s.height}
+              </dd>
+              {s.aspect ? (
+                <>
+                  <dt>Shape</dt>
+                  <dd className="num">{s.aspect}</dd>
+                </>
+              ) : null}
+              {s.quality ? (
+                <>
+                  <dt>Quality</dt>
+                  <dd>{s.quality === 'final' ? 'Final' : 'Draft'}</dd>
+                </>
+              ) : null}
+              {s.summary ? (
+                <>
+                  <dt>Camera</dt>
+                  <dd>{s.summary}</dd>
+                </>
+              ) : null}
+              {s.references.length ? (
+                <>
+                  <dt>From</dt>
+                  <dd>{plural(s.references.length, 'reference image', 'reference images')}</dd>
+                </>
+              ) : null}
+            </dl>
+            <div className="im-lightbox__acts">
+              <a
+                className="hg-btn hg-btn--primary"
+                href={s.image ?? undefined}
+                download={`hildegard-${s.id}.png`}
+              >
+                <Icon name="download" size={18} />
+                Download
+              </a>
+              <Button icon="pen" onClick={onEdit}>
+                Edit
+              </Button>
+              <Button icon="film" onClick={onFrame}>
+                Use as start frame
+              </Button>
+              {owner && s.image ? (
+                <Button icon="link" onClick={() => setPosting(true)}>
+                  Post…
+                </Button>
+              ) : null}
+              <Button
+                kind="ghost"
+                icon="trash"
+                onClick={async () => {
+                  await discard(s);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+      {posting ? (
+        <PostSheet
+          source={{ kind: 'still', id: s.id }}
+          title={s.summary || 'Image'}
+          kind="image"
+          compact={compact}
+          onClose={() => setPosting(false)}
+        />
+      ) : null}
+    </>
   );
 }
