@@ -4,7 +4,15 @@
  * and touching nothing else in it. Every change can be undone with `hildegard disconnect`.
  */
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { resource, type Step } from './install.ts';
@@ -33,6 +41,29 @@ export function mcpCommand(opts: { entry?: string; url?: string; remote?: string
   };
 }
 
+/**
+ * Whether a program is on PATH, by looking in each folder instead of starting `which` (a process per question: the
+ * Agents page and `hildegard agents` ask about a dozen programs).
+ */
+export function onPath(
+  cmd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  const win = platform === 'win32';
+  const dirs = (env.PATH ?? env.Path ?? '').split(win ? ';' : ':').filter(Boolean);
+  const exts = win ? ['', ...(env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').toLowerCase().split(';')] : [''];
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      try {
+        const s = statSync(join(dir, cmd + ext));
+        if (s.isFile() && (win || (s.mode & 0o111) !== 0)) return true;
+      } catch {}
+    }
+  }
+  return false;
+}
+
 export interface AgentEnv {
   home: string;
   platform: NodeJS.Platform;
@@ -47,14 +78,7 @@ export const systemAgentEnv = (): AgentEnv => ({
   home: homedir(),
   platform: process.platform,
   env: process.env,
-  has(cmd) {
-    try {
-      execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
-      return true;
-    } catch {
-      return false;
-    }
-  },
+  has: (cmd) => onPath(cmd),
   exec(cmd, args) {
     return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30_000 });
   },

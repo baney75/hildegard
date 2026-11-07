@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type RefObject, useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { type RefObject, startTransition, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 export type WindowClass = 'compact' | 'medium' | 'expanded' | 'wide';
 export type LayoutMode = 'auto' | 'desktop' | 'tablet' | 'phone';
@@ -41,7 +41,8 @@ export function useHashRoute(): [string, (to: string) => void] {
   const read = readHash;
   const [route, setRoute] = useState(read);
   useEffect(() => {
-    const on = () => setRoute(read());
+    // A transition keeps the page that is showing until the next one's code has loaded, instead of blanking it.
+    const on = () => startTransition(() => setRoute(read()));
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);

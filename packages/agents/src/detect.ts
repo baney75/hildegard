@@ -3,10 +3,11 @@
  * Which coding agents are installed, and how each is signed in, asked of the agents themselves (`claude auth status`,
  * `codex login status`). Hildegard never opens their credential files: it only needs to know the kind of sign-in.
  */
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { onPath } from '@hildegard/runtime';
 import { inherited, PI_ENV } from './env.ts';
 import type { AgentId, Auth } from './policy.ts';
 
@@ -22,15 +23,18 @@ export interface Sys {
     args: string[],
     env?: NodeJS.ProcessEnv,
   ): { status: number | null; out: string; stdout?: string };
+  /** Like `run`, without holding the process: agents are asked together. Detection falls back to `run` without it. */
+  runAsync?(
+    cmd: string,
+    args: string[],
+    env?: NodeJS.ProcessEnv,
+  ): Promise<{ status: number | null; out: string; stdout?: string }>;
 }
 
 export const system = (): Sys => ({
   env: process.env,
   platform: process.platform,
-  has(cmd) {
-    const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
-    return r.status === 0;
-  },
+  has: (cmd) => onPath(cmd),
   run(cmd, args, env) {
     const r = spawnSync(cmd, args, {
       ...(env ? { env } : {}),
@@ -41,6 +45,29 @@ export const system = (): Sys => ({
       shell: process.platform === 'win32',
     });
     return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}`, stdout: r.stdout ?? '' };
+  },
+  runAsync(cmd, args, env) {
+    return new Promise((resolve) => {
+      execFile(
+        cmd,
+        args,
+        {
+          ...(env ? { env } : {}),
+          encoding: 'utf8',
+          timeout: 20_000,
+          windowsHide: true,
+          shell: process.platform === 'win32',
+        },
+        (err, stdout, stderr) => {
+          const code = (err as { code?: unknown } | null)?.code;
+          resolve({
+            status: !err ? 0 : typeof code === 'number' ? code : null,
+            out: `${stdout ?? ''}${stderr ?? ''}`,
+            stdout: stdout ?? '',
+          });
+        },
+      );
+    });
   },
 });
 
@@ -90,16 +117,24 @@ export const KEY_ENV: Record<string, string> = {
   mistral: 'MISTRAL_API_KEY',
 };
 
-function claudeAuth(e: Sys): { auth: Auth; detail: string } {
+type Ran = ReturnType<Sys['run']>;
+
+/** Claude Code's cloud-provider settings are in the environment: nothing to ask it. */
+function claudeCloud(e: Sys): { auth: Auth; detail: string } | null {
   if (e.env.CLAUDE_CODE_USE_BEDROCK)
     return { auth: { kind: 'cloud', provider: 'bedrock' }, detail: 'Amazon Bedrock' };
   if (e.env.CLAUDE_CODE_USE_VERTEX)
     return { auth: { kind: 'cloud', provider: 'vertex' }, detail: 'Google Vertex AI' };
   if (e.env.CLAUDE_CODE_USE_FOUNDRY)
     return { auth: { kind: 'cloud', provider: 'foundry' }, detail: 'Microsoft Foundry' };
+  return null;
+}
+
+/** What `claude auth status --json` said (null when it couldn't be run), as a sign-in. */
+function claudeFrom(r: Ran | null): { auth: Auth; detail: string } {
   let s: { loggedIn?: boolean; authMethod?: string; apiProvider?: string };
   try {
-    const r = e.run('claude', ['auth', 'status', '--json']);
+    if (!r) throw new Error('not run');
     s = JSON.parse(r.out.slice(r.out.indexOf('{')));
   } catch {
     return {
@@ -125,8 +160,18 @@ function claudeAuth(e: Sys): { auth: Auth; detail: string } {
   return { auth: { kind: 'subscription', plan: 'claude' }, detail: 'Signed in with a Claude plan.' };
 }
 
-function codexAuth(e: Sys): { auth: Auth; detail: string } {
-  const { status, out } = e.run('codex', ['login', 'status']);
+function claudeAuth(e: Sys): { auth: Auth; detail: string } {
+  const cloud = claudeCloud(e);
+  if (cloud) return cloud;
+  let r: Ran | null = null;
+  try {
+    r = e.run('claude', ['auth', 'status', '--json']);
+  } catch {}
+  return claudeFrom(r);
+}
+
+/** What `codex login status` said, as a sign-in. */
+function codexFrom({ status, out }: Ran): { auth: Auth; detail: string } {
   if (/not logged in/i.test(out) || (status !== 0 && !/logged in/i.test(out)))
     return {
       auth: { kind: 'none' },
@@ -137,6 +182,10 @@ function codexAuth(e: Sys): { auth: Auth; detail: string } {
   if (/chatgpt/i.test(out))
     return { auth: { kind: 'subscription', plan: 'chatgpt' }, detail: 'Signed in with a ChatGPT plan.' };
   return { auth: { kind: 'subscription', plan: 'chatgpt' }, detail: 'Signed in; treated as a ChatGPT plan.' };
+}
+
+function codexAuth(e: Sys): { auth: Auth; detail: string } {
+  return codexFrom(e.run('codex', ['login', 'status']));
 }
 
 /**
@@ -175,29 +224,88 @@ export function detectAgent(agent: AgentId, e: Sys = system()): Detected {
 }
 
 /**
+ * Every agent and its sign-in, asked together: Claude Code and Codex each take a few hundred milliseconds to say how
+ * they are signed in, so the answer takes as long as the slowest one, not all of them.
+ */
+export function detectAgentsAsync(e: Sys = system()): Promise<Detected[]> {
+  return Promise.all(
+    (['claude-code', 'codex', 'omp', 'pi'] as const).map((agent) => detectAgentAsync(agent, e)),
+  );
+}
+
+/** `detectAgent`, without holding the process while the agent answers. */
+export async function detectAgentAsync(agent: AgentId, e: Sys = system()): Promise<Detected> {
+  const name = NAMES[agent];
+  const installed = e.has(COMMANDS[agent]);
+  if (installed && agent === 'pi' && !(await isPiAgentAsync(e)))
+    return {
+      agent,
+      name,
+      installed: false,
+      auth: { kind: 'none' },
+      detail:
+        'A program called `pi` is on your PATH, but it isn’t the Pi coding agent (`pi --version` didn’t answer with a version).',
+    };
+  if (!installed)
+    return { agent, name, installed, auth: { kind: 'none' }, detail: `${name} isn’t installed.` };
+  const run = runAsync(e);
+  const { auth, detail } =
+    agent === 'claude-code'
+      ? (claudeCloud(e) ?? claudeFrom(await run('claude', ['auth', 'status', '--json']).catch(() => null)))
+      : agent === 'codex'
+        ? codexFrom(await run('codex', ['login', 'status']))
+        : {
+            auth: { kind: 'none' } as Auth,
+            detail: 'Runs with a key or local model that Hildegard gives it.',
+          };
+  return { agent, name, installed, auth, detail };
+}
+
+/**
  * Whether `pi` on PATH is the Pi coding agent, not another program of that name (Debian's `pi` prints digits of π):
  * the coding agent answers `pi --version` with its version number alone.
  */
 export function isPiAgent(e: Sys): boolean {
-  // Asked with the same short environment a run gets: an unknown `pi` sees no sign-in or key of the owner's, and an
-  // empty agent folder of its own that no one else could have put anything in.
-  const probe = mkdtempSync(join(tmpdir(), 'hildegard-pi-probe-'));
-  let r: ReturnType<Sys['run']>;
+  return withPiProbe(e, (env) => piFrom(e.run('pi', ['--version'], env)));
+}
+
+/** The same question, asked without holding the process. */
+async function isPiAgentAsync(e: Sys): Promise<boolean> {
+  const probe = piProbeDir();
   try {
-    r = e.run('pi', ['--version'], {
-      ...inherited(e.env, PI_ENV, e.platform === 'win32'),
-      PI_SKIP_VERSION_CHECK: '1',
-      PI_TELEMETRY: '0',
-      PI_CODING_AGENT_DIR: probe,
-    });
+    return piFrom(await runAsync(e)('pi', ['--version'], piProbeEnv(e, probe)));
   } finally {
     rmSync(probe, { recursive: true, force: true });
   }
-  const { status, out, stdout } = r;
+}
+
+// Asked with the same short environment a run gets: an unknown `pi` sees no sign-in or key of the owner's, and an
+// empty agent folder of its own that no one else could have put anything in.
+const piProbeDir = () => mkdtempSync(join(tmpdir(), 'hildegard-pi-probe-'));
+const piProbeEnv = (e: Sys, probe: string): NodeJS.ProcessEnv => ({
+  ...inherited(e.env, PI_ENV, e.platform === 'win32'),
+  PI_SKIP_VERSION_CHECK: '1',
+  PI_TELEMETRY: '0',
+  PI_CODING_AGENT_DIR: probe,
+});
+
+function withPiProbe<T>(e: Sys, f: (env: NodeJS.ProcessEnv) => T): T {
+  const probe = piProbeDir();
+  try {
+    return f(piProbeEnv(e, probe));
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
+}
+
+function piFrom({ status, out, stdout }: Ran): boolean {
   // Node may warn on stderr (a deprecation, say); the version is the first line Pi prints on stdout.
   const first = (stdout ?? out).split('\n').find((l) => l.trim()) ?? '';
   return status === 0 && /^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(first.trim());
 }
+
+const runAsync = (e: Sys): NonNullable<Sys['runAsync']> =>
+  e.runAsync ?? ((cmd, args, env) => Promise.resolve(e.run(cmd, args, env)));
 
 /** The provider of an OMP or Pi model selector such as `openrouter/qwen/qwen3-coder` or `ollama/llama3.3`. */
 export function providerOf(model: string): string {

@@ -21,7 +21,7 @@ import {
   COMMANDS,
   decide,
   detectAgent,
-  detectAgents,
+  detectAgentsAsync,
   installSkills,
   isPiFamily,
   KEY_ENV,
@@ -41,7 +41,8 @@ import {
 } from '@hildegard/agents';
 import { describeReview, reviewMedia } from '@hildegard/craft';
 import { listAgents, mcpCommand, resource, type Step } from '@hildegard/runtime';
-import { secretStores, VERSION } from '@hildegard/server';
+import { secretStores } from '@hildegard/server/secrets';
+import { VERSION } from '@hildegard/server/version';
 import type { Ctx } from './commands.ts';
 import { readStdin } from './commands.ts';
 import { dim, type Result, result } from './output.ts';
@@ -99,7 +100,7 @@ export async function agents(ctx: Ctx, args: string[]): Promise<Result> {
 }
 
 async function check(ctx: Ctx): Promise<Result> {
-  const detected = detectAgents();
+  const detected = await detectAgentsAsync();
   const store = await keys(ctx);
   const held = Object.keys(KEY_ENV).filter((p) => !!store(keyAccount(p)).get());
   const opts = settings(ctx);

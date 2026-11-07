@@ -5,7 +5,15 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./version": "./src/version.ts",
+    "./config": "./src/config.ts",
+    "./secrets": "./src/hf.ts",
+    "./lifecycle": "./src/lifecycle.ts",
+    "./update": "./src/update.ts",
+    "./constants": "./src/constants.ts",
+    "./host": "./src/host.ts",
+    "./compile-cache": "./src/compile-cache.ts"
   },
   "bin": {
     "hildegard-server": "./src/main.ts"

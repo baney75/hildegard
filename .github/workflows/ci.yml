@@ -94,6 +94,22 @@ jobs:
             apps/studio/playwright-report
           retention-days: 7
 
+  # Speed budgets (scripts/perf/budgets.json): what each Studio page downloads, how long the CLI and the server take to
+  # start, and how many rows a long list puts in the page. A change that makes Hildegard slower or heavier fails here.
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hildegard/studio build
+      - run: pnpm --filter @hildegard/studio exec playwright install --with-deps chromium
+      - run: node --test scripts/perf/budgets.test.mjs
+
   # The film-look and safety-check nodes, on CPU.
   node:
     runs-on: ubuntu-latest

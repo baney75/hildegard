@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 import { layout, type Step } from '@hildegard/runtime';
-import type { Config } from '@hildegard/server';
+import type { Config } from '@hildegard/server/config';
 
 export const UNIT = 'hildegard.service';
 export const LABEL = 'io.github.baney75.hildegard';

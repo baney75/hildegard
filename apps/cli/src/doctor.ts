@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { GrantsResponse, HostState, Snapshot, TunnelReport } from '@hildegard/presets';
 import { detectGpu, listAgents, readRuntime, readVoiceEnv, type Step } from '@hildegard/runtime';
-import { COMFY_STARTING, tailnetSelf } from '@hildegard/server';
+import { COMFY_STARTING } from '@hildegard/server/constants';
+import { tailnetSelf } from '@hildegard/server/host';
 import { api, baseUrl, type Ctx, entry, running } from './commands.ts';
 import { hostStep } from './host.ts';
 import { type Result, result } from './output.ts';

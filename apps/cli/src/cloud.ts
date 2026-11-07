@@ -9,7 +9,8 @@ import { join } from 'node:path';
 import { deviceName, type Pod, PROVIDERS, podSpec, proxyUrl, Runpod, RunpodError } from '@hildegard/cloud';
 import type { Catalog, ChoirState } from '@hildegard/presets';
 import { resource, type Step } from '@hildegard/runtime';
-import { encodeJoinCode, fileStore, keychainStore, secretStores, VERSION } from '@hildegard/server';
+import { fileStore, keychainStore, secretStores } from '@hildegard/server/secrets';
+import { VERSION } from '@hildegard/server/version';
 import { api, type Ctx, ensureRunning, readStdin } from './commands.ts';
 import { dim, type Result, result } from './output.ts';
 
@@ -385,6 +386,7 @@ async function podUp(
         ],
         'Not joined.',
       );
+    const { encodeJoinCode } = await import('@hildegard/server');
     const code = encodeJoinCode({ name: state.name, url: state.url, token: joinKey });
     const waitMinutes = ctx.flags.has('no-wait') ? 0 : Number(ctx.opts.get('wait-minutes') ?? 40);
     const end = Date.now() + waitMinutes * 60_000;

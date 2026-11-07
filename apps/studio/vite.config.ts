@@ -86,7 +86,14 @@ function precompress(): Plugin {
 
 export default defineConfig({
   plugins: [react(), themeInit(), precompress()],
-  build: { target: 'es2022', cssMinify: 'lightningcss', assetsInlineLimit: 0, reportCompressedSize: false },
+  build: {
+    target: 'es2022',
+    cssMinify: 'lightningcss',
+    assetsInlineLimit: 0,
+    reportCompressedSize: false,
+    // Which chunks each page needs: scripts/perf reads it to hold every route to its size budget.
+    manifest: true,
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,

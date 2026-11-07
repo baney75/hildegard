@@ -17,7 +17,9 @@
     "format": "biome format --write .",
     "test": "pnpm -r test",
     "e2e": "pnpm --filter @hildegard/studio e2e",
-    "release": "node scripts/build-release.mjs"
+    "release": "node scripts/build-release.mjs",
+    "perf": "node scripts/perf/run.mjs",
+    "perf:budgets": "node --test scripts/perf/budgets.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

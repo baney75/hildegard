@@ -12,7 +12,7 @@ import { execFile } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type HostState, parsePublicUrl } from '@hildegard/presets';
-import { privateLink } from './choir.ts';
+import { privateLink } from './private-link.ts';
 
 export class HostError extends Error {
   readonly status: 400 | 409 | 502;

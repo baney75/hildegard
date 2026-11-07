@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ForceDialog } from '../components/ForceDialog.tsx';
 import { previewUrl, takeLabel, waitingFor } from '../components/TakeCard.tsx';
 import { Button, Icon, Segmented, Status, toastError, WithCode } from '../components/ui.tsx';
+import { WindowedRows } from '../components/Windowed.tsx';
 import { api } from '../lib/api.ts';
 import {
   about,
@@ -373,7 +374,7 @@ export function Queue({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass; 
                     <span>{g.sub}</span>
                     {g.extra}
                   </div>
-                  <div className="st-jobs">{g.rows}</div>
+                  <WindowedRows className="st-jobs" rows={g.rows} />
                 </section>
               ) : null,
             )

@@ -36,6 +36,7 @@ import {
 import { redeemRoutes } from './choir-redeem.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
+import { COMFY_STARTING } from './constants.ts';
 import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
 import type { FigmaFetch } from './figma.ts';
 import { Grants } from './grants.ts';
@@ -123,8 +124,7 @@ export interface Running {
 }
 
 /** Start everything: the store, the render queue, model installs, the Hugging Face link and the HTTP server. */
-/** The engine problem while the managed ComfyUI is still loading: a wait, not a fault. */
-export const COMFY_STARTING = 'ComfyUI is starting.';
+export { COMFY_STARTING };
 
 /**
  * Starts Hildegard's server. When a step fails after the managed ComfyUI has started, ComfyUI is stopped again before
