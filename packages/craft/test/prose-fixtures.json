@@ -72,12 +72,13 @@
       "fails": ["stock-words", "empty-phrases"]
     },
     {
-      "name": "dashes are no tell: people write them, and models in 2026 write fewer",
+      "name": "one dash in short copy is a warn, not a fail: people write them, and readers now notice",
       "text": "We fixed the oven — the real problem was the thermostat. Dinner was late.",
-      "clean": true
+      "warns": ["em-dash"],
+      "ok": true
     },
     {
-      "name": "a dash in a long piece is no finding",
+      "name": "a dash in a long piece fails nothing",
       "text": "The barn went up in a week. We set the posts on Monday, after two days of rain had softened the ground enough to dig without the auger jamming on every rock. Tuesday we framed the walls on the slab and stood them with the tractor, which took four of us and more shouting than it should have.\n\nWednesday was rafters. My brother cut every one from a single pattern he drew on the shop floor in chalk, and only one came out short, which we used for the lean-to on the north side. By Thursday afternoon the purlins were on and the metal roofing was stacked on the trailer.\n\nFriday we hung the roof. The wind picked up after lunch, so we screwed down the last six sheets with one person holding each corner, and nobody let go. My father, who built the old barn in 1979, walked through it that evening and said the doors would stick in August — he was right, and we planed them in September.",
       "ok": true
     },
@@ -402,6 +403,89 @@
       "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nUltimately, we decided to keep the old stove, because Grandmother’s biscuits never came out right on anything else.",
       "warns": ["summary-ending"],
       "ok": true
+    },
+    {
+      "name": "an em dash warns and never fails a piece",
+      "text": "We planted the beans in May\u2014the soil was still cold\u2014and waited for the rain.",
+      "warns": ["em-dash"],
+      "ok": true,
+      "reports": { "em-dash": "\u2014" }
+    },
+    {
+      "name": "a spaced double hyphen is an em dash typed in plain text",
+      "text": "We planted the beans in May -- the soil was still cold -- and waited for the rain.",
+      "warns": ["em-dash"],
+      "ok": true,
+      "reports": { "em-dash": "--" }
+    },
+    {
+      "name": "hyphens, en dashes, number ranges and a command flag are not em dashes",
+      "text": "Open Monday\u2013Friday, 9\u20135, in room 2020-2024. Ask my mother-in-law, or run the check with the --max flag.",
+      "clean": true
+    },
+    {
+      "name": "a dash in code, a link or an address is not prose",
+      "text": "Write it in the code:\n\n```\na \u2014 b\n```\n\nSee [the post](https://example.com/a\u2014b) or https://example.com/c\u2014d for the rest.",
+      "clean": true
+    },
+    {
+      "name": "an em dash is not a kind of weak tell, so it never stacks into a fail",
+      "text": "The fence went up in May\u2014the soil was soft. Simply put, it took a weekend.",
+      "warns": ["em-dash", "metadiscourse"],
+      "ok": true
+    },
+    {
+      "name": "a person who loves dashes still passes by default",
+      "text": "My grandmother\u2014Ruth, the one with the orchard\u2014kept bees. The hives\u2014six of them\u2014sat by the creek. The honey\u2014thick, dark\u2014went to the church sale.",
+      "warns": ["em-dash"],
+      "ok": true
+    },
+    {
+      "name": "strict: an em dash fails",
+      "strict": true,
+      "text": "We planted the beans in May\u2014the soil was still cold\u2014and waited for the rain.",
+      "fails": ["em-dash"],
+      "ok": false
+    },
+    {
+      "name": "strict: a spaced double hyphen fails too",
+      "strict": true,
+      "text": "We planted the beans in May -- the soil was still cold.",
+      "fails": ["em-dash"],
+      "ok": false
+    },
+    {
+      "name": "default: three office words are a warn",
+      "text": "We leverage the van, utilize the shed and streamline the route.",
+      "warns": ["corporate-words"],
+      "ok": true
+    },
+    {
+      "name": "strict: three office words fail",
+      "strict": true,
+      "text": "We leverage the van, utilize the shed and streamline the route.",
+      "fails": ["corporate-words"],
+      "ok": false
+    },
+    {
+      "name": "strict: a stock phrase warn fails",
+      "strict": true,
+      "text": "Simply put, the bees need water in July. The good news is that a pan of stones will do.",
+      "fails": ["metadiscourse"],
+      "ok": false
+    },
+    {
+      "name": "strict: headings stay a warn, since a page needs them",
+      "strict": true,
+      "text": "# Fall Lawn Care\n\n## Mowing\n\nKeep the blade at 2.5 inches until the last cut.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n",
+      "warns": ["headings"],
+      "ok": true
+    },
+    {
+      "name": "strict: clean writing is clean",
+      "strict": true,
+      "text": "The bees need water in July. A pan of stones on the porch will do.",
+      "clean": true
     }
   ]
 }

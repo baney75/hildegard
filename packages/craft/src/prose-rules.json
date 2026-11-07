@@ -1,5 +1,5 @@
 {
-  "_about": "Hildegard's prose lint: the tells that make writing read as machine-made. One file feeds every engine: packages/craft/src/prose.ts (Studio, MCP, CLI) and skills/hildegard/scripts/prose_lint.py (any agent, no install). Phrase patterns are lowercase regexes matched on word boundaries, in the subset JavaScript and Python share. A match that starts with a capital in the middle of a sentence is a name (\"Beacon Street\") and is skipped when the rule has exemptNames. A rule with minHits stays quiet below that many matches: one is a habit, several are a style. Write an apostrophe as ['’] so both kinds match. Where each pattern sits (fail, warn, or left out) was set by how often it fires on people's writing and on AI drafts: see packages/craft/bench and docs/writing.md. `stacked` lists the weak tells that, two or more of different kinds in one piece, fail it as stacked-tells. Keep skills/hildegard/scripts/prose_rules.json identical to this file; a test checks it.",
+  "_about": "Hildegard's prose lint: the tells that make writing read as machine-made. One file feeds every engine: packages/craft/src/prose.ts (Studio, MCP, CLI) and skills/hildegard/scripts/prose_lint.py (any agent, no install). Phrase patterns are lowercase regexes matched on word boundaries, in the subset JavaScript and Python share. A match that starts with a capital in the middle of a sentence is a name (\"Beacon Street\") and is skipped when the rule has exemptNames. A rule with minHits stays quiet below that many matches: one is a habit, several are a style. Write an apostrophe as ['’] so both kinds match. Where each pattern sits (fail, warn, or left out) was set by how often it fires on people's writing and on AI drafts: see packages/craft/bench and docs/writing.md. `stacked` lists the weak tells that, two or more of different kinds in one piece, fail it as stacked-tells. `strict.fail` lists the warns that fail in the strict profile (for writing that must carry no tells at all); the default profile never reads it. The em dash (U+2014, and a spaced double hyphen) is the one rule that is code, not a phrase: a boundary pattern cannot sit beside a letter. Keep skills/hildegard/scripts/prose_rules.json identical to this file; a test checks it.",
   "version": 1,
   "phrases": {
     "stock-words": {
@@ -346,5 +346,26 @@
     "share": 0.9,
     "maxWords": 45,
     "longest": 60
+  },
+  "strict": {
+    "fail": [
+      "em-dash",
+      "corporate-words",
+      "cliches",
+      "metadiscourse",
+      "weasel",
+      "loaded-words",
+      "summary-openers",
+      "filler-adverbs",
+      "warm-boilerplate",
+      "not-but",
+      "colon-reveal",
+      "summary-ending",
+      "triads",
+      "bold-leads",
+      "bold-list-leads",
+      "uniform-paragraphs",
+      "bold"
+    ]
   }
 }

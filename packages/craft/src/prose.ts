@@ -342,6 +342,20 @@ const COLON_REVEAL =
   /(?:^|[.!?]\s+)((?:The|My|Our|Their|One|Here['’]s|What) (?:[\w'’-]+ ){0,5}(?:detail|part|secret|trick|catch|twist|kicker|answer|truth|reason|result|difference|fix|best part|worst part|key|something|one thing)\b[^.:!?\n]{0,40}: [a-z])/gm;
 const BOLD = /\*\*[^*\n]+\*\*|__[^_\n]+__/g;
 /**
+ * The em dash (U+2014), and a double hyphen set off by spaces, which is how a plain-text writer types one. Never a
+ * hyphen or an en dash, so “2020-2024”, “pages 10–12” and “--max” are not found. Found with indexOf, not a regex: an
+ * alternation with no letter to start on is tried at every character, and most text has no dash at all. Written as
+ * escapes: this file is itself prose a house style might lint.
+ */
+const EM = '\u2014';
+const SPACED = ' -- ';
+function dashes(prose: string, text: string): ProseMatch[] {
+  const at: Array<[number, number]> = [];
+  for (let i = prose.indexOf(EM); i >= 0; i = prose.indexOf(EM, i + 1)) at.push([i, 1]);
+  for (let i = prose.indexOf(SPACED); i >= 0; i = prose.indexOf(SPACED, i + 1)) at.push([i + 1, 2]);
+  return at.sort((a, b) => a[0] - b[0]).map(([i, n]) => locate(text, i, text.slice(i, i + n)));
+}
+/**
  * “sleep, reading, play, or dinner”: a list of three or more, the rhythm generated prose falls into. It starts where
  * a word starts, by its own letters: `\b` is ASCII-only, so in “aéaéaé…” it fell between every pair and rescanned the word.
  */
@@ -381,9 +395,20 @@ const MARKERS = RULES.markers.map(
 );
 /** The kinds of weak tell that count toward `stacked-tells`: findings that come from one habit are one kind. */
 const KINDS: string[][] = RULES.stacked.kinds;
+/** The warns that fail in the strict profile. */
+const STRICT = new Set<string>(RULES.strict.fail);
+
+export interface ProseOptions {
+  /**
+   * The strict profile, for writing that must carry no tells: every warn listed in `strict.fail` (the em dash and the
+   * rest of the wording and shape tells) fails. The default leaves them warnings, because none of them tells a person
+   * from a machine well enough to fail a piece.
+   */
+  strict?: boolean;
+}
 
 /** Lint words a person will read. `ok` is false when any finding fails. */
-export function lintProse(text: string): ProseLint {
+export function lintProse(text: string, opts: ProseOptions = {}): ProseLint {
   const prose = blankNonProse(text);
   const allParas = paragraphs(prose);
   // A word never spans a line break, so the paragraphs hold every word of the text.
@@ -412,6 +437,16 @@ export function lintProse(text: string): ProseLint {
     if (rule.minHits !== undefined && matches.length < rule.minHits) continue;
     add(id, rule.severity, rule.why, rule.fix, matches);
   }
+
+  // Readers in 2026 take an em dash for a machine tell, but people write them too (40 percent of the human corpus), so
+  // it only ever warns and is no kind of weak tell for `stacked-tells`.
+  add(
+    'em-dash',
+    'warn',
+    'Readers now take an em dash for a machine tell.',
+    'Use a comma, a colon, parentheses or two sentences. Keep it only where it is truly your own.',
+    dashes(prose, text),
+  );
 
   // Two patterns can match the same span (“not just a tool, but”): one contrast is one match.
   const notBut = NOT_BUT.flatMap((re) => all(re, prose, text))
@@ -597,6 +632,8 @@ export function lintProse(text: string): ProseLint {
       weak.map((fs) => fs[0]!.matches[0]!).sort((a, b) => a.index - b.index),
     );
 
+  if (opts.strict)
+    for (const f of findings) if (f.severity === 'warn' && STRICT.has(f.id)) f.severity = 'fail';
   return { ok: !findings.some((f) => f.severity === 'fail'), words, findings };
 }
 

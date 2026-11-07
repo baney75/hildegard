@@ -1,6 +1,7 @@
 Python and the package agree on all 396 pieces
-Human writing: 220 pieces. Fail 0.0%, any warn 26.4%, any finding 26.4%.
-AI drafts (no skill): 176 pieces. Recall (fails) 30.7%, any finding 81.3%.
+Strict profile: human fail 46.4%, any warn 9.1%; AI recall 80.7%.
+Human writing: 220 pieces. Fail 0.0%, any warn 50.9%, any finding 50.9%.
+AI drafts (no skill): 176 pieces. Recall (fails) 30.7%, any finding 86.9%.
   haiku                  n=44 recall 38.6%
   luna                   n=44 recall 18.2%
   opus                   n=44 recall 43.2%
@@ -28,3 +29,4 @@ summary-openers         0.5%   0.0%     0.0%     0.0%   (1/0)
 loaded-words            0.5%   0.0%     0.0%     0.0%   (1/0)
 corporate-words         0.9%   0.0%     0.0%     0.0%   (2/0)
 not-but                 3.6%   2.3%     0.0%     0.0%   (8/4)
+em-dash                35.5%  21.0%     0.0%     0.0%   (78/37)

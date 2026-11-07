@@ -1378,6 +1378,23 @@ describe('hildegard lint', () => {
     expect(text).toContain(`\n${bad}\nFails`);
   });
 
+  it('warns on an em dash and passes, and fails it only with --strict', async () => {
+    const dashed = join(dir, 'dashed.md');
+    writeFileSync(dashed, 'We painted the barn in May\u2014the weather held.\n');
+    const plain = await lint([dashed]);
+    expect(plain.code).toBe(0);
+    expect(plain.stdout).toMatch(/^Passes, with 1 to weigh/);
+    expect(plain.stdout).toMatch(/- warn em-dash: .+ At 1:27 \u201c\u2014\u201d/);
+    const strict = await lint([dashed, '--strict']);
+    expect(strict.code).toBe(1);
+    expect(strict.stdout).toMatch(/^Fails: 1 tell to fix/);
+    expect(strict.stdout).toMatch(/- fail em-dash: /);
+    expect(JSON.parse((await lint([dashed, '--strict', '--json'])).stdout)).toMatchObject({ ok: false });
+    expect(JSON.parse((await lint([dashed, '--json'])).stdout)).toMatchObject({ ok: true });
+    // Clean writing passes in either profile.
+    expect(await lint([good, '--strict'])).toEqual({ code: 0, stdout: 'Clean: no tells in 10 words.\n' });
+  });
+
   it('exits 2, not the 1 of a failing lint, when it was used wrongly or has nothing to read', async () => {
     expect((await lint([bad])).code).toBe(1);
     expect((await lint([])).code).toBe(2);

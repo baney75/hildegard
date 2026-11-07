@@ -1,55 +1,55 @@
-         73322 function calls (73173 primitive calls) in 0.107 seconds
+         73473 function calls (73324 primitive calls) in 0.181 seconds
 
    Ordered by: internal time
-   List reduced from 67 to 12 due to restriction <12>
+   List reduced from 69 to 12 due to restriction <12>
 
    ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-        1    0.034    0.034    0.041    0.041 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:265(phrase_hits)
-        1    0.018    0.018    0.020    0.020 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:352(triads)
-       17    0.017    0.001    0.018    0.001 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:103(all)
-    158/9    0.008    0.000    0.008    0.001 {method 'sub' of 're.Pattern' objects}
-      529    0.007    0.000    0.007    0.000 {method 'findall' of 're.Pattern' objects}
-        1    0.006    0.006    0.107    0.107 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:387(lint_prose)
-    41809    0.004    0.000    0.004    0.000 {method 'startswith' of 'str' objects}
-     7528    0.002    0.000    0.002    0.000 {method 'match' of 're.Pattern' objects}
-        1    0.001    0.001    0.010    0.010 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:302(paragraphs)
-     4024    0.001    0.000    0.001    0.000 {method 'group' of 're.Match' objects}
-        1    0.001    0.001    0.001    0.001 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:83(__init__)
+        1    0.059    0.059    0.071    0.071 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:267(phrase_hits)
+        1    0.031    0.031    0.034    0.034 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:369(triads)
+       17    0.030    0.002    0.031    0.002 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:105(all)
+        1    0.014    0.014    0.181    0.181 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:406(lint_prose)
+    158/9    0.011    0.000    0.012    0.001 {method 'sub' of 're.Pattern' objects}
+      529    0.009    0.000    0.009    0.000 {method 'findall' of 're.Pattern' objects}
+    41809    0.008    0.000    0.008    0.000 {method 'startswith' of 'str' objects}
+     7528    0.004    0.000    0.004    0.000 {method 'match' of 're.Pattern' objects}
+     4024    0.002    0.000    0.002    0.000 {method 'group' of 're.Match' objects}
+        1    0.002    0.002    0.013    0.013 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:304(paragraphs)
+        1    0.001    0.001    0.002    0.002 /home/baney75/.t3/worktrees/hildegard/t3-d9d790d9/packages/craft/bench/../../../skills/hildegard/scripts/prose_lint.py:85(__init__)
      4747    0.001    0.000    0.001    0.000 {method 'start' of 're.Match' objects}
 
 
 case                                                    chars     ts ms     py ms    ts was    py was
-prose 1,000 chars                                         801      0.18      1.17      0.41      4.22
-prose 10,000 chars                                       9980      0.91     13.81      2.32     44.19
-prose 100,000 chars                                     99997      9.86     97.08     24.37    385.39
-prose 1,000,000 chars                                  999994    119.46    995.86    284.78   5930.68
-attack: blank lines of spaces (paragraph split)        200001     16.49    262.48     29.61   1154.98
-attack: accented letters (list of three)               200000      6.54    225.87     13.52    952.51
-attack: a run of exclamation marks (sentence split)    200000      8.29    198.40     23.16    893.64
-attack: unclosed tags                                  200000      8.67    110.48     23.47    835.88
-attack: unclosed tags with a name                      200000     13.36    180.19     17.35    597.62
-attack: unclosed code blocks                           200000      6.11    153.00     13.58    536.09
-attack: unclosed images                                200000     15.76    210.89     11.26    765.05
-attack: unclosed image targets                         200000      5.67    153.35     12.32    621.64
-attack: unclosed link targets                          200000      3.56    139.91      9.88    727.34
+prose 1,000 chars                                         801      0.20      0.93      0.46      4.46
+prose 10,000 chars                                       9980      1.23     12.50      3.13     47.55
+prose 100,000 chars                                     99997     12.34    144.14     30.99    491.87
+prose 1,000,000 chars                                  999994    163.13   1460.48    434.20   4750.10
+attack: blank lines of spaces (paragraph split)        200001     28.78    334.12     23.41   1097.27
+attack: accented letters (list of three)               200000     22.61    258.10     30.04   1317.90
+attack: a run of exclamation marks (sentence split)    200000      9.88    276.86     22.10   1035.08
+attack: unclosed tags                                  200000      6.82    271.79     23.23   1339.22
+attack: unclosed tags with a name                      200000     18.12    284.11     35.54   1310.38
+attack: unclosed code blocks                           200000     14.11    274.10     32.44   1092.36
+attack: unclosed images                                200000     19.21    400.81     15.42    896.58
+attack: unclosed image targets                         200000     13.56    322.95     25.34    982.28
+attack: unclosed link targets                          200000      6.85    255.77     19.35    883.04
 
-Median ms per 100k characters (the 100k and 1M inputs): ts 11.95, py 99.59
-Before: ts 28.48, py 593.07. Faster by 2.4x (ts) and 6.0x (py).
-Worst adversarial case (200k chars): ts 16 ms (attack: blank lines of spaces (paragraph split)), py 262 ms (attack: blank lines of spaces (paragraph split))
-  before: ts 30 ms, py 1155 ms
+Median ms per 100k characters (the 100k and 1M inputs): ts 16.31, py 146.05
+Before: ts 43.42, py 491.89. Faster by 2.7x (ts) and 3.4x (py).
+Worst adversarial case (200k chars): ts 29 ms (attack: blank lines of spaces (paragraph split)), py 401 ms (attack: unclosed images)
+  before: ts 36 ms, py 1339 ms
 
 Where the TypeScript engine spends its time (100k realistic characters, own time):
-   44.9%  post node:inspector
-   15.9%  triads prose.ts
-   10.6%  phraseHits prose.ts
-    8.6%  all prose.ts
-    7.2%  prose.ts:268
-    3.8%  countWords prose.ts
-    3.2%  blankNonProse prose.ts
-    3.1%  lintProse prose.ts
-    0.9%  prose.ts:175
-    0.8%  paragraphs prose.ts
-    0.5%  blankBlocks prose.ts
-    0.2%  (anon) speed.ts
-    0.2%  prose.ts:50
-    0.2%  prose.ts:324
+   76.8%  post node:inspector
+    6.0%  triads prose.ts
+    3.4%  blankNonProse prose.ts
+    3.2%  phraseHits prose.ts
+    3.1%  all prose.ts
+    2.4%   prose.ts
+    1.1%  countWords prose.ts
+    0.9%  lintProse prose.ts
+    0.7%  (anon) speed.ts
+    0.6%  dashes prose.ts
+    0.5%  (garbage collector) 
+    0.3%  prose.ts:175
+    0.3%  paragraphs prose.ts
+    0.2%  prose.ts:527

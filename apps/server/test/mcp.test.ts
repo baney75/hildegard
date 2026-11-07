@@ -258,6 +258,16 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'and 2 more',
     );
 
+    // An em dash is a warning by default and a fail with strict: true.
+    const dashed = 'We painted the barn in May\u2014the weather held.';
+    expect(textOf(await call('lint_writing', { text: dashed }))).toMatch(
+      /^Passes, with 1 to weigh[\s\S]*- warn em-dash/,
+    );
+    expect(textOf(await call('lint_writing', { text: dashed, strict: true }))).toMatch(
+      /^Fails: 1 tell to fix[\s\S]*- fail em-dash/,
+    );
+    expect(textOf(await call('lint_writing', { text: dashed, strict: false }))).toMatch(/^Passes/);
+
     // Only a regular file small enough to be 200,000 characters: never a folder, a pipe or a device that never ends.
     const big = join(dir, 'big.md');
     writeFileSync(big, 'a '.repeat(500_000));

@@ -7,21 +7,41 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { loadCached, loadCommitted } from '../bench/corpus.ts';
-import { type Counts, measure, noWorse } from '../bench/quality.ts';
+import { type Baseline, measure, noWorse, strictNoWorse } from '../bench/quality.ts';
 import { lintProse, type ProseLint } from '../src/index.ts';
 import { phraseHits, phraseHitsNaive } from '../src/prose.ts';
 import FIXTURES from './prose-fixtures.json' with { type: 'json' };
 
 const bench = resolve(import.meta.dirname, '../bench');
-const baseline = JSON.parse(readFileSync(join(bench, 'baseline.json'), 'utf8')) as Counts;
+const baseline = JSON.parse(readFileSync(join(bench, 'baseline.json'), 'utf8')) as Baseline;
 const committed = loadCommitted();
 const { rows, report } = measure(committed);
+const strictRun = measure(committed, (t) => lintProse(t, { strict: true }));
 const dir = mkdtempSync(join(tmpdir(), 'prose-quality-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('prose lint quality: no worse than the committed baseline', () => {
   it('fails no more human pieces, and at least as many AI drafts', () => {
     expect(noWorse(report.counts, baseline)).toEqual([]);
+  });
+
+  it('never fails a person’s piece in the default profile, em dashes and all', () => {
+    expect(report.counts.humanFails).toBe(0);
+    expect(report.counts.holdoutHumanFails).toBe(0);
+    expect(baseline.humanFails).toBe(0);
+    // The dash warns on a large share of people's pieces and fails none, so it is no basis for failing anyone.
+    expect(report.rules['em-dash']?.humanFail ?? 0).toBe(0);
+    expect(report.rules['em-dash']?.human ?? 0).toBeGreaterThan(40);
+  });
+
+  it('holds the strict profile to its recall, and to failing at least what the default fails', () => {
+    expect(strictNoWorse(strictRun.report.counts, baseline.strict, report.counts)).toEqual([]);
+    expect(strictRun.report.counts.aiFails).toBeGreaterThanOrEqual(report.counts.aiFails);
+    expect(strictRun.report.counts.humanFails).toBeGreaterThanOrEqual(report.counts.humanFails);
+    // Nothing in the default profile fails on an em dash.
+    expect(rows.every((r) => r.l.findings.every((f) => f.id !== 'em-dash' || f.severity === 'warn'))).toBe(
+      true,
+    );
   });
 
   it('keeps the human false-fail rate under 2 percent and the AI recall over 30 percent, whatever the baseline says', () => {
@@ -59,6 +79,25 @@ describe('prose lint quality: no worse than the committed baseline', () => {
     expect(py).toHaveLength(texts.length);
     texts.forEach((t, i) => {
       expect(py[i], `piece ${i}`).toEqual(lintProse(t));
+    });
+  });
+
+  it('is the same strict lint in the Python script on every piece', () => {
+    const files = committed.map((p, i) => {
+      const f = join(dir, `strict-${i}.md`);
+      writeFileSync(f, p.text);
+      return f;
+    });
+    const python = process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+    const py = JSON.parse(
+      execFileSync(python, ['-I', join(bench, 'lint_all.py'), '--strict', ...files], {
+        encoding: 'utf8',
+        maxBuffer: 1 << 28,
+      }),
+    ) as ProseLint[];
+    expect(py).toHaveLength(committed.length);
+    committed.forEach((p, i) => {
+      expect(py[i], p.id).toEqual(lintProse(p.text, { strict: true }));
     });
   });
 

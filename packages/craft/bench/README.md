@@ -50,7 +50,14 @@ Every piece has a `split`:
   inputs in `test/prose-fixtures.json`, both engines. The Python script runs in one process. `--profile` shows where
   the time goes, `--before <ref>` times the engines at a git ref beside this tree's.
 
-`baseline.json` holds the counts the tests compare against; `quality.ts --ratchet` raises them. `results/before-quality.txt`
+Every report is given in two profiles. The **default** profile is the one that must never fail a person: its human
+false-fail count is held at 0, and `humanWarns` (human pieces with any warn, the em dash included) is recorded, not
+limited. The **strict** profile (`lintProse(text, { strict: true })`, `--strict` on the CLI and the script) fails the
+em dash and the other warns in `strict.fail` too, so it fails about half of the human pieces on purpose; the ratchet
+holds its AI recall and that it fails at least what the default fails, not its human count.
+
+`baseline.json` holds the counts the tests compare against (the default profile's, and the strict profile's under
+`strict`); `quality.ts --ratchet` raises them. `results/before-quality.txt`
 is the lint as it stood before the changes in the pull request that added this bench (`quality.ts --ref origin/main`),
 `results/after-quality.txt` is the lint after, and `results/speed.txt` is `speed.ts --before origin/main --profile`.
 The machine was busy while the speed numbers were taken (load average about 30), so read them as ratios.

@@ -60,6 +60,17 @@ describe('POST /api/writing/lint', () => {
     expect(got.findings[0]!.matches[0]).toMatchObject({ line: 1, column: expect.any(Number) });
   });
 
+  it('fails an em dash only when the strict profile is asked for', async () => {
+    const dashed = 'We painted the barn in May\u2014the weather held.';
+    const plain = (await (await lint(srv.url, { text: dashed })).json()) as ProseLint;
+    expect(plain).toEqual(lintProse(dashed));
+    expect(plain).toMatchObject({ ok: true, findings: [{ id: 'em-dash', severity: 'warn' }] });
+    const strict = (await (await lint(srv.url, { text: dashed, strict: true })).json()) as ProseLint;
+    expect(strict).toEqual(lintProse(dashed, { strict: true }));
+    expect(strict).toMatchObject({ ok: false, findings: [{ id: 'em-dash', severity: 'fail' }] });
+    expect((await lint(srv.url, { text: dashed, strict: 'yes' })).status).toBe(400);
+  });
+
   it('passes plain words', async () => {
     const got = (await (
       await lint(srv.url, { text: 'A plain sentence about a red barn.' })

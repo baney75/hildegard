@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { blankNonProse, describeProseLint, lintProse } from '../src/index.ts';
 import { countWords, countWordsRegex, needleOf, phraseHits, phraseHitsNaive } from '../src/prose.ts';
+import RULES from '../src/prose-rules.json' with { type: 'json' };
 import FIXTURES from './prose-fixtures.json' with { type: 'json' };
 
 interface Case {
@@ -13,6 +14,8 @@ interface Case {
   warns?: string[];
   clean?: boolean;
   ok?: boolean;
+  /** Lint with the strict profile. */
+  strict?: boolean;
   /** The first place a finding reports, exactly as written in the text. */
   reports?: Record<string, string>;
 }
@@ -25,10 +28,33 @@ interface Attack {
   tail: string;
 }
 
+/** For each warn the strict profile fails: a text that trips that warn and nothing that fails by default. */
+const STRICT_PROBES: Record<string, string> = {
+  'em-dash': 'We planted the beans in May—the soil was still cold.',
+  'corporate-words': 'We leverage the van, utilize the shed and streamline the route.',
+  cliches: 'At the end of the day, it works. When it comes to bees, water matters.',
+  metadiscourse: 'Simply put, the bees need water.',
+  weasel: 'Experts agree that bees need water.',
+  'loaded-words': 'Crucial care helps. Vibrant hives foster growth.',
+  'summary-openers': 'In summary, the bees need water.',
+  'filler-adverbs': 'Honestly, the bees really truly need water.',
+  'warm-boilerplate': 'We are so grateful to the crew. Thank you for your support.',
+  'not-but': 'It is not about honey, but about bees.',
+  'colon-reveal': 'The secret: always add water.',
+  'summary-ending': 'Bees need water.\n\nThey need shade.\n\nOverall, keep them cool.',
+  triads: 'We sell honey, wax, and soap. '.repeat(40),
+  'bold-leads':
+    '**Water.** Bees need it.\n\n**Shade.** Bees need it.\n\n**Sugar.** Bees need it.\n\n**Quiet.** Bees need it.',
+  'bold-list-leads': '- **When:** Saturday\n- **Where:** The barn',
+  'uniform-paragraphs': 'Bees need water.\n\n'.repeat(6),
+  bold: 'Bees need **water** and **shade** daily.',
+};
+const RULE_IDS = new Set([...Object.keys(RULES.phrases), ...Object.keys(STRICT_PROBES)]);
+
 describe('prose lint', () => {
   for (const c of FIXTURES.cases as Case[]) {
     it(c.name, () => {
-      const l = lintProse(c.text);
+      const l = lintProse(c.text, { strict: c.strict });
       const ids = (sev: string) => l.findings.filter((f) => f.severity === sev).map((f) => f.id);
       if (c.clean) {
         expect(
@@ -44,6 +70,96 @@ describe('prose lint', () => {
         expect(l.findings.find((f) => f.id === id)?.matches[0]?.text).toBe(at);
     });
   }
+
+  describe('the em dash', () => {
+    const dashed = 'We planted the beans in May\u2014the soil was still cold.';
+    const em = (t: string, strict = false) =>
+      lintProse(t, { strict }).findings.find((f) => f.id === 'em-dash');
+
+    it('warns in the default profile and says what to do instead', () => {
+      const f = em(dashed)!;
+      expect(f.severity).toBe('warn');
+      expect(f.why).toMatch(/machine tell/);
+      expect(f.fix).toMatch(/comma, a colon, parentheses or two sentences/);
+      expect(lintProse(dashed).ok).toBe(true);
+    });
+
+    it('points at each dash, in the text as given', () => {
+      const text = 'One\u2014two.\nThree -- four \u2014 five.';
+      expect(em(text)!.matches).toEqual([
+        { text: '\u2014', index: 3, line: 1, column: 4 },
+        { text: '--', index: 15, line: 2, column: 7 },
+        { text: '\u2014', index: 23, line: 2, column: 15 },
+      ]);
+    });
+
+    it('is never found in a hyphen, an en dash, a range or a flag', () => {
+      for (const t of [
+        'A well-known mother-in-law.',
+        'Pages 10\u201312 and 2020-2024.',
+        'Run it with --max 3 or --json.',
+        '---\n\nA line.\n\n---',
+        'Use two--no, three.',
+      ])
+        expect(em(t), t).toBeUndefined();
+    });
+
+    it('fails nothing a person wrote, however many dashes, and is not a weak tell that stacks', () => {
+      const many = Array.from({ length: 12 }, (_, i) => `Item ${i}\u2014a plain note.`).join(' ');
+      expect(lintProse(many).ok).toBe(true);
+      const withTell = lintProse(`${many} Simply put, it works.`);
+      const ids = withTell.findings.map((f) => f.id);
+      expect(ids).toContain('em-dash');
+      expect(ids).toContain('metadiscourse');
+      expect(ids).not.toContain('stacked-tells');
+      expect(withTell.ok).toBe(true);
+    });
+
+    it('fails in the strict profile, and only there', () => {
+      expect(em(dashed, true)!.severity).toBe('fail');
+      expect(lintProse(dashed, { strict: true }).ok).toBe(false);
+      expect(lintProse(dashed, { strict: false }).ok).toBe(true);
+      expect(lintProse(dashed).ok).toBe(true);
+    });
+  });
+
+  describe('the strict profile', () => {
+    it('fails every warn it lists, leaves headings a warn, and changes nothing else', () => {
+      // Every rule in strict.fail has a probe here, so a rule added to the list must be added to the test.
+      expect(Object.keys(STRICT_PROBES).sort()).toEqual([...RULES.strict.fail].sort());
+      const warnsOnly = Object.keys(STRICT_PROBES);
+      for (const id of warnsOnly) {
+        const text = STRICT_PROBES[id]!;
+        const base = lintProse(text);
+        const strict = lintProse(text, { strict: true });
+        expect(base.findings.find((f) => f.id === id)?.severity, `${id} default`).toBe('warn');
+        expect(strict.findings.find((f) => f.id === id)?.severity, `${id} strict`).toBe('fail');
+        expect(strict.ok, id).toBe(false);
+        // Same findings, same places: only the severity moves.
+        expect(strict.findings.map((f) => [f.id, f.matches])).toEqual(
+          base.findings.map((f) => [f.id, f.matches]),
+        );
+      }
+    });
+
+    it('lists only rules that exist, and never a fail or the headings rule', () => {
+      const strictIds = new Set(RULES.strict.fail);
+      expect(strictIds.has('headings')).toBe(false);
+      expect(strictIds.has('stacked-tells')).toBe(false);
+      for (const id of strictIds) expect(RULE_IDS.has(id), id).toBe(true);
+      for (const id of strictIds)
+        if (id in RULES.phrases) expect(RULES.phrases[id as 'cliches']!.severity, id).toBe('warn');
+    });
+
+    it('fails nothing that is clean', () => {
+      expect(
+        lintProse('The bees need water in July. A pan of stones will do.', { strict: true }),
+      ).toMatchObject({
+        ok: true,
+        findings: [],
+      });
+    });
+  });
 
   it('points at each tell where it is in the text as given', () => {
     const text = 'Line one is fine.\nWe will delve into it.';

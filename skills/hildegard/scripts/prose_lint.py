@@ -5,6 +5,8 @@
   python3 prose_lint.py FILE [FILE...]     lint files; "-" reads stdin
   python3 prose_lint.py --json FILE        the lint as JSON, the shape of ProseLint in packages/craft/src/prose.ts
   python3 prose_lint.py --max 10 FILE      show up to 10 places per finding (1 or more, default 6)
+  python3 prose_lint.py --strict FILE      for writing that must carry no tells: the em dash and every other wording or
+                                           shape warn (not headings) fails too. The default only warns on them.
 
 Run it on every piece of prose before anyone reads it: a blog post, an email, a page, a caption, a script. Fix every
 fail. Fix each warn too, unless it is the writer's deliberate voice. Lint again until it passes. Exit status is 1
@@ -339,6 +341,21 @@ COLON_REVEAL = rx(
     rf"|worst part|key|something|one thing)\b[^.:!?\n]{{0,40}}: [a-z])"
 )
 BOLD = rx(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
+# The em dash (U+2014), and a double hyphen set off by spaces, which is how a plain-text writer types one. Never a
+# hyphen or an en dash, so "2020-2024", "pages 10-12" and "--max" are not found. Found with str.find, not a regex: an
+# alternation with no letter to start on is tried at every character, and most text has no dash at all.
+EM = "\u2014"
+SPACED = " -- "
+
+
+def dashes(prose, t):
+    at = []
+    for needle, shift, n in ((EM, 0, 1), (SPACED, 1, 2)):
+        i = prose.find(needle)
+        while i >= 0:
+            at.append((i + shift, n))
+            i = prose.find(needle, i + 1)
+    return [t.locate(i, t.text[i : i + n]) for i, n in sorted(at)]
 LW = r"(?:[^\W\d_]|['’-])"
 # "sleep, reading, play, or dinner": a list of three or more, the rhythm generated prose falls into.
 TRIAD = re.compile(rf"(?<![\w'’-]){LW}+(?: {LW}+){{0,3}}, {LW}+(?: {LW}+){{0,3}},? (?:and|or) {LW}+")
@@ -382,10 +399,16 @@ MARKERS = [
 ]
 # The kinds of weak tell that count toward stacked-tells: findings that come from one habit are one kind.
 KINDS = RULES["stacked"]["kinds"]
+# The warns that fail in the strict profile.
+STRICT = set(RULES["strict"]["fail"])
 
 
-def lint_prose(text):
-    """Lint words a person will read. `ok` is False when any finding fails."""
+def lint_prose(text, strict=False):
+    """Lint words a person will read. `ok` is False when any finding fails.
+
+    `strict` is the profile for writing that must carry no tells: every warn listed in strict.fail (the em dash and the
+    rest of the wording and shape tells) fails. The default leaves them warnings, because none of them tells a person
+    from a machine well enough to fail a piece."""
     t = Text(text)
     prose = blank_non_prose(text)
     all_paras = paragraphs(prose)
@@ -419,6 +442,16 @@ def lint_prose(text):
         if "minHits" in rule and len(matches) < rule["minHits"]:
             continue
         add(id_, rule["severity"], rule["why"], rule["fix"], matches)
+
+    # Readers in 2026 take an em dash for a machine tell, but people write them too (40 percent of the human corpus), so
+    # it only ever warns and is no kind of weak tell for stacked-tells.
+    add(
+        "em-dash",
+        "warn",
+        "Readers now take an em dash for a machine tell.",
+        "Use a comma, a colon, parentheses or two sentences. Keep it only where it is truly your own.",
+        dashes(prose, t),
+    )
 
     # Two patterns can match the same span ("not just a tool, but"): one contrast is one match.
     not_but = []
@@ -573,6 +606,10 @@ def lint_prose(text):
             sorted([fs[0]["matches"][0] for fs in weak], key=lambda m: m["index"]),
         )
 
+    if strict:
+        for f in findings:
+            if f["severity"] == "warn" and f["id"] in STRICT:
+                f["severity"] = "fail"
     return {"ok": not any(f["severity"] == "fail" for f in findings), "words": words, "findings": findings}
 
 
@@ -600,6 +637,7 @@ def main():
     ap = argparse.ArgumentParser(description="Lint prose for the tells of machine-made writing.")
     ap.add_argument("files", nargs="+", metavar="FILE", help='files to lint; "-" reads stdin')
     ap.add_argument("--json", action="store_true", help="print the lint as JSON")
+    ap.add_argument("--strict", action="store_true", help="fail on the em dash and every other tell, not only warn")
     ap.add_argument("--max", type=int, default=6, help="places shown per finding, 1 or more (default 6)")
     a = ap.parse_args()  # a bad flag or no files: exit status 2
     if a.max < 1:
@@ -614,7 +652,7 @@ def main():
         except OSError:
             print(f"I can't read {f}.", file=sys.stderr)
             return 2
-        results.append((f, lint_prose(raw.decode("utf-8", errors="replace"))))
+        results.append((f, lint_prose(raw.decode("utf-8", errors="replace"), a.strict)))
     if a.json:
         out = results[0][1] if len(results) == 1 else [{"file": f, **l} for f, l in results]
         print(json.dumps(out, ensure_ascii=False, indent=2))

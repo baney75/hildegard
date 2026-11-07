@@ -318,7 +318,8 @@ export class HildegardClient {
     agent: string;
   }) => this.call<{ stills: Still[] }>('POST', '/api/images', body);
   /** The prose lint (up to 200,000 characters): the tells that make writing read as machine-made. */
-  lintWriting = (text: string) => this.call<ProseLint>('POST', '/api/writing/lint', { text });
+  lintWriting = (text: string, strict?: boolean) =>
+    this.call<ProseLint>('POST', '/api/writing/lint', strict ? { text, strict } : { text });
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
   updateNow = () => this.call<UpdateState>('POST', '/api/update');

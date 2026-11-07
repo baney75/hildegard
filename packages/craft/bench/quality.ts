@@ -8,7 +8,9 @@
 //   --show    print what a rule matched in `dev` pieces (test pieces are never shown one by one)
 //   --ref     measure the lint as it stood at a git ref (say origin/main) instead of this tree
 //   --ratchet write baseline.json when the numbers are no worse and some are better (--rebase after the corpus changes)
-//   --py      also run the Python script over the same pieces and fail if it differs from the package
+//   --py      also run the Python script over the same pieces and fail if it differs from the package (both profiles)
+// Every number is given twice: the default profile, and `strict` (the em dash and the other warns fail), which is for
+// writing that must carry no tells and so is not held to the human false-fail limit.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,6 +23,8 @@ import { engineAt } from './engine.ts';
 export interface Counts {
   humanN: number;
   humanFails: number;
+  /** Human pieces with any warn: what the writer is asked to weigh. Recorded, not held to a limit. */
+  humanWarns: number;
   aiN: number;
   aiFails: number;
   testHumanN: number;
@@ -32,6 +36,9 @@ export interface Counts {
   holdoutAiN: number;
   holdoutAiFails: number;
 }
+
+/** What `baseline.json` holds: the default profile's counts, and the strict profile's under `strict`. */
+export type Baseline = Counts & { strict: Counts };
 
 export interface Report {
   counts: Counts;
@@ -96,6 +103,7 @@ export function summarize(rows: Array<{ p: Piece; l: ProseLint }>): Report {
     counts: {
       humanN: n(human),
       humanFails: fails(human),
+      humanWarns: warns(human),
       aiN: n(ai),
       aiFails: fails(ai),
       testHumanN: n(th),
@@ -145,6 +153,22 @@ export function noWorse(now: Counts, then: Counts): string[] {
   return bad;
 }
 
+/**
+ * The strict profile may fail more of the AI drafts than the default one, never fewer than it did: it is held to its
+ * recall, and to failing at least what the default fails. Its human false fails are recorded and not limited.
+ */
+export function strictNoWorse(now: Counts, then: Counts, defaults: Counts): string[] {
+  const bad: string[] = [];
+  if (now.aiFails < then.aiFails) bad.push(`strict AI drafts failing: ${now.aiFails} < ${then.aiFails}`);
+  if (now.testAiFails < then.testAiFails)
+    bad.push(`strict test-split AI drafts failing: ${now.testAiFails} < ${then.testAiFails}`);
+  if (now.holdoutAiFails < then.holdoutAiFails)
+    bad.push(`strict holdout AI drafts failing: ${now.holdoutAiFails} < ${then.holdoutAiFails}`);
+  if (now.aiFails < defaults.aiFails || now.humanFails < defaults.humanFails)
+    bad.push('strict fails less than the default profile');
+  return bad;
+}
+
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 if (import.meta.main) {
@@ -161,6 +185,8 @@ if (import.meta.main) {
   const ref = args.includes('--ref') ? args[args.indexOf('--ref') + 1] : undefined;
   const engine = ref ? await engineAt(ref) : undefined;
   const { rows, report } = measure(all, engine?.lintProse);
+  // The strict profile is this tree's; an older ref has none.
+  const strictRun = engine ? undefined : measure(all, (t) => lintProse(t, { strict: true }));
 
   const show = args.includes('--show') ? args[args.indexOf('--show') + 1] : undefined;
   if (show) {
@@ -189,11 +215,21 @@ if (import.meta.main) {
       maxBuffer: 1 << 28,
     });
     const py = JSON.parse(out) as ProseLint[];
+    const pyStrict = JSON.parse(
+      execFileSync('python3', ['-I', join(import.meta.dirname, 'lint_all.py'), '--strict', ...list], {
+        encoding: 'utf8',
+        maxBuffer: 1 << 28,
+      }),
+    ) as ProseLint[];
     let diff = 0;
     all.forEach((p, i) => {
       if (JSON.stringify(py[i]) !== JSON.stringify(rows[i]!.l)) {
         diff++;
         console.error(`DIFFERS ${p.id}`);
+      }
+      if (JSON.stringify(pyStrict[i]) !== JSON.stringify(strictRun!.rows[i]!.l)) {
+        diff++;
+        console.error(`DIFFERS (strict) ${p.id}`);
       }
     });
     console.log(
@@ -205,22 +241,32 @@ if (import.meta.main) {
   }
 
   if (args.includes('--ratchet')) {
-    const then = JSON.parse(readFileSync(baselinePath, 'utf8')) as Counts;
-    const bad = args.includes('--rebase') ? [] : noWorse(report.counts, then);
+    const { strict: thenStrict, ...then } = JSON.parse(readFileSync(baselinePath, 'utf8')) as Baseline;
+    const bad = args.includes('--rebase')
+      ? []
+      : [
+          ...noWorse(report.counts, then),
+          ...strictNoWorse(strictRun!.report.counts, thenStrict, report.counts),
+        ];
     if (bad.length) {
       console.error(`Not ratcheting: ${bad.join('; ')}`);
       process.exit(1);
     }
-    const better = JSON.stringify(report.counts) !== JSON.stringify(then);
-    if (better) writeFileSync(baselinePath, `${JSON.stringify(report.counts, null, 2)}\n`);
-    console.log(
-      better ? `baseline.json updated: ${JSON.stringify(report.counts)}` : 'baseline.json already matches',
-    );
+    const next: Baseline = { ...report.counts, strict: strictRun!.report.counts };
+    const better = JSON.stringify(next) !== JSON.stringify({ ...then, strict: thenStrict });
+    if (better) writeFileSync(baselinePath, `${JSON.stringify(next, null, 2)}\n`);
+    console.log(better ? `baseline.json updated: ${JSON.stringify(next)}` : 'baseline.json already matches');
     process.exit(0);
   }
   if (args.includes('--json')) {
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(strictRun ? { ...report, strict: strictRun.report } : report, null, 2));
     process.exit(0);
+  }
+  if (strictRun) {
+    const s = strictRun.report;
+    console.log(
+      `Strict profile: human fail ${pct(s.human.failRate)}, any warn ${pct(s.human.warnRate)}; AI recall ${pct(s.ai.recall)}.`,
+    );
   }
   const skill = rows.filter((r) => r.p.group === 'skill');
   console.log(

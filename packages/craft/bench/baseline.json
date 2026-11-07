@@ -1,6 +1,7 @@
 {
   "humanN": 220,
   "humanFails": 0,
+  "humanWarns": 112,
   "aiN": 176,
   "aiFails": 54,
   "testHumanN": 49,
@@ -10,5 +11,20 @@
   "holdoutHumanN": 73,
   "holdoutHumanFails": 0,
   "holdoutAiN": 48,
-  "holdoutAiFails": 15
+  "holdoutAiFails": 15,
+  "strict": {
+    "humanN": 220,
+    "humanFails": 102,
+    "humanWarns": 20,
+    "aiN": 176,
+    "aiFails": 142,
+    "testHumanN": 49,
+    "testHumanFails": 29,
+    "testAiN": 56,
+    "testAiFails": 45,
+    "holdoutHumanN": 73,
+    "holdoutHumanFails": 25,
+    "holdoutAiN": 48,
+    "holdoutAiFails": 38
+  }
 }

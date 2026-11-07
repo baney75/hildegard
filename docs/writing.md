@@ -35,10 +35,10 @@ All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so t
 
 | Where | How | Needs |
 | --- | --- | --- |
-| Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }`, up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
-| MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, and `max` places to show for each finding. | A linked AI app |
-| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
-| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
+| Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }` (and `"strict": true` for the strict profile), up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
+| MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, `max` places to show for each finding, and `strict: true` for the strict profile. | A linked AI app |
+| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. `--strict` is the strict profile. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
+| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max`, `--strict` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
 
 The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
 It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
@@ -64,10 +64,11 @@ often as on machines is noise, so it either warns only or is gone.
 | --- | --- | --- |
 | AI drafts that fail (recall) | 11.4% (20 of 176) | 30.7% (54 of 176) |
 | People's pieces that fail | 32.3% (71 of 220) | 0.0% (0 of 220) |
-| People's pieces with any warn | 45.9% | 26.4% |
-| AI drafts with any finding | 61.4% | 81.3% |
+| People's pieces with any warn | 45.9% | 50.9% (112 of 220, the em dash warns on 78) |
+| AI drafts with any finding | 61.4% | 86.9% |
 | Recall by model (Haiku, Sonnet, Opus, Luna) | 11, 2, 14, 18% | 39, 23, 43, 18% |
 | Holdout: AI recall, people failing | 12.5%, 26.0% | 31.3%, 0.0% |
+| **Strict profile** (see below): AI recall, people failing | | 80.7% (142 of 176), 46.4% (102 of 220) |
 | 100,000 characters, TypeScript | 28 ms | 12 ms (2.4 times faster) |
 | 100,000 characters, Python script | 590 ms | 100 ms (6 times faster) |
 
@@ -93,6 +94,7 @@ for older models that wrote "delve" and "it's worth noting".
 | `empty-phrases` | fail | "let's dive in", "as an AI", "I hope this helps", "look no further", "in today's fast-paced world" | 0% | 0% |
 | `throat-clearing`, `faux-insight`, `puffery`, `chatbot` | fail | "here's the thing", "most people skip", "stands as a testament", "great question" | 0% | 1.1% |
 | `negative-list`, `ing-tail`, `emoji-heading` | fail | "Not a X. Not a Y.", ", highlighting", emoji as headings | 0% | 0% |
+| `em-dash` | warn (fail when strict) | An em dash, or a spaced double hyphen used as one. Not a hyphen, an en dash or a number range | 35.5% | 21.0% |
 | `not-but` | warn, fail past one | "It's not X, it's Y", "more than a X. It was Y" | 3.6% | 2.3% |
 | `summary-ending` | fail for "In conclusion", warn for "Overall" | A last paragraph that recaps | 0.5% | 0% |
 | `headings` | warn | Three or more headings and one for every 125 words or fewer | 9.1% | 40.3% |
@@ -107,9 +109,41 @@ for older models that wrote "delve" and "it's worth noting".
 Stacking counts kinds, not hits: `bold`, `bold-leads` and `bold-list-leads` are one habit, so a piece with all three and
 nothing else does not fail. `headings` and `uniform-paragraphs` warn but do not stack, because a web page has both.
 
-Dashes, stacked fragments, even sentence lengths and low counts of names and numbers were rules before. Each fired on
-people as often as on machines or more (dashes on 40 percent of the people's pieces against 22 percent of the AI drafts, and
-the more dashes, the more likely a person), so they are gone.
+Stacked fragments, even sentence lengths and low counts of names and numbers were rules before. Each fired on people as
+often as on machines or more, so they are gone.
+
+### The em dash: a warning, never a fail
+
+The first version of this rework removed the dash rule, because the data said a dash does not separate people from
+machines. In pre-2021 writing, 35.5 percent of the people's pieces use an em dash against 21.0 percent of the AI drafts
+(78 of 220 and 37 of 176), and the more dashes in a piece, the more likely a person wrote it. That has not changed, and it
+is why `em-dash` **never fails** a piece by default and is not one of the weak tells that stack into `stacked-tells`.
+
+It came back as a warning for two other reasons. In 2026 many readers take an em dash for a machine tell whatever the
+data says, and the owner's house style does not use them. So the warning says so plainly: use a comma, a colon, parentheses
+or two sentences, and keep the dash only where it is truly yours. A writer who keeps it says so, as with any other warn;
+for poems, fiction, scripts and the other forms where every finding is a warning, nothing changes. The rule finds the em
+dash character (U+2014) and a double hyphen with a space on each side, the way plain text types one. A hyphen, an en dash,
+a number range such as 2020-2024 and a command flag such as `--max` are never found. It adds nothing to the lint's
+running time: it is a plain text search, and a text with no dash is searched once.
+
+### The strict profile
+
+For writing that must carry no tells at all, ask for the strict profile. Every warn in `strict.fail` in
+`prose-rules.json` then fails: the em dash, `corporate-words`, `cliches`, `metadiscourse`, `weasel`, `loaded-words`,
+`summary-openers`, `filler-adverbs`, `warm-boilerplate`, `not-but`, `colon-reveal`, `summary-ending`, `triads`,
+`bold-leads`, `bold-list-leads`, `bold` and `uniform-paragraphs`. `headings` stays a warning, because a page needs
+headings. Nothing else changes: the same findings are reported in the same places, and only their severity and `ok` move.
+
+| Profile | AI recall | People failing | People with any warn |
+| --- | --- | --- | --- |
+| Default | 30.7% (54 of 176) | 0.0% (0 of 220) | 50.9% (112 of 220) |
+| Strict | 80.7% (142 of 176) | 46.4% (102 of 220) | 9.1% (20 of 220, `headings` only) |
+| Strict, holdout | 79.2% (38 of 48) | 34.2% (25 of 73) | |
+
+Strict is not for judging whether a person wrote something: it fails about half of the people's pieces on purpose. It is
+for an owner who has decided a piece should carry none of these tells and will rewrite until it does. The default stays
+the one that must never fail a person, and the ratchet holds it to 0.0 percent.
 
 , and is clean when nothing is found at all.
 Some rules stay quiet until they find a few: one office word is a habit, three read as a press release.
@@ -138,6 +172,7 @@ at the top of `docs/`, so the two cannot drift apart without the tests failing.
 
 Run `node packages/craft/bench/quality.ts` before and after. `packages/craft/test/prose-quality.test.ts` fails when more
 of the people's pieces fail, or fewer of the AI drafts do, than `packages/craft/bench/baseline.json` records, in total and
-in each split. When a change earns better numbers, `node packages/craft/bench/quality.ts --ratchet` writes them (it
+in each split; the file also holds the strict profile's counts under `strict`, which may only fail more AI drafts, never
+fewer, and never fewer than the default fails. When a change earns better numbers, `node packages/craft/bench/quality.ts --ratchet` writes them (it
 refuses if anything got worse). `node packages/craft/bench/speed.ts --before origin/main` times both engines against a
 git ref, and `prose-speed.test.ts` keeps 100,000 characters under a generous ceiling on a slow machine.

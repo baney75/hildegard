@@ -10,8 +10,11 @@ spec = importlib.util.spec_from_file_location("prose_lint", os.path.join(here, "
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 out = []
+strict = "--strict" in sys.argv
 for f in sys.argv[1:]:
+    if f == "--strict":
+        continue
     with open(f, "rb") as fh:
-        out.append(mod.lint_prose(fh.read().decode("utf-8", errors="replace")))
+        out.append(mod.lint_prose(fh.read().decode("utf-8", errors="replace"), strict))
 sys.stdout.reconfigure(encoding="utf-8")
 print(json.dumps(out, ensure_ascii=False))

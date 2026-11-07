@@ -2233,6 +2233,7 @@ export function createApp(deps: AppDeps) {
           text: z
             .string()
             .max(MAX_LINT_CHARS, `Send up to ${MAX_LINT_CHARS.toLocaleString('en-US')} characters.`),
+          strict: z.boolean().optional(),
         })
         .safeParse(await c.req.json().catch(() => null));
       if (!body.success)
@@ -2240,7 +2241,7 @@ export function createApp(deps: AppDeps) {
           { error: body.error.issues[0]?.message ?? 'Send { "text": "…" }.', field: 'text' },
           400,
         );
-      return c.json(lintProse(body.data.text));
+      return c.json(lintProse(body.data.text, { strict: body.data.strict }));
     },
   );
 
