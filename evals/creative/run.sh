@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # The whole eval: inputs, responses, scores, judge, report. Resumable: each stage skips what already exists.
 #
-#   evals/creative/run.sh <label> [--set tuned|heldout|heldout2|both|any:<file>] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4]
+#   evals/creative/run.sh <label> [--set tuned|heldout|both] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4]
 #
 # --cand new compares this checkout's skills/ (or $NEW_SKILLS) against --base (default none; use --base main for a change).
 # Writes evals/creative/results-<label>.json and prints the summary. State lives in $EVAL_DIR (default
@@ -18,7 +18,7 @@ while [ $# -gt 0 ]; do case $1 in
   *) echo "unknown option $1" >&2; exit 2;; esac; done
 export EVAL_DIR=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 unset ANTHROPIC_API_KEY OPENAI_API_KEY
-case $SET in tuned) FILES=(tasks.json);; heldout) FILES=(heldout.json);; both) FILES=(tasks.json heldout.json);; heldout2) FILES=(heldout2.json);; any:*) FILES=("${SET#any:}");; *) echo "--set tuned|heldout|both" >&2; exit 2;; esac
+case $SET in tuned) FILES=(tasks.json);; heldout) FILES=(heldout.json);; both) FILES=(tasks.json heldout.json);; heldout2) FILES=(heldout2.json);; *) echo "--set tuned|heldout|both" >&2; exit 2;; esac
 cd "$HERE" || exit 1
 git -C "$HERE" fetch -q origin 2>/dev/null
 
