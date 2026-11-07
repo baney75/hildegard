@@ -103,6 +103,7 @@ case "$STUB_MODE" in
   unreachable) echo "ssh: connect to host gpu-box port 22: Connection refused" >&2; exit 255 ;;
   leak) echo "it broke: hgc1""_abcdefghijklmnopqrstuvwx and HG-ABCD""-EFGH" >&2; exit 1 ;;
   tailscale) echo "Sharing needs Tailscale." >&2; exit 2 ;;
+  big) IFS= read -r c; m='"m"'; i=0; while [ $i -lt 15 ]; do m="$m,$m"; i=$((i+1)); done; printf '{"ok":true,"message":"Joined.","steps":[],"device":{"name":"gpu-here","models":[%s]}}' "$m"; exit 0 ;;
   reflect) IFS= read -r c; printf '{"ok":false,"message":"%s","steps":[{"id":"%s","title":"%s","status":"failed","detail":"x"}],"device":{"name":"%s","models":["%s"]},"choir":{"%s":"%s"}}' "$c" "$c" "$c" "$c" "$c" "$c" "$c"; exit 1 ;;
 esac
 for last; do :; done
@@ -359,6 +360,18 @@ describe('pairing without anyone seeing the join code', () => {
       expect(reflect.out.ok).toBe(false);
       expect(reflect.stdout + reflect.stderr).not.toMatch(CODE);
       expect(reflect.stdout).toContain('[code hidden]');
+
+      // A join whose answer is long (many devices, many models) still reads as joined, not as no answer.
+      const big = await r.pair(
+        r.gpu,
+        r.gpuData,
+        r.plainHome,
+        ['--to', 'plain-box', '--url', r.gpu.url],
+        'big',
+      );
+      expect(big.out.message).toBe('Joined.');
+      expect(big.out.ok).toBe(true);
+      expect((big.out as unknown as { models: string[] }).models.length).toBe(32768);
 
       // A host that ssh could read as an option is never passed to it.
       const before = readFileSync(r.log, 'utf8');
