@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadCatalog, videoModels } from '@hildegard/presets';
 import { fitWhy } from '@hildegard/runtime';
-import { type Exec, fileStore, parseArgs, startServer, VERSION } from '@hildegard/server';
+import { type Exec, fileStore, parseArgs, startServer, tailscaleInstall, VERSION } from '@hildegard/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -1098,11 +1098,13 @@ describe('host and doctor', () => {
         ]),
       );
       expect(d.steps.find((s) => s.id === 'server')!.status).toBe('done');
-      // Tailscale isn't on this test's PATH.
-      expect(d.steps.find((s) => s.id === 'tailscale')).toMatchObject({
+      // Tailscale isn't on this test's PATH: not installed, so the fix is installing it, not `tailscale up`.
+      const ts = d.steps.find((s) => s.id === 'tailscale')!;
+      expect(ts).toMatchObject({
         status: 'skipped',
-        command: 'tailscale up',
+        command: tailscaleInstall() ?? 'tailscale up',
       });
+      expect(ts.detail).toMatch(/isn’t installed here.*https:\/\/tailscale\.com\/download/);
       expect(d.steps.find((s) => s.id === 'models')).toMatchObject({ status: 'needs-owner' });
       expect(d.host).toMatchObject({ on: false, owner: false });
       // Whatever is broken or waits on the owner comes with the command that fixes it.

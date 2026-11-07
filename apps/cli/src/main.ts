@@ -23,6 +23,7 @@ import { doctor } from './doctor.ts';
 import { host } from './host.ts';
 import { loop } from './loop.ts';
 import { bold, dim, printResult, type Result } from './output.ts';
+import { tunnel } from './tunnel.ts';
 
 const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own GPU.
 
@@ -66,6 +67,13 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard host             Put this Hildegard at a link for your other devices and people you invite,
                              with sign-in: HTTPS on your tailnet (--funnel: the public internet;
                              --public-url https://<name>: your own HTTPS front door, such as a Cloudflare tunnel)
+  hildegard tunnel           Reach Hildegard from your other devices through an account you own: where Tailscale
+                             and Cloudflare stand here, and what each still needs (--signup: their free-account page)
+  hildegard tunnel tailscale Your own devices only (Tailscale Serve); --funnel for the public internet
+  hildegard tunnel cloudflare --hostname <name>
+                             A Cloudflare named tunnel on your domain, at a name that stays (--login signs in;
+                             --quick: a temporary trycloudflare.com name, no account). tunnel install cloudflare
+                             fetches cloudflared; tunnel off turns the link off and reads it back
   hildegard host owner       Make the owner account (host off | status | invite | people | revoke <name>
                              | limit <n>: takes each director may have waiting, 3 unless you change it)
   hildegard host code        A one-time code (HG-XXXX-XXXX, 10 minutes) to approve claude.ai or ChatGPT
@@ -239,6 +247,8 @@ async function main(): Promise<Result | null> {
       return doctor(ctx);
     case 'host':
       return host(ctx, rest);
+    case 'tunnel':
+      return tunnel(ctx, rest);
     case 'llm':
       return (await import('./llm.ts')).llm(ctx, rest);
     case 'open':
