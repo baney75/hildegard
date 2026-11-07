@@ -115,7 +115,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 
 **The loop is step 6 made mechanical.** Every round comes back measured and drawn (a turntable with silhouettes for a model, a contact sheet for media); answer every question by pointing at a view or a check, change one thing, and send the next round. Hildegard won't take round two before the critique of round one, and it keeps every round so the user can see how the work got there.
 
-When the tools aren't here and the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
+When the tools aren't here, everything else in this skill still works alone: the scripts in `scripts/` and the checks in the references need only Python and FFmpeg. If the user wants their own compute, read `hildegard-setup`: it installs Hildegard and links this app to it.
 
 ## Lenses and styles: choose on purpose
 

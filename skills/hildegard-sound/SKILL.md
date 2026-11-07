@@ -12,7 +12,7 @@ This skill is all you need to clean a voice, put music under it, build a spot an
 1. **Clean a voice recording** (hum, hiss, rumble, quiet passages, loudness): `python3 scripts/clean_voice.py voice_raw.wav out.wav --lufs -16 --peak -1.5`, or paste **Recipe A**.
 2. **Music under speech** (announcement, sermon, voice-over): `python3 scripts/duck_mix.py voice.wav music.wav out.wav --voice-start 4 --fade-in 3 --tail 4 --fade-out 4`, or paste **Recipe B**. The music drops 16 dB under the voice and rises in pauses.
 3. **A radio spot** (lines in order, a bed, a sting, an exact length): `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines line1.wav line2.wav line3.wav --total 15`, or paste **Recipe C**.
-4. **Cut clips into a reel with titles and music**: **hildegard-video-edit**, Fast path (`cut_reel.py`, or its Recipe D).
+4. **Cut clips into a reel with titles and music**: the **hildegard-video-edit** skill, if you have it.
 
 Pasting: copy the recipe into your one script, edit the first lines (file names, times, target), run it on the real files, then run the check below. Recipes A to C write a WAV; the file names in them are the ones the brief gave.
 
@@ -168,7 +168,10 @@ Keep these if you must change one.
 
 ## What Hildegard has
 
-`hildegard_status` and `list_presets` show what's installed; `list_voices` shows the voices.
+Everything above needs only FFmpeg and Python. The rest of this section is for when Hildegard is linked: `hildegard_status`
+and `list_presets` show what's installed; `list_voices` shows the voices. Without Hildegard: for speech, use the voice
+tool your user has (or have them record it), and for transcripts any transcription tool; the cleaning, ducking, spot and
+measuring scripts work on any file.
 
 - **Speech:** `speak` turns a script into speech on the owner's GPU, in a voice from `list_voices`. Act a line with
   tags in square brackets (`[whispers]`, `[laughs]`) and `[pause 0.5s]`; give one line of `direction` ("warm, close
@@ -186,7 +189,8 @@ Keep these if you must change one.
 
 ## Music
 
-Read **hildegard-craft** first for anything Hildegard makes. Generic "epic" music and robotic narration are the sound of slop.
+If you have **hildegard-craft**, read it first for anything Hildegard makes; `references/slop.md` here is its slop
+catalogue, with a Sound section. Generic "epic" music and robotic narration are the sound of slop.
 
 A music brief, not a mood word:
 
@@ -196,14 +200,16 @@ A music brief, not a mood word:
 - **Era or scene:** "late-night jazz club, 1958", by qualities, not by an artist's name.
 - **Where it sits:** under dialogue (sparse, no lead melody where words are) or in front (a music video).
 
-Lint lyrics with `review_prompt` and `medium: "music"`: stock lines ("set me free", "into the night") are slop. Write
-lyrics from one concrete scene.
+Lint lyrics with `review_prompt` and `medium: "music"` (Hildegard linked); without it, check them against the Sound
+section of `references/slop.md`. Stock lines ("set me free", "into the night") are slop. Write lyrics from one
+concrete scene.
 
 ## Voice
 
 - **Consent first.** Never clone or imitate a real person's voice without their clear permission. Refuse and say why.
 - Write for speaking: short sentences, one idea each, punctuation where a breath goes. Read it aloud in your head.
-- Lint narration with `review_prompt` and `medium: "voice"`.
+- Lint narration with `review_prompt` and `medium: "voice"` (Hildegard linked); without it, against the Sound section
+  of `references/slop.md`.
 - Generate line by line, so a bad line can be redone alone. Listen to every line; re-generate any that are flat,
   rushed or mispronounced.
 
@@ -223,8 +229,9 @@ viewer across.
 - Speech is the reference: everything else sits under it.
 - Duck music under speech with Recipe B or `duck_mix.py`.
 - Master to about -14 LUFS integrated with true peak under -1 dB for a film (speech-only: -16 LUFS), with the two-pass loudnorm in the recipes.
-- Check: `python3 scripts/measure.py final.wav`, and `hildegard review final.mp4 --audio` for a finished video. `clipping` or `loudness`
-  failing means fix the mix, not the limiter.
+- Check: `python3 scripts/measure.py final.wav` (it reads a finished video's sound too; with Hildegard installed,
+  `hildegard review final.mp4 --audio` also works). `clipping` or `loudness` failing means fix the mix, not the
+  limiter.
 
 ## Deliver
 

@@ -10,16 +10,19 @@ number and every round is a small edit you can say in a sentence. That makes it 
 make a part that has to fit, and the weakest for anything organic. Sculpt figures and animals with **hildegard-3d**'s
 signed-distance route or Blender; build parts here.
 
-Read first: **hildegard-3d** (the brief, the sheet, the checks) and, for a part that has to work, **hildegard-print**
-(evidence for every dimension, fits from the printer's clearance).
+This skill works alone. With Hildegard linked, it renders your `.scad`, measures it and draws it each round
+(`loop_submit`). Without Hildegard, you render with the `openscad` program yourself and measure the STL with
+`scripts/review_mesh.py` (Python with numpy and Pillow); section 6 has the commands. If you have them, the
+**hildegard-3d** skill covers the brief, the sheet and the checks, and **hildegard-print** (for a part that has to
+work) the evidence for every dimension and fits from the printer's clearance.
 
 ## 1. What this computer has
 
-```json
-openscad_status {}
-```
-
-It says the OpenSCAD version, whether it renders with **Manifold** (booleans in seconds) or **CGAL** (2021.01, which
+With Hildegard linked, call `openscad_status {}`. Without it, run `openscad --version` and look in OpenSCAD's
+libraries folder for BOSL2 (Linux `~/.local/share/OpenSCAD/libraries`, macOS
+`~/Documents/OpenSCAD/libraries`, Windows `Documents\OpenSCAD\libraries`). If `openscad` is not found, tell your
+user how to install it (openscad.org), or write the `.scad` and say it is unrendered. `openscad_status` says the
+OpenSCAD version, whether it renders with **Manifold** (booleans in seconds) or **CGAL** (2021.01, which
 can take minutes on the same model), and which libraries `include <…>` will find. Write for what is there:
 
 - **BOSL2 installed**: use it (section 4). It rounds, chamfers, attaches and threads in one line each.
@@ -109,7 +112,7 @@ difference() {
 Anchors (`TOP`, `BOTTOM`, `LEFT`, `FRONT`, `CENTER`) place a shape by a named point instead of by arithmetic, which is
 where most hand-written OpenSCAD goes wrong. Use `anchor = BOTTOM` on the base so the part stands on z = 0. For a
 printed thread, give it the printer's clearance: `threaded_rod(…, $slop = 0.1)` (BOSL2's `$slop` is clearance per
-side; take it from `printer_profile`).
+side; take it from `printer_profile`, or from your user's printer notes).
 
 ## 5. Parts that fit together
 
@@ -119,7 +122,7 @@ draw each one when `part` names it. Hildegard renders every part on its own and 
 ```openscad
 parts = ["box", "lid"];   // Hildegard renders each with part set to its name
 part  = "all";
-fit   = 0.2;              // slide clearance per side, from printer_profile
+fit   = 0.2;              // slide clearance per side, from the printer's profile
 
 module box() { … }
 module lid() translate([0, 0, box_h]) { … }   // where it sits assembled
@@ -134,8 +137,22 @@ printer's clearance, never a guessed number: a 20 mm boss in a slide fit gets a 
 
 ## 6. The loop
 
-Start it as **hildegard-3d** says (`loop_start` with kind `model`, `print: true` for a print), then send the source
-itself:
+Without Hildegard, each round is: edit `main.scad`, render it, measure it, look at the sheet, change one thing.
+
+```sh
+openscad -o round-1.stl main.scad            # add --backend=Manifold when this OpenSCAD has it (much faster)
+echo '{"path": "round-1.stl", "sheet": "round-1.png", "print": true, "size_mm": [60, 30, 20]}' > spec.json
+python3 scripts/review_mesh.py spec.json
+```
+
+It prints the mesh checks as JSON (watertight, manifold, size, base, overhang and the rest) and writes the sheet, eight
+views and silhouettes, to `round-1.png`: open that image and look at it. Add `bed_mm` from the printer. For a part
+with several pieces, render each alone (`-D 'part="lid"'`) and check each; the checker measures fits only between named
+parts of one OBJ, GLB or ASCII STL, so otherwise check a fit by the numbers in the file. Keep one line per round in
+`rounds.md`. Warnings OpenSCAD prints (`Ignoring unknown variable`) are failures: fix every one.
+
+With Hildegard linked, start it as **hildegard-3d** says (`loop_start` with kind `model`, `print: true` for a print),
+then send the source itself:
 
 - **One file**: `loop_submit {"text": "<the source>"}`, or `file_path` to the `.scad`.
 - **Several files** (main.scad with `use <parts/hinge.scad>`, an SVG to import): `file_path` to the folder, or `data`
@@ -144,7 +161,7 @@ itself:
 Hildegard renders it with OpenSCAD and checks the mesh like any other round: eight views, silhouettes, watertight,
 size, base, overhangs, the fits. The round keeps your source, so the owner can open it.
 
-What it refuses, before anything runs (no round is used, so fix it and send again):
+What Hildegard refuses, before anything runs (no round is used, so fix it and send again):
 
 - `include` or `use` of anything but a `.scad` file (lowercase), of an absolute path, or of one with `..`. Paths are
   read from the folder of the file that includes them: the round's own files by that path, and libraries by their own
@@ -196,5 +213,6 @@ is missing from the model while the render looks fine: fix every one before you 
 ## 8. Deliver
 
 The finished round's file and its `main.scad` (with the parameters your user can change and where each came from),
-the sheet, and for a print the print sheet `loop_finish` writes. Say which numbers were measured and which assumed.
+the sheet, and for a print the print sheet (`loop_finish` writes it; without Hildegard, write it yourself, as the
+**hildegard-print** skill describes). Say which numbers were measured and which assumed.
 No weapons or weapon parts, in any form.

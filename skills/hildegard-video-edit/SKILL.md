@@ -9,9 +9,9 @@ description: Cut clips into a reel with titles and music, edit or trim video, cr
 
 This skill is all you need to cut clips into a finished piece with titles, a closing card and a music bed, and to check it. Don't write the filter graph by hand. Run `scripts/cut_reel.py` (Python 3, FFmpeg only), or, if you can deliver only one script, paste **Recipe D** and edit its first lines.
 
-1. **Clean a voice recording:** **hildegard-sound**, `python3 scripts/clean_voice.py in.wav out.wav --lufs -16` or its Recipe A. Read that skill's SKILL.md for the recipe text.
-2. **Music under speech:** **hildegard-sound**, `python3 scripts/duck_mix.py voice.wav music.wav out.wav` or its Recipe B.
-3. **A radio spot:** **hildegard-sound**, `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines a.wav b.wav c.wav --total 15` or its Recipe C.
+1. **Clean a voice recording:** `python3 scripts/clean_voice.py in.wav out.wav --lufs -16` (the same script as in the **hildegard-sound** skill, whose SKILL.md also has it as a paste-in Recipe A).
+2. **Music under speech:** `python3 scripts/duck_mix.py voice.wav music.wav out.wav` (hildegard-sound's Recipe B is the paste-in version).
+3. **A radio spot:** `python3 scripts/spot.py out.wav --music music.wav --sting sting.wav --lines a.wav b.wav c.wav --total 15` (hildegard-sound's Recipe C is the paste-in version).
 4. **Cut clips into a reel with titles and music:**
 
 ```sh
@@ -29,7 +29,7 @@ python3 scripts/cut_reel.py out.mp4 --size 1280x720 --fps 30 --fade 0.4 --total 
 python3 scripts/check_video.py out.mp4 --min 22 --max 28 --size 1280x720 --fps 30 --lufs -16 --cuts 5
 ```
 
-Use the numbers from the brief. Every line must say `OK`: length in range, size and frame rate, H.264 and AAC, loudness within 1 LU of the target, no black stretch over half a second, enough cuts. Any `FIX` line says what to change; change it and run again. Then look at the picture: `hildegard review out.mp4 --sheet sheet.jpg`, and read the titles on the sheet. With no Python, Recipe D prints the same checks at its end.
+Use the numbers from the brief. Every line must say `OK`: length in range, size and frame rate, H.264 and AAC, loudness within 1 LU of the target, no black stretch over half a second, enough cuts. Any `FIX` line says what to change; change it and run again. Then look at the picture: `python3 scripts/contact_sheet.py sheet.png --video out.mp4 --every 2` (or, with Hildegard installed, `hildegard review out.mp4 --sheet sheet.jpg`), and read the titles on the sheet. With no Python, Recipe D prints the same checks at its end.
 
 ## Recipe D: cut clips into one piece (paste and edit)
 
@@ -78,18 +78,23 @@ ffmpeg -hide_banner -nostats -i "$OUT" -an -vf blackdetect=d=0.5:pix_th=0.1:pic_
 ffmpeg -hide_banner -nostats -i "$OUT" -vn -af ebur128=peak=true -f null - 2>&1 | grep -E "^\s+(I|Peak):" | tail -2
 ```
 
-Read **hildegard-craft** first. Editing is where most slop is either made (transitions, filler, loud music) or
-removed. Your job is to make it shorter, clearer and cleaner.
+If you have **hildegard-craft**, read it first (`references/slop.md` here is its slop catalogue). Editing is where
+most slop is either made (transitions, filler, loud music) or removed. Your job is to make it shorter, clearer and
+cleaner.
 
 Work on copies. Never overwrite your user's originals; write to a new folder such as `edit/`. Every command below is
-plain FFmpeg (any build from 5.0 up). Check a recipe's output with `hildegard review <file> --sheet sheet.jpg` and look
-at the sheet before moving on.
+plain FFmpeg (any build from 5.0 up). Check a recipe's output and look at the sheet before moving on. With Hildegard
+installed, that is `hildegard review <file> --sheet sheet.jpg`. Without Hildegard, it is
+`python3 scripts/contact_sheet.py sheet.png --video <file> --every 2` for the sheet, and for the technical checks
+(exposure, frozen frames, flicker, colour, black frames, sound clipping; needs `pip install av numpy pillow`)
+`echo '{"path": "<file>", "sheet": "sheet.jpg", "final": false, "film": true, "audio": true}' > spec.json` then
+`python3 scripts/review_media.py spec.json`.
 
 ## 0. Look first
 
 ```sh
 ffprobe -v error -show_entries stream=codec_type,width,height,r_frame_rate,duration -of compact input.mp4
-hildegard review input.mp4 --sheet input-sheet.jpg
+hildegard review input.mp4 --sheet input-sheet.jpg     # or: python3 scripts/contact_sheet.py input-sheet.png --video input.mp4
 ```
 
 Note the frame rate and size: everything you join must match them.
@@ -151,7 +156,7 @@ ffmpeg -i in.mp4 -vf "lut3d=look.cube" -c:a copy -crf 17 lut.mp4
 ```
 
 Match shots to each other: grade the most important shot first, then bring the others to it. Look at the contact
-sheets side by side. `hildegard review` failing `colour` means you pushed too far.
+sheets side by side. The review's `colour` check failing means you pushed too far.
 
 ## 4. Steady, clean, sharp
 
@@ -191,13 +196,13 @@ ffmpeg -i in.mp4 -vf "subtitles=captions.srt:force_style='FontName=Source Sans 3
 ```
 
 For a vertical video, raise `MarginV` so captions clear the app's own buttons (about 300 at 1920 high). Check the
-words against the audio; a wrong caption is worse than none. Hildegard's transcription isn't built yet: if your agent
-can't transcribe, ask your user for the script.
+words against the audio; a wrong caption is worse than none. With Hildegard linked, `transcribe` gives the words with
+timings. Without Hildegard, if you can't transcribe the audio, ask your user for the script.
 
 ## 7. Sound
 
 - **Fades at every audio cut** (5 to 20 ms) so nothing clicks: `afade=t=in:d=0.01,afade=t=out:st=<END-0.01>:d=0.01`.
-- **Music under speech:** don't hand-write a sidechain graph. Use `hildegard-sound`: `scripts/duck_mix.py` or its Recipe B. It
+- **Music under speech:** don't hand-write a sidechain graph. Use `scripts/duck_mix.py` (or Recipe B of the hildegard-sound skill). It
   drops the music 16 dB while the voice speaks and brings it back in pauses. (If you do write `sidechaincompress` yourself, split the
   voice with `asplit` first: a label can feed only one filter.)
 
@@ -216,7 +221,8 @@ Use -16 LUFS for speech-only pieces and podcasts.
 
 ```sh
 ffmpeg -i master.mp4 -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k final.mp4
-hildegard review final.mp4 --final --film --audio --sheet final-sheet.jpg
+hildegard review final.mp4 --final --film --audio --sheet final-sheet.jpg   # Hildegard installed
+python3 scripts/check_video.py final.mp4 --lufs -14 --size 1920x1080         # without Hildegard; then the sheet and spec.json checks above, with "final": true
 ```
 
 Look at the sheet and listen through once. Then tell your user the path, the length, what you cut and why, and

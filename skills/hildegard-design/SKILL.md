@@ -48,7 +48,12 @@ Render at the exact size:
 ```sh
 chromium --headless=new --hide-scrollbars --window-size=1080,1350 --screenshot=design.png design.html
 # or google-chrome / chrome / msedge with the same flags; or Playwright's page.screenshot()
+npx playwright screenshot --viewport-size=1080,1350 "file://$PWD/design.html" design.png   # if no browser is installed
 ```
+
+No browser and no Node (a chatbot)? Use the code tool's Chromium or Playwright if it has one. If nothing can render,
+hand over the HTML, say plainly that it is unrendered and unchecked, and ask your user to open it and tell you what
+they see.
 
 Open `design.png` and look at it at full size. Then check each line, one at a time, against the copy deck:
 
@@ -78,6 +83,7 @@ over a design you haven't rendered and read.
 
 ## With Hildegard
 
-If Hildegard is linked, its image models can make a picture for the design (see **hildegard-art**): ask for the
-picture alone, with room left for text, and place the text in HTML. Never ask an image model to write the words; it
+With Hildegard linked, its image models can make a picture for the design (the **hildegard-art** skill): ask for the
+picture alone, with room left for text, and place the text in HTML. Without Hildegard, use the image tool you have, or
+your user's own picture, or an SVG shape (step 7). Either way, never ask an image model to write the words; it
 misspells them.

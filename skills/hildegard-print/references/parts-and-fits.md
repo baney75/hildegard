@@ -1,6 +1,6 @@
 # Parts, fits and print pose
 
-Adapted from print3d's parts-and-fits and modelling guides by mfranzon (MIT; see THIRD_PARTY_NOTICES.md).
+Adapted from print3d's parts-and-fits and modelling guides by mfranzon (MIT; see `print3d-license.md` in this folder).
 
 For anything that's more than one solid: a box and its lid, a case in two halves, a pin in a hole, a knob on a
 shaft.
@@ -12,16 +12,16 @@ the likeness check compares with a photo, and what the print sheet shows. Name e
 GLB, `solid name` in an ASCII STL.
 
 ```python
-from mesh_kit import *        # hildegard-3d's scripts/mesh_kit.py
+from mesh_kit import *        # scripts/mesh_kit.py, in this skill's folder
 
-slide = 0.20                  # from printer_profile: never a guessed number
+slide = 0.20                  # this printer's clearance (printer_profile, or print-job/printer.json): never a guessed number
 bore = 10.0                   # spec: measured, ± 0.2
 sleeve = tube(r_in=bore / 2, r_out=bore / 2 + 4, h=20)
 pin = cylinder(r=bore / 2 - slide, h=24, base=(0, 0, -2))
 open("hinge.obj", "w").write(parts_obj_text({"sleeve": sleeve, "pin": pin}))
 ```
 
-Then in `loop_start`: `"fits": [{"a": "pin", "b": "sleeve", "kind": "slide"}]`, and if a part prints in another pose,
+Then in `loop_start` (or the `spec.json` for `scripts/review_mesh.py`): `"fits": [{"a": "pin", "b": "sleeve", "kind": "slide"}]`, and if a part prints in another pose,
 `"print_pose": {"lid": [180, 0, 0]}` (degrees about x, y and z from assembled to printed). The STLs Hildegard writes
 for a passing round stand on the bed in that pose.
 
@@ -34,7 +34,7 @@ for a passing round stand on the bed in that pose.
 | `slide` | moves without play | 0.20 mm |
 | `free` | turns or drops in loosely | 0.35 mm |
 
-Read this printer's from `printer_profile`; calibrate them once with the fit coupon (SKILL.md). Size the mating
+Read this printer's from `printer_profile` (or `print-job/printer.json`); calibrate them once with the fit coupon (SKILL.md). Size the mating
 feature from the fit: a lid plug that slides into a 36 mm opening is `36 - 2 * slide` wide; a hole for a 5 mm pin that
 must be snug is `5 + 2 * snug` across.
 
