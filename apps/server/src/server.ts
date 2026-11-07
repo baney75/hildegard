@@ -59,7 +59,7 @@ import {
 import { People } from './people.ts';
 import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
-import { RecordStore } from './record.ts';
+import { importLimits, RecordStore } from './record.ts';
 import { CleanJobs, probeMedia } from './record-clean.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
@@ -619,6 +619,7 @@ async function serveStudio(
     mediaDir,
     now: opts.now,
     probe: probeMedia(config.dataDir),
+    imports: importLimits(),
   });
   const records = {
     store: recordStore,
