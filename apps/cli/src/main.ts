@@ -210,6 +210,11 @@ async function main(): Promise<Result | null> {
     console.log(VERSION);
     return null;
   }
+  // `<command> --help` (or -h) asks what a command does: it must never run it. `stop --help` once stopped Hildegard.
+  if (flags.has('help') || argv.includes('-h')) {
+    console.log(HELP);
+    return null;
+  }
   switch (command) {
     case 'install':
       return install(ctx);
@@ -282,7 +287,6 @@ async function main(): Promise<Result | null> {
       return null;
     }
     case 'help':
-    case '--help':
       console.log(HELP);
       return null;
     default:

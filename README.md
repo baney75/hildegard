@@ -478,7 +478,7 @@ include corepack).
 
 ```sh
 pnpm install
-pnpm dev                                   # server on :7341 with a fake GPU, Studio on :5173
+pnpm dev                                   # server on :7361 with a fake GPU (data in .dev-data), Studio on :5173
 pnpm test && pnpm typecheck && pnpm lint
 pnpm e2e                                   # Playwright, desktop and phone
 ```

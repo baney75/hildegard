@@ -1390,3 +1390,29 @@ describe('hildegard lint', () => {
     expect((await lint([bad, '--max', '1'])).code).toBe(1);
   });
 });
+
+describe('--help', () => {
+  it('prints help and runs nothing: `stop --help` leaves Hildegard running', async () => {
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-help-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort: await freePort() },
+      { fakeTickMs: 20, secrets: fileStore(join(data, 'secret.json')) },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data];
+    try {
+      for (const args of [['stop', '--help'], ['stop', '-h'], ['host', '--help'], ['-h']]) {
+        const { stdout } = await run(process.execPath, [main, ...args, ...at], {
+          env: cliEnv(home),
+          timeout: 30_000,
+        });
+        expect(stdout, args.join(' ')).toMatch(/^.*hildegard.*your own film studio/m);
+        expect(stdout, args.join(' ')).not.toMatch(/Stopped/);
+      }
+      expect((await fetch(`${srv.url}/api/health`)).ok).toBe(true);
+      expect(((await fetch(`${srv.url}/api/host`).then((r) => r.json())) as { on: boolean }).on).toBe(false);
+    } finally {
+      await srv.close();
+    }
+  }, 60_000);
+});

@@ -11,7 +11,7 @@
     "hildegard-server": "./src/main.ts"
   },
   "scripts": {
-    "dev": "node --watch src/main.ts --fake-gpu",
+    "dev": "node --watch src/main.ts --fake-gpu --port 7361 --data ../../.dev-data",
     "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
