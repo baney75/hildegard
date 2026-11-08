@@ -76,6 +76,15 @@ test('the film strip plays the chosen takes, and Compare keeps one', async ({ pa
   await expectAccessible(page, 'compare');
   await compare.getByRole('button', { name: 'Keep' }).first().click();
   await expect(compare.getByRole('button', { name: 'Kept' })).toHaveAttribute('aria-pressed', 'true');
+  // Keeping the other draft moves the keep; and choosing the first again, with the newer one kept, still leaves one.
+  const figures = compare.locator('figure');
+  await figures.nth(1).getByRole('button', { name: 'Keep' }).click();
+  await expect(figures.nth(1).getByRole('button', { name: 'Kept' })).toBeVisible();
+  await expect(figures.nth(0).getByRole('button', { name: 'Keep' })).toBeVisible();
+  await figures.nth(0).getByRole('button', { name: 'Keep' }).click();
+  await expect(figures.nth(0).getByRole('button', { name: 'Kept' })).toBeVisible();
+  await expect(figures.nth(1).getByRole('button', { name: 'Keep' })).toBeVisible();
+  await expect(compare.getByRole('button', { name: 'Kept' })).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(compare).toBeHidden();
   await expect(film.getByRole('button', { name: /^Shot 1: .*kept take$/ })).toBeVisible();

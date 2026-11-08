@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Take } from '@hildegard/presets';
 import { useId, useRef, useState } from 'react';
-import { api } from '../lib/api.ts';
 import { roman } from '../lib/format.ts';
-import { upsert } from '../lib/store.ts';
+import { keepOnly, toggleKeep } from '../lib/takes.ts';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, toastError } from './ui.tsx';
 
@@ -32,7 +31,7 @@ export function Compare({
   const keep = async (t: Take) => {
     setBusy(t.id);
     try {
-      upsert({ type: 'take', take: await api.keep(t.id, !t.kept) });
+      await (t.kept ? toggleKeep(t) : keepOnly(t, takes));
     } catch (e) {
       toastError(e);
     } finally {
