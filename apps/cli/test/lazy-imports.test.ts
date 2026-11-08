@@ -5,13 +5,14 @@ import { execFile } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { cliEnv, main } from './harness.ts';
 
 const exec = promisify(execFile);
-const trace = fileURLToPath(new URL('./trace-imports.mjs', import.meta.url));
+// A file URL, not a path: on Windows `--import D:\a\...\trace-imports.mjs` is read as the scheme "d:" and Node refuses
+// to start, so the command printed no module list at all. The URL names the same file on every platform.
+const trace = new URL('./trace-imports.mjs', import.meta.url).href;
 
 async function loaded(args: string[]): Promise<string[]> {
   const home = mkdtempSync(join(tmpdir(), 'hg-lazy-'));
