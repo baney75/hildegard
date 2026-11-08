@@ -205,16 +205,25 @@ describe('the pasteable fields', () => {
   });
 });
 
-describe('the privacy and terms drafts', () => {
+describe('the privacy and terms pages', () => {
   for (const page of ['privacy', 'terms']) {
-    it(`${page}/ is marked DRAFT where a reader sees it, and names no company or address`, () => {
+    it(`${page}/ is the approved text: no draft banner, no blank for the owner, indexable, with a contact`, () => {
       const html = read(`site/${page}/index.html`);
-      expect(html).toMatch(/<[^>]+class="draft"[^>]*>[\s\S]*DRAFT/);
+      expect(html).not.toMatch(/class="draft"|DRAFT|\(draft\)/);
+      expect(html).not.toContain('[Owner');
+      expect(html).not.toContain('noindex');
       expect(html).toContain('https://github.com/baney75/hildegard/issues');
-      expect(html).toContain('[Owner: ');
+      expect(html).toContain('mailto:support@dbaney.com');
+      expect(html).toContain('Last updated: November 7, 2026');
       expect(html).not.toMatch(/[–—]/);
     });
   }
+
+  it('are linked from the install page footer', () => {
+    const html = read('site/index.html');
+    expect(html).toContain('<a href="privacy/">Privacy</a>');
+    expect(html).toContain('<a href="terms/">Terms</a>');
+  });
 
   it('names the hosts of the app’s outbound connections', () => {
     const html = read('site/privacy/index.html');
