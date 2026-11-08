@@ -14,6 +14,12 @@ path is relative, so it works from any folder, such as `https://dbaney.com/hilde
   the page moves.
 - `.github/workflows/pages.yml` can publish it to GitHub Pages, but only when started by hand, with the owner's OK.
 
+## Privacy and terms
+
+`privacy/` and `terms/` are drafts, each with a visible DRAFT banner and `noindex`, until the owner approves the text
+(`docs/listings.md` says what to fill in and how to take the banner off). The index page doesn't link them yet. Stores
+that list Hildegard's skills ask for both URLs.
+
 ## Changing it
 
 - Release URLs and the desktop app's file names are in `RELEASE` and `DESKTOP` at the top of `main.js`.

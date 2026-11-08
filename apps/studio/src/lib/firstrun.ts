@@ -20,6 +20,8 @@ export interface FirstPick {
  * smallest that downloads now. Null when no video model runs here: the computer renders on another device instead.
  */
 export function firstPick(catalog: Catalog, models: ModelState[], hf: HfState | null): FirstPick | null {
+  // Before this computer's model list arrives there is no fit to judge, so nothing is recommended yet.
+  if (!models.length) return null;
   const all = videoModels(catalog).map((model) => ({ model, state: models.find((s) => s.id === model.id) }));
   const linked = !!hf?.linked;
   const open = (m: (typeof all)[number]) => !(m.state?.gated ?? m.model.gated) || linked;

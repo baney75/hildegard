@@ -1,0 +1,178 @@
+[
+  {
+    "id": "d1-ocean-horizon",
+    "domain": "photoedit",
+    "brief": "A tilted, cold, dark sea view: keep the storm cloud and the horizon, 16:9.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "ocean-horizon",
+      "ops": {
+        "tilt": -2.5,
+        "cast": [0.92, 0.97, 1.12],
+        "stops": -0.5
+      },
+      "seed": 21
+    },
+    "score": {
+      "size": [1600, 900],
+      "max_bytes": 400000,
+      "subject": [0.05, 0.02, 0.65, 0.3],
+      "tilt_family": "h"
+    }
+  },
+  {
+    "id": "d2-cabin-window",
+    "domain": "photoedit",
+    "brief": "A dark cabin window, tilted, shadows crushed and a warm cast: 4:5 portrait with the whole window.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "cabin-window",
+      "ops": {
+        "tilt": 3.5,
+        "crush": 0.07,
+        "cast": [1.06, 1.0, 0.92]
+      },
+      "seed": 22
+    },
+    "score": {
+      "size": [1200, 1500],
+      "max_bytes": 400000,
+      "subject": [0.28, 0.2, 0.72, 0.84],
+      "tilt_family": "auto"
+    }
+  },
+  {
+    "id": "d3-coffee",
+    "domain": "photoedit",
+    "brief": "A dark, orange, grainy coffee table shot: square, keep the cup.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "coffee-cookies",
+      "ops": {
+        "stops": -0.9,
+        "cast": [1.12, 1.0, 0.8],
+        "noise": 9
+      },
+      "seed": 23
+    },
+    "score": {
+      "size": [1080, 1080],
+      "max_bytes": 300000,
+      "subject": [0.55, 0.15, 0.95, 0.85],
+      "tilt_family": "auto"
+    }
+  },
+  {
+    "id": "d4-taxi-street",
+    "domain": "photoedit",
+    "brief": "A tilted, bright city street: keep the taxis, square.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "taxi-rank",
+      "ops": {
+        "tilt": 3.0,
+        "stops": 0.5,
+        "cast": [1.04, 1.0, 0.93]
+      },
+      "seed": 24
+    },
+    "score": {
+      "size": [1200, 1200],
+      "max_bytes": 400000,
+      "subject": [0.55, 0.6, 0.98, 0.95],
+      "tilt_family": "v"
+    }
+  },
+  {
+    "id": "d5-quaint-street",
+    "domain": "photoedit",
+    "brief": "A tilted, bright, orange old-town street: keep the street lamp, 4:5.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "quaint-streets",
+      "ops": {
+        "tilt": -3.0,
+        "stops": 0.5,
+        "cast": [1.1, 1.0, 0.85]
+      },
+      "seed": 25
+    },
+    "score": {
+      "size": [1080, 1350],
+      "max_bytes": 400000,
+      "subject": [0.2, 0.12, 0.3, 0.85],
+      "tilt_family": "v"
+    }
+  },
+  {
+    "id": "d6-mountain-lake",
+    "domain": "photoedit",
+    "brief": "A tilted, overexposed, orange lake and mountains: 16:9, keep the peaks.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "mountain-lake",
+      "ops": {
+        "tilt": 3.0,
+        "cast": [1.1, 1.0, 0.86],
+        "stops": 0.7
+      },
+      "seed": 26
+    },
+    "score": {
+      "size": [1600, 900],
+      "max_bytes": 400000,
+      "subject": [0.3, 0.1, 0.8, 0.55],
+      "tilt_family": "h"
+    }
+  },
+  {
+    "id": "d7-lighthouse",
+    "domain": "photoedit",
+    "brief": "A black and white lighthouse photo, dark, flat and grainy: 4:3, keep the lighthouse.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "tillamook-light",
+      "ops": {
+        "stops": -0.7,
+        "crush": 0.08,
+        "noise": 8
+      },
+      "seed": 27
+    },
+    "score": {
+      "size": [1200, 900],
+      "max_bytes": 300000,
+      "subject": [0.6, 0.15, 0.8, 0.55],
+      "tilt_family": "auto"
+    }
+  },
+  {
+    "id": "d8-pier-sunset",
+    "domain": "photoedit",
+    "brief": "A tilted, cold, dark evening by the sea: keep the pier, square.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.py"],
+    "media": {
+      "photo": "pier-sunset",
+      "ops": {
+        "tilt": 2.5,
+        "cast": [0.92, 0.97, 1.12],
+        "stops": -0.4
+      },
+      "seed": 28
+    },
+    "score": {
+      "size": [1200, 1200],
+      "max_bytes": 400000,
+      "subject": [0.3, 0.0, 0.7, 1.0],
+      "tilt_family": "h"
+    }
+  }
+]

@@ -74,15 +74,56 @@ ask me questions", so the eval measures making the work, not the interview.
 - **Selftest**: `python3 evals/creative/selftest/test_scorers.py` runs a passthrough control and a competent reference script through the scorers;
   the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
   sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render
-  isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, and the judge's folder.
-- **Not sandboxed**: the responder sessions themselves (a Haiku session's Bash can read `$EVAL_DIR/ref`; only the re-run of its script cannot). Haiku's Bash tool runs on the host with the network (its tool list is Read, Write, Bash and Skill), and
-  Codex runs with its own `workspace-write` sandbox. Only the re-run of a finished script, and the render of its HTML, is isolated.
+  isolation, run reuse keyed by the skills hash and the `confined` marker, skill-load parsing, a responder that dies, a quota message halting dispatch,
+  the judge's folder, and the responder box (F12: a stand-in for `claude` run through `respond.sh` cannot delete or write a file in its home, outside
+  its work folder or in another run, cannot see other runs, can write in `work/`, can read but not write, truncate, replace or delete the
+  credentials file under `HILDEGARD_EVAL_ALLOW_CREDENTIALS=1`; a native binary at `$HOME/claude` is the only thing of that home visible in the
+  box; an override that is a folder or a file directly in the home is refused; with `CLAUDE_CODE_OAUTH_TOKEN` set the box gets the token, never
+  in argv, and no credentials file; with neither the token nor the opt-in the run is refused (exit 5) and no model is called; a sign-in
+  failure exits 99 and leaves `STOP`; a link, a FIFO, or a link hidden in a folder made unreadable with `chmod 0111` or `0311`, fails the run
+  with no `done`; and with no usable bubblewrap the run is refused and no model is called).
+- **Responder confinement**: Haiku's whole session, and so its Bash tool, runs in bubblewrap (`sandbox.responder`, used by `respond.sh`). The
+  filesystem is read-only. A tmpfs covers the owner's home, `/tmp`, `/run` and the eval folder, so the model sees no `~/.ssh`, no tokens under
+  `~/.config`, no agent or D-Bus socket paths and no other run; this run's folder is bound back read-only and only its `work/` is writable.
+  Nothing under the home folder comes back except three things, all read-only: the claude binary as that one file (a launcher script on
+  PATH, such as a mise one, is skipped for the native binary), the folder of the Chromium the prompt names (a Playwright browser folder under
+  `~/.cache/ms-playwright`, or one outside the home), and, only under the opt-in below, the owner's credentials file. `HILDEGARD_EVAL_CLAUDE` overrides the binary; it must
+  name a file in a folder of its own, and a folder or a file directly in the home folder is refused. A `HILDEGARD_EVAL_CHROMIUM` whose folder
+  is or holds the home folder, sits in or above the eval folder, or is any other folder in the home is refused too. Claude writes its state
+  (`.claude.json`, `projects/`, `sessions/`, `backups/`) to a fresh `CLAUDE_CONFIG_DIR` on the tmpfs. **A Haiku run needs a token:** make a
+  long-lived one yourself with `claude setup-token` and export it as `CLAUDE_CODE_OAUTH_TOKEN` in the shell that runs `run.sh`. Without it,
+  `respond.sh` refuses every Haiku run with exit 5, calls no model, and says so. With it, no credentials file is bound and the box never
+  refreshes; the token reaches bwrap through a pipe (`--args`), never argv or a file, and the harness never writes or stores it. The model
+  in the box can read it. `HILDEGARD_EVAL_ALLOW_CREDENTIALS=1` is an opt-in that binds your credentials file into the box read-only
+  instead, so nothing there can change, truncate or replace it. **What the opt-in risks:** when the access token in that file has expired,
+  or expires during a batch, the session refreshes it in the box. The server rotates the refresh token, the new one can't be written back,
+  and your file is left with a revoked one, which signs you out of your other Claude Code sessions on this computer. The session itself
+  finishes normally. A sign-in or token-refresh failure in a later session (claude's own `OAuth token refresh failed`, `Please run /login`,
+  `authentication_error`, `API Error: 401` and the like) then stops the batch the way a quota message does, with exit 99 and a `STOP`
+  file, but that comes after the harm. Then run `claude` on this computer, sign in again with `/login`, and delete the `STOP` file. Use the
+  token. After the session, before anything on the host reads `work/`, `respond.sh` makes every folder in it readable and searchable again
+  (`chmod -R u+rwX`, which follows no link; the model owns `work/` and could `chmod 0111` a folder to hide what is in it), then fails the run
+  if `work/` holds anything but regular files and folders: a symbolic link (say to `~/.ssh`), a FIFO (which would hang the scorer that
+  opens it), a socket or a device. That, or either step failing, ends the run with exit 6, no `done` and the error in meta.json, so the
+  unconfined scorers and judge never open it. The environment is cleared to a few variables, and the session gets new user, PID, IPC and
+  UTS namespaces with no capabilities. Without a working bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5,
+  never run unconfined. Codex runs Luna in its own `workspace-write` sandbox.
+
+  What the box does not stop:
+  - **The network.** The session shares the host's network, since the model needs it. Services on `127.0.0.1` and abstract Unix sockets
+    (an X server's `@/tmp/.X11-unix/X0`, for one) stay reachable, so a local service that trusts any local process trusts this one too.
+  - **DNS other than systemd-resolved.** Only `/run/systemd/resolve` is bound back under `/run`. Where `/etc/resolv.conf` points elsewhere
+    in `/run` (NetworkManager's or resolvconf's file), names do not resolve in the box and every Haiku run fails without a `done`.
+  - **Tools installed under the home folder.** PATH is the binary's folder, `/usr/local/bin`, `/usr/bin` and `/bin`, and the home is
+    hidden, so pip `--user` packages, virtual environments and mise's python, node or ffmpeg are gone. The model has only what the system
+    has installed.
 - **Reuse**: a verdict is reused only while both runs it judged are unchanged (it records each run's skills hash and a hash of the deliverable and its score); a run made again is judged again.
   `--judge-only` refuses when a run's `skills.sha` differs from the arm's skills now or is missing (`--allow-stale` judges them anyway and warns). The committed blind results (`results-cand4-blind.json`,
   `results-heldout2-blind.json`) were made before that check and say `unrecorded`: they are not tied to a skills version.
   A response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
   the arm's skills folder; `main` is archived from `origin/main` into `skills-main-<tree>` so a moved `main` is never mixed with an old one; the report prints the hashes
-  each arm used. A run from before this check has no hash, and `run.sh` makes it again.
+  each arm used. A run from before this check has no hash, and `run.sh` makes it again. A Haiku run is also reused only when its meta.json says `confined: true`, so a
+  run made before the box is made again and an arm never mixes confined and unconfined responses.
 
 ## Run it
 
@@ -99,7 +140,7 @@ State lives in `~/.cache/hildegard-creative-eval/` (`runs/<arm>/<model>/<task>/`
 A quota or billing message stops the whole run: the response exits 99, `dispatch.sh` makes xargs stop starting jobs, and a `STOP` file under `runs/` keeps later
 responses from calling a model until you delete it. A responder that dies before a finished transcript leaves a `meta.json` with the error and no `done`, so it is made again.
 It writes `evals/creative/results-<label>.json` and prints the summary and a design contact sheet path. Needs `claude` and `codex` signed in
-with a subscription, `ffmpeg`, `numpy`, `Pillow` and Playwright's Chromium. One response per task, arm and model is about 52 responses
+with a subscription, bubblewrap (`bwrap`, for Haiku), `ffmpeg`, `numpy`, `Pillow` and Playwright's Chromium. One response per task, arm and model is about 52 responses
 and 52 Opus verdicts for the tuned set.
 
 ## Reading results

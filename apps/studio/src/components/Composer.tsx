@@ -35,6 +35,8 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // On a phone the idle composer is one line, without its settings, so the board keeps the screen.
+  const [awake, setAwake] = useState(false);
   const [error, setError] = useState<{ text: string; field?: string } | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -228,11 +230,31 @@ export function Composer({
       ? `${about(estimate)} on ${where}`
       : `On ${where}`;
 
+  const pressing = useRef(false);
   return (
     <div
       className="cs-comp"
       role="group"
       aria-label="Direct a shot"
+      data-idle={!awake && !sheet && !error && !draft.prompt.trim() ? '' : undefined}
+      onFocus={() => setAwake(true)}
+      // Safari doesn't focus a tapped button, so a tap on a pill blurs the prompt with nowhere to go: a press that
+      // began inside keeps the composer awake until its click, or the pill would vanish under the finger.
+      onPointerDown={() => {
+        pressing.current = true;
+      }}
+      onPointerCancel={() => {
+        pressing.current = false;
+      }}
+      onClickCapture={() => {
+        setTimeout(() => {
+          pressing.current = false;
+        });
+      }}
+      onBlur={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node | null) || pressing.current) return;
+        setAwake(false);
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);

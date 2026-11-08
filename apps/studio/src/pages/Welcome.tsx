@@ -103,7 +103,14 @@ export function Welcome({
         </figure>
         <div className="hg-first__setup">
           <section className="hg-first__pick" aria-labelledby="first-model">
-            {pick ? (
+            {!models.length ? (
+              <>
+                <span className="ovl" id="first-model">
+                  Start with one model
+                </span>
+                <p className="body sec-text">Checking which model fits this computer…</p>
+              </>
+            ) : pick ? (
               <>
                 <div className="hg-first__pickhead">
                   <span className="ovl" id="first-model">
@@ -160,7 +167,8 @@ export function Welcome({
                       className="hg-first__go"
                       onClick={start}
                       busy={busy}
-                      data-autofocus=""
+                      // A license is accepted by a deliberate click, never by an Enter that lands here first.
+                      {...(pick.state?.licenseAccepted ? { 'data-autofocus': '' } : {})}
                     >
                       {pick.state?.licenseAccepted ? 'Download' : 'Accept and download'} · {size}
                     </Button>
