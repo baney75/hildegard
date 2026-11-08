@@ -105,6 +105,15 @@ beforeAll(async () => {
       secrets: memoryStore(),
       hubToken: join(dir, 'no-hf-token'),
       reveal: (p) => revealed.push(p),
+      // The server's own update check asks GitHub for the newest release. That is the server, not Post, but the test
+      // below records every request, so the check stays off: a stand-in fetch, an hour before the first look, and a
+      // run that does nothing. The assertion still allows nothing but this computer.
+      updates: {
+        fetch: (async () => Response.json({ version: '0.0.0' })) as unknown as typeof fetch,
+        run: () => {},
+        firstMs: 3_600_000,
+        idleMs: 3_600_000,
+      },
     },
   );
   await until(() => srv.scheduler.engineState().online);
