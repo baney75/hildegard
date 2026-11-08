@@ -84,8 +84,9 @@ def chromium_shot(page, png, w, h, chrome=None, extra=(), scale=1):
     return os.path.exists(png)
 
 
-def chromium_dom(page, w, h, js, chrome=None):
-    """Load page at w x h, run js (an expression giving a JSON-able value, may be a Promise) and return its value."""
+def chromium_dom(page, w, h, js, chrome=None, scale=1):
+    """Load page at w x h, run js (an expression giving a JSON-able value, may be a Promise) and return its value. Pass the
+    scale a screenshot was taken at to measure the same layout: text wraps a little differently at each device scale."""
     chrome = chrome or find_chromium()
     if not chrome:
         return None
@@ -100,7 +101,7 @@ def chromium_dom(page, w, h, js, chrome=None):
         f'try{{v=await (async()=>({js}))()}}catch(e){{v={{error:String(e)}}}}'
         'document.getElementById("out").textContent="@@"+JSON.stringify(v)+"@@";});</script></body></html>')
     args = [chrome, '--no-sandbox', '--disable-gpu', '--allow-file-access-from-files', f'--window-size={max(w, 520)},{h}',
-            '--virtual-time-budget=10000', '--dump-dom', 'file://' + wrap]
+            f'--force-device-scale-factor={scale}', '--virtual-time-budget=10000', '--dump-dom', 'file://' + wrap]
     if 'headless-shell' not in os.path.basename(chrome):
         args.insert(1, '--headless=new')
     try:

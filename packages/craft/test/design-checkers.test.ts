@@ -126,7 +126,7 @@ describe('screen_check.py clipped', () => {
     const c = clipped(
       'boxed',
       shell(
-        '<div style="margin-top:120px;height:80px;overflow:hidden;padding:0 20px"><p style="padding-top:40px">Next bus</p><p>Route 4 at 8:12</p></div>',
+        '<div style="margin-top:120px;height:36px;overflow:hidden;padding:0 20px"><p>Next bus</p><p>Route 4 at 8:12</p></div>',
       ),
     );
     expect(c.state).toBe('fail');

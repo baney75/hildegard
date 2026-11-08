@@ -303,7 +303,7 @@ def brand(task, work, run):
     os.environ['HILDEGARD_CHROMIUM'] = chromium()
     png = os.path.join(run, 'guide.png')
     res['rendered'] = browser.chromium_shot(g, png, 816, 1056, scale=1275 / 816)
-    a = screen_check.audit(g, 816, 1056, 'web') or {}
+    a = screen_check.audit(g, 816, 1056, 'web', scale=1275 / 816) or {}  # the layout the judge sees in guide.png
     if a and not a.get('error'):
         res.update(contrast_fails=len(a['contrast']), contrast_examples=a['contrast'][:3], clipped=len(a['clipped']) + len(a['offscreen']),
                    # The bottom of the lowest text or image, not scrollHeight: a page fixed at 1056 px with overflow hidden

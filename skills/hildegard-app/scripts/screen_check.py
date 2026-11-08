@@ -59,7 +59,13 @@ const clipBox=(el,tr)=>{let esc=false;const rootVis=/visible/.test(S(d.documentE
         if((cx&&(tr.left<l-1||tr.right>r+1))||(cy&&(tr.top<t-1||tr.bottom>bt+1)))return true}}
     if(s.position==='fixed')return false;if(s.position==='absolute')esc=true}
   return false};
-const textRect=(t,el)=>{const g=d.createRange();g.selectNodeContents(t);const r=g.getBoundingClientRect();return r.width>0&&r.height>0?r:el.getBoundingClientRect()};
+// Where the letters are: the text's box less the part of the font's ascent and descent its glyphs don't reach, so a line
+// whose letters end just above an edge is not counted as cut off for the empty descent below them.
+const cv=d.createElement('canvas').getContext('2d');
+const textRect=(t,el,s)=>{const g=d.createRange();g.selectNodeContents(t);const r=g.getBoundingClientRect();if(!(r.width>0&&r.height>0))return el.getBoundingClientRect();
+  cv.font=`${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;let x=t.textContent.trim();if(s.textTransform==='uppercase')x=x.toUpperCase();const m=cv.measureText(x);
+  const up=Math.max(0,m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)||0,dn=Math.max(0,m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)||0;
+  return {left:r.left,right:r.right,top:r.top+Math.min(up,r.height/2),bottom:r.bottom-Math.min(dn,r.height/2)}};
 const label=el=>((el.getAttribute('aria-label')||el.textContent||el.getAttribute('title')||el.tagName)+'').replace(/\s+/g,' ').trim().slice(0,40);
 const out={W,H,scrollW:d.documentElement.scrollWidth,scrollH:d.documentElement.scrollHeight,contrast:[],texts:0,sizes:[],clipped:[],offscreen:[],
   targets:0,small:[],fonts:{},noAlt:0,placeholder:[],safe:[],contentBottom:0,viewport:!!d.querySelector('meta[name=viewport]'),title:d.title||''};
@@ -71,7 +77,7 @@ while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=
   if(!el.closest('[data-system]'))out.fonts[s.fontFamily.split(',')[0].replace(/["']/g,'').trim()]=1;
   const bg=bgOf(el);const fg=parse(s.color);if(fg&&!bg.img){const c=over(fg,bg.c);const r=cr(c,bg.c);const large=fs>=24||(fs>=18.66&&fw>=700);const need=large?3:4.5;
     if(r<need-0.005)out.contrast.push({text:txt,ratio:Math.round(r*100)/100,need,fg:hex(c),bg:hex(bg.c),size:fs})}
-  const r=el.getBoundingClientRect(),tr=textRect(t,el);out.contentBottom=Math.max(out.contentBottom,tr.bottom);
+  const r=el.getBoundingClientRect(),tr=textRect(t,el,s);out.contentBottom=Math.max(out.contentBottom,tr.bottom);
   if(tr.right>W+1||tr.left<-1||tr.bottom>H+1||tr.top<-1)out.offscreen.push(txt);
   else if(r.width<=1||r.height<=1){}  // a 1 px box is text hidden on purpose for screen readers
   else if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis')out.clipped.push(txt);
@@ -86,10 +92,10 @@ for(const im of d.querySelectorAll('img')){if(!im.hasAttribute('alt'))out.noAlt+
 out.fonts=Object.keys(out.fonts);return out})()"""
 
 
-def audit(page, w, h, plat):
+def audit(page, w, h, plat, scale=1):
     tgt, _, top, bottom = PLATFORM[plat]
     js = AUDIT.replace('MIN_TARGET', str(tgt)).replace('SAFE_TOP', str(top)).replace('SAFE_BOTTOM', str(bottom))
-    return chromium_dom(page, w, h, js)
+    return chromium_dom(page, w, h, js, scale=scale)
 
 
 def judge(a, plat):
