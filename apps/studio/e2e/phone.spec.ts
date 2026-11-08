@@ -32,6 +32,24 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   await page.getByRole('button', { name: /^Camera motion/ }).click();
   await expect(page.locator('dialog.hg-modal--bottom')).toBeVisible();
   await page.keyboard.press('Escape');
+  // As Safari does it: the tap doesn't focus the pill, so the prompt blurs with nowhere to go before the click.
+  await page.locator('#hg-prompt').click();
+  await expect(settings).toBeVisible();
+  const stillThere = await page.evaluate(async () => {
+    const pill = [
+      ...document.querySelectorAll<HTMLButtonElement>('[aria-label="Shot settings"] button'),
+    ].find((b) => /Camera motion/.test(`${b.getAttribute('aria-label') ?? ''} ${b.textContent ?? ''}`))!;
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // The time a finger takes to lift: the pill must still be on screen to be tapped.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const visible = pill.checkVisibility();
+    pill.click();
+    return visible;
+  });
+  expect(stillThere).toBe(true);
+  await expect(page.locator('dialog.hg-modal--bottom')).toBeVisible();
+  await page.keyboard.press('Escape');
   // Every shot setting is on screen: none hidden past the edge of the row.
   const pills = page.getByRole('group', { name: 'Shot settings' }).getByRole('button');
   for (const pill of await pills.all()) {

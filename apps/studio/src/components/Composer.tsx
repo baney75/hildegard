@@ -230,6 +230,7 @@ export function Composer({
       ? `${about(estimate)} on ${where}`
       : `On ${where}`;
 
+  const pressing = useRef(false);
   return (
     <div
       className="cs-comp"
@@ -237,8 +238,22 @@ export function Composer({
       aria-label="Direct a shot"
       data-idle={!awake && !sheet && !error && !draft.prompt.trim() ? '' : undefined}
       onFocus={() => setAwake(true)}
+      // Safari doesn't focus a tapped button, so a tap on a pill blurs the prompt with nowhere to go: a press that
+      // began inside keeps the composer awake until its click, or the pill would vanish under the finger.
+      onPointerDown={() => {
+        pressing.current = true;
+      }}
+      onPointerCancel={() => {
+        pressing.current = false;
+      }}
+      onClickCapture={() => {
+        setTimeout(() => {
+          pressing.current = false;
+        });
+      }}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setAwake(false);
+        if (e.currentTarget.contains(e.relatedTarget as Node | null) || pressing.current) return;
+        setAwake(false);
       }}
       onDragOver={(e) => {
         e.preventDefault();
