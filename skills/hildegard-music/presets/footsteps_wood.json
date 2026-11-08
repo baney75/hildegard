@@ -1,0 +1,85 @@
+{
+  "name": "footsteps_wood",
+  "note": "Six footsteps on a wooden floor, uneven like a walker. Vary: events.count and interval (0.4 slow, 0.28 brisk) on all three layers, layers[0].freq (80 to 140 Hz; lower is heavier), pitch_jitter_cents.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 105,
+      "sweep": {
+        "to": 62,
+        "time": 0.06
+      },
+      "dur": 0.16,
+      "env": {
+        "attack": 0.002,
+        "decay": 0.14,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "events": {
+        "count": 6,
+        "interval": 0.5,
+        "jitter": 0.35,
+        "gain_jitter_db": 3,
+        "pitch_jitter_cents": 160
+      }
+    },
+    {
+      "source": "brown",
+      "dur": 0.12,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 700,
+        "q": 0.9
+      },
+      "env": {
+        "attack": 0.001,
+        "decay": 0.1,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "gain_db": -3,
+      "events": {
+        "count": 6,
+        "interval": 0.5,
+        "jitter": 0.35,
+        "gain_jitter_db": 3,
+        "pitch_jitter_cents": 300
+      }
+    },
+    {
+      "source": "pink",
+      "dur": 0.05,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 1900,
+        "q": 1.6
+      },
+      "env": {
+        "attack": 0.0005,
+        "decay": 0.04,
+        "sustain": 0.0,
+        "release": 0.004
+      },
+      "gain_db": -9,
+      "events": {
+        "count": 6,
+        "interval": 0.5,
+        "jitter": 0.35,
+        "gain_jitter_db": 3,
+        "pitch_jitter_cents": 300
+      }
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.12,
+      "room": 0.3
+    },
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "title": "A 15 second promo for an event or a product",
+  "canvas": { "width": 1920, "height": 1080, "fps": 30, "background": "#10231c" },
+  "duration": 15,
+  "fonts": { "head": { "google": "Montserrat" }, "body": { "google": "Inter" } },
+  "fade": { "in": 0.4, "out": 0.8 },
+  "scenes": [
+    {
+      "id": "hook",
+      "duration": 3.8,
+      "background": {
+        "type": "linear",
+        "angle": 135,
+        "stops": [{ "at": 0, "color": "#10231c" }, { "at": 1, "color": "#1d4a3a" }]
+      },
+      "layers": [
+        {
+          "type": "text",
+          "text": "One night. Good food. Good people.",
+          "font": "head",
+          "weight": 800,
+          "size": 9.5,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.5,
+          "box": 0.78,
+          "line_height": 1.15,
+          "enter": { "type": "rise", "split": "word", "stagger": 0.16, "duration": 0.55 }
+        }
+      ]
+    },
+    {
+      "id": "place",
+      "duration": 4,
+      "transition": { "type": "crossfade", "duration": 0.6 },
+      "camera": { "preset": "push-in", "amount": 0.1 },
+      "layers": [
+        { "type": "image", "file": "sample:dusk", "dim": 0.15 },
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.5,
+          "y": 1.0,
+          "w": 1,
+          "h": 0.55,
+          "anchor": "bottom",
+          "fill": {
+            "type": "linear",
+            "angle": 0,
+            "stops": [{ "at": 0, "color": "#050a08ee" }, { "at": 1, "color": "#050a0800" }]
+          }
+        },
+        {
+          "type": "text",
+          "text": "Harvest Night",
+          "font": "head",
+          "weight": 800,
+          "size": 12,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.77,
+          "enter": { "type": "rise", "duration": 0.8, "delay": 0.3 }
+        },
+        {
+          "type": "text",
+          "text": "Dinner, music and a bonfire",
+          "font": "body",
+          "weight": 500,
+          "size": 4,
+          "color": "#f3e6c8",
+          "x": 0.5,
+          "y": 0.89,
+          "enter": { "type": "fade", "duration": 0.7, "delay": 0.9 }
+        }
+      ]
+    },
+    {
+      "id": "reasons",
+      "duration": 4,
+      "transition": { "type": "slide", "duration": 0.6, "direction": "left" },
+      "background": "#f6efe0",
+      "layers": [
+        {
+          "type": "text",
+          "text": "What to expect",
+          "font": "head",
+          "weight": 800,
+          "size": 6.5,
+          "color": "#10231c",
+          "x": 0.5,
+          "y": 0.17,
+          "enter": { "type": "fade", "duration": 0.5 }
+        },
+        {
+          "type": "shape",
+          "shape": "rounded",
+          "radius": 2.5,
+          "x": 0.2,
+          "y": 0.58,
+          "w": 0.24,
+          "h": 0.4,
+          "fill": "#10231c",
+          "enter": { "type": "rise", "duration": 0.6, "delay": 0.3 }
+        },
+        {
+          "type": "text",
+          "text": "Free dinner",
+          "font": "head",
+          "weight": 700,
+          "size": 4.6,
+          "color": "#ffffff",
+          "x": 0.2,
+          "y": 0.58,
+          "box": 0.2,
+          "enter": { "type": "fade", "duration": 0.5, "delay": 0.6 }
+        },
+        {
+          "type": "shape",
+          "shape": "rounded",
+          "radius": 2.5,
+          "x": 0.5,
+          "y": 0.58,
+          "w": 0.24,
+          "h": 0.4,
+          "fill": "#b8452e",
+          "enter": { "type": "rise", "duration": 0.6, "delay": 0.6 }
+        },
+        {
+          "type": "text",
+          "text": "Live music",
+          "font": "head",
+          "weight": 700,
+          "size": 4.6,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.58,
+          "box": 0.2,
+          "enter": { "type": "fade", "duration": 0.5, "delay": 0.9 }
+        },
+        {
+          "type": "shape",
+          "shape": "rounded",
+          "radius": 2.5,
+          "x": 0.8,
+          "y": 0.58,
+          "w": 0.24,
+          "h": 0.4,
+          "fill": "#1d4a3a",
+          "enter": { "type": "rise", "duration": 0.6, "delay": 0.9 }
+        },
+        {
+          "type": "text",
+          "text": "Kids games",
+          "font": "head",
+          "weight": 700,
+          "size": 4.6,
+          "color": "#ffffff",
+          "x": 0.8,
+          "y": 0.58,
+          "box": 0.2,
+          "enter": { "type": "fade", "duration": 0.5, "delay": 1.2 }
+        }
+      ]
+    },
+    {
+      "id": "call",
+      "duration": 5,
+      "transition": { "type": "crossfade", "duration": 0.6 },
+      "background": {
+        "type": "linear",
+        "angle": 135,
+        "stops": [{ "at": 0, "color": "#10231c" }, { "at": 1, "color": "#1d4a3a" }]
+      },
+      "layers": [
+        {
+          "type": "text",
+          "text": "Saturday, October 24",
+          "font": "head",
+          "weight": 800,
+          "size": 8,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.34,
+          "enter": { "type": "rise", "duration": 0.7 }
+        },
+        {
+          "type": "text",
+          "text": "6 pm at the Fellowship Hall, 12 Mill Road",
+          "font": "body",
+          "weight": 500,
+          "size": 4,
+          "color": "#f3e6c8",
+          "x": 0.5,
+          "y": 0.47,
+          "enter": { "type": "fade", "duration": 0.7, "delay": 0.4 }
+        },
+        {
+          "type": "shape",
+          "shape": "rounded",
+          "radius": 3,
+          "x": 0.5,
+          "y": 0.68,
+          "w": 0.38,
+          "h": 0.12,
+          "fill": "#f2b84b",
+          "enter": { "type": "pop", "duration": 0.6, "delay": 0.9 }
+        },
+        {
+          "type": "text",
+          "text": "Reserve at harvest.example.org",
+          "font": "body",
+          "weight": 700,
+          "size": 3.4,
+          "color": "#10231c",
+          "x": 0.5,
+          "y": 0.68,
+          "box": 0.36,
+          "enter": { "type": "fade", "duration": 0.4, "delay": 1.3 }
+        }
+      ]
+    }
+  ]
+}

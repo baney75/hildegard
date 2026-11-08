@@ -5,6 +5,8 @@
   python3 prose_lint.py FILE [FILE...]     lint files; "-" reads stdin
   python3 prose_lint.py --json FILE        the lint as JSON, the shape of ProseLint in packages/craft/src/prose.ts
   python3 prose_lint.py --max 10 FILE      show up to 10 places per finding (1 or more, default 6)
+  python3 prose_lint.py --strict FILE      for writing that must carry no tells: the em dash and every other wording or
+                                           shape warn (not headings) fails too. The default only warns on them.
 
 Run it on every piece of prose before anyone reads it: a blog post, an email, a page, a caption, a script. Fix every
 fail. Fix each warn too, unless it is the writer's deliberate voice. Lint again until it passes. Exit status is 1
@@ -23,7 +25,6 @@ Differences from the TypeScript engine, all at the edges of Unicode:
 """
 import argparse
 import json
-import math
 import os
 import re
 import sys
@@ -74,13 +75,17 @@ def jstrip(s):
     return s.strip(JS_WS)
 
 
+NEWLINE = re.compile("\n")
+ASTRAL = re.compile("[\U00010000-\U0010ffff]")
+
+
 class Text:
     """The text as given, with where its lines start and where UTF-16 pairs fall, to report JavaScript's offsets."""
 
     def __init__(self, text):
         self.text = text
-        self.nl = [i for i, c in enumerate(text) if c == "\n"]
-        self.astral = [i for i, c in enumerate(text) if ord(c) > 0xFFFF]
+        self.nl = [m.start() for m in NEWLINE.finditer(text)]
+        self.astral = [m.start() for m in ASTRAL.finditer(text)]
 
     def u16(self, i):
         return i + bisect_left(self.astral, i) if self.astral else i
@@ -159,7 +164,7 @@ def blank_non_prose(text):
     )
     text = blank_blocks(text)
     # <tag>. Not closed: "<>", or no > on the rest of the line.
-    text = rx(r"(<[^>\n]+>)|<>|<[^\n]*").sub(when_closed(blank), text)
+    text = rx(r"(<(?!(?:insert|your|add)\s)[^>\n]+>)|<(?:insert|your|add)\s[^>\n]+>|<>|<[^\n]*").sub(when_closed(blank), text)
     # ](target). Not closed: no ) on the rest of the line.
     text = rx(r"(\]\([^)\n]*\))|\]\([^\n]*").sub(when_closed(lambda s: "](" + blank(s[2:])), text)
     text = rx(rf"https?://[^{WS})>\]]+").sub(b, text)
@@ -186,6 +191,105 @@ def bounded(p):
     return rx(rf"(?<![\w-])(?:{js_pattern(p)})(?![\w-])", re.I)
 
 
+def needle_of(p):
+    """The lowercase text every match of `p` must begin with, or "" when the pattern doesn't open on plain letters: its
+    leading run of letters, digits, spaces and hyphens, less the last character when a quantifier makes that optional.
+    A pattern with a bar outside its groups has no such prefix."""
+    depth, in_class, i = 0, False, 0
+    while i < len(p):
+        c = p[i]
+        if c == "\\":
+            i += 1
+        elif in_class:
+            in_class = c != "]"
+        elif c == "[":
+            in_class = True
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == "|" and depth == 0:
+            return ""
+        i += 1
+    run = re.match(r"[a-zA-Z0-9 -]*", p).group(0)
+    nxt = p[len(run) : len(run) + 1]
+    return (run[:-1] if nxt in ("?", "*", "{") else run).lower()
+
+
+class Phrase:
+    """One phrase pattern, compiled once, with the text its matches begin with."""
+
+    def __init__(self, rule, p):
+        self.rule = rule
+        self.rx = bounded(p)
+        self.needle = needle_of(p)
+
+
+# Every phrase pattern, in rule order and then pattern order, compiled once.
+COMPILED = [Phrase(rule_id, p) for rule_id, rule in RULES["phrases"].items() for p in rule["patterns"]]
+
+
+def trie_regex(words):
+    """A prefix tree of the needles as a regex, so each position is tried against a handful of letters, not 170 words."""
+    root = {}
+    for w in words:
+        n = root
+        for c in w:
+            n = n.setdefault(c, {})
+        n[""] = True
+
+    def rx_(n):
+        alts = [re.escape(c) + rx_(n[c]) for c in sorted(n) if c != ""]
+        if not alts:
+            return ""
+        # A node that also ends a needle makes the rest optional.
+        if "" in n:
+            return "(?:" + "|".join(alts) + ")?"
+        return alts[0] if len(alts) == 1 else "(?:" + "|".join(alts) + ")"
+
+    return rx_(root)
+
+
+# Word starts where some pattern's needle begins. Zero-width, so every start is found, overlaps included.
+STARTS = rx(r"(?<![\w-])(?=" + trie_regex(sorted({c.needle for c in COMPILED if c.needle})) + ")", re.I)
+# The patterns whose needle begins with each character.
+BY_FIRST = {}
+for _i, _c in enumerate(COMPILED):
+    if _c.needle:
+        BY_FIRST.setdefault(_c.needle[0], []).append(_i)
+
+
+def phrase_hits_naive(prose):
+    """Every match of every phrase pattern, as finditer finds them one pattern at a time: the reference."""
+    return [list(c.rx.finditer(prose)) for c in COMPILED]
+
+
+def phrase_hits(prose):
+    """The same hits, found fast. Most patterns open on fixed letters (their needle), so one pass finds the word starts
+    where any needle begins, and a pattern's regex is tried only at a start whose first letter is its own: leftmost,
+    non-overlapping, exactly what scanning the whole text with that pattern gives. The needle is checked against the
+    lowercased text first when that text has the same length (a few capitals change length when lowercased); the check
+    can only skip a place where the regex would fail anyway."""
+    out = [[] for _ in COMPILED]
+    lower = prose.lower()
+    exact = len(lower) == len(prose)
+    end = [0] * len(COMPILED)
+    for i, c in enumerate(COMPILED):
+        if not c.needle:
+            out[i] = list(c.rx.finditer(prose))
+    for m in STARTS.finditer(prose):
+        at = m.start()
+        for i in BY_FIRST.get(lower[at] if exact else prose[at].lower(), ()):
+            c = COMPILED[i]
+            if at < end[i] or (exact and not lower.startswith(c.needle, at)):
+                continue
+            hit = c.rx.match(prose, at)
+            if hit:
+                end[i] = hit.end()
+                out[i].append(hit)
+    return out
+
+
 WORD = re.compile(r"[^\W_](?:[^\W_]|['’-])*")
 
 
@@ -198,36 +302,13 @@ PARA = rx(r"[^\n]+(?:\n(?!" + SNL + r"*\n)[^\n]+)*")
 
 
 def paragraphs(prose):
-    return [(m.group(0), m.start()) for m in PARA.finditer(prose) if jstrip(m.group(0))]
+    """(text, index, words) for each block between blank lines."""
+    return [(m.group(0), m.start(), count_words(m.group(0))) for m in PARA.finditer(prose) if jstrip(m.group(0))]
 
 
 HEADING = rx(rf"\A{S}{{0,3}}#{{1,6}}{S}")
 LINE_HEADING = rx(rf"\A{SNL}{{0,3}}#{{1,6}}{S}")
 LIST = rx(rf"\A{S}{{0,3}}(?:[-*+]|\d+[.)]){S}")
-# One sentence: its first character, then up to the first whole run of . ! or ? that ends a word. After the first
-# character the run must start where it begins, or a greedy run is retried from every character of 'a!!!!...!b'.
-_RUN = rf"[.!?]+(?![.!?])[\"”’)]*(?={S}|\Z)"
-SENTENCE = rx(rf"{NS}(?:(?:{_RUN}|\Z)|[\s\S]*?(?:(?<![.!?]){_RUN}|\Z))")
-
-
-def sentences(prose, original):
-    """Sentences of running prose (not headings or list items): (text, index, words). The text is the sentence as
-    written, read from the text as given so code and links show; the words count the blanked copy."""
-    out = []
-    for ptext, pindex in paragraphs(prose):
-        if HEADING.match(ptext) or LIST.match(ptext):
-            continue
-        for m in SENTENCE.finditer(ptext):
-            t = jstrip(m.group(0))
-            if not t:
-                continue
-            lead = len(m.group(0)) - len(m.group(0).lstrip(JS_WS))
-            at = pindex + m.start() + lead
-            # Trimmed after slicing: the blanked copy ends in spaces where the sentence ends in a link or a URL.
-            out.append((jstrip(original[at : pindex + m.end()]), at, count_words(t)))
-    return out
-
-
 EMOJI_LINE = rx(
     rf"{LINE_START}{S}{{0,3}}(?:#{{1,6}}{S}*|[-*+]{S}+|\d+\.{S}+)?"
     r"[\U0001F300-\U0001FAFF\u2600-\u27bf\u2b50\u2705\u274c]"
@@ -235,14 +316,15 @@ EMOJI_LINE = rx(
 NOT_BUT = [
     # Only the contrasts a writer sets up, not an everyday hedge: "not about rules, but", never "not cheap, but".
     rx(
-        r"\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|only|merely|simply|a|an|the|because|that)\b"
+        r"\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|merely|simply|a|an|the|because|that)\b"
         + f"[^.\\n]{{1,60}}?,{S}*but\\b",
         re.I,
     ),
     rx(rf"\b(?:it|this|that)['’]?s not\b[^.\n]{{1,60}}[.;]{S}+(?:it|this|that)['’]?s\b", re.I),
     rx(rf"\b(?:it|this|that) (?:is|was) not\b[^.\n]{{1,60}}[.;]{S}+(?:it|this|that) (?:is|was)\b", re.I),
-    rx(rf"\bnot (?:just|only|merely) [^.\n]{{1,60}}?,?{S}+but(?: also)?\b", re.I),
+    rx(rf"\bnot (?:just|merely) [^.\n]{{1,60}}?,?{S}+but(?: also)?\b", re.I),
     rx(rf"\byou (?:don['’]?t|do not) need [^.\n]{{1,60}}\.{S}+you need\b", re.I),
+    rx(rf"\bmore than (?:just |only |merely )?(?:a|an) [^.\n]{{1,50}}[.;]{S}+(?:it|this|that|they|these)(?: was| is| were| are|['’]s)\b", re.I),
     rx(rf"\bthe (?:question|problem|issue|point) (?:isn['’]?t|is not) [^.\n]{{1,60}}[.,;]{S}+(?:it['’]?s|it is)\b", re.I),
 ]
 NEGATIVE_LIST = rx(
@@ -258,39 +340,80 @@ COLON_REVEAL = rx(
     r"(?:detail|part|secret|trick|catch|twist|kicker|answer|truth|reason|result|difference|fix|best part"
     rf"|worst part|key|something|one thing)\b[^.:!?\n]{{0,40}}: [a-z])"
 )
-# An em dash anywhere; an en dash or a double hyphen only between words, never in a range like 9 - 5.
-DASHES = re.compile(rf"\u2014|(?:(?<={LET})|(?<={LET},)) (?:\u2013|--) (?={LET})")
 BOLD = rx(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
+# The em dash (U+2014), and a double hyphen set off by spaces, which is how a plain-text writer types one. Never a
+# hyphen or an en dash, so "2020-2024", "pages 10-12" and "--max" are not found. Found with str.find, not a regex: an
+# alternation with no letter to start on is tried at every character, and most text has no dash at all.
+EM = "\u2014"
+SPACED = " -- "
+
+
+def dashes(prose, t):
+    at = []
+    for needle, shift, n in ((EM, 0, 1), (SPACED, 1, 2)):
+        i = prose.find(needle)
+        while i >= 0:
+            at.append((i + shift, n))
+            i = prose.find(needle, i + 1)
+    return [t.locate(i, t.text[i : i + n]) for i, n in sorted(at)]
 LW = r"(?:[^\W\d_]|['’-])"
 # "sleep, reading, play, or dinner": a list of three or more, the rhythm generated prose falls into.
 TRIAD = re.compile(rf"(?<![\w'’-]){LW}+(?: {LW}+){{0,3}}, {LW}+(?: {LW}+){{0,3}},? (?:and|or) {LW}+")
-BOLD_LEAD = rx(rf"\A{S}*(?:\*\*|__)[^*_\n]{{2,80}}(?:\*\*|__)")
-NUMBER = rx(r"\b\d[\d,.:]*\b")
-ENDING = rx(rf"\A{S}*(?:ultimately|overall|in the end|in conclusion|in summary|to sum up|all in all)\b[,:]?", re.I)
+# Lists of three, found by clause. A list lies inside one run of letters, apostrophes, hyphens, spaces and commas, so
+# only the runs that hold a comma and an "and" or "or" are matched, each from one character early so the lookbehind
+# still sees what comes before. The same matches as scanning the whole text, in a third of the time.
+CLAUSE = re.compile(rf"(?:{LW}| |,)+")
+AND_OR = re.compile(r" (?:and|or) ")
 
 
-def count_specifics(unquoted):
-    """Numbers, and capitalised words that don't start a sentence: the names, dates and amounts a real piece is made of."""
-    n = len(NUMBER.findall(unquoted))
-    for m in re.finditer(" ", unquoted):
-        j = m.start()
-        if j < 1 or j + 2 >= len(unquoted):
+def triads(prose, t):
+    out = []
+    for run in CLAUSE.finditer(prose):
+        clause = run.group(0)
+        if len(clause) < 10 or ", " not in clause or not AND_OR.search(clause):
             continue
-        prev, c, nxt = unquoted[j - 1], unquoted[j + 1], unquoted[j + 2]
-        if (unicodedata.category(prev) == "Ll" or prev in ",;") and unicodedata.category(c) == "Lu" and unicodedata.category(nxt) == "Ll":
-            n += 1
-    return n
+        start = max(0, run.start() - 1)
+        for m in TRIAD.finditer(prose, start, run.end()):
+            out.append(t.locate(m.start(), t.text[m.start() : m.end()]))
+    return out
+
+
+BOLD_LEAD = rx(rf"\A{S}*(?:\*\*|__)[^*_\n]{{2,80}}(?:\*\*|__)")
+# A last paragraph that opens on a recap. The first group is the unmistakable ones; "ultimately" can open a story.
+ENDING = rx(rf"\A{S}*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?", re.I)
+
+
+# A list item that opens on a bold label: "- **When:** Saturday".
+BOLD_LIST_LEAD = rx(rf"{LINE_START}{SNL}{{0,3}}[-*+]{SNL}+(?:\*\*|__)[^*_\n]{{1,60}}(?:\*\*|__)")
+# A heading below the title, to the end of its line.
+HEADING_LINE = rx(rf"{LINE_START}{SNL}{{0,3}}#{{2,6}}{SNL}+{NS}[^\n]*")
 
 
 def is_marker_word(m):
     return re.fullmatch("[A-Z]+", m) is not None
 
 
-def lint_prose(text):
-    """Lint words a person will read. `ok` is False when any finding fails."""
+# The placeholder patterns, compiled once: capitals are whole words, the rest match in any case.
+MARKERS = [
+    rx(rf"\b{m}\b" if is_marker_word(m) else js_pattern(m), 0 if is_marker_word(m) else re.I) for m in RULES["markers"]
+]
+# The kinds of weak tell that count toward stacked-tells: findings that come from one habit are one kind.
+KINDS = RULES["stacked"]["kinds"]
+# The warns that fail in the strict profile.
+STRICT = set(RULES["strict"]["fail"])
+
+
+def lint_prose(text, strict=False):
+    """Lint words a person will read. `ok` is False when any finding fails.
+
+    `strict` is the profile for writing that must carry no tells: every warn listed in strict.fail (the em dash and the
+    rest of the wording and shape tells) fails. The default leaves them warnings, because none of them tells a person
+    from a machine well enough to fail a piece."""
     t = Text(text)
     prose = blank_non_prose(text)
-    words = count_words(prose)
+    all_paras = paragraphs(prose)
+    # A word never spans a line break, so the paragraphs hold every word of the text.
+    words = sum(p[2] for p in all_paras)
     findings = []
 
     def add(id_, severity, why, fix, matches):
@@ -298,29 +421,37 @@ def lint_prose(text):
             findings.append({"id": id_, "severity": severity, "why": why, "fix": fix, "matches": matches})
 
     unquoted = unquote(prose)
+    hits = phrase_hits(unquoted)
     name_not_heading = lambda p, i, m: is_name(p, i, m) and not t.on_heading(p, i)
+    at = 0
     for id_, rule in RULES["phrases"].items():
         skip = name_not_heading if rule.get("exemptNames") else None
-        matches = sorted(
-            [m for p in rule["patterns"] for m in t.all(bounded(p), unquoted, skip)], key=lambda m: m["index"]
+        found = sorted(
+            [m for h in hits[at : at + len(rule["patterns"])] for m in h if not (skip and skip(unquoted, m.start(), m.group(0)))],
+            key=lambda m: m.start(),
         )
+        at += len(rule["patterns"])
+        # Two patterns can open on the same words ("we're grateful to", "we're grateful"): one phrase is one match.
+        matches = [
+            t.locate(m.start(), t.text[m.start() : m.end()])
+            for i, m in enumerate(found)
+            if i == 0 or m.start() != found[i - 1].start()
+        ]
         if "density" in rule and len(matches) / max(1, words) <= rule["density"]:
+            continue
+        if "minHits" in rule and len(matches) < rule["minHits"]:
             continue
         add(id_, rule["severity"], rule["why"], rule["fix"], matches)
 
-    # Dashes: none in short copy, a couple in a long piece, never two in one paragraph.
-    dashes = t.all(DASHES, prose)
-    if dashes:
-        d = RULES["dashes"]
-        crowded = any(len(DASHES.findall(p)) > d["perParagraph"] for p, _ in paragraphs(prose))
-        fail = words <= d["shortWords"] or len(dashes) > d["perDocument"] or crowded
-        add(
-            "dashes",
-            "fail" if fail else "warn",
-            "Dashes as a rhythm crutch are the best-known tell of generated prose.",
-            "Use a full stop, a comma, a colon or parentheses. Keep a dash only where nothing else works.",
-            dashes,
-        )
+    # Readers in 2026 take an em dash for a machine tell, but people write them too (40 percent of the human corpus), so
+    # it only ever warns and is no kind of weak tell for stacked-tells.
+    add(
+        "em-dash",
+        "warn",
+        "Readers now take an em dash for a machine tell.",
+        "Use a comma, a colon, parentheses or two sentences. Keep it only where it is truly your own.",
+        dashes(prose, t),
+    )
 
     # Two patterns can match the same span ("not just a tool, but"): one contrast is one match.
     not_but = []
@@ -365,63 +496,28 @@ def lint_prose(text):
         reveals,
     )
 
-    said = sentences(prose, text)
-    run, max_words = RULES["fragments"]["run"], RULES["fragments"]["maxWords"]
-    frags = []
-    start = -1
-    for i in range(len(said) + 1):
-        if i < len(said) and 0 < said[i][2] <= max_words:
-            if start < 0:
-                start = i
-            continue
-        if start >= 0 and i - start >= run:
-            frags.append(t.locate(said[start][1], " ".join(s[0] for s in said[start:i])))
-        start = -1
-    add(
-        "fragments",
-        "warn",
-        "Stacked short fragments, “That’s it. That’s the whole thing.”, read as a performance.",
-        "Join them into full sentences.",
-        frags,
-    )
-
-    lengths = [s[2] for s in said if s[2] > 0]
-    if len(lengths) >= RULES["rhythm"]["minSentences"]:
-        mean = sum(lengths) / len(lengths)
-        sq = 0.0
-        for n in lengths:  # a plain loop: sum() on floats rounds differently from JavaScript's reduce
-            sq += (n - mean) * (n - mean)
-        sd = math.sqrt(sq / len(lengths))
-        if sd / mean < RULES["rhythm"]["minSpread"]:
-            add(
-                "rhythm",
-                "warn",
-                f"Every sentence runs about {math.floor(mean + 0.5)} words. Even length is a machine rhythm.",
-                "Vary it where the point allows: a short sentence for weight, a longer one to carry a thought through.",
-                [t.locate(said[0][1], said[0][0])],
-            )
-
-    paras = [p for p in paragraphs(prose) if not HEADING.match(p[0])]
-    if paras and len(paras) > 2 and ENDING.match(paras[-1][0]):
-        ptext, pindex = paras[-1]
+    paras = [p for p in all_paras if not HEADING.match(p[0])]
+    ending = ENDING.match(paras[-1][0]) if paras and len(paras) > 2 else None
+    if ending:
+        ptext, pindex, _ = paras[-1]
         ptext = text[pindex : pindex + len(ptext)]
         add(
             "summary-ending",
-            "fail",
+            "fail" if ending.group(1) else "warn",
             "The last paragraph sums up what the reader just read.",
             "End on the last concrete point, or on what to do next.",
             [t.locate(pindex, jstrip(ptext).split("\n")[0])],
         )
 
-    triads = t.all(TRIAD, prose)
+    lists = triads(prose, t)
     tr = RULES["triads"]
-    if words >= tr["minWords"] and (len(triads) * 100) / words > tr["perHundred"]:
+    if words >= tr["minWords"] and (len(lists) * 100) / words > tr["perHundred"]:
         add(
             "triads",
             "warn",
-            f"{len(triads)} lists of three or more in {words} words. Generated prose falls into that rhythm.",
+            f"{len(lists)} lists of three or more in {words} words. Generated prose falls into that rhythm.",
             "Keep the lists that are real lists. Elsewhere, name the one thing that matters.",
-            triads,
+            lists,
         )
 
     bl = RULES["boldLeads"]
@@ -435,15 +531,42 @@ def lint_prose(text):
             [t.locate(p[1], jstrip(text[p[1] : p[1] + BOLD_LEAD.match(p[0]).end()])) for p in leads],
         )
 
-    sp = RULES["specifics"]
-    specifics = count_specifics(unquoted)
-    if words >= sp["minWords"] and (specifics * 100) / words < sp["perHundred"] and said:
+    body = [p for p in paras if not LIST.match(p[0]) and not re.match(rf"{S}*\|", p[0])]
+    u = RULES["uniform"]
+    if (
+        len(body) >= u["minParagraphs"]
+        and sum(1 for p in body if p[2] <= u["maxWords"]) / len(body) >= u["share"]
+        and all(p[2] <= u["longest"] for p in body)
+    ):
+        first = body[0]
         add(
-            "specifics",
+            "uniform-paragraphs",
             "warn",
-            f"Only {specifics} names, numbers or dates in {words} words. A piece with none could be about anyone.",
-            "Add the specific: who, where, how many, which year, what it cost.",
-            [t.locate(said[0][1], said[0][0])],
+            f"All {len(body)} paragraphs run {min(p[2] for p in body)} to {max(p[2] for p in body)} words. "
+            "Generated drafts cut every paragraph to the same short size.",
+            "Let one paragraph run long where the thought needs it, and fold a one-line paragraph into its neighbor.",
+            [t.locate(first[1], jstrip(text[first[1] : first[1] + len(first[0])]).split("\n")[0])],
+        )
+
+    list_leads = t.all(BOLD_LIST_LEAD, prose)
+    if len(list_leads) >= RULES["boldListLeads"]["min"]:
+        add(
+            "bold-list-leads",
+            "warn",
+            "Bullets that each open on a bold label read as a template.",
+            "Write the items as plain lines, or as sentences that carry their own point.",
+            list_leads,
+        )
+
+    headings = t.all(HEADING_LINE, prose)
+    hd = RULES["headings"]
+    if len(headings) >= hd["min"] and (len(headings) * 100) / max(1, words) > hd["perHundred"]:
+        add(
+            "headings",
+            "warn",
+            f"{len(headings)} headings in {words} words. A heading every few lines turns a short piece into slides.",
+            "Keep the headings a reader would scan to, and write the rest as paragraphs.",
+            [{**h, "text": jstrip(h["text"])} for h in headings],
         )
 
     add(
@@ -455,7 +578,7 @@ def lint_prose(text):
     )
 
     bold = []
-    for ptext, pindex in paras:
+    for ptext, pindex, _ in paras:
         if LIST.match(ptext) or re.match(rf"{S}*\|", ptext):
             continue
         hits = list(BOLD.finditer(ptext))
@@ -463,14 +586,30 @@ def lint_prose(text):
             bold.extend(t.locate(pindex + h.start(), text[pindex + h.start() : pindex + h.end()]) for h in hits)
     add("bold", "warn", "Bold sprinkled through a paragraph shouts.", "Let the sentence carry the weight.", bold)
 
-    unfinished = []
-    for m in RULES["markers"]:
-        upper = is_marker_word(m)
-        pattern = rx(rf"\b{m}\b" if upper else js_pattern(m), 0 if upper else re.I)
-        unfinished.extend(t.all(pattern, unquoted))
-    unfinished.sort(key=lambda m: m["index"])
-    add("unfinished", "fail", "Placeholder text left in.", "Write the real words, or cut the line.", unfinished)
+    add(
+        "unfinished",
+        "fail",
+        "Placeholder text left in.",
+        "Write the real words, or cut the line.",
+        sorted([m for pattern in MARKERS for m in t.all(pattern, unquoted)], key=lambda m: m["index"]),
+    )
 
+    # No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
+    weak = [fs for fs in ([f for f in findings if f["id"] in ids] for ids in KINDS) if fs]
+    if len(weak) >= RULES["stacked"]["min"]:
+        add(
+            "stacked-tells",
+            "fail",
+            f"{len(weak)} different small tells in {words} words ({', '.join(f['id'] for fs in weak for f in fs)}). "
+            "Each one is common alone; together they read as machine-made.",
+            "Rewrite the ones that are not your own voice until only one kind remains.",
+            sorted([fs[0]["matches"][0] for fs in weak], key=lambda m: m["index"]),
+        )
+
+    if strict:
+        for f in findings:
+            if f["severity"] == "warn" and f["id"] in STRICT:
+                f["severity"] = "fail"
     return {"ok": not any(f["severity"] == "fail" for f in findings), "words": words, "findings": findings}
 
 
@@ -498,6 +637,7 @@ def main():
     ap = argparse.ArgumentParser(description="Lint prose for the tells of machine-made writing.")
     ap.add_argument("files", nargs="+", metavar="FILE", help='files to lint; "-" reads stdin')
     ap.add_argument("--json", action="store_true", help="print the lint as JSON")
+    ap.add_argument("--strict", action="store_true", help="fail on the em dash and every other tell, not only warn")
     ap.add_argument("--max", type=int, default=6, help="places shown per finding, 1 or more (default 6)")
     a = ap.parse_args()  # a bad flag or no files: exit status 2
     if a.max < 1:
@@ -512,7 +652,7 @@ def main():
         except OSError:
             print(f"I can't read {f}.", file=sys.stderr)
             return 2
-        results.append((f, lint_prose(raw.decode("utf-8", errors="replace"))))
+        results.append((f, lint_prose(raw.decode("utf-8", errors="replace"), a.strict)))
     if a.json:
         out = results[0][1] if len(results) == 1 else [{"file": f, **l} for f, l in results]
         print(json.dumps(out, ensure_ascii=False, indent=2))

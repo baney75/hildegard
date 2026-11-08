@@ -14,7 +14,7 @@ import { memoryStore } from './helpers.ts';
 
 const H = { 'x-hildegard': '1', 'content-type': 'application/json' };
 const PASS = 'a long and private passphrase';
-const STOCK = 'We will delve into the realm of it — and it is robust.';
+const STOCK = 'We will delve into the realm of it. TODO make it robust.';
 
 const freePort = () =>
   new Promise<number>((resolve) => {
@@ -56,8 +56,19 @@ describe('POST /api/writing/lint', () => {
     const got = (await res.json()) as ProseLint;
     expect(got).toEqual(lintProse(STOCK));
     expect(got.ok).toBe(false);
-    expect(got.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['stock-words', 'dashes']));
+    expect(got.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['stock-words', 'unfinished']));
     expect(got.findings[0]!.matches[0]).toMatchObject({ line: 1, column: expect.any(Number) });
+  });
+
+  it('fails an em dash only when the strict profile is asked for', async () => {
+    const dashed = 'We painted the barn in May\u2014the weather held.';
+    const plain = (await (await lint(srv.url, { text: dashed })).json()) as ProseLint;
+    expect(plain).toEqual(lintProse(dashed));
+    expect(plain).toMatchObject({ ok: true, findings: [{ id: 'em-dash', severity: 'warn' }] });
+    const strict = (await (await lint(srv.url, { text: dashed, strict: true })).json()) as ProseLint;
+    expect(strict).toEqual(lintProse(dashed, { strict: true }));
+    expect(strict).toMatchObject({ ok: false, findings: [{ id: 'em-dash', severity: 'fail' }] });
+    expect((await lint(srv.url, { text: dashed, strict: 'yes' })).status).toBe(400);
   });
 
   it('passes plain words', async () => {

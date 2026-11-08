@@ -1,0 +1,49 @@
+{
+  "name": "wind",
+  "note": "Wind with slow gusts, eight seconds. Vary: the bandpass cutoff points (lower values are a heavier wind), the lfo.rate (0.1 to 0.6), dur.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "pink",
+      "stereo": true,
+      "dur": 8.0,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": [[0, 380], [2.5, 900], [5.0, 480], [8.0, 700]],
+        "q": 1.3,
+        "poles": 4,
+        "lfo": {
+          "rate": 0.37,
+          "octaves": 0.35
+        }
+      },
+      "env": {
+        "points": [[0, 0.35], [2.5, 1], [5.0, 0.5], [8.0, 0.4]]
+      }
+    },
+    {
+      "source": "brown",
+      "stereo": true,
+      "dur": 8.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 240,
+        "q": 0.8
+      },
+      "env": {
+        "points": [[0, 0.3], [2.5, 0.9], [5.0, 0.4], [8.0, 0.3]]
+      },
+      "gain_db": -4
+    }
+  ],
+  "master": {
+    "fade": {
+      "in": 0.6,
+      "out": 0.8
+    },
+    "loudness": {
+      "lufs": -26,
+      "true_peak": -1
+    }
+  }
+}

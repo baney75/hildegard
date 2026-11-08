@@ -7,8 +7,7 @@ description: Use for /hildegard, /art, /vus, /mus, /suno and any creative or wri
 
 ## Start here: the one place to look
 
-Find the request in this table and read only what it names. For these, that is all you need: don't open other skills
-or references unless the one you're in sends you there.
+Find the request in this table and read only what it names. For these, that is all you need: don't open other skills or references unless the one you're in sends you there.
 
 | The request | Read |
 |---|---|
@@ -76,10 +75,11 @@ Hildegard is built in layers. Use the top layer always, and load the others as t
 | palettes, color coding, correction, grading | `color.md` |
 | film or animation production | `film-animation.md` |
 | cutting any footage | `video-editing.md` |
-| sound effects, soundscapes, music made here, mixing, mastering, dialogue | `sound-design.md` |
+| music, a jingle, a bed, sound effects, soundscapes made here | the `hildegard-music` skill (presets and templates its scripts render, no GPU), then `sound-design.md` for mixing, mastering, dialogue |
 | podcasts, audio documentaries, audiobooks | `podcast.md` |
 | songs, lyrics, hymns for Suno | `song-suno.md` (5h) |
 | music videos, lyric videos, visualizers, Canvas | `music-video.md` (5i) |
+| animated type and graphics drawn in code: title cards, promos, quotes, data reveals, photo slideshows, kinetic type | the `hildegard-motion` skill: copy a template, run its check, render, look at the sheet |
 | sculpture, 3D models, printing, renders | `sculpture-3d.md` |
 | fiction, poetry, scripts, prayer, speech | `writing-craft.md` |
 | essays, nonfiction, research, APA, Chicago or MLA | `nonfiction-academic.md` |
@@ -110,6 +110,7 @@ When the Hildegard tools are here (`hildegard_status` answers), the user's own G
 | Film, shots, sequences | `direct_shot`, `make_sequence`, `export_film`, then `review_take` on every take | `hildegard-film`, `hildegard-video-edit` |
 | Characters who stay the same across shots | `create_character`, `make_character_stills`, `keep_still`, then cast them in `direct_shot` | `hildegard-film` |
 | Stills, key art, covers | `make_image` (words to image, or an edit of up to four references, in Cinema’s camera language), or a held shot; `review_take` | `hildegard-art`, `hildegard-photo-edit` |
+| Instrumental music, a jingle, a bed, sound effects | none needed: `hildegard-music` renders presets and scores with its own scripts (a real song with a voice: write the Suno brief, `references/song-suno.md`) | `hildegard-music` |
 | Voice, narration, dubbing | `speak`, `design_voice`, `dub`, `transcribe` (never a clone without the person's consent session) | `hildegard-sound` |
 | Sculpture, 3D models, prints | `loop_start` kind `model`, then `loop_submit`, `loop_critique`, `loop_finish` | `hildegard-3d` |
 | Iterating any image, video or sound until it is right | `loop_start` with that kind, then the same loop | `hildegard-loop` |
@@ -369,7 +370,7 @@ Run the check for the medium, view everything it writes, and fix the problems be
 
 **3D:** with Hildegard connected, run the model loop (`hildegard-3d`): every round is measured and drawn from eight sides. Otherwise run `inspect_3d.py` from `references/sculpture-3d.md` (Checks), then real renders from four to eight angles.
 
-**Writing:** lint every draft before anyone sees it: `lint_writing` with Hildegard connected, otherwise `python3 scripts/prose_lint.py draft.md`. Lint again after each fix. For everyday prose (blog posts, newsletters, pages, emails, posts: `references/blog.md`), every fail must be fixed, and each warn too unless it is the writer's deliberate voice. For fiction, poetry, scripts, prayer and speech (`references/writing-craft.md`) and academic work (`references/nonfiction-academic.md`), treat every finding, fails included, as a warning the writer's voice, form or field may keep (a poem's dash, “robust standard errors”), and say which you kept. Then run the checks in `references/writing-craft.md` (or `references/blog.md` for everyday prose); for academic work, also the checklist in `references/nonfiction-academic.md` (every source verified and every citation generated, never invented). Report the lint result in the delivery.
+**Writing:** lint every draft before anyone sees it: `lint_writing` with Hildegard connected, otherwise `python3 scripts/prose_lint.py draft.md`. Lint again after each fix. For everyday prose (blog posts, newsletters, pages, emails, posts: `references/blog.md`), every fail must be fixed, and each warn too unless it is the writer's deliberate voice. For fiction, poetry, scripts, prayer and speech (`references/writing-craft.md`) and academic work (`references/nonfiction-academic.md`), treat every finding, fails included, as a warning the writer's voice, form or field may keep (a poem's dash, “robust standard errors”), and say which you kept. An em dash is a warning, not a fail, because many readers now take one for a machine tell: change it to a comma, a colon, parentheses or two sentences unless it is truly the writer's. For writing that must carry no tells at all, lint with `--strict` (`lint_writing` with `strict: true`), where the em dash and the other tells fail. Then run the checks in `references/writing-craft.md` (or `references/blog.md` for everyday prose); for academic work, also the checklist in `references/nonfiction-academic.md` (every source verified and every citation generated, never invented). Report the lint result in the delivery.
 
 **Interactive.** Take screenshots of the first, middle and explored states, and check the console for errors.
 

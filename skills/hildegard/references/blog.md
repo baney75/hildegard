@@ -66,8 +66,8 @@ Run the prose lint on the draft and on every revision. With Hildegard connected,
 python3 scripts/prose_lint.py draft.md
 ```
 
-Fix every finding marked fail. Fix each one marked warn unless it is the writer's real voice (a dash they always use, a list that
-really has three parts), and tell them which warnings you kept and why. Lint again after each fix; new sentences
+Fix every finding marked fail. Fix each one marked warn unless it is the writer's real voice (a list that really has three parts, bold
+labels on a reference page), and tell them which warnings you kept and why. Lint again after each fix; new sentences
 bring new tells. Never show a draft that fails.
 
 The lint catches the tells it can see. It can't catch a post with nothing to say. Before delivering, check the

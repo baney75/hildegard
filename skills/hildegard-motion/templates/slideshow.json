@@ -1,0 +1,74 @@
+{
+  "title": "Four photos with slow camera moves, a title, and captions",
+  "canvas": { "width": 1920, "height": 1080, "fps": 30, "background": "#000000" },
+  "duration": 16,
+  "fonts": { "head": { "google": "Playfair Display" }, "body": { "google": "Inter" } },
+  "fade": { "in": 0.6, "out": 1.0 },
+  "captions": {
+    "size": 3.8,
+    "cues": [
+      { "start": 1.2, "end": 4.0, "text": "First light on the ridge" },
+      { "start": 5.7, "end": 8.4, "text": "The meadow after rain" },
+      { "start": 10.1, "end": 12.8, "text": "Warm sand, cool wind" },
+      { "start": 14.0, "end": 15.5, "text": "Home by dusk" }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "one",
+      "duration": 4.6,
+      "camera": { "preset": "push-in", "amount": 0.1 },
+      "layers": [
+        { "type": "image", "file": "sample:dawn" },
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.5,
+          "y": 0.5,
+          "w": 1,
+          "h": 1,
+          "fill": {
+            "type": "radial",
+            "radius": 0.9,
+            "stops": [{ "at": 0.4, "color": "#00000000" }, { "at": 1, "color": "#00000066" }]
+          }
+        },
+        {
+          "type": "text",
+          "text": "Summer in the Hills",
+          "font": "head",
+          "weight": 700,
+          "size": 9,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.3,
+          "shadow": true,
+          "enter": { "type": "rise", "duration": 0.9, "delay": 0.2 },
+          "exit": { "type": "fade", "duration": 0.6 },
+          "end": 3.2
+        }
+      ]
+    },
+    {
+      "id": "two",
+      "duration": 4.6,
+      "transition": { "type": "crossfade", "duration": 0.8 },
+      "camera": { "preset": "pan-right", "amount": 0.08 },
+      "layers": [{ "type": "image", "file": "sample:moss" }]
+    },
+    {
+      "id": "three",
+      "duration": 4.6,
+      "transition": { "type": "crossfade", "duration": 0.8 },
+      "camera": { "preset": "pull-out", "amount": 0.1 },
+      "layers": [{ "type": "image", "file": "sample:sand" }]
+    },
+    {
+      "id": "four",
+      "duration": 4.6,
+      "transition": { "type": "crossfade", "duration": 0.8 },
+      "camera": { "preset": "drift" },
+      "layers": [{ "type": "image", "file": "sample:dusk" }]
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "name": "typewriter",
+  "note": "A burst of typing and the carriage bell. Vary: events.count and interval (0.1 to 0.2) on the two key layers, jitter (0.5 steady to 1.0 human), the bell's start and freq.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "white",
+      "dur": 0.014,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 3200,
+        "q": 1.8
+      },
+      "env": {
+        "attack": 0.0003,
+        "decay": 0.0117,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "events": {
+        "count": 14,
+        "interval": 0.14,
+        "jitter": 0.9,
+        "gain_jitter_db": 4,
+        "pitch_jitter_cents": 400
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 190,
+      "sweep": {
+        "to": 120,
+        "time": 0.03
+      },
+      "dur": 0.05,
+      "env": {
+        "attack": 0.0008,
+        "decay": 0.045,
+        "sustain": 0.0,
+        "release": 0.004
+      },
+      "gain_db": -4,
+      "events": {
+        "count": 14,
+        "interval": 0.14,
+        "jitter": 0.9,
+        "gain_jitter_db": 4,
+        "pitch_jitter_cents": 200
+      }
+    },
+    {
+      "source": "fm",
+      "freq": 2600,
+      "start": 2.15,
+      "fm": {
+        "ratio": 2.76,
+        "index_points": [[0, 1.2], [0.7, 0.1], [1.0, 0]]
+      },
+      "dur": 1.0,
+      "env": {
+        "points": [[0, 1], [0.01, 0.9], [1.0, 0]],
+        "curve": "exp"
+      },
+      "gain_db": -6
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.1,
+      "room": 0.3
+    },
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}
