@@ -315,7 +315,9 @@ runpy.run_path(script, run_name="__main__")
   });
 
   describe('SKILL.md', () => {
-    const md = readFileSync(join(scripts, '../SKILL.md'), 'utf8');
+    // Windows checks files out with CRLF (git's autocrlf), and `^`, `$` and the \n in these patterns mean LF. Read the
+    // file as LF: the checks below still look at the same words in the same places.
+    const md = readFileSync(join(scripts, '../SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
     it('starts with the fast path', () => {
       const body = md.split(/^---$/m)[2] ?? '';
       expect(body.trimStart().split('\n').slice(0, 3).join('\n')).toMatch(
