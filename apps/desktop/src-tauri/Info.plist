@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Hildegard uses your microphone only when you tap Record in the Studio, to record your voice for a film. Recordings stay on this computer.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Hildegard uses your camera only when you tap Record in the Studio and choose video, to record yourself for a film. Recordings stay on this computer.</string>
+</dict>
+</plist>
