@@ -104,6 +104,17 @@ describe('the Markdown renderer', () => {
     // What is inside a span is literal.
     expect(markdown('`*a* <b>`')).toBe('<p><code>*a* &lt;b&gt;</code></p>');
   });
+  it('keeps the held-piece markers as visible escapes, and leaves the digits of a post alone', () => {
+    // The markers are U+E000 and U+E001. Written as literal characters they are invisible in a diff, so the source spells them out.
+    const src = readFileSync(join(import.meta.dirname, '../src/markdown.ts'), 'utf8');
+    expect([...src].filter((ch) => ch >= '\uE000' && ch <= '\uF8FF')).toEqual([]);
+    expect(markdown('Founded in 2026, we sell 3 kinds of tea.')).toBe(
+      '<p>Founded in 2026, we sell 3 kinds of tea.</p>',
+    );
+    expect(markdown('In 2026 we sell `x` 3 times, see [a](/b) 0 1 and 2026.')).toBe(
+      '<p>In 2026 we sell <code>x</code> 3 times, see <a href="/b">a</a> 0 1 and 2026.</p>',
+    );
+  });
 });
 
 describe('writing a post', () => {
@@ -362,6 +373,30 @@ describe('previewing a site that has notes and drafts', () => {
       const r = await get(rel);
       expect(r.status, rel).toBe(404);
       expect(r.body, rel).not.toContain('Private answer');
+    }
+  });
+  it('never shows notes through a name Windows reads as notes', async () => {
+    const made = await h.local('/api/sites', 'POST', { from: 'empty', title: 'Preview Aliases' });
+    const site = ((await made.json()) as { id: string }).id;
+    // Real files with these names, as a disk that treats them as aliases of notes would hold them.
+    const files = join(h.dir, 'sites', site, 'files');
+    for (const dir of ['notes.', 'notes ', 'Notes']) {
+      mkdirSync(join(files, dir), { recursive: true });
+      writeFileSync(join(files, dir, 'held.md'), 'Private alias answer');
+    }
+    writeFileSync(join(files, 'notes\\held.md'), 'Private alias answer');
+    writeFileSync(join(files, 'notes:held.md'), 'Private alias answer');
+    const view = (await (await h.local(`/api/sites/${site}`)).json()) as { preview: string };
+    for (const rel of [
+      'notes./held.md',
+      'notes%20/held.md',
+      'notes%5Cheld.md',
+      'Notes/held.md',
+      'notes%3Aheld.md',
+    ]) {
+      const r = await raw(h.srv.url, `${view.preview}${rel}`);
+      expect(r.status, rel).toBe(404);
+      expect(r.body, rel).not.toContain('Private alias answer');
     }
   });
 });

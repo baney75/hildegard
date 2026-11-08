@@ -29,8 +29,8 @@ function safeUrl(raw: string, allowMail: boolean): string | null {
   return escapeHtml(url);
 }
 
-const SLOT = /(\d+)/g;
-const HELD = /\d+/;
+const SLOT = /\uE000(\d+)\uE000/g;
+const HELD = /\uE000\d+\uE000/;
 
 const BACKTICK = 96;
 const isSpace = (c: number) =>
@@ -180,9 +180,9 @@ function links(text: string, hold: (html: string) => string): string {
 /** Inline Markdown in one block of text. */
 export function inline(text: string): string {
   const slots: string[] = [];
-  const hold = (html: string) => `${slots.push(html) - 1}`;
+  const hold = (html: string) => `\uE000${slots.push(html) - 1}\uE000`;
   // Code spans first: what is in them is literal.
-  let s = links(codeSpans(text.replace(/[]/g, ''), hold), hold);
+  let s = links(codeSpans(text.replace(/[\uE000\uE001]/g, ''), hold), hold);
   s = emphasis(escapeHtml(s));
   // Two spaces or a backslash at the end of a line is a line break. (The lookbehind keeps a long run of spaces from
   // being tried again from every space in it.)
