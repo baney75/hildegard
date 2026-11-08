@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Demo page</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #ffffff; font: 20px/1.5 system-ui, sans-serif; color: #111; }
+  main { padding: 48px; }
+  button { font: inherit; padding: 12px 24px; }
+  #out { margin-top: 24px; }
+</style>
+<main>
+  <h1>A page to demo</h1>
+  <label>Name <input id="name"></label>
+  <p><button type="button" id="go" onclick="document.getElementById('out').textContent = 'Hello, ' + document.getElementById('name').value">Say hello</button></p>
+  <p id="out"></p>
+</main>
+</html>
