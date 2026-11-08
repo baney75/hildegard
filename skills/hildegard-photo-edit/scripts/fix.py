@@ -15,7 +15,9 @@ Then run measure.py on OUT, and look at a before and after sheet (contact_sheet.
   --wb, --exposure, --warmth, --black   as in color.py
 
 The order: straighten (cut to no empty corners), crop to the shape, colour (measured on the picture as it will be seen), denoise, sharpen
-last. A step that cannot be trusted (tilt not clear, nothing to correct) is skipped and the report says so. Exit codes: 0 written,
+last. A step that cannot be trusted (tilt not clear, nothing to correct) is skipped and the report says so. A given subject that touches the
+frame's edge can lose part of itself to the straightening (no picture is left there): the report then warns, with how many pixels, and the
+crop keeps what is left; --angle 0 keeps all of it. Exit codes: 0 written,
 2 refused (the subject cannot fit the shape), 1 error.
 
 Needs Pillow and numpy:  python3 -m pip install pillow numpy   (OpenCV is not used)"""
@@ -29,6 +31,22 @@ import photolib as L  # noqa: E402
 import straighten, crop, color, denoise_sharpen, measure  # noqa: E402
 import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
+
+
+def subject_cut(box, w, h):
+    """How far a subject box (in the straightened picture's pixels, as map_box returns it) runs past the frame, per side, in whole pixels;
+    {} when it fits. map_box gives the bounding box of the turned subject, so a figure with slanted sides loses a little less than this."""
+    sides = {'left': -box[0], 'top': -box[1], 'right': box[2] - w, 'bottom': box[3] - h}
+    return {k: int(round(v)) for k, v in sides.items() if v >= 1.5}
+
+
+def cut_message(cut, tilt, box):
+    parts = ', '.join(f'about {v} px off its {k}' for k, v in cut.items())
+    kept_w, kept_h = max(0.0, box[2] - box[0] - cut.get('left', 0) - cut.get('right', 0)), max(0.0, box[3] - box[1] - cut.get('top', 0) - cut.get('bottom', 0))
+    share = 100.0 * kept_w * kept_h / max(1.0, (box[2] - box[0]) * (box[3] - box[1]))
+    return (f'STRAIGHTENING CUT THE SUBJECT: it touches the edge of the frame, and turning the picture back {abs(tilt):.2f} degrees leaves no picture there, '
+            f'so part of it is gone: {parts} (about {share:.0f} percent of the box is left). Everything that can stay is kept. If the whole subject must stay, '
+            f'rerun with --angle 0 (the picture stays tilted) or with a subject box that does not reach the edge')
 
 
 def fix(im, aspect=None, size=None, subject=None, family='auto', angle=None, wb='auto', exposure='auto', warmth=0.0, black='auto',
@@ -54,7 +72,11 @@ def fix(im, aspect=None, size=None, subject=None, family='auto', angle=None, wb=
             im, rbox = L.rotate_level(im, tilt)
             if box:
                 box = L.map_box(box, orig, tilt, (rbox[0], rbox[1]))
+                cut = subject_cut(box, im.width, im.height)
             step(f'straighten: tilt {tilt:+.2f} degrees ({trep.get("family") or "given"} lines), turned back, cut to {im.width}x{im.height} with no empty corners')
+            if box and cut:
+                rep['subject_cut'] = cut
+                rep['warnings'].append(cut_message(cut, tilt, box))
     rep['tilt_removed'] = round(tilt, 2)
     if do_crop and (aspect or size):
         asp = aspect if aspect else size[0] / size[1]
@@ -69,7 +91,8 @@ def fix(im, aspect=None, size=None, subject=None, family='auto', angle=None, wb=
             rep['refused'] = info
             return None, rep
         im = out
-        step(f'crop: box {info[0]},{info[1]},{info[2]},{info[3]} -> {im.width}x{im.height}, subject {"guessed" if guessed else "given"} and kept')
+        status = 'guessed and kept' if guessed else 'given and kept' if not rep.get('subject_cut') else 'given, partly cut by straightening (see WARNING); what is left is kept'
+        step(f'crop: box {info[0]},{info[1]},{info[2]},{info[3]} -> {im.width}x{im.height}, subject {status}')
     if size and im.size != tuple(size):
         if size[0] > im.width * 1.5:
             rep['warnings'].append(f'upscaled from {im.width}px to {size[0]}px wide: it will look soft')

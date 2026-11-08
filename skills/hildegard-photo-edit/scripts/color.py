@@ -8,8 +8,10 @@
               neutral, held back when those pixels are strongly coloured themselves (a red sign, a sunset sun)
               gray: gray-world, the average colour is grey, with highlights and shadows left out of the average; white: the same
               white-patch rule without the hold-back; none: leave the colour alone
-  --exposure  auto (default): place the highlights just under white and keep the mean brightness in a sane band, never by more than
-              1.5 stops and never blowing more highlights than the photo had; none; or a number of stops (+0.5 brightens)
+  --exposure  auto (default): lift a picture whose brightest 0.5 percent sits well under white until it is just under white (never by
+              more than 1.5 stops), and lower a picture that is bright overall (mean luminance 0.40 or more) with blown highlights.
+              It does not look at the mean alone: a dark picture with bright highlights (a window, a lamp, cloud) is left as shot,
+              and the report says so and names the --exposure to give if it should be brighter. none; or a number of stops (+0.5 brightens)
   --warmth    a manual nudge after the correction, in steps of about 2 percent (+3 warmer, -3 cooler); for light that should stay warm
   --black     auto (default): when more than 3 percent of the picture is crushed to pure black, lift the floor to a dark grey so shadows stay
               open; none for a silhouette or a night scene that should stay black
@@ -34,6 +36,7 @@ TARGET_TOP = 0.96  # where the brightest 0.5 percent should sit after an exposur
 LIFT_BELOW = 0.93  # a picture whose brightest 0.5 percent is under this is lifted
 CLIP_SHARE = 0.03  # more than this share of pixels at the top, in a picture that is bright overall, is blown, and the exposure comes down
 BRIGHT_MEAN = 0.40
+DARK_MEAN = 0.28  # a mean under this reads as dark (the SKILL.md reading table uses the same number)
 AXIS_BOOST = 1.3
 ORTH_KEEP = 0.8
 HOLD_SAT = 0.20  # highlights more coloured than this are partly left alone by the white balance
@@ -126,6 +129,22 @@ def exposure_stops(a, mode, clipped=None):
     return 0.0
 
 
+def exposure_note(a, stops, clipped):
+    """A plain sentence for a picture that exposure `auto` left alone although it reads dark, or has blown highlights without being bright
+    overall. The rules cannot lift such a picture without clipping its highlights, so a person decides and names the stops."""
+    mean = float(L.luma(a).mean())
+    if abs(stops) >= 0.03:
+        return None
+    if mean < DARK_MEAN:  # a dark picture is lifted, whether or not some of it is clipped: lowering pixels at white only turns them grey
+        clip = ' (the pixels already at white stay clipped)' if clipped > CLIP_SHARE else ''
+        return (f'left as shot: the mean brightness is {mean:.2f} (dark) but the brightest areas are already near white, so lifting would blow them; '
+                f'if it should look brighter, give --exposure +0.5 (stops) and check the highlights after{clip}, or leave a night or low-key scene dark')
+    if clipped > CLIP_SHARE and mean < BRIGHT_MEAN:
+        return (f'left as shot: {clipped * 100:.0f} percent of the picture is at white but the mean brightness is only {mean:.2f}, so the scene '
+                f'is dark on purpose or the highlights are lost for good (lost detail stays lost); give --exposure -0.5 to bring the whites down, or leave it')
+    return None
+
+
 def apply_exposure(a, stops):
     if abs(stops) < 0.03:
         return a
@@ -167,6 +186,10 @@ def correct(a, wb='auto', exposure='auto', warmth=0.0, black='auto', contrast='a
     if exposure != 'none':
         s = exposure_stops(a, exposure, clipped_before)
         done['exposure_stops'] = round(s, 2)
+        if exposure == 'auto':
+            note = exposure_note(a, s, clipped_before)
+            if note:
+                done['exposure_note'] = note
         a = apply_exposure(a, s)
     if contrast == 'auto':
         c = contrast_amount(a)

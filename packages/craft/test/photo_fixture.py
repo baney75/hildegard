@@ -7,6 +7,7 @@ degradations the tests apply to it.
   python3 photo_fixture.py cast IN OUT R G B         multiply the channels
   python3 photo_fixture.py stops IN OUT STOPS        change exposure in linear light
   python3 photo_fixture.py noise IN OUT SIGMA        add luma and colour noise (sigma in 8-bit levels)
+  python3 photo_fixture.py darkbright OUT PATCH      a dark grey picture (mean luma about 0.2) with a bright patch of value PATCH over 5 percent of it
   python3 photo_fixture.py flat OUT                  a grey picture with only noise: no lines at all
   python3 photo_fixture.py stats IN [REF]            JSON: mean colour as log R/G and log B/G, mean luma, corner and border blackness"""
 import json
@@ -80,6 +81,11 @@ def main(argv):
         rng = np.random.default_rng(3)
         s = float(argv[4]) / 255.0
         save(np.clip(a + (0.7 * rng.standard_normal(a.shape[:2])[..., None] + 0.5 * rng.standard_normal(a.shape)) * s, 0, 1), argv[3])
+    elif cmd == 'darkbright':
+        rng = np.random.default_rng(11)
+        a = np.clip(0.17 + rng.normal(0, 0.004, (800, 1200, 3)), 0, 1).astype(np.float32)
+        a[:200, :240] = float(argv[3])
+        save(a, argv[2])
     elif cmd == 'flat':
         rng = np.random.default_rng(5)
         save(np.clip(0.5 + rng.normal(0, 0.05, (700, 900, 3)), 0, 1).astype(np.float32), argv[2])

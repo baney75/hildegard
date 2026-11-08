@@ -37,7 +37,9 @@ python3 scripts/contact_sheet.py compare.png photo.jpg out.jpg       # then LOOK
   cuts to the largest rectangle with **no black wedges**. If it refuses ("not clear enough"), leave the photo as shot and say so, or give
   `--angle` only when a measurement (not a hunch) says what it is. A wrong turn makes a photo worse.
 - **The crop must keep the subject named in the brief.** Pass it with `--subject`: two numbers are its centre, four are its box
-  (left, top, right, bottom), as fractions (0 to 1) of the picture. `crop.py` never cuts that box and refuses if it cannot fit.
+  (left, top, right, bottom), as fractions (0 to 1) of the picture. `crop.py` never cuts that box and refuses if it cannot fit. Straightening can still cut a subject that touches the edge of the
+  frame (turning back leaves no picture there): `fix.py` then prints `WARNING: STRAIGHTENING CUT THE SUBJECT` with how many pixels went. Tell your
+  user, or rerun with `--angle 0`.
 - **Correct colour from the picture, with limits.** `color.py` brings the light to neutral from the brightest unclipped pixels and holds back
   when those are strongly coloured (a red sign, a sunset sun). A warm evening photo should keep its warmth: if the report shows the
   picture was already warm on purpose, use `--wb none` or `--warmth +2`.
@@ -55,8 +57,9 @@ python3 scripts/contact_sheet.py compare.png photo.jpg out.jpg       # then LOOK
 | tilt `+2.1` (counter-clockwise) | the horizon rises to the right by 2.1 degrees | `straighten.py` (or `fix.py`) |
 | tilt unclear | no clear straight lines | leave it, or `--angle` from a real measurement |
 | gray-world error over 0.2 | strong cast, or a scene that is one colour | `color.py --wb auto`; keep warm light with `--wb none` |
-| mean luminance under 0.28 or over 0.65 | dark or bright | `color.py --exposure auto` |
-| clipped highlights over 0.05 | blown | `color.py` lowers exposure (detail already lost stays lost) |
+| mean luminance under 0.28 | dark | `color.py --exposure auto` lifts it when its brightest areas are well under white. If the picture has bright highlights (a window, a lamp, cloud) auto leaves it and the report says so: give `--exposure +0.5` (stops), check the highlights, or leave a night scene dark |
+| mean luminance over 0.65 | bright | `color.py --exposure auto` lowers it when highlights are blown |
+| clipped highlights over 0.05 | blown | `color.py --exposure auto` lowers exposure only when the picture is bright overall (mean 0.40 or more); in a dark picture (mean under 0.28) it says so and gives `--exposure +0.5` as in the dark row, since lowering pixels already at white only turns them grey; between 0.28 and 0.40 `--exposure -0.5` is yours to give (detail already lost stays lost) |
 | clipped shadows over 0.08 | crushed | `color.py` opens the floor (`--black none` for silhouettes) |
 | noise over 4 | grainy | `denoise_sharpen.py` |
 
@@ -77,10 +80,10 @@ python3 scripts/measure.py final.jpg [reference.jpg]                            
 - `straighten.py`: an orientation-restricted Hough transform on the edge map. It prints the tilt, the lines it trusted and a confidence,
   and refuses below the confidence floor. A tilt under 0.6 degrees is left alone. Perspective (a building shot from below) is not tilt:
   when the horizontal and vertical lines disagree it refuses and asks you to name the family.
-- `color.py`: white balance, exposure from the highlights (a dark picture goes up until its brightest 0.5 percent is just under white;
-  blown ones come down), an opened shadow floor, and a gentle contrast curve only on a flat picture. No synthetic gradient, ever.
+- `color.py`: white balance, exposure from the highlights (a picture whose brightest 0.5 percent sits well under white goes up until it is just under white;
+  a bright one with blown highlights comes down; a dark one that already has bright highlights is left, with a note naming the `--exposure` to give), an opened shadow floor, and a gentle contrast curve only on a flat picture. No synthetic gradient, ever.
 - `denoise_sharpen.py`: light non-local-means denoise, stronger on colour noise, then an unsharp mask on luma only with a soft threshold
-  and a local limit against halos. It skips a clean photo.
+  and a local limit against halos. It skips a clean photo. `--denoise 0` and `--sharpen 0` mean off, the same as `none`.
 - `crop.py`: the largest window of the shape, always holding the subject box with a margin, placed on a third (or the centre for a large
   subject) the way the picture already leans. With no `--subject` it guesses from a saliency map and says so: name the subject when you can.
 - `measure.py`: numbers with a plain reading beside each. A reading is a hint (a sunset is meant to be warm), not a verdict.
@@ -91,19 +94,24 @@ Commands are ImageMagick 7 (`magick`). With ImageMagick 6 write `convert`. Use t
 care: measure, change one thing, look. Check a result with `magick identify`, and by looking at it.
 
 ```sh
-# Orientation and straighten (ANGLE: degrees to turn clockwise; read it from a measurement or a line you can see, not a guess)
+# Orientation and straighten (ANGLE: degrees to turn clockwise; read it from a measurement or a line you can see, not a guess).
+# The turn makes the canvas bigger, so CROP is the largest rectangle with no black corners, worked out from the ORIGINAL width and height
+# (the same size straighten.py cuts: 3000x2000 at 2 degrees gives 2931x1894). Do not crop by a percentage of the turned picture.
 magick in.jpg -auto-orient step1.jpg
 ANGLE=2.1; W=$(magick step1.jpg -format %w info:); H=$(magick step1.jpg -format %h info:)
-PCT=$(awk -v a=$ANGLE -v w=$W -v h=$H 'BEGIN{t=a*3.14159265/180; m=(w>h?w:h)/(w>h?h:w); printf "%.2f", 100/(cos(t)+m*sin(t))-0.5}')
-magick step1.jpg -background black -rotate $ANGLE +repage -gravity center -crop ${PCT}%x${PCT}% +repage straight.jpg   # no black corners
+CROP=$(awk -v a=$ANGLE -v w=$W -v h=$H 'BEGIN{t=(a<0?-a:a)*3.14159265358979/180; s=sin(t); c=cos(t); L=(w>h?w:h); S=(w>h?h:w)
+  if (S<=2*s*c*L || (s-c<1e-10 && c-s<1e-10)) {x=0.5*S; if (w>=h) {wr=x/s; hr=x/c} else {wr=x/c; hr=x/s}}
+  else {c2=c*c-s*s; wr=(w*c-h*s)/c2; hr=(h*c-w*s)/c2}
+  cw=int(wr)-4; ch=int(hr)-4; if (cw<2) cw=2; if (ch<2) ch=2; printf "%dx%d", cw, ch}')
+magick step1.jpg -background black -rotate $ANGLE +repage -gravity center -crop ${CROP}+0+0 +repage straight.jpg   # no black corners; check the size
 # Crop to 4:5 around the subject's centre (CX,CY in pixels, read off the picture): the window is as tall as the picture, then slid sideways
 W=$(magick straight.jpg -format %w info:); H=$(magick straight.jpg -format %h info:); CX=1500
 CW=$(awk -v h=$H 'BEGIN{printf "%d", h*0.8}'); X=$(awk -v c=$CX -v w=$CW -v W=$W 'BEGIN{x=c-w/2; if(x<0)x=0; if(x>W-w)x=W-w; printf "%d", x}')
 magick straight.jpg -crop ${CW}x${H}+${X}+0 +repage cropped.jpg              # check the subject is whole: look at it
-# White balance from the picture: scale each channel so the means match (gray-world)
-read R G B < <(magick in.jpg -format "%[fx:mean.r] %[fx:mean.g] %[fx:mean.b]" info:)
-magick in.jpg -channel R -evaluate multiply $(awk -v a=$R -v b=$G -v c=$B 'BEGIN{m=(a+b+c)/3; print m/a}') \
-  +channel -channel B -evaluate multiply $(awk -v a=$R -v b=$G -v c=$B 'BEGIN{m=(a+b+c)/3; print m/c}') +channel wb.jpg
+# White balance from the picture: scale every channel by (mean of the three channel means) / (that channel's mean), so all three end equal (gray-world)
+read R G B < <(magick in.jpg -format "%[fx:mean.r] %[fx:mean.g] %[fx:mean.b]\n" info:)
+read KR KG KB < <(awk -v a=$R -v b=$G -v c=$B 'BEGIN{m=(a+b+c)/3; print m/a, m/b, m/c}')
+magick in.jpg -color-matrix "$KR 0 0  0 $KG 0  0 0 $KB" wb.jpg
 # Exposure: pull the mean toward 0.45 (only when the picture is clearly dark or bright), never past clipping
 G=$(magick wb.jpg -colorspace Gray -format "%[fx:log(mean)/log(0.45)]" info:); magick wb.jpg -gamma $G exposed.jpg
 magick in.jpg -color-matrix "1.04 0 0  0 1 0  0 0 0.95" warmer.jpg           # nudge warmer (R up, B down) only for light that should be warm
