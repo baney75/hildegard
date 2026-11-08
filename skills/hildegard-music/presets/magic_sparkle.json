@@ -1,0 +1,129 @@
+{
+  "name": "magic_sparkle",
+  "note": "A glittering rising run of bells, then it hangs in air. Vary: the six freq values (a pentatonic scale; shift all by the same ratio for another key), the starts (0.05 to 0.1 apart), reverb.room.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "fm",
+      "freq": "C6",
+      "start": 0.0,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": -0.4,
+      "gain_db": 0
+    },
+    {
+      "source": "fm",
+      "freq": "D6",
+      "start": 0.07,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": 0.3,
+      "gain_db": -1
+    },
+    {
+      "source": "fm",
+      "freq": "E6",
+      "start": 0.14,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": -0.2,
+      "gain_db": -1
+    },
+    {
+      "source": "fm",
+      "freq": "G6",
+      "start": 0.21,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": 0.5,
+      "gain_db": -2
+    },
+    {
+      "source": "fm",
+      "freq": "A6",
+      "start": 0.28,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": -0.5,
+      "gain_db": -2
+    },
+    {
+      "source": "fm",
+      "freq": "C7",
+      "start": 0.35,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 1.8], [0.4, 0.2], [1.0, 0]]
+      },
+      "dur": 1.1,
+      "env": {
+        "points": [[0, 1], [0.01, 0.85], [1.1, 0]],
+        "curve": "exp"
+      },
+      "pan": 0.2,
+      "gain_db": -3
+    },
+    {
+      "source": "white",
+      "dur": 0.6,
+      "start": 0.05,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 7000
+      },
+      "env": {
+        "points": [[0, 0], [0.12, 0.6], [0.6, 0]]
+      },
+      "gain_db": -26,
+      "stereo": true
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.4,
+      "room": 0.8,
+      "damp": 0.4,
+      "predelay_ms": 20
+    },
+    "loudness": {
+      "lufs": -21,
+      "true_peak": -1
+    }
+  }
+}

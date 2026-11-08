@@ -8,10 +8,14 @@
 
 Every cell is labeled (file name, or time and shot number for video) so the user can answer
 "B3" instead of describing a picture. Video mode samples every N seconds AND every detected
-shot boundary (ffmpeg scene score > threshold), sorted by time.
+shot boundary (ffmpeg scene score > threshold), sorted by time. Needs Pillow (python3 -m pip install pillow); video mode
+also needs ffmpeg and ffprobe on PATH.
 """
 import argparse, glob, os, re, subprocess, sys, tempfile
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    sys.exit("Pillow is not installed and contact_sheet.py needs it. Install it with: python3 -m pip install pillow")
 
 def font(size):
     for f in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans.ttf",

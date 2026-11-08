@@ -1,0 +1,118 @@
+{
+  "title": "Kinetic type for an announcement: one short phrase per scene",
+  "canvas": { "width": 1920, "height": 1080, "fps": 30, "background": "#111111" },
+  "duration": 13.4,
+  "fonts": { "big": { "google": "Bebas Neue" }, "body": { "google": "Inter" } },
+  "scenes": [
+    {
+      "id": "when",
+      "duration": 3,
+      "background": "#ffcc00",
+      "layers": [
+        {
+          "type": "text",
+          "text": "THIS SUNDAY",
+          "font": "big",
+          "size": 26,
+          "color": "#111111",
+          "x": 0.5,
+          "y": 0.5,
+          "enter": { "type": "pop", "split": "char", "stagger": 0.045, "duration": 0.45 }
+        }
+      ]
+    },
+    {
+      "id": "time",
+      "duration": 3,
+      "transition": { "type": "slide", "duration": 0.4, "direction": "left" },
+      "background": "#111111",
+      "layers": [
+        {
+          "type": "text",
+          "text": "10 AM",
+          "font": "big",
+          "size": 34,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.5,
+          "enter": { "type": "slide-from-right", "duration": 0.6, "distance": 0.12 }
+        },
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.5,
+          "y": 0.78,
+          "w": 0.2,
+          "h": 0.01,
+          "fill": "#ffcc00",
+          "enter": { "type": "grow", "direction": "right", "duration": 0.7, "delay": 0.4 }
+        }
+      ]
+    },
+    {
+      "id": "invite",
+      "duration": 3,
+      "transition": { "type": "wipe", "duration": 0.4, "direction": "right" },
+      "background": "#e63946",
+      "layers": [
+        {
+          "type": "text",
+          "text": "BRING A FRIEND",
+          "font": "big",
+          "size": 22,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.5,
+          "enter": { "type": "rise", "split": "word", "stagger": 0.2, "duration": 0.5 }
+        }
+      ]
+    },
+    {
+      "id": "welcome",
+      "duration": 3,
+      "transition": { "type": "slide", "duration": 0.4, "direction": "up" },
+      "background": "#1d3557",
+      "layers": [
+        {
+          "type": "text",
+          "text": "ALL ARE WELCOME",
+          "font": "big",
+          "size": 21,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.5,
+          "enter": { "type": "type", "duration": 1.0 }
+        }
+      ]
+    },
+    {
+      "id": "where",
+      "duration": 3,
+      "transition": { "type": "crossfade", "duration": 0.4 },
+      "background": "#ffcc00",
+      "layers": [
+        {
+          "type": "text",
+          "text": "GRACE CHURCH",
+          "font": "big",
+          "size": 16,
+          "color": "#111111",
+          "x": 0.5,
+          "y": 0.44,
+          "enter": { "type": "fade", "duration": 0.5 }
+        },
+        {
+          "type": "text",
+          "text": "12 Mill Road, Fairview",
+          "font": "body",
+          "weight": 600,
+          "size": 4.2,
+          "color": "#111111",
+          "x": 0.5,
+          "y": 0.62,
+          "enter": { "type": "fade", "duration": 0.5, "delay": 0.4 }
+        }
+      ]
+    }
+  ]
+}

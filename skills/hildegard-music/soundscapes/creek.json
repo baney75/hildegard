@@ -1,0 +1,20 @@
+{
+  "name": "creek",
+  "note": "A creek over stones: a bright babble with bubbles and the odd deeper gurgle. Vary: flow (0.2 trickle to 1 rushing), brightness.",
+  "vary": ["flow", "brightness", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "creek",
+      "flow": 0.55,
+      "brightness": 0.5
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -23,
+      "true_peak": -1
+    }
+  }
+}

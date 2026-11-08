@@ -1,0 +1,98 @@
+{
+  "name": "heartbeat",
+  "note": "A resting heartbeat, lub-dub, six beats. Vary: events.interval on all four layers (1.0 is about 60 bpm; 0.6 is a racing heart), the dub's start (0.2 to 0.3), layers[0].freq.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 78,
+      "sweep": {
+        "to": 46,
+        "time": 0.1
+      },
+      "dur": 0.2,
+      "env": {
+        "attack": 0.006,
+        "decay": 0.17,
+        "sustain": 0.0,
+        "release": 0.02
+      },
+      "events": {
+        "count": 6,
+        "interval": 1.0,
+        "jitter": 0.05
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 66,
+      "sweep": {
+        "to": 40,
+        "time": 0.1
+      },
+      "start": 0.24,
+      "dur": 0.18,
+      "env": {
+        "attack": 0.006,
+        "decay": 0.15,
+        "sustain": 0.0,
+        "release": 0.02
+      },
+      "gain_db": -4,
+      "events": {
+        "count": 6,
+        "interval": 1.0,
+        "jitter": 0.05
+      }
+    },
+    {
+      "source": "brown",
+      "dur": 0.1,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 180,
+        "q": 0.8
+      },
+      "env": {
+        "attack": 0.004,
+        "decay": 0.08,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "gain_db": -3,
+      "events": {
+        "count": 6,
+        "interval": 1.0,
+        "jitter": 0.05
+      }
+    },
+    {
+      "source": "brown",
+      "start": 0.24,
+      "dur": 0.09,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 150,
+        "q": 0.8
+      },
+      "env": {
+        "attack": 0.004,
+        "decay": 0.07,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "gain_db": -6,
+      "events": {
+        "count": 6,
+        "interval": 1.0,
+        "jitter": 0.05
+      }
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -26,
+      "true_peak": -1
+    }
+  }
+}

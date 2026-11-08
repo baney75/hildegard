@@ -1,0 +1,20 @@
+{
+  "name": "rain_roof_light",
+  "note": "Light rain on a roof: fine patter and a soft hiss. Vary: intensity (0.1 to 0.5), surface (roof, leaves, ground, window).",
+  "vary": ["intensity", "surface", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "rain",
+      "intensity": 0.25,
+      "surface": "roof"
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -23,
+      "true_peak": -1
+    }
+  }
+}

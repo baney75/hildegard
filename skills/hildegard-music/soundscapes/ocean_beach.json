@@ -1,0 +1,30 @@
+{
+  "name": "ocean_beach",
+  "note": "Waves on a beach: swells of irregular size and spacing, a wash that opens and a fizz of foam as each one draws back, a faint breeze. Never repeats. Vary: layers[0].period_s (6 slow to 12), intensity (0.3 calm to 0.9 big), foam, distance (0 at the shore to 1 far off).",
+  "vary": ["period_s", "intensity", "foam", "distance", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "waves",
+      "period_s": 9,
+      "intensity": 0.6,
+      "foam": 0.6,
+      "distance": 0.2,
+      "width": 0.7
+    },
+    {
+      "type": "wind",
+      "strength": 0.25,
+      "gustiness": 0.4,
+      "whistle": 0,
+      "gain_db": -14
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}
