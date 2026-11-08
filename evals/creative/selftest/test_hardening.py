@@ -146,6 +146,10 @@ with tempfile.TemporaryDirectory() as root:
     creds = os.path.join(cfg, '.credentials.json')
     os.makedirs(cfg)
     open(creds, 'w').write('{"selftest": "original"}\n')
+    # and one outside every folder the box hides by default, as a CLAUDE_CONFIG_DIR in /var/tmp would be
+    vcfg = f'/var/tmp/{tag}-cfg'
+    os.makedirs(vcfg, exist_ok=True)
+    open(os.path.join(vcfg, '.credentials.json'), 'w').write('{"selftest": "original"}\n')
     fake = os.path.join(bindir, 'claude')
     open(fake, 'w').write(f'''#!/bin/bash
 exec 3<>/dev/tcp/127.0.0.1/{calls_lst.port} && read -t 5 -u 3 _; exec 3<&-
@@ -154,7 +158,8 @@ case $PWD in
   */{t2}/work) echo "Segmentation fault" >&2; exit 139 ;;
   */{t3}/work) echo '{{"type":"result","result":"You have hit your usage limit","is_error":true}}'; exit 0 ;;
   */w3-5k-page/work) {{ [ "${{CLAUDE_CODE_OAUTH_TOKEN:-}}" = selftest-token ] && echo token=yes || echo token=no
-                       [ -e "$CLAUDE_CONFIG_DIR/.credentials.json" ] && echo creds=BOUND || echo creds=none; }} > report.txt ;;
+                       [ -e "$CLAUDE_CONFIG_DIR/.credentials.json" ] && echo creds=BOUND || echo creds=none
+                       grep -q original {vcfg}/.credentials.json 2>/dev/null && echo orig=READ || echo orig=hidden; }} > report.txt ;;
   */w4-cabinetmaker-bio/work) echo '{{"type":"result","result":"Failed to authenticate. API Error: 401 authentication_error: OAuth token has expired.","is_error":true}}'; exit 1 ;;
   */w5-greenhouse-email/work) ln -s "$HOME/keep.txt" draft.md ;;
   */v6-memorial-film/work) ln -s "$HOME/keep.txt" draft.md; chmod 0111 . ;;
@@ -286,11 +291,13 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     check('F12 sandbox.py prints no box with neither the token nor the opt-in', sb(HILDEGARD_EVAL_ALLOW_CREDENTIALS='') == [])
     check('F12 with CLAUDE_CODE_OAUTH_TOKEN set no credentials file is bound and the token is not in the argv',
           any(creds in x for x in plain) and withtok and not any('.credentials.json' in x or 'selftest-token' in x for x in withtok), withtok)
-    r = respond('w3-5k-page', HOME=shome, CLAUDE_CODE_OAUTH_TOKEN='selftest-token')
+    r = respond('w3-5k-page', HOME=shome, CLAUDE_CODE_OAUTH_TOKEN='selftest-token', CLAUDE_CONFIG_DIR=vcfg)
     rp = os.path.join(run('w3-5k-page'), 'work', 'report.txt')
     rep = dict(l.split('=', 1) for l in open(rp).read().split()) if os.path.exists(rp) else {}
-    check('F12 with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token and no credentials file', r.returncode == 0 and rep == {'token': 'yes', 'creds': 'none'},
+    check('F12 with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token and no credentials file', r.returncode == 0 and rep.get('token') == 'yes' and rep.get('creds') == 'none',
           (r.returncode, r.stderr, rep))
+    check('F12 a CLAUDE_CONFIG_DIR outside the hidden folders is hidden too: its credentials cannot be read by their path', rep.get('orig') == 'hidden', rep)
+    shutil.rmtree(vcfg, ignore_errors=True)
     # a sign-in or token-refresh failure stops the batch like a quota message
     r = respond('w4-cabinetmaker-bio')
     stop = os.path.join(run('w4-cabinetmaker-bio'), 'STOP')

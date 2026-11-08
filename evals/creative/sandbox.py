@@ -171,8 +171,16 @@ def responder(run, eval_dir):
     for h in sorted(_homes()):
         a += ['--tmpfs', h]
     a += ['--tmpfs', ev]
-    a += ['--ro-bind', exe, exe]
     chrome = chromium_dir(home, ev)
+    # The owner's claude config folder (its credentials, history and settings) may live outside the folders hidden above, say in
+    # /var/tmp: hide it too, or the model reads the credentials by their path. A layout where it holds what the box needs is refused.
+    cfg_dir = os.path.realpath(cfg)
+    if os.path.isdir(cfg_dir) and not any(_under(cfg_dir, h) for h in [*_homes(), '/tmp', '/run', ev]):
+        for need in (exe, chrome, run):
+            if need and (_under(need, cfg_dir) or _under(cfg_dir, need)):
+                raise SystemExit(f'CLAUDE_CONFIG_DIR ({cfg_dir}) overlaps {need}, which the box needs; move one of them. Refusing to run.')
+        a += ['--tmpfs', cfg_dir]
+    a += ['--ro-bind', exe, exe]
     if chrome:
         a += ['--ro-bind', chrome, chrome]
     a += ['--ro-bind', run, run, '--bind', work, work, '--dir', state]
