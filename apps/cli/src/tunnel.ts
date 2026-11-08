@@ -198,11 +198,10 @@ async function cloudflareLogin(ctx: Ctx): Promise<{ done: boolean; result?: Resu
 }
 
 /**
- * A public link is the person's own to turn on: at a terminal they confirm it here, in a script they say `--yes-public`.
- * Without either it changes nothing. (An AI app that runs this command in a pipe has neither.)
+ * A public link is the person's own to turn on: they confirm it here, at a terminal. Without one it changes nothing,
+ * and the answer names no command that would skip the question (an AI app reading it in a pipe gets nothing to run).
  */
 async function confirmPublic(ctx: Ctx, what: string): Promise<{ ok: true } | { ok: false; result: Result }> {
-  if (ctx.flags.has('yes-public')) return { ok: true };
   if (!ctx.json && process.stdin.isTTY) {
     console.log(`This link would be public. ${what}\n`);
     if (/^y(es)?$/i.test(await ask('Turn on a public link? [y/N] '))) return { ok: true };
@@ -216,8 +215,7 @@ async function confirmPublic(ctx: Ctx, what: string): Promise<{ ok: true } | { o
           id: 'public',
           title: 'Confirm the public link',
           status: 'needs-owner',
-          detail: `This link would be public. ${what} Run the command at a terminal and confirm, or add --yes-public if you mean it.`,
-          command: 'hildegard tunnel cloudflare --quick --yes-public',
+          detail: `This link would be public. ${what} Only you can turn it on: tap “Record on your phone” in the Hildegard Studio, or type the command yourself at a terminal and answer its question.`,
         },
       ],
       'A public link is yours to confirm; nothing was turned on.',
@@ -375,8 +373,8 @@ interface LinkOnAnswer {
 
 /**
  * `tunnel auto`: the best link available, in one step. The server decides the route once and says which; a private
- * one (Tailscale) is turned on, since you typed the command, and a public one only after you confirm it (here, or
- * `--yes-public`). It never picks Funnel.
+ * one (Tailscale) is turned on, since you typed the command, and a public one only after you confirm it here, at a
+ * terminal. It never picks Funnel.
  */
 async function auto(ctx: Ctx): Promise<Result> {
   const ask = (plan?: string, acceptPublic?: boolean) =>
@@ -393,9 +391,9 @@ async function auto(ctx: Ctx): Promise<Result> {
       const yes = await confirmPublic(ctx, a.plan.ask);
       if (!yes.ok) return { stop: yes.result };
       a = await ask(a.plan.id, true);
-      // The computer changed since it was asked (Tailscale came up): that is a new question, so ask it.
-      if (a.status === 'confirm' && a.plan && !a.plan.public) a = await ask(a.plan.id);
-      else if (a.status === 'confirm' || (a.status === 'needs-owner' && a.plan?.public))
+      // The computer changed since it was asked (Tailscale came up, say): that is a new question, and the one you
+      // answered was about another route, so nothing is turned on.
+      if (a.status === 'confirm' || (a.status === 'needs-owner' && a.plan?.public))
         return {
           stop: result(
             [],
@@ -498,7 +496,7 @@ export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
   if (action !== 'tailscale' && action !== 'cloudflare')
     return result(
       [],
-      'Use `hildegard tunnel`, `tunnel auto`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick [--yes-public] | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
+      'Use `hildegard tunnel`, `tunnel auto`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
       { ok: false },
     );
   if (ctx.flags.has('signup')) return signup(ctx, action, r);

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { type Exec, fileStore, parseArgs, type Spawn, startServer } from '@hildegard/server';
 import { describe, expect, it } from 'vitest';
-import { freePort, hildegard } from './harness.ts';
+import { freePort, hildegard, hildegardAtTerminal } from './harness.ts';
 
 class FakeChild extends EventEmitter {
   pid = 0;
@@ -115,25 +115,34 @@ describe('hildegard tunnel', () => {
       );
 
       // A quick tunnel needs no account, only the owner account here. It says it is temporary.
-      // A public link is the person's to confirm: with no terminal and no --yes-public, nothing is turned on.
+      // A public link is the person's to confirm at a terminal: without one, nothing is turned on, and the answer
+      // names no command that would skip the question.
       const unconfirmed = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
       expect(unconfirmed.needsOwner).toBe(true);
       expect(unconfirmed.steps[0]).toMatchObject({ id: 'public', status: 'needs-owner' });
       expect(unconfirmed.steps[0]!.detail).toMatch(/public/);
+      expect(unconfirmed.steps[0]!.command).toBeUndefined();
+      expect(JSON.stringify(unconfirmed)).not.toMatch(/yes-public/);
+      // The old skip flag is gone: it asks, like any other run without a terminal.
+      const flagged = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
+      expect(flagged.steps[0]).toMatchObject({ id: 'public', status: 'needs-owner' });
       expect(children).toHaveLength(0);
-      const noOwner = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
-      expect(noOwner.steps.at(-1)).toMatchObject({ id: 'owner', status: 'needs-owner' });
+      const term = at.filter((a) => a !== '--json');
       const owner = await fetch(`${srv.url}/api/people/owner`, {
         method: 'POST',
         headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
       });
       expect(owner.status).toBe(201);
-      const quick = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
-      expect(quick.ok).toBe(true);
-      expect(quick.url).toBe('https://calm-river-test-name.trycloudflare.com');
-      expect(quick.warning).toMatch(/temporary/);
-      expect(quick.steps.at(-1)!.detail).toMatch(/temporary Cloudflare quick tunnel/);
+      // At a terminal, a no turns nothing on; a yes turns on the quick tunnel.
+      const no = await hildegardAtTerminal(home, {}, 'n', 'tunnel', 'cloudflare', '--quick', ...term);
+      expect(no.text).toMatch(/Nothing was turned on/);
+      expect(children).toHaveLength(0);
+      const yes = await hildegardAtTerminal(home, {}, 'y', 'tunnel', 'cloudflare', '--quick', ...term);
+      expect(yes.code, yes.text).toBe(0);
+      expect(yes.text).toMatch(/https:\/\/calm-river-test-name\.trycloudflare\.com/);
+      const quick = await hildegard(home, 'host', 'status', ...at);
+      expect(quick.host).toMatchObject({ on: true, url: 'https://calm-river-test-name.trycloudflare.com' });
 
       // Already running: status and doctor read it back.
       const on = await hildegard(home, 'tunnel', ...at);
@@ -207,12 +216,22 @@ describe('hildegard tunnel', () => {
       expect(unconfirmed.steps[0]).toMatchObject({ id: 'public' });
       expect(unconfirmed.steps[0]!.detail).toMatch(/PUBLIC/);
       expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
-      const on = await hildegard(home, 'tunnel', 'auto', '--yes-public', ...at);
-      expect(on.ok).toBe(true);
-      expect(on.url).toBe('https://auto-link-test-name.trycloudflare.com');
-      expect(on).toMatchObject({ via: 'quick', temporary: true, private: false });
-      expect(on.steps[0]!.detail).toMatch(/temporary/);
-      expect(on.message).toMatch(/hildegard tunnel off/);
+      expect(unconfirmed.steps[0]!.command).toBeUndefined();
+      const on = await hildegardAtTerminal(
+        home,
+        {},
+        'y',
+        'tunnel',
+        'auto',
+        ...at.filter((a) => a !== '--json'),
+      );
+      expect(on.code, on.text).toBe(0);
+      expect(on.text).toMatch(/https:\/\/auto-link-test-name\.trycloudflare\.com/);
+      expect(on.text).toMatch(/hildegard tunnel off/);
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({
+        on: true,
+        url: 'https://auto-link-test-name.trycloudflare.com',
+      });
       expect((await hildegard(home, 'tunnel', 'off', ...at)).ok).toBe(true);
     } finally {
       await srv.close();

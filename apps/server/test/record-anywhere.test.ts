@@ -556,7 +556,8 @@ describe('over the MCP', () => {
       expect(t).toMatch(/public/);
       expect(t).toMatch(/trycloudflare\.com/);
       expect(t).toMatch(/Record on your phone/);
-      expect(t).toMatch(/hildegard tunnel cloudflare --quick/);
+      expect(t).toMatch(/type `hildegard tunnel auto` yourself at a terminal/);
+      expect(t).not.toMatch(/yes-public/);
       expect(t).not.toMatch(/Turn it on\?/);
       expect(t).toMatch(/do not try link_on/);
       expect(t).not.toMatch(/confirmed: true/);

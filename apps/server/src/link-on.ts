@@ -12,7 +12,7 @@
  * to another route after a yes.
  *
  * A public route (the quick tunnel) is turned on only when the caller says `acceptPublic`, and only the person's own
- * click (the Studio's dialog) or command (the CLI's confirm, or `--yes-public`) does that. The MCP never does: `confirmed`
+ * click (the Studio's dialog) or command (the CLI's confirm at a terminal) does that. The MCP never does: `confirmed`
  * is the AI app's own word, and text it read can make it say yes. Funnel is never chosen here. The owner account comes
  * first, because the link signs people in; Hildegard never picks a passphrase. Nothing is installed here either:
  * `hildegard tunnel install cloudflare` is the owner's to run.
@@ -81,7 +81,7 @@ export const ASK_PUBLIC =
   'Hildegard will turn on a PUBLIC link to this computer through Cloudflare. It is temporary (a trycloudflare.com name that changes whenever Hildegard restarts), and anyone who has the link can reach Hildegard’s sign-in page; only people you invite can get in. Turn it on?';
 /** What an AI app tells the person when a phone link could only be public: it can't turn that on itself. */
 export const PUBLIC_REFUSED =
-  'A phone link here would be public: Hildegard would make a temporary trycloudflare.com name, and anyone who has the link can reach Hildegard’s sign-in page. An AI app can’t turn that on. You can: tap “Record on your phone” in the Hildegard Studio and confirm, or run `hildegard tunnel cloudflare --quick` (or `hildegard tunnel auto`) in a terminal.';
+  'A phone link here would be public: Hildegard would make a temporary trycloudflare.com name, and anyone who has the link can reach Hildegard’s sign-in page. An AI app can’t turn that on. You can: tap “Record on your phone” in the Hildegard Studio and confirm, or type `hildegard tunnel auto` yourself at a terminal and answer its question.';
 const NOTHING_ASK =
   'Hildegard has no way to make a link on this computer yet. Tailscale (private to your devices) or cloudflared (a temporary public link) would do it.';
 

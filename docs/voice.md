@@ -96,7 +96,7 @@ Recording needs no `hildegard host` and no account. Three ways, from easiest:
   trycloudflare.com name, and anyone who has the link can reach Hildegard’s sign-in page. An AI app can’t turn that on.”
   and the two ways the person can: the Studio’s “Record on your phone” button, whose dialog says public or private and
   only then calls the API with `acceptPublic`, or `hildegard tunnel cloudflare --quick` / `hildegard tunnel auto` in a
-  terminal (a confirm when the link would be public; `--yes-public` for a script the person runs themselves). The MCP
+  terminal (a confirm when the link would be public, answered at the terminal; there is no flag that skips it). An AI app over MCP can never turn on a public route. A program with a shell on this computer acts as you, as any program you run does; Hildegard's answers never hand it a command that would skip your question. The MCP
   client never sends `acceptPublic`.
 - **The question and the action match.** `POST /api/link/on` takes `{ plan, acceptPublic? }` and turns on only the
   route of the plan whose `id` it was sent. If the computer changed since (Tailscale came up or went down) it changes
