@@ -553,92 +553,107 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
   // which the test after these checks on every platform.
   const posix = it.skipIf(process.platform === 'win32');
 
-  posix('ends the whole process group inside two seconds, even one that ignores the polite request', async () => {
-    // A shell that ignores SIGTERM and has a child of its own, as a hung capture driver might.
-    const pidFile = join(work, 'stubborn.pids');
-    const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
-      spawn(
-        'sh',
-        ['-c', `trap '' TERM INT; (trap '' TERM INT; sleep 60) & echo "$$ $!" > ${pidFile}; sleep 60; wait`],
-        opts,
-      )) as unknown as typeof spawn;
-    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
-    await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
-    await s.goLive();
-    await until(
-      () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
-      10_000,
-      'the stand-in to start',
-    );
-    const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
-    expect(gone(parent) || gone(child)).toBe(false);
-    const t0 = Date.now();
-    await s.stop();
-    const ms = Date.now() - t0;
-    expect(ms).toBeLessThan(2000);
-    await sleep(100);
-    expect(gone(parent)).toBe(true);
-    expect(gone(child)).toBe(true);
-    expect(s.state().phase).toBe('idle');
-  }, 30_000);
+  posix(
+    'ends the whole process group inside two seconds, even one that ignores the polite request',
+    async () => {
+      // A shell that ignores SIGTERM and has a child of its own, as a hung capture driver might.
+      const pidFile = join(work, 'stubborn.pids');
+      const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
+        spawn(
+          'sh',
+          [
+            '-c',
+            `trap '' TERM INT; (trap '' TERM INT; sleep 60) & echo "$$ $!" > ${pidFile}; sleep 60; wait`,
+          ],
+          opts,
+        )) as unknown as typeof spawn;
+      const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
+      await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
+      await s.goLive();
+      await until(
+        () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
+        10_000,
+        'the stand-in to start',
+      );
+      const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
+      expect(gone(parent) || gone(child)).toBe(false);
+      const t0 = Date.now();
+      await s.stop();
+      const ms = Date.now() - t0;
+      expect(ms).toBeLessThan(2000);
+      await sleep(100);
+      expect(gone(parent)).toBe(true);
+      expect(gone(child)).toBe(true);
+      expect(s.state().phase).toBe('idle');
+    },
+    30_000,
+  );
 
-  posix('ends what FFmpeg started even when FFmpeg itself leaves at once', async () => {
-    // FFmpeg (the shell) goes on the first SIGTERM; something it started ignores it and would outlive it.
-    const pidFile = join(work, 'leaver.pids');
-    const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
-      spawn(
-        'sh',
-        ['-c', `(trap '' TERM INT; sleep 60) & echo "$$ $!" > ${pidFile}; wait`],
-        opts,
-      )) as unknown as typeof spawn;
-    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
-    await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
-    await s.goLive();
-    await until(
-      () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
-      10_000,
-      'the stand-in to start',
-    );
-    const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
-    expect(gone(child)).toBe(false);
-    const t0 = Date.now();
-    await s.stop();
-    expect(Date.now() - t0).toBeLessThan(2500);
-    await until(() => gone(parent) && gone(child), 1000, 'the whole group to go');
-    expect(s.state().phase).toBe('idle');
-  }, 30_000);
+  posix(
+    'ends what FFmpeg started even when FFmpeg itself leaves at once',
+    async () => {
+      // FFmpeg (the shell) goes on the first SIGTERM; something it started ignores it and would outlive it.
+      const pidFile = join(work, 'leaver.pids');
+      const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
+        spawn(
+          'sh',
+          ['-c', `(trap '' TERM INT; sleep 60) & echo "$$ $!" > ${pidFile}; wait`],
+          opts,
+        )) as unknown as typeof spawn;
+      const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
+      await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
+      await s.goLive();
+      await until(
+        () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
+        10_000,
+        'the stand-in to start',
+      );
+      const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
+      expect(gone(child)).toBe(false);
+      const t0 = Date.now();
+      await s.stop();
+      expect(Date.now() - t0).toBeLessThan(2500);
+      await until(() => gone(parent) && gone(child), 1000, 'the whole group to go');
+      expect(s.state().phase).toBe('idle');
+    },
+    30_000,
+  );
 
   // Also POSIX only: it needs a preview that is slow to go (it ignores SIGTERM), so begin() is still waiting on it
   // when the press comes. On Windows taskkill ends the preview at once and that window is not there to test.
   for (const press of ['stop', 'cancel'] as const)
-    posix(`starts nothing when ${press === 'stop' ? 'Stop' : 'Cancel'} is pressed while the count’s end closes the preview`, async () => {
-      // The preview's FFmpeg is slow to go, so begin() is still waiting on it when the press comes.
-      const spawned: string[] = [];
-      const fakeSpawn = ((_c: string, args: string[], opts: Record<string, unknown>) => {
-        spawned.push(args.join(' '));
-        return spawn('sh', ['-c', `trap '' TERM INT; sleep 60`], opts);
-      }) as unknown as typeof spawn;
-      const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000, countdownSeconds: 1 });
-      try {
-        await s.update({ sources: TEST_SOURCES, record: true });
-        await s.startPreview();
-        expect(s.state().phase).toBe('preview');
-        await s.goLive();
-        // The count is over and the preview is being closed.
-        await until(
-          () => s.state().phase === 'countdown' && s.state().countdown === null,
-          5000,
-          'the count to end',
-        );
-        await sleep(100);
-        await (press === 'stop' ? s.stop() : s.cancelCountdown());
-        await sleep(2500);
-        expect(spawned).toHaveLength(1);
-        expect(s.state().phase).toBe('idle');
-      } finally {
-        await s.stop();
-      }
-    }, 20_000);
+    posix(
+      `starts nothing when ${press === 'stop' ? 'Stop' : 'Cancel'} is pressed while the count’s end closes the preview`,
+      async () => {
+        // The preview's FFmpeg is slow to go, so begin() is still waiting on it when the press comes.
+        const spawned: string[] = [];
+        const fakeSpawn = ((_c: string, args: string[], opts: Record<string, unknown>) => {
+          spawned.push(args.join(' '));
+          return spawn('sh', ['-c', `trap '' TERM INT; sleep 60`], opts);
+        }) as unknown as typeof spawn;
+        const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000, countdownSeconds: 1 });
+        try {
+          await s.update({ sources: TEST_SOURCES, record: true });
+          await s.startPreview();
+          expect(s.state().phase).toBe('preview');
+          await s.goLive();
+          // The count is over and the preview is being closed.
+          await until(
+            () => s.state().phase === 'countdown' && s.state().countdown === null,
+            5000,
+            'the count to end',
+          );
+          await sleep(100);
+          await (press === 'stop' ? s.stop() : s.cancelCountdown());
+          await sleep(2500);
+          expect(spawned).toHaveLength(1);
+          expect(s.state().phase).toBe('idle');
+        } finally {
+          await s.stop();
+        }
+      },
+      20_000,
+    );
 
   it('ends a child that FFmpeg started once Stop is pressed, on every platform', async () => {
     // Node as the stand-in, with no shell and no signal handling: a parent that started a child of its own and wrote
