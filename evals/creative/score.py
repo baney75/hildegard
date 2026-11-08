@@ -306,7 +306,10 @@ def brand(task, work, run):
     a = screen_check.audit(g, 816, 1056, 'web') or {}
     if a and not a.get('error'):
         res.update(contrast_fails=len(a['contrast']), contrast_examples=a['contrast'][:3], clipped=len(a['clipped']) + len(a['offscreen']),
-                   one_page=a['scrollH'] <= 1056 + 4 and a['scrollW'] <= 816 + 4, scroll=[a['scrollW'], a['scrollH']],
+                   # The bottom of the lowest text or image, not scrollHeight: a page fixed at 1056 px with overflow hidden
+                   # reports 1056 there while its last section is cut off.
+                   one_page=a.get('contentBottom', a['scrollH']) <= 1056 + 1 and a['scrollW'] <= 816 + 4, scroll=[a['scrollW'], a['scrollH']],
+                   content_bottom=round(a.get('contentBottom', 0)),
                    placeholder=len(a['placeholder']), fonts=a['fonts'], smallest_px=min((x[0] for x in a['sizes']), default=None))
     return res
 

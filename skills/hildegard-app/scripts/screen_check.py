@@ -11,7 +11,8 @@ For each file it writes <name>.png (2x), and then screens.png, every state side 
 report.json. Checks:
   overflow     nothing wider than the screen (sideways scrolling)                                   fail
   contrast     every visible text at least 4.5:1 (3:1 at 24 px, or 18.7 px bold) against its background  fail
-  clipped      text cut off by its box (no ellipsis) or running off the screen                       fail
+  clipped      text cut off by its own box or a box around it that hides overflow (no ellipsis), or
+               running off any edge of the screen, the bottom included                                fail
   targets      tap targets under 24 px fail; under the platform's size (44 pt iOS, 48 dp Android,
                24 px desktop) warn
   text-size    text under 11 px fails; body under the platform's (17 pt iOS, 16 sp Android, 14 px desktop) warns
@@ -46,9 +47,22 @@ const hex=c=>'#'+c.slice(0,3).map(v=>Math.round(v).toString(16).padStart(2,'0'))
 const bgOf=el=>{const ch=[];for(let n=el;n&&n.nodeType===1;n=n.parentElement)ch.push(n);let c=[255,255,255,1],img=false;
   for(const n of ch.reverse()){const s=S(n);const b=parse(s.backgroundColor);if(b&&b[3]>0){c=over(b,c);if(b[3]>=1)img=false}
     if(s.backgroundImage&&s.backgroundImage!=='none')img=true}return {c,img}};
+// Text lies outside a box that clips it: overflow hidden or clip on that axis, on the element or on an ancestor whose
+// overflow reaches it (an absolute box escapes ancestors that aren't positioned; a fixed box escapes all). html's
+// overflow, and body's when html's is visible, belong to the viewport, which the screen edges stand for.
+const clipBox=(el,tr)=>{let esc=false;const rootVis=/visible/.test(S(d.documentElement).overflow);
+  for(let n=el;n&&n.nodeType===1&&n!==d.documentElement;n=n.parentElement){const s=S(n);
+    if(esc&&(s.position!=='static'||s.transform!=='none'))esc=false;
+    const view=n===d.body&&rootVis;
+    if(!esc&&!view){const cx=/hidden|clip/.test(s.overflowX),cy=/hidden|clip/.test(s.overflowY);
+      if(cx||cy){const b=n.getBoundingClientRect(),l=b.left+n.clientLeft,t=b.top+n.clientTop,r=l+n.clientWidth,bt=t+n.clientHeight;
+        if((cx&&(tr.left<l-1||tr.right>r+1))||(cy&&(tr.top<t-1||tr.bottom>bt+1)))return true}}
+    if(s.position==='fixed')return false;if(s.position==='absolute')esc=true}
+  return false};
+const textRect=(t,el)=>{const g=d.createRange();g.selectNodeContents(t);const r=g.getBoundingClientRect();return r.width>0&&r.height>0?r:el.getBoundingClientRect()};
 const label=el=>((el.getAttribute('aria-label')||el.textContent||el.getAttribute('title')||el.tagName)+'').replace(/\s+/g,' ').trim().slice(0,40);
 const out={W,H,scrollW:d.documentElement.scrollWidth,scrollH:d.documentElement.scrollHeight,contrast:[],texts:0,sizes:[],clipped:[],offscreen:[],
-  targets:0,small:[],fonts:{},noAlt:0,placeholder:[],safe:[],viewport:!!d.querySelector('meta[name=viewport]'),title:d.title||''};
+  targets:0,small:[],fonts:{},noAlt:0,placeholder:[],safe:[],contentBottom:0,viewport:!!d.querySelector('meta[name=viewport]'),title:d.title||''};
 const seen=new Set();const tw=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let t;
 while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=t.parentElement;if(!el||seen.has(el)||el.closest('svg,script,style,noscript'))continue;
   seen.add(el);if(!vis(el))continue;if(el.closest('[aria-hidden=true]')&&!el.closest('[data-system]'))continue;
@@ -57,16 +71,18 @@ while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=
   if(!el.closest('[data-system]'))out.fonts[s.fontFamily.split(',')[0].replace(/["']/g,'').trim()]=1;
   const bg=bgOf(el);const fg=parse(s.color);if(fg&&!bg.img){const c=over(fg,bg.c);const r=cr(c,bg.c);const large=fs>=24||(fs>=18.66&&fw>=700);const need=large?3:4.5;
     if(r<need-0.005)out.contrast.push({text:txt,ratio:Math.round(r*100)/100,need,fg:hex(c),bg:hex(bg.c),size:fs})}
-  const r=el.getBoundingClientRect();
-  if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis')out.clipped.push(txt);
-  if(r.right>W+1||r.left<-1)out.offscreen.push(txt);
+  const r=el.getBoundingClientRect(),tr=textRect(t,el);out.contentBottom=Math.max(out.contentBottom,tr.bottom);
+  if(tr.right>W+1||tr.left<-1||tr.bottom>H+1||tr.top<-1)out.offscreen.push(txt);
+  else if(r.width<=1||r.height<=1){}  // a 1 px box is text hidden on purpose for screen readers
+  else if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis')out.clipped.push(txt);
+  else if(s.textOverflow!=='ellipsis'&&s.webkitLineClamp==='none'&&clipBox(el,tr))out.clipped.push(txt);
   if(/lorem ipsum|dolor sit amet|\bTODO\b|your text here|placeholder text|^item \d+$/i.test(s0))out.placeholder.push(txt);
   if(!el.closest('[data-system]')&&(r.top<SAFE_TOP||r.bottom>H-SAFE_BOTTOM)&&r.bottom>0&&r.top<H)out.safe.push(txt)}
 const sel='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=tab],[role=checkbox],[role=switch],[role=menuitem],[onclick]';
 for(const el of d.querySelectorAll(sel)){if(!vis(el)||el.closest('[data-system]'))continue;out.targets++;const r=el.getBoundingClientRect();const m=Math.min(r.width,r.height);
   if(m<MIN_TARGET)out.small.push({label:label(el),w:Math.round(r.width),h:Math.round(r.height)});
   if((r.top<SAFE_TOP||r.bottom>H-SAFE_BOTTOM)&&r.top<H)out.safe.push('control: '+label(el))}
-for(const im of d.querySelectorAll('img'))if(!im.hasAttribute('alt'))out.noAlt++;
+for(const im of d.querySelectorAll('img')){if(!im.hasAttribute('alt'))out.noAlt++;if(vis(im))out.contentBottom=Math.max(out.contentBottom,im.getBoundingClientRect().bottom)}
 out.fonts=Object.keys(out.fonts);return out})()"""
 
 

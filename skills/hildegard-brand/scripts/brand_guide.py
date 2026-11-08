@@ -263,7 +263,7 @@ footer{{display:flex;justify-content:space-between;color:var(--muted);font-size:
 <section><h2>Voice</h2><ol class="voice">{voice}</ol>{ex}</section>
 <section><h2>Imagery</h2><h3>Do</h3><ul class="rules">{img_do}</ul><h3>Don’t</h3><ul class="rules">{img_dont}</ul></section>
 </div></div>
-<footer><span>{e(b['name'])} · files: {files}</span><span>Made with Hildegard</span></footer>
+<footer><span>{e(b['name'])} · files: {files}</span></footer>
 </div></body></html>"""
 
 

@@ -22,6 +22,12 @@ function run(script: string, args: string[], cwd = dir) {
 }
 
 const hasPillow = spawnSync(python, ['-c', 'import PIL']).status === 0;
+const hasChromium =
+  spawnSync(python, [
+    '-c',
+    'import sys; sys.path.insert(0, sys.argv[1]); from browser import find_chromium; sys.exit(0 if find_chromium() else 1)',
+    join(root, 'skills/hildegard-app/scripts'),
+  ]).status === 0;
 
 describe('logo_check.py', () => {
   const script = join(brand, 'scripts/logo_check.py');
@@ -84,6 +90,64 @@ describe('brand_guide.py', () => {
     );
     expect(m).not.toBeNull();
     expect(Number(m![3])).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('brand_guide.py page', () => {
+  it('puts no words on the page that the brief did not give: no credit line', () => {
+    const r = run(join(brand, 'scripts/brand_guide.py'), [join(example, 'brand.json'), '--offline', '--out', join(dir, 'g3')]);
+    const page = readFileSync(join(dir, 'g3', 'guide.html'), 'utf8');
+    expect(page).toMatch(/Brickyard Press/);
+    expect(page).not.toMatch(/Hildegard/i);
+    if (!hasChromium) expect(r.out).toMatch(/Wrote/);
+  });
+});
+
+describe('screen_check.py clipped', () => {
+  const script = join(root, 'skills/hildegard-app/scripts/screen_check.py');
+  const shell = (body: string, css = '') =>
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">' +
+    `<title>Bus</title><style>*{margin:0}html,body{height:844px;overflow:hidden}body{font:17px/1.4 sans-serif;color:#111;background:#fff}${css}</style>` +
+    `</head><body>${body}</body></html>`;
+  const clipped = (name: string, page: string) => {
+    writeFileSync(join(dir, `${name}.html`), page);
+    const r = run(script, [join(dir, `${name}.html`), '--device', 'iphone', '--out', join(dir, `sc-${name}`), '--json']);
+    const rep = JSON.parse(readFileSync(join(dir, `sc-${name}`, 'report.json'), 'utf8'));
+    return rep.screens[name].checks.find((c: { check: string }) => c.check === 'clipped') as { state: string; message: string };
+  };
+
+  it.skipIf(!hasChromium)('fails text pushed below the bottom of a screen fixed at the device height', () => {
+    const c = clipped('pushed', shell('<div style="height:900px">Offline: showing the last times we heard.</div><p>Route 4 at 8:12</p>'));
+    expect(c.state).toBe('fail');
+    expect(c.message).toMatch(/Route 4 at 8:12/);
+  });
+
+  it.skipIf(!hasChromium)('fails text cut off by a box around it that hides overflow', () => {
+    const c = clipped(
+      'boxed',
+      shell(
+        '<div style="margin-top:120px;height:80px;overflow:hidden;padding:0 20px"><p style="padding-top:40px">Next bus</p><p>Route 4 at 8:12</p></div>',
+      ),
+    );
+    expect(c.state).toBe('fail');
+    expect(c.message).toMatch(/Route 4 at 8:12/);
+  });
+
+  it.skipIf(!hasChromium)('fails text above the top of the screen', () => {
+    const c = clipped('above', shell('<p style="position:relative;top:-30px">Route 4 at 8:12</p><p style="margin-top:200px">Next bus</p>'));
+    expect(c.state).toBe('fail');
+  });
+
+  it.skipIf(!hasChromium)('passes a screen that fits, a visually hidden label and a badge outside a box that does not clip it', () => {
+    const c = clipped(
+      'fits',
+      shell(
+        '<main style="padding:80px 20px"><h1>Next bus</h1><p>Route 4 at 8:12</p>' +
+          '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Updated a minute ago</span>' +
+          '<div style="overflow:hidden;height:40px;margin-top:20px"><span style="position:absolute;left:20px;top:300px">On time</span></div></main>',
+      ),
+    );
+    expect(c.state).toBe('pass');
   });
 });
 
