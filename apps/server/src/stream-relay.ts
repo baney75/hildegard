@@ -8,7 +8,8 @@
  * The stand-in is a random string exactly as long as the key. The swap is made in place on the RTMP messages that
  * carry the stream name (`releaseStream`, `FCPublish`, `publish`), so no length, chunk header or timestamp changes and
  * the rest of the stream is a plain byte pipe. The key lives in this process's memory and nowhere else: not in an
- * argument, an environment variable, a file, a log or an error message.
+ * argument, an environment variable, a file, a log or an error message. What the service sends back can name the
+ * stream, which is the key, so the relay swaps the stand-in back in on the way to FFmpeg (`KeyScrubber`).
  */
 import { randomInt } from 'node:crypto';
 import net from 'node:net';
@@ -247,6 +248,60 @@ export class KeyPatcher {
   }
 }
 
+/** A key prefix this long at the end of a read is swapped at once; a shorter one only if the read after finishes it. */
+const MIN_PART = 4;
+
+/**
+ * Takes the key out of what the service sends FFmpeg. Some services name the stream in a status or an error
+ * ("Publish.BadName: <name> is already publishing"), and FFmpeg prints those. Each form of the key (as is, and
+ * URL-encoded) becomes a stand-in of the same length, in place, so no message changes size. A key split across reads
+ * is caught too: the part at the end of one read and the rest at the start of the next.
+ */
+export class KeyScrubber {
+  private readonly forms: { from: Buffer; to: Buffer; carry: number }[] = [];
+
+  constructor(standInText: string, key: string) {
+    for (const f of new Set([key, encodeURIComponent(key), encodeURI(key)])) {
+      const to = standInText + standIn(f.length - key.length);
+      this.forms.push({ from: Buffer.from(f, 'latin1'), to: Buffer.from(to, 'latin1'), carry: 0 });
+    }
+    this.forms.sort((a, b) => b.from.length - a.from.length);
+  }
+
+  /** The bytes with every form of the key replaced: `d` itself when there was none, else a copy. */
+  scrub(d: Buffer): Buffer {
+    let out = d;
+    const w = () => {
+      if (out === d) out = Buffer.from(d);
+      return out;
+    };
+    for (const f of this.forms) {
+      const n = f.from.length;
+      let i = 0;
+      if (f.carry > 0) {
+        // The last read ended inside the key: finish it.
+        const m = Math.min(out.length, n - f.carry);
+        if (out.subarray(0, m).equals(f.from.subarray(f.carry, f.carry + m))) {
+          f.to.copy(w(), 0, f.carry, f.carry + m);
+          i = m;
+          f.carry = f.carry + m < n ? f.carry + m : 0;
+          if (f.carry) continue;
+        } else f.carry = 0;
+      }
+      for (let at = out.indexOf(f.from, i); at >= 0; at = out.indexOf(f.from, at + n)) f.to.copy(w(), at);
+      f.carry = 0;
+      for (let p = Math.min(n - 1, out.length - i); p >= 1; p--) {
+        const at = out.length - p;
+        if (out[at] !== f.from[0] || !out.subarray(at).equals(f.from.subarray(0, p))) continue;
+        if (p >= MIN_PART) f.to.copy(w(), at, 0, p);
+        f.carry = p;
+        break;
+      }
+    }
+    return out;
+  }
+}
+
 // ── The relay ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type RelayEvent =
@@ -355,6 +410,7 @@ export class KeyRelay {
       else up.setTimeout(0);
     });
     const patcher = new KeyPatcher(this.stand, this.opts.key);
+    const scrubber = new KeyScrubber(this.stand, this.opts.key);
     const go = () => {
       up.setTimeout(0);
       local.resume();
@@ -375,7 +431,7 @@ export class KeyRelay {
         this.live = true;
         this.opts.onEvent({ type: 'live' });
       }
-      local.write(d);
+      local.write(scrubber.scrub(d));
     });
     up.on('error', (e: NodeJS.ErrnoException) => this.end(explain(e)));
     local.on('error', () => this.end('FFmpeg closed the connection.'));

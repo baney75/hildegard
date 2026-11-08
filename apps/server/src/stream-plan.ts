@@ -19,8 +19,12 @@ import {
 
 export type SourceKind = 'screen' | 'camera' | 'mic';
 
-/** A device name or id that is safe to hand to FFmpeg: printable, no leading dash, no shell or filter syntax. */
-export const DEVICE_RE = /^[\p{L}\p{N} ._:/@+()#,-]{1,200}$/u;
+/**
+ * A device name or id that is safe to hand to FFmpeg: printable, no leading dash, no shell or filter syntax. Names as
+ * Windows gives them pass: "Microphone Array (Intel® Smart Sound Technology)", "Ana’s iPhone Camera", "A & B [2]".
+ * It is one argument of its own (no shell), so these characters are only text.
+ */
+export const DEVICE_RE = /^[\p{L}\p{M}\p{N}\p{So} ._:/@+()#,&'’![\]-]{1,200}$/u;
 export const isDevice = (s: string) => DEVICE_RE.test(s) && !s.startsWith('-');
 
 /** The built-in test source id: a pattern and a tone. */

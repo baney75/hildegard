@@ -24,11 +24,12 @@ import {
   encoderArgs,
   filterValue,
   inputArgs,
+  isDevice,
   sceneCommand,
   streamKbps,
   teePath,
 } from '../src/stream-plan.ts';
-import { KeyPatcher, KeyRelay, standIn } from '../src/stream-relay.ts';
+import { KeyPatcher, KeyRelay, KeyScrubber, standIn } from '../src/stream-relay.ts';
 import { streamRoutes } from '../src/stream-routes.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -196,6 +197,53 @@ describe('the key relay’s swap', () => {
   });
 });
 
+describe('the key relay’s scrub of what the service says back', () => {
+  const key = 'live_123456789_AbCdEfGhIjKlMn';
+  const say = (k: string) =>
+    Buffer.from(`\x02\x00onStatus Publish.BadName: ${k} is already publishing`, 'latin1');
+
+  it('swaps the key for the stand-in in place, wherever a read splits it', () => {
+    const stand = standIn(key.length);
+    const whole = say(key);
+    for (let cut = 0; cut <= whole.length; cut++) {
+      const sc = new KeyScrubber(stand, key);
+      const out = Buffer.concat([sc.scrub(whole.subarray(0, cut)), sc.scrub(whole.subarray(cut))]);
+      expect(out.length, `cut at ${cut}`).toBe(whole.length);
+      expect(out.includes(Buffer.from(key)), `cut at ${cut}`).toBe(false);
+      // Nothing past the key's first few characters ever goes out, however the read is cut.
+      expect(out.includes(Buffer.from(key.slice(3))), `cut at ${cut}`).toBe(false);
+      expect(out.toString('latin1')).toContain('is already publishing');
+    }
+    // Split in three, too.
+    const sc = new KeyScrubber(stand, key);
+    const at = whole.indexOf(key);
+    const out = Buffer.concat([
+      sc.scrub(whole.subarray(0, at + 5)),
+      sc.scrub(whole.subarray(at + 5, at + 12)),
+      sc.scrub(whole.subarray(at + 12)),
+    ]);
+    expect(out.toString('latin1')).toBe(say(stand).toString('latin1'));
+  });
+
+  it('swaps a URL-encoded key too, keeping the length', () => {
+    const odd = 'sk/abc+def=ghi?123&xyz';
+    const stand = standIn(odd.length);
+    const enc = encodeURIComponent(odd);
+    const whole = Buffer.from(`rtmp://x/app/${enc} and ${odd}`, 'latin1');
+    const out = new KeyScrubber(stand, odd).scrub(whole);
+    expect(out.length).toBe(whole.length);
+    expect(out.toString('latin1')).not.toContain(enc);
+    expect(out.toString('latin1')).not.toContain(odd);
+  });
+
+  it('leaves everything else alone, byte for byte', () => {
+    const sc = new KeyScrubber(standIn(key.length), key);
+    const b = randomBytes(4096);
+    const out = sc.scrub(b);
+    expect(out.equals(b)).toBe(true);
+  });
+});
+
 describe('the relay on a socket', () => {
   /** A stand-in service: records what it is sent, answers the publish with a status. */
   async function service() {
@@ -270,6 +318,38 @@ describe('the relay on a socket', () => {
     const closed = seen.find((e) => e.type === 'closed');
     expect(closed?.rejected).toBe(true);
     expect(closed?.reason).toMatch(/stream key/);
+    c.destroy();
+    server.close();
+  });
+
+  it('never lets FFmpeg hear the key when the service says it back, even split across two writes', async () => {
+    const server = net.createServer((s) => {
+      s.once('data', () => {
+        const m = Buffer.from(`onStatus NetStream.Publish.BadName: stream ${key} is already publishing`);
+        const at = m.indexOf(key) + 7;
+        s.write(m.subarray(0, at));
+        setTimeout(() => {
+          s.write(m.subarray(at));
+          s.write(Buffer.from(`_error stream ${encodeURIComponent(key)} not found`));
+          s.end();
+        }, 50);
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as net.AddressInfo).port;
+    const relay = new KeyRelay({ server: 'rtmp://x/live', key, connect: connect(port), onEvent: () => {} });
+    const l = await relay.listen();
+    const c = net.connect({ host: '127.0.0.1', port: l.port });
+    c.on('error', () => {});
+    const heard: Buffer[] = [];
+    c.on('data', (d) => heard.push(d));
+    c.write(clientSession(relay.stand).whole);
+    await new Promise((r) => setTimeout(r, 400));
+    const text = Buffer.concat(heard).toString('latin1');
+    expect(text).toContain('is already publishing');
+    expect(text).toContain(relay.stand);
+    expect(text).not.toContain(key);
+    expect(text).not.toContain(key.slice(4));
     c.destroy();
     server.close();
   });
@@ -549,6 +629,31 @@ describe('devices', () => {
     expect(parseDshow(old).video.map((d) => d.label)).toEqual(['OBS Virtual Camera']);
     expect(parseDshow(old).audio.map((d) => d.label)).toEqual(['Line In']);
   });
+  it('takes the names Windows gives, ® and ™ and apostrophes included, through to FFmpeg as they are', async () => {
+    const names = [
+      'Microphone Array (Intel® Smart Sound Technology for Digital Microphones)',
+      'Ana’s iPhone Camera',
+      "Ana's Webcam™",
+      'Line In & Mic [2]',
+    ];
+    const t = names.map((n, i) => `[in#0 @ 0x1] "${n}" (${i % 2 ? 'video' : 'audio'})`).join('\n');
+    const { video, audio } = parseDshow(t);
+    const ctx = { platform: 'win32' as const, width: 1280, height: 720, fps: 30 };
+    for (const d of [...video, ...audio]) expect(isDevice(d.id), d.id).toBe(true);
+    expect(inputArgs('mic', audio[0]!.id, ctx)!.at(-1)).toBe(`audio=${names[0]}`);
+    expect(inputArgs('camera', video[0]!.id, ctx)!.at(-1)).toBe(`video=${names[1]}`);
+    // And the settings take what the list offered.
+    const s = new Streamer({
+      dataDir: mkdtempSync(join(tmpdir(), 'hg-dev-')),
+      secrets: () => memoryStore(),
+      font: null,
+      platform: 'win32',
+      encoders: async () => ['libx264'],
+    });
+    await expect(s.update({ sources: { mic: audio[0]!.id, camera: video[1]!.id } })).resolves.toBeTruthy();
+    expect(s.state().settings.sources.mic).toBe(audio[0]!.id);
+  });
+
   it('lists microphones, not the speakers’ monitors', () => {
     const t = `55\talsa_output.pci.analog-stereo.monitor\tPipeWire\ts32le\tSUSPENDED\n56\talsa_input.usb-Blue_Yeti.analog-stereo\tPipeWire\ts16le\tRUNNING`;
     expect(parsePactl(t).map((d) => d.id)).toEqual(['alsa_input.usb-Blue_Yeti.analog-stereo']);

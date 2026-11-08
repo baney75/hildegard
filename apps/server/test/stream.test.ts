@@ -576,6 +576,81 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
     expect(s.state().phase).toBe('idle');
   }, 30_000);
 
+  it('ends what FFmpeg started even when FFmpeg itself leaves at once', async () => {
+    // FFmpeg (the shell) goes on the first SIGTERM; something it started ignores it and would outlive it.
+    const pidFile = join(work, 'leaver.pids');
+    const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
+      spawn(
+        'sh',
+        ['-c', `(trap '' TERM INT; sleep 60) & echo "$$ $!" > ${pidFile}; wait`],
+        opts,
+      )) as unknown as typeof spawn;
+    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
+    await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
+    await s.goLive();
+    await until(
+      () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
+      10_000,
+      'the stand-in to start',
+    );
+    const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
+    expect(gone(child)).toBe(false);
+    const t0 = Date.now();
+    await s.stop();
+    expect(Date.now() - t0).toBeLessThan(2500);
+    await until(() => gone(parent) && gone(child), 1000, 'the whole group to go');
+    expect(s.state().phase).toBe('idle');
+  }, 30_000);
+
+  for (const press of ['stop', 'cancel'] as const)
+    it(`starts nothing when ${press === 'stop' ? 'Stop' : 'Cancel'} is pressed while the count’s end closes the preview`, async () => {
+      // The preview's FFmpeg is slow to go, so begin() is still waiting on it when the press comes.
+      const spawned: string[] = [];
+      const fakeSpawn = ((_c: string, args: string[], opts: Record<string, unknown>) => {
+        spawned.push(args.join(' '));
+        return spawn('sh', ['-c', `trap '' TERM INT; sleep 60`], opts);
+      }) as unknown as typeof spawn;
+      const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000, countdownSeconds: 1 });
+      try {
+        await s.update({ sources: TEST_SOURCES, record: true });
+        await s.startPreview();
+        expect(s.state().phase).toBe('preview');
+        await s.goLive();
+        // The count is over and the preview is being closed.
+        await until(
+          () => s.state().phase === 'countdown' && s.state().countdown === null,
+          5000,
+          'the count to end',
+        );
+        await sleep(100);
+        await (press === 'stop' ? s.stop() : s.cancelCountdown());
+        await sleep(2500);
+        expect(spawned).toHaveLength(1);
+        expect(s.state().phase).toBe('idle');
+      } finally {
+        await s.stop();
+      }
+    }, 20_000);
+
+  it('takes a preview restart and Go live in turn, so no FFmpeg is left running after Stop', async () => {
+    const kids: ChildProcess[] = [];
+    const fakeSpawn = ((_c: string, _a: string[], opts: Record<string, unknown>) => {
+      const k = spawn('sleep', ['60'], opts);
+      kids.push(k);
+      return k;
+    }) as unknown as typeof spawn;
+    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
+    await s.update({ sources: TEST_SOURCES, record: true });
+    await s.startPreview();
+    // A picture change restarts the preview; Go live comes before that restart is done.
+    await Promise.all([s.update({ quality: '720p30' }), s.goLive()]);
+    expect(s.state().phase).toBe('live');
+    await s.stop();
+    await sleep(200);
+    expect(kids.length).toBe(3);
+    expect(kids.filter((k) => !gone(k.pid!)).map((k) => k.pid)).toEqual([]);
+  }, 20_000);
+
   it('answers Stop at once while a start is still in flight, and the start does not come back', async () => {
     let spawned = 0;
     const fakeSpawn = ((_c: string, _a: string[], opts: Record<string, unknown>) => {

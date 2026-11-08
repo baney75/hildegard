@@ -12,6 +12,7 @@ import { type ChildProcess, execFile, spawn as nodeSpawn } from 'node:child_proc
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import {
   DEFAULT_STREAM_SETTINGS,
   IngestServer,
@@ -364,7 +365,8 @@ export class Streamer {
         (k) => j(before[k as keyof StreamSettings]) !== j(now[k as keyof StreamSettings]),
       )
     ) {
-      await this.restartPreview();
+      // In the queue, so a restart can't race a start or leave a second FFmpeg running.
+      await this.serial(() => this.restartPreview());
       return;
     }
     if (before.scene !== now.scene) this.command(sceneCommand(r.plan.scenes, now.scene));
@@ -520,7 +522,7 @@ export class Streamer {
   /** Starts the picture without sending it anywhere, so the person can set the scene up. */
   startPreview(): Promise<StreamState> {
     return this.serial(async () => {
-      if (this.runState) return this.state();
+      if (this.runState || this.phase !== 'idle') return this.state();
       await this.launch('preview');
       this.phase = 'preview';
       this.message = null;
@@ -535,7 +537,7 @@ export class Streamer {
     });
   }
   private async restartPreview() {
-    if (this.runState?.mode !== 'preview') return;
+    if (this.runState?.mode !== 'preview' || this.phase !== 'preview') return;
     await this.end('idle');
     try {
       await this.launch('preview');
@@ -566,18 +568,20 @@ export class Streamer {
       this.phase = 'countdown';
       this.countdown = this.deps.countdownSeconds ?? 5;
       this.changed();
+      // This start's generation: Stop or Cancel bumps it, and begin and launch check it after every wait.
+      const gen = this.gen;
       // The countdown ticks outside the queue so Cancel can interrupt it.
       this.countdownTimer = setInterval(() => {
         if (this.countdown === null) return;
         this.countdown -= 1;
         if (this.countdown <= 0) {
           this.clearCountdown();
-          void this.serial(() => this.begin());
+          void this.serial(() => this.begin(gen));
         } else this.changed();
       }, 1000);
       if (this.countdown <= 0) {
         this.clearCountdown();
-        await this.begin();
+        await this.begin(gen);
       }
       return this.state();
     });
@@ -591,6 +595,8 @@ export class Streamer {
 
   /** Cancels the countdown, back to the preview. */
   cancelCountdown(): Promise<StreamState> {
+    // At once, not queued: a count that just ended may be closing the preview, and must not go on to start.
+    if (this.phase === 'countdown') this.gen++;
     return this.serial(async () => {
       if (this.phase !== 'countdown') return this.state();
       this.clearCountdown();
@@ -600,13 +606,19 @@ export class Streamer {
     });
   }
 
-  private async begin() {
-    if (this.phase !== 'countdown' && this.phase !== 'reconnecting') return;
+  private async begin(gen: number) {
+    const going = () => gen === this.gen && (this.phase === 'countdown' || this.phase === 'reconnecting');
+    if (!going()) return;
     try {
+      const again = this.phase === 'reconnecting';
       if (this.runState) await this.end('countdown');
-      this.attempt = this.phase === 'reconnecting' ? this.attempt : 0;
-      await this.launch('live');
+      // Stop or Cancel pressed while the preview closed: no stream.
+      if (!going()) return;
+      this.attempt = again ? this.attempt : 0;
+      await this.launch('live', gen);
     } catch (e) {
+      // A Stop already set where things stand.
+      if (gen !== this.gen) return;
       this.phase = 'idle';
       this.message = e instanceof Error ? e.message : String(e);
       this.runState = null;
@@ -658,31 +670,40 @@ export class Streamer {
       : STREAM_DESTINATIONS.find((d) => d.id === 'twitch')!.server;
   }
 
-  private async launch(mode: 'preview' | 'live') {
-    const gen = this.gen;
+  private async launch(mode: 'preview' | 'live', gen = this.gen) {
+    if (this.runState) throw new StreamError(409, 'busy', 'Something is already running. Stop it first.');
+    const stopped = () => {
+      if (gen !== this.gen) throw new StreamError(409, 'stopped', 'Stopped.');
+    };
+    stopped();
     this.writeTexts();
     const dests =
       mode === 'live' ? STREAM_DESTINATIONS.filter((d) => this.cfg.destinations[d.id]?.enabled) : [];
     const relays = new Map<StreamDestinationId, KeyRelay>();
     const urls: { id: StreamDestinationId; url: string }[] = [];
+    const keys: string[] = [];
     try {
       this.dest.clear();
       for (const d of dests) {
         const key = this.store(d.id).get();
         if (!key) throw new StreamError(400, 'key', `Add your ${d.name} stream key first.`);
+        keys.push(key);
         const server = d.id === 'twitch' ? await this.twitchServer() : this.serverFor(d.id);
+        stopped();
         const relay = new KeyRelay({
           server,
           key,
           connect: this.deps.relayConnect,
           onEvent: (e) => this.relayEvent(d.id, e),
         });
-        const { url } = await relay.listen();
         relays.set(d.id, relay);
+        const { url } = await relay.listen();
+        stopped();
         urls.push({ id: d.id, url });
         this.dest.set(d.id, { state: 'connecting', detail: null });
       }
       const encoder = await this.encoderFor();
+      stopped();
       this.chosen = encoder;
       const progress = net.createServer();
       await new Promise<void>((res, rej) => {
@@ -769,7 +790,9 @@ export class Streamer {
         err += d.toString('utf8');
         const lines = err.split('\n');
         err = lines.pop() ?? '';
-        for (const l of lines) {
+        for (const line of lines) {
+          // The relays keep the key from FFmpeg; this is the second lock, on what the log keeps.
+          const l = keys.reduce((t, k) => t.split(k).join('[stream key]'), line);
           r.tail.push(l);
           if (r.tail.length > 60) r.tail.shift();
         }
@@ -927,9 +950,10 @@ export class Streamer {
     this.phase = 'reconnecting';
     this.message = `Lost the connection${signal ? '' : ''}. Trying again in ${Math.round(wait / 1000)} seconds (try ${this.attempt}).`;
     this.changed();
+    const gen = this.gen;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      void this.serial(() => this.begin());
+      void this.serial(() => this.begin(gen));
     }, wait);
   }
 
@@ -961,24 +985,48 @@ export class Streamer {
     try {
       r.child.stdin?.write('q\n');
     } catch {}
+    const t0 = Date.now();
     this.signal(r.child, 'SIGTERM');
     const hard = setTimeout(() => this.signal(r.child, 'SIGKILL'), 900);
     const give = new Promise<void>((res) => setTimeout(res, 1800));
     await Promise.race([r.exited, give]);
+    // FFmpeg leaving isn't the end: anything it started that ignored the ask is still in its group.
+    while (this.groupAlive(r.child) && Date.now() - t0 < 900) await sleep(50);
     clearTimeout(hard);
     this.signal(r.child, 'SIGKILL');
+    while (this.groupAlive(r.child) && Date.now() - t0 < 1900) await sleep(25);
   }
 
+  /** Signals FFmpeg's whole process group (its tree on Windows), even after FFmpeg itself has exited. */
   private signal(child: ChildProcess, sig: NodeJS.Signals) {
     const pid = child.pid;
-    if (!pid || child.exitCode !== null || child.signalCode !== null) return;
+    if (!pid) return;
+    if (this.platform === 'win32') {
+      // The tree is found through FFmpeg, so it has to be asked while FFmpeg is there.
+      if (child.exitCode === null && child.signalCode === null)
+        execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }, () => {});
+      return;
+    }
     try {
-      if (this.platform === 'win32') execFile('taskkill', ['/pid', String(pid), '/T', '/F'], () => {});
-      else process.kill(-pid, sig);
+      process.kill(-pid, sig);
     } catch {
+      if (child.exitCode !== null || child.signalCode !== null) return;
       try {
         child.kill(sig);
       } catch {}
+    }
+  }
+
+  /** Whether anything in FFmpeg's process group is still running (POSIX; on Windows, FFmpeg itself). */
+  private groupAlive(child: ChildProcess): boolean {
+    const pid = child.pid;
+    if (!pid) return false;
+    if (this.platform === 'win32') return child.exitCode === null && child.signalCode === null;
+    try {
+      process.kill(-pid, 0);
+      return true;
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === 'EPERM';
     }
   }
 
