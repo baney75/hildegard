@@ -4,6 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { loadCommitted } from '../bench/corpus.ts';
 import { lintProse, type ProseLint } from '../src/index.ts';
 import FIXTURES from './prose-fixtures.json' with { type: 'json' };
 
@@ -13,11 +14,15 @@ const script = join(root, 'skills/hildegard/scripts/prose_lint.py');
 const dir = mkdtempSync(join(tmpdir(), 'prose-py-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-function lintPy(text: string, name = 'in.md'): ProseLint {
+function lintPy(text: string, name = 'in.md', strict = false): ProseLint {
   const file = join(dir, name);
   writeFileSync(file, text);
   try {
-    return JSON.parse(execFileSync(python, ['-I', script, '--json', file], { encoding: 'utf8' }));
+    return JSON.parse(
+      execFileSync(python, ['-I', script, '--json', ...(strict ? ['--strict'] : []), file], {
+        encoding: 'utf8',
+      }),
+    );
   } catch (e) {
     // Exit status 1 means the text fails; the lint is still on stdout.
     const out = (e as { status?: number; stdout?: string }).stdout;
@@ -37,10 +42,15 @@ interface Attack {
 const pairs = (l: ProseLint) => l.findings.map((f) => `${f.severity} ${f.id}`).sort();
 
 describe('prose lint: the Python script and the package agree', () => {
-  for (const c of FIXTURES.cases as Array<{ name: string; text: string; reports?: Record<string, string> }>) {
+  for (const c of FIXTURES.cases as Array<{
+    name: string;
+    text: string;
+    strict?: boolean;
+    reports?: Record<string, string>;
+  }>) {
     it(c.name, () => {
-      const js = lintProse(c.text);
-      const py = lintPy(c.text);
+      const js = lintProse(c.text, { strict: c.strict });
+      const py = lintPy(c.text, 'in.md', c.strict);
       expect(pairs(py)).toEqual(pairs(js));
       expect(py.ok).toBe(js.ok);
       expect(py.words).toBe(js.words);
@@ -53,6 +63,47 @@ describe('prose lint: the Python script and the package agree', () => {
         expect(py.findings.find((f) => f.id === id)?.matches[0]?.text).toBe(at);
     });
   }
+
+  it('agrees in the strict profile on every fixture, and --strict changes only severities and ok', () => {
+    const cases = FIXTURES.cases as Array<{ name: string; text: string }>;
+    const files = cases.map((c, i) => {
+      const f = join(dir, `strict-${i}.md`);
+      writeFileSync(f, c.text);
+      return f;
+    });
+    const all = (extra: string[]) =>
+      JSON.parse(
+        execFileSync(python, ['-I', join(root, 'packages/craft/bench/lint_all.py'), ...extra, ...files], {
+          encoding: 'utf8',
+          maxBuffer: 1 << 28,
+        }),
+      ) as ProseLint[];
+    const strict = all(['--strict']);
+    const plain = all([]);
+    cases.forEach((c, i) => {
+      const js = lintProse(c.text, { strict: true });
+      expect(strict[i], c.name).toEqual(js);
+      expect(
+        js.findings.map((f) => [f.id, f.matches]),
+        c.name,
+      ).toEqual(plain[i]!.findings.map((f) => [f.id, f.matches]));
+    });
+  }, 30_000);
+
+  it('exits 1 in the strict profile on an em dash, and 0 by default', () => {
+    const run = (args: string[], input: string) => {
+      try {
+        execFileSync(python, ['-I', script, ...args, '-'], { input, encoding: 'utf8' });
+        return 0;
+      } catch (e) {
+        return (e as { status: number }).status;
+      }
+    };
+    const dashed = 'We planted the beans in May\u2014the soil was still cold.';
+    expect(run([], dashed)).toBe(0);
+    expect(run(['--strict'], dashed)).toBe(1);
+    expect(run(['--strict'], 'The bees need water in July.')).toBe(0);
+  });
 
   for (const a of FIXTURES.attacks as Attack[]) {
     it(`lints 200,000 characters of ${a.name} in seconds, and agrees`, () => {
@@ -127,5 +178,33 @@ describe('prose lint: the Python script and the package agree', () => {
     };
     expect(run('We will delve into it.')).toBe(1);
     expect(run('A plain sentence about a red barn.')).toBe(0);
+  });
+
+  it('finds phrases the way scanning each pattern over the whole text does', () => {
+    const tricky = [
+      'Kelvin \u212Adelve it. DELVE. Delve—delve, x-delve, delved, delves.',
+      'İstanbul will delve into the realm, and we’re grateful to İ. It’s worth noting that it is IMPORTANT TO NOTE.',
+      'Unlock the full potential, unlock the door. Whether you’re a baker or a brewer, we look forward to seeing you.',
+      'ǅ delve ǅ tapestry ǅ',
+      'delvedelve delve-delve delve_delve',
+    ];
+    const texts = [
+      ...tricky,
+      ...(FIXTURES.cases as Array<{ text: string }>).map((c) => c.text),
+      ...loadCommitted().map((p) => p.text),
+    ];
+    const code = [
+      'import importlib.util, json, sys',
+      'spec = importlib.util.spec_from_file_location("p", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)',
+      'shape = lambda hits: [[(x.start(), x.group(0)) for x in h] for h in hits]',
+      'bad = [i for i, t in enumerate(json.load(sys.stdin)) if shape(m.phrase_hits(t)) != shape(m.phrase_hits_naive(t))]',
+      'print(json.dumps(bad))',
+    ].join('\n');
+    const out = execFileSync(python, ['-I', '-c', code, script], {
+      input: JSON.stringify(texts),
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+    });
+    expect(JSON.parse(out)).toEqual([]);
   });
 });

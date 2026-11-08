@@ -8,7 +8,13 @@
       "times": 99999,
       "tail": "y"
     },
-    { "name": "accented letters (list of three)", "head": "", "unit": "aé", "times": 100000, "tail": "" },
+    {
+      "name": "accented letters (list of three)",
+      "head": "",
+      "unit": "aé",
+      "times": 100000,
+      "tail": ""
+    },
     {
       "name": "a run of exclamation marks (sentence split)",
       "head": "a",
@@ -16,12 +22,48 @@
       "times": 199998,
       "tail": "b"
     },
-    { "name": "unclosed tags", "head": "", "unit": "<", "times": 200000, "tail": "" },
-    { "name": "unclosed tags with a name", "head": "", "unit": "<a", "times": 100000, "tail": "" },
-    { "name": "unclosed code blocks", "head": "", "unit": "<code", "times": 40000, "tail": "" },
-    { "name": "unclosed images", "head": "", "unit": "![", "times": 100000, "tail": "" },
-    { "name": "unclosed image targets", "head": "", "unit": "![a](", "times": 40000, "tail": "" },
-    { "name": "unclosed link targets", "head": "", "unit": "](", "times": 100000, "tail": "" }
+    {
+      "name": "unclosed tags",
+      "head": "",
+      "unit": "<",
+      "times": 200000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed tags with a name",
+      "head": "",
+      "unit": "<a",
+      "times": 100000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed code blocks",
+      "head": "",
+      "unit": "<code",
+      "times": 40000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed images",
+      "head": "",
+      "unit": "![",
+      "times": 100000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed image targets",
+      "head": "",
+      "unit": "![a](",
+      "times": 40000,
+      "tail": ""
+    },
+    {
+      "name": "unclosed link targets",
+      "head": "",
+      "unit": "](",
+      "times": 100000,
+      "tail": ""
+    }
   ],
   "cases": [
     {
@@ -30,14 +72,15 @@
       "fails": ["stock-words", "empty-phrases"]
     },
     {
-      "name": "dashes in short copy",
+      "name": "one dash in short copy is a warn, not a fail: people write them, and readers now notice",
       "text": "We fixed the oven — the real problem was the thermostat. Dinner was late.",
-      "fails": ["dashes"]
+      "warns": ["em-dash"],
+      "ok": true
     },
     {
-      "name": "one dash in a long piece warns",
+      "name": "a dash in a long piece fails nothing",
       "text": "The barn went up in a week. We set the posts on Monday, after two days of rain had softened the ground enough to dig without the auger jamming on every rock. Tuesday we framed the walls on the slab and stood them with the tractor, which took four of us and more shouting than it should have.\n\nWednesday was rafters. My brother cut every one from a single pattern he drew on the shop floor in chalk, and only one came out short, which we used for the lean-to on the north side. By Thursday afternoon the purlins were on and the metal roofing was stacked on the trailer.\n\nFriday we hung the roof. The wind picked up after lunch, so we screwed down the last six sheets with one person holding each corner, and nobody let go. My father, who built the old barn in 1979, walked through it that evening and said the doors would stick in August — he was right, and we planed them in September.",
-      "warns": ["dashes"]
+      "ok": true
     },
     {
       "name": "not X but Y, twice",
@@ -45,10 +88,9 @@
       "fails": ["not-but"]
     },
     {
-      "name": "negative listing and fragments",
-      "text": "Not a framework. Not a library. A way of working. That's it. That's the whole thing. Really.",
-      "fails": ["negative-list"],
-      "warns": ["fragments"]
+      "name": "negative listing",
+      "text": "Not a framework. Not a library. A way of working.",
+      "fails": ["negative-list"]
     },
     {
       "name": "ing tail and puffery",
@@ -58,7 +100,8 @@
     {
       "name": "summary ending",
       "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents straight out through the old chimney chase.\n\nIn conclusion, the new layout makes the kitchen better in every way.",
-      "fails": ["summary-ending", "summary-openers"]
+      "fails": ["summary-ending"],
+      "warns": ["summary-openers"]
     },
     {
       "name": "emoji headings and placeholders",
@@ -72,7 +115,7 @@
     },
     {
       "name": "faux insight and throat clearing",
-      "text": "Here's the thing. Most people don't realize that pricing is a design decision.",
+      "text": "Here's the thing. This is the part most people skip, and pricing is a design decision.",
       "fails": ["throat-clearing", "faux-insight"]
     },
     {
@@ -98,7 +141,7 @@
     {
       "name": "a 2026 default model blog post (Claude Haiku, no house rules)",
       "text": "# Why Homeschooling Works for Rural Families\n\nLiving far from town has real costs. The nearest library may be an hour's drive, the closest specialized tutor might be across a county line, and the school bus can mean a long morning ride. Homeschooling turns many of those obstacles into advantages.\n\n**Learning fits the land.** A rural child can study soil chemistry by testing the garden, learn biology by tracking the creek's wildlife, and practice math by calculating feed quantities or fencing needs. Lessons grounded in real work stick, and they show children that what they learn has a purpose beyond the page.\n\n**Schedules bend to real life.** Farm work, weather, and seasonal demands don't follow a bell schedule. Homeschooling lets families front-load lessons during a quiet winter and ease off during planting or harvest. A child can finish a history unit at the kitchen table in the morning and help move cattle in the afternoon, without missing anything essential.\n\n**Time is reclaimed.** Rural bus routes can add hours to a child's day. Those hours go back to sleep, reading, play, or a family dinner. Many rural homeschoolers finish their core lessons by midday, leaving the afternoon for music lessons, 4-H projects, or simply being a kid outdoors.\n\n**Children get more one-on-one attention.** In a small rural family, a parent can notice when a child struggles with fractions or loses interest in reading and adjust right away. There is no waiting weeks for a parent-teacher conference, and no child gets lost in a crowded classroom.\n\n**Community takes a different shape.** Rural homeschooling families often build their own networks: co-ops that share teaching duties, field trips to a neighbor's dairy, and weekly gatherings at the church hall. These connections can be just as rich as a school social life, and they often include adults of all ages, teaching children how to talk, work, and help one another.\n\n**Independence grows naturally.** Rural life asks children to take responsibility early. Homeschooled kids often learn to manage their own time, complete long projects, and solve problems on their own. Those habits serve them whether they head to college, a trade, or the family farm.\n\nHomeschooling is not the right choice for every family, and it asks a great deal of parents. But for many rural households, it offers something hard to find elsewhere: an education that uses the land, honors the family's rhythm, and keeps children close to the people and places they love.\n",
-      "warns": ["bold-leads", "specifics"]
+      "warns": ["bold-leads"]
     },
     {
       "name": "a default post leaning on lists of three",
@@ -107,8 +150,9 @@
     },
     {
       "name": "typographic apostrophe: it’s worth noting",
-      "text": "It’s worth noting that the deadline moved to Friday.",
-      "fails": ["empty-phrases"]
+      "text": "It’s worth noting that the deadline moved to Friday. It’s important to note that it is firm.",
+      "warns": ["cliches"],
+      "ok": true
     },
     {
       "name": "typographic apostrophe: here’s the thing",
@@ -121,13 +165,14 @@
       "fails": ["empty-phrases"]
     },
     {
-      "name": "typographic apostrophe: I’d be happy to",
-      "text": "I’d be happy to move the deadline to Friday for you.",
-      "fails": ["chatbot"]
+      "name": "typographic apostrophe: we’re grateful",
+      "text": "We’re grateful for the help. We’re thankful to the Lions Club too.",
+      "warns": ["warm-boilerplate"],
+      "ok": true
     },
     {
       "name": "typographic apostrophe: in today’s world and you’re doing it wrong",
-      "text": "In today’s world, you’re doing it wrong if the deadline is still Thursday.",
+      "text": "In today’s fast-paced world, you’re doing it wrong if the deadline is still Thursday.",
       "fails": ["empty-phrases", "faux-insight"]
     },
     {
@@ -164,12 +209,12 @@
     },
     {
       "name": "second-F6: a phrase starting with I after a comma is not a name",
-      "text": "Sure, I'd be happy to help.",
-      "fails": ["chatbot"]
+      "text": "Sure, I'll be honest: the deadline moved.",
+      "fails": ["throat-clearing"]
     },
     {
       "name": "second-F6: a phrase starting with I after a comma is not a name (typographic apostrophe)",
-      "text": "Look, I’ll be honest.",
+      "text": "Sure, I’ll be honest: the deadline moved.",
       "fails": ["throat-clearing"]
     },
     {
@@ -179,7 +224,7 @@
     },
     {
       "name": "first-F1: the name exemption does not apply on a heading line",
-      "text": "# How To Foster Growth\n\nThe program runs on Tuesdays at the church hall.",
+      "text": "# How To Foster Growth\n\nWe foster the program on Tuesdays at the church hall.",
       "warns": ["loaded-words"],
       "ok": true
     },
@@ -195,47 +240,27 @@
       "ok": true
     },
     {
-      "name": "second-F9: rhythm reports the sentence as written, with its inline code and link",
-      "text": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now. The barn roof went up in a single windy week with help. Our neighbors brought lumber and sandwiches from the diner. Every rafter was cut from one pattern drawn on the floor. The doors stuck in August and we planed them later. Grandmother kept bees behind the old shed for years. The trailer needed new bearings and a brake light too. Dinner was late again because the oven would not heat.",
-      "warns": ["rhythm"],
-      "reports": {
-        "rhythm": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now."
-      }
-    },
-    {
-      "name": "second-F9: fragments report the sentences as written",
-      "text": "Run `lint_writing` now. See [the docs](https://example.com/docs). Fix it fast.",
-      "warns": ["fragments"],
-      "reports": {
-        "fragments": "Run `lint_writing` now. See [the docs](https://example.com/docs). Fix it fast."
-      }
-    },
-    {
       "name": "second-F9: summary-ending reports the paragraph as written",
-      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nOverall, run `lint_writing` and read [the guide](https://example.com/guide).",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nIn summary, run `lint_writing` and read [the guide](https://example.com/guide).",
       "fails": ["summary-ending"],
       "reports": {
-        "summary-ending": "Overall, run `lint_writing` and read [the guide](https://example.com/guide)."
+        "summary-ending": "In summary, run `lint_writing` and read [the guide](https://example.com/guide)."
       }
     },
     {
       "name": "second-F9: bold-leads report the label as written",
       "text": "**Step 1 with `x_1` done.** Then we moved on to the next job around the farm.\n\n**Step 2 with `x_2` done.** Then we moved on to the next job around the farm.\n\n**Step 3 with `x_3` done.** Then we moved on to the next job around the farm.\n\n**Step 4 with `x_4` done.** Then we moved on to the next job around the farm.",
       "warns": ["bold-leads"],
-      "reports": { "bold-leads": "**Step 1 with `x_1` done.**" }
+      "reports": {
+        "bold-leads": "**Step 1 with `x_1` done.**"
+      }
     },
     {
       "name": "second-F9: bold reports the span as written",
       "text": "Use **`lint_writing` first** and then **the draft** again.",
       "warns": ["bold"],
-      "reports": { "bold": "**`lint_writing` first**" }
-    },
-    {
-      "name": "second-F9: specifics reports the first sentence as written",
-      "text": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door. we sat on the porch and watched the rain come down over the hills while the dog slept by the door.",
-      "warns": ["specifics"],
       "reports": {
-        "specifics": "Run `lint_writing` on the [draft](https://example.com/draft) before sending it out now."
+        "bold": "**`lint_writing` first**"
       }
     },
     {
@@ -245,7 +270,7 @@
     },
     {
       "name": "second-F11: front matter after a byte order mark is not prose",
-      "text": "\ufeff---\ntitle: We delve into a robust tapestry\n---\nA plain sentence about a red barn.\n",
+      "text": "﻿---\ntitle: We delve into a robust tapestry\n---\nA plain sentence about a red barn.\n",
       "clean": true
     },
     {
@@ -259,13 +284,258 @@
       "fails": ["stock-words"]
     },
     {
-      "name": "runs of punctuation split sentences once, and lines of spaces end a paragraph",
+      "name": "runs of punctuation and lines of spaces do not confuse paragraphs",
       "text": "Wow!! Yes!! No!! Stop.\n \n   \nReally?! Sure... fine?!? Done.\n\t\nA longer sentence about the barn roof follows here!!! And another one about the weather that week...",
-      "warns": ["fragments"]
+      "warns": ["filler-adverbs"]
     },
     {
       "name": "a list of three needs its own start: accents and apostrophes",
       "text": "We sold ’tis, apples, and plums at the café, and the crème, éclairs, or tarts went fast."
+    },
+    {
+      "name": "bracketed placeholders are unfinished",
+      "text": "Join us on [Date] at [Church Name]. Call [Phone Number] to sign up, and bring your [Your Name] badge.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: [Business Name], [City]",
+      "text": "Welcome to [Business Name], serving [City] since 1987. Ask for [Your Name] at the front desk.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: [STUDIO NAME], [Phone or Email]",
+      "text": "Warm regards,\n\n[Your Name]\n[STUDIO NAME]\n[Phone or Email]",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: {{name}}",
+      "text": "Dear {{name}}, thank you for coming to the supper on Friday.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: <insert the date>",
+      "text": "The supper is on <insert the date> at the parish hall.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a template slot is unfinished: TK, and a number or amount of Xs",
+      "text": "The barn was built in TK by the Millers. Call (XXX) XXX-XXXX or come by before XX/XX/XXXX with $XX.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "filler text is unfinished: Lorem ipsum dolor sit amet",
+      "text": "Our Story\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a page that explains lorem ipsum is no filler",
+      "text": "Designers fill a mockup with lorem ipsum so that readers judge the layout, not the words. Swap it for real copy before the page goes live, since lorem ipsum hides how a headline wraps or a paragraph runs long.",
+      "clean": true
+    },
+    {
+      "name": "a roman numeral XX is no placeholder",
+      "text": "The roof of the hall was repaired in Chapter XX of the building committee’s minutes, and the barn stayed dry.",
+      "clean": true
+    },
+    {
+      "name": "a shortcut link and an editorial bracket are no placeholders",
+      "text": "Read [our contact page] for hours, or [the church office] if you cannot reach us.\n\nThe elder wrote that the [church] voted 7 to 1, and that [this week’s produce] was late.\n\n[our contact page]: https://example.com/contact\n[the church office]: https://example.com/office",
+      "clean": true
+    },
+    {
+      "name": "a bracket inside a block quote is no placeholder",
+      "text": "The minutes say:\n\n> The [church] voted to repair the roof, and the [school] agreed to host the supper in the fall.",
+      "clean": true
+    },
+    {
+      "name": "a bracket that is a link, a reference or a footnote is no placeholder",
+      "text": "See [the docs](https://example.com/docs) and the [release notes][notes] before Friday. The council voted 7 to 1 [see the minutes, page 4] to repair the roof.",
+      "clean": true
+    },
+    {
+      "name": "two stock thank-yous warn, one does not",
+      "text": "We’re grateful to the Knights of Columbus for the briskets. The potluck starts at noon in the parish hall, and the sign-up sheet is in the narthex.",
+      "clean": true
+    },
+    {
+      "name": "stock warmth in pairs warns",
+      "text": "We’re grateful to everyone who came. Thank you for being part of this. It truly makes a difference to our neighbors, and the pantry opens Tuesday at 4.",
+      "warns": ["warm-boilerplate"],
+      "ok": true
+    },
+    {
+      "name": "bullets that each open on a bold label warn",
+      "text": "Bring these on the float trip:\n\n- **Waders:** the river runs cold in October.\n- **Layers:** wool or fleece, never cotton.\n- **Lunch:** we stop at the gravel bar around noon.\n",
+      "warns": ["bold-list-leads"],
+      "ok": true
+    },
+    {
+      "name": "one bold label in a list is no template",
+      "text": "Bring these on the float trip:\n\n- **Waders:** the river runs cold in October.\n- Layers of wool or fleece, never cotton.\n- Lunch; we stop at the gravel bar around noon.\n",
+      "clean": true
+    },
+    {
+      "name": "a heading every few lines in a short piece warns",
+      "text": "# Fall Lawn Care\n\n## Mowing\n\nKeep the blade at 2.5 inches until the last cut.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n",
+      "warns": ["headings"],
+      "ok": true
+    },
+    {
+      "name": "three headings in a long piece are fine",
+      "text": "## One\n\nThe barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner. The barn went up in a week and the neighbors brought lumber and sandwiches from the diner on the corner.\n\n## Two\n\nWe planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light. We planed the doors in August because they stuck, and the trailer needed new bearings and a brake light.\n\n## Three\n\nGrandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town. Grandmother kept bees behind the old shed for years and sold the honey at the Saturday market in town.\n",
+      "clean": true
+    },
+    {
+      "name": "every paragraph cut to the same short size warns",
+      "text": "The season opens on Saturday at the north field with a short practice at nine.\n\nBring your own water and a hat, since the shade comes only after noon.\n\nCoach Dana will hand out the uniforms by the equipment shed.\n\nParents may park along the fence but not in the bus lane.\n\nGames run on Saturdays through the end of October, rain or shine.\n\nThe snack stand is staffed by volunteers, so sign up at the table.\n",
+      "warns": ["uniform-paragraphs"],
+      "ok": true
+    },
+    {
+      "name": "one long paragraph among short ones is a person’s rhythm",
+      "text": "The season opens on Saturday at the north field with a short practice at nine.\n\nBring your own water and a hat, since the shade comes only after noon.\n\nCoach Dana will hand out the uniforms by the equipment shed, and she asks that each family check the size on the tag before leaving the field, because last year we spent three Mondays trading shirts, and she would rather spend those evenings at practice, running the drills the older kids always ask for and the younger ones secretly love.\n\nParents may park along the fence but not in the bus lane.\n\nGames run on Saturdays through the end of October, rain or shine.\n\nThe snack stand is staffed by volunteers, so sign up at the table.\n",
+      "clean": true
+    },
+    {
+      "name": "two different weak tells together fail as stacked-tells",
+      "text": "Two things before the float trip:\n\n- **Height:** keep the blade at 2.5 inches.\n- **Timing:** mow until the first hard frost.\n\nWe’re grateful to everyone who came out. Thank you for being part of this.\n",
+      "fails": ["stacked-tells"],
+      "warns": ["bold-list-leads", "warm-boilerplate"]
+    },
+    {
+      "name": "the same weak tell twice is still one kind",
+      "text": "- **Height:** keep the blade at 2.5 inches.\n- **Timing:** mow until the first hard frost.\n\nLater in the season:\n\n- **Seed:** overseed by September 20.\n- **Leaves:** mulch them before the snow.\n",
+      "warns": ["bold-list-leads"],
+      "ok": true
+    },
+    {
+      "name": "more than a X. It was Y",
+      "text": "The coop was more than a pile of boards. It was a classroom, and Anna ran it.",
+      "warns": ["not-but"],
+      "ok": true
+    },
+    {
+      "name": "not only X but Y is ordinary English",
+      "text": "The roof leaked not only over the north pews but into the choir loft, and the council agreed to fix it by Easter.",
+      "clean": true
+    },
+    {
+      "name": "one office word is no finding, three warn",
+      "text": "We leverage the old barn for storage and keep the tractor in the shed.\n\nThe new program will leverage the grant, utilize the old tools, and streamline the sign-up sheet for the fall.",
+      "warns": ["corporate-words"],
+      "ok": true
+    },
+    {
+      "name": "a human email asks to hear back and thanks the reader",
+      "text": "Hi Dana,\n\nThe invoice is attached. Let me know if you have any questions, and feel free to reach out if the numbers look off. I’d be happy to walk through it on Thursday.\n\nThanks for your patience,\nCarl",
+      "clean": true
+    },
+    {
+      "name": "a pastor’s plain sermon note only warns",
+      "text": "The truth is, we are slow to forgive. Think about it: Peter asked how many times, and Jesus did not give him a number. He gave him a way of living. Make no mistake, the cross is the number.",
+      "warns": ["cliches"],
+      "ok": true
+    },
+    {
+      "name": "a stock word that fails and a stock phrase that only warns",
+      "text": "In today’s fast-paced world, it’s worth noting that the realm of baking is intricate.",
+      "fails": ["empty-phrases"],
+      "ok": false
+    },
+    {
+      "name": "headings and short paragraphs alone are a web page, not a finding to fail",
+      "text": "# Fall Lawn Care\n\n## Mowing\n\nKeep the blade at 2.5 inches until the last cut.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n\n## Fertilizer\n\nStop by October 15.\n",
+      "warns": ["headings"],
+      "ok": true
+    },
+    {
+      "name": "a last paragraph that opens with Ultimately is a story, not a recap",
+      "text": "We moved the kitchen to the north wall so the morning light lands on the counter.\n\nThe sink sits under the window, and the range vents out through the old chimney chase.\n\nUltimately, we decided to keep the old stove, because Grandmother’s biscuits never came out right on anything else.",
+      "warns": ["summary-ending"],
+      "ok": true
+    },
+    {
+      "name": "an em dash warns and never fails a piece",
+      "text": "We planted the beans in May\u2014the soil was still cold\u2014and waited for the rain.",
+      "warns": ["em-dash"],
+      "ok": true,
+      "reports": { "em-dash": "\u2014" }
+    },
+    {
+      "name": "a spaced double hyphen is an em dash typed in plain text",
+      "text": "We planted the beans in May -- the soil was still cold -- and waited for the rain.",
+      "warns": ["em-dash"],
+      "ok": true,
+      "reports": { "em-dash": "--" }
+    },
+    {
+      "name": "hyphens, en dashes, number ranges and a command flag are not em dashes",
+      "text": "Open Monday\u2013Friday, 9\u20135, in room 2020-2024. Ask my mother-in-law, or run the check with the --max flag.",
+      "clean": true
+    },
+    {
+      "name": "a dash in code, a link or an address is not prose",
+      "text": "Write it in the code:\n\n```\na \u2014 b\n```\n\nSee [the post](https://example.com/a\u2014b) or https://example.com/c\u2014d for the rest.",
+      "clean": true
+    },
+    {
+      "name": "an em dash is not a kind of weak tell, so it never stacks into a fail",
+      "text": "The fence went up in May\u2014the soil was soft. Simply put, it took a weekend.",
+      "warns": ["em-dash", "metadiscourse"],
+      "ok": true
+    },
+    {
+      "name": "a person who loves dashes still passes by default",
+      "text": "My grandmother\u2014Ruth, the one with the orchard\u2014kept bees. The hives\u2014six of them\u2014sat by the creek. The honey\u2014thick, dark\u2014went to the church sale.",
+      "warns": ["em-dash"],
+      "ok": true
+    },
+    {
+      "name": "strict: an em dash fails",
+      "strict": true,
+      "text": "We planted the beans in May\u2014the soil was still cold\u2014and waited for the rain.",
+      "fails": ["em-dash"],
+      "ok": false
+    },
+    {
+      "name": "strict: a spaced double hyphen fails too",
+      "strict": true,
+      "text": "We planted the beans in May -- the soil was still cold.",
+      "fails": ["em-dash"],
+      "ok": false
+    },
+    {
+      "name": "default: three office words are a warn",
+      "text": "We leverage the van, utilize the shed and streamline the route.",
+      "warns": ["corporate-words"],
+      "ok": true
+    },
+    {
+      "name": "strict: three office words fail",
+      "strict": true,
+      "text": "We leverage the van, utilize the shed and streamline the route.",
+      "fails": ["corporate-words"],
+      "ok": false
+    },
+    {
+      "name": "strict: a stock phrase warn fails",
+      "strict": true,
+      "text": "Simply put, the bees need water in July. The good news is that a pan of stones will do.",
+      "fails": ["metadiscourse"],
+      "ok": false
+    },
+    {
+      "name": "strict: headings stay a warn, since a page needs them",
+      "strict": true,
+      "text": "# Fall Lawn Care\n\n## Mowing\n\nKeep the blade at 2.5 inches until the last cut.\n\n## Leaves\n\nMulch them or rake them before the snow.\n\n## Seed\n\nOverseed by September 20.\n",
+      "warns": ["headings"],
+      "ok": true
+    },
+    {
+      "name": "strict: clean writing is clean",
+      "strict": true,
+      "text": "The bees need water in July. A pan of stones on the porch will do.",
+      "clean": true
     }
   ]
 }

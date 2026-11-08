@@ -47,6 +47,10 @@ node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if you touched apps/desktop/
 ```
 
+If you touched the prose lint (`packages/craft/src/prose.ts`, `skills/hildegard/scripts/prose_lint.py` or their rules), run
+`node packages/craft/bench/quality.ts` before and after: a rule that fires on people's writing as often as on AI drafts is
+noise. `prose-quality.test.ts` holds the numbers in `packages/craft/bench/baseline.json`; `quality.ts --ratchet` raises them.
+
 The desktop app's Rust build wants what the app carries in place first: `pnpm --filter @hildegard/studio build`,
 `node apps/desktop/scripts/prepare-bundle.mjs`, then `pnpm --filter @hildegard/desktop build` (see the README).
 

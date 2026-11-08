@@ -113,7 +113,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              For everyday prose, fix every fail, fix each warn unless it is your voice, and lint
                              again; for poems, fiction, scripts and papers every finding is a warning. Exits 1 when
                              any file fails, 2 for bad usage or a file it can't read (--json: the lint itself;
-                             --max N: places shown for each, 1 or more)
+                             --max N: places shown for each, 1 or more; --strict: for writing that must carry no
+                             tells, the em dash and the other warnings fail too)
 
   hildegard report bug "<what broke>" --what "<what you did, expected, got>"
   hildegard report idea "<what you want>" --what "<the work you want to make>"
