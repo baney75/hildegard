@@ -31,7 +31,7 @@ describe('video editing tools', () => {
 
   it('are carried, byte for byte, by the hildegard-video-edit skill', () => {
     expect(() =>
-      execFileSync(process.execPath, [join(root, 'scripts', 'sync-video-edit-skill.mjs'), '--check'], {
+      execFileSync(process.execPath, [join(root, 'scripts', 'sync-skill-shared.mjs'), '--check'], {
         encoding: 'utf8',
         stdio: 'pipe',
       }),

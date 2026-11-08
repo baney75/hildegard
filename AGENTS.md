@@ -17,7 +17,7 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` and `reviewMesh` (run `tools/review_media.py` and `tools/review_mesh.py`), and critique rubrics |
 | `packages/agents` | Runs Claude Code, Codex, OMP and Pi only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
-| `tools/edit_video.py`, `tools/hgedit/` | Video editing: an edit list (`edl.json`) any model writes, rendered and proven on the output; see [docs/video-editing.md](docs/video-editing.md). A copy lives in `skills/hildegard-video-edit/scripts/` (`node scripts/sync-video-edit-skill.mjs`) |
+| `tools/edit_video.py`, `tools/hgedit/` | Video editing: an edit list (`edl.json`) any model writes, rendered and proven on the output; see [docs/video-editing.md](docs/video-editing.md). A copy lives in `skills/hildegard-video-edit/scripts/` (`node scripts/sync-skill-shared.mjs`, listed in `skills/SHARED.json`) |
 | `skills/` | Agent skills for creative work (hildegard), film, video and photo editing, art, sound, 3D, the loop, setup and cloud, with Hildegard's quality gates. Packed for uploads by `scripts/pack-skills.mjs` |
 | `.claude-plugin/`, `plugin/` | The repository as a Claude Code plugin and marketplace; `plugin/mcp.mjs` starts the installed Hildegard's MCP server. See [docs/chatbots.md](docs/chatbots.md) |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
@@ -47,6 +47,10 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 node --test omarchy/test/*.test.mjs && node scripts/check-omarchy.mjs   # if you touched omarchy/
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if you touched apps/desktop/
 ```
+
+If you touched the prose lint (`packages/craft/src/prose.ts`, `skills/hildegard/scripts/prose_lint.py` or their rules), run
+`node packages/craft/bench/quality.ts` before and after: a rule that fires on people's writing as often as on AI drafts is
+noise. `prose-quality.test.ts` holds the numbers in `packages/craft/bench/baseline.json`; `quality.ts --ratchet` raises them.
 
 The desktop app's Rust build wants what the app carries in place first: `pnpm --filter @hildegard/studio build`,
 `node apps/desktop/scripts/prepare-bundle.mjs`, then `pnpm --filter @hildegard/desktop build` (see the README).

@@ -1,0 +1,101 @@
+{
+  "name": "fire_crackle",
+  "note": "A campfire: a low roar with random pops and snaps. Vary: the crackle layers' events.count (30 sparse, 120 roaring) and span (match dur), the roar's cutoff (300 to 800 Hz).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "brown",
+      "stereo": true,
+      "dur": 8.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 520,
+        "q": 0.8,
+        "lfo": {
+          "rate": 0.8,
+          "octaves": 0.25
+        }
+      },
+      "gain_db": -6
+    },
+    {
+      "source": "white",
+      "dur": 0.02,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 2800,
+        "q": 1.1
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.017,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "gain_db": -6,
+      "pan": -0.4,
+      "events": {
+        "count": 55,
+        "span": 7.9,
+        "random": true,
+        "gain_jitter_db": 9,
+        "pitch_jitter_cents": 900
+      }
+    },
+    {
+      "source": "white",
+      "dur": 0.008,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 4500
+      },
+      "env": {
+        "attack": 0.0001,
+        "decay": 0.006,
+        "sustain": 0.0,
+        "release": 0.001
+      },
+      "gain_db": -12,
+      "pan": 0.4,
+      "events": {
+        "count": 90,
+        "span": 7.9,
+        "random": true,
+        "gain_jitter_db": 10,
+        "pitch_jitter_cents": 700
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 160,
+      "sweep": {
+        "to": 90,
+        "time": 0.04
+      },
+      "dur": 0.08,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.07,
+        "sustain": 0.0,
+        "release": 0.005
+      },
+      "gain_db": -12,
+      "events": {
+        "count": 10,
+        "span": 7.9,
+        "random": true,
+        "gain_jitter_db": 6
+      }
+    }
+  ],
+  "master": {
+    "fade": {
+      "in": 0.4,
+      "out": 0.8
+    },
+    "loudness": {
+      "lufs": -26,
+      "true_peak": -1
+    }
+  }
+}

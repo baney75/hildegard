@@ -1,0 +1,22 @@
+{
+  "name": "brown_noise",
+  "note": "Brown noise (power falling 6 dB per octave): a deep, even rumble, with a very slow level drift so it is never dead static. Vary: lowpass (400 to 4000), highpass.",
+  "vary": ["lowpass", "highpass", "width", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "noise",
+      "color": "brown",
+      "lowpass": 3000,
+      "highpass": 20,
+      "width": 1
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}

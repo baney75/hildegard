@@ -80,6 +80,28 @@ await build({
   logLevel: 'warning',
 });
 
+// The Markdown renderer's worker thread, which the server starts for each post (render-markdown.ts).
+await build({
+  entryPoints: [join(root, 'apps', 'server', 'src', 'markdown-worker.ts')],
+  outfile: join(stage, 'markdown-worker.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});
+
+// The Markdown renderer's worker thread, which the server starts for each post (render-markdown.ts).
+await build({
+  entryPoints: [join(root, 'apps', 'server', 'src', 'markdown-worker.ts')],
+  outfile: join(stage, 'markdown-worker.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  logLevel: 'warning',
+});
+
 const copy = (from, to, filter) => cpSync(join(root, from), join(stage, to), { recursive: true, filter });
 copy('apps/studio/dist', 'studio');
 copy('presets', 'presets');

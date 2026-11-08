@@ -1,0 +1,88 @@
+{
+  "name": "waltz_music_box",
+  "note": "A gentle 3/4 waltz: music box melody, felt piano oom-pah-pah, upright bass, soft brushes. Lullaby, nostalgic, family video. Vary: tempo (80 to 112), key, melody degrees, harp second time.",
+  "vary": ["tempo 80 to 112", "key", "melody degrees", "mute the drums"],
+  "seed": 91,
+  "tempo": 96,
+  "key": "F major",
+  "time": "3/4",
+  "length_s": 36,
+  "sections": [
+    {
+      "name": "a",
+      "bars": 8,
+      "chords": ["I", "IV", "I", "V", "I", "IV", "V", "I"]
+    },
+    {
+      "name": "a2",
+      "bars": 8,
+      "chords": ["I", "IV", "I", "V", "I", "IV", "V", "I"]
+    },
+    {
+      "name": "outro",
+      "bars": 2,
+      "chords": ["I", "I"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "keys",
+      "instrument": "felt_piano",
+      "level_db": -5,
+      "sections": {
+        "a": "waltz",
+        "a2": "waltz",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "upright_bass",
+      "level_db": 1,
+      "sections": {
+        "a": "root",
+        "a2": "root",
+        "outro": "root"
+      }
+    },
+    {
+      "role": "drums",
+      "kit": "soft",
+      "level_db": -7,
+      "sections": {
+        "a2": "waltz_soft"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "harp",
+      "level_db": -6,
+      "sections": {
+        "a2": "arp_up"
+      }
+    },
+    {
+      "role": "melody",
+      "instrument": "bell",
+      "level_db": -3,
+      "sections": {
+        "a": "3:1 5:1 1^:1 | 6:1 4:1 6:1 | 5:2 3:1 | 5:1 2:1 7_:1 | 1^:1 5:1 3:1 | 4:1 6:1 1^:1 | 7:1 5:1 2:1 | 5:1 3:1 1:1",
+        "a2": "same:a",
+        "outro": "1^:3 | 1:3"
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 10,
+    "velocity": 0.08
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.55,
+      "level_db": -5
+    }
+  },
+  "master": {
+    "fade_out": 2.0
+  }
+}

@@ -1,0 +1,55 @@
+         71225 function calls (71131 primitive calls) in 0.768 seconds
+
+   Ordered by: internal time
+   List reduced from 68 to 12 due to restriction <12>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.108    0.108    0.126    0.126 skills/hildegard/scripts/prose_lint.py:267(phrase_hits)
+     3759    0.100    0.000    0.100    0.000 {method 'group' of 're.Match' objects}
+       21    0.079    0.004    0.084    0.004 skills/hildegard/scripts/prose_lint.py:105(all)
+        1    0.064    0.064    0.764    0.764 skills/hildegard/scripts/prose_lint.py:406(lint_prose)
+    103/9    0.064    0.001    0.083    0.009 {method 'sub' of 're.Pattern' objects}
+        1    0.055    0.055    0.055    0.055 {built-in method unicodedata.category}
+        1    0.047    0.047    0.048    0.048 skills/hildegard/scripts/prose_lint.py:85(__init__)
+        1    0.046    0.046    0.100    0.100 skills/hildegard/scripts/prose_lint.py:178(is_name)
+      341    0.038    0.000    0.044    0.000 skills/hildegard/scripts/prose_lint.py:99(locate)
+        1    0.038    0.038    0.052    0.052 skills/hildegard/scripts/prose_lint.py:369(triads)
+        1    0.026    0.026    0.137    0.137 skills/hildegard/scripts/prose_lint.py:304(paragraphs)
+      518    0.018    0.000    0.018    0.000 {method 'findall' of 're.Pattern' objects}
+
+
+case                                                    chars     ts ms     py ms    ts was    py was
+prose 1,000 chars                                         801      0.13      1.37      0.31      6.09
+prose 10,000 chars                                       9980      0.91     10.20      2.24     48.25
+prose 100,000 chars                                     99846     11.70    116.61     28.34    455.88
+prose 1,000,000 chars                                  999949    135.12   1564.38    287.18   5058.92
+attack: blank lines of spaces (paragraph split)        200001      9.51    468.53     15.92    961.54
+attack: accented letters (list of three)               200000      9.45    372.40     16.15   1263.32
+attack: a run of exclamation marks (sentence split)    200000      4.44    353.46     11.85   1225.20
+attack: unclosed tags                                  200000      7.62    361.85     17.98   1470.96
+attack: unclosed tags with a name                      200000     14.19    384.83     24.50   1287.93
+attack: unclosed code blocks                           200000      7.12    339.16     15.46    612.41
+attack: unclosed images                                200000      4.59    333.90     16.37    900.88
+attack: unclosed image targets                         200000     12.86    375.32     26.04    813.35
+attack: unclosed link targets                          200000      9.23    265.96     23.04    874.50
+
+Median ms per 100k characters (the 100k and 1M inputs): ts 13.51, py 156.45
+Before: ts 28.72, py 505.92. Faster by 2.1x (ts) and 3.2x (py).
+Worst adversarial case (200k chars): ts 14 ms (attack: unclosed tags with a name), py 469 ms (attack: blank lines of spaces (paragraph split))
+  before: ts 26 ms, py 1471 ms
+
+Where the TypeScript engine spends its time (100k realistic characters, own time):
+   38.9%  post node:inspector
+   17.0%  triads prose.ts
+   11.2%  phraseHits prose.ts
+    8.8%  all prose.ts
+    6.9%  prose.ts:269
+    3.6%  countWords prose.ts
+    3.1%  lintProse prose.ts
+    2.1%  blankNonProse prose.ts
+    2.0%  (anon) speed.ts
+    1.9%  dashes prose.ts
+    1.1%  prose.ts:176
+    1.1%  paragraphs prose.ts
+    0.8%  blankBlocks prose.ts
+    0.6%  (garbage collector) 

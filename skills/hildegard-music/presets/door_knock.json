@@ -1,0 +1,88 @@
+{
+  "name": "door_knock",
+  "note": "Three knocks on a wooden door, the last a little softer. Vary: events.count (2 to 5), interval (0.2 to 0.4), layers[0].freq (110 to 220 Hz; higher is a thinner door), reverb.mix for a bigger hall.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 175,
+      "sweep": {
+        "to": 95,
+        "time": 0.05
+      },
+      "dur": 0.22,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.2,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "events": {
+        "count": 3,
+        "interval": 0.3,
+        "jitter": 0.2,
+        "decay_db": -2,
+        "gain_jitter_db": 1.5,
+        "pitch_jitter_cents": 60
+      }
+    },
+    {
+      "source": "triangle",
+      "freq": 420,
+      "sweep": {
+        "to": 280,
+        "time": 0.04
+      },
+      "dur": 0.12,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.1,
+        "sustain": 0.0,
+        "release": 0.01
+      },
+      "gain_db": -9,
+      "events": {
+        "count": 3,
+        "interval": 0.3,
+        "jitter": 0.2,
+        "decay_db": -2,
+        "gain_jitter_db": 1.5,
+        "pitch_jitter_cents": 60
+      }
+    },
+    {
+      "source": "pink",
+      "dur": 0.03,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 1100,
+        "q": 1.4
+      },
+      "env": {
+        "attack": 0.0004,
+        "decay": 0.026,
+        "sustain": 0.0,
+        "release": 0.003
+      },
+      "gain_db": -8,
+      "events": {
+        "count": 3,
+        "interval": 0.3,
+        "jitter": 0.2,
+        "decay_db": -2,
+        "gain_jitter_db": 1.5,
+        "pitch_jitter_cents": 60
+      }
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.15,
+      "room": 0.35
+    },
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

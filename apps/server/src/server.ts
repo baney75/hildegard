@@ -60,7 +60,7 @@ import {
 import { People } from './people.ts';
 import { type GpuSource, gpuSourceFor, type IdleSource, Presence, systemIdle } from './presence.ts';
 import { findSlicer, type Printer, PrinterProfile, type Slicer, slice } from './printer.ts';
-import { RecordStore } from './record.ts';
+import { importLimits, RecordStore } from './record.ts';
 import { CleanJobs, probeMedia } from './record-clean.ts';
 import { MediaSigner } from './remote-mcp.ts';
 import type { Reports } from './report.ts';
@@ -168,7 +168,7 @@ async function serveStudio(
     tunnelSecrets?: (account: string) => SecretStore;
     /** cloudflared's home for cert.pem, the Cloudflare sign-in; the user's home by default. */
     tunnelHome?: string;
-    /** The clock for short codes and their limits: tests give a fake one. */
+    /** The clock for short codes, their limits and sign-in sessions: tests give a fake one. */
     now?: () => number;
     /** Runs tools/edit_video.py for video edits: tests give a stand-in. */
     editRunner?: EditRunner;
@@ -445,7 +445,7 @@ async function serveStudio(
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
-  const people = new People({ dataDir: config.dataDir });
+  const people = new People({ dataDir: config.dataDir, now: opts.now });
   const grants = new Grants({ dataDir: config.dataDir, person: (id) => people.get(id) });
   const signer = new MediaSigner({ dataDir: config.dataDir });
   const llm = new LocalModels({ dataDir: config.dataDir, secrets: secretsFor, ...opts.llm });
@@ -622,6 +622,7 @@ async function serveStudio(
     mediaDir,
     now: opts.now,
     probe: probeMedia(config.dataDir),
+    imports: importLimits(),
   });
   const records = {
     store: recordStore,

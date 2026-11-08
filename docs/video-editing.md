@@ -24,7 +24,7 @@ transcribe ──▶ plan ──▶ (edit_write) ──▶ check ──▶ rende
 | `tools/hgedit/verify.py`, `selftest.py` | The gate, and the planted-key proof that it works |
 | `apps/server/src/edit.ts`, `edit-routes.ts` | `/api/edits`: per-person edits, jobs, references instead of paths |
 | `mcp/src/edit-tools.ts` | `edit_plan`, `edit_write`, `edit_status`, `edit_render`, `edit_verify` |
-| `skills/hildegard-video-edit/scripts/` | A byte-for-byte copy of the tools, so the skill works alone: `node scripts/sync-video-edit-skill.mjs` |
+| `skills/hildegard-video-edit/scripts/` | A byte-for-byte copy of the tools, so the skill works alone: `node scripts/sync-skill-shared.mjs` (listed in `skills/SHARED.json`) |
 
 Python needs PyAV, numpy and Pillow (what `hildegard install` already sets up). Nothing needs an `ffmpeg` on PATH, except
 writing chapter marks into the MP4 (chapters.txt is always written). `tesseract` is optional and lets the gate read the output.

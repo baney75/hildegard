@@ -39,6 +39,8 @@ interface PhraseRule {
   fix: string;
   patterns: string[];
   density?: number;
+  /** Fewer matches than this and the rule stays quiet: one is a habit, several are a style. */
+  minHits?: number;
   /** A capital in mid-sentence is a name, not the word (off a heading line): only for words with ordinary senses. */
   exemptNames?: boolean;
 }
@@ -100,8 +102,12 @@ export function blankNonProse(text: string): string {
           whenClosed(blank),
         ),
     )
-      // <tag>. Not closed: “<>”, or no > on the rest of the line.
-      .replace(/(<[^>\n]+>)|<>|<[^\n]*/g, whenClosed(blank))
+      // <tag>. Not closed: “<>”, or no > on the rest of the line. A tag that reads “<insert the date>” is left for the
+      // placeholder rule.
+      .replace(
+        /(<(?!(?:insert|your|add)\s)[^>\n]+>)|<(?:insert|your|add)\s[^>\n]+>|<>|<[^\n]*/g,
+        whenClosed(blank),
+      )
       // ](target). Not closed: no ) on the rest of the line.
       .replace(
         /(\]\([^)\n]*\))|\]\([^\n]*/g,
@@ -172,63 +178,165 @@ const isName = (prose: string, index: number, match: string) =>
 const unquote = (prose: string) =>
   prose.replace(/"[^"\n]{1,80}"|“[^”\n]{1,80}”/g, (m) => m.replace(/[^\n]/g, ' '));
 
-const bounded = (p: string) => new RegExp(`(?<![\\w-])(?:${p})(?![\\w-])`, 'gi');
+const bounded = (p: string, flags = 'gi') => new RegExp(`(?<![\\w-])(?:${p})(?![\\w-])`, flags);
 
-const countWords = (s: string) => s.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+/**
+ * The lowercase text every match of `p` must begin with, or '' when the pattern doesn't open on plain letters: its
+ * leading run of letters, digits, spaces and hyphens, less the last character when a quantifier makes that optional.
+ * A pattern with a bar outside its groups has no such prefix.
+ */
+export function needleOf(p: string): string {
+  let depth = 0;
+  let inClass = false;
+  for (let i = 0; i < p.length; i++) {
+    const c = p[i]!;
+    if (c === '\\') i++;
+    else if (inClass) inClass = c !== ']';
+    else if (c === '[') inClass = true;
+    else if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === '|' && depth === 0) return '';
+  }
+  const run = p.match(/^[a-z0-9 -]*/i)![0];
+  const next = p[run.length];
+  return (next === '?' || next === '*' || next === '{' ? run.slice(0, -1) : run).toLowerCase();
+}
 
-/** Paragraphs with their offsets: blocks between blank lines. */
-function paragraphs(prose: string): Array<{ text: string; index: number }> {
-  const out: Array<{ text: string; index: number }> = [];
+interface Phrase {
+  /** The rule this pattern belongs to. */
+  rule: string;
+  all: RegExp;
+  /** The same pattern, sticky: tried only where `needle` could begin a match. */
+  at: RegExp;
+  needle: string;
+}
+/** Every phrase pattern, in rule order and then pattern order, compiled once. */
+const COMPILED: Phrase[] = Object.entries(PHRASES).flatMap(([rule, r]) =>
+  r.patterns.map((p) => ({ rule, all: bounded(p), at: bounded(p, 'iy'), needle: needleOf(p) })),
+);
+
+/** A prefix tree of the needles as a regex, so each position is tried against a handful of letters, not 170 words. */
+function trie(words: string[]): string {
+  type Node = { [c: string]: Node | true };
+  const root: Node = {};
+  for (const w of words) {
+    let n = root;
+    for (const c of w) {
+      n[c] ??= {};
+      n = n[c] as Node;
+    }
+    n[''] = true;
+  }
+  const rx = (n: Node): string => {
+    const alts = Object.keys(n)
+      .filter((c) => c !== '')
+      .sort()
+      .map((c) => c.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&') + rx(n[c] as Node));
+    if (!alts.length) return '';
+    // A node that also ends a needle makes the rest optional.
+    return '' in n ? `(?:${alts.join('|')})?` : alts.length === 1 ? alts[0]! : `(?:${alts.join('|')})`;
+  };
+  return rx(root);
+}
+/** Word starts where some pattern's needle begins. Zero-width, so every start is found, overlaps included. */
+const STARTS = new RegExp(
+  `(?<![\\w-])(?=${trie([...new Set(COMPILED.map((c) => c.needle).filter(Boolean))])})`,
+  'gi',
+);
+/** The patterns whose needle begins with each character. */
+const BY_FIRST = new Map<number, number[]>();
+COMPILED.forEach((c, i) => {
+  if (!c.needle) return;
+  const key = c.needle.charCodeAt(0);
+  BY_FIRST.set(key, [...(BY_FIRST.get(key) ?? []), i]);
+});
+
+/** Every match of every phrase pattern, as RegExp.matchAll finds them one pattern at a time: the reference. */
+export function phraseHitsNaive(prose: string): RegExpExecArray[][] {
+  return COMPILED.map((c) => [...prose.matchAll(c.all)]);
+}
+
+/**
+ * The same hits, found fast. Most patterns open on fixed letters (their needle), so one pass finds the word starts where
+ * any needle begins, and a pattern's regex is tried only at a start whose first letter is its own: leftmost,
+ * non-overlapping, exactly what scanning the whole text with that pattern gives. The needle is checked against the
+ * lowercased text first when that text has the same length (a few capitals change length when lowercased); the check
+ * can only skip a place where the regex would fail anyway.
+ */
+export function phraseHits(prose: string): RegExpExecArray[][] {
+  const out: RegExpExecArray[][] = COMPILED.map(() => []);
+  const lower = prose.toLowerCase();
+  const exact = lower.length === prose.length;
+  const end = new Int32Array(COMPILED.length);
+  COMPILED.forEach((c, i) => {
+    if (!c.needle) out[i] = [...prose.matchAll(c.all)];
+  });
+  STARTS.lastIndex = 0;
+  for (let m = STARTS.exec(prose); m; m = STARTS.exec(prose)) {
+    const at = m.index;
+    STARTS.lastIndex = at + 1;
+    let key = prose.charCodeAt(at);
+    if (key >= 65 && key <= 90) key += 32;
+    for (const i of BY_FIRST.get(key) ?? []) {
+      const c = COMPILED[i]!;
+      if (at < end[i]! || (exact && !lower.startsWith(c.needle, at))) continue;
+      c.at.lastIndex = at;
+      const hit = c.at.exec(prose);
+      if (!hit) continue;
+      end[i] = at + hit[0].length;
+      out[i]!.push(hit);
+    }
+  }
+  return out;
+}
+
+/** The reference: a word is a letter or number, then letters, numbers, apostrophes and hyphens. */
+export const countWordsRegex = (s: string) => s.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+const LETTER_OR_NUMBER = /^[\p{L}\p{N}]$/u;
+/** The same count in one pass over the characters, a fifth of the time: no match objects, and ASCII needs no regex. */
+export function countWords(s: string): number {
+  let n = 0;
+  let inWord = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    let letter: boolean;
+    if (c < 128) letter = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+    else {
+      const cp = s.codePointAt(i)!;
+      if (cp > 0xffff) i++;
+      letter = LETTER_OR_NUMBER.test(String.fromCodePoint(cp));
+    }
+    if (letter) {
+      if (!inWord) n++;
+      inWord = true;
+    } else if (!(inWord && (c === 39 || c === 0x2019 || c === 45))) inWord = false;
+  }
+  return n;
+}
+
+/** Paragraphs with their offsets and word counts: blocks between blank lines. */
+function paragraphs(prose: string): Array<{ text: string; index: number; words: number }> {
+  const out: Array<{ text: string; index: number; words: number }> = [];
   // `[^\S\n]*`, not `\s*`: the lookahead must stop at the line's end, or a run of blank lines is rescanned from every line.
   const re = /[^\n]+(?:\n(?![^\S\n]*\n)[^\n]+)*/g;
-  for (const m of prose.matchAll(re)) if (m[0].trim()) out.push({ text: m[0], index: m.index });
+  for (const m of prose.matchAll(re))
+    if (m[0].trim()) out.push({ text: m[0], index: m.index, words: countWords(m[0]) });
   return out;
 }
 
 const isHeading = (p: string) => /^\s{0,3}#{1,6}\s/.test(p);
 const isList = (p: string) => /^\s{0,3}(?:[-*+]|\d+[.)])\s/.test(p);
 
-/**
- * One sentence: its first character, then up to the first run of . ! or ? that ends a word, with any closing quotes.
- * The run must be whole (`(?![.!?])`) and, after the first character, must start where it begins (`(?<![.!?])`): a
- * greedy run is otherwise retried from every character of 'a!!!!...!b', and each retry backtracks through the run.
- */
-const SENTENCE =
-  /\S(?:(?:[.!?]+(?![.!?])["”’)]*(?=\s|$)|$)|[\s\S]*?(?:(?<![.!?])[.!?]+(?![.!?])["”’)]*(?=\s|$)|$))/g;
-
-/**
- * Sentences of running prose (not headings or list items), with offsets. `text` is the sentence as written (read from
- * the text as given, so code and links show), `words` counts the blanked copy.
- */
-function sentences(prose: string, original: string): Array<{ text: string; index: number; words: number }> {
-  const out: Array<{ text: string; index: number; words: number }> = [];
-  for (const p of paragraphs(prose)) {
-    if (isHeading(p.text) || isList(p.text)) continue;
-    for (const m of p.text.matchAll(SENTENCE)) {
-      const t = m[0].trim();
-      if (!t) continue;
-      const lead = m[0].length - m[0].trimStart().length;
-      const at = p.index + m.index + lead;
-      out.push({
-        // Trimmed after slicing: the blanked copy ends in spaces where the sentence ends in a link or a URL.
-        text: original.slice(at, p.index + m.index + m[0].length).trim(),
-        index: at,
-        words: countWords(t),
-      });
-    }
-  }
-  return out;
-}
-
 const EMOJI_LINE =
   /^\s{0,3}(?:#{1,6}\s*|[-*+]\s+|\d+\.\s+)?(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2705}\u{274C}])/gmu;
 const NOT_BUT = [
   // Only the contrasts a writer sets up, not an everyday hedge: “not about rules, but”, never “not cheap, but”.
-  /\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|only|merely|simply|a|an|the|because|that)\b[^.\n]{1,60}?,\s*but\b/gi,
+  /\b(?:not|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t) (?:about|just|merely|simply|a|an|the|because|that)\b[^.\n]{1,60}?,\s*but\b/gi,
   /\b(?:it|this|that)['’]?s not\b[^.\n]{1,60}[.;]\s+(?:it|this|that)['’]?s\b/gi,
   /\b(?:it|this|that) (?:is|was) not\b[^.\n]{1,60}[.;]\s+(?:it|this|that) (?:is|was)\b/gi,
-  /\bnot (?:just|only|merely) [^.\n]{1,60}?,?\s+but(?: also)?\b/gi,
+  /\bnot (?:just|merely) [^.\n]{1,60}?,?\s+but(?: also)?\b/gi,
   /\byou (?:don['’]?t|do not) need [^.\n]{1,60}\.\s+you need\b/gi,
+  /\bmore than (?:just |only |merely )?(?:a|an) [^.\n]{1,50}[.;]\s+(?:it|this|that|they|these)(?: was| is| were| are|['’]s)\b/gi,
   /\bthe (?:question|problem|issue|point) (?:isn['’]?t|is not) [^.\n]{1,60}[.,;]\s+(?:it['’]?s|it is)\b/gi,
 ];
 const NEGATIVE_LIST = /(?:^|[.!?]\s+)(Not an? [^.!?\n]{1,40}\.\s+Not an? [^.!?\n]{1,40}\.)/gim;
@@ -236,53 +344,113 @@ const ING_TAIL =
   /,\s+(?:highlighting|underscoring|reflecting|showcasing|emphasizing|emphasising|demonstrating|signaling|signalling|illustrating|cementing|solidifying|reinforcing|symbolizing)\b/gi;
 const COLON_REVEAL =
   /(?:^|[.!?]\s+)((?:The|My|Our|Their|One|Here['’]s|What) (?:[\w'’-]+ ){0,5}(?:detail|part|secret|trick|catch|twist|kicker|answer|truth|reason|result|difference|fix|best part|worst part|key|something|one thing)\b[^.:!?\n]{0,40}: [a-z])/gm;
-/** An em dash anywhere; an en dash or a double hyphen only between words, never in a range like 9 – 5. */
-const DASHES = /—|(?<=\p{L}[,]?) (?:–|--) (?=\p{L})/gu;
 const BOLD = /\*\*[^*\n]+\*\*|__[^_\n]+__/g;
+/**
+ * The em dash (U+2014), and a double hyphen set off by spaces, which is how a plain-text writer types one. Never a
+ * hyphen or an en dash, so “2020-2024”, “pages 10–12” and “--max” are not found. Found with indexOf, not a regex: an
+ * alternation with no letter to start on is tried at every character, and most text has no dash at all. Written as
+ * escapes: this file is itself prose a house style might lint.
+ */
+const EM = '\u2014';
+const SPACED = ' -- ';
+function dashes(prose: string, text: string): ProseMatch[] {
+  const at: Array<[number, number]> = [];
+  for (let i = prose.indexOf(EM); i >= 0; i = prose.indexOf(EM, i + 1)) at.push([i, 1]);
+  for (let i = prose.indexOf(SPACED); i >= 0; i = prose.indexOf(SPACED, i + 1)) at.push([i + 1, 2]);
+  return at.sort((a, b) => a[0] - b[0]).map(([i, n]) => locate(text, i, text.slice(i, i + n)));
+}
 /**
  * “sleep, reading, play, or dinner”: a list of three or more, the rhythm generated prose falls into. It starts where
  * a word starts, by its own letters: `\b` is ASCII-only, so in “aéaéaé…” it fell between every pair and rescanned the word.
  */
 const TRIAD =
   /(?<![\p{L}\p{N}_'’-])[\p{L}'’-]+(?: [\p{L}'’-]+){0,3}, [\p{L}'’-]+(?: [\p{L}'’-]+){0,3},? (?:and|or) [\p{L}'’-]+/gu;
+/**
+ * Lists of three, found by clause. A list lies inside one run of letters, apostrophes, hyphens, spaces and commas, so
+ * only the runs that hold a comma and an “and” or “or” are matched, each from one character early so the lookbehind
+ * still sees what comes before. The same matches as scanning the whole text, in a third of the time.
+ */
+const CLAUSE = /[\p{L}'’ ,-]+/gu;
+function triads(prose: string, text: string): ProseMatch[] {
+  const out: ProseMatch[] = [];
+  for (const run of prose.matchAll(CLAUSE)) {
+    const clause = run[0];
+    if (clause.length < 10 || !clause.includes(', ') || !/ (?:and|or) /.test(clause)) continue;
+    const from = Math.max(0, run.index - 1);
+    for (const m of prose.slice(from, run.index + clause.length).matchAll(TRIAD)) {
+      const at = from + m.index;
+      out.push(locate(text, at, text.slice(at, at + m[0].length)));
+    }
+  }
+  return out;
+}
 const BOLD_LEAD = /^\s*(?:\*\*|__)[^*_\n]{2,80}(?:\*\*|__)/;
-/** Numbers, and capitalised words that don't start a sentence: the names, dates and amounts a real piece is made of. */
-const SPECIFIC = /\b\d[\d,.:]*\b|(?<=[\p{Ll},;] )\p{Lu}\p{Ll}+/gu;
-const ENDING = /^\s*(?:ultimately|overall|in the end|in conclusion|in summary|to sum up|all in all)\b[,:]?/i;
+/** A list item that opens on a bold label: “- **When:** Saturday”. */
+const BOLD_LIST_LEAD = /^[^\S\n]{0,3}[-*+][^\S\n]+(?:\*\*|__)[^*_\n]{1,60}(?:\*\*|__)/gm;
+/** A heading below the title, to the end of its line. */
+const HEADING_LINE = /^[^\S\n]{0,3}#{2,6}[^\S\n]+\S[^\n]*/gm;
+/** A last paragraph that opens on a recap. The first group is the unmistakable ones; “ultimately” can open a story. */
+const ENDING =
+  /^\s*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?/i;
+
+/** The placeholder patterns, compiled once: capitals are whole words, the rest match in any case. */
+const MARKERS = RULES.markers.map(
+  (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
+);
+/** The kinds of weak tell that count toward `stacked-tells`: findings that come from one habit are one kind. */
+const KINDS: string[][] = RULES.stacked.kinds;
+/** The warns that fail in the strict profile. */
+const STRICT = new Set<string>(RULES.strict.fail);
+
+export interface ProseOptions {
+  /**
+   * The strict profile, for writing that must carry no tells: every warn listed in `strict.fail` (the em dash and the
+   * rest of the wording and shape tells) fails. The default leaves them warnings, because none of them tells a person
+   * from a machine well enough to fail a piece.
+   */
+  strict?: boolean;
+}
 
 /** Lint words a person will read. `ok` is false when any finding fails. */
-export function lintProse(text: string): ProseLint {
+export function lintProse(text: string, opts: ProseOptions = {}): ProseLint {
   const prose = blankNonProse(text);
-  const words = countWords(prose);
+  const allParas = paragraphs(prose);
+  // A word never spans a line break, so the paragraphs hold every word of the text.
+  const words = allParas.reduce((n, p) => n + p.words, 0);
   const findings: ProseFinding[] = [];
   const add = (id: string, severity: ProseSeverity, why: string, fix: string, matches: ProseMatch[]) => {
     if (matches.length) findings.push({ id, severity, why, fix, matches });
   };
 
   const unquoted = unquote(prose);
+  const hits = phraseHits(unquoted);
   const nameOrHeading = (p: string, i: number, m: string) => isName(p, i, m) && !onHeading(text, p, i);
+  let first = 0;
   for (const [id, rule] of Object.entries(PHRASES)) {
-    const matches = rule.patterns
-      .flatMap((p) => all(bounded(p), unquoted, text, rule.exemptNames ? nameOrHeading : undefined))
-      .sort((a, b) => a.index - b.index);
+    const skip = rule.exemptNames ? nameOrHeading : undefined;
+    const matches = hits
+      .slice(first, first + rule.patterns.length)
+      .flat()
+      .filter((m) => !skip?.(unquoted, m.index, m[0]))
+      .sort((a, b) => a.index - b.index)
+      // Two patterns can open on the same words (“we’re grateful to”, “we’re grateful”): one phrase is one match.
+      .filter((m, i, a) => i === 0 || m.index !== a[i - 1]!.index)
+      .map((m) => locate(text, m.index, text.slice(m.index, m.index + m[0].length)));
+    first += rule.patterns.length;
     if (rule.density !== undefined && matches.length / Math.max(1, words) <= rule.density) continue;
+    if (rule.minHits !== undefined && matches.length < rule.minHits) continue;
     add(id, rule.severity, rule.why, rule.fix, matches);
   }
 
-  // Dashes: none in short copy, a couple in a long piece, never two in one paragraph.
-  const dashes = all(DASHES, prose, text);
-  if (dashes.length) {
-    const d = RULES.dashes;
-    const crowded = paragraphs(prose).some((p) => (p.text.match(DASHES) ?? []).length > d.perParagraph);
-    const fail = words <= d.shortWords || dashes.length > d.perDocument || crowded;
-    add(
-      'dashes',
-      fail ? 'fail' : 'warn',
-      'Dashes as a rhythm crutch are the best-known tell of generated prose.',
-      'Use a full stop, a comma, a colon or parentheses. Keep a dash only where nothing else works.',
-      dashes,
-    );
-  }
+  // Readers in 2026 take an em dash for a machine tell, but people write them too (40 percent of the human corpus), so
+  // it only ever warns and is no kind of weak tell for `stacked-tells`.
+  add(
+    'em-dash',
+    'warn',
+    'Readers now take an em dash for a machine tell.',
+    'Use a comma, a colon, parentheses or two sentences. Keep it only where it is truly your own.',
+    dashes(prose, text),
+  );
 
   // Two patterns can match the same span (“not just a tool, but”): one contrast is one match.
   const notBut = NOT_BUT.flatMap((re) => all(re, prose, text))
@@ -329,56 +497,13 @@ export function lintProse(text: string): ProseLint {
       }),
   );
 
-  const said = sentences(prose, text);
-  const { run, maxWords } = RULES.fragments;
-  const frags: ProseMatch[] = [];
-  let start = -1;
-  for (let i = 0; i <= said.length; i++) {
-    if (i < said.length && said[i]!.words > 0 && said[i]!.words <= maxWords) {
-      if (start < 0) start = i;
-      continue;
-    }
-    if (start >= 0 && i - start >= run)
-      frags.push(
-        locate(
-          text,
-          said[start]!.index,
-          said
-            .slice(start, i)
-            .map((s) => s.text)
-            .join(' '),
-        ),
-      );
-    start = -1;
-  }
-  add(
-    'fragments',
-    'warn',
-    'Stacked short fragments, “That’s it. That’s the whole thing.”, read as a performance.',
-    'Join them into full sentences.',
-    frags,
-  );
-
-  const lengths = said.map((s) => s.words).filter((n) => n > 0);
-  if (lengths.length >= RULES.rhythm.minSentences) {
-    const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-    const sd = Math.sqrt(lengths.reduce((a, b) => a + (b - mean) ** 2, 0) / lengths.length);
-    if (sd / mean < RULES.rhythm.minSpread)
-      add(
-        'rhythm',
-        'warn',
-        `Every sentence runs about ${Math.round(mean)} words. Even length is a machine rhythm.`,
-        'Vary it where the point allows: a short sentence for weight, a longer one to carry a thought through.',
-        [locate(text, said[0]!.index, said[0]!.text)],
-      );
-  }
-
-  const paras = paragraphs(prose).filter((p) => !isHeading(p.text));
+  const paras = allParas.filter((p) => !isHeading(p.text));
   const last = paras.at(-1);
-  if (last && paras.length > 2 && ENDING.test(last.text))
+  const ending = last && paras.length > 2 ? ENDING.exec(last.text) : null;
+  if (last && ending)
     add(
       'summary-ending',
-      'fail',
+      ending[1] ? 'fail' : 'warn',
       'The last paragraph sums up what the reader just read.',
       'End on the last concrete point, or on what to do next.',
       [
@@ -393,14 +518,14 @@ export function lintProse(text: string): ProseLint {
       ],
     );
 
-  const triads = all(TRIAD, prose, text);
-  if (words >= RULES.triads.minWords && (triads.length * 100) / words > RULES.triads.perHundred)
+  const lists = triads(prose, text);
+  if (words >= RULES.triads.minWords && (lists.length * 100) / words > RULES.triads.perHundred)
     add(
       'triads',
       'warn',
-      `${triads.length} lists of three or more in ${words} words. Generated prose falls into that rhythm.`,
+      `${lists.length} lists of three or more in ${words} words. Generated prose falls into that rhythm.`,
       'Keep the lists that are real lists. Elsewhere, name the one thing that matters.',
-      triads,
+      lists,
     );
 
   const leads = paras.filter((p) => BOLD_LEAD.test(p.text));
@@ -416,14 +541,51 @@ export function lintProse(text: string): ProseLint {
       }),
     );
 
-  const specifics = (unquoted.match(SPECIFIC) ?? []).length;
-  if (words >= RULES.specifics.minWords && (specifics * 100) / words < RULES.specifics.perHundred && said[0])
+  const body = paras.filter((p) => !isList(p.text) && !/^\s*\|/.test(p.text));
+  const u = RULES.uniform;
+  if (
+    body.length >= u.minParagraphs &&
+    body.filter((p) => p.words <= u.maxWords).length / body.length >= u.share &&
+    body.every((p) => p.words <= u.longest)
+  )
     add(
-      'specifics',
+      'uniform-paragraphs',
       'warn',
-      `Only ${specifics} names, numbers or dates in ${words} words. A piece with none could be about anyone.`,
-      'Add the specific: who, where, how many, which year, what it cost.',
-      [locate(text, said[0].index, said[0].text)],
+      `All ${body.length} paragraphs run ${Math.min(...body.map((p) => p.words))} to ${Math.max(...body.map((p) => p.words))} words. Generated drafts cut every paragraph to the same short size.`,
+      'Let one paragraph run long where the thought needs it, and fold a one-line paragraph into its neighbor.',
+      [
+        locate(
+          text,
+          body[0]!.index,
+          text
+            .slice(body[0]!.index, body[0]!.index + body[0]!.text.length)
+            .trim()
+            .split('\n')[0]!,
+        ),
+      ],
+    );
+
+  const listLeads = all(BOLD_LIST_LEAD, prose, text);
+  if (listLeads.length >= RULES.boldListLeads.min)
+    add(
+      'bold-list-leads',
+      'warn',
+      'Bullets that each open on a bold label read as a template.',
+      'Write the items as plain lines, or as sentences that carry their own point.',
+      listLeads,
+    );
+
+  const headings = all(HEADING_LINE, prose, text);
+  if (
+    headings.length >= RULES.headings.min &&
+    (headings.length * 100) / Math.max(1, words) > RULES.headings.perHundred
+  )
+    add(
+      'headings',
+      'warn',
+      `${headings.length} headings in ${words} words. A heading every few lines turns a short piece into slides.`,
+      'Keep the headings a reader would scan to, and write the rest as paragraphs.',
+      headings.map((h) => ({ ...h, text: h.text.trim() })),
     );
 
   add(
@@ -457,17 +619,25 @@ export function lintProse(text: string): ProseLint {
     'fail',
     'Placeholder text left in.',
     'Write the real words, or cut the line.',
-    RULES.markers
-      .flatMap((m) =>
-        all(
-          new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
-          unquoted,
-          text,
-        ),
-      )
-      .sort((a, b) => a.index - b.index),
+    MARKERS.flatMap((re) => all(re, unquoted, text)).sort((a, b) => a.index - b.index),
   );
 
+  // No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
+  const weak = KINDS.map((ids) => findings.filter((f) => ids.includes(f.id))).filter((fs) => fs.length);
+  if (weak.length >= RULES.stacked.min)
+    add(
+      'stacked-tells',
+      'fail',
+      `${weak.length} different small tells in ${words} words (${weak
+        .flat()
+        .map((f) => f.id)
+        .join(', ')}). Each one is common alone; together they read as machine-made.`,
+      'Rewrite the ones that are not your own voice until only one kind remains.',
+      weak.map((fs) => fs[0]!.matches[0]!).sort((a, b) => a.index - b.index),
+    );
+
+  if (opts.strict)
+    for (const f of findings) if (f.severity === 'warn' && STRICT.has(f.id)) f.severity = 'fail';
   return { ok: !findings.some((f) => f.severity === 'fail'), words, findings };
 }
 
