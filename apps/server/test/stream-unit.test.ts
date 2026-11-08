@@ -354,6 +354,54 @@ describe('the relay on a socket', () => {
     server.close();
   });
 
+  for (const reads of [1, 2])
+    it(`never lets FFmpeg hear a key a chunk header splits, in ${reads} read(s)`, async () => {
+      const said = `${'x'.repeat(77)}Publish.BadName: ${key} is already publishing`;
+      const msg = message(3, 20, command(amfStr('onStatus'), amfNum(0), amfNull(), amfStr(said)));
+      const wire = Buffer.concat([handshake(), msg]);
+      const server = net.createServer((s) => {
+        const cut = reads === 1 ? wire.length : 3073 + 12 + 123; // inside the key, before the chunk header
+        s.write(wire.subarray(0, cut));
+        setTimeout(() => s.write(wire.subarray(cut)), 50);
+      });
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+      const port = (server.address() as net.AddressInfo).port;
+      const relay = new KeyRelay({ server: 'rtmp://x/live', key, connect: connect(port), onEvent: () => {} });
+      const c = net.connect({ host: '127.0.0.1', port: (await relay.listen()).port }).on('error', () => {});
+      const heard: Buffer[] = [];
+      c.on('data', (d) => heard.push(d));
+      await new Promise((r) => setTimeout(r, 300));
+      const m = Buffer.concat(heard).subarray(3073);
+      // The message as FFmpeg puts it back together: the continuation header at 128 bytes taken out.
+      const text = Buffer.concat([m.subarray(12, 140), m.subarray(141)]).toString('latin1');
+      expect(text).toContain(`BadName: ${relay.stand} is already`);
+      c.destroy();
+      server.close();
+    });
+
+  it('reads no faster than a slow service takes the stream, and gives up on one that takes nothing', async () => {
+    const server = net.createServer((s) => s.pause());
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const seen: { type: string; reason?: string }[] = [];
+    const port = (server.address() as net.AddressInfo).port;
+    const relay = new KeyRelay({
+      server: 'rtmp://x/live',
+      key,
+      connect: connect(port),
+      stallMs: 1500,
+      onEvent: (e) => seen.push(e),
+    });
+    const c = net.connect({ host: '127.0.0.1', port: (await relay.listen()).port }).on('error', () => {});
+    c.write(clientSession(relay.stand).whole);
+    c.write(Buffer.alloc(32 << 20));
+    await new Promise((r) => setTimeout(r, 500));
+    expect(relay.pending).toBeLessThan(1 << 20);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(seen.at(-1)).toMatchObject({ type: 'closed', reason: 'The service stopped taking the stream.' });
+    c.destroy();
+    server.close();
+  });
+
   it('sends nothing to a server whose TLS can’t be verified, and reports it', async () => {
     const got: Buffer[] = [];
     const server = net.createServer((s) => {

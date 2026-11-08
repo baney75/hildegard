@@ -222,6 +222,7 @@ interface Run1 {
   lastSentAt: number;
   cpuTimer: ReturnType<typeof setInterval> | null;
   recordFile: string | null;
+  sources: StreamSettings['sources'];
 }
 
 const EMPTY_STATS: StreamStats = { kbps: null, fps: null, dropped: 0, cpu: null, gpu: null, speed: null };
@@ -521,9 +522,10 @@ export class Streamer {
 
   /** Starts the picture without sending it anywhere, so the person can set the scene up. */
   startPreview(): Promise<StreamState> {
+    const gen = this.gen;
     return this.serial(async () => {
-      if (this.runState || this.phase !== 'idle') return this.state();
-      await this.launch('preview');
+      if (gen !== this.gen || this.runState || this.phase !== 'idle') return this.state();
+      await this.launch('preview', gen);
       this.phase = 'preview';
       this.message = null;
       this.changed();
@@ -538,9 +540,11 @@ export class Streamer {
   }
   private async restartPreview() {
     if (this.runState?.mode !== 'preview' || this.phase !== 'preview') return;
+    const gen = this.gen;
     await this.end('idle');
+    if (gen !== this.gen) return;
     try {
-      await this.launch('preview');
+      await this.launch('preview', gen);
       this.phase = 'preview';
     } catch (e) {
       this.message = (e as Error).message;
@@ -551,7 +555,10 @@ export class Streamer {
 
   /** Counts down, then streams. Every checkable thing is checked first, so a count never ends in a surprise. */
   goLive(): Promise<StreamState> {
+    // This start's generation: Stop or Cancel bumps it, and begin and launch check it after every wait.
+    const gen = this.gen;
     return this.serial(async () => {
+      if (gen !== this.gen) return this.state();
       if (this.phase === 'live' || this.phase === 'countdown' || this.phase === 'reconnecting')
         throw new StreamError(409, 'live', 'You’re already live.');
       const picked = STREAM_DESTINATIONS.filter((d) => this.cfg.destinations[d.id]?.enabled);
@@ -568,8 +575,6 @@ export class Streamer {
       this.phase = 'countdown';
       this.countdown = this.deps.countdownSeconds ?? 5;
       this.changed();
-      // This start's generation: Stop or Cancel bumps it, and begin and launch check it after every wait.
-      const gen = this.gen;
       // The countdown ticks outside the queue so Cancel can interrupt it.
       this.countdownTimer = setInterval(() => {
         if (this.countdown === null) return;
@@ -611,7 +616,9 @@ export class Streamer {
     if (!going()) return;
     try {
       const again = this.phase === 'reconnecting';
-      if (this.runState) await this.end('countdown');
+      const prev = this.runState;
+      // The preview holds the camera until its FFmpeg is gone.
+      if (prev) await this.end('countdown').then(() => Promise.race([prev.exited, sleep(3000)]));
       // Stop or Cancel pressed while the preview closed: no stream.
       if (!going()) return;
       this.attempt = again ? this.attempt : 0;
@@ -763,6 +770,7 @@ export class Streamer {
         lastSentAt: this.now,
         cpuTimer: null,
         recordFile,
+        sources: { ...this.cfg.sources },
       };
       r.exited = new Promise<void>((resolve) => {
         child.once('exit', (code, signal) => {
@@ -838,9 +846,8 @@ export class Streamer {
     const r = this.runState;
     if (r && !r.ending && e.type === 'closed' && r.mode === 'live') {
       // When every destination is gone there is nothing left to stream to: start over.
-      const rec = !!r.recordFile;
       const alive = [...r.relays.entries()].some(([k]) => this.dest.get(k)?.state !== 'failed');
-      if (!alive && !rec) void this.killRun(r, true);
+      if (r.relays.size > 0 && !alive) void this.killRun(r, true);
     }
     this.changed();
   }
@@ -1045,6 +1052,7 @@ export class Streamer {
   }
 
   async dispose() {
+    this.gen++;
     this.clearCountdown();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.runState) await this.end('idle');
@@ -1149,6 +1157,11 @@ export class Streamer {
       }
       if (chosen === TEST_SOURCE) {
         add(kind, name, 'pass', 'The test pattern.');
+        continue;
+      }
+      // A camera or screen the preview has open can't be opened twice (v4l2, dshow), and the preview shows it works.
+      if (kind !== 'mic' && this.runState?.mode === 'preview' && this.runState.sources[kind] === chosen) {
+        add(kind, name, 'pass', `${list.find((d) => d.id === chosen)?.label ?? chosen}, in the preview.`);
         continue;
       }
       const why = await (this.deps.probeSource ?? ((k, d) => this.probeSource(k, d)))(kind, chosen);

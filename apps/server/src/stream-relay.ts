@@ -53,8 +53,8 @@ export class KeyPatcher {
   published = false;
   /** How many messages had the stand-in replaced. */
   patched = 0;
-  private readonly stand: Buffer;
-  private readonly key: Buffer;
+  /** What to swap for what in a command message: the stand-in for the key. */
+  protected swaps: { from: Buffer; to: Buffer }[];
   private buf: Buffer = Buffer.alloc(0);
   private handshakeLeft = 1 + 1536 + 1536;
   private chunkSize = 128;
@@ -67,8 +67,7 @@ export class KeyPatcher {
   constructor(standInText: string, key: string) {
     if (standInText.length !== key.length)
       throw new Error('The stand-in and the key must be the same length.');
-    this.stand = Buffer.from(standInText, 'latin1');
-    this.key = Buffer.from(key, 'latin1');
+    this.swaps = [{ from: Buffer.from(standInText, 'latin1'), to: Buffer.from(key, 'latin1') }];
   }
 
   /** Feeds bytes from FFmpeg; returns the bytes to send on to the service (possibly none yet). */
@@ -206,10 +205,9 @@ export class KeyPatcher {
       return;
     }
     if (m.type !== 20 && m.type !== 17) return;
-    const at = payload.indexOf(this.stand);
-    if (at >= 0) {
+    for (const [at, to] of this.hits(payload)) {
       // Map the payload offset back to the bytes it came from, which may straddle chunk headers.
-      let left = this.key.length;
+      let left = to.length;
       let k = 0;
       let skip = at;
       for (const [o, n] of m.segs) {
@@ -218,7 +216,7 @@ export class KeyPatcher {
           continue;
         }
         const take = Math.min(n - skip, left);
-        this.key.copy(flat, o + skip, k, k + take);
+        to.copy(flat, o + skip, k, k + take);
         k += take;
         left -= take;
         skip = 0;
@@ -237,6 +235,13 @@ export class KeyPatcher {
       this.published = true;
       this.mode = 'raw';
     }
+  }
+
+  /** Where each swap's `from` is in a payload, and what goes there. */
+  private *hits(payload: Buffer): Generator<[number, Buffer]> {
+    for (const { from, to } of this.swaps)
+      for (let at = payload.indexOf(from); at >= 0; at = payload.indexOf(from, at + from.length))
+        yield [at, to];
   }
 
   /** Any bytes held when the connection ends. */
@@ -258,7 +263,7 @@ const MIN_PART = 4;
  * is caught too: the part at the end of one read and the rest at the start of the next.
  */
 export class KeyScrubber {
-  private readonly forms: { from: Buffer; to: Buffer; carry: number }[] = [];
+  readonly forms: { from: Buffer; to: Buffer; carry: number }[] = [];
 
   constructor(standInText: string, key: string) {
     for (const f of new Set([key, encodeURIComponent(key), encodeURI(key)])) {
@@ -302,6 +307,17 @@ export class KeyScrubber {
   }
 }
 
+/**
+ * Reads the service's side as RTMP messages, so a key a chunk header splits in two is still found: every form of it
+ * becomes its stand-in in place. `KeyScrubber` then covers what isn't RTMP, or a message this can't follow.
+ */
+export class ReplyScrubber extends KeyPatcher {
+  constructor(standInText: string, key: string, scrubber: KeyScrubber) {
+    super(standInText, key);
+    this.swaps = scrubber.forms;
+  }
+}
+
 // ── The relay ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type RelayEvent =
@@ -317,6 +333,8 @@ export interface RelayOptions {
   /** Tests connect somewhere else, or without a certificate check. */
   connect?: (host: string, port: number, secure: boolean) => net.Socket;
   timeoutMs?: number;
+  /** How long the service may take nothing before this destination is given up. */
+  stallMs?: number;
 }
 
 /** What a service says when it turns a stream down. */
@@ -350,6 +368,10 @@ export class KeyRelay {
   readonly stand: string;
   /** Bytes sent to the service so far. */
   sent = 0;
+  /** Bytes waiting for the service to take them. */
+  get pending() {
+    return this.up?.writableLength ?? 0;
+  }
   private server: net.Server | null = null;
   private local: net.Socket | null = null;
   private up: net.Socket | null = null;
@@ -411,6 +433,8 @@ export class KeyRelay {
     });
     const patcher = new KeyPatcher(this.stand, this.opts.key);
     const scrubber = new KeyScrubber(this.stand, this.opts.key);
+    const replies = new ReplyScrubber(this.stand, this.opts.key, scrubber);
+    let stall: ReturnType<typeof setTimeout> | undefined;
     const go = () => {
       up.setTimeout(0);
       local.resume();
@@ -422,6 +446,20 @@ export class KeyRelay {
         this.sent += part.length;
         up.write(part);
       }
+      // An uplink slower than the stream: read no more from FFmpeg until the service takes what it has.
+      if (up.writableNeedDrain && !stall) {
+        local.pause();
+        stall = setTimeout(
+          () => this.end('The service stopped taking the stream.'),
+          this.opts.stallMs ?? 30_000,
+        );
+        stall.unref();
+      }
+    });
+    up.on('drain', () => {
+      clearTimeout(stall);
+      stall = undefined;
+      local.resume();
     });
     up.on('data', (d: Buffer) => {
       const text = this.tail + d.toString('latin1');
@@ -431,7 +469,7 @@ export class KeyRelay {
         this.live = true;
         this.opts.onEvent({ type: 'live' });
       }
-      local.write(scrubber.scrub(d));
+      for (const part of replies.push(d)) local.write(scrubber.scrub(part));
     });
     up.on('error', (e: NodeJS.ErrnoException) => this.end(explain(e)));
     local.on('error', () => this.end('FFmpeg closed the connection.'));

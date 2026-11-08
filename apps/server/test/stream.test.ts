@@ -675,6 +675,42 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
     expect(spawned).toBe(0);
   }, 20_000);
 
+  it('starts nothing from a Go live that waited behind a preview when Stop was pressed', async () => {
+    let spawned = 0;
+    const fakeSpawn = ((_c: string, _a: string[], o: object) =>
+      spawn('sleep', ['60'], o).once('spawn', () => spawned++)) as never;
+    const slow = () => sleep(300).then(() => ['libx264' as const]);
+    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000, encoders: slow });
+    await s.update({ sources: TEST_SOURCES, record: true });
+    const waits = [s.startPreview().catch(() => {}), s.goLive().catch(() => {})];
+    await sleep(50);
+    await s.stop();
+    await Promise.all(waits);
+    await sleep(300);
+    expect([spawned, s.state().phase]).toEqual([0, 'idle']);
+  }, 20_000);
+
+  it('starts over when the one service drops, though a copy is being kept', async () => {
+    // The service hangs up at once; the fake FFmpeg dials the relay as the real one would.
+    const svc = createServer((c) => c.destroy()).listen(0, '127.0.0.1');
+    const fakeSpawn = ((_c: string, args: string[], o: object) => {
+      const port = /rtmp:\/\/127\.0\.0\.1:(\d+)/.exec(args.join(' '))?.[1];
+      net.connect(Number(port), '127.0.0.1').on('error', () => {});
+      return spawn('sleep', ['60'], o);
+    }) as never;
+    const relayConnect = () => net.connect((svc.address() as net.AddressInfo).port, '127.0.0.1');
+    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000, backoff: [60_000], relayConnect });
+    await s.update({ sources: TEST_SOURCES, record: true, destinations: { youtube: { enabled: true } } });
+    s.setKey('youtube', makeKey());
+    try {
+      await s.goLive();
+      await until(() => s.state().phase === 'reconnecting', 5000, 'a restart');
+    } finally {
+      await s.stop();
+      svc.close();
+    }
+  }, 20_000);
+
   it('ends a stream whose FFmpeg has gone quiet, and tries again with waits between', async () => {
     let spawned = 0;
     const fakeSpawn = ((_c: string, _a: string[], opts: Record<string, unknown>) => {
@@ -793,6 +829,25 @@ describe('the preflight', () => {
     expect(by.upload).toMatchObject({ status: 'fail' });
     expect(by.upload!.detail).toMatch(/Lower the quality/);
     expect(r.ok).toBe(false);
+  });
+  it('passes a camera the preview has open without opening it a second time', async () => {
+    const probed: string[] = [];
+    const t = streamer({
+      ...base,
+      platform: 'linux',
+      spawn: ((_c: string, _a: string[], o: object) => spawn('sleep', ['60'], o)) as never,
+      run: run(0, 'ffmpeg version 8.0.1'),
+      devices: async () => ({ ...(await base.devices()), cameras: [{ id: '/dev/video0', label: 'Webcam' }] }),
+      probeSource: async (k) => (probed.push(k) ? 'Another app is using the camera or microphone.' : null),
+    });
+    await t.s.update({
+      scene: 'camera',
+      sources: { screen: null, camera: '/dev/video0', mic: null },
+      record: true,
+    });
+    await t.s.startPreview();
+    const r = await t.s.preflight().finally(() => t.s.stop());
+    expect([r.checks.find((c) => c.id === 'camera')?.status, probed]).toEqual(['pass', []]);
   });
 });
 
