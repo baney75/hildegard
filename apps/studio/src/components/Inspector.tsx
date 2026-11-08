@@ -6,6 +6,7 @@ import { fromRequest, setDraft } from '../lib/draft.ts';
 import { about, bytes, clock, deviceLabel, duration, modelName, resolution, roman } from '../lib/format.ts';
 import { useStore } from '../lib/store.ts';
 import { takeAgain, toggleKeep } from '../lib/takes.ts';
+import { Compare } from './Compare.tsx';
 import { previewUrl, takeLabel, waitingFor } from './TakeCard.tsx';
 import { Button, Icon, LiveRing, Menu, Status, toast, toastError } from './ui.tsx';
 
@@ -33,6 +34,12 @@ export function Inspector({
   focusPrompt,
 }: Props) {
   const engine = useStore((s) => s.engine);
+  const takes = useStore((s) => s.takes);
+  const [comparing, setComparing] = useState(false);
+  // The shot's finished takes, to compare side by side.
+  const siblings = (shot?.takeIds ?? [])
+    .map((id) => takes.get(id))
+    .filter((x): x is Take => !!x && x.status === 'done' && !!x.video);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a different take starts paused
@@ -61,56 +68,56 @@ export function Inspector({
   return (
     <div className={`cs-insp v2${t.status === 'done' ? ' poster' : ''}`} role="region" aria-label={title}>
       {t.status === 'done' ? (
-        <div className="cs-poster">
-          {playing && t.video ? (
-            // biome-ignore lint/a11y/useMediaCaption: generated takes have no dialogue track to caption.
-            <video
-              className="hg-player"
-              src={t.video}
-              poster={t.poster ?? undefined}
-              controls
-              autoPlay
-              playsInline
-            />
-          ) : (
-            <>
-              {t.poster ? <img src={t.poster} alt="" /> : null}
-              <button
-                type="button"
-                className="cs-play"
-                aria-label={`Play, ${clock(t.seconds)}`}
-                onClick={() => setPlaying(true)}
-              >
-                <Icon name="play" size={22} />
-              </button>
-            </>
-          )}
-          {playing ? null : (
-            <div className="cs-poster__cap">
-              <div className="hg-between">
-                <span className="ovl">{title}</span>
-                <Status kind="done">Done</Status>
-              </div>
-              <h3>{shot?.title ?? 'Untitled shot'}</h3>
-              {/* Each fact stays whole, so a narrow inspector breaks the line between facts, never inside one. */}
-              <span className="cs-meta1">
-                <span>{modelName(catalog, t.model)}</span> · <span>seed {t.seed}</span>
-                <br />
-                <span>
-                  {clock(t.seconds)} · {resolution(t)}
-                </span>{' '}
-                · <span>{where}</span>
-                {t.renderMs ? (
-                  <>
-                    {' '}
-                    · <span>{duration(t.renderMs)}</span>
-                  </>
-                ) : null}{' '}
-                · <span className="ok">$0 spent</span>
-              </span>
+        <>
+          <div className="cs-poster" style={{ aspectRatio: `${t.width} / ${t.height}` }}>
+            {playing && t.video ? (
+              // biome-ignore lint/a11y/useMediaCaption: generated takes have no dialogue track to caption.
+              <video
+                className="hg-player"
+                src={t.video}
+                poster={t.poster ?? undefined}
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <>
+                {t.poster ? <img src={t.poster} alt="" /> : null}
+                <button
+                  type="button"
+                  className="cs-play"
+                  aria-label={`Play, ${clock(t.seconds)}`}
+                  onClick={() => setPlaying(true)}
+                >
+                  <Icon name="play" size={22} />
+                </button>
+              </>
+            )}
+          </div>
+          <div className="cs-poster__cap">
+            <div className="hg-between">
+              <span className="ovl">{title}</span>
+              <Status kind="done">Done</Status>
             </div>
-          )}
-        </div>
+            <h3>{shot?.title ?? 'Untitled shot'}</h3>
+            {/* Each fact stays whole, so a narrow inspector breaks the line between facts, never inside one. */}
+            <span className="cs-meta1">
+              <span>{modelName(catalog, t.model)}</span> · <span>seed {t.seed}</span>
+              <br />
+              <span>
+                {clock(t.seconds)} · {resolution(t)}
+              </span>{' '}
+              · <span>{where}</span>
+              {t.renderMs ? (
+                <>
+                  {' '}
+                  · <span>{duration(t.renderMs)}</span>
+                </>
+              ) : null}{' '}
+              · <span className="ok">$0 spent</span>
+            </span>
+          </div>
+        </>
       ) : (
         <div
           className={`cs-insp__media${t.status === 'queued' ? ' is-queued' : ''}`}
@@ -320,6 +327,19 @@ export function Inspector({
                 ]}
               />
             </div>
+            {siblings.length > 1 ? (
+              <Button icon="board" className="hg-btn--block" onClick={() => setComparing(true)}>
+                Compare the {siblings.length} takes of this shot
+              </Button>
+            ) : null}
+            {comparing ? (
+              <Compare
+                shotNo={shotNo}
+                title={shot?.prompt ?? shot?.title ?? ''}
+                takes={siblings}
+                onClose={() => setComparing(false)}
+              />
+            ) : null}
           </>
         ) : null}
 

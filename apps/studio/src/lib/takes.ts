@@ -27,6 +27,18 @@ export async function toggleKeep(t: Take) {
   upsert({ type: 'take', take: await api.keep(t.id, !t.kept) });
 }
 
+/**
+ * Keep a take and let the shot's other kept takes go, so the film uses the one just chosen: it uses the newest kept
+ * take, and a kept sibling that is newer would win. The take is kept first, so a failure leaves it kept, never none.
+ */
+export async function keepOnly(t: Take, shotTakes: Take[]) {
+  const kept = await api.keep(t.id, true);
+  const freed = await Promise.all(
+    shotTakes.filter((x) => x.id !== t.id && x.kept).map((x) => api.keep(x.id, false)),
+  );
+  upsert([kept, ...freed].map((take) => ({ type: 'take' as const, take })));
+}
+
 /** Whether a stopped take can simply run again: a refused one can't, since the same prompt is refused again. */
 export const canRetry = (t: Take) =>
   (t.status === 'failed' || t.status === 'canceled') && t.error?.code !== 'content_blocked';

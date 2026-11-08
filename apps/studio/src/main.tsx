@@ -12,6 +12,7 @@ import './styles/images.css';
 import './styles/studio.css';
 import './styles/app.css';
 import './styles/sites.css';
+import './styles/results.css';
 import './styles/first-run.css';
 import './styles/making.css';
 
