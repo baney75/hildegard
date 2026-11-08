@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const repo = join(import.meta.dirname, '..', '..', '..');
-const live = readFileSync(join(repo, '.github', 'workflows', 'listing.yml'), 'utf8');
+// A Windows checkout has CRLF line endings; the rules below are about lines, so read the file with LF.
+const live = readFileSync(join(repo, '.github', 'workflows', 'listing.yml'), 'utf8').replace(/\r\n/g, '\n');
 
 /** What the workflow looked like in the round-1 review (fce5cbf), cut to the lines that mattered. */
 const OLD = `name: Listing
