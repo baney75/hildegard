@@ -14,12 +14,14 @@ HARDWARE = ("h264_nvenc", "h264_videotoolbox", "h264_qsv", "h264_vaapi")
 _cache = {}
 
 
-def options_for(name, bitrate_kbps=None, crf=18, preset="veryfast", gop=60):
+def options_for(name, bitrate_kbps=None, crf=18, preset="veryfast", gop=60, threads=None):
     """Codec options for `name`. No B-frames anywhere: every group of frames is encoded on its own and joined by packets
     afterwards, and without B-frames each packet's decode time is its show time, so the joins can't reorder."""
     o = {"bf": "0", "g": str(gop)}
     if name == "libx264":
         o.update(crf=str(crf), preset=preset, x264opts="no-scenecut", pix_fmt="yuv420p")
+        if threads:  # groups encode side by side; without a share each x264 starts a thread for every core
+            o["threads"] = str(threads)
     elif name == "h264_nvenc":
         o.update(preset="p4", rc="vbr", cq=str(crf + 3), **{"b:v": "0"})
         o["forced-idr"] = "1"

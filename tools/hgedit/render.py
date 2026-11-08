@@ -56,6 +56,7 @@ def source_frames(path, start_s, count, fps_out):
     with av.open(path) as c:
         v = c.streams.video[0]
         v.thread_type = "AUTO"
+        v.thread_count = 2
         if start_s > 0.01:
             c.seek(int(max(0.0, start_s - 0.001) / v.time_base), stream=v, backward=True)
         it = (f for f in c.decode(v) if f.pts is not None)
@@ -207,7 +208,8 @@ def render_group(job):
         vs.width, vs.height, vs.pix_fmt = comp.W, comp.H, "yuv420p"
         tb = Fraction(1, 1) / fps  # frames are numbered in 1/fps; the stream's own time base is not reliable until it is open
         vs.time_base = tb
-        vs.options = encoders.options_for(name, plan["target"].get("bitrate_kbps"), job.get("crf", 18), job.get("preset", "veryfast"), max(1, round(float(fps) * 2)))
+        vs.options = encoders.options_for(name, plan["target"].get("bitrate_kbps"), job.get("crf", 18), job.get("preset", "veryfast"),
+                                          max(1, round(float(fps) * 2)), job.get("threads"))
         cs = _colorspace_for(comp.H)
         for seg in plan["segments"]:
             a, b = seg["out_frame"], seg["out_frame"] + seg["frames"]
@@ -524,6 +526,7 @@ def render(edl_path, out_path, workers=None, encoder=None, crf=18, keep_work=Fal
     name, why = encoders.choose(encoder)
     total = plan["out_frames"]
     workers = max(1, workers or min(os.cpu_count() or 1, 8))
+    threads = max(1, min(8, (os.cpu_count() or 2) // workers))
     size = max(GROUP_MIN, -(-total // (workers * 3)))
     spans = [(a, min(total, a + size)) for a in range(0, total, size)]
     opts = encoders.options_for(name, plan["target"].get("bitrate_kbps"), crf)
@@ -538,7 +541,7 @@ def render(edl_path, out_path, workers=None, encoder=None, crf=18, keep_work=Fal
         for stale in os.listdir(work):
             if stale.startswith(f"g{i:04d}-") and not stale.startswith(os.path.basename(f)):
                 os.remove(os.path.join(work, stale))
-        jobs.append({"plan": dict(plan), "f0": a, "f1": b, "out": f, "encoder": name, "crf": crf})
+        jobs.append({"plan": dict(plan), "f0": a, "f1": b, "out": f, "encoder": name, "crf": crf, "threads": threads})
     stage(f"Encoding {len(jobs)} of {len(spans)} groups with {name}" if jobs else "Every group is already encoded")
     done = reused
     progress(done, len(spans))

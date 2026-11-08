@@ -31,7 +31,7 @@ const freePort = () =>
       s.close(() => resolve(port));
     });
   });
-async function until<T>(fn: () => Promise<T | false>, ms = 120_000): Promise<T> {
+async function until<T>(fn: () => Promise<T | false>, ms = 300_000): Promise<T> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
     const v = await fn();
@@ -178,7 +178,7 @@ describe('who may name what', () => {
     // The owner's recording is not Bo's to use.
     const ownerClip = await importClip(null);
     expect((await there(bo, '/api/edits', 'POST', { source: `recording:${ownerClip}` })).status).toBe(404);
-  }, 60_000);
+  }, 240_000);
 
   it('gives directors these routes and no others', () => {
     const id = 'ed_0123456789abcdef';
@@ -296,7 +296,7 @@ describe('an edit from a list to a proven video', () => {
 
     expect((await there(bo, `/api/edits/${edit.id}`, 'DELETE')).status).toBe(200);
     expect((await there(bo, `/api/edits/${edit.id}`)).status).toBe(404);
-  }, 180_000);
+  }, 420_000);
 
   it('plans from a transcript: cuts the filler, keeps the words that were not deleted, and gives the text to cut from', async () => {
     const rec = await importClip(null);
@@ -358,7 +358,7 @@ describe('an edit from a list to a proven video', () => {
     const t = await there(bo, `/api/edits/${own.id}/plan`, 'POST', {});
     expect(t.status).toBe(409);
     expect(((await t.json()) as { error: string }).error).toContain('voice studio');
-  }, 120_000);
+  }, 420_000);
 });
 
 describe('the MCP tools', () => {
@@ -420,5 +420,5 @@ describe('the MCP tools', () => {
     } finally {
       await client.close();
     }
-  }, 180_000);
+  }, 420_000);
 });

@@ -75,6 +75,7 @@ def scan_picture(path):
     with av.open(path) as c:
         v = c.streams.video[0]
         v.thread_type = "AUTO"
+        v.thread_count = 2
         for f in c.decode(v):
             n += 1
             if f.pts is not None:
