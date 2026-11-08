@@ -13,6 +13,7 @@ import type {
   HfState,
   HostState,
   LlmState,
+  ModelRemoval,
   Snapshot,
 } from '@hildegard/presets';
 import { videoModels } from '@hildegard/presets';
@@ -41,6 +42,7 @@ import { VERSION } from '@hildegard/server/version';
 import { installSkillsFor } from './agents.ts';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
+import { inviteCodeOnly, NEVER_SHOW, pair } from './pair.ts';
 import { installService, managedService, serverArgs, startService } from './service.ts';
 
 export interface Ctx {
@@ -473,6 +475,48 @@ export async function installModel(ctx: Ctx, id: string, accept: boolean): Promi
   }
 }
 
+const gb = (n: number) => `${(n / 1024 ** 3).toFixed(1)} GB`;
+
+/** What `models remove` did, and the shared files it left: the ones nothing needs now, and the ones a kept model does. */
+function removalResult(r: ModelRemoval): Result {
+  const would = r.dryRun ? 'Would remove' : 'Removed';
+  const unused = r.shared.filter((f) => !f.neededBy.length);
+  const left = unused.filter((f) => !r.removed.includes(f.file));
+  const needed = r.shared.filter((f) => f.neededBy.length);
+  const steps: Step[] = [
+    {
+      id: 'remove',
+      title: `${r.dryRun ? 'Remove' : 'Removed'} ${r.id}`,
+      status: r.removed.length ? 'done' : 'skipped',
+      detail: r.removed.length
+        ? `${would} ${r.removed.join(', ')} (${gb(r.freedBytes)}).`
+        : `Nothing of ${r.id} is on this computer to remove.`,
+    },
+  ];
+  if (left.length)
+    steps.push({
+      id: 'unused',
+      title: 'Shared files nothing uses now',
+      status: 'skipped',
+      detail: `${left.map((f) => `${f.file} (${gb(f.bytes)})`).join(', ')}: no model you kept needs ${left.length === 1 ? 'it' : 'them'}. To free ${gb(left.reduce((n, f) => n + f.bytes, 0))} more, remove them with the model.`,
+      command: `hildegard models remove ${r.id} --with-unused`,
+    });
+  if (needed.length)
+    steps.push({
+      id: 'kept',
+      title: 'Shared files kept',
+      status: 'skipped',
+      detail: `${needed.map((f) => `${f.file} (${gb(f.bytes)}) is still needed by ${f.neededBy.join(', ')}`).join('; ')}.`,
+    });
+  return result(
+    steps,
+    left.length
+      ? `${would} ${r.id}, ${gb(r.freedBytes)}. ${gb(left.reduce((n, f) => n + f.bytes, 0))} of shared files are unused: add --with-unused to free them.`
+      : `${would} ${r.id}, ${gb(r.freedBytes)}.`,
+    { removal: r },
+  );
+}
+
 export async function models(ctx: Ctx, args: string[]): Promise<Result> {
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
@@ -487,6 +531,24 @@ export async function models(ctx: Ctx, args: string[]): Promise<Result> {
       });
     const step = await installModel(ctx, id, ctx.flags.has('accept-license'));
     return result([step], step.status === 'needs-owner' ? 'Waiting on the license.' : step.detail);
+  }
+  if (args[0] === 'remove') {
+    const id = args[1];
+    if (!id) return result([], 'Say which model: `hildegard models remove <id>`.', { ok: false });
+    const withUnused = ctx.flags.has('with-unused');
+    const dryRun = ctx.flags.has('dry-run');
+    try {
+      const r = await api<ModelRemoval>(ctx.config, `/api/models/${encodeURIComponent(id)}/remove`, {
+        method: 'POST',
+        body: { withUnused, dryRun },
+      });
+      return removalResult(r);
+    } catch (e) {
+      return result(
+        [{ id: 'remove', title: `Remove ${id}`, status: 'failed', detail: (e as Error).message }],
+        (e as Error).message,
+      );
+    }
   }
   const [catalog, snap] = await Promise.all([
     api<Catalog>(ctx.config, '/api/catalog'),
@@ -1031,7 +1093,10 @@ const deviceStep = (d: ChoirDevice, rendering: string, primary: string): Step =>
  * `hildegard choir invite|join|list|use|leave|revoke`. The device with the GPU invites; the one without joins with
  * the code it prints. A join code holds a key, so `join` reads it from a hidden prompt or stdin by preference.
  */
-export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
+export async function choir(ctx: Ctx, args: string[]): Promise<Result | null> {
+  // The code on stdout and nothing else, before anything else can print: see pair.ts.
+  if (args[0] === 'invite' && ctx.flags.has('code-only')) return inviteCodeOnly(ctx);
+  if (args[0] === 'pair') return pair(ctx, args.slice(1));
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
   const c = ctx.config;
@@ -1050,8 +1115,8 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
         if (!ctx.json)
           console.log(
             r.short
-              ? `This computer shares its GPU at ${r.url}.\nOn your other device, run:\n\n  ${r.command}\n\nThe code ${r.short.code} works once, for 10 minutes (until ${new Date(r.short.expiresAt).toLocaleTimeString()}).\n${r.code ? `Or paste this long code instead (it works once per device; keep it private):\n\n${r.code}\n` : 'Need a code to paste instead? Run `hildegard choir invite --long`.\n'}`
-              : `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n`,
+              ? `This computer shares its GPU at ${r.url}.\nOn your other device, run:\n\n  ${r.command}\n\nThe code ${r.short.code} works once, for 10 minutes (until ${new Date(r.short.expiresAt).toLocaleTimeString()}).\n${r.code ? `Or paste this long code instead (it works once per device; keep it private):\n\n${r.code}\n` : 'Need a code to paste instead? Run `hildegard choir invite --long`.\n'}\n${NEVER_SHOW}\n`
+              : `This computer shares its GPU at ${r.url}.\nOn your other device, run \`hildegard choir join\` and paste this code (it works once per device; keep it private):\n\n${r.code}\n\n${NEVER_SHOW}\n`,
           );
         return result(
           [
@@ -1067,7 +1132,9 @@ export async function choir(ctx: Ctx, args: string[]): Promise<Result> {
           ],
           'Stop sharing any time with `hildegard choir revoke`.',
           {
+            // A secret for the Studio and apps to carry; nothing that reads this should print it.
             ...(r.code ? { code: r.code } : {}),
+            warning: NEVER_SHOW,
             url: r.url,
             ...(r.short ? { shortCode: r.short.code, expiresAt: r.short.expiresAt, command: r.command } : {}),
           },

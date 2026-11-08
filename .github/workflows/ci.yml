@@ -28,6 +28,8 @@ jobs:
       - run: node scripts/notices.mjs --check
       - run: node scripts/check-omarchy.mjs
       - run: node scripts/check-skills.mjs
+      # The store listings (docs/listings.md) against the rules each store states.
+      - run: node scripts/check-listing.mjs
       # The Omarchy plugin marketplace's own security baseline, at a fixed commit of it: a finding there would cost
       # the listing its "Snapshot verified" and its one-command install.
       - name: Omarchy marketplace baseline

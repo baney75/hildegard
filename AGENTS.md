@@ -49,6 +49,10 @@ pnpm --filter @hildegard/studio build && pnpm perf:budgets                # spee
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml             # if you touched apps/desktop/
 ```
 
+If you touched the prose lint (`packages/craft/src/prose.ts`, `skills/hildegard/scripts/prose_lint.py` or their rules), run
+`node packages/craft/bench/quality.ts` before and after: a rule that fires on people's writing as often as on AI drafts is
+noise. `prose-quality.test.ts` holds the numbers in `packages/craft/bench/baseline.json`; `quality.ts --ratchet` raises them.
+
 The desktop app's Rust build wants what the app carries in place first: `pnpm --filter @hildegard/studio build`,
 `node apps/desktop/scripts/prepare-bundle.mjs`, then `pnpm --filter @hildegard/desktop build` (see the README).
 
@@ -165,15 +169,22 @@ Setting it up for an owner, end to end:
 
 1. Both devices: Hildegard installed and Tailscale signed in (the owner signs in; that is a `needs-owner` step).
 2. GPU device: `hildegard install --yes --json`, a model installed (`hildegard models install <id>` after the owner
-   accepts its license), then `hildegard choir invite --json`. Its `code` is a secret: hand it straight to the
-   next step, never print it to logs or files. Without Tailscale it returns `needs-owner`; pass `--url` only with an
-   address on the tailnet (or https).
-3. Other device: `hildegard start`, then pipe the code in: `printf %s "$CODE" | hildegard choir join --code-stdin
-   --json` (a code on the command line lands in shell history). `hildegard choir list --json` should show the device
-   online with its models, and `hildegard status --json` names it in the `comfyui` step.
+   accepts its license). Without Tailscale the invite returns `needs-owner`; pass `--url` only with an address on the
+   tailnet (or https).
+3. Other device: `hildegard start`, then `hildegard choir pair <ssh-host>`. The join code is a key, and it never goes
+   on a screen, in a transcript, in an argument or in a file: `pair` runs `hildegard choir invite --code-only` over
+   ssh and connects its stdout to this device's `hildegard choir join --code-stdin`, and prints only the joined device
+   and its models. By hand, the same pipe: `ssh <host> hildegard choir invite --code-only | hildegard choir join
+   --code-stdin --json`. `--code-only` prints only into a pipe or a socket, never to a terminal or a file. `choir pair --to <ssh-host>` is the other
+   way, for an agent on the GPU device. `choir invite --json` is for the Studio and apps: an agent never runs it and
+   never echoes, `printf`s or pastes a code (the eval that found this: every model printed the code, then typed it).
+   `hildegard choir list --json` should show the device online with its models, and `hildegard status --json`
+   names it in the `comfyui` step.
 
 Rules for changes here: a peer's key opens `/api/node/*` and nothing else; any new graph node class needs a builder
-that makes it, and the `vetGraph` test keeps the allowlist exact; pairing routes stay loopback only.
+that makes it, and the `vetGraph` test keeps the allowlist exact; pairing routes stay loopback only; no
+command, message or doc may show a join code or tell a reader to retype one (`apps/cli/test/pair.test.ts` scans every
+process's arguments, the output and every file for it).
 
 ## Host mode: Hildegard at a link
 

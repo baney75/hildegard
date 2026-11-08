@@ -1,0 +1,71 @@
+{
+  "name": "notification_chime",
+  "note": "Two bell notes, a rising fourth, with a soft room. Vary: the two freq values (E5 to A5 by default; keep the same gap), layers' start (0.15 to 0.3) for a slower ding-dong, reverb.mix.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "fm",
+      "freq": "E5",
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 2.4], [0.5, 0.3], [1.4, 0.0]]
+      },
+      "dur": 1.4,
+      "env": {
+        "points": [[0, 1], [0.02, 0.9], [1.4, 0]],
+        "curve": "exp"
+      }
+    },
+    {
+      "source": "sine",
+      "freq": "E5",
+      "dur": 1.2,
+      "env": {
+        "attack": 0.002,
+        "decay": 1.1,
+        "sustain": 0.0,
+        "release": 0.05
+      },
+      "gain_db": -9
+    },
+    {
+      "source": "fm",
+      "freq": "A5",
+      "start": 0.2,
+      "fm": {
+        "ratio": 3.5,
+        "index_points": [[0, 2.4], [0.5, 0.3], [1.6, 0.0]]
+      },
+      "dur": 1.6,
+      "env": {
+        "points": [[0, 1], [0.02, 0.9], [1.6, 0]],
+        "curve": "exp"
+      },
+      "gain_db": 1
+    },
+    {
+      "source": "sine",
+      "freq": "A5",
+      "start": 0.2,
+      "dur": 1.4,
+      "env": {
+        "attack": 0.002,
+        "decay": 1.3,
+        "sustain": 0.0,
+        "release": 0.05
+      },
+      "gain_db": -9
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.25,
+      "room": 0.55,
+      "damp": 0.5
+    },
+    "loudness": {
+      "lufs": -21,
+      "true_peak": -1
+    }
+  }
+}

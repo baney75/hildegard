@@ -1,0 +1,48 @@
+{
+  "name": "isochronic_wind_down",
+  "note": "A 20 minute isochronic journey, 12 Hz to 8 to 5, with slow glides, over pink noise and a soft pad. Speakers or headphones. No health claim is made. Vary: the stages' minutes and rate_hz.",
+  "vary": ["stages", "ramp_s", "minutes"],
+  "seed": 1,
+  "minutes": 20,
+  "layers": [
+    {
+      "type": "isochronic",
+      "carrier_hz": 180,
+      "ramp_s": 60,
+      "stages": [
+        {
+          "rate_hz": 12,
+          "minutes": 6
+        },
+        {
+          "rate_hz": 8,
+          "minutes": 7
+        },
+        {
+          "rate_hz": 5,
+          "minutes": 7
+        }
+      ],
+      "softness": 0.5,
+      "depth": 0.85,
+      "gain_db": -5
+    },
+    {
+      "type": "pad",
+      "notes": ["D2", "A2", "F3", "A3"],
+      "gain_db": -12
+    },
+    {
+      "type": "noise",
+      "color": "pink",
+      "lowpass": 2500,
+      "gain_db": -3
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

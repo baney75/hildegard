@@ -786,3 +786,23 @@ code, .mono { font-family: var(--font-mono); font-size: .875em; }
   .roles { grid-template-columns: 1fr; gap: var(--space-4); }
   .reel__shot, .reel__shot:focus-visible { border-radius: var(--radius-lg); }
 }
+
+/* Privacy and terms pages (privacy/, terms/): plain reading text, and the banner that marks a draft. */
+.legal { padding: var(--space-12) 0 var(--space-24); }
+.legal h1 { font: 500 40px/42px var(--font-display); letter-spacing: -.01em; margin: 0 0 var(--space-4); text-wrap: balance; }
+.legal h2 { font: 500 28px/32px var(--font-display); margin: var(--space-12) 0 var(--space-3); }
+.legal p, .legal li { font-size: 17px; line-height: 27px; color: var(--text-secondary); max-width: 44em; text-wrap: pretty; }
+.legal li + li { margin-top: var(--space-2); }
+.legal a { color: var(--brand-text); text-underline-offset: 3px; }
+.legal code { font: 400 .92em var(--font-mono); }
+.legal .table { overflow-x: auto; margin: var(--space-4) 0; }
+.legal table { border-collapse: collapse; width: 100%; min-width: 640px; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: var(--space-3); border-bottom: 1px solid var(--hairline); font-size: 15px; line-height: 23px; color: var(--text-secondary); }
+.legal th { color: var(--text-primary); font-weight: 600; }
+.legal .fill { color: var(--gold-text); font-weight: 600; }
+.draft {
+  margin: var(--space-6) 0; padding: var(--space-4) var(--space-5); max-width: 44em;
+  border: 2px solid var(--gold); border-radius: var(--radius-md); background: color-mix(in oklab, var(--gold), transparent 88%);
+  font-size: 16px; line-height: 25px; color: var(--text-primary);
+}
+.draft strong { color: var(--gold-text); letter-spacing: .06em; }

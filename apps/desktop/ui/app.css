@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /* The app's start-up page. Tokens, fonts and components are the Studio's own, so it looks like the Studio's welcome
-   and the onboarding boards: a sapphire side with the Choir's orbits, and a calm column for what's happening. */
+   and the onboarding boards: a side panel on a frame from a real take, and a calm column for what's happening. */
 @import "../../studio/src/styles/base.css";
 @import "../../studio/src/styles/components.css";
 
@@ -12,27 +12,22 @@ html, body { margin: 0; height: 100%; background: var(--canvas); }
 /* The side panel stays put; the main column scrolls on its own when the install's steps run long. */
 .hd { position: fixed; inset: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); overflow: hidden; }
 .hd-side {
-  position: relative; overflow: hidden; background: var(--sapphire-deep); padding: 44px 40px;
+  position: relative; overflow: hidden; background: #05080c; padding: 44px 40px;
   display: flex; flex-direction: column; gap: 28px; -webkit-user-select: none; user-select: none;
+  /* The frame is dark in either theme, so the panel's words take the dark theme's colours. */
+  color-scheme: dark; color: #f2ecdd; --text-primary: #f2ecdd; --text-secondary: #d4cebf; --sapphire-deep: #05080c;
 }
-.hd-side > :not(.hd-orbits) { position: relative; }
+.hd-side > :not(.hd-frame) { position: relative; z-index: 2; }
+.hd-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 64% 50%; }
+/* A scrim at the top and foot, so the stages and the quote read on any part of the frame. */
+.hd-side::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(#05080cd9, #05080c80 45%, #05080c4d 60%, #05080ce6); }
+/* While the install works, the frame drifts slowly: the computer is busy, not stuck. */
+.is-working .hd-frame { animation: hd-drift 40s ease-in-out infinite alternate; }
+@keyframes hd-drift { to { transform: scale(1.08) translateX(-2%); } }
 .hd-brand { display: flex; align-items: center; gap: 12px; }
 .hd-brand img { display: block; width: auto; }
 .hd-quote { margin: auto 0 0; font: italic 500 20px/28px var(--font-display); color: color-mix(in oklab, var(--text-primary), transparent 25%); }
 .hd-quote span { font: 400 13px/18px var(--font-sans); font-style: normal; color: var(--text-secondary); }
-
-/* The Choir's orbits. While the install works, one gold voice turns on the third orbit, once a minute. */
-.hd-orbits { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.hd-orbits circle { fill: none; stroke: var(--gold-leaf); }
-.hd-orbits circle:nth-child(1) { stroke-opacity: .25; }
-.hd-orbits circle:nth-child(2) { stroke-opacity: .16; }
-.hd-orbits circle:nth-child(3) { stroke-opacity: .1; }
-.hd-orbits circle:nth-child(4) { stroke-opacity: .06; }
-[data-theme="light"] .hd-orbits circle { stroke: var(--gold); }
-.hd-orbits__voice { opacity: 0; transform-box: view-box; transform-origin: 200px 610px; transition: opacity .6s ease; }
-.hd-orbits__voice circle { fill: var(--gold-leaf); stroke: none; filter: drop-shadow(0 0 6px var(--gold)); }
-[data-theme="light"] .hd-orbits__voice circle { fill: var(--gold); }
-.is-working .hd-orbits__voice { opacity: 1; animation: hg-spin 60s linear infinite; }
 
 /* The first run's stages, as on the onboarding boards. */
 .hd-stages { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 14px; }
@@ -184,7 +179,8 @@ code { font: 400 13px/20px var(--font-mono); color: var(--text-primary); overflo
 @media (max-width: 860px) {
   .hd { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .hd-side { padding: 16px 24px; flex-direction: row; align-items: center; }
-  .hd-quote, .hd-stages, .hd-orbits { display: none; }
+  .hd-quote, .hd-stages { display: none; }
+  .hd-frame { object-position: 50% 40%; }
   .hd-main { padding: 32px 24px 48px; }
   .hd-h1 { font-size: 38px; line-height: 44px; }
   .hd-mark { height: 56px; }
@@ -201,7 +197,7 @@ code { font: 400 13px/20px var(--font-mono); color: var(--text-primary); overflo
 }
 @media (prefers-reduced-motion: reduce) {
   .hd-page { animation: none; }
-  .is-working .hd-orbits__voice { animation: none; }
+  .is-working .hd-frame { animation: none; }
   .hg-ring--busy .bar, .hg-ring--busy .inner, .hg-ring--live .inner, .hd-step.is-running .hd-step__g { animation: none; }
   .hg-ring .bar, .hd-go { transition: none; }
 }

@@ -699,6 +699,7 @@ async function serveStudio(
     people,
     host,
     cloudflared,
+    listeningPort: () => port,
     limits: opts.limits,
     grants,
     signer,
