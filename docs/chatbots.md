@@ -98,6 +98,8 @@ Hildegard's tools (`list_skills` and `read_skill`).
 1. `hildegard host --funnel --json`, and copy `mcpUrl`.
 2. grok.com › Connectors › New connector › Custom, with that address. Sign in on Hildegard's page.
 
+[grok.md](grok.md) has the steps with a Cloudflare tunnel too, and which parts of the sign-in need a live test.
+
 ## Grok Bot
 
 Grok Bot runs on its own cloud computer, so it needs the public link even when it's installed on yours. Paste this
@@ -110,7 +112,12 @@ I'll sign in on its page myself. Then call list_skills and read the "hildegard" 
 
 Hildegard's MCP is stateless, so it also answers the requests Grok Bot sends on a reused session without the
 `MCP-Protocol-Version` header. To keep a skill in Grok Bot itself, add `skill-hildegard.zip`'s `SKILL.md` as a private
-skill.
+skill, or take the whole bundle: [grok-bot.md](grok-bot.md).
+
+## Listing in stores
+
+The Claude directory and OpenAI's plugin directory take skills-only plugins; `node scripts/pack-listing.mjs` builds both
+and [listings.md](listings.md) is the owner's checklist.
 
 ## Coding agents and other apps on this computer
 

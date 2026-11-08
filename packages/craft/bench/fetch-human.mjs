@@ -92,19 +92,28 @@ function htmlToMd(html) {
     .replace(/<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi, '**$2**')
     .replace(/<[^>]+>/g, '');
   h = decode(h);
-  return h
+  const paras = h
     .split('\n')
     .map((l) => l.replace(/[ \t]+/g, ' ').trim())
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .split(/\n\n/)
-    .filter((p) => !PAGE_FURNITURE.test(p))
-    .join('\n\n')
-    .trim();
+    .map((p) => p.trim())
+    .filter((p) => p && !PAGE_FURNITURE.test(p));
+  const foot = paras.findIndex((p) => PAGE_FOOT.test(p));
+  return (foot < 0 ? paras : paras.slice(0, foot)).join('\n\n').trim();
 }
+/**
+ * Where a site's own page chrome starts, once the article is over: the share bullets, the details box ("Jun 22, 2026"
+ * is the day the page was fetched, not the day it was written), the "Explore More" cards with their relative times
+ * ("3 days ago"), and a "Related links" list. Everything from the first such block on goes; none of it was written by
+ * the author, and the relative times change every day, so a re-fetch could never match the committed text.
+ */
+const PAGE_FOOT =
+  /^(?:#{1,6} (?:Share|Details|Explore More|Discover More Topics From NASA)\s*$|\*\*RELATED LINKS\*\*$|Keep Exploring$)/;
 /** Bylines, timestamps and "related article" links that the page's markup puts inside the article body. */
 const PAGE_FURNITURE =
-  /\b(?:Last Updated|min read|Article \d+ (?:days?|hours?|weeks?|months?) ago|Share this|Related Terms|Image Credit)\b|^\**By [A-Z][^.]{2,60}\**$|^Read more\b|^Posted (?:in|on)\b/i;
+  /\b(?:Last Updated|min read|Article \d+ (?:days?|hours?|weeks?|months?) ago|Share this|Related Terms|Image Credit)\b|^\**By [A-Z][^.]{2,60}\**$|^Read more\b|^Posted (?:in|on)\b|^Note: Please note that this is an “archived project”/i;
 
 /** A cut length of 90 to 699 words that depends only on the key, so the corpus spans short and medium pieces like a brief's drafts do. */
 const target = (key) => 90 + (parseInt(sha1(key).slice(0, 6), 16) % 610);

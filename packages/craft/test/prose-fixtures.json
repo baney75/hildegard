@@ -536,6 +536,114 @@
       "strict": true,
       "text": "The bees need water in July. A pan of stones on the porch will do.",
       "clean": true
+    },
+    {
+      "name": "a shortcut link whose definition is in the text is a link, not a placeholder",
+      "text": "Visit our [website] or send an [email]. We answer within a day, and the barn is open on Saturdays.\n\n[website]: https://example.org\n[email]: mailto:hello@example.org\n",
+      "clean": true
+    },
+    {
+      "name": "a bracketed word with no definition is still a placeholder",
+      "text": "Visit our [website] or send an [email]. We answer within a day, and the barn is open on Saturdays.\n",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "Hugo and Jekyll template syntax in a post source is not a placeholder",
+      "text": "The barn went up in a week.\n\n{{< figure src=\"barn.jpg\" caption=\"The first wall\" >}}\n\nWe named the farm {{ site.title }} after the creek.\n\n{% include footer.html %}\n",
+      "clean": true
+    },
+    {
+      "name": "a bare double-brace word is a template slot",
+      "text": "Dear {{name}}, thank you for coming to the barn raising on Saturday.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "kisses at the end of a letter are not a template slot",
+      "text": "Thank you for the soup and the card. The roof is on and the kids are asleep. Love, Gran xx xx",
+      "clean": true
+    },
+    {
+      "name": "three kisses twice are not a template slot either",
+      "text": "Thank you for the soup and the card. Love, Gran xxx xxx",
+      "clean": true
+    },
+    {
+      "name": "capital XX in a date or an amount is a template slot",
+      "text": "The barn raising is on XX/XX/XXXX and a ticket costs $XX.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "past-tense narration is not stock warmth",
+      "text": "The kids were so proud. The parents were thankful for the rain. The neighbors were pleased to welcome the new family.",
+      "clean": true
+    },
+    {
+      "name": "were is not we're: past tense twice beside a bold pair is not a stack",
+      "text": "The parents were proud of the barn, and the neighbors were grateful for the help. We got **lucky** with the **weather**.",
+      "warns": ["bold"],
+      "ok": true
+    },
+    {
+      "name": "\"the good news is\" and two bold words in plain prose warn, never fail",
+      "text": "The good news is the roof is done. Sign up for **Saturday** or **Sunday** shifts.",
+      "warns": ["chatty-openers", "bold"],
+      "ok": true
+    },
+    {
+      "name": "\"the good news is\" still stacks with a different kind of weak tell",
+      "text": "The good news is the roof is done. Experts agree the rest can wait until spring.",
+      "fails": ["stacked-tells"]
+    },
+    {
+      "name": "a chatty opener and another metadiscourse phrase are one habit: they warn, never fail",
+      "text": "To be honest, I was worried about the storm. The good news is the roof held, and the neighbors came by with coffee.",
+      "warns": ["metadiscourse", "chatty-openers"],
+      "ok": true
+    },
+    {
+      "name": "a chatty opener, a metadiscourse phrase and a weasel phrase still stack",
+      "text": "To be honest, I was worried about the storm. The good news is the roof held. Experts agree the rest can wait.",
+      "fails": ["stacked-tells"]
+    },
+    {
+      "name": "capital kisses at the end of a letter are not a template slot",
+      "text": "Thank you for the soup and the card. The roof is on and the kids are asleep. Love, Gran XX XX",
+      "clean": true
+    },
+    {
+      "name": "three capital kisses twice are not a template slot either",
+      "text": "Thank you for the soup and the card. Love, Gran XXX XXX",
+      "clean": true
+    },
+    {
+      "name": "a lowercase date, phone and price template are slots",
+      "text": "Call (xxx) xxx-xxxx or come on xx/xx/xxxx; tickets are $xx.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a lowercase dashed phone template is a slot",
+      "text": "Call us at xxx-xxx-xxxx and ask for the barn.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "mail-merge slots with spaces inside the braces are template slots",
+      "text": "Dear {{ first_name }}, thank you for coming. Hi {{ name }}, see you Saturday. {{first name}} is welcome too.",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "Go and Hugo control words in braces are not slots",
+      "text": "The theme loops with {{ range .Pages }} and closes with {{ end }}, and {{ else }} covers an empty list.",
+      "clean": true
+    },
+    {
+      "name": "a bracketed label with no destination defines no link, so the slot still fails",
+      "text": "Call us at [phone number] to book the barn.\n\n[Phone number]: [on the door]\n",
+      "fails": ["unfinished"]
+    },
+    {
+      "name": "a bracketed label with a destination in angle brackets is a link definition",
+      "text": "Visit our [website] to book the barn on Saturday.\n\n[website]: <https://example.org/barn>\n",
+      "clean": true
     }
   ]
 }

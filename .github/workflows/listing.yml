@@ -1,0 +1,127 @@
+name: Listing
+
+# Builds the store listings (scripts/pack-listing.mjs) and checks them against the rules each store states
+# (scripts/check-listing.mjs). Two jobs, split so the deploy key never meets code from a pull request:
+#
+# - build runs on pull requests and pushes with contents: read and no secret.
+# - publish runs only on main (a push, or a manual run from main), in the "listing" environment, from that commit. It
+#   builds the Claude directory's plugin tree again and pushes only that tree to baney75/hildegard-plugin, using the
+#   environment secret LISTING_DEPLOY_KEY (a write-enabled deploy key the owner creates, docs/listings.md) through
+#   ssh-agent, and does nothing without it. The environment's deployment branches are main only: a pull request can
+#   edit this file, but GitHub gives the environment's secret to no other branch. apps/cli/test/listing-workflow.test.ts holds this file to those rules.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/**'
+      - '.claude-plugin/**'
+      - '.codex-plugin/**'
+      - 'plugin/README.md'
+      - 'LICENSE'
+      - 'LICENSE-APACHE'
+      - 'package.json'
+      - 'scripts/pack-listing.mjs'
+      - 'scripts/check-listing.mjs'
+      - 'scripts/pack-skills.mjs'
+      - '.github/workflows/listing.yml'
+  pull_request:
+    paths:
+      - 'skills/**'
+      - '.claude-plugin/**'
+      - '.codex-plugin/**'
+      - 'plugin/README.md'
+      - 'LICENSE'
+      - 'LICENSE-APACHE'
+      - 'package.json'
+      - 'scripts/pack-listing.mjs'
+      - 'scripts/check-listing.mjs'
+      - 'scripts/pack-skills.mjs'
+      - '.github/workflows/listing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Build the listings
+        run: node scripts/pack-listing.mjs "$RUNNER_TEMP/plugin" --extras "$RUNNER_TEMP/extras"
+      - name: Check them against the stores' rules
+        run: node scripts/check-listing.mjs "$RUNNER_TEMP/plugin" "$RUNNER_TEMP/extras/hildegard-openai.zip"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: listings
+          path: |
+            ${{ runner.temp }}/extras
+          retention-days: 14
+
+  publish:
+    needs: build
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # The environment allows deployment from main only; the owner can add required reviewers to gate each publish.
+    environment: listing
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # No secret is in the environment of anything above or in this step: the key reaches only the step below.
+      - name: Build and check the Claude plugin tree
+        run: |
+          node scripts/pack-listing.mjs "$RUNNER_TEMP/plugin" --extras "$RUNNER_TEMP/extras"
+          node scripts/check-listing.mjs "$RUNNER_TEMP/plugin" "$RUNNER_TEMP/extras/hildegard-openai.zip"
+      - name: Publish the Claude plugin to baney75/hildegard-plugin
+        env:
+          LISTING_DEPLOY_KEY: ${{ secrets.LISTING_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LISTING_DEPLOY_KEY:-}" ]; then
+            echo "No deploy key is set yet, so nothing is published."
+            exit 0
+          fi
+          eval "$(ssh-agent -s)" > /dev/null
+          trap 'ssh-agent -k > /dev/null' EXIT
+          printf '%s\n' "$LISTING_DEPLOY_KEY" | tr -d '\r' | ssh-add -
+          unset LISTING_DEPLOY_KEY
+          # GitHub's published ed25519 host key (docs.github.com, SSH key fingerprints), not whatever answers first.
+          install -m 700 -d ~/.ssh
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -o IdentitiesOnly=no -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+          git clone --quiet git@github.com:baney75/hildegard-plugin.git "$RUNNER_TEMP/target"
+          cd "$RUNNER_TEMP/target"
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/plugin/." .
+          rm -f .hildegard-listing-generated
+          # The tree must stand on its own: no git-lfs filters can come with it.
+          test ! -e .gitattributes
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The listing repository already matches $GITHUB_SHA."
+            exit 0
+          fi
+          git -c user.name="hildegard listing" -c user.email="listing@users.noreply.github.com" \
+            commit --quiet -m "Hildegard Craft from baney75/hildegard@${GITHUB_SHA::7}"
+          git push --quiet origin HEAD:main
+          echo "Published to baney75/hildegard-plugin."

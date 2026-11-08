@@ -269,9 +269,10 @@ describe('Hildegard Link', () => {
   });
 
   it('keeps a Hildegard that answers its pings, and drops one that doesn’t', async () => {
-    const { agent, ports, relay } = await setup({ relay: { pingMs: 50 } });
+    // Pings every 200 ms, dropped after 500 ms of silence: room for a busy CI machine to answer, and still quick.
+    const { agent, ports, relay } = await setup({ relay: { pingMs: 200 } });
     await agent.start();
-    await new Promise((ok) => setTimeout(ok, 400));
+    await new Promise((ok) => setTimeout(ok, 700));
     expect(relay.stats().online).toBe(1);
     expect(await get(ports.publicPort, 'alpha.link.test')).toContain('hello');
     // One that says hello and then goes quiet.
@@ -281,7 +282,7 @@ describe('Hildegard Link', () => {
     quiet.resume();
     quiet.on('error', () => {});
     await new Promise((ok) => quiet.once('close', ok));
-    await expect.poll(() => relay.stats().online).toBe(1);
+    await expect.poll(() => relay.stats().online, { timeout: 5000 }).toBe(1);
   });
 
   it('drops a caller who never says hello', async () => {

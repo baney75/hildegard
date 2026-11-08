@@ -41,7 +41,10 @@ const allowed = new Set(
 const problems = [];
 const reviews = [];
 const used = new Set();
+if (lstatSync(dir).isSymbolicLink())
+  problems.push('skills: the folder itself is a symlink, which is not allowed');
 (function walk(d) {
+  if (d === dir && lstatSync(dir).isSymbolicLink()) return;
   for (const name of readdirSync(d)) {
     const p = join(d, name);
     const rel = relative(dir, p).split(sep).join('/');

@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Posts on a site: a page in the site's own look, the list newest first, the feed and the sitemap; drafts left out;
 // Markdown that can't carry HTML; notes kept private.
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { markdown } from '../src/markdown.ts';
-import { boot, type Harness, textOf } from './harness.ts';
+import { renderMarkdown } from '../src/render-markdown.ts';
+import { CASES } from './fixtures/markdown-cases.ts';
+import { boot, type Harness, raw, textOf } from './harness.ts';
 
 let h: Harness;
 let journal: string;
@@ -58,6 +62,59 @@ describe('the Markdown renderer', () => {
     expect(out).toContain('<ol>');
     expect(out).toContain('<hr class="break">');
     expect(out).toMatch(/<ul>\n<li>x\n<ul>\n<li>y<\/li>/);
+  });
+
+  // Each hostile post is rendered in a child process with a timeout, so a renderer that backtracks is killed and the
+  // test fails, rather than freezing the suite. The child measures CPU time (best of three), as the edit-size tests do.
+  it.each(Object.keys(CASES))(
+    'renders 500,000 characters of %s in under 200 ms',
+    (name) => {
+      const run = spawnSync(
+        process.execPath,
+        [join(import.meta.dirname, 'fixtures', 'markdown-cpu.ts'), name],
+        { encoding: 'utf8', timeout: 40_000 },
+      );
+      expect(run.error, `${name}: ${run.error?.message}`).toBeUndefined();
+      expect(run.status, `${name}: ${run.stderr.slice(-300)}`).toBe(0);
+      const out = JSON.parse(run.stdout) as { ms: number; length: number };
+      expect(out.length).toBeGreaterThan(0);
+      expect(out.ms).toBeLessThan(200);
+    },
+    60_000,
+  );
+  it('reads a heading that holds U+2028 or U+2029, and always makes progress (second-S1, sol-F1)', () => {
+    // Run in a child with a timeout: on the old code this loops forever, and the main thread would hang the suite.
+    const script = `import { markdown } from ${JSON.stringify(pathToFileURL(join(import.meta.dirname, '../src/markdown.ts')).href)};
+      process.stdout.write(JSON.stringify(['# Title\\u2028', '# a\\u2028b', '# a\\u2029'].map((s) => markdown(s))));`;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      timeout: 5_000,
+    });
+    expect(run.error, run.error?.message).toBeUndefined();
+    expect(run.status, run.stderr.slice(-300)).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual(['<h2>Title</h2>', '<h2>a\u2028b</h2>', '<h2>a</h2>']);
+  });
+  it('reads code spans by CommonMark’s rule: a span closes at the next run of the same length', () => {
+    expect(markdown('a `x` b ``y ` z`` c ```k``` d')).toBe(
+      '<p>a <code>x</code> b <code>y ` z</code> c <code>k</code> d</p>',
+    );
+    expect(markdown('`one` and ``two`` and `` `three` ``')).toContain('<code>`three`</code>');
+    // Runs of different lengths do not close each other, and an unmatched run is text.
+    expect(markdown('``a` b')).toBe('<p>``a` b</p>');
+    expect(markdown('x ```a`` b')).toBe('<p>x ```a`` b</p>');
+    // What is inside a span is literal.
+    expect(markdown('`*a* <b>`')).toBe('<p><code>*a* &lt;b&gt;</code></p>');
+  });
+  it('keeps the held-piece markers as visible escapes, and leaves the digits of a post alone', () => {
+    // The markers are U+E000 and U+E001. Written as literal characters they are invisible in a diff, so the source spells them out.
+    const src = readFileSync(join(import.meta.dirname, '../src/markdown.ts'), 'utf8');
+    expect([...src].filter((ch) => ch >= '\uE000' && ch <= '\uF8FF')).toEqual([]);
+    expect(markdown('Founded in 2026, we sell 3 kinds of tea.')).toBe(
+      '<p>Founded in 2026, we sell 3 kinds of tea.</p>',
+    );
+    expect(markdown('In 2026 we sell `x` 3 times, see [a](/b) 0 1 and 2026.')).toBe(
+      '<p>In 2026 we sell <code>x</code> 3 times, see <a href="/b">a</a> 0 1 and 2026.</p>',
+    );
   });
 });
 
@@ -279,6 +336,72 @@ describe('writing a post', () => {
   });
 });
 
+describe('previewing a site that has notes and drafts', () => {
+  it('shows a draft, as a preview is for, but never the interview notes', async () => {
+    const made = await h.local('/api/sites', 'POST', { from: 'empty', title: 'Preview Notes' });
+    const site = ((await made.json()) as { id: string }).id;
+    await post(site, {
+      title: 'Held',
+      body_md: 'Draft words for the preview.',
+      date: '2026-11-04',
+      draft: true,
+      notes_md: 'Q: Who said it?\nA: Private answer one.',
+    });
+    await post(site, {
+      title: 'Out',
+      body_md: 'Public words.',
+      date: '2026-11-05',
+      notes_md: 'Q: Why?\nA: Private answer two.',
+    });
+    const view = (await (await h.local(`/api/sites/${site}`)).json()) as { preview: string };
+    const get = (rel: string) => raw(h.srv.url, `${view.preview}${rel}`);
+    const draft = await get('blog/held/');
+    expect(draft.status).toBe(200);
+    expect(draft.body).toContain('Draft words for the preview.');
+    expect((await get('blog/out/')).status).toBe(200);
+    expect((await get('')).status).toBe(200);
+    for (const rel of [
+      'notes/held.md',
+      'notes/out.md',
+      'NOTES/held.md',
+      'Notes/out.md',
+      'notes%2Fheld.md',
+      'blog/%2e%2e/notes/held.md',
+      'blog/out/%2e%2e/../notes/out.md',
+      'notes/',
+      'notes',
+    ]) {
+      const r = await get(rel);
+      expect(r.status, rel).toBe(404);
+      expect(r.body, rel).not.toContain('Private answer');
+    }
+  });
+  it('never shows notes through a name Windows reads as notes', async () => {
+    const made = await h.local('/api/sites', 'POST', { from: 'empty', title: 'Preview Aliases' });
+    const site = ((await made.json()) as { id: string }).id;
+    // Real files with these names, as a disk that treats them as aliases of notes would hold them.
+    const files = join(h.dir, 'sites', site, 'files');
+    for (const dir of ['notes.', 'notes ', 'Notes']) {
+      mkdirSync(join(files, dir), { recursive: true });
+      writeFileSync(join(files, dir, 'held.md'), 'Private alias answer');
+    }
+    writeFileSync(join(files, 'notes\\held.md'), 'Private alias answer');
+    writeFileSync(join(files, 'notes:held.md'), 'Private alias answer');
+    const view = (await (await h.local(`/api/sites/${site}`)).json()) as { preview: string };
+    for (const rel of [
+      'notes./held.md',
+      'notes%20/held.md',
+      'notes%5Cheld.md',
+      'Notes/held.md',
+      'notes%3Aheld.md',
+    ]) {
+      const r = await raw(h.srv.url, `${view.preview}${rel}`);
+      expect(r.status, rel).toBe(404);
+      expect(r.body, rel).not.toContain('Private alias answer');
+    }
+  });
+});
+
 describe('a post that is too hostile to render', () => {
   const hostile: [string, string][] = [
     ['backticks', `a${'`'.repeat(499_999)}`],
@@ -293,13 +416,17 @@ describe('a post that is too hostile to render', () => {
       const healthMs = performance.now() - t0;
       const res = await refused;
       expect(performance.now() - t0).toBeLessThan(2_000);
-      expect(res.status).toBe(422);
-      expect(((await res.json()) as { error: string }).error).toContain('too complex to render');
+      // The one-pass reader gets through these inside the budget; the worker stays as the backstop (below).
+      expect([201, 422]).toContain(res.status);
       expect(healthMs).toBeLessThan(200);
-      expect(siteJson(blank).posts.map((p) => p.slug)).not.toContain('too-much');
     },
     10_000,
   );
+  it('refuses a post the worker cannot finish within its budget, writing nothing', async () => {
+    const err = await renderMarkdown('# Slow', 0).catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 422, code: 'body_md' });
+    expect((err as Error).message).toContain('too complex to render');
+  });
   it('renders an ordinary post exactly as the renderer does', async () => {
     const body_md =
       '# One\n\nA *soft* and **hard** `code` line, a [link](https://example.com/a?b=1&c=2).\n\n- x\n  - y';
