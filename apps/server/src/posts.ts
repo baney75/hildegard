@@ -353,12 +353,16 @@ export function writePost(
   };
   const { css, journal } = look(sites, id);
   const path = `blog/${slug}/index.html`;
-  sites.write(id, path, articleHtml({ site, up: '../../', css, journal }, post, body, draft));
-  if (input.notes_md?.trim()) sites.write(id, `notes/${slug}.md`, `${input.notes_md.trim()}\n`);
+  const html = articleHtml({ site, up: '../../', css, journal }, post, body, draft);
   const others = (l: PostMeta[]) => l.filter((x) => x.slug !== slug);
   const posts = draft ? others(site.posts) : [...others(site.posts), post];
   const drafts = draft ? [...others(site.drafts), post] : others(site.drafts);
-  sites.setPosts(id, { posts, drafts });
+  // /s/ withholds a draft by the slug list in site.json, so a draft is recorded there before its page exists: the page
+  // is never public, even if the next step fails. A post that is going public is written first, as it was.
+  if (draft) sites.setPosts(id, { posts, drafts });
+  sites.write(id, path, html);
+  if (input.notes_md?.trim()) sites.write(id, `notes/${slug}.md`, `${input.notes_md.trim()}\n`);
+  if (!draft) sites.setPosts(id, { posts, drafts });
   rebuildBlog(sites, id, opts.base);
   return { slug, draft, path, date };
 }

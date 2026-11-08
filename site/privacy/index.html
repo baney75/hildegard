@@ -3,15 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hildegard privacy policy (draft)</title>
-<meta name="description" content="What Hildegard and its skills collect (nothing) and every outside place the app can connect to, and when.">
-<meta name="robots" content="noindex">
+<title>Hildegard privacy policy: what stays on your computer</title>
+<meta name="description" content="Hildegard collects nothing. This page lists every outside place the app and its skills can connect to, when that happens, and how to turn each one off.">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0a0e13" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f4eedd" media="(prefers-color-scheme: light)">
 <link rel="canonical" href="https://dbaney.com/hildegard/privacy/">
+<meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Hildegard">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Hildegard privacy policy: what stays on your computer">
+<meta property="og:description" content="What Hildegard collects (nothing) and every outside place it can connect to.">
+<meta property="og:url" content="https://dbaney.com/hildegard/privacy/">
+<meta property="og:image" content="https://dbaney.com/hildegard/img/og.jpg?v=2">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Golden Hour, shot II: a sea stack at sunset rendered by Hildegard, beside the words Your own AI studio, on your own GPU.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@baney75">
+<meta name="twitter:creator" content="@baney75">
+<meta name="twitter:title" content="Hildegard privacy policy: what stays on your computer">
+<meta name="twitter:description" content="What Hildegard collects (nothing) and every outside place it can connect to.">
+<meta name="twitter:image" content="https://dbaney.com/hildegard/img/og.jpg?v=2">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Hildegard privacy policy","description":"What Hildegard and its skills collect (nothing) and every outside place the app can connect to, and when.","url":"https://dbaney.com/hildegard/privacy/","author":{"@id":"https://dbaney.com/#person"},"about":{"@id":"https://dbaney.com/hildegard/#app"}},{"@type":"WebSite","@id":"https://dbaney.com/#website","url":"https://dbaney.com/","name":"Donovan Baney","inLanguage":"en-US","publisher":{"@id":"https://dbaney.com/#person"},"author":{"@id":"https://dbaney.com/#person"}},{"@type":"Person","@id":"https://dbaney.com/#person","name":"Donovan Baney","alternateName":"baney75","url":"https://dbaney.com/","image":"https://dbaney.com/assets/donovan-formal-960.webp","jobTitle":"Biology and pre-med student","description":"Biology and pre-med student at Gannon University. Builds privacy-first software for medicine and learning.","affiliation":{"@type":"CollegeOrUniversity","name":"Gannon University","url":"https://www.gannon.edu/"},"address":{"@type":"PostalAddress","addressLocality":"Erie","addressRegion":"Pennsylvania"},"knowsAbout":["biology","pre-med","orthopedic surgery","machine learning","pharmacogenetics","extended reality","privacy-first software"],"sameAs":["https://github.com/baney75","https://x.com/baney75","https://www.linkedin.com/in/donovan-baney-447782356/"]}]}</script>
 </head>
 <body>
 <header class="top" data-scrolled>
@@ -28,21 +46,19 @@
 
 <main class="legal">
   <div class="wrap">
-    <p class="draft" role="note"><strong>DRAFT.</strong> The owner has not approved this text, so it is not in force. It is a plain-language description of what the code does, written from the code, and it needs the owner’s review (and a lawyer’s, if he wants one) before it goes live. Lines in <span class="fill">[Owner: …]</span> are for him to fill in.</p>
-
     <h1>Privacy policy</h1>
-    <p>Last updated: <span class="fill">[Owner: date of approval]</span>. Applies to Hildegard, the app (version 0.1.x), and to Hildegard’s skills, wherever they are listed.</p>
+    <p>Last updated: November 7, 2026. Applies to Hildegard, the app (version 0.1.x), and to Hildegard’s skills, wherever they are listed.</p>
 
     <h2>The short version</h2>
     <ul>
-      <li>Hildegard runs on your own computers. What you make, your prompts, your voices and your settings stay there.</li>
+      <li>Hildegard runs on your own computers. What you make, your prompts, your voices and your settings stay there, unless you turn on a service that sends them elsewhere: a rented GPU, a link or tunnel, an AI app, or a model address you add. The table below lists each one.</li>
       <li>The skills collect nothing and send nothing to us. They are text files and a few small scripts that an AI app reads and runs for you. Some of those scripts rely on programs you install yourself, and installing or first running those downloads files from other companies’ servers, only when you run that tool. Each one is in the table below.</li>
       <li>The app has no analytics, no tracking and no account with the people who make it. It sends nothing to Donovan Baney or to any server he runs.</li>
       <li>The app and the skills’ tools reach other companies’ servers only for the jobs in the table below. Some happen by default (checking for updates, installing, downloading a model you chose). The rest happen only when you turn them on.</li>
     </ul>
 
     <h2>The skills</h2>
-    <p>Hildegard’s skills are instructions: Markdown files, a few small scripts and some page templates. They run inside the AI app you put them in, under that app’s rules and its own privacy policy. None of their scripts opens a network connection, and nothing in them sends anything to Donovan Baney. The page templates load nothing from outside: no web fonts, scripts, stylesheets or images from another site. Listing the skills in a store (Claude’s directory, OpenAI’s plugin directory, Grok Bot) does not change any of that. What an AI app does with your conversation, and with any web search or page it opens for you because a skill asked it to, is between you and that app and its own policy.</p>
+    <p>Hildegard’s skills are instructions: Markdown files, a few small scripts and some page templates. They run inside the AI app you put them in, under that app’s rules and its own privacy policy. Two of their scripts can open a network connection, both listed in the table below: <code>motion.py</code>, for a font it has not cached yet, and <code>cutout.py</code>, whose rembg library downloads its model the first time. Nothing in them sends anything to Donovan Baney. The page templates load nothing from outside: no web fonts, scripts, stylesheets or images from another site. Listing the skills in a store (Claude’s directory, OpenAI’s plugin directory, Grok Bot) does not change any of that. What an AI app does with your conversation, and with any web search or page it opens for you because a skill asked it to, is between you and that app and its own policy.</p>
     <p>What the skills do ask for is the programs their helper scripts and instructions use. Those are not included. If you or your AI app install or first run one, that program downloads from its own source. The last rows of the table below list every one the skills name with an install command or a download, and when it happens.</p>
 
     <h2>The app</h2>
@@ -67,7 +83,8 @@
         <tr><td>Only if an AI app drafts a bug report</td><td>api.github.com; github.com</td><td>The words of the report’s title go to GitHub’s public issue search to look for a duplicate, after private details are taken out. A report is filed only after you have read the exact text and said yes, and only through your own GitHub sign-in on your computer. A filed issue is public on GitHub.</td></tr>
       <tr><td>Only when a skill’s helper <code>cutout.py</code> (removing a background) runs</td><td>pypi.org and files.pythonhosted.org, if <code>rembg</code> and <code>onnxruntime</code> are not installed yet (the script tells you to run <code>pip install rembg onnxruntime</code>); then github.com (<code>github.com/danielgatis/rembg/releases</code>, which sends the file on from GitHub’s download servers)</td><td>Download requests only. The first run of <code>rembg</code> downloads its model (<code>birefnet-general</code> by default, or the <code>isnet-general-use</code> or <code>u2net</code> one you pick) once and keeps it in a <code>.u2net</code> folder in your home folder. Your picture is not uploaded: it is processed on your computer. The sites see your IP address.</td></tr>
         <tr><td>Only when your AI app runs another install a skill suggests</td><td>pypi.org and files.pythonhosted.org (through <code>pip</code>); registry.npmjs.org (through <code>npm</code>)</td><td>Download requests only. The skills name <code>pip install scikit-image</code> (solid-model checks in <code>hildegard-3d</code>), <code>pip install bpy</code> (Blender as a Python module), <code>pip install pronouncing</code> (syllable counts for songs), <code>pip install librosa soundfile</code> (beat and energy analysis for a music video), <code>pip install av numpy pillow</code> (the motion and music skills’ scripts), <code>pip install playwright</code> then <code>python3 -m playwright install chromium</code> (an optional browser for the motion skill, which also downloads Chromium from Microsoft’s Playwright servers), and the <code>@fontsource</code> font packages on npm, which an image task fetches so text renders in the right typeface. The helper scripts also import <code>numpy</code>, <code>Pillow</code> and <code>scipy</code>, which come from your own Python. Each runs only if you or your AI app, with your permission, run the command.</td></tr>
-        <tr><td>Only when the motion skill’s <code>motion.py</code> draws text in a font it has not cached yet</td><td>raw.githubusercontent.com (Google’s font repository, <code>google/fonts</code>, at one pinned commit)</td><td>A download request for that one font file, which is checked against its SHA-256 and kept in a cache folder, so it is never fetched again. <code>HILDEGARD_MOTION_OFFLINE=1</code> turns this off. The site sees your IP address. No other helper script opens a connection.</td></tr>
+        <tr><td>Only when the motion skill’s <code>motion.py</code> draws text in a font it has not cached yet</td><td>raw.githubusercontent.com (Google’s font repository, <code>google/fonts</code>, at one pinned commit)</td><td>A download request for that one font file, which is checked against its SHA-256 and kept in a cache folder, so it is never fetched again. <code>HILDEGARD_MOTION_OFFLINE=1</code> turns this off. The site sees your IP address.</td></tr>
+        <tr><td>Only when the image skill’s <code>cutout.py</code> removes a background for the first time</td><td>github.com (the rembg project’s model release)</td><td>rembg, a library you install yourself, downloads its model file once and keeps it in <code>~/.u2net</code>. The site sees your IP address. No other helper script opens a connection.</td></tr>
         <tr><td>Only if you open a link in a skill’s reference page</td><td>The site you open, for example a model’s license at stability.ai or huggingface.co</td><td>Your browser’s visit, as with any link. The skills only cite these pages; nothing in them fetches one.</td></tr>
         <tr><td>Only if you follow the setup or cloud skill</td><td>github.com (the Hildegard installer); console.runpod.io (a link you open to make an API key)</td><td>The setup skill (in OpenAI’s package and Grok Bot’s zips, not in Claude’s listing) tells an AI app to run the same installer command as the install row above. The cloud skill shows you a Runpod page to open yourself; nothing is sent from the skill.</td></tr>
       </tbody>
@@ -77,10 +94,10 @@
     <p>Voice cloning is consent-gated and local: the voice samples, the consent recording and the cloned voices stay on your computer, and Hildegard never lets an AI app start a clone by itself.</p>
 
     <h2>What Donovan Baney receives</h2>
-    <p>Nothing from the app or the skills. There is no telemetry, no crash reporter and no account. If you open an issue or a pull request on GitHub, what you write there is public and is held by GitHub. If you email <span class="fill">[Owner: contact email]</span>, the message and your address are kept to answer you.</p>
+    <p>Nothing from the app or the skills. There is no telemetry, no crash reporter and no account. If you open an issue or a pull request on GitHub, what you write there is public and is held by GitHub. If you email <a href="mailto:support@dbaney.com">support@dbaney.com</a>, the message and your address are kept to answer you.</p>
 
     <h2>This website</h2>
-    <p>dbaney.com/hildegard is a static page: no cookies, no advertising and no analytics scripts. The install page remembers which operating system tab you picked, in your own browser’s local storage, and sends it nowhere. Its host keeps ordinary server logs. <span class="fill">[Owner: say who hosts dbaney.com and how long its logs are kept.]</span></p>
+    <p>dbaney.com/hildegard is a static page: no cookies, no advertising and no analytics scripts. The install page remembers which operating system tab you picked, in your own browser’s local storage, and sends it nowhere. It is served by Cloudflare, which logs a sample of about one request in ten (the address, the page asked for, the time and the browser it named) and keeps those logs for at most 7 days. They are used only to keep the site running.</p>
 
     <h2>Your choices</h2>
     <ul>
@@ -91,7 +108,7 @@
     </ul>
 
     <h2>Changes and contact</h2>
-    <p>Changes to this page are made in the open, in the project’s repository, and the date at the top changes with them. Questions or concerns: <a href="https://github.com/baney75/hildegard/issues">github.com/baney75/hildegard/issues</a>, or <span class="fill">[Owner: contact email]</span>.</p>
+    <p>Changes to this page are made in the open, in the project’s repository, and the date at the top changes with them. Questions or concerns: <a href="https://github.com/baney75/hildegard/issues">github.com/baney75/hildegard/issues</a>, or <a href="mailto:support@dbaney.com">support@dbaney.com</a>.</p>
   </div>
 </main>
 
