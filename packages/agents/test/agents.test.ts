@@ -832,6 +832,7 @@ describe('the skills Hildegard ships', () => {
         'hildegard-design',
         'hildegard-blog',
         'hildegard-sound',
+        'hildegard-music',
         'hildegard-setup',
       ]),
     );

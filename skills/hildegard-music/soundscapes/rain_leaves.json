@@ -1,0 +1,26 @@
+{
+  "name": "rain_leaves",
+  "note": "Rain falling on leaves in a wood: softer, lower drops and a deeper bed. Vary: intensity, surface ground for a muddy path.",
+  "vary": ["intensity", "surface", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "rain",
+      "intensity": 0.5,
+      "surface": "leaves"
+    },
+    {
+      "type": "wind",
+      "strength": 0.2,
+      "gustiness": 0.6,
+      "gain_db": -15
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -23,
+      "true_peak": -1
+    }
+  }
+}

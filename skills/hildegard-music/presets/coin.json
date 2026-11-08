@@ -1,0 +1,48 @@
+{
+  "name": "coin",
+  "note": "The classic arcade coin: two square notes, a fourth apart, the second held. Vary: the freq values (B5 and E6), layers[1].dur (0.2 to 0.6), pulse_width (0.2 to 0.5).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "square",
+      "freq": "B5",
+      "pulse_width": 0.25,
+      "dur": 0.075,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 7000,
+        "q": 0.7
+      },
+      "env": {
+        "attack": 0.001,
+        "decay": 0.0,
+        "sustain": 1.0,
+        "release": 0.006
+      }
+    },
+    {
+      "source": "square",
+      "freq": "E6",
+      "start": 0.07,
+      "pulse_width": 0.25,
+      "dur": 0.42,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 7000,
+        "q": 0.7
+      },
+      "env": {
+        "attack": 0.001,
+        "decay": 0.379,
+        "sustain": 0.12,
+        "release": 0.04
+      }
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}
