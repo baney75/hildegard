@@ -23,6 +23,17 @@ class FakeChild extends EventEmitter {
   }
 }
 
+const POSIX = process.platform !== 'win32';
+/** What the Studio's Sharing page sends when the owner clicks to turn a link on. */
+async function studioOn(url: string, body: Record<string, unknown>) {
+  const r = await fetch(`${url}/api/host`, {
+    method: 'POST',
+    headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`POST /api/host: ${r.status} ${await r.text()}`);
+}
+
 describe('hildegard tunnel', () => {
   it('walks each path: nothing installed, not signed in, a quick tunnel on, doctor, and off read back', async () => {
     const world = { tailscale: false, cloudflared: false };
@@ -134,13 +145,16 @@ describe('hildegard tunnel', () => {
         body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
       });
       expect(owner.status).toBe(201);
-      // At a terminal, a no turns nothing on; a yes turns on the quick tunnel.
-      const no = await hildegardAtTerminal(home, {}, 'n', 'tunnel', 'cloudflare', '--quick', ...term);
-      expect(no.text).toMatch(/Nothing was turned on/);
-      expect(children).toHaveLength(0);
-      const yes = await hildegardAtTerminal(home, {}, 'y', 'tunnel', 'cloudflare', '--quick', ...term);
-      expect(yes.code, yes.text).toBe(0);
-      expect(yes.text).toMatch(/https:\/\/calm-river-test-name\.trycloudflare\.com/);
+      // At a terminal, a no turns nothing on; a yes turns on the quick tunnel. (The terminal is a pty, POSIX only;
+      // on Windows the quick tunnel is turned on the way the Studio's click does it.)
+      if (POSIX) {
+        const no = await hildegardAtTerminal(home, {}, 'n', 'tunnel', 'cloudflare', '--quick', ...term);
+        expect(no.text).toMatch(/Nothing was turned on/);
+        expect(children).toHaveLength(0);
+        const yes = await hildegardAtTerminal(home, {}, 'y', 'tunnel', 'cloudflare', '--quick', ...term);
+        expect(yes.code, yes.text).toBe(0);
+        expect(yes.text).toMatch(/https:\/\/calm-river-test-name\.trycloudflare\.com/);
+      } else await studioOn(srv.url, { via: 'quick' });
       const quick = await hildegard(home, 'host', 'status', ...at);
       expect(quick.host).toMatchObject({ on: true, url: 'https://calm-river-test-name.trycloudflare.com' });
 
@@ -217,17 +231,19 @@ describe('hildegard tunnel', () => {
       expect(unconfirmed.steps[0]!.detail).toMatch(/PUBLIC/);
       expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
       expect(unconfirmed.steps[0]!.command).toBeUndefined();
-      const on = await hildegardAtTerminal(
-        home,
-        {},
-        'y',
-        'tunnel',
-        'auto',
-        ...at.filter((a) => a !== '--json'),
-      );
-      expect(on.code, on.text).toBe(0);
-      expect(on.text).toMatch(/https:\/\/auto-link-test-name\.trycloudflare\.com/);
-      expect(on.text).toMatch(/hildegard tunnel off/);
+      if (POSIX) {
+        const on = await hildegardAtTerminal(
+          home,
+          {},
+          'y',
+          'tunnel',
+          'auto',
+          ...at.filter((a) => a !== '--json'),
+        );
+        expect(on.code, on.text).toBe(0);
+        expect(on.text).toMatch(/https:\/\/auto-link-test-name\.trycloudflare\.com/);
+        expect(on.text).toMatch(/hildegard tunnel off/);
+      } else await studioOn(srv.url, { via: 'quick' });
       expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({
         on: true,
         url: 'https://auto-link-test-name.trycloudflare.com',

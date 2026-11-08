@@ -216,6 +216,7 @@ export async function hildegardAtTerminal(
     'if pid == 0:',
     '    os.execv(sys.argv[2], sys.argv[2:])',
     'out = b""',
+    'seen = 0',
     'while True:',
     '    try:',
     '        d = os.read(fd, 4096)',
@@ -224,9 +225,10 @@ export async function hildegardAtTerminal(
     '    if not d:',
     '        break',
     '    out += d',
-    '    if out.rstrip().endswith(b"[y/N]"):',
+    // Readline may follow the prompt with cursor codes, so look for the question anywhere in what is new.
+    '    if out.find(b"[y/N]", seen) != -1:',
+    '        seen = len(out)',
     '        os.write(fd, answer)',
-    '        out += b"\\n"',
     'sys.stdout.buffer.write(out)',
     'sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))',
   ].join('\n');
