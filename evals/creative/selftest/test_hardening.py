@@ -131,7 +131,8 @@ case ${{FAKE_MODE:-ok}} in
 esac
 ''')
     os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
-    env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'EVAL_DIR': ev, 'NEW_SKILLS': skills}
+    # CLAUDE_BIN too: respond.sh resolves claude through mise before PATH, since a mise shim fails under the responder's empty HOME.
+    env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'CLAUDE_BIN': fake, 'EVAL_DIR': ev, 'NEW_SKILLS': skills}
     env.pop('ANTHROPIC_API_KEY', None)
 
     def respond(task, mode='ok'):
