@@ -76,56 +76,56 @@ export function Inspector({
   return (
     <div className={`cs-insp v2${t.status === 'done' ? ' poster' : ''}`} role="region" aria-label={title}>
       {t.status === 'done' ? (
-        <div className="cs-poster">
-          {playing && t.video ? (
-            // biome-ignore lint/a11y/useMediaCaption: generated takes have no dialogue track to caption.
-            <video
-              className="hg-player"
-              src={t.video}
-              poster={t.poster ?? undefined}
-              controls
-              autoPlay
-              playsInline
-            />
-          ) : (
-            <>
-              {t.poster ? <img src={t.poster} alt="" /> : null}
-              <button
-                type="button"
-                className="cs-play"
-                aria-label={`Play, ${clock(t.seconds)}`}
-                onClick={() => setPlaying(true)}
-              >
-                <Icon name="play" size={22} />
-              </button>
-            </>
-          )}
-          {playing ? null : (
-            <div className="cs-poster__cap">
-              <div className="hg-between">
-                <span className="ovl">{title}</span>
-                <Status kind="done">Done</Status>
-              </div>
-              <h3>{shot?.title ?? 'Untitled shot'}</h3>
-              {/* Each fact stays whole, so a narrow inspector breaks the line between facts, never inside one. */}
-              <span className="cs-meta1">
-                <span>{modelName(catalog, t.model)}</span> · <span>seed {t.seed}</span>
-                <br />
-                <span>
-                  {clock(t.seconds)} · {resolution(t)}
-                </span>{' '}
-                · <span>{where}</span>
-                {t.renderMs ? (
-                  <>
-                    {' '}
-                    · <span>{duration(t.renderMs)}</span>
-                  </>
-                ) : null}{' '}
-                · <span className="ok">$0 spent</span>
-              </span>
+        <>
+          <div className="cs-poster" style={{ aspectRatio: `${t.width} / ${t.height}` }}>
+            {playing && t.video ? (
+              // biome-ignore lint/a11y/useMediaCaption: generated takes have no dialogue track to caption.
+              <video
+                className="hg-player"
+                src={t.video}
+                poster={t.poster ?? undefined}
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <>
+                {t.poster ? <img src={t.poster} alt="" /> : null}
+                <button
+                  type="button"
+                  className="cs-play"
+                  aria-label={`Play, ${clock(t.seconds)}`}
+                  onClick={() => setPlaying(true)}
+                >
+                  <Icon name="play" size={22} />
+                </button>
+              </>
+            )}
+          </div>
+          <div className="cs-poster__cap">
+            <div className="hg-between">
+              <span className="ovl">{title}</span>
+              <Status kind="done">Done</Status>
             </div>
-          )}
-        </div>
+            <h3>{shot?.title ?? 'Untitled shot'}</h3>
+            {/* Each fact stays whole, so a narrow inspector breaks the line between facts, never inside one. */}
+            <span className="cs-meta1">
+              <span>{modelName(catalog, t.model)}</span> · <span>seed {t.seed}</span>
+              <br />
+              <span>
+                {clock(t.seconds)} · {resolution(t)}
+              </span>{' '}
+              · <span>{where}</span>
+              {t.renderMs ? (
+                <>
+                  {' '}
+                  · <span>{duration(t.renderMs)}</span>
+                </>
+              ) : null}{' '}
+              · <span className="ok">$0 spent</span>
+            </span>
+          </div>
+        </>
       ) : (
         <div
           className={`cs-insp__media${t.status === 'queued' ? ' is-queued' : ''}`}
