@@ -16,6 +16,7 @@ Please don't open a public issue, and don't test against computers that aren't y
 - The server, the Studio, the CLI and the desktop app in this repository, and the installers in each release.
 - Hildegard at a link (`hildegard host`): sign-in, invites, keys, the MCP endpoint and OAuth for chatbots.
 - Choir pairing between computers, and the update path (signatures, checksums).
+- Go live ([docs/streaming.md](docs/streaming.md)): a way to read a stream key or an OBS password, or for an AI app to start a stream.
 - The safety layers in [docs/safety.md](docs/safety.md), and voice consent in [docs/voice.md](docs/voice.md).
 - The skills, and the way suggestions to them are checked and shipped ([docs/skill-suggestions.md](docs/skill-suggestions.md)):
   a way to get a hostile instruction into a skill people install is a vulnerability.

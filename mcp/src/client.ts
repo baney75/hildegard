@@ -231,6 +231,32 @@ export interface RecordLink {
   /** The link opens only on the computer Hildegard runs on, not on a phone. */
   localOnly: boolean;
 }
+/** What the owner's stream looks like to an AI app: no keys, devices or addresses. */
+export interface StreamStatus {
+  phase: 'idle' | 'preview' | 'countdown' | 'live' | 'reconnecting' | 'stopping';
+  scene: string;
+  countdown: number | null;
+  seconds: number | null;
+  attempt: number;
+  message: string | null;
+  recording: boolean;
+  stats: {
+    kbps: number | null;
+    fps: number | null;
+    dropped: number;
+    cpu: number | null;
+    gpu: number | null;
+    speed: number | null;
+  };
+  destinations: {
+    id: string;
+    name: string;
+    enabled: boolean;
+    keySet: boolean;
+    state: string;
+    detail: string | null;
+  }[];
+}
 /** What turning on a link would do, decided once by the server. `id` goes back with the person's yes. */
 export interface LinkPlan {
   route: 'tailscale' | 'quick' | 'none';
@@ -368,6 +394,8 @@ export class HildegardClient {
   cleanRecording = (id: string, body: { target_lufs?: number; peak?: number }) =>
     this.call<CleanJobView>('POST', `/api/record/${encodeURIComponent(id)}/clean`, body);
   cleanJob = (id: string) => this.call<CleanJobView>('GET', `/api/record/clean/${encodeURIComponent(id)}`);
+  /** How the owner’s stream is going. Read only. */
+  streamStatus = () => this.call<StreamStatus>('GET', '/api/stream');
   exportState = (id: string) =>
     this.call<ExportState & { file: string | null }>('GET', `/api/exports/${encodeURIComponent(id)}`);
   /** Technical checks on a finished take, and where its contact sheet is. */

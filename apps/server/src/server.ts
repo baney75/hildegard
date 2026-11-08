@@ -67,6 +67,8 @@ import { Scheduler } from './scheduler.ts';
 import { importUrl } from './site-import.ts';
 import { Sites } from './sites.ts';
 import { Store } from './store.ts';
+import { Streamer, type StreamerDeps } from './stream.ts';
+import { Obs, type ObsDeps } from './stream-obs.ts';
 import {
   localLlm,
   localStt,
@@ -167,6 +169,8 @@ async function serveStudio(
     tunnelSecrets?: (account: string) => SecretStore;
     /** cloudflared's home for cert.pem, the Cloudflare sign-in; the user's home by default. */
     tunnelHome?: string;
+    /** Go live: tests give stand-ins for FFmpeg's neighbours (keychain, devices, speed test, OBS). */
+    stream?: Partial<Omit<StreamerDeps, 'dataDir'>> & { obs?: Partial<ObsDeps> };
     /** The clock for short codes, their limits and sign-in sessions: tests give a fake one. */
     now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
@@ -621,6 +625,18 @@ async function serveStudio(
     probe: probeMedia(config.dataDir),
     imports: importLimits(),
   });
+  // Go live: the streamer, and OBS beside it. Stream keys and the OBS password go to the keychain like any secret.
+  const { obs: obsOpts, ...streamOpts } = opts.stream ?? {};
+  const streamer = new Streamer({
+    dataDir: config.dataDir,
+    secrets: opts.tunnelSecrets ?? secretsFor,
+    onChange: () => {},
+    ...streamOpts,
+  });
+  const obs = new Obs({
+    secret: (streamOpts.secrets ?? opts.tunnelSecrets ?? secretsFor)('stream-obs'),
+    ...obsOpts,
+  });
   const records = {
     store: recordStore,
     cleaner: new CleanJobs({ dataDir: config.dataDir, store: recordStore }),
@@ -683,6 +699,7 @@ async function serveStudio(
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     records,
+    stream: { streamer, obs },
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,
@@ -1027,6 +1044,7 @@ async function serveStudio(
       clearInterval(watch);
       clearInterval(fleet);
       updates.stop();
+      await streamer.dispose();
       host.stop();
       await cloudflared.stop();
       await syncingHost;
