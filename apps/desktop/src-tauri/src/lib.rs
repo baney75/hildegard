@@ -486,8 +486,9 @@ fn prune_stores(app: &AppHandle) {
   }
   let app = app.clone();
   std::thread::spawn(move || {
-    let keep: Vec<[u8; 16]> =
-      browse::all_sites(&app.state::<Hildegard>().layout.data).iter().map(|s| browse::store_id(&s.id)).collect();
+    // Only on the word of a list that was read: with no added sites' file, every store is kept.
+    let Some(listed) = browse::listed_ids(&app.state::<Hildegard>().layout.data) else { return };
+    let keep: Vec<[u8; 16]> = listed.iter().map(|id| browse::store_id(id)).collect();
     match tauri::async_runtime::block_on(app.fetch_data_store_identifiers()) {
       Ok(ids) => {
         for id in browse::stores_to_remove(&ids, &keep) {
@@ -544,8 +545,10 @@ fn refresh_browse(app: &AppHandle) {
   if before == now {
     return;
   }
-  for gone in before.iter().filter(|id| !now.contains(id)) {
-    forget_site(app, gone);
+  if let Some(listed) = browse::listed_ids(&hg.layout.data) {
+    for gone in before.iter().filter(|id| !listed.contains(id)) {
+      forget_site(app, gone);
+    }
   }
   for sub in hg.browse_menus.lock().unwrap().iter() {
     if let Ok(items) = sub.items() {

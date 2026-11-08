@@ -115,6 +115,14 @@ pub fn custom_sites(data: &Path) -> Vec<Site> {
   file.sites.iter().filter_map(|e| custom_site(&e.id, &e.name, &e.url)).filter(|s| seen.insert(s.id.clone())).collect()
 }
 
+/// Every listed site's id, only when the added sites' file was read: a missing, unreadable or broken file says
+/// nothing about which sites were removed, so nothing is cleared on its word.
+pub fn listed_ids(data: &Path) -> Option<Vec<String>> {
+  let text = std::fs::read_to_string(custom_file(data)).ok()?;
+  serde_json::from_str::<CustomFile>(&text).ok()?;
+  Some(all_sites(data).into_iter().map(|s| s.id).collect())
+}
+
 /// The built-in sites, then the person's own.
 pub fn all_sites(data: &Path) -> Vec<Site> {
   let mut all = catalog();
@@ -602,8 +610,12 @@ mod tests {
     assert_eq!(ids, vec!["c-aaaa".to_owned()]);
     assert_eq!(all_sites(&dir).len(), catalog().len() + 1);
     assert!(custom_sites(Path::new("/nonexistent-hildegard")).is_empty());
+    assert_eq!(listed_ids(&dir).map(|ids| ids.len()), Some(catalog().len() + 1));
+    // A broken or missing file lists no added sites, and is not taken as their removal.
     std::fs::write(custom_file(&dir), "not json").unwrap();
     assert!(custom_sites(&dir).is_empty());
+    assert_eq!(listed_ids(&dir), None);
+    assert_eq!(listed_ids(Path::new("/nonexistent-hildegard")), None);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
