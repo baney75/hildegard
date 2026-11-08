@@ -4,7 +4,7 @@
 // contrast pair, a review that breaks the council's rules. Checks that need pixels run only where a rasterizer or
 // Chromium is installed, and say so.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -100,6 +100,19 @@ describe('brand_guide.py page', () => {
     expect(page).toMatch(/Brickyard Press/);
     expect(page).not.toMatch(/Hildegard/i);
     if (!hasChromium) expect(r.out).toMatch(/Wrote/);
+  });
+
+  it('names each logo file once when the logos share one file', () => {
+    const b = JSON.parse(readFileSync(join(example, 'brand.json'), 'utf8'));
+    b.logo.horizontal = b.logo.stacked = 'logo-horizontal.svg';
+    const d = join(dir, 'one-logo');
+    rmSync(d, { recursive: true, force: true });
+    mkdirSync(d, { recursive: true });
+    for (const f of ['mark.svg', 'logo-horizontal.svg']) writeFileSync(join(d, f), readFileSync(join(example, f)));
+    writeFileSync(join(d, 'brand.json'), JSON.stringify(b));
+    run(join(brand, 'scripts/brand_guide.py'), [join(d, 'brand.json'), '--offline', '--out', join(d, 'g')]);
+    const foot = readFileSync(join(d, 'g', 'guide.html'), 'utf8').match(/<footer>[\s\S]*?<\/footer>/)![0];
+    expect(foot.match(/logo-horizontal\.svg/g)).toHaveLength(1);
   });
 });
 

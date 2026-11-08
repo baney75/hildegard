@@ -205,7 +205,7 @@ def page(b, base, cols, table):
     ex = ''.join(f'<div class="ex"><p><b>Say</b> {e(p["do"])}</p><p><b>Not</b> {e(p["dont"])}</p></div>' for p in b['voice']['examples'][:3])
     img_do = ''.join(f'<li>{e(x)}</li>' for x in b['imagery']['do'][:4])
     img_dont = ''.join(f'<li>{e(x)}</li>' for x in b['imagery']['dont'][:4])
-    files = ', '.join(e(v) for k, v in lg.items() if isinstance(v, str) and v.endswith('.svg'))
+    files = ', '.join(dict.fromkeys(e(v) for k, v in lg.items() if isinstance(v, str) and v.endswith('.svg')))
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{e(b['name'])} brand guide</title>
 <link rel="stylesheet" href="{e(fonts_url(t))}">
 <style>
