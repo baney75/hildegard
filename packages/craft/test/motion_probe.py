@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Probes for packages/craft/test/motion.test.ts: they import skills/hildegard-motion/scripts/motion.py, draw frames and print
-JSON for the test to judge. Usage: motion_probe.py <skill dir> fields | exits | wipe | units | empty."""
+JSON for the test to judge. Usage: motion_probe.py <skill dir> fields | nested | exits | wipe | units | empty | wipepad."""
 
 import hashlib
 import json
@@ -112,6 +112,37 @@ def cmd_fields():
     print(json.dumps(out))
 
 
+# ---- nested: every field the schema allows inside "enter" and "exit" is drawn or refused by --check, on every layer type
+NESTED_VALUE = {"delay": 0.4, "ease": "easeInOutQuart", "direction": "up", "distance": 0.2, "split": "word", "stagger": 0.5}
+NESTED_TIMES = (0.3, 0.9, 1.5, 3.0, 3.3, 3.6)
+
+
+def cmd_nested():
+    schema = json.load(open(os.path.join(SKILL, "references", "spec.schema.json")))
+    out = {"unexplained": [], "refused": 0}
+    for phase in ("enter", "exit"):
+        defn = schema["$defs"][phase]
+        types = defn["properties"]["type"]["enum"]
+        for name, base in BASES.items():
+            if name in ("bars", "rounded", "ellipse"):
+                continue
+            for kind in types:
+                preset = {"type": kind, "duration": 1.5}
+                m0, errs0 = compile_layers([dict(base, **{phase: preset})])
+                if errs0 or m0 is None:  # this type does not fit this layer at all; --check says so already
+                    continue
+                for field in defn["properties"]:
+                    if field in ("type", "duration"):
+                        continue
+                    m1, errs = compile_layers([dict(base, **{phase: dict(preset, **{field: NESTED_VALUE[field]})})])
+                    drawn = m1 is not None and digest(frames(m0, NESTED_TIMES)) != digest(frames(m1, NESTED_TIMES))
+                    refused = any(f'"{field}"' in e for e in errs)
+                    out["refused"] += refused
+                    if not (drawn or refused):
+                        out["unexplained"].append(f"{name} {phase} {kind} {field}")
+    print(json.dumps(out))
+
+
 # ---- exits: every documented exit moves every layer type
 KINDS = {
     "text": {"type": "text", "text": "Hello there friend", "size": 8},
@@ -163,6 +194,24 @@ def cmd_units():
     print(json.dumps({"lines": len(lines), "anim_end": L.anim_end, "expected": 0.5 + 1.0 + 0.7 * (len(lines) - 1)}))
 
 
+# ---- wipepad: a wipe covers the backing and the shadow too, so a layer at reveal 0 leaves no outline of its box
+def cmd_wipepad():
+    base = {"type": "text", "text": "Hello there friend", "size": 8, "x": 0.5, "y": 0.5, "box": 0.5}
+    m_empty, _ = compile_layers([dict(base, text=" ", opacity=0)])
+    blank = frames(m_empty, (0.0,))[0].astype(int)
+    worst = {}
+    for extra in ({"backing": {"color": "#ff0000", "pad": 3}}, {"shadow": {"color": "#ff0000", "blur": 3, "dy": 1}}):
+        for direction in ("up", "down", "left", "right"):
+            m, errs = compile_layers([dict(base, enter={"type": "wipe", "direction": direction, "duration": 1.0, "delay": 0.0}, exit={"type": "wipe", "direction": direction, "duration": 1.0}, **extra)])
+            assert not errs, errs
+            # reveal is 0 on the first frame of the enter and (all but) 0 at the end of the exit
+            r = motion.Renderer(m, 1.0)
+            for label, t in (("enter", 0.0), ("exit", 3.9999)):
+                diff = int(np.abs(r.to_uint8(r.render_frame(t)).astype(int) - blank).max())
+                worst[f"{next(iter(extra))} {direction} {label}"] = diff
+    print(json.dumps(worst))
+
+
 # ---- empty: an option that is present is on, even as {} (every default); it must not be dropped as falsy
 def cmd_empty():
     off = []
@@ -174,4 +223,4 @@ def cmd_empty():
     print(json.dumps(off))
 
 
-{"fields": cmd_fields, "exits": cmd_exits, "wipe": cmd_wipe, "units": cmd_units, "empty": cmd_empty}[sys.argv[2]]()
+{"fields": cmd_fields, "exits": cmd_exits, "wipe": cmd_wipe, "units": cmd_units, "empty": cmd_empty, "nested": cmd_nested, "wipepad": cmd_wipepad}[sys.argv[2]]()

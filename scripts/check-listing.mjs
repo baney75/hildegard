@@ -56,6 +56,8 @@ const NOT_SKILLS_ONLY = ['.mcp.json', 'hooks', 'agents', 'commands', 'bin', 'mcp
 /** Words that claim the plugin makes images, video or audio with AI models (Anthropic policy 4B). */
 const GENERATION_CLAIM =
   /\b(generat\w+|text[- ]to[- ](image|video|speech|music)|ai[- ](image|video|music|voice|art)|diffusion|voice[- ]clon\w+|deepfake)/i;
+/** Bytes of a PNG: signature, an IHDR first, an IEND last. */
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const https = (u) => typeof u === 'string' && /^https:\/\/[^\s/]+\.[^\s/]+/.test(u);
 const SEMVER = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 
@@ -86,6 +88,148 @@ function walk(dir) {
     }
   })(dir);
   return { files, links };
+}
+
+/** Width and height of a PNG, a JPEG or a WebP, from its bytes, or null when the bytes are none of those. */
+export function rasterSize(buf) {
+  if (buf.length >= 33 && buf.subarray(0, 8).equals(PNG_SIGNATURE)) {
+    const iend = buf.subarray(buf.length - 12);
+    if (buf.readUInt32BE(8) !== 13 || buf.subarray(12, 16).toString('latin1') !== 'IHDR') return null;
+    if (iend.readUInt32BE(0) !== 0 || iend.subarray(4, 8).toString('latin1') !== 'IEND') return null;
+    return { format: 'PNG', width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  }
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    let at = 2;
+    while (at + 4 <= buf.length) {
+      if (buf[at] !== 0xff) return null;
+      const m = buf[at + 1];
+      if (m === 0xff) {
+        at++;
+        continue;
+      }
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) {
+        at += 2;
+        continue;
+      }
+      if (m === 0xd9 || m === 0xda) return null;
+      const len = buf.readUInt16BE(at + 2);
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+        if (at + 9 > buf.length) return null;
+        return { format: 'JPEG', height: buf.readUInt16BE(at + 5), width: buf.readUInt16BE(at + 7) };
+      }
+      at += 2 + len;
+    }
+    return null;
+  }
+  if (
+    buf.length >= 30 &&
+    buf.subarray(0, 4).toString('latin1') === 'RIFF' &&
+    buf.subarray(8, 12).toString('latin1') === 'WEBP'
+  ) {
+    const kind = buf.subarray(12, 16).toString('latin1');
+    if (kind === 'VP8X')
+      return { format: 'WebP', width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+    if (kind === 'VP8L' && buf[20] === 0x2f) {
+      const b = buf.readUInt32LE(21);
+      return { format: 'WebP', width: 1 + (b & 0x3fff), height: 1 + ((b >>> 14) & 0x3fff) };
+    }
+    if (kind === 'VP8 ' && buf.subarray(23, 26).equals(Buffer.from([0x9d, 0x01, 0x2a])))
+      return { format: 'WebP', width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+  }
+  return null;
+}
+
+/** The root element's name and attributes of an XML text, or an error string when it isn't well formed. */
+export function xmlRoot(src) {
+  const body = src.replace(/^\uFEFF/, '');
+  const token =
+    /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<!DOCTYPE(?:[^>[]|\[[\s\S]*?\])*>|<(\/)?([A-Za-z_][\w:.-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"<]*"|'[^'<]*'))*)\s*(\/)?>/g;
+  const stack = [];
+  let root = null;
+  let last = 0;
+  for (const m of body.matchAll(token)) {
+    const gap = body.slice(last, m.index);
+    if (/</.test(gap)) return 'a stray “<”';
+    if (!stack.length && gap.trim()) return 'text outside the root element';
+    last = m.index + m[0].length;
+    const [, close, name, attrs, selfClose] = m;
+    if (!name) continue;
+    if (close) {
+      if (stack.pop() !== name) return `</${name}> closes nothing`;
+      continue;
+    }
+    if (!stack.length) {
+      if (root) return 'more than one root element';
+      root = {
+        name,
+        attrs: Object.fromEntries(
+          [...(attrs ?? '').matchAll(/([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map((a) => [
+            a[1],
+            a[2] ?? a[3],
+          ]),
+        ),
+      };
+    }
+    if (!selfClose) stack.push(name);
+  }
+  if (/</.test(body.slice(last))) return 'a stray “<”';
+  if (body.slice(last).trim() && !stack.length) return 'text outside the root element';
+  if (stack.length) return `<${stack.at(-1)}> is never closed`;
+  return root ?? 'no root element';
+}
+
+/** Width and height of an SVG's text, from its viewBox or width and height; null when it states none. */
+function svgSize(attrs) {
+  const num = (v) => (/^\s*([\d.]+)\s*(px)?\s*$/.test(v ?? '') ? Number.parseFloat(v) : null);
+  const vb = (attrs.viewBox ?? '')
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (vb.length === 4 && vb.every(Number.isFinite)) return { width: vb[2], height: vb[3] };
+  const [width, height] = [num(attrs.width), num(attrs.height)];
+  return width && height ? { width, height } : null;
+}
+
+/** Problems with an image file's bytes: it must really be a PNG, JPEG, WebP or SVG, square, and in size range. */
+export function checkImage(
+  buf,
+  label,
+  { min = OPENAI_LIMITS.logoMinPx, max = OPENAI_LIMITS.logoMaxPx } = {},
+) {
+  const raster = rasterSize(buf);
+  let size = raster;
+  let format = raster?.format;
+  if (!raster) {
+    if (!isText(buf)) return [`${label} isn’t a PNG, JPEG, WebP or SVG image (its bytes are none of those)`];
+    const root = xmlRoot(buf.toString('utf8'));
+    if (typeof root === 'string') return [`${label} isn’t a PNG, JPEG, WebP or SVG image (as XML: ${root})`];
+    if (root.name !== 'svg' && !root.name.endsWith(':svg'))
+      return [`${label} isn’t a PNG, JPEG, WebP or SVG image (its root element is <${root.name}>)`];
+    format = 'SVG';
+    size = svgSize(root.attrs);
+    if (!size) return [`${label}: the SVG states no size (a viewBox, or a width and height)`];
+  }
+  const bad = [];
+  if (size.width <= 0 || size.height <= 0) bad.push(`${label}: the ${format} has no size`);
+  else if (Math.abs(size.width - size.height) > (format === 'SVG' ? 1e-6 : 0))
+    bad.push(`${label} isn’t square (${size.width} by ${size.height})`);
+  else if (format !== 'SVG' && (size.width < min || size.width > max))
+    bad.push(`${label} is ${size.width} px square; it needs ${min} to ${max}`);
+  return bad;
+}
+
+/**
+ * The license files a package's README and notices point at (“LICENSE”, “LICENSE-APACHE”), as problems when the
+ * package doesn't carry one. has(name) says whether the package has that file.
+ */
+export function checkLicenseFiles(texts, has) {
+  const bad = [];
+  for (const [from, body] of Object.entries(texts))
+    for (const ref of new Set(body.match(/\bLICENSE(?:-[A-Z0-9]+)?\b/g) ?? []))
+      if (!has(ref)) bad.push(`${from} refers to ${ref}, which isn’t in the package`);
+  if (has('LICENSE-APACHE') && !has('LICENSE-APACHE', /Apache License/))
+    bad.push('LICENSE-APACHE isn’t the Apache License text');
+  return bad;
 }
 
 /** Problems with the Claude directory's plugin tree at dir; empty when it passes. */
@@ -125,6 +269,19 @@ export function checkClaudeTree(dir) {
     !/GNU AFFERO GENERAL PUBLIC LICENSE/i.test(readFileSync(join(dir, 'LICENSE'), 'utf8'))
   )
     bad.push('LICENSE isn’t the AGPL text');
+  bad.push(
+    ...checkLicenseFiles(
+      Object.fromEntries(
+        ['README.md', 'THIRD_PARTY_NOTICES.md']
+          .filter((f) => existsSync(join(dir, f)))
+          .map((f) => [f, readFileSync(join(dir, f), 'utf8')]),
+      ),
+      (name, re) => {
+        const f = join(dir, name);
+        return existsSync(f) && (!re || re.test(readFileSync(f, 'utf8')));
+      },
+    ),
+  );
 
   if (manifest) {
     for (const k of Object.keys(manifest))
@@ -146,9 +303,7 @@ export function checkClaudeTree(dir) {
       if (!https(manifest[k])) bad.push(`plugin.json: ${k} must be an https URL`);
     if (!icon || !existsSync(join(dir, icon))) bad.push('plugin.json: icon names no file');
     else {
-      const png = readFileSync(join(dir, icon));
-      if (png.subarray(1, 4).toString() !== 'PNG') bad.push('the icon isn’t a PNG');
-      else if (png.readUInt32BE(16) !== png.readUInt32BE(20)) bad.push('the icon isn’t square');
+      bad.push(...checkImage(readFileSync(join(dir, icon)), 'the icon'));
     }
     const prose = [manifest.description, ...(manifest.keywords ?? [])].join(' ');
     if (GENERATION_CLAIM.test(prose))
@@ -252,10 +407,10 @@ export function checkOpenAIManifest(m, files = new Map()) {
   if (files.size) {
     if (!logo) bad.push(`interface.logo ${ui.logo} isn’t in the plugin`);
     else if (logo.length > L.logoBytes) bad.push('the logo is past 5 MiB');
-    else if (logo.subarray(1, 4).toString() === 'PNG' && logo.readUInt32BE(16) !== logo.readUInt32BE(20))
-      bad.push('the logo isn’t square');
-    if (!files.has((ui.composerIcon ?? '').replace(/^\.\//, '')))
-      bad.push(`interface.composerIcon ${ui.composerIcon} isn’t in the plugin`);
+    else bad.push(...checkImage(logo, 'the logo'));
+    const icon = files.get((ui.composerIcon ?? '').replace(/^\.\//, ''));
+    if (!icon) bad.push(`interface.composerIcon ${ui.composerIcon} isn’t in the plugin`);
+    else bad.push(...checkImage(icon, 'the composer icon'));
   }
   return bad;
 }
@@ -275,6 +430,16 @@ export function checkOpenAIZip(buf, skills = skillNames()) {
       bad.push(`${n}: only text files belong in a skill`);
   }
   if (!files.has('LICENSE')) bad.push('LICENSE is missing');
+  bad.push(
+    ...checkLicenseFiles(
+      Object.fromEntries(
+        ['README.md', 'THIRD_PARTY_NOTICES.md']
+          .filter((f) => files.has(f))
+          .map((f) => [f, files.get(f).toString('utf8')]),
+      ),
+      (name, re) => files.has(name) && (!re || re.test(files.get(name).toString('utf8'))),
+    ),
+  );
   return bad;
 }
 

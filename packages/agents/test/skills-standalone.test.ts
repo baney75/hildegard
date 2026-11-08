@@ -4,11 +4,14 @@
 // skill names (a link, a scripts/ or references/ file, a script another skill ships) is not inside that zip, when a
 // file shared between skills differs from its source (skills/SHARED.json), or when a skill names a Hildegard tool and
 // never says what to do without Hildegard. It covers every folder in skills/, so a new skill is held to it at once.
+
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -24,7 +27,7 @@ import {
   // @ts-expect-error: plain JavaScript, run by Node with no build
 } from '../../../scripts/skill-standalone.mjs';
 // @ts-expect-error: plain JavaScript, run by Node with no build
-import { copies, drift, sync } from '../../../scripts/sync-skill-shared.mjs';
+import { copies, drift, sync, syncAll } from '../../../scripts/sync-skill-shared.mjs';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const zips: Map<string, Map<string, Buffer>> = packedSkills(root);
@@ -130,43 +133,6 @@ describe('the files shared between skills (skills/SHARED.json)', () => {
     manifest({ source: 'skills/a/SKILL.md', to: '.', skills: ['a'] });
     expect(drift(repo).join('\n')).toMatch(/is its own source/);
     rmSync(repo, { recursive: true, force: true });
-  });
-});
-
-describe('a copy is never written through a link (skills/SHARED.json)', () => {
-  it('refuses a linked scripts/ folder and a linked destination file, and writes nothing through them', (ctx) => {
-    const base = mkdtempSync(join(tmpdir(), 'hg-link-'));
-    const repo = join(base, 'repo');
-    const out = join(base, 'outside');
-    try {
-      for (const skill of ['a', 'b']) {
-        mkdirSync(join(repo, 'skills', skill, 'scripts'), { recursive: true });
-        writeFileSync(join(repo, 'skills', skill, 'SKILL.md'), '---\nname: x\n---\n');
-      }
-      mkdirSync(join(repo, 'tools'));
-      writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
-      writeFileSync(
-        join(repo, 'skills', 'SHARED.json'),
-        JSON.stringify({ copies: [{ source: 'tools/x.py', skills: ['a', 'b'] }] }),
-      );
-      mkdirSync(out);
-      writeFileSync(join(out, 'victim.py'), 'keep\n');
-      rmSync(join(repo, 'skills', 'a', 'scripts'), { recursive: true });
-      try {
-        symlinkSync(out, join(repo, 'skills', 'a', 'scripts'), 'dir');
-        symlinkSync(join(out, 'victim.py'), join(repo, 'skills', 'b', 'scripts', 'x.py'));
-      } catch {
-        ctx.skip('this system needs extra privileges to make symbolic links');
-      }
-      expect(() => sync(repo)).toThrow(
-        /skills\/a\/scripts is a link[\s\S]*skills\/b\/scripts\/x\.py is a link/,
-      );
-      expect(drift(repo).join('\n')).toMatch(/is a link/);
-      expect(readFileSync(join(out, 'victim.py'), 'utf8')).toBe('keep\n');
-      expect(existsSync(join(out, 'x.py'))).toBe(false);
-    } finally {
-      rmSync(base, { recursive: true, force: true });
-    }
   });
 });
 
@@ -325,5 +291,255 @@ describe('the checker itself', () => {
         toolset,
       ),
     ).toEqual([]);
+  });
+});
+
+// Real links need privileges on Windows; without them these cases cannot be built, so they say so and stop.
+const canLink = (() => {
+  const d = mkdtempSync(join(tmpdir(), 'hg-canlink-'));
+  try {
+    symlinkSync(d, join(d, 'l'), 'dir');
+    return true;
+  } catch {
+    console.warn('skipping the symlink cases: this system does not let this user create symlinks');
+    return false;
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
+})();
+
+describe.skipIf(!canLink)('a link in a source or destination path (skills/SHARED.json)', () => {
+  const setup = () => {
+    const parent = mkdtempSync(join(tmpdir(), 'hg-links-'));
+    const repo = join(parent, 'repo');
+    const outside = join(parent, 'outside');
+    for (const skill of ['a', 'b']) {
+      mkdirSync(join(repo, 'skills', skill), { recursive: true });
+      writeFileSync(join(repo, 'skills', skill, 'SKILL.md'), `---\nname: ${skill}\n---\n`);
+    }
+    mkdirSync(join(repo, 'tools'), { recursive: true });
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, 'x.py'), 'KEEP\n');
+    writeFileSync(
+      join(repo, 'skills', 'SHARED.json'),
+      JSON.stringify({ copies: [{ source: 'tools/x.py', skills: ['a'] }] }),
+    );
+    return { parent, repo, outside };
+  };
+
+  it('refuses a scripts/ folder that is a link, and writes nothing through it', () => {
+    const { parent, repo, outside } = setup();
+    symlinkSync(outside, join(repo, 'skills', 'a', 'scripts'), 'dir');
+    expect(drift(repo).join('\n')).toMatch(/skills\/a\/scripts is a link/);
+    expect(() => sync(repo)).toThrow(/skills\/a\/scripts is a link/);
+    expect(readFileSync(join(outside, 'x.py'), 'utf8')).toBe('KEEP\n');
+    expect(existsSync(join(repo, 'skills', 'SHARED.lock.json'))).toBe(false);
+    rmSync(parent, { recursive: true, force: true });
+  });
+
+  it('refuses a destination file that is a link, and leaves what it points at alone', () => {
+    const { parent, repo, outside } = setup();
+    mkdirSync(join(repo, 'skills', 'a', 'scripts'), { recursive: true });
+    symlinkSync(join(outside, 'x.py'), join(repo, 'skills', 'a', 'scripts', 'x.py'));
+    expect(drift(repo).join('\n')).toMatch(/skills\/a\/scripts\/x\.py is a link/);
+    expect(() => sync(repo)).toThrow(/is a link/);
+    expect(readFileSync(join(outside, 'x.py'), 'utf8')).toBe('KEEP\n');
+    rmSync(parent, { recursive: true, force: true });
+  });
+
+  it('refuses a dangling link as the destination', () => {
+    const { parent, repo, outside } = setup();
+    mkdirSync(join(repo, 'skills', 'a', 'scripts'), { recursive: true });
+    symlinkSync(join(outside, 'gone.py'), join(repo, 'skills', 'a', 'scripts', 'x.py'));
+    expect(() => sync(repo)).toThrow(/is a link/);
+    expect(existsSync(join(outside, 'gone.py'))).toBe(false);
+    rmSync(parent, { recursive: true, force: true });
+  });
+
+  it('refuses a source that is a link, or sits under a folder that is one', () => {
+    const { parent, repo, outside } = setup();
+    writeFileSync(join(outside, 'y.py'), 'print(2)\n');
+    symlinkSync(join(outside, 'y.py'), join(repo, 'tools', 'y.py'));
+    symlinkSync(outside, join(repo, 'linked'), 'dir');
+    for (const source of ['tools/y.py', 'linked/x.py']) {
+      writeFileSync(
+        join(repo, 'skills', 'SHARED.json'),
+        JSON.stringify({ copies: [{ source, skills: ['a'] }] }),
+      );
+      expect(drift(repo).join('\n'), source).toMatch(/not a file in the repository/);
+      expect(() => sync(repo), source).toThrow(/not a file in the repository/);
+    }
+    expect(existsSync(join(repo, 'skills', 'a', 'scripts'))).toBe(false);
+    rmSync(parent, { recursive: true, force: true });
+  });
+
+  it('check-skills.mjs fails on a link anywhere under skills/, and on a skills/ that is one', () => {
+    const { parent, repo, outside } = setup();
+    mkdirSync(join(repo, 'scripts'), { recursive: true });
+    mkdirSync(join(repo, 'mcp', 'src'), { recursive: true });
+    for (const f of ['scripts/check-skills.mjs', 'scripts/sync-skill-shared.mjs', 'mcp/src/skill-scan.ts'])
+      writeFileSync(join(repo, f), readFileSync(join(root, f)));
+    const check = () =>
+      spawnSync(process.execPath, [join(repo, 'scripts', 'check-skills.mjs')], {
+        cwd: repo,
+        encoding: 'utf8',
+      });
+    expect(check().stderr).not.toMatch(/symlink/);
+    mkdirSync(join(repo, 'skills', 'a', 'deep'), { recursive: true });
+    symlinkSync(outside, join(repo, 'skills', 'a', 'deep', 'out'), 'dir');
+    const r = check();
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/skills\/a\/deep\/out: symlinks are not allowed/);
+    rmSync(join(repo, 'skills', 'a', 'deep'), { recursive: true });
+    // The whole skills/ folder as a link.
+    const real = join(parent, 'real-skills');
+    renameSync(join(repo, 'skills'), real);
+    symlinkSync(real, join(repo, 'skills'), 'dir');
+    const w = check();
+    expect(w.status).toBe(1);
+    expect(w.stderr).toMatch(/skills: the folder itself is a symlink/);
+    rmSync(parent, { recursive: true, force: true });
+  });
+
+  it('refuses a folder as the source', () => {
+    const { parent, repo } = setup();
+    writeFileSync(
+      join(repo, 'skills', 'SHARED.json'),
+      JSON.stringify({ copies: [{ source: 'tools', skills: ['a'] }] }),
+    );
+    expect(drift(repo).join('\n')).toMatch(/not a file in the repository/);
+    rmSync(parent, { recursive: true, force: true });
+  });
+});
+
+describe('a skill taken out of a manifest entry (skills/SHARED.lock.json)', () => {
+  const setup = () => {
+    const repo = mkdtempSync(join(tmpdir(), 'hg-orphan-'));
+    for (const skill of ['a', 'b']) {
+      mkdirSync(join(repo, 'skills', skill), { recursive: true });
+      writeFileSync(join(repo, 'skills', skill, 'SKILL.md'), `---\nname: ${skill}\n---\n`);
+    }
+    mkdirSync(join(repo, 'tools'), { recursive: true });
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+    const manifest = (skills: string[]) =>
+      writeFileSync(
+        join(repo, 'skills', 'SHARED.json'),
+        JSON.stringify({ copies: [{ source: 'tools/x.py', skills }] }),
+      );
+    return { repo, manifest };
+  };
+
+  it('is removed by the sync, and --check fails on the old copy until then', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    expect(drift(repo).join('\n')).toMatch(/missing/);
+    syncAll(repo);
+    expect(drift(repo)).toEqual([]);
+    expect(JSON.parse(readFileSync(join(repo, 'skills', 'SHARED.lock.json'), 'utf8')).copies).toEqual([
+      'skills/a/scripts/x.py',
+      'skills/b/scripts/x.py',
+    ]);
+    manifest(['a']);
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(2)\n');
+    const problems = drift(repo);
+    expect(problems.join('\n')).toMatch(/skills\/b\/scripts\/x\.py is an orphaned copy/);
+    expect(problems.join('\n')).toMatch(/skills\/a\/scripts\/x\.py differs/);
+    const done = syncAll(repo);
+    expect(done.removed).toEqual(['skills/b/scripts/x.py']);
+    expect(existsSync(join(repo, 'skills', 'b', 'scripts', 'x.py'))).toBe(false);
+    expect(existsSync(join(repo, 'skills', 'b', 'SKILL.md'))).toBe(true);
+    expect(drift(repo)).toEqual([]);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('counts a copy with CRLF line endings (a Windows checkout) as unedited and the lock as current', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const lockFile = join(repo, 'skills', 'SHARED.lock.json');
+    const lock = readFileSync(lockFile, 'utf8');
+    const crlf = (path: string) => writeFileSync(path, readFileSync(path, 'utf8').replace(/\r?\n/g, '\r\n'));
+    // A checkout with core.autocrlf rewrites the source and every copy; the lock is committed with LF.
+    crlf(join(repo, 'tools', 'x.py'));
+    crlf(join(repo, 'skills', 'a', 'scripts', 'x.py'));
+    crlf(join(repo, 'skills', 'b', 'scripts', 'x.py'));
+    expect(readFileSync(join(repo, 'skills', 'b', 'scripts', 'x.py'), 'utf8')).toBe('print(1)\r\n');
+    expect(drift(repo)).toEqual([]);
+    // autocrlf rewrites the lock too, since it is text: still current.
+    crlf(lockFile);
+    expect(drift(repo)).toEqual([]);
+    writeFileSync(lockFile, lock);
+    // A copy that is CRLF while its source is LF is the same text too.
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+    expect(drift(repo)).toEqual([]);
+    expect(syncAll(repo).wrote).toEqual([]);
+    expect(readFileSync(lockFile, 'utf8')).toBe(lock);
+    // Still unedited when its entry leaves the manifest: the sync removes it rather than keeping it as hand-edited.
+    manifest(['a']);
+    expect(drift(repo).join('\n')).toMatch(/skills\/b\/scripts\/x\.py is an orphaned copy/);
+    expect(syncAll(repo).removed).toEqual(['skills/b/scripts/x.py']);
+    // A real edit is still caught, whatever the line endings.
+    writeFileSync(join(repo, 'skills', 'a', 'scripts', 'x.py'), 'print(2)\r\n');
+    expect(drift(repo).join('\n')).toMatch(/skills\/a\/scripts\/x\.py differs/);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('keeps a copy that was edited by hand, and drops it from the lock (first-F1)', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const forked = join(repo, 'skills', 'b', 'scripts', 'x.py');
+    writeFileSync(forked, 'print("b has its own version")\n');
+    manifest(['a']);
+    expect(drift(repo).join('\n')).toMatch(
+      /skills\/b\/scripts\/x\.py is no longer shared and was changed by hand/,
+    );
+    expect(drift(repo).join('\n')).not.toMatch(/Run node scripts\/sync-skill-shared\.mjs to remove it/);
+    const done = syncAll(repo);
+    expect(done.removed).toEqual([]);
+    expect(done.kept).toEqual(['skills/b/scripts/x.py']);
+    expect(readFileSync(forked, 'utf8')).toBe('print("b has its own version")\n');
+    expect(JSON.parse(readFileSync(join(repo, 'skills', 'SHARED.lock.json'), 'utf8')).copies).toEqual([
+      'skills/a/scripts/x.py',
+    ]);
+    expect(drift(repo)).toEqual([]);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('never removes the file the manifest now names as its source (second-F5)', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const moved = join(repo, 'skills', 'a', 'scripts', 'x.py');
+    writeFileSync(
+      join(repo, 'skills', 'SHARED.json'),
+      JSON.stringify({ copies: [{ source: 'skills/a/scripts/x.py', skills: ['b'] }] }),
+    );
+    expect(drift(repo).join('\n')).not.toMatch(/orphaned/);
+    const done = syncAll(repo);
+    expect(done.removed).toEqual([]);
+    expect(existsSync(moved)).toBe(true);
+    expect(readFileSync(join(repo, 'skills', 'b', 'scripts', 'x.py'), 'utf8')).toBe('print(1)\n');
+    expect(drift(repo)).toEqual([]);
+    expect(() => syncAll(repo)).not.toThrow();
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('never lets a hand-edited lock delete SKILL.md or anything outside a skill folder', () => {
+    const { repo, manifest } = setup();
+    manifest(['a']);
+    syncAll(repo);
+    writeFileSync(
+      join(repo, 'skills', 'SHARED.lock.json'),
+      JSON.stringify({
+        copies: ['skills/a/scripts/x.py', 'skills/b/SKILL.md', '../x', 'skills/a/../../tools/x.py'],
+      }),
+    );
+    syncAll(repo);
+    expect(existsSync(join(repo, 'skills', 'b', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(repo, 'tools', 'x.py'))).toBe(true);
+    expect(drift(repo)).toEqual([]);
+    rmSync(repo, { recursive: true, force: true });
   });
 });
