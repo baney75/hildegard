@@ -64,11 +64,40 @@ that can get your user's account banned:
 `hildegard agents run claude-code "<task>"` runs one; add `--use key` to bill their key, `--unattended` for a run
 nobody is watching (needs a key).
 
+## Render on another device
+
+A laptop with no big GPU renders on a desktop that has one, over Tailscale. Fast path, run on the device **without**
+the GPU, with `ssh <host>` already working to the one that has it:
+
+```sh
+hildegard choir pair <ssh-host> --json
+```
+
+It joins that device and prints it with its models; then `hildegard choir list --json`. Without `ssh`, or from the GPU
+side, the same thing by hand is the pipe `ssh <host> 'hildegard choir invite --code-only' | hildegard choir join
+--code-stdin --json`, or `hildegard choir pair --to <ssh-host>` on the GPU device.
+
+**Never print, echo, printf or paste a join code, and never type one into a command.** It is a key. Not `choir invite
+--json` (leave that to the Studio and apps), not `ssh … invite | head`, not `printf %s "<code>" | …`, not a code in a
+reply or a file. `pair` and the pipe pass it from one process to the next and nothing shows it. If a step says
+`needs-owner` (Tailscale sign-in on either device, a missing `ssh`), give your user that step; if they have to type a
+code themselves, they run `hildegard choir invite` on the GPU device and read it off their own screen.
+
+## Models, space and licenses
+
+`hildegard models --json` lists them. **A license is always your user's to accept**: show it word for word and run
+`models install <id> --accept-license` only on their clear yes; installing a model for someone who hasn't said yes is
+not setup. To free space, `hildegard models remove <id> --dry-run --json` first: it lists what goes and which shared
+files (text encoders, VAEs) nothing else uses afterwards. Then `hildegard models remove <id> --with-unused --json`
+removes the model **and** those unused shared files; plain `remove` leaves them, so it frees less than your user
+expects. A shared file another installed model needs always stays. Say how much it freed, and `--with-unused` again
+after removing the next one.
+
 ## A link and a fleet
 
 - **Host at a link** (their phone, people they invite): the guide, section B. Tailscale sign-in and the owner
   passphrase are your user's to do.
-- **A fleet** (a laptop rendering on the desktop's GPU): the guide, section C.
+- **A fleet** beyond two devices: the guide, section C, and the section above for each device.
 - **Rented GPUs** (Runpod, Hugging Face, Colab): the **hildegard-cloud** skill.
 
 ## Updates

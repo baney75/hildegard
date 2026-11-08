@@ -1,0 +1,7 @@
+# Letters of a Woman Homesteader: MY DEAR FRIEND,—
+
+I have wanted to write you for a long time, but have been so busy. I have had some visitors and have been on a visit; I think you would like to hear about it all, so I will tell you.
+
+I don't think you would have admired my appearance the morning this adventure began: I was in the midst of fall house-cleaning which included some papering. I am no expert at the very best, and papering a wall has difficulties peculiar to itself. I was up on a barrel trying to get a long, sloppy strip of paper to stick to the ceiling instead of to me, when in my visitors trooped, and so surprised me that I stepped off the barrel and into a candy-bucket of paste. At the same time the paper came off the ceiling and fell over mine and Mrs. Louderer's head. It was right aggravating, I can tell you, but my visitors were Mrs. O'Shaughnessy and Mrs. Louderer, and no one could stay discouraged with that pair around.
+
+After we had scraped as much paste as we could off ourselves they explained that they had come to take me somewhere. That sounded good to me, but I could not see how I could get off. However, Mrs. Louderer said she had come to keep house and to take care of the children while I should go with Mrs. O'Shaughnessy to E——. We should have two days' travel by sled and a few hours on a train, then another journey by sled. I wanted to go powerfully, but the paste-smeared room seemed to forbid.

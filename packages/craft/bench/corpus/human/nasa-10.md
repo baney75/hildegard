@@ -1,0 +1,65 @@
+# Manufacturing Innovation (MIP)
+
+Note: Please note that this is an “archived project” and is no longer updated. This article is meant for historical purposes only.
+
+The MIP project consists of two major elements. The goal of the first element is to develop and demonstrate the ability to fabricate high-quality, reliable, and certifiable parts using additive manufacturing (AM) processes for in space application.
+
+Plans include developing enhanced physics-based modeling/simulation and autonomous finishing/inspection processes. For this activity, a functional part from the International Space Station ECLSS will be selected as the test case. Several of these parts will be fabricated using LaRC’s Electron Beam Freeform Fabrication system and MSFC’s Electron Beam Melting Rapid Prototyping system. The parts will undergo mechanical, structural, and load testing and fit checks, functional tests, and durability tests on the finished parts. Although the specimens will be fabricated on Earth in a gravity environment, the ultimate goal is to fabricate these parts in space using raw materials from planetary bodies, stock delivered from earth, or recycled materials used in space with minimal human involvement.
+
+In addition, NASA engineers will design, build, and test a rocket engine injector using direct digital manufacturing processes such as laser sintering. Through a Space Act Agreement with Pratt and Whitney Rocketdyne, a subscale RL-10 injector with water cooled combustion chambers will be designed, fabricated using additive manufacturing processes, and tested for cold flow and hot-fire characterization.
+
+As directed by OSTP and NASA, the second element of MIP is to establish a manufacturing partnership to support the National Midwest Project. A current national economic assessment of the Midwest has identified Cleveland, Ohio as a depressed city. The goal of this task is for GRC to develop public/private partnerships that include the government, industry, and academia, collaborate with contemporary federal/public/private initiatives in this area and support the development and implementation of Cleveland’s economic strategy.
+
+## Share
+
+-
+
+-
+
+-
+
+-
+
+## Details
+
+Jun 22, 2026
+
+Location
+
+Glenn Research Center
+
+- Game Changing Development Program
+- Research and Technology Mission Directorate
+- Space Technology Mission Directorate
+
+## Explore More
+
+### NASA Navigation Experiment Shows Promise for Planetary Landings
+
+Article
+
+3 days ago
+
+### NIH–NASA QuSAFE Challenge
+
+Article
+
+1 week ago
+
+### NASA University Challenge Ignites Trajectory of Drone Entrepreneur
+
+Article
+
+1 week ago
+
+Keep Exploring
+
+## Discover More Topics From NASA
+
+Game Changing Development
+
+Space Technology Mission Directorate
+
+NASA’s Lunar Surface Innovation Initiative
+
+Glenn Research Center

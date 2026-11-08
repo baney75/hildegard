@@ -101,8 +101,10 @@ export function App() {
     );
   }
 
-  // The welcome sets up models, which is the owner's to do.
+  // The welcome sets up models, which is the owner's to do. It answers the Studio's front door only, so its links
+  // (Hugging Face, devices, AI apps) open their pages, and coming back finds it again until a model is on its way.
   const firstRun =
+    (route === '/' || route === '') &&
     isOwner(auth) &&
     !welcomed &&
     projects.size === 0 &&

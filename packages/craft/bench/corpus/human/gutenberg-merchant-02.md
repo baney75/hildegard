@@ -1,0 +1,7 @@
+# Letters from a Self-Made Merchant to His Son: Dear Pierrepont: I judge from yours of the twenty-
+
+Dear Pierrepont: I judge from yours of the twenty-ninth that you must have the black bass in those parts pretty well terrorized. I never could quite figure it out, but there seems to be something about a fish that makes even a cold-water deacon see double. I reckon it must be that while Eve was learning the first principles of dressmaking from the snake, Adam was off bass fishing and keeping his end up by learning how to lie.
+
+Don't overstock yourself with those four-pound fish yarns, though, because the boys have been bringing them back from their vacations till we've got enough to last us for a year of Fridays. And if you're sending them to keep in practice, you might as well quit, because we've decided to take you off the road when you come back, and make you assistant manager of the lard department. The salary will be fifty dollars a week, and the duties of the position to do your work so well that the manager can't run the department without you, and that you can run the department without the manager.
+
+To do this you will have to know lard; to know yourself; and to know those under you. To some fellows lard is just hog fat, and not always that, if they would rather make a dollar to-day than five to-morrow. But it was a good deal more to Jack Summers, who held your new job until we had to promote him to canned goods.
