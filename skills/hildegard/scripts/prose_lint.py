@@ -393,12 +393,24 @@ def is_marker_word(m):
     return re.fullmatch("[A-Z]+", m) is not None
 
 
-# The placeholder patterns, compiled once: capitals are whole words, the rest match in any case.
+# The placeholder patterns, compiled once: capitals are whole words and the rest match in any case. "XX/XX/XXXX" and
+# "(xxx) xxx-xxxx" are templates in any case; a run of x groups joined only by spaces ("Love, Gran XX XX") is kisses.
 MARKERS = [
     rx(rf"\b{m}\b" if is_marker_word(m) else js_pattern(m), 0 if is_marker_word(m) else re.I) for m in RULES["markers"]
 ]
+# A link reference definition, "[website]: https://example.org": the label it defines, up to the colon.
+REF_DEF = rx(rf"{LINE_START}{SNL}{{0,3}}\[([^\]\n]+)\]:")
+# What must follow the colon, as in CommonMark: a destination that is not another bracket, so a template line
+# "[Phone number]: [on the door]" defines nothing. Read in the text itself, since the lint blanks URLs.
+REF_DEST = rx(rf"{SNL}*(?:<[^>\n]+>|[^{WS}\[<]{NS}*)")
+
+
+def label_key(s):
+    return rx(f"{S}+").sub(" ", s).strip(JS_WS).lower()
 # The kinds of weak tell that count toward stacked-tells: findings that come from one habit are one kind.
 KINDS = RULES["stacked"]["kinds"]
+# Pairs of kinds that never stack with each other.
+APART = RULES["stacked"]["apart"]
 # The warns that fail in the strict profile.
 STRICT = set(RULES["strict"]["fail"])
 
@@ -586,16 +598,36 @@ def lint_prose(text, strict=False):
             bold.extend(t.locate(pindex + h.start(), text[pindex + h.start() : pindex + h.end()]) for h in hits)
     add("bold", "warn", "Bold sprinkled through a paragraph shouts.", "Let the sentence carry the weight.", bold)
 
+    # A bracketed word that the text defines as a link reference is a link, not a slot: "Visit our [website]".
+    labels = None
+
+    def is_defined_link(p, _index, m):
+        nonlocal labels
+        if not m.startswith("["):
+            return False
+        if labels is None:
+            labels = {label_key(d.group(1)) for d in REF_DEF.finditer(p) if REF_DEST.match(t.text, d.end())}
+        return label_key(m[1:-1]) in labels
+
     add(
         "unfinished",
         "fail",
         "Placeholder text left in.",
         "Write the real words, or cut the line.",
-        sorted([m for pattern in MARKERS for m in t.all(pattern, unquoted)], key=lambda m: m["index"]),
+        sorted([m for pattern in MARKERS for m in t.all(pattern, unquoted, is_defined_link)], key=lambda m: m["index"]),
     )
 
     # No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
-    weak = [fs for fs in ([f for f in findings if f["id"] in ids] for ids in KINDS) if fs]
+    kinds = [fs for fs in ([f for f in findings if f["id"] in ids] for ids in KINDS) if fs]
+    # Some pairs say nothing together ("The good news is..." and a bold day of the week): a kind counts only beside a
+    # kind it isn't apart from.
+    def only(fs, i):
+        return all(f["id"] == i for f in fs)
+
+    def apart(a, b):
+        return any((only(a, x) and only(b, y)) or (only(a, y) and only(b, x)) for x, y in APART)
+
+    weak = [fs for fs in kinds if any(o is not fs and not apart(fs, o) for o in kinds)]
     if len(weak) >= RULES["stacked"]["min"]:
         add(
             "stacked-tells",

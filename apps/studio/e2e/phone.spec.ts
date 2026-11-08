@@ -22,7 +22,32 @@ test('phone: tab bar, bottom sheets, and a shot end to end', async ({ page, requ
   expect(Math.round(box!.y + box!.height)).toBeGreaterThanOrEqual(vp.height - 2);
   await expectAccessible(page, 'phone inspector');
   await page.keyboard.press('Escape');
+  // Until you start writing, the composer is one line, so the board keeps the screen.
+  const settings = page.getByRole('group', { name: 'Shot settings' });
+  await page.locator('#hg-prompt').blur();
+  await expect(settings).toBeHidden();
+  expect((await page.locator('.cs-comp__box').boundingBox())!.height).toBeLessThanOrEqual(72);
+  await page.locator('#hg-prompt').click();
+  await expect(settings).toBeVisible();
   await page.getByRole('button', { name: /^Camera motion/ }).click();
+  await expect(page.locator('dialog.hg-modal--bottom')).toBeVisible();
+  await page.keyboard.press('Escape');
+  // As Safari does it: the tap doesn't focus the pill, so the prompt blurs with nowhere to go before the click.
+  await page.locator('#hg-prompt').click();
+  await expect(settings).toBeVisible();
+  const stillThere = await page.evaluate(async () => {
+    const pill = [
+      ...document.querySelectorAll<HTMLButtonElement>('[aria-label="Shot settings"] button'),
+    ].find((b) => /Camera motion/.test(`${b.getAttribute('aria-label') ?? ''} ${b.textContent ?? ''}`))!;
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    // The time a finger takes to lift: the pill must still be on screen to be tapped.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const visible = pill.checkVisibility();
+    pill.click();
+    return visible;
+  });
+  expect(stillThere).toBe(true);
   await expect(page.locator('dialog.hg-modal--bottom')).toBeVisible();
   await page.keyboard.press('Escape');
   // Every shot setting is on screen: none hidden past the edge of the row.

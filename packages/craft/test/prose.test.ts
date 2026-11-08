@@ -34,6 +34,7 @@ const STRICT_PROBES: Record<string, string> = {
   'corporate-words': 'We leverage the van, utilize the shed and streamline the route.',
   cliches: 'At the end of the day, it works. When it comes to bees, water matters.',
   metadiscourse: 'Simply put, the bees need water.',
+  'chatty-openers': 'The good news is the bees have water.',
   weasel: 'Experts agree that bees need water.',
   'loaded-words': 'Crucial care helps. Vibrant hives foster growth.',
   'summary-openers': 'In summary, the bees need water.',
