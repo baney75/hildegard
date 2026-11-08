@@ -20,6 +20,14 @@ const FIRST = 30;
 export type Range = [start: number, end: number];
 
 /**
+ * How far the top of the screen is below the top of the list. `listTop` is the list's top on screen; the scroller's
+ * own top on screen is where the visible area starts, except for the page, whose visible area starts at 0 (its box
+ * moves up as it scrolls, so its top would count the scroll twice).
+ */
+export const offsetInto = (listTop: number, scrollerTop: number, isPage: boolean) =>
+  (isPage ? 0 : scrollerTop) - listTop;
+
+/**
  * The rows to draw. `from` is how far the top of the screen is below the top of the list, `view` the screen's height,
  * `pitch` one row and its gap. The drawn rows stay as they are until the screen comes within EDGE rows of their end,
  * so scrolling inside them touches nothing; then a new range is made, with OVERSCAN rows either side of the screen.
@@ -69,10 +77,10 @@ export function WindowedRows({ rows, className }: { rows: ReactNode[]; className
         return;
       }
       lastPitch.current = p;
-      const top = el.getBoundingClientRect().top - sp.getBoundingClientRect().top + sp.scrollTop;
-      const from = sp.scrollTop - top;
+      const isPage = sp === document.scrollingElement || sp === document.documentElement;
+      const from = offsetInto(el.getBoundingClientRect().top, sp.getBoundingClientRect().top, isPage);
       setPitch((old) => (Math.abs(old - p) > 0.5 ? p : old));
-      setRange((old) => nextRange(old, from, sp.clientHeight, p, n));
+      setRange((old) => nextRange(old, from, isPage ? window.innerHeight : sp.clientHeight, p, n));
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(measure);
