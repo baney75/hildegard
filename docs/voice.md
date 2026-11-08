@@ -70,6 +70,53 @@ MCP, but only a person in the Studio can start a clone: `clone_voice` tells the 
 
 “Is this ours?” on the Recordings page, and the `check_watermark` tool, say whether a clip carries Hildegard’s mark.
 
+## Record with nothing to set up
+
+Recording needs no `hildegard host` and no account. Three ways, from easiest:
+
+- **In the Studio.** Record is in the sidebar, on the Voice page and in the export dialog (for a film’s voice-over). It
+  records your voice, with the browser’s noise suppression on, or yourself on camera with sound; you listen or watch
+  back, record again, and Keep. The recording is kept like a record link’s would be (`POST /api/record/imports`), under
+  your recordings (`GET /api/record`). The Hildegard app’s window can use the microphone and camera too: the system
+  asks you the first time.
+- **A link on this computer.** `record_link` (or `POST /api/record/links`) takes `where`: `here` is
+  `http://127.0.0.1:<port>/record/<token>`, which opens in any browser on this computer. `auto`, the default, is `here`
+  for a caller on this computer (the stdio MCP, or a request on the loopback address) unless the person said phone, and
+  a link for their own device for anyone else.
+- **A link for a phone.** `where: "phone"` needs Hildegard’s own link (Tailscale, or a tunnel). With none on, nothing is
+  made and nothing is turned on: the answer has `needsLink: true` and a **plan**, `{ route, public, id, ask }`, which the
+  server decides once. With Tailscale signed in the plan is Tailscale Serve (private), and `ask` is the question for
+  that route, word for word; the caller asks the person and, on a yes, calls `link_on` with `confirmed: true` and the
+  plan's `id`. The phone link comes with a QR code (an image in the MCP result, and in the Studio) to point the phone’s
+  camera at.
+- **An AI app turns on only a private route.** The yes of an AI app is its own word, and text it read can make it say
+  yes, so over MCP `link_on` turns on Tailscale Serve and nothing else, and never a public route (a Cloudflare quick
+  tunnel, Funnel, or anything reachable from the internet), confirmed or not. When the plan is public or there is none,
+  MCP gets `needs-owner` and changes nothing: “A phone link here would be public: Hildegard would make a temporary
+  trycloudflare.com name, and anyone who has the link can reach Hildegard’s sign-in page. An AI app can’t turn that on.”
+  and the two ways the person can: the Studio’s “Record on your phone” button, whose dialog says public or private and
+  only then calls the API with `acceptPublic`, or `hildegard tunnel cloudflare --quick` / `hildegard tunnel auto` in a
+  terminal (a confirm when the link would be public, answered at the terminal; there is no flag that skips it). An AI app over MCP can never turn on a public route. A program with a shell on this computer acts as you, as any program you run does; Hildegard's answers never hand it a command that would skip your question. The MCP
+  client never sends `acceptPublic`.
+- **The question and the action match.** `POST /api/link/on` takes `{ plan, acceptPublic? }` and turns on only the
+  route of the plan whose `id` it was sent. If the computer changed since (Tailscale came up or went down) it changes
+  nothing and answers `status: "confirm"` with the new plan to ask again; it never moves to another route after a yes.
+  With no `plan` it only answers what it would do.
+- **A public link already on is never called private.** `record_link` says plainly when the phone link it returns is
+  public (`public: true`, and the MCP text says so). Asked with `private: true`, a public link is not handed over: the
+  answer is the private route's plan if Tailscale is ready, or a plain statement that none is possible.
+
+`link_on` (the MCP tool, `POST /api/link/on`, and `hildegard tunnel auto`) works only when asked from this computer
+itself, in the order of the plan: Tailscale Serve if Tailscale is signed in (private to the person’s own devices); else
+a Cloudflare quick tunnel if cloudflared is here (temporary, its sign-in page public, and only on the person’s own
+confirm as above); else it changes nothing and says what the owner can do (install or sign in to Tailscale, or
+`hildegard tunnel install cloudflare`). Without an owner account it asks for one first (Settings › Sharing, or
+`hildegard host owner`) and never chooses a passphrase. It never uses Funnel. `link-on.ts` has the order.
+
+The server sends `Permissions-Policy: camera=(self), microphone=(self)`, so a frame from another origin can’t ask for the
+camera or microphone, even inside the app’s window (Tauri hands its permission handler no frame origin, so the engine
+enforces this; `media::may_capture` in the app also judges a frame separately once a runtime names it).
+
 ## Record from any chat
 
 No chat app reliably lets a panel inside it use the microphone, so Hildegard has its own page for it, and the chat
@@ -127,7 +174,7 @@ cut to the film’s length, and the mix is set to -14 LUFS and -1 dBTP (`tools/e
 - `packages/runtime/src/voice.ts`: the installer behind `hildegard voice install`.
 - `mcp/src/voice-tools.ts`: the MCP tools.
 - `apps/server/src/record.ts`, `record-routes.ts`, `record-clean.ts`: record links, what comes back, and the cleaning job.
-  `mcp/src/record-tools.ts`: `record_link`, `recording_status`, `clean_voice`. `apps/studio/src/pages/Record.tsx`: the page.
+  `mcp/src/record-tools.ts`: `record_link`, `link_on`, `recording_status`, `clean_voice`. `apps/server/src/link-on.ts`: the link, in one step. `apps/studio/src/components/RecordDialog.tsx`: Record in the Studio. `apps/studio/src/pages/Record.tsx`: the page.
   `tools/voice_clean.py`: the cleanup chain.
 - `apps/studio/src/pages/Voice.tsx` and `pages/voice/`: Speak, Voices, Design, Clone, Recordings, and the phone page
   for consent.

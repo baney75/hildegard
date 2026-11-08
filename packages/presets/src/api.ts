@@ -181,6 +181,19 @@ export interface EngineState {
   problem: string | null;
 }
 
+/** POST /api/models/:id/remove: what removing a model frees, and what it leaves. */
+export interface ModelRemoval {
+  id: string;
+  /** Files only this model uses, on disk. */
+  own: Array<{ file: string; bytes: number }>;
+  /** Files other models use too; `neededBy` is the installed or downloading ones, empty when the file is now unused. */
+  shared: Array<{ file: string; bytes: number; neededBy: string[] }>;
+  /** What was deleted, or with `dryRun` what would be. */
+  removed: string[];
+  freedBytes: number;
+  dryRun: boolean;
+}
+
 export interface ModelState {
   id: string;
   installed: boolean;

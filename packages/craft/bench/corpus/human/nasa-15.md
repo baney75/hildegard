@@ -1,7 +1,5 @@
 # Nuclear Thermal Propulsion (NTP)
 
-Note: Please note that this is an “archived project” and is no longer updated. This article is meant for historical purposes only.
-
 Nuclear Thermal Propulsion (NTP) is an attractive option for in-space propulsion for exploration missions to Mars and beyond. NTP offers virtually unlimited energy density and specific impulse roughly double that of the highest performing traditional chemical systems.
 
 As missions aim for targets farther out into the solar system, nuclear propulsion may offer the only viable technological option for extending the reach of exploration missions beyond Mars, where solar panels can no longer provide sufficient energy and chemical propulsion would require a prohibitively high mass of propellant and/or prohibitively long trip times.
@@ -19,53 +17,3 @@ The project will be considered a success if these objectives are met:
 3. Establish robust production manufacturing methods for a LEU fuel element / reactor core.
 
 4. Demonstrate the feasibility of exhaust capture as a method of nuclear rocket engine testing.
-
-## Share
-
--
-
--
-
--
-
--
-
-## Details
-
-Jun 22, 2026
-
-- Game Changing Development Program
-- Research and Technology Mission Directorate
-- Space Technology Mission Directorate
-
-## Explore More
-
-### NASA Navigation Experiment Shows Promise for Planetary Landings
-
-Article
-
-3 days ago
-
-### NIH–NASA QuSAFE Challenge
-
-Article
-
-1 week ago
-
-### NASA University Challenge Ignites Trajectory of Drone Entrepreneur
-
-Article
-
-1 week ago
-
-Keep Exploring
-
-## Discover More Topics From NASA
-
-Game Changing Development
-
-Space Technology Mission Directorate
-
-NASA’s Lunar Surface Innovation Initiative
-
-Space Nuclear Propulsion

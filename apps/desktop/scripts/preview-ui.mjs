@@ -18,7 +18,7 @@ await build({
   bundle: true,
   format: 'esm',
   target: ['safari15', 'chrome110'],
-  loader: { '.svg': 'file', '.woff2': 'file' },
+  loader: { '.svg': 'file', '.webp': 'file', '.woff2': 'file' },
   assetNames: 'assets/[name]-[hash]',
   logLevel: 'warning',
 });
