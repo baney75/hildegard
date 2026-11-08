@@ -1,6 +1,6 @@
 # Creative eval: do the skills make weak models produce excellent design, video and audio work?
 
-A blind, repeatable head-to-head for the Hildegard skills in design, video, audio and everyday writing. Donovan's bar is
+A blind, repeatable head-to-head for the Hildegard skills in design, video, audio and everyday writing. The owner's bar is
 that even a weak model, given the skills, should turn out amazing designs, video designs, audio work and prose. This eval
 measures that: a cheap model answers a real client brief with no skills (`none`) and with the skills (`main`, or `new` for a
 branch), and Claude Opus, who is not told which is which, picks the better piece. Audio and video-edit scripts are also scored
@@ -164,7 +164,7 @@ What I would try first: put the two-pass `loudnorm` recipe, a hum notch recipe a
 and to add no copy that is not in the brief; add a 5-second-per-shot rule and "no facts beyond the brief" to the video-plan references. Those are
 changes for the session that owns `skills/`; this PR changes none.
 
-### Logos, brand guides and app screens, 2026-11-07 (`results-brand-*.json`)
+### Logos, brand guides and app screens, 2026-11-07 (`results-brand-*.json`, in PR #158)
 
 Fifteen tasks in `tasks-brand.json` (3 each of logo, brand guide, app screen) and `heldout-brand.json` (2 each), run with
 `--set brand-both`. Deliverables: `mark.svg`, `logo.svg` and a logo sheet; `brand.json` and a one-page `guide.html`
@@ -175,33 +175,58 @@ six-critic council (the text at commit 02d52da; `arms.py` builds both arms from 
 own process namespace with an empty HOME, no new privileges and only the CLIs they need on PATH, so they see neither
 the owner's `hildegard` CLI nor the running service. Scored by the skills' own checkers from this checkout (the same for
 every arm: `logo_check.py --plain`, the guide rendered at US letter and audited, `screen_check.py`), then judged blind by
-Opus on the logo sheet, the guide PNG or the states side by side, in both orders.
+Opus on the logo sheet, the guide PNG or the states side by side, in both orders. The results files are in their own
+PR, #158, so this one stays small enough for one reviewer.
 
-Blind verdicts won by the first arm (rate counts a tie as half):
+**The first brand-guide verdicts were not blind.** `brand_guide.py` printed "Made with Hildegard" in every guide's
+footer: words no brief gave, on skill-arm guides only, so the judge could tell those guides from the rest, and 13 of
+the 60 brand-guide verdicts cited the credit (as an off-brief fault). The credit is gone. The seven saved guides that
+carried it were re-rendered from their own saved `brand.json` with the fixed script, keeping the responder's own edits
+(a three-way merge of the saved page with the old and fixed script output; each result is the saved page with only the
+credit removed), and every brand-guide verdict was judged again, judge only, with no new responses. No guide had to be
+left out. Logo and app verdicts were not judged again: the credit was only on guides. Five of the 60 brand-guide
+verdicts changed winner, about the judge's own noise (council against none, whose guides had almost no credit, changed
+one of 20).
 
-| Comparison | Set | Haiku 5.5 | GPT-6 Luna (low) |
-| --- | --- | --- | --- |
-| skills as shipped against none | tuned | 11 of 18 (0.61) | 13 of 18 (0.72) |
-| skills as shipped against none | held-out | 8 of 12 (0.67) | 6 of 12 (0.50) |
-| council against none | held-out | 7 of 12 (0.58) | 8 of 12 (0.67) |
-| council against no council | tuned | 13 of 18 (0.72) | 8 of 18 (0.44) |
-| council against no council | held-out | 7 of 12 (0.58) | 5 of 12 (0.42) |
+Blind verdicts won by the first arm, all three domains (rate counts a tie as half). First run, then after the fix; the
+brand-guide verdicts within them in brackets:
+
+| Comparison | Set | Haiku 5.5, first | Haiku 5.5, blind | GPT-6 Luna (low), first | GPT-6 Luna (low), blind |
+| --- | --- | --- | --- | --- | --- |
+| skills as shipped against none | tuned | 11 of 18 [2 of 6] | 11 of 18 [2 of 6] | 13 of 18 [4 of 6] | 13 of 18 [4 of 6] |
+| skills as shipped against none | held-out | 8 of 12 [2 of 4] | 8 of 12 [2 of 4] | 6 of 12 [2 of 4] | 6 of 12 [2 of 4] |
+| council against none | held-out | 7 of 12 [1 of 4] | 7 of 12 [1 of 4] | 8 of 12 [3 of 4] | 8 of 12 [3 of 4] |
+| council against no council | tuned | 13 of 18 [6 of 6] | 12 of 18 [5 of 6] | 8 of 18 [5 of 6] | 7 of 18 [4 of 6] |
+| council against no council | held-out | 7 of 12 [0 of 4] | 7 of 12 [0 of 4] | 5 of 12 [2 of 4] | 5 of 12 [2 of 4] |
+
+Brand guides are where the skills help least: skills against none wins 10 of 20 guide verdicts across both sets and
+models, the same as before.
 
 Measured over all 15 tasks (checker fails; text under WCAG AA in guides and screens; tap targets under the platform's
-size):
+size), rescored after review round 1 found that `screen_check.py` missed text pushed past the top or bottom of the
+screen or cut off by a box around it, and that the brand scorer decided "one page" from `scrollHeight`, which reads
+1056 on a page fixed at letter height while its last section is cut off. Both are fixed; app check fails and the new
+clipped columns are before and after, the rest did not change:
 
-| Arm | Model | logo check fails | live text in logos | app check fails | text under AA | small targets |
-| --- | --- | --- | --- | --- | --- | --- |
-| none | Haiku | 14 | 0 of 5 | 8 | 21 | 44 |
-| shipped | Haiku | 0 | 0 of 5 | 0 | 0 | 0 |
-| none | Luna | 22 | 5 of 5 | 20 | 184 | 6 |
-| shipped | Luna | 2 | 0 of 5 | 13 | 32 | 4 |
+| Arm | Model | logo check fails | live text in logos | app check fails | app texts clipped | text under AA | small targets | guides cut off |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| none | Haiku | 14 | 0 of 5 | 8, now 9 | 0, now 3 | 21 | 44 | 0 of 5 |
+| shipped | Haiku | 0 | 0 of 5 | 0 | 0 | 0 | 0 | 0 of 5 |
+| none | Luna | 22 | 5 of 5 | 20, now 21 | 0, now 4 | 184 | 6 | 0 of 5 |
+| shipped | Luna | 2 | 0 of 5 | 13, now 16 | 0, now 23 | 32 | 4 | 0, now 1 of 5 |
 
-Invented facts per judgment (the judge's count), skills as shipped against none: brand guides Haiku 0.4 against 1.6,
-Luna 0 against 0.8; app screens Haiku 0.2 against 2.3, Luna 2.2 against 5.6; logos 0 everywhere.
+The skills take Haiku's screens to no failures, and still do. They do not do that for Luna: its shipped-arm screens
+now fail more than before (16), with 23 texts cut off, 14 of them on the bus tracker whose offline banner pushes the
+next bus off the bottom; its Kettle River guide runs off the page mid-section. The checker now catches both, which it
+did not when those screens were made.
 
-**The council stays out of the default steps.** On the held-out set the required council won 12 of 24 verdicts against
-the same skills without it: no better, so by the rule set for this work it is not a default. It is kept as
+Invented facts per judgment (the judge's count), skills as shipped against none: brand guides Haiku 0.2 against 1.7
+(first run 0.4 against 1.6), Luna 0.1 against 0.8 (first run 0 against 0.8); app screens Haiku 0.2 against 2.3, Luna 2.2
+against 5.6; logos 0 everywhere.
+
+**The council stays out of the default steps, and the blind rejudge does not change that.** On the held-out set the
+required council won 12 of 24 verdicts against the same skills without it, before and after: no better, so by the rule
+set for this work it is not a default. On the tuned set it now wins 19 of 36 (21 of 36 before). It is kept as
 `hildegard-council`, used when someone asks for a review or a choice between variants. Compliance was part of the
 result: with the council written as a pointer to another skill, Haiku skipped it on 3 of 3 logos; written as required
 commands with a tally in the delivery, Haiku ran it in 10 of 15 runs (67 critic subagents) and Luna in 3 of 15
