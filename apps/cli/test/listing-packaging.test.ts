@@ -117,10 +117,22 @@ describe('the privacy page and the skills', () => {
     // Anything a skill says to `pip install` is a download from pypi.org that the page must list.
     const packages = new Set<string>();
     for (const [, body] of all)
-      for (const m of body.matchAll(/pip3? install ([^\n`(),;]+)/g))
+      for (const m of body.matchAll(/pip3? install ([^\n`(),;&|]+)/g))
         for (const t of m[1]!.trim().split(/\s+/)) if (/^[A-Za-z][\w.-]*$/.test(t)) packages.add(t);
     expect([...packages].sort()).toEqual(
-      ['bpy', 'librosa', 'onnxruntime', 'pronouncing', 'rembg', 'scikit-image', 'soundfile'].sort(),
+      [
+        'av',
+        'bpy',
+        'librosa',
+        'numpy',
+        'onnxruntime',
+        'pillow',
+        'playwright',
+        'pronouncing',
+        'rembg',
+        'scikit-image',
+        'soundfile',
+      ].sort(),
     );
     for (const p of packages) expect(html, `pip install ${p}`).toContain(p.toLowerCase());
     expect(html).toContain('danielgatis/rembg');
@@ -135,12 +147,28 @@ describe('the privacy page and the skills', () => {
 
   it('names every host a skill file links to, and no helper script opens a connection', () => {
     // Hosts that are text in an example or a citation format, not something a skill reaches.
-    const text = new Set(['www.w3.org', 'doi.org', 'example.com', 'shop.example', 'tern.example']);
+    // json-schema.org is a schema's name in its `$schema` line, which nothing fetches.
+    const text = new Set([
+      'www.w3.org',
+      'doi.org',
+      'example.com',
+      'shop.example',
+      'tern.example',
+      'json-schema.org',
+    ]);
     const hosts = new Set<string>();
     for (const [, body] of all)
       for (const m of body.matchAll(/https?:\/\/([A-Za-z0-9.-]+)/g)) if (!text.has(m[1]!)) hosts.add(m[1]!);
     for (const h of hosts) expect(html, h).toContain(h.toLowerCase());
-    for (const [f, body] of all.filter(([f]) => f.endsWith('.py')))
+    // The one helper that downloads (a pinned font, checked by hash) is on the page by name.
+    const downloads: Record<string, string> = {
+      [join('skills', 'hildegard-motion', 'scripts', 'motion.py')]: 'raw.githubusercontent.com',
+    };
+    for (const [f, host] of Object.entries(downloads)) {
+      expect(html, f).toContain(f.split(/[\\/]/).at(-1)!);
+      expect(html, f).toContain(host);
+    }
+    for (const [f, body] of all.filter(([f]) => f.endsWith('.py') && !(f in downloads)))
       expect(body, f).not.toMatch(
         /^\s*(?:import|from)\s+(?:urllib|http|socket|requests|httpx|ftplib|smtplib|aiohttp|websockets|ssl|webbrowser)\b/m,
       );
