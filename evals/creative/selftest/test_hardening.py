@@ -293,6 +293,23 @@ with tempfile.TemporaryDirectory() as ev:
         except SystemExit as e:
             check(f'F11 the leak scan fails on {t!r}', 'leak' in str(e), e)
     shutil.rmtree(left)
+    # the media domains stage other file names; the scan lets them through and still catches a skill path in an arm's script
+    left = tempfile.mkdtemp()
+    for n in ('A.jpg', 'B.jpg', 'before.jpg', 'reference.jpg', 'A-script.txt', 'B-source.txt', 'A-spectrogram.png', 'B-frames.png'):
+        open(os.path.join(left, n), 'w').write('x = 1\n')
+    try:
+        judge.scan(left, ('none', 'main'))
+        check('F11 the leak scan accepts the files a media task stages', True)
+    except SystemExit as e:
+        check('F11 the leak scan accepts the files a media task stages', False, e)
+    open(os.path.join(left, 'A-script.txt'), 'w').write('# read skills/hildegard-art/SKILL.md')
+    try:
+        judge.scan(left, ('none', 'main'))
+        check('F11 the leak scan fails on a skill path in a media script', False)
+    except SystemExit as e:
+        check('F11 the leak scan fails on a skill path in a media script', 'leak' in str(e), e)
+    check('F11 a media script has its skill path redacted', '[reference]' in judge.redact('# read skills/hildegard-art/SKILL.md'))
+    shutil.rmtree(left)
     # the real ask: Read is scoped to the judge folder, and no other folder is added
     cmds = []
     real = subprocess.run
