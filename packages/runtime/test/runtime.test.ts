@@ -451,14 +451,16 @@ describe('onPath', () => {
     return dir;
   };
 
-  it('finds an executable in any PATH folder, without starting a program', () => {
+  // The POSIX cases need POSIX files (execute bits) and paths (no drive letter to read as a PATH separator).
+  const posixHost = process.platform !== 'win32';
+  it.skipIf(!posixHost)('finds an executable in any PATH folder, without starting a program', () => {
     const a = folder();
     const b = folder(['claude', 0o755]);
     expect(onPath('claude', { PATH: `${a}:${b}` }, 'linux')).toBe(true);
     expect(onPath('claude', { PATH: a }, 'linux')).toBe(false);
   });
 
-  it('ignores a file that is not executable, a folder, and an empty PATH', () => {
+  it.skipIf(!posixHost)('ignores a file that is not executable, a folder, and an empty PATH', () => {
     const dir = folder(['codex', 0o644]);
     mkdirSync(join(dir, 'omp'));
     expect(onPath('codex', { PATH: dir }, 'linux')).toBe(false);
