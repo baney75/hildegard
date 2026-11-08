@@ -1,0 +1,33 @@
+{
+  "name": "rainy_fireside",
+  "note": "A rainy evening by a fire: rain on the roof, a fire crackling, a low brown-noise warmth. Vary: rain intensity, fire crackle, each gain_db.",
+  "vary": ["layers[0].intensity", "layers[1].crackle", "minutes"],
+  "seed": 1,
+  "minutes": 20,
+  "layers": [
+    {
+      "type": "rain",
+      "intensity": 0.45,
+      "surface": "roof",
+      "gain_db": -2
+    },
+    {
+      "type": "fire",
+      "roar": 0.5,
+      "crackle": 0.55,
+      "gain_db": -3
+    },
+    {
+      "type": "noise",
+      "color": "brown",
+      "lowpass": 300,
+      "gain_db": -15
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -23,
+      "true_peak": -1
+    }
+  }
+}

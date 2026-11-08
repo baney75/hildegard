@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { type Exec, fileStore, parseArgs, type Spawn, startServer } from '@hildegard/server';
 import { describe, expect, it } from 'vitest';
-import { freePort, hildegard } from './harness.ts';
+import { freePort, hildegard, hildegardAtTerminal } from './harness.ts';
 
 class FakeChild extends EventEmitter {
   pid = 0;
@@ -21,6 +21,17 @@ class FakeChild extends EventEmitter {
     setImmediate(() => this.emit('exit', null));
     return true;
   }
+}
+
+const POSIX = process.platform !== 'win32';
+/** What the Studio's Sharing page sends when the owner clicks to turn a link on. */
+async function studioOn(url: string, body: Record<string, unknown>) {
+  const r = await fetch(`${url}/api/host`, {
+    method: 'POST',
+    headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`POST /api/host: ${r.status} ${await r.text()}`);
 }
 
 describe('hildegard tunnel', () => {
@@ -115,19 +126,37 @@ describe('hildegard tunnel', () => {
       );
 
       // A quick tunnel needs no account, only the owner account here. It says it is temporary.
-      const noOwner = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
-      expect(noOwner.steps.at(-1)).toMatchObject({ id: 'owner', status: 'needs-owner' });
+      // A public link is the person's to confirm at a terminal: without one, nothing is turned on, and the answer
+      // names no command that would skip the question.
+      const unconfirmed = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
+      expect(unconfirmed.needsOwner).toBe(true);
+      expect(unconfirmed.steps[0]).toMatchObject({ id: 'public', status: 'needs-owner' });
+      expect(unconfirmed.steps[0]!.detail).toMatch(/public/);
+      expect(unconfirmed.steps[0]!.command).toBeUndefined();
+      expect(JSON.stringify(unconfirmed)).not.toMatch(/yes-public/);
+      // The old skip flag is gone: it asks, like any other run without a terminal.
+      const flagged = await hildegard(home, 'tunnel', 'cloudflare', '--quick', '--yes-public', ...at);
+      expect(flagged.steps[0]).toMatchObject({ id: 'public', status: 'needs-owner' });
+      expect(children).toHaveLength(0);
+      const term = at.filter((a) => a !== '--json');
       const owner = await fetch(`${srv.url}/api/people/owner`, {
         method: 'POST',
         headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
       });
       expect(owner.status).toBe(201);
-      const quick = await hildegard(home, 'tunnel', 'cloudflare', '--quick', ...at);
-      expect(quick.ok).toBe(true);
-      expect(quick.url).toBe('https://calm-river-test-name.trycloudflare.com');
-      expect(quick.warning).toMatch(/temporary/);
-      expect(quick.steps.at(-1)!.detail).toMatch(/temporary Cloudflare quick tunnel/);
+      // At a terminal, a no turns nothing on; a yes turns on the quick tunnel. (The terminal is a pty, POSIX only;
+      // on Windows the quick tunnel is turned on the way the Studio's click does it.)
+      if (POSIX) {
+        const no = await hildegardAtTerminal(home, {}, 'n', 'tunnel', 'cloudflare', '--quick', ...term);
+        expect(no.text).toMatch(/Nothing was turned on/);
+        expect(children).toHaveLength(0);
+        const yes = await hildegardAtTerminal(home, {}, 'y', 'tunnel', 'cloudflare', '--quick', ...term);
+        expect(yes.code, yes.text).toBe(0);
+        expect(yes.text).toMatch(/https:\/\/calm-river-test-name\.trycloudflare\.com/);
+      } else await studioOn(srv.url, { via: 'quick' });
+      const quick = await hildegard(home, 'host', 'status', ...at);
+      expect(quick.host).toMatchObject({ on: true, url: 'https://calm-river-test-name.trycloudflare.com' });
 
       // Already running: status and doctor read it back.
       const on = await hildegard(home, 'tunnel', ...at);
@@ -143,6 +172,83 @@ describe('hildegard tunnel', () => {
       expect(children.every((c) => c.killed)).toBe(true);
       const after = await hildegard(home, 'tunnel', ...at);
       expect(after.steps.find((s) => s.id === 'cloudflare')!.status).toBe('skipped');
+    } finally {
+      await srv.close();
+    }
+  }, 120_000);
+
+  it('`tunnel auto` turns on the best link in one step: the owner first, then what is missing, then a quick tunnel', async () => {
+    const world = { cloudflared: false };
+    const exec: Exec = async (cmd, args) =>
+      cmd === 'cloudflared' && world.cloudflared && args[0] === '--version'
+        ? { ok: true, out: 'cloudflared version 2026.10.3' }
+        : { ok: false, out: '' };
+    const spawn: Spawn = (_cmd, args) => {
+      const c = new FakeChild();
+      setImmediate(() => {
+        if (args.includes('--url'))
+          c.stderr.write('INF |  https://auto-link-test-name.trycloudflare.com  |\n');
+        c.stderr.write('INF Registered tunnel connection connIndex=0\n');
+      });
+      return c;
+    };
+    const data = mkdtempSync(join(tmpdir(), 'hg-cli-auto-'));
+    const srv = await startServer(
+      { ...parseArgs(['--fake-gpu', '--data', data]), port: 0, hostPort: await freePort() },
+      {
+        fakeTickMs: 20,
+        secrets: fileStore(join(data, 's.json')),
+        exec,
+        spawn,
+        tunnelHome: mkdtempSync(join(tmpdir(), 'hg-cli-auto-home-')),
+      },
+    );
+    const home = mkdtempSync(join(tmpdir(), 'hg-cli-home-'));
+    const at = ['--port', new URL(srv.url).port, '--data', data, '--json'];
+    try {
+      // No owner account: it says to make one, and picks no passphrase.
+      const first = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(first.needsOwner).toBe(true);
+      expect(first.steps.map((s) => s.id)).toEqual(['owner']);
+      expect(first.steps[0]!.command).toBe('hildegard host owner');
+      const made = await fetch(`${srv.url}/api/people/owner`, {
+        method: 'POST',
+        headers: { 'x-hildegard': '1', 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Ada', passphrase: 'a long and private passphrase' }),
+      });
+      expect(made.status).toBe(201);
+      // Neither tool here: the one click or command for each, and nothing installed or turned on.
+      const none = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(none.needsOwner).toBe(true);
+      expect(none.steps.map((s) => s.id)).toEqual(['cloudflared', 'tailscale']);
+      expect(none.steps[0]!.command).toBe('hildegard tunnel install cloudflare');
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
+      // cloudflared here: a quick tunnel would be public, so it is the person's to confirm; nothing starts without that.
+      world.cloudflared = true;
+      const unconfirmed = await hildegard(home, 'tunnel', 'auto', ...at);
+      expect(unconfirmed.needsOwner).toBe(true);
+      expect(unconfirmed.steps[0]).toMatchObject({ id: 'public' });
+      expect(unconfirmed.steps[0]!.detail).toMatch(/PUBLIC/);
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({ on: false });
+      expect(unconfirmed.steps[0]!.command).toBeUndefined();
+      if (POSIX) {
+        const on = await hildegardAtTerminal(
+          home,
+          {},
+          'y',
+          'tunnel',
+          'auto',
+          ...at.filter((a) => a !== '--json'),
+        );
+        expect(on.code, on.text).toBe(0);
+        expect(on.text).toMatch(/https:\/\/auto-link-test-name\.trycloudflare\.com/);
+        expect(on.text).toMatch(/hildegard tunnel off/);
+      } else await studioOn(srv.url, { via: 'quick' });
+      expect((await hildegard(home, 'host', 'status', ...at)).host).toMatchObject({
+        on: true,
+        url: 'https://auto-link-test-name.trycloudflare.com',
+      });
+      expect((await hildegard(home, 'tunnel', 'off', ...at)).ok).toBe(true);
     } finally {
       await srv.close();
     }

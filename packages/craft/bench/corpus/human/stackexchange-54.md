@@ -1,0 +1,9 @@
+# Answer 131245 on diy.stackexchange.com
+
+Only possible answer: Fess up to your parents. And make sure you're very, very sorry when you do.
+
+They will be angry with you, and rightly so. You're worried about what damage you've done to the socket and the house wiring, and that certainly is an issue. That's why fessing up is the right thing to do, because the black marks round the socket suggest your house wiring didn't have proper protection on it, and it all needs checking. If it isn't checked, this could result in a house fire and your entire family dying. (This is **NOT** an exaggeration - house fires are the reason we have electrical safety codes.) We've already established that you aren't safe around mains electricity, so really don't try flipping breakers or anything. If the house is still being built, it shouldn't be a major issue to get this sorted.
+
+But more than that, you've been stupid enough to put your life in danger, and you are **really** lucky to still be alive. This will freak your parents out. Brace yourself for some grief, driven by the fact that they're relieved you're still alive.
+
+If you're a good liar, you could make up a cover story. Like perhaps the plug wasn't in all the way, and you just happened to drop the scissors so they touched the plug prongs. This isn't possible with UK mains plugs (there's insulation around the plug prongs except at the end where they make contact with the socket) but it may be possible with plugs wherever you live. Or maybe you saw some dirt in the socket and thought you'd poke it out, but didn't think about the consequences. (A guy in my class actually did this in the physics lab during a boring lesson. Took out all the power in the lab for a day while they got the fuses changed, and that socket was permanently disconnected because it was cheaper than replacing it.)

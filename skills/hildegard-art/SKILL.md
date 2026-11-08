@@ -1,16 +1,19 @@
 ---
 name: hildegard-art
-description: Use when asked to create art, an image, poster, cover, key art, illustration, mood board or visual style - art direction, variations, honest critique and finishing with Hildegard's image models.
+description: Use when asked to create art, an image, illustration, key art, mood board or visual style with Hildegard's image models - for posters and covers with words, use hildegard-design.
 ---
 
 # Making art
 
-Read **hildegard-craft** first. Art is where slop is most tempting: one vague prompt, one glossy result, "stunning".
-Treat the model as a fast, literal studio assistant and do the art direction yourself.
+If you have **hildegard-craft**, read it first (`references/slop.md` here is its slop catalogue). Art is where slop is
+most tempting: one vague prompt, one glossy result, "stunning". Treat the model as a fast, literal studio assistant
+and do the art direction yourself.
 
 ## 1. What can make it
 
-Call `hildegard_status` and `list_presets`.
+With Hildegard linked, call `hildegard_status` and `list_presets`. Without Hildegard, use the image tool you have (a
+chatbot's own image generation, a model your user runs, or images they bring); sections 2 to 6 work the same, with the
+camera and look written in plain words in the prompt, since the preset ids exist only in Hildegard.
 
 - If an **image model** is listed, use it for stills. Hildegard’s own `make_image` tool draws and edits images locally,
   from words or up to four reference images, with the camera and look from `list_presets`. It never makes sexual
@@ -40,10 +43,17 @@ Write the brief (hildegard-craft, Gate 1) plus an **art direction** of five line
 ## 3. A series, not a lottery
 
 1. Write **three different prompts** that each answer the direction in a different way (a close detail, a wide
-   scene, a symbolic still life). Lint each with `review_prompt`.
+   scene, a symbolic still life). With Hildegard linked, lint each with `review_prompt`. Without it, check each
+   against the slop catalogue (`references/slop.md`): no quality words ("8k", "masterpiece", "cinematic"), one idea,
+   literal sentences, a concrete detail nobody would guess.
 2. Render each as a draft with two takes.
-3. Review every result (`review_take`, or `hildegard review <file> --sheet` for stills). Put the best of each side
-   by side and choose the one that says the idea most clearly, not the prettiest.
+3. Review every result (with Hildegard linked, `review_take`, or `hildegard review <file> --sheet` for stills).
+   Without Hildegard, run `echo '{"path": "take-1.png", "sheet": "look-1.jpg"}' > spec.json` then
+   `python3 scripts/review_media.py spec.json` for the technical checks, and
+   `python3 scripts/contact_sheet.py sheet.png take-*.png --title "Round 1"` to put the takes side by side. Choose the
+   one that says the idea most clearly, not the prettiest. Both scripts need Python packages: install them once with
+   `python3 -m pip install pillow numpy av`. A still needs only Pillow and numpy for `review_media.py`, and only Pillow for `contact_sheet.py`. Without
+   them, look at each image yourself against the critique questions and read its size with `ffprobe`.
 4. Refine the chosen one: change one thing per round (the crop, the light, a detail), at most three rounds.
 
 ## 4. Critique, out loud
@@ -59,7 +69,7 @@ Before you show your user anything, answer in writing:
 
 Generated images often need the finishing a designer would give them:
 
-- Crop and straighten, then grade (see **hildegard-photo-edit**).
+- Crop and straighten, then grade (the **hildegard-photo-edit** skill, if you have it: it is ImageMagick commands).
 - **Type is added by hand, never generated.** Set titles in a real typeface with ImageMagick:
 
   ```sh
@@ -69,7 +79,7 @@ Generated images often need the finishing a designer would give them:
 
   Use a font your user has a license for (`magick -list font` shows installed ones). Keep text off faces and off
   the busiest part of the image; give it room.
-- Export for where it goes (hildegard-photo-edit, step 5).
+- Export for where it goes (the hildegard-photo-edit skill, step 5: sRGB, the long side at 2048 px for the web).
 
 ## 6. Deliver
 

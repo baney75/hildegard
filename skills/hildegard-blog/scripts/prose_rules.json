@@ -1,0 +1,381 @@
+{
+  "_about": "Hildegard's prose lint: the tells that make writing read as machine-made. One file feeds every engine: packages/craft/src/prose.ts (Studio, MCP, CLI) and skills/hildegard/scripts/prose_lint.py (any agent, no install). Phrase patterns are lowercase regexes matched on word boundaries, in the subset JavaScript and Python share. A match that starts with a capital in the middle of a sentence is a name (\"Beacon Street\") and is skipped when the rule has exemptNames. A rule with minHits stays quiet below that many matches: one is a habit, several are a style. Write an apostrophe as ['’] so both kinds match. Where each pattern sits (fail, warn, or left out) was set by how often it fires on people's writing and on AI drafts: see packages/craft/bench and the writing guide in Hildegard’s repository. `stacked` lists the weak tells that, two or more of different kinds in one piece, fail it as stacked-tells. `strict.fail` lists the warns that fail in the strict profile (for writing that must carry no tells at all); the default profile never reads it. The em dash (U+2014, and a spaced double hyphen) is the one rule that is code, not a phrase: a boundary pattern cannot sit beside a letter. Keep skills/hildegard/scripts/prose_rules.json identical to this file; a test checks it.",
+  "version": 1,
+  "phrases": {
+    "stock-words": {
+      "severity": "fail",
+      "why": "Words generated text leans on and people rarely write. Readers spot them and stop trusting the rest.",
+      "fix": "Say the plain thing, with a specific noun or number.",
+      "patterns": [
+        "delve",
+        "delves",
+        "delved",
+        "delving",
+        "tapestry",
+        "tapestries",
+        "testament to",
+        "multifaceted",
+        "bustling",
+        "nestled",
+        "navigat(e|es|ed|ing) the (complexities|landscape|world|waters)",
+        "in the (ever-evolving |digital |modern )?landscape of",
+        "rich (history|heritage|tapestry)",
+        "this changes everything",
+        "this is huge",
+        "unlock(s|ed|ing)? the (full |true |hidden )?(potential|power|secrets?|magic|future|possibilities)"
+      ]
+    },
+    "corporate-words": {
+      "severity": "warn",
+      "minHits": 3,
+      "why": "Office words that people and machines both reach for. One is a habit; several in a piece read as a press release.",
+      "fix": "Say the plain thing: use, help, show, improve, give. Keep a word where it is the exact one.",
+      "patterns": [
+        "paramount",
+        "transformative",
+        "embark(s|ed|ing)?",
+        "supercharg(e|es|ed|ing)",
+        "cutting-edge",
+        "game[- ]changer",
+        "game[- ]changing",
+        "paradigm shift",
+        "seamless(ly)?",
+        "robust",
+        "leverag(e|es|ed|ing)",
+        "utiliz(e|es|ed|ing)",
+        "facilitat(e|es|ed|ing)",
+        "empower(s|ed|ing)?",
+        "streamlin(e|es|ed|ing)",
+        "unleash(es|ed|ing)?",
+        "harness(es|ed|ing)? the",
+        "elevat(e|es|ed|ing)",
+        "showcas(e|es|ed|ing)",
+        "pivotal",
+        "synergy",
+        "holistic(ally)?",
+        "realm",
+        "realms",
+        "intricate(ly)?",
+        "meticulous(ly)?",
+        "dynamic landscape",
+        "ever-evolving",
+        "ever-changing"
+      ]
+    },
+    "empty-phrases": {
+      "severity": "fail",
+      "why": "Phrases that delay the point and carry nothing.",
+      "fix": "Cut it and start with the point.",
+      "patterns": [
+        "in today['’]?s fast-paced (digital |modern )?(world|age|society|landscape)",
+        "let['’]?s dive in",
+        "let['’]?s dive into",
+        "as an ai",
+        "i hope this helps",
+        "look no further",
+        "buckle up",
+        "imagine a world"
+      ]
+    },
+    "cliches": {
+      "severity": "warn",
+      "why": "Stock phrases that people and machines both use. One is a habit; judge each against your own voice.",
+      "fix": "Start on the point, or say the specific thing the phrase stands in for.",
+      "patterns": [
+        "in the age of",
+        "in the world of",
+        "at the end of the day",
+        "when it comes to",
+        "at its core",
+        "the reality is",
+        "the truth is",
+        "with regard to",
+        "in this article",
+        "in this post",
+        "in this blog post",
+        "without further ado",
+        "stay tuned",
+        "in today['’]?s (digital |modern )?(world|age|society|landscape)",
+        "it['’]?s worth noting( that)?",
+        "it is worth noting( that)?",
+        "it['’]?s important to note( that)?",
+        "it is important to note( that)?",
+        "it['’]?s important to remember",
+        "whether you['’]?re a .{1,40} or a",
+        "a world where",
+        "let me be clear",
+        "make no mistake",
+        "the bottom line is",
+        "spoiler alert",
+        "plot twist",
+        "think about it",
+        "picture this",
+        "most people don['’]?t realize",
+        "nobody talks about",
+        "the secret (is|to)",
+        "plays a (vital|crucial|key|pivotal) role",
+        "a key (role|part|player)",
+        "at the forefront of",
+        "(sets|set) the stage for",
+        "paves? the way for"
+      ],
+      "minHits": 2
+    },
+    "throat-clearing": {
+      "severity": "fail",
+      "why": "An opener that announces a point instead of making it.",
+      "fix": "Delete the opener; the next words are the point.",
+      "patterns": [
+        "here['’]?s the thing",
+        "here['’]?s what i mean",
+        "i['’]?ll be honest",
+        "the uncomfortable truth is",
+        "what if i told you",
+        "let that sink in",
+        "read that again"
+      ]
+    },
+    "faux-insight": {
+      "severity": "fail",
+      "why": "A setup that flatters the writer as the lone expert.",
+      "fix": "Cut the setup and let the claim stand on its own.",
+      "patterns": [
+        "this is the part most people (skip|miss)",
+        "what most people get wrong",
+        "here['’]?s what nobody tells you",
+        "the part everyone misses",
+        "the real (secret|magic|key) (is|to)",
+        "you['’]?re (probably )?doing it wrong"
+      ]
+    },
+    "puffery": {
+      "severity": "fail",
+      "why": "It tells the reader something matters instead of showing why.",
+      "fix": "State the fact and let the reader judge it.",
+      "patterns": [
+        "stands as a testament",
+        "marks a (pivotal|significant|major) (moment|milestone|shift)",
+        "solidif(y|ies|ied) (its|their|his|her) (position|place|status)",
+        "underscor(e|es|ed|ing) (the|its|their) (importance|significance)",
+        "cannot be overstated",
+        "can['’]?t be overstated",
+        "redefin(e|es|ed|ing) what['’]?s possible"
+      ]
+    },
+    "metadiscourse": {
+      "severity": "warn",
+      "why": "A line that steps outside the subject to tell the reader how to read it.",
+      "fix": "Delete it, or replace it with the support it points at.",
+      "patterns": [
+        "that last part matters",
+        "the key (point|takeaway|thing) (is|here)",
+        "as you can see",
+        "this distinction matters",
+        "needless to say",
+        "it goes without saying",
+        "simply put",
+        "to put it simply",
+        "in a nutshell",
+        "long story short",
+        "the takeaway (is|here)",
+        "here['’]?s (how|what|why) (it|this|we|you|to)",
+        "i won['’]?t pretend",
+        "i['’]?d be lying",
+        "if i['’]?m (being )?honest",
+        "to be (completely |totally )?honest",
+        "i['’]?ll admit"
+      ]
+    },
+    "chatty-openers": {
+      "severity": "warn",
+      "why": "A line that announces its news before giving it. People talk this way too, so it never fails a piece alone or beside a plain bold word.",
+      "fix": "Say the news.",
+      "patterns": ["the good news is", "the best part is"]
+    },
+    "weasel": {
+      "severity": "warn",
+      "why": "A claim with no source behind it.",
+      "fix": "Name the source, or cut the claim.",
+      "patterns": [
+        "experts (agree|say|believe)",
+        "studies (show|suggest|have shown)",
+        "research (shows|suggests|has shown)",
+        "industry reports suggest",
+        "many (argue|believe|say)",
+        "widely regarded as",
+        "it is widely (known|believed)",
+        "some would say",
+        "critics (say|argue)"
+      ]
+    },
+    "loaded-words": {
+      "severity": "warn",
+      "exemptNames": true,
+      "why": "Words generated text overuses that also have ordinary senses.",
+      "fix": "Keep it if it means exactly what you say; otherwise use the plain word.",
+      "patterns": [
+        "beacon",
+        "boast(s|ed|ing)?",
+        "crucial(ly)?",
+        "deep dive",
+        "dive into",
+        "foster(s|ed|ing)?",
+        "vibrant"
+      ],
+      "minHits": 2
+    },
+    "summary-openers": {
+      "severity": "warn",
+      "why": "A recap opener. In the last paragraph it is a fail (see summary-ending); elsewhere the reader was just there.",
+      "fix": "End on the last concrete point or the next action.",
+      "patterns": [
+        "in conclusion",
+        "in summary",
+        "to sum up",
+        "to summarize",
+        "all in all",
+        "to wrap up",
+        "in closing"
+      ]
+    },
+    "filler-adverbs": {
+      "severity": "warn",
+      "why": "Adverbs that usually add nothing. Keep one only where it carries real emphasis or doubt.",
+      "fix": "Cut it, or keep it where the sentence needs it.",
+      "density": 0.012,
+      "patterns": [
+        "genuinely",
+        "honestly",
+        "truly",
+        "incredibly",
+        "literally",
+        "actually",
+        "simply",
+        "fundamentally",
+        "importantly",
+        "inherently",
+        "inevitably",
+        "essentially",
+        "basically",
+        "really",
+        "super important",
+        "absolutely",
+        "undeniably",
+        "remarkably",
+        "seamlessly"
+      ]
+    },
+    "chatbot": {
+      "severity": "fail",
+      "why": "Assistant talk left in the text.",
+      "fix": "Delete it.",
+      "patterns": [
+        "great question",
+        "certainly!",
+        "absolutely!",
+        "as of my (last|knowledge) (update|cutoff)",
+        "i cannot browse",
+        "happy writing",
+        "happy coding"
+      ]
+    },
+    "warm-boilerplate": {
+      "severity": "warn",
+      "why": "Stock warmth: thanks, welcome and excitement that say nothing the reader can use.",
+      "fix": "Say the specific thing: who helped, what it did, when you will see them.",
+      "patterns": [
+        "thank you for being (a )?part of",
+        "thank you for (your )?(continued |ongoing )?(support|generosity|partnership|trust)",
+        "we['’]re (so |truly )?(grateful|thankful) (for|to)",
+        "we are (so |truly )?(grateful|thankful) (for|to)",
+        "(your|our) (support|generosity|help|partnership) (means|makes)",
+        "(it|this) truly makes a difference",
+        "makes a (real |big |huge )?difference",
+        "means (so much|the world)",
+        "every (little )?(bit|gift|donation) helps",
+        "(we|i) look forward to (seeing|welcoming|serving|hearing|having|helping|meeting)",
+        "we can['’]?t wait to (see|welcome|meet|hear)",
+        "(we['’]re|i['’]?m) (so |very |truly )?(excited|thrilled|delighted|pleased) to (announce|share|invite|introduce|welcome)",
+        "(we|i) am (so |very |truly )?(excited|thrilled|delighted|pleased) to (announce|share|invite|introduce|welcome)",
+        "warm(ly)? (welcome|invitation)",
+        "heartfelt",
+        "(we['’]re|i['’]?m) (so |truly |incredibly )?(grateful|thankful|proud)",
+        "(i|we) (am|are) (so |truly |incredibly )?(grateful|thankful|proud)",
+        "feel free to (reach out|ask|let me know)"
+      ],
+      "minHits": 2
+    }
+  },
+  "notBut": {
+    "perDocument": 1
+  },
+  "bold": {
+    "perParagraph": 1
+  },
+  "markers": [
+    "TODO",
+    "TBD",
+    "FIXME",
+    "TK",
+    "lorem ipsum dolor",
+    "\\[(?:your|insert|add) [^\\],\\n]{1,40}\\](?!\\()",
+    "\\[(?:(?!(?:the|a|an|our|his|her|their|its|this|that|these|those|my|of|for|to|in|on|at|by|with)\\b)[\\w'\u2019&-]+\\s+){0,3}(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact)(?:\\s+(?:or|and)\\s+(?:[\\w'\u2019&-]+\\s+)?(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact))?\\](?![(\\[:])",
+    "\\{\\{\\s*(?!(?:if|else|end|range|with|define|block|template|partial)\\b)[A-Za-z_][\\w-]{0,30}(?:[^\\S\\n][A-Za-z_][\\w-]{0,30}){0,2}\\s*\\}\\}",
+    "<(?:insert|your|add)\\s[^>\\n]{1,40}>",
+    "(?<!\\w)(?:\\(?X{2,}\\)?[-/.]|\\(X{2,}\\) ?){1,3}X{2,}\\b|\\$X{2,}\\b"
+  ],
+  "triads": {
+    "perHundred": 1.5,
+    "minWords": 200
+  },
+  "boldLeads": {
+    "min": 4,
+    "share": 0.5
+  },
+  "boldListLeads": {
+    "min": 2
+  },
+  "headings": {
+    "min": 3,
+    "perHundred": 0.8
+  },
+  "stacked": {
+    "min": 2,
+    "kinds": [
+      ["warm-boilerplate"],
+      ["metadiscourse", "chatty-openers"],
+      ["weasel"],
+      ["colon-reveal"],
+      ["bold", "bold-leads", "bold-list-leads"]
+    ],
+    "apart": [["chatty-openers", "bold"]]
+  },
+  "uniform": {
+    "minParagraphs": 6,
+    "share": 0.9,
+    "maxWords": 45,
+    "longest": 60
+  },
+  "strict": {
+    "fail": [
+      "em-dash",
+      "corporate-words",
+      "cliches",
+      "metadiscourse",
+      "chatty-openers",
+      "weasel",
+      "loaded-words",
+      "summary-openers",
+      "filler-adverbs",
+      "warm-boilerplate",
+      "not-but",
+      "colon-reveal",
+      "summary-ending",
+      "triads",
+      "bold-leads",
+      "bold-list-leads",
+      "uniform-paragraphs",
+      "bold"
+    ]
+  }
+}
