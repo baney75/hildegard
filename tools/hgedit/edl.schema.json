@@ -81,7 +81,7 @@
     "secrets": {
       "type": "array",
       "maxItems": 200,
-      "description": "Text that must not be readable anywhere in the finished video's hidden stretches: a string to find as it is, or a pattern, or a built-in kind.",
+      "description": "Text that must not be readable anywhere in the finished video: a string to find as it is, or a pattern, or a built-in kind. The gate looks for them through the whole video.",
       "items": {
         "oneOf": [
           { "type": "string", "minLength": 4, "maxLength": 300 },
@@ -406,11 +406,11 @@
         "lufs_tolerance": { "type": "number", "minimum": 0.1, "maximum": 6 },
         "require_ocr": {
           "type": "boolean",
-          "description": "Fail, not skip, when tesseract is not installed. Default false."
+          "description": "Fail, not skip, when tesseract is not installed or can’t run. Default false."
         },
         "ocr_scan": {
           "enum": ["windows", "all"],
-          "description": "windows (default): the hidden stretches and a second around them; all: the whole video."
+          "description": "Where the built-in kinds are looked for. windows (default): the hidden stretches and a second around them; all: the whole video. Declared secrets are always looked for through the whole video."
         },
         "ocr_fps": { "type": "number", "minimum": 0.5, "maximum": 10 },
         "ocr_kinds": {

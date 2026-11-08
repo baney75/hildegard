@@ -65,12 +65,17 @@ def propose(source, transcript=None, edited_text=None, *, fillers=True, filler_w
         edl["pauses"] = pauses if isinstance(pauses, dict) else {"max": 0.7, "keep": 0.3, "margin": 0.12}
     whole = plan_mod.resolve({"version": 1, "sources": {"a": {"path": source}}}, base_dir, analyze=False, track=False)["out_seconds"]
     report["source_seconds"] = whole
-    got = plan_mod.resolve(copy.deepcopy(edl), base_dir, track=False)
+
+    def lengths(e):
+        # Captions don't change the length, and their transcript file is written only after the plan: leave them out.
+        return plan_mod.resolve({k: copy.deepcopy(x) for k, x in e.items() if k != "captions"}, base_dir, track=False)
+
+    got = lengths(edl)
     if target_seconds and got["out_seconds"] > target_seconds:
         if pauses:
             tight = {"max": 0.45, "keep": 0.2, "margin": 0.1}
             edl["pauses"] = tight
-            got = plan_mod.resolve(copy.deepcopy(edl), base_dir, track=False)
+            got = lengths(edl)
             report["notes"].append(f"Over the target, so pauses are cut harder (longer than {tight['max']} s become {tight['keep']} s).")
         if got["out_seconds"] > target_seconds and words is not None:
             have = {i for i, _ in enumerate(words) if any(c["start"] <= words[i]["start"] and words[i]["end"] <= c["end"] for c in edl["cuts"])}
@@ -90,7 +95,7 @@ def propose(source, transcript=None, edited_text=None, *, fillers=True, filler_w
                 edl["cuts"].sort(key=lambda x: x["start"])
                 report["trimmed_sentences"] = len({w["i"] for w in words if w["i"] in extra})
                 report["notes"].append("Trimmed whole sentences with the least said per second to reach the length. Read the cuts and keep or restore any that matter.")
-                got = plan_mod.resolve(copy.deepcopy(edl), base_dir, track=False)
+                got = lengths(edl)
     report["pause_cuts"] = len(got["pauses_cut"])
     report["after_seconds"] = got["out_seconds"]
     if target_seconds:

@@ -7,9 +7,11 @@ downloaded and every test says what it proves. Hardware encoders are never tried
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+import weakref
 
 import numpy as np
 
@@ -20,6 +22,7 @@ from hgedit import edl as edl_mod, encoders, media, plan as plan_mod, render, se
 from hgedit.media import RATE  # noqa: E402
 
 FPS = 12
+EDIT_VIDEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "edit_video.py")
 
 
 def scene_for(w, h):
@@ -214,6 +217,23 @@ class TranscriptEdit(Tmp):
         self.assertNotIn("like,", shown)
         self.assertIn("I like tea.", shown)
 
+    def test_the_plan_command_writes_a_fresh_edit_folder_from_the_transcript_it_is_given(self):
+        clip = self.p("a.mp4")
+        make_clip(clip, seconds=9.0, talk=((0.0, 1.9), (3.2, 4.4), (5.0, 6.8), (7.5, 8.5)))
+        os.makedirs(self.p("elsewhere"))
+        words = self.p(os.path.join("elsewhere", "words.json"))
+        with open(words, "w") as f:
+            json.dump(SAMPLE, f)
+        out = self.p(os.path.join("fresh", "edit", "edl.json"))
+        env = dict(os.environ, HG_EDIT_ENCODER="libx264")
+        r = subprocess.run([sys.executable, "-I", EDIT_VIDEO, "plan", clip, "-o", out, "--transcript", words, "--json"],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(os.path.isfile(self.p(os.path.join("fresh", "edit", "transcript.json"))))
+        r = subprocess.run([sys.executable, "-I", EDIT_VIDEO, "check", out, "--json"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertGreater(json.loads(r.stdout.splitlines()[-1])["summary"]["cues"], 0)
+
 
 # ── Captions ────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -353,6 +373,67 @@ class Rendering(Tmp):
         rep2 = verify.verify(out, self.write_edl(longer, "longer.json"))
         self.assertFalse(rep2["ok"])
         self.assertEqual(next(c for c in rep2["checks"] if c["id"] == "frames")["status"], "fail")
+
+    def test_verifying_without_rendering_never_passes_a_video_from_an_older_list(self):
+        edl = {"version": 1, "sources": {"a": {"path": self.clip}}, "keep": [{"start": 0.0, "end": 4.0}]}
+        _, rep, path, out = self.gate(edl)
+        self.assertTrue(rep["ok"], rep)
+        with open(path) as f:
+            rendered = json.load(f)
+        # A title added after the render isn't in the video: the old video can't pass for the new list.
+        self.dump_edl(dict(rendered, titles=[{"text": "Hello", "start": 0.5, "end": 2.0}]), path)
+        rep = verify.verify(out, path)
+        self.assertFalse(rep["ok"])
+        c = next(c for c in rep["checks"] if c["id"] == "render")
+        self.assertEqual(c["status"], "fail")
+        self.assertIn("Render again", c["detail"])
+        # The gate's own settings and the declared secrets go into no frame, so changing them needs no new render.
+        self.dump_edl(dict(rendered, verify={"max_frozen": 5}), path)
+        rep = verify.verify(out, path)
+        self.assertTrue(rep["ok"], rep)
+        self.assertEqual(next(c for c in rep["checks"] if c["id"] == "render")["status"], "pass")
+        # Nor can a video changed after it was rendered, or one with no record of the list it came from.
+        self.dump_edl(rendered, path)
+        with open(out, "ab") as f:
+            f.write(b"\0" * 16)
+        rep = verify.verify(out, path)
+        self.assertFalse(rep["ok"])
+        self.assertIn("changed after", next(c for c in rep["checks"] if c["id"] == "render")["detail"])
+        os.remove(out + ".plan.json")
+        self.assertFalse(verify.verify(out, path)["ok"])
+
+    def dump_edl(self, edl, path):
+        with open(path, "w") as f:
+            json.dump(edl, f)
+
+    def test_mastered_sound_that_is_silent_or_cannot_be_measured_fails_the_gate(self):
+        quiet = self.p("quiet.mp4")
+        selftest.write_recording(quiet, 3.0, FPS, (320, 180), np.zeros(3 * RATE, np.float32), scene_for(320, 180))
+        _, rep, _, _ = self.gate({"version": 1, "sources": {"a": {"path": quiet}}}, "quiet.out.mp4")
+        c = next(c for c in rep["checks"] if c["id"] == "loudness")
+        self.assertEqual(c["status"], "fail", c)
+        self.assertIn("silent", c["detail"])
+        self.assertFalse(rep["ok"])
+        # Unmastered on purpose: no target, nothing to fail.
+        _, rep, _, _ = self.gate({"version": 1, "sources": {"a": {"path": quiet}}, "audio": {"master": False}}, "raw.out.mp4")
+        self.assertEqual(next(c for c in rep["checks"] if c["id"] == "loudness")["status"], "skip")
+        # Sound that would measure on the target, with a meter that can't run.
+        _, rep, path, out = self.gate({"version": 1, "sources": {"a": {"path": self.clip}}, "keep": [{"start": 0.0, "end": 3.0}]}, "loud.mp4")
+        self.assertTrue(rep["ok"], rep)
+        real = verify.voice_clean.choose_backend
+
+        def broken():
+            raise verify.voice_clean.CleanError("This PyAV build doesn’t have the audio filters the cleanup needs.")
+
+        verify.voice_clean.choose_backend = broken
+        try:
+            rep = verify.verify(out, path)
+        finally:
+            verify.voice_clean.choose_backend = real
+        c = next(c for c in rep["checks"] if c["id"] == "loudness")
+        self.assertEqual(c["status"], "fail", c)
+        self.assertIn("loudness", rep["unproven"])
+        self.assertFalse(rep["ok"])
 
     def test_the_gate_fails_black_and_frozen_stretches(self):
         black = self.p("black.mp4")
@@ -558,6 +639,143 @@ class Gate(unittest.TestCase):
         for _, shown in hits:
             self.assertNotIn("ann@example.com", shown)
         self.assertEqual(verify.find_leaks("nothing here", "nothing here", [key], verify.ALL_KINDS), [])
+
+
+class OcrReading(Tmp):
+    """The OCR half of the gate with the frames and tesseract stood in for, so it runs without tesseract and without real
+    long or 4K video: what is read, from where, how many frames are held at once, and what a failing tesseract means."""
+
+    def setUp(self):
+        super().setUp()
+        self.clip = self.p("a.mp4")
+        make_clip(self.clip, seconds=4.0)
+        self.peak, self.times, self.widths = 0, [], []
+        real_which, real_frames, real_ocr = verify.shutil.which, verify.media.video_frames, verify.ocr_text
+        verify.shutil.which = lambda n, *a, **k: "/usr/bin/tesseract" if n == "tesseract" else real_which(n, *a, **k)
+        self.addCleanup(setattr, verify.shutil, "which", real_which)
+        self.addCleanup(setattr, verify.media, "video_frames", real_frames)
+        self.addCleanup(setattr, verify, "ocr_text", real_ocr)
+
+    def plan(self, **edl):
+        return plan_mod.resolve({"version": 1, "sources": {"a": {"path": self.clip}}, **edl}, self.d, track=False)
+
+    def frames(self, seconds, size, fps=30, bright_after=None):
+        """Stands in for media.video_frames: black frames (white from `bright_after`), counting how many are alive at once."""
+        w, h = size
+        refs = []
+
+        def source(path, step=None, start=0.0, end=None, size=None, pick=None):
+            stop = seconds if end is None else min(end, seconds)
+            i, nxt = int(np.ceil(start * fps - 1e-9)), start
+            while i / fps <= stop + 1e-9:
+                t = i / fps
+                i += 1
+                if step is not None:
+                    if t + 1e-6 < nxt:
+                        continue
+                    nxt = max(nxt + step, t + step * 0.5)
+                if pick is not None and not pick(t):
+                    continue
+                bright = bright_after is not None and t >= bright_after
+                a = np.full((h, w, 3), 255, np.uint8) if bright else np.zeros((h, w, 3), np.uint8)
+                refs[:] = [r for r in refs if r() is not None]
+                refs.append(weakref.ref(a))
+                self.peak = max(self.peak, len(refs))
+                self.times.append(t)
+                yield t, a
+                del a
+
+        verify.media.video_frames = source
+
+    def reads(self, text_when_bright="", text_always=""):
+        def ocr(png, psm=11):
+            from PIL import Image  # noqa: PLC0415
+
+            with Image.open(png) as im:
+                self.widths.append(im.width)
+                bright = im.getpixel((0, 0))[0] > 128
+            return (text_when_bright if bright else "") + text_always
+
+        verify.ocr_text = ocr
+
+    def test_the_scan_decodes_with_the_log_callback_off_and_the_meter_leaves_it_as_it_was(self):
+        import av.logging as avlog  # noqa: PLC0415
+
+        seen = []
+        self.frames(2.0, (64, 36))
+        source = verify.media.video_frames
+
+        def watched(*a, **k):
+            for item in source(*a, **k):
+                seen.append(avlog.get_level())
+                yield item
+
+        verify.media.video_frames = watched
+        self.reads()
+        before = avlog.get_level()
+        self.addCleanup(avlog.set_level, before)
+        avlog.set_level(avlog.WARNING)  # as voice_clean leaves it after a measure
+        verify.ocr_check("out.mp4", self.plan(secrets=[selftest.FAKE_KEY]))
+        self.assertTrue(seen)
+        self.assertEqual(set(seen), {None})
+        self.assertEqual(avlog.get_level(), avlog.WARNING)
+        avlog.set_level(None)
+        verify.measure_loudness(self.clip)
+        self.assertIsNone(avlog.get_level())
+
+    def test_a_declared_kind_is_found_without_any_blur(self):
+        self.frames(4.0, (320, 180))
+        self.reads(text_always="write to ann@example.com today")
+        c = verify.ocr_check("out.mp4", self.plan(secrets=[{"kind": "email"}]))
+        self.assertEqual(c["status"], "fail", c)
+        self.assertIn("email", {x["kind"] for x in c["leaks"]})
+
+    def test_a_declared_secret_shown_away_from_the_blur_fails_the_gate(self):
+        self.frames(4.0, (320, 180), bright_after=3.0)
+        self.reads(text_when_bright=f"API_KEY = {selftest.FAKE_KEY}")
+        plan = self.plan(blur=[{"start": 0.5, "end": 1.2, "box": list(selftest.KEY_BOX)}], secrets=[selftest.FAKE_KEY])
+        c = verify.ocr_check("out.mp4", plan)
+        self.assertEqual(c["status"], "fail", c)
+        self.assertTrue(all(x["t"] >= 3.0 for x in c["leaks"]), c["leaks"])
+
+    def test_a_tesseract_that_fails_is_not_an_empty_read(self):
+        self.frames(4.0, (320, 180))
+        real_run = verify.subprocess.run
+        self.addCleanup(setattr, verify.subprocess, "run", real_run)
+        verify.subprocess.run = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "", (
+            "Error opening data file /usr/share/tessdata/eng.traineddata\nFailed loading language 'eng'\n"
+            "Tesseract couldn't load any languages!\n"))
+        c = verify.ocr_check("out.mp4", self.plan(secrets=[selftest.FAKE_KEY], verify={"require_ocr": True}))
+        self.assertEqual(c["status"], "fail", c)
+        self.assertTrue(c.get("unproven"))
+        self.assertIn("eng.traineddata", c["detail"])
+        self.assertNotIn("/usr/share", c["detail"])
+        c = verify.ocr_check("out.mp4", self.plan(secrets=[selftest.FAKE_KEY]))
+        self.assertNotEqual(c["status"], "pass", c)
+        self.assertTrue(c.get("unproven"))
+
+    def test_4k_frames_are_held_a_few_at_a_time_and_scaled_down_for_ocr(self):
+        self.frames(40.0, (3840, 2160))
+        self.reads()
+        plan = self.plan(secrets=[selftest.FAKE_KEY], verify={"ocr_fps": 1})
+        plan["out_seconds"] = 40.0
+        c = verify.ocr_check("out.mp4", plan)
+        self.assertEqual(c["status"], "pass", c)
+        self.assertGreaterEqual(c["frames"], 40)
+        self.assertLessEqual(self.peak, 3)
+        self.assertLessEqual(max(self.widths), 1920)
+
+    def test_a_long_video_reads_a_bounded_number_of_frames_through_all_of_it(self):
+        hours = 3 * 3600.0
+        self.frames(hours, (64, 36))
+        self.reads()
+        plan = self.plan(secrets=[selftest.FAKE_KEY])
+        plan["out_seconds"] = hours
+        c = verify.ocr_check("out.mp4", plan)
+        self.assertEqual(c["status"], "pass", c)
+        self.assertLessEqual(c["frames"], 902)
+        self.assertLessEqual(self.peak, 3)
+        self.assertGreater(max(self.times), hours - 60)
 
 
 if __name__ == "__main__":

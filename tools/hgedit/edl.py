@@ -7,6 +7,7 @@ allowed ones and the closest match, since that is the usual slip.
 """
 
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -36,6 +37,24 @@ def load(path):
         raise EdlError(f"There is no edit list at {path}.")
     except json.JSONDecodeError as e:
         raise EdlError(f"{os.path.basename(path)} isn’t valid JSON: {e.msg} at line {e.lineno}, column {e.colno}.")
+
+
+# What the gate reads and the renderer doesn't: changing these needs no new render.
+NOT_RENDERED = ("verify", "secrets")
+
+
+def render_key(edl, base_dir):
+    """A SHA-256 of everything in the edit list that goes into the video, with the transcript file it names, so the gate
+    can tell whether a video was rendered from this very list."""
+    body = {k: v for k, v in edl.items() if k not in NOT_RENDERED}
+    caps = edl.get("captions")
+    if isinstance(caps, dict) and isinstance(caps.get("transcript"), str):
+        try:
+            with open(os.path.join(base_dir, caps["transcript"]), "rb") as f:
+                body["captions"] = dict(caps, transcript_sha256=hashlib.sha256(f.read()).hexdigest())
+        except OSError:
+            pass
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
 
 
 # ── JSON Schema subset ──────────────────────────────────────────────────────────────────────────────────────────

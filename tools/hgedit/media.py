@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Reading media with PyAV: what a file holds, and its sound as float samples."""
 
+import hashlib
 import os
 from fractions import Fraction
 
@@ -110,8 +111,17 @@ def read_audio(path, ranges=None, track=0, channels=2, rate=RATE):
     return np.concatenate(out, axis=1) if out else np.zeros((channels, 0), dtype=np.float32)
 
 
-def video_frames(path, step=None, start=0.0, end=None, size=None):
-    """Yields (time_seconds, rgb ndarray) for a file's picture. With `step`, about one frame every `step` seconds."""
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def video_frames(path, step=None, start=0.0, end=None, size=None, pick=None):
+    """Yields (time_seconds, rgb ndarray) for a file's picture. With `step`, about one frame every `step` seconds; with
+    `pick`, only the frames whose time it returns True for (asked in order, before a frame is converted)."""
     with av.open(path) as c:
         v = c.streams.video[0]
         v.thread_type = "AUTO"
@@ -130,6 +140,8 @@ def video_frames(path, step=None, start=0.0, end=None, size=None):
                 continue
             if step is not None:
                 nxt = max(nxt + step, t + step * 0.5)
+            if pick is not None and not pick(t):
+                continue
             kw = {"format": "rgb24"}
             if size:
                 kw.update(width=size[0], height=size[1])

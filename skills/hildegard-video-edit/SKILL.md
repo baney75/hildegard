@@ -54,7 +54,7 @@ python3 scripts/edit_video.py verify edit/out.mp4 edit/edl.json    # exit 0 only
 
 - Seconds are **source seconds**, except `titles` and `chapters` (output seconds). `keep` is the order of play; leave it out to keep everything. `cuts` are removed from whatever `keep` says. Everything snaps to the frame grid, so the output's frame count is known before it renders.
 - A **box** is `[x, y, width, height]` as fractions of the frame, 0 to 1. Find it on a contact sheet. `box_px` takes pixels, `keys` makes a region that moves (`[{"t": 31, "box": [...]}, ...]`).
-- **Hide secrets with `"style": "solid"`**, and give a window a second wider than the secret is on screen: blur and solid are applied to the source picture before any crop or zoom. List what must not be readable under `secrets` (a string as it appears, a `{"regex": ...}`, or `{"kind": "api_key" | "email" | "ip" | "hostname"}`); the gate OCRs the output around every hidden stretch for them and for those four kinds.
+- **Hide secrets with `"style": "solid"`**, and give a window a second wider than the secret is on screen: blur and solid are applied to the source picture before any crop or zoom. List what must not be readable under `secrets` (a string as it appears, a `{"regex": ...}`, or `{"kind": "api_key" | "email" | "ip" | "hostname"}`); the gate OCRs the whole output for them, and every hidden stretch for those four kinds.
 - `pauses` shortens dead air found from the energy of the speech, not a fixed silence level: fan noise doesn't hide a pause and typing doesn't count as one. A pause that has typing or clicking in it is **kept** (something is happening on screen); `"activity": "cut"` treats it like dead air.
 - `captions` come from the transcript and are re-timed to the cut; words you cut never appear. `music` is cut to length, mixed 8 dB under the voice and ducked 16 dB while anyone speaks.
 - `reframe` crops to 9:16, 1:1 or 4:5 around the subject: a face when OpenCV 4 is installed (`pip install "opencv-python-headless<5"`), else where the motion is, else the middle. It never stretches, and never scales up past the source.
@@ -65,9 +65,10 @@ python3 scripts/edit_video.py verify edit/out.mp4 edit/edl.json    # exit 0 only
 
 | It says | Do this |
 | --- | --- |
+| `render`: rendered from a different edit list | The list changed after the render (only `verify` and `secrets` may change without one). Render again, then verify. |
 | `frames`: N frames, the list resolves to M | The file isn't this list's render. Render again. |
 | `sync`: a track is longer or shorter than the picture | Render again; if it persists, the source's own sound is broken: `audio.mute` or another `audio_track`. |
-| `loudness`: LUFS or peak off target | Render again; a source with no speech and no music can't be mastered: set `audio.master` to false only if the sound is on purpose. |
+| `loudness`: off target, silent, or couldn't be measured | Render again; a source with no speech and no music can't be mastered: set `audio.master` to false only if the sound is on purpose, or `audio.mute` for a silent video. |
 | `black` / `frozen` | A black or still stretch longer than allowed. Cut it, or raise `verify.max_black` / `verify.max_frozen` if it is on purpose. |
 | `overlays`: outside the frame | Shorten the text, or give less to `captions.max_chars`. |
 | `ocr`: readable text found | Add a blur over it, widen the window by a second, use `"style": "solid"`, render, verify. Don't remove the secret from `secrets`. |

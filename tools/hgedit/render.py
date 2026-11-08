@@ -589,9 +589,11 @@ def render(edl_path, out_path, workers=None, encoder=None, crf=18, keep_work=Fal
         with open(os.path.splitext(out_path)[0] + ".chapters.txt", "w", encoding="utf-8") as f:
             f.write(chapters_text(plan["chapters"]))
         chapters_in = embed_chapters(out_path, plan["chapters"], plan["out_seconds"])
+    # What the gate binds this video to: the edit list it came from and the file exactly as written.
     sidecar = out_path + ".plan.json"
+    record = dict(plan, edl_sha256=edl_mod.render_key(edl, base), out_sha256=media.file_sha256(out_path))
     with open(sidecar, "w", encoding="utf-8") as f:
-        json.dump(plan, f, indent=1, default=str)
+        json.dump(record, f, indent=1, default=str)
     if not keep_work:
         shutil.rmtree(work, ignore_errors=True)
     return {
