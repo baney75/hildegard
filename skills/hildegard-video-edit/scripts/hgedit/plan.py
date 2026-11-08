@@ -377,6 +377,9 @@ def resolve(edl, base_dir=".", analyze=True, track=True):
 
                 try:
                     re.compile(sec["regex"])
+                    if _nested(sec["regex"]):
+                        errors.append((f"secrets[{i}].regex", "repeats a group that itself repeats or has a choice, like (a+)+ or (a|aa)+, "
+                                       "which can take hours to run. Write it without the repeat around the group"))
                 except re.error as e:
                     errors.append((f"secrets[{i}].regex", f"isn’t a valid pattern: {e}"))
     if errors:
@@ -457,3 +460,20 @@ def overlay_boxes(plan):
         o = textfx.layout_caption(c["lines"], W, H, st.get("size"), st.get("position", "bottom"))
         out.append(("caption", c["start"], c["end"], o.box))
     return out
+
+
+def _nested(rx):
+    """Whether a pattern repeats something that itself repeats or branches, the shape that backtracks for hours."""
+    from re import _constants as C, _parser as P  # noqa: PLC0415
+
+    def walk(node, under):
+        for op, arg in node:
+            rep = op in (C.MAX_REPEAT, C.MIN_REPEAT) and arg[1] > 1
+            if under and (rep or op is C.BRANCH):
+                return True
+            subs = [y for x in (arg if isinstance(arg, (tuple, list)) else ()) for y in (x if isinstance(x, list) else [x])]
+            if any(isinstance(y, P.SubPattern) and walk(y, under or rep) for y in subs):
+                return True
+        return False
+
+    return walk(P.parse(rx), False)

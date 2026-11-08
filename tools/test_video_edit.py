@@ -308,6 +308,30 @@ class Pauses(Tmp):
             cuts, _ = signals.dead_pauses(act, 0, 7.0)
             self.assertEqual(len(cuts), 1, (level, act["speech"]))
 
+    def test_pause_analysis_holds_a_bounded_part_of_a_long_recording(self):
+        import tracemalloc  # noqa: PLC0415
+        from fractions import Fraction  # noqa: PLC0415
+        from types import SimpleNamespace as NS  # noqa: PLC0415
+        from unittest import mock  # noqa: PLC0415
+
+        sr, rng = signals.SR, np.random.default_rng(1)
+
+        class File:  # stands in for half an hour of sound, decoded a second at a time: 115 MB in all
+            streams = NS(audio=[None])
+            __enter__, __exit__ = lambda self: self, lambda self, *a: False
+
+            def decode(self, s):
+                return (NS(pts=k * sr, time_base=Fraction(1, sr), to_ndarray=lambda: rng.normal(0, 0.01, (1, sr)).astype(np.float32)) for k in range(1800))
+
+        same = NS(resample=lambda f: [] if f is None else [f])
+        with mock.patch.object(media.av, "open", lambda p: File()), mock.patch.object(media.av, "AudioResampler", lambda **k: same):
+            tracemalloc.start()
+            act = signals.analyze("long.wav", 0, 0.0, 1800.0)
+            peak = tracemalloc.get_traced_memory()[1]
+            tracemalloc.stop()
+        self.assertGreater(act["frames"], 179000)
+        self.assertLess(peak, 40 << 20)
+
     def test_a_render_applies_it_by_frames(self):
         clip = self.p("a.mp4")
         make_clip(clip, seconds=8.0, talk=((0, 2), (5, 7)), typing=[])
@@ -738,6 +762,30 @@ class OcrReading(Tmp):
         self.assertEqual(c["status"], "fail", c)
         self.assertTrue(all(x["t"] >= 3.0 for x in c["leaks"]), c["leaks"])
 
+    def test_a_key_readable_just_before_its_redaction_starts_fails_the_gate(self):
+        from PIL import Image  # noqa: PLC0415
+
+        self.frames(4.0, (320, 180), bright_after=3.0)  # the key shows from 3.0 s; the redaction starts at 3.5 s
+
+        def ocr(png, psm=11):  # the redaction's crop reads nothing; the whole frame reads the key while it shows
+            with Image.open(png) as im:
+                return f"API_KEY = {selftest.FAKE_KEY}" if psm == 11 and im.getpixel((0, 0))[0] > 128 else ""
+
+        verify.ocr_text = ocr
+        c = verify.ocr_check("out.mp4", self.plan(blur=[{"start": 3.5, "end": 3.9, "box": list(selftest.KEY_BOX), "style": "solid"}]))
+        self.assertEqual(c["status"], "fail", c)
+        self.assertTrue(any(x["t"] < 3.5 for x in c["leaks"]), c["leaks"])
+
+    def test_a_pattern_that_can_backtrack_for_hours_is_refused_and_long_text_is_matched_in_pieces(self):
+        import time  # noqa: PLC0415
+
+        with self.assertRaises(edl_mod.EdlError) as e:
+            self.plan(secrets=[{"regex": "(a+)+$"}])
+        self.assertIn("repeats a group", str(e.exception))
+        t = time.monotonic()
+        self.assertEqual(verify.find_leaks("a" * 200000, "", [{"regex": "a*b"}], []), [])
+        self.assertLess(time.monotonic() - t, 3.0)
+
     def test_a_tesseract_that_fails_is_not_an_empty_read(self):
         self.frames(4.0, (320, 180))
         real_run = verify.subprocess.run
@@ -769,13 +817,18 @@ class OcrReading(Tmp):
         hours = 3 * 3600.0
         self.frames(hours, (64, 36))
         self.reads()
-        plan = self.plan(secrets=[selftest.FAKE_KEY])
+        plan = self.plan(secrets=[selftest.FAKE_KEY], verify={"require_ocr": True})
         plan["out_seconds"] = hours
         c = verify.ocr_check("out.mp4", plan)
-        self.assertEqual(c["status"], "pass", c)
+        self.assertEqual(c["status"], "fail", c)  # a frame every 12 s can miss a key shown for 5 s: unproven, not a pass
+        self.assertTrue(c.get("unproven"))
+        self.assertIn("one frame every 12 s", c["detail"])
         self.assertLessEqual(c["frames"], 902)
         self.assertLessEqual(self.peak, 3)
         self.assertGreater(max(self.times), hours - 60)
+        plan["verify"], plan["out_seconds"] = {}, 3600.0
+        c = verify.ocr_check("out.mp4", plan)
+        self.assertEqual((c["status"], c.get("unproven")), ("warn", True), c)
 
 
 if __name__ == "__main__":

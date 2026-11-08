@@ -7,6 +7,8 @@ silence level, like silencedetect, fails both ways). A pause is dead air only wh
 clicking; typing in a pause is something happening, and the pause stays unless asked otherwise.
 """
 
+import itertools
+
 import numpy as np
 
 from . import media
@@ -78,11 +80,11 @@ def _runs(mask):
     return list(zip(np.flatnonzero(d == 1), np.flatnonzero(d == -1)))
 
 
-def activity(x48):
-    """Speech and clicks in a stretch of sound.
+def activity(x48, banded=None):
+    """Speech and clicks in a stretch of sound (or in its bands() when `banded` is given).
 
     Returns {'hop': 0.01, 'speech': [(start_s, end_s)], 'clicks': [time_s], 'floor_db', 'speech_db', 'frames'}."""
-    ev, ec = bands(x48)
+    ev, ec = bands(x48) if banded is None else banded
     n = len(ev)
     if n == 0:
         return {"hop": HOP, "speech": [], "clicks": [], "floor_db": None, "speech_db": None, "frames": 0}
@@ -132,11 +134,23 @@ def activity(x48):
 
 
 def analyze(path, track=0, start=0.0, end=None):
-    """activity() of a file's sound from `start` to `end`, with times in the file's own seconds."""
+    """activity() of a file's sound from `start` to `end`, with times in the file's own seconds. The sound streams through
+    bands() ten seconds at a time and only its 10 ms energies are kept, so memory stays fixed however long the file."""
     if end is None:
         end = media.probe(path)["seconds"]
-    x = media.read_audio(path, [(start, end)], track=track, channels=1, rate=SR)[0]
-    act = activity(x)
+    i, n = int(round(start * SR)), int(round((end - start) * SR))
+    buf, have, ev, ec = [], 0, [np.zeros(0)], [np.zeros(0)]
+    for p, x in itertools.chain(media.audio_blocks(path, track, 1, SR, end + 1.0), [(0, None)]):
+        if x is not None:
+            buf.append(x[0, max(0, i - p) : max(0, i + n - p)])
+            have += len(buf[-1])
+        if have >= SR * 10 or (x is None and have):
+            m = np.concatenate(buf)
+            a, b = bands(m)
+            ev.append(a)
+            ec.append(b)
+            buf, have = [m[len(a) * 160 :]], len(m) - len(a) * 160
+    act = activity(None, (np.concatenate(ev), np.concatenate(ec)))
     shift = start - 0.0125  # a frame's time is its middle
     act["speech"] = [(a + shift, b + shift) for a, b in act["speech"]]
     act["clicks"] = [c + shift for c in act["clicks"]]

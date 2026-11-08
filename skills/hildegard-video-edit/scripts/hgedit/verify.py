@@ -270,12 +270,20 @@ def fuzzy_has(text, secret):
     return False
 
 
+TEXT_CAP = 2000  # a pattern meets at most this many characters at a time, so no frame's text can keep it running
+
+
+def _search(rx, text):
+    """re.search over `text` in overlapping pieces of TEXT_CAP characters."""
+    return next((m for a in range(0, max(1, len(text)), TEXT_CAP - 200) if (m := re.search(rx, text[a : a + TEXT_CAP]))), None)
+
+
 def _kind_hits(text, kinds):
     hits = []
     flat = re.sub(r"[ \t]+", "", text)
     for kind in kinds:
         for rx in KINDS[kind]:
-            m = re.search(rx, text) or re.search(rx, flat)
+            m = _search(rx, text) or _search(rx, flat)
             if m:
                 hits.append((kind, mask(m.group(0))))
                 break
@@ -295,7 +303,7 @@ def find_leaks(full_text, crop_text, secrets, kinds, full_kinds=()):
             if fuzzy_has(both, sec["text"]):
                 hits.append(("declared secret", mask(sec["text"])))
         elif "regex" in sec:
-            m = re.search(sec["regex"], both) or re.search(sec["regex"], re.sub(r"\s+", "", both))
+            m = _search(sec["regex"], both) or _search(sec["regex"], re.sub(r"\s+", "", both))
             if m:
                 hits.append(("declared pattern", mask(m.group(0))))
     if full_kinds and full_text.strip():
@@ -366,7 +374,7 @@ def ocr_check(out_path, plan):
     total = plan["out_seconds"]
     near = _merge([(max(0.0, a - 1.0), min(total, z + 1.0)) for b in plan["blur"] for a, z in b["out"]])
     # Declared secrets are looked for through the whole video, blur or not: a key blurred at 10 s can still be readable at
-    # 40 s. The built-in kinds are looked for only in the hidden regions, where nothing at all should be readable.
+    # 40 s. The built-in kinds are looked for in the hidden regions, and on the whole frame from 1 s before each to 1 s after.
     whole = v.get("ocr_scan") == "all" or not plan["blur"] or bool(secrets)
     near_len = sum(b - a for a, b in near)
     budget = OCR_CAP // 2 if (whole and near) else OCR_CAP
@@ -411,7 +419,8 @@ def ocr_check(out_path, plan):
                     os.remove(f)
                 except OSError:
                     pass
-        return t, find_leaks(full, crop_txt, secrets, kinds, full_kinds)
+        fk = full_kinds + [k for k in kinds if k not in full_kinds] if any(a <= t <= b for a, b in near) else full_kinds
+        return t, find_leaks(full, crop_txt, secrets, kinds, fk)
 
     workers = max(1, min(4, os.cpu_count() or 1))
     # Decoding runs beside the reader threads: with PyAV's log callback on (voice_clean leaves it on after a measure), an
@@ -457,9 +466,13 @@ def ocr_check(out_path, plan):
         shown = "; ".join(f"{label} {text} readable at {', '.join(f'{x:.1f}' for x in ts[:3])} s" for (label, text), ts in list(first.items())[:4])
         return check("ocr", "fail", f"OCR of the finished video found what should be hidden. {shown}. Add or widen a blur (style solid for a secret) over it, render and verify again.",
                      frames=count, leaks=[{"t": round(t, 2), "kind": label} for t, label, _ in leaks[:20]])
-    looked = f"none of the {len(secrets)} declared secrets anywhere"
+    if whole and step_all > 2.0:
+        status = "fail" if v.get("require_ocr") else "warn"
+        return check("ocr", status, f"OCR read {span} and found nothing, but it could reach only one frame every {step_all:.0f} s, so a secret shown for "
+                     f"less can fall between them (unproven). Only a video up to {budget * 2 // 60} minutes long is read every 2 s.", frames=count, unproven=True)
+    looked = f"none of the {len(secrets)} declared secrets in what it read"
     if kinds:
-        looked += f", and none of the built-in kinds ({', '.join(kinds)}) in the hidden regions"
+        looked += f", and none of the built-in kinds ({', '.join(kinds)}) in or around the hidden regions"
     return check("ocr", "pass", f"OCR read {span}, and found {looked}.", frames=count)
 
 

@@ -2,6 +2,7 @@
 """Reading media with PyAV: what a file holds, and its sound as float samples."""
 
 import hashlib
+import itertools
 import os
 from fractions import Fraction
 
@@ -62,53 +63,44 @@ def read_audio(path, ranges=None, track=0, channels=2, rate=RATE):
 
     `ranges` is a list of (start_seconds, end_seconds); the result is those stretches joined in the order given, each
     exactly round((end - start) * rate) samples long (padded with silence where the file has less). Without
-    `ranges`, the whole stream. The file is read once, whatever the ranges."""
+    `ranges`, the whole stream. The file is read once, whatever the ranges, and only the asked stretches are kept."""
+    if ranges is None:
+        pieces = [x for _, x in audio_blocks(path, track, channels, rate)]
+        return np.concatenate(pieces, axis=1) if pieces else np.zeros((channels, 0), dtype=np.float32)
+    starts = np.array([int(round(a * rate)) for a, _ in ranges], dtype=np.int64)
+    lens = np.array([int(round((b - a) * rate)) for a, b in ranges], dtype=np.int64)
+    offs = np.concatenate([[0], np.cumsum(lens)]).astype(np.int64)
+    out = np.zeros((channels, int(offs[-1])), dtype=np.float32)
+    for p, x in audio_blocks(path, track, channels, rate, max((b for _, b in ranges), default=0.0) + 1.0):
+        q = p + x.shape[1]
+        for k in np.flatnonzero((starts < q) & (starts + lens > p)):
+            lo, hi = max(starts[k], p), min(starts[k] + lens[k], q)
+            out[:, offs[k] + lo - starts[k] : offs[k] + hi - starts[k]] = x[:, lo - p : hi - p]
+    return out
+
+
+def audio_blocks(path, track=0, channels=2, rate=RATE, end=None):
+    """Yields (first_sample, float32 (channels, n)) for the sound of `path` (audio stream `track`) at `rate` in file time,
+    piece by piece as it decodes, until past `end` seconds: one piece is held at a time, however long the recording."""
     with av.open(path) as c:
         if len(c.streams.audio) <= track:
-            if ranges is None:
-                return np.zeros((channels, 0), dtype=np.float32)
-            n = sum(round((b - a) * rate) for a, b in ranges)
-            return np.zeros((channels, n), dtype=np.float32)
+            return
         s = c.streams.audio[track]
         rs = av.AudioResampler(format="fltp", layout=layout_of(channels), rate=rate)
-        pieces = []  # (start_sample_in_file, array)
         pos = 0
-        want_end = None if ranges is None else max(b for _, b in ranges) + 1.0
         first = None
-
-        def take(frame):
-            nonlocal pos, first
-            if frame.pts is not None and first is None:
+        for frame in itertools.chain(c.decode(s), [None]):
+            if frame is not None and frame.pts is not None and first is None:
                 first = float(frame.pts * frame.time_base)
+                if first > 0.001:  # a late first packet: silence first, so file time stays file time
+                    pos = int(round(first * rate))
+                    yield 0, np.zeros((channels, pos), dtype=np.float32)
             for f in rs.resample(frame):
                 a = f.to_ndarray()
-                pieces.append((pos, a))
+                yield pos, a
                 pos += a.shape[1]
-
-        for frame in c.decode(s):
-            take(frame)
-            if want_end is not None and pos / rate > want_end:
+            if end is not None and pos / rate > end:
                 break
-        for f in rs.resample(None):
-            a = f.to_ndarray()
-            pieces.append((pos, a))
-            pos += a.shape[1]
-    # A stream that starts after zero (a late first packet) is padded so file time stays file time.
-    lead = int(round((first or 0.0) * rate)) if first and first > 0.001 else 0
-    whole = np.concatenate([p[1] for p in pieces], axis=1) if pieces else np.zeros((channels, 0), dtype=np.float32)
-    if lead:
-        whole = np.concatenate([np.zeros((channels, lead), dtype=np.float32), whole], axis=1)
-    whole = whole.astype(np.float32, copy=False)
-    if ranges is None:
-        return whole
-    out = []
-    for a, b in ranges:
-        i, n = int(round(a * rate)), int(round((b - a) * rate))
-        seg = whole[:, i : i + n]
-        if seg.shape[1] < n:
-            seg = np.concatenate([seg, np.zeros((channels, n - seg.shape[1]), dtype=np.float32)], axis=1)
-        out.append(seg)
-    return np.concatenate(out, axis=1) if out else np.zeros((channels, 0), dtype=np.float32)
 
 
 def file_sha256(path):
