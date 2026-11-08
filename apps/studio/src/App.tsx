@@ -1,27 +1,39 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useId, useRef, useState } from 'react';
+import { Suspense, useEffect, useId, useRef, useState } from 'react';
 import markGreen from './assets/mark-green.svg';
 import markVellum from './assets/mark-vellum.svg';
+import { PageGate } from './components/PageGate.tsx';
 import { RecordDialog } from './components/RecordDialog.tsx';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
+import {
+  AcceptInvite,
+  Agents,
+  Characters,
+  Cinema,
+  ConsentPhone,
+  Images,
+  Likeness,
+  LikenessRevoke,
+  Queue,
+  Settings,
+  SignIn,
+  Sites,
+  Talk,
+  TalkScript,
+  Voice,
+  Welcome,
+} from './lib/pages.ts';
 import { allowedIn, isOwner, useStore } from './lib/store.ts';
 import { useTheme } from './lib/theme.ts';
-import { Agents } from './pages/Agents.tsx';
-import { Characters } from './pages/Characters.tsx';
-import { Cinema } from './pages/Cinema.tsx';
-import { Images } from './pages/Images.tsx';
-import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
-import { Queue } from './pages/Queue.tsx';
-import { Settings } from './pages/Settings.tsx';
-import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
-import { Sites } from './pages/Sites.tsx';
-import { Talk } from './pages/Talk.tsx';
-import { TalkScript } from './pages/TalkScript.tsx';
-import { Voice } from './pages/Voice.tsx';
-import { ConsentPhone } from './pages/voice/ConsentPhone.tsx';
-import { Welcome } from './pages/Welcome.tsx';
+
+/** The standalone pages (sign-in, consent links, the welcome) show nothing while their code loads. */
+const Wait = ({ children }: { children: React.ReactNode }) => (
+  <PageGate>
+    <Suspense fallback={null}>{children}</Suspense>
+  </PageGate>
+);
 
 const NAV = [
   { to: '/', match: /^\/($|film)/, label: 'Cinema', icon: 'film' },
@@ -82,17 +94,42 @@ export function App() {
 
   // A consent link, opened on the speaker's own phone: it needs no account and shows nothing else.
   const consent = /^\/consent\/([A-Za-z0-9_-]{20,64})$/.exec(route)?.[1];
-  if (consent) return <ConsentPhone token={consent} />;
+  if (consent)
+    return (
+      <Wait>
+        <ConsentPhone token={consent} />
+      </Wait>
+    );
   // A real person's consent link, opened on their own device: it needs no account and shows nothing else.
   const revokeLikeness = /^\/likeness\/revoke\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
-  if (revokeLikeness) return <LikenessRevoke token={revokeLikeness} />;
+  if (revokeLikeness)
+    return (
+      <Wait>
+        <LikenessRevoke token={revokeLikeness} />
+      </Wait>
+    );
   const likeness = /^\/likeness\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
-  if (likeness) return <Likeness token={likeness} />;
+  if (likeness)
+    return (
+      <Wait>
+        <Likeness token={likeness} />
+      </Wait>
+    );
 
   // An invite link, opened on another device: it signs up whoever opens it, so it comes before anything else.
   const invite = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(route)?.[1];
-  if (invite && auth && !auth.local) return <AcceptInvite token={invite} go={go} />;
-  if (auth && !allowedIn(auth)) return <SignIn />;
+  if (invite && auth && !auth.local)
+    return (
+      <Wait>
+        <AcceptInvite token={invite} go={go} />
+      </Wait>
+    );
+  if (auth && !allowedIn(auth))
+    return (
+      <Wait>
+        <SignIn />
+      </Wait>
+    );
 
   if (!ready || !catalog) {
     return (
@@ -116,7 +153,12 @@ export function App() {
   const nav = isOwner(auth)
     ? NAV
     : NAV.filter((n) => !['/agents', '/voice', '/talk', '/sites'].includes(n.to));
-  if (firstRun) return <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />;
+  if (firstRun)
+    return (
+      <Wait>
+        <Welcome catalog={catalog} onDone={() => setWelcomed(true)} go={go} />
+      </Wait>
+    );
 
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
@@ -182,7 +224,9 @@ export function App() {
             {item(nav.at(-1)!, 'hg-nav-item')}
           </div>
         </nav>
-        {page}
+        <PageGate>
+          <Suspense fallback={<main id="main" aria-busy="true" />}>{page}</Suspense>
+        </PageGate>
         <nav className="hg-tabbar" aria-label="Main">
           {nav.length <= MAX_TABS ? (
             nav.map((n) => item(n, 'hg-tab', 22))

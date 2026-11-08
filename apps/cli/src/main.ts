@@ -1,29 +1,14 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
-import { parseArgs, VERSION } from '@hildegard/server';
-import { agents, review, skills } from './agents.ts';
-import { cloud } from './cloud.ts';
-import {
-  type Ctx,
-  choir,
-  connect,
-  ForegroundStartError,
-  hf,
-  install,
-  models,
-  open,
-  running,
-  serveForeground,
-  setup,
-  start,
-  status,
-  stop,
-} from './commands.ts';
-import { doctor } from './doctor.ts';
-import { host } from './host.ts';
-import { loop } from './loop.ts';
+import '@hildegard/server/compile-cache';
+import { parseArgs } from '@hildegard/server/config';
+import { VERSION } from '@hildegard/server/version';
+import type { Ctx } from './commands.ts';
 import { bold, dim, printResult, type Result } from './output.ts';
-import { tunnel } from './tunnel.ts';
+
+// Every command's code is loaded only when it runs, so `--help`, `--version` and a typo never load the server, the
+// runtime or the agents. (Loading the server alone costs more than the rest of a CLI call.)
+const commands = () => import('./commands.ts');
 
 const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own GPU.
 
@@ -242,59 +227,63 @@ async function main(): Promise<Result | null> {
   }
   switch (command) {
     case 'install':
-      return install(ctx);
+      return (await commands()).install(ctx);
     case 'setup':
-      return setup(ctx);
+      return (await commands()).setup(ctx);
     case 'start':
-      if (flags.has('foreground')) return serveForeground(config);
-      return start(ctx);
+      if (flags.has('foreground')) return (await commands()).serveForeground(config);
+      return (await commands()).start(ctx);
     case 'stop':
-      return stop(ctx);
-    case 'restart':
-      await stop(ctx);
-      return start(ctx);
+      return (await commands()).stop(ctx);
+    case 'restart': {
+      const c = await commands();
+      await c.stop(ctx);
+      return c.start(ctx);
+    }
     case 'status':
-      return status(ctx);
+      return (await commands()).status(ctx);
     case 'update': {
       const u = await import('./update.ts');
       if (rest[0] === 'auto') return u.autoUpdate(ctx, rest[1]);
       return rest[0] ? u.updateDevices(ctx, rest[0]) : u.update(ctx);
     }
     case 'doctor':
-      return doctor(ctx);
+      return (await import('./doctor.ts')).doctor(ctx);
     case 'host':
-      return host(ctx, rest);
+      return (await import('./host.ts')).host(ctx, rest);
     case 'tunnel':
-      return tunnel(ctx, rest);
+      return (await import('./tunnel.ts')).tunnel(ctx, rest);
     case 'llm':
       return (await import('./llm.ts')).llm(ctx, rest);
-    case 'open':
-      if (!(await running(config))) await start(ctx);
-      return open(ctx);
+    case 'open': {
+      const c = await commands();
+      if (!(await c.running(config))) await c.start(ctx);
+      return c.open(ctx);
+    }
     case 'models':
-      return models(ctx, rest);
+      return (await commands()).models(ctx, rest);
     case 'voice':
       return (await import('./voice.ts')).voice(ctx, rest);
     case 'hf':
-      return hf(ctx, rest);
+      return (await commands()).hf(ctx, rest);
     case 'choir':
-      return choir(ctx, rest);
+      return (await commands()).choir(ctx, rest);
     case 'connect':
       if (opts.has('remote')) return (await import('./remote.ts')).connectRemote(ctx, rest);
-      return connect(ctx, rest);
+      return (await commands()).connect(ctx, rest);
     case 'agents':
-      return agents(ctx, rest);
+      return (await import('./agents.ts')).agents(ctx, rest);
     case 'skills':
-      return skills(ctx, rest);
+      return (await import('./agents.ts')).skills(ctx, rest);
     case 'review':
-      return review(ctx, rest);
+      return (await import('./agents.ts')).review(ctx, rest);
     case 'lint':
       await (await import('./lint.ts')).lint(ctx, rest);
       return null;
     case 'loop':
-      return loop(ctx, rest);
+      return (await import('./loop.ts')).loop(ctx, rest);
     case 'cloud':
-      return cloud(ctx, rest);
+      return (await import('./cloud.ts')).cloud(ctx, rest);
     case 'report':
       return (await import('./report.ts')).report(ctx, rest);
     case 'sites':
@@ -303,7 +292,7 @@ async function main(): Promise<Result | null> {
     case 'figma':
       return (await import('./sites.ts')).figma(ctx, rest);
     case 'disconnect':
-      return connect(ctx, rest, true);
+      return (await commands()).connect(ctx, rest, true);
     case 'mcp': {
       if (opts.has('remote')) {
         await (await import('./remote.ts')).runRemoteStdio(ctx, opts.get('remote')!);
@@ -336,5 +325,6 @@ try {
   else console.error(message);
   // A command can pick its own status: `lint` uses 2 for bad usage, so 1 stays for a failing lint.
   process.exitCode = (e as { exitCode?: number }).exitCode ?? 1;
-  if (e instanceof ForegroundStartError) process.exit(1);
+  if (command === 'start' && flags.has('foreground') && e instanceof (await commands()).ForegroundStartError)
+    process.exit(1);
 }

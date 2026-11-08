@@ -269,6 +269,8 @@ test('about: version, the source for this build, and the notices', async ({ page
 
 test('keyboard: Ctrl-K focuses the prompt, F forces, Escape closes', async ({ page, request }) => {
   await freshFilm(page, request);
+  // The shortcut belongs to the composer: press it once the page has drawn, as a person would.
+  await expect(page.locator('#hg-prompt')).toBeVisible();
   await page.locator('body').click();
   await page.keyboard.press('ControlOrMeta+k');
   await expect(page.locator('#hg-prompt')).toBeFocused();

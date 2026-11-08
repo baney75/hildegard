@@ -10,6 +10,7 @@ import {
   decide,
   detectAgent,
   detectAgents,
+  detectAgentsAsync,
   inherited,
   installSkills,
   isPiAgent,
@@ -159,6 +160,32 @@ describe('detecting sign-ins, by asking the agents', () => {
       ['omp', { kind: 'none' }],
       ['pi', { kind: 'none' }],
     ]);
+  });
+
+  it('asks the agents together and reaches the same answers as asking one after another', async () => {
+    const outputs = {
+      'claude auth status --json': { status: 0, out: '{"loggedIn":true,"authMethod":"api_key"}' },
+      'codex login status': { status: 0, out: 'Logged in using ChatGPT\n' },
+      'pi --version': { status: 0, out: '1.4.0\n' },
+    };
+    const started: string[] = [];
+    let open = 0;
+    let most = 0;
+    const together = fakeSys({
+      outputs,
+      runAsync: async (cmd, args) => {
+        started.push(cmd);
+        most = Math.max(most, ++open);
+        await new Promise((r) => setTimeout(r, 10));
+        open--;
+        return outputs[`${cmd} ${args.join(' ')}` as keyof typeof outputs] ?? { status: 1, out: '' };
+      },
+    });
+    expect(await detectAgentsAsync(together)).toEqual(detectAgents(fakeSys({ outputs })));
+    // Claude Code, Codex and the Pi check were all under way at once.
+    expect(most).toBeGreaterThanOrEqual(3);
+    // Without an async runner it still answers, one program at a time.
+    expect(await detectAgentsAsync(fakeSys({ outputs }))).toEqual(detectAgents(fakeSys({ outputs })));
   });
 
   it('counts `pi` as Pi only when it answers --version with a version, not Debian’s digits of π', () => {

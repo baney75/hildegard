@@ -15,6 +15,7 @@ import {
   fitWhy,
   layout,
   listAgents,
+  onPath,
   type Probe,
   run,
   torchMismatch,
@@ -440,5 +441,36 @@ describe('torchMismatch', () => {
     expect(torchMismatch('2.14.1+cpu', 'cpu')).toBe(false);
     expect(torchMismatch('2.14.1', 'cpu')).toBe(false);
     expect(torchMismatch('2.14.1', null)).toBe(false);
+  });
+});
+
+describe('onPath', () => {
+  const folder = (...files: Array<[string, number]>) => {
+    const dir = mkdtempSync(join(tmpdir(), 'hg-onpath-'));
+    for (const [name, mode] of files) writeFileSync(join(dir, name), '#!/bin/sh\n', { mode });
+    return dir;
+  };
+
+  // The POSIX cases need POSIX files (execute bits) and paths (no drive letter to read as a PATH separator).
+  const posixHost = process.platform !== 'win32';
+  it.skipIf(!posixHost)('finds an executable in any PATH folder, without starting a program', () => {
+    const a = folder();
+    const b = folder(['claude', 0o755]);
+    expect(onPath('claude', { PATH: `${a}:${b}` }, 'linux')).toBe(true);
+    expect(onPath('claude', { PATH: a }, 'linux')).toBe(false);
+  });
+
+  it.skipIf(!posixHost)('ignores a file that is not executable, a folder, and an empty PATH', () => {
+    const dir = folder(['codex', 0o644]);
+    mkdirSync(join(dir, 'omp'));
+    expect(onPath('codex', { PATH: dir }, 'linux')).toBe(false);
+    expect(onPath('omp', { PATH: dir }, 'linux')).toBe(false);
+    expect(onPath('codex', {}, 'linux')).toBe(false);
+  });
+
+  it('tries Windows’ extensions', () => {
+    const dir = folder(['claude.cmd', 0o644]);
+    expect(onPath('claude', { PATH: dir, PATHEXT: '.EXE;.CMD' }, 'win32')).toBe(true);
+    expect(onPath('codex', { PATH: dir, PATHEXT: '.EXE;.CMD' }, 'win32')).toBe(false);
   });
 });

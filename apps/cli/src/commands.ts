@@ -36,7 +36,9 @@ import {
   type Step,
   snippet,
 } from '@hildegard/runtime';
-import { type Config, guardProcess, homeId, startServer, VERSION } from '@hildegard/server';
+import { type Config, homeId } from '@hildegard/server/config';
+import { guardProcess } from '@hildegard/server/lifecycle';
+import { VERSION } from '@hildegard/server/version';
 import { installSkillsFor } from './agents.ts';
 import { hostStep } from './host.ts';
 import { printEvent, printStep, type Result, result } from './output.ts';
@@ -161,6 +163,7 @@ export async function serveForeground(c: Config): Promise<never> {
     await srv.close();
     process.exit(0);
   };
+  const { startServer } = await import('@hildegard/server');
   let srv: Awaited<ReturnType<typeof startServer>>;
   try {
     srv = await startServer(

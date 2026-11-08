@@ -1,0 +1,26 @@
+{
+  "bundleBrotliBytes": {
+    "shell": 99000,
+    "Cinema": 136000,
+    "Images": 113000,
+    "Queue": 106000,
+    "Settings": 125000,
+    "Sites": 106000,
+    "Voice": 124000,
+    "Talk": 113000
+  },
+  "shellRawBytes": 435000,
+  "cliMs": {
+    "--help": 400,
+    "status": 800
+  },
+  "server": {
+    "coldStartMs": 2000,
+    "snapshotP95Ms": 25
+  },
+  "studio": {
+    "queueNodesAtLoad": 4000,
+    "queueNodesScrolled": 6000,
+    "imagesNodesAtLoad": 4000
+  }
+}

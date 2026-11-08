@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { ChoirDevice, ChoirState, UpdateState } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
-import { latestVersion, newer, RELEASES, VERSION, verifySigned, withoutBundleEnv } from '@hildegard/server';
+import { latestVersion, newer, RELEASES, verifySigned, withoutBundleEnv } from '@hildegard/server/update';
+import { VERSION } from '@hildegard/server/version';
 import { api, type Ctx, running, stop } from './commands.ts';
 import { type Result, result } from './output.ts';
 

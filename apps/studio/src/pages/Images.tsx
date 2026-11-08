@@ -14,6 +14,7 @@ import {
   toast,
   toastError,
 } from '../components/ui.tsx';
+import { useReveal } from '../components/Windowed.tsx';
 import { ApiError, api, type ImageBody, type UploadResult } from '../lib/api.ts';
 import { DEFAULT_DRAFT, type Draft, getDraft, setDraft } from '../lib/draft.ts';
 import { deviceLabel } from '../lib/format.ts';
@@ -100,6 +101,8 @@ export function Images({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass;
     () => [...allStills.values()].filter(isImage).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [allStills],
   );
+  // A long history draws the first screens and more as the end nears, not every card at once.
+  const reveal = useReveal(images.length);
   const opened = open ? allStills.get(open) : undefined;
   useEffect(() => {
     if (open && !allStills.has(open)) setOpen(null);
@@ -534,18 +537,23 @@ export function Images({ catalog, wc, go }: { catalog: Catalog; wc: WindowClass;
                 Your images
               </h2>
               {images.length ? (
-                <ul className="im-grid">
-                  {images.map((s) => (
-                    <li key={s.id}>
-                      <Card
-                        still={s}
-                        onOpen={() => setOpen(s.id)}
-                        onEdit={() => void edit(s)}
-                        onFrame={() => void startFrame(s)}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="im-grid">
+                    {images.slice(0, reveal.count).map((s) => (
+                      <li key={s.id}>
+                        <Card
+                          still={s}
+                          onOpen={() => setOpen(s.id)}
+                          onEdit={() => void edit(s)}
+                          onFrame={() => void startFrame(s)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                  {reveal.count < images.length ? (
+                    <div ref={reveal.sentinel} aria-hidden="true" style={{ height: 1 }} />
+                  ) : null}
+                </>
               ) : (
                 <div className="hg-empty im-empty">
                   <Icon name="image" size={24} />

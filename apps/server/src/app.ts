@@ -53,7 +53,7 @@ import {
   mcpCommand,
   snippet,
 } from '@hildegard/runtime';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { streamSSE } from 'hono/streaming';
@@ -90,6 +90,7 @@ import { isPrivateLink, linkOn, planLink } from './link-on.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { Loops } from './loop.ts';
 import { loopRoutes } from './loop-routes.ts';
+import { ttlMemo } from './memo.ts';
 import { ModelError, type ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { type OpenScad, usesManifold } from './openscad.ts';
@@ -115,13 +116,14 @@ import type { Store } from './store.ts';
 import { type TalkRouteDeps, talkRoutes } from './talk-routes.ts';
 import { type Cloudflared, tunnelReport } from './tunnel.ts';
 import type { Updates } from './update.ts';
+import { VERSION } from './version.ts';
 import type { VoiceStudio } from './voice.ts';
 import type { VoiceModels } from './voice-models.ts';
 import { consentLinkRoutes, voiceRoutes } from './voice-routes.ts';
 import { WritingStore } from './writing.ts';
 import { writingRoutes } from './writing-routes.ts';
 
-export const VERSION = '0.1.17';
+export { VERSION };
 
 /**
  * Where users of this server can get its source (AGPL-3.0 §13). A modified build should set HILDEGARD_SOURCE_URL to
@@ -129,8 +131,13 @@ export const VERSION = '0.1.17';
  */
 export const SOURCE = {
   url: process.env.HILDEGARD_SOURCE_URL ?? 'https://github.com/baney75/hildegard',
-  commit: process.env.HILDEGARD_COMMIT ?? gitCommit(),
+  // Asked of git the first time it is read, not when the server loads: starting git costs more than loading a module.
+  get commit(): string | null {
+    commit ??= { value: process.env.HILDEGARD_COMMIT ?? gitCommit() };
+    return commit.value;
+  },
 };
+let commit: { value: string | null } | undefined;
 
 function gitCommit(): string | null {
   try {
@@ -2526,6 +2533,28 @@ export function createApp(deps: AppDeps) {
     if (e instanceof HostError) return c.json({ error: e.message, fix: e.fix }, e.status);
     throw e;
   };
+  const cloudflared = deps.cloudflared;
+  // Asking Tailscale means starting it a few times. Callers that arrive while one answer is being worked out share
+  // it; none is kept after, so a change made outside Hildegard shows on the next ask.
+  const tunnelProbe = ttlMemo(0, async () => {
+    await host.tailscale();
+    return tunnelReport({
+      host: host.state(),
+      savedHostname: host.hostname,
+      cloudflared: cloudflared!,
+      run: host.run,
+      forwarding: await host.forwarding(),
+    });
+  });
+  const forgetTunnel: MiddlewareHandler = async (c, next) => {
+    if (c.req.method === 'GET') return next();
+    tunnelProbe.bust();
+    await next();
+    tunnelProbe.bust();
+  };
+  app.use('/api/tunnel/*', forgetTunnel);
+  app.use('/api/host', forgetTunnel);
+  app.use('/api/host/*', forgetTunnel);
   app.get('/api/host', async (c) => {
     const refused = ownerOnly(c);
     if (refused) return refused;
@@ -2583,21 +2612,11 @@ export function createApp(deps: AppDeps) {
   });
 
   // ── Tunnels: where Tailscale and Cloudflare stand here, signing in, and fetching cloudflared on the owner's word ──
-  const cloudflared = deps.cloudflared;
   app.get('/api/tunnel', async (c) => {
     const refused = ownerOnly(c);
     if (refused) return refused;
     if (!cloudflared) return c.json({ error: 'This Hildegard can’t run a tunnel.' }, 404);
-    await host.tailscale();
-    return c.json(
-      await tunnelReport({
-        host: host.state(),
-        savedHostname: host.hostname,
-        cloudflared,
-        run: host.run,
-        forwarding: await host.forwarding(),
-      }),
-    );
+    return c.json(await tunnelProbe());
   });
   const provider = async (c: Context) =>
     z.object({ provider: z.literal('cloudflare') }).safeParse(await c.req.json().catch(() => ({}))).success;

@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { connectAgent, findAgent, listAgents, mcpCommand, type Step } from '@hildegard/runtime';
-import { type SecretStore, secretStores } from '@hildegard/server';
+import { type SecretStore, secretStores } from '@hildegard/server/secrets';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
