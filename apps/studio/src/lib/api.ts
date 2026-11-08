@@ -44,6 +44,14 @@ export interface RecordLinkInfo {
   expiresAt: string;
   state: 'pending' | 'received';
   maxBytes: number;
+  /** What the page may record from, the first to start with. */
+  sources?: ('camera' | 'screen' | 'screen+camera' | 'voice')[];
+  /** Teleprompter text from whoever asked. */
+  script?: string | null;
+  /** An interview's questions so far, follow-ups included. */
+  questions?: string[];
+  answered?: number;
+  maxAnswerBytes?: number;
 }
 
 /** A recording Hildegard keeps for the person: one they made in the Studio or on a phone, or brought in. */
@@ -60,6 +68,8 @@ export interface RecordingInfo {
   from: string | null;
   /** Set once it has been cleaned (clean_voice). */
   clean: { lufs: number } | null;
+  /** Where each part starts, in seconds: an interview's questions, or marks made while recording. */
+  chapters?: { at: number; title: string }[];
 }
 /** A link to record on a phone, or why there isn't one yet. */
 export type PhoneLink =
@@ -548,6 +558,17 @@ export const api = {
       plan: plan.id,
       ...(plan.public ? { acceptPublic: true } : {}),
     }),
+  /** One interview answer's sound, sent on Next. */
+  recordAnswer: (token: string, index: number, at: number, clip: Blob) =>
+    call<{ received: boolean; index: number }>(
+      'POST',
+      `/api/record/${encodeURIComponent(token)}/answers?index=${index}&at=${at.toFixed(2)}`,
+      undefined,
+      clip,
+    ),
+  /** Chapters for a link's recording (by token, before it is sent) or a kept one (by id). */
+  recordChapters: (key: string, chapters: { at: number; title: string }[]) =>
+    call<{ chapters: number }>('POST', `/api/record/${encodeURIComponent(key)}/chapters`, { chapters }),
   /** Sends the recording a link was made for. The link works once. */
   recordSend: (token: string, clip: Blob) =>
     call<{ received: boolean }>('POST', `/api/record/${encodeURIComponent(token)}`, undefined, clip),
