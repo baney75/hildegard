@@ -59,10 +59,13 @@ export function publicCsp(scripts: boolean): string {
  */
 const fold = (name: string) => name.normalize('NFKC').toLowerCase();
 
+/** Whether a path inside the site (already split) is the writer's notes or interview, which only the owner reads. */
+export const isNotes = (parts: string[]) => parts[0] !== undefined && fold(parts[0]) === 'notes';
+
 /** Whether a path inside the site (already split) is one the public never gets. `drafts` are the draft slugs. */
 export function withheld(parts: string[], drafts: readonly string[]): boolean {
   const low = parts.map(fold);
-  if (low[0] === 'notes') return true;
+  if (isNotes(parts)) return true;
   if (low[0] === 'blog' && low[1] && drafts.some((d) => fold(d) === low[1])) return true;
   const last = low.at(-1) ?? '';
   return last === 'site.json' || last.endsWith('.hg-tmp') || low.some((p) => p.startsWith('.'));

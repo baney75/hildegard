@@ -18,6 +18,7 @@ import { FigmaError, type FigmaFetch, importFigma } from './figma.ts';
 import type { SecretStore } from './hf.ts';
 import { PenError, parseJsonc, penDesign, penImages } from './pen.ts';
 import { rebuildBlog, writePost } from './posts.ts';
+import { isNotes } from './public-sites.ts';
 import { renderMarkdown } from './render-markdown.ts';
 import { ImportError, type importUrl } from './site-import.ts';
 import { SiteError, type Sites, sitePath } from './sites.ts';
@@ -586,9 +587,14 @@ export function previewRoutes(sites: Sites) {
       return new Response(CANVAS_SCRIPT, {
         headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' },
       });
+    // Windows drops a trailing dot or space from a name (`notes.` is `notes`) and reads a backslash as a separator, and
+    // a colon names a stream. No real file in a site has such a name, so on every platform they are not found.
+    if (rel.split('/').some((part) => /[. ]$/.test(part) || /[\\:]/.test(part))) return c.body(null, 404);
     if (rel === '' || rel.endsWith('/')) rel += 'index.html';
     let data: Buffer;
     try {
+      // A preview link is shared to show a design, and shows drafts, but the notes and interviews stay with the owner.
+      if (isNotes(sitePath(rel).split('/'))) return c.body(null, 404);
       data = sites.read(id, rel);
     } catch {
       return c.body(null, 404);
