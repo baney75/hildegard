@@ -318,7 +318,7 @@ def encode_video(spec, kbps, fps, max_frames, duration, limit):
         sound, lufs, tp = source_audio(src, seconds, spec.get("lufs", -14.0), spec.get("true_peak", -1.0))
         audio = Audio(dst, aus)
         for i in range(0, sound.shape[1], 4096):
-            audio.send(sound[:, i : i + 4096])
+            audio.push(sound[:, i : i + 4096])
         audio.close()
     os.replace(tmp, out)
     if total == 0:

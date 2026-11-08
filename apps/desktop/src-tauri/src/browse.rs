@@ -725,9 +725,11 @@ mod tests {
 
   #[test]
   fn only_a_file_in_the_ready_folder_is_shown_from_the_server_s_word() {
-    let data = Path::new("/data/hildegard");
-    let ok = "/data/hildegard/Ready to post/heron-abc123/heron-x.mp4";
-    assert_eq!(inside_ready(data, ok), Some(PathBuf::from(ok)));
+    // A path from the root is absolute on Windows only with a drive.
+    let p = |s: &str| if cfg!(windows) { format!("C:{s}") } else { s.to_owned() };
+    let data = PathBuf::from(p("/data/hildegard"));
+    let ok = p("/data/hildegard/Ready to post/heron-abc123/heron-x.mp4");
+    assert_eq!(inside_ready(&data, &ok), Some(PathBuf::from(&ok)));
     for no in [
       "/data/hildegard/Ready to post/../state.json",
       "/data/hildegard/browse/x/Cookies",
@@ -735,8 +737,10 @@ mod tests {
       "Ready to post/a.mp4",
       "/data/hildegard/Ready to post2/a.mp4",
       "",
-    ] {
-      assert_eq!(inside_ready(data, no), None, "{no}");
+    ]
+    .map(p)
+    {
+      assert_eq!(inside_ready(&data, &no), None, "{no}");
     }
   }
 
