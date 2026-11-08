@@ -6,7 +6,7 @@ import { ModelRow } from '../components/sheets.tsx';
 import { Button, Icon, RadioGroup, Segmented, Status, Switch, toast, WithCode } from '../components/ui.tsx';
 import { ApiError, api, type DeviceStart } from '../lib/api.ts';
 import { capsLine, comfyDown } from '../lib/format.ts';
-import type { WindowClass } from '../lib/hooks.ts';
+import { type LayoutMode, useLocal, type WindowClass } from '../lib/hooks.ts';
 import { getState, isOwner, upsert, useStore } from '../lib/store.ts';
 import {
   accentFromInput,
@@ -24,16 +24,102 @@ import { Account, People, Sharing } from './Sharing.tsx';
 import { WritingSettings } from './WritingSettings.tsx';
 
 const ALL = [
-  { id: 'models', label: 'Models', icon: 'models', who: 'owner' },
-  { id: 'huggingface', label: 'Hugging Face', icon: 'link', who: 'owner' },
-  { id: 'computer', label: 'This computer', icon: 'desktop', who: 'all' },
-  { id: 'devices', label: 'Devices', icon: 'server', who: 'owner' },
-  { id: 'sharing', label: 'Sharing', icon: 'phone', who: 'owner' },
-  { id: 'people', label: 'People', icon: 'person', who: 'owner' },
-  { id: 'writing', label: 'Writing', icon: 'feather', who: 'all' },
-  { id: 'account', label: 'Your account', icon: 'key', who: 'signed-in' },
-  { id: 'privacy', label: 'Privacy', icon: 'privacy', who: 'all' },
-  { id: 'about', label: 'About', icon: 'book', who: 'all' },
+  {
+    id: 'models',
+    label: 'Models',
+    icon: 'models',
+    who: 'owner',
+    group: 'Rendering',
+    find: 'model download license video image ltx wan flux qwen gpu memory install',
+  },
+  {
+    id: 'huggingface',
+    label: 'Hugging Face',
+    icon: 'link',
+    who: 'owner',
+    group: 'Rendering',
+    find: 'hugging face token sign in gated license account link',
+  },
+  {
+    id: 'computer',
+    label: 'This computer',
+    icon: 'desktop',
+    who: 'all',
+    group: 'Rendering',
+    find: 'gpu comfyui engine status version address render pause',
+  },
+  {
+    id: 'devices',
+    label: 'Devices',
+    icon: 'server',
+    who: 'owner',
+    group: 'Rendering',
+    find: 'choir device pair join code render elsewhere share gpu tailscale lend',
+  },
+  {
+    id: 'appearance',
+    label: 'Appearance',
+    icon: 'image',
+    who: 'all',
+    group: 'Your Studio',
+    find: 'theme dark light color colour accent preset look layout desktop tablet phone',
+  },
+  {
+    id: 'shortcuts',
+    label: 'Keyboard shortcuts',
+    icon: 'text',
+    who: 'all',
+    group: 'Your Studio',
+    find: 'keyboard shortcut keys hotkey command control',
+  },
+  {
+    id: 'writing',
+    label: 'Writing',
+    icon: 'feather',
+    who: 'all',
+    group: 'Your Studio',
+    find: 'writing voice posts site blog',
+  },
+  {
+    id: 'sharing',
+    label: 'Sharing',
+    icon: 'phone',
+    who: 'owner',
+    group: 'People and sharing',
+    find: 'share link tailscale cloudflare tunnel host phone qr other devices',
+  },
+  {
+    id: 'people',
+    label: 'People',
+    icon: 'person',
+    who: 'owner',
+    group: 'People and sharing',
+    find: 'people invite director passphrase remove queue',
+  },
+  {
+    id: 'account',
+    label: 'Your account',
+    icon: 'key',
+    who: 'signed-in',
+    group: 'People and sharing',
+    find: 'account passphrase password sign out',
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy',
+    icon: 'privacy',
+    who: 'all',
+    group: 'About',
+    find: 'privacy data what leaves telemetry network',
+  },
+  {
+    id: 'about',
+    label: 'About',
+    icon: 'book',
+    who: 'all',
+    group: 'About',
+    find: 'about version update license notices source',
+  },
 ] as const;
 type Section = (typeof ALL)[number]['id'];
 
@@ -54,6 +140,12 @@ export function Settings({
   const current = (SECTIONS.find((s) => s.id === section)?.id ??
     (wc === 'compact' ? null : SECTIONS[0]!.id)) as Section | null;
   const title = SECTIONS.find((s) => s.id === current)?.label;
+  const [query, setQuery] = useState('');
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const found = SECTIONS.filter((s) => {
+    const hay = `${s.label} ${s.group} ${s.find}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
   return (
     <>
       <header className="hg-app__top">
@@ -70,22 +162,54 @@ export function Settings({
         <div className="hg-settings">
           {wc !== 'compact' || !current ? (
             <nav className="st-pane hg-settings__nav" aria-label="Settings sections">
-              <div className="st-vlist">
-                {SECTIONS.map((s) => (
-                  <a
-                    key={s.id}
-                    className="st-v"
-                    href={`#/settings/${s.id}`}
-                    aria-current={s.id === current ? 'page' : undefined}
-                  >
-                    <Icon name={s.icon} size={18} />
-                    <span>
-                      <b>{s.label}</b>
+              <label className="hg-settings__find">
+                <Icon name="search" size={18} />
+                <span className="sr">Find a setting</span>
+                <input
+                  type="search"
+                  placeholder="Find a setting"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && found[0]) {
+                      go(`/settings/${found[0].id}`);
+                      setQuery('');
+                    }
+                  }}
+                />
+              </label>
+              {found.length ? (
+                [...new Set(found.map((s) => s.group))].map((group) => (
+                  <div key={group} className="hg-settings__group" role="group" aria-label={group}>
+                    <span className="ovl" aria-hidden="true">
+                      {group}
                     </span>
-                    {wc === 'compact' ? <Icon name="chevronr" size={16} className="muted" /> : null}
-                  </a>
-                ))}
-              </div>
+                    <div className="st-vlist">
+                      {found
+                        .filter((s) => s.group === group)
+                        .map((s) => (
+                          <a
+                            key={s.id}
+                            className="st-v"
+                            href={`#/settings/${s.id}`}
+                            aria-current={s.id === current ? 'page' : undefined}
+                            onClick={() => setQuery('')}
+                          >
+                            <Icon name={s.icon} size={18} />
+                            <span>
+                              <b>{s.label}</b>
+                            </span>
+                            {wc === 'compact' ? <Icon name="chevronr" size={16} className="muted" /> : null}
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="body-sm muted hg-settings__none" role="status">
+                  No setting matches “{query.trim()}”.
+                </p>
+              )}
             </nav>
           ) : null}
           {current ? (
@@ -96,6 +220,8 @@ export function Settings({
               {current === 'devices' ? <Devices catalog={catalog} /> : null}
               {current === 'sharing' ? <Sharing /> : null}
               {current === 'people' ? <People /> : null}
+              {current === 'appearance' ? <AppearanceSection /> : null}
+              {current === 'shortcuts' ? <Shortcuts /> : null}
               {current === 'writing' ? <WritingSettings /> : null}
               {current === 'account' ? <Account /> : null}
               {current === 'privacy' ? <Privacy /> : null}
@@ -439,13 +565,104 @@ function Computer() {
         <dt>Hildegard</dt>
         <dd className="num">{version}</dd>
       </dl>
-      <Appearance />
       {engine?.fake ? (
         <p className="body-sm hg-note" role="note">
           <Icon name="alert" size={16} /> This is the stand-in GPU for testing. It makes placeholder clips,
           not real video.
         </p>
       ) : null}
+    </section>
+  );
+}
+
+function AppearanceSection() {
+  const [layout, setLayout] = useLocal<LayoutMode>('hildegard.layout', 'auto');
+  return (
+    <section className="hg-section" aria-labelledby="appearance-h">
+      <h2 id="appearance-h" className="st-h2">
+        Appearance
+      </h2>
+      <Appearance />
+      <div className="st-tile hg-hfway">
+        <b id="layout-h">Layout</b>
+        <span className="body-sm muted">
+          Auto fits the window. Pick one to keep this device on a phone, tablet or desktop layout whatever its
+          size.
+        </span>
+        <Segmented
+          label="Layout"
+          value={layout}
+          onChange={setLayout}
+          options={[
+            { value: 'auto', label: 'Auto' },
+            { value: 'desktop', label: 'Desktop' },
+            { value: 'tablet', label: 'Tablet' },
+            { value: 'phone', label: 'Phone' },
+          ]}
+        />
+      </div>
+    </section>
+  );
+}
+
+/** Every keyboard shortcut there is, by where it works. ⌘ on a Mac, Ctrl elsewhere. */
+function Shortcuts() {
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+  const rows: [string, [string, string][]][] = [
+    [
+      'Cinema',
+      [
+        [`${mod}+K`, 'Jump to the prompt, from anywhere in the Studio'],
+        [`${mod}+Enter`, 'Create the shot you’ve described'],
+        ['F', 'Force the open queued take to render now (it asks first)'],
+      ],
+    ],
+    ['Images and voices', [[`${mod}+Enter`, 'Make the image, speak the script, or design the voices']]],
+    [
+      'Voice script',
+      [
+        ['Enter', 'Start a new paragraph'],
+        ['Backspace', 'At the start of a paragraph, join it to the one before'],
+        ['[', 'Open the audio tags'],
+      ],
+    ],
+    [
+      'Talk script',
+      [
+        ['→|Space|Page Down', 'Next line'],
+        ['←|Page Up', 'Line before'],
+      ],
+    ],
+    ['Everywhere', [['Escape', 'Close a sheet, dialog or menu']]],
+  ];
+  return (
+    <section className="hg-section" aria-labelledby="keys-h">
+      <h2 id="keys-h" className="st-h2">
+        Keyboard shortcuts
+      </h2>
+      {rows.map(([where, keys]) => (
+        <div key={where} className="st-tile hg-keys">
+          <b>{where}</b>
+          <dl>
+            {keys.map(([k, what]) => (
+              <div key={k + what}>
+                <dt>
+                  {/* Keys joined by + are pressed together; | separates keys that do the same. */}
+                  {k.split('|').map((alt, i) => (
+                    <span key={alt} className="hg-keys__alt">
+                      {i ? <span className="muted">or</span> : null}
+                      {alt.split('+').map((part) => (
+                        <kbd key={part}>{part}</kbd>
+                      ))}
+                    </span>
+                  ))}
+                </dt>
+                <dd>{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
     </section>
   );
 }
@@ -470,7 +687,7 @@ function Appearance() {
   };
   return (
     <div className="st-tile hg-hfway hg-look">
-      <b id="ap-h">Appearance</b>
+      <b id="ap-h">Colors</b>
       <span className="body-sm muted">
         Hildegard opens dark, which is kindest to your films. Choose light, or follow this device’s own
         setting, then pick a theme and an accent color. The choice is kept in this browser.

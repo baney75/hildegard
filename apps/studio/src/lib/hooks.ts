@@ -52,6 +52,8 @@ export function useHashRoute(): [string, (to: string) => void] {
 }
 
 /** localStorage, but never throws: private windows and blocked storage just forget on reload. */
+const LOCAL_EVENT = 'hildegard:local';
+
 export function useLocal<T>(key: string, initial: T): [T, (v: T | ((p: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
@@ -68,11 +70,21 @@ export function useLocal<T>(key: string, initial: T): [T, (v: T | ((p: T) => T))
         try {
           localStorage.setItem(key, JSON.stringify(next));
         } catch {}
+        // Every other place reading this key sees the change at once (Settings › Appearance sets the layout).
+        queueMicrotask(() => window.dispatchEvent(new CustomEvent(LOCAL_EVENT, { detail: { key, next } })));
         return next;
       });
     },
     [key],
   );
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ key: string; next: T }>).detail;
+      if (d.key === key) setValue(d.next);
+    };
+    window.addEventListener(LOCAL_EVENT, on);
+    return () => window.removeEventListener(LOCAL_EVENT, on);
+  }, [key]);
   return [value, update];
 }
 

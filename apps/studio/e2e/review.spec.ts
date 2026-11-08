@@ -53,7 +53,7 @@ test('light theme: chosen in Settings, kept on reload, and readable everywhere',
   request,
 }) => {
   const errors = watchErrors(page);
-  await page.goto('/#/settings/computer');
+  await page.goto('/#/settings/appearance');
   const appearance = page.getByRole('radiogroup', { name: 'Appearance' });
   await expect(appearance.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
   await appearance.getByRole('radio', { name: 'Light' }).click();
@@ -86,7 +86,7 @@ test('light theme: chosen in Settings, kept on reload, and readable everywhere',
   await expectAccessible(page, 'light link an app');
   await page.keyboard.press('Escape');
 
-  await page.goto('/#/settings/computer');
+  await page.goto('/#/settings/appearance');
   await page.getByRole('radiogroup', { name: 'Appearance' }).getByRole('radio', { name: 'Dark' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.hg-app__brand img')).toHaveAttribute('src', /mark-vellum/);
@@ -217,7 +217,7 @@ test('a finished take’s button reads its name and length, without the badge te
 
 test('appearance can follow this device', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('/#/settings/computer');
+  await page.goto('/#/settings/appearance');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page
     .getByRole('radiogroup', { name: 'Appearance' })
