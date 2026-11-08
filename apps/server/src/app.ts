@@ -363,9 +363,13 @@ export function createApp(deps: AppDeps) {
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
     c.header('cross-origin-resource-policy', preview || published ? 'cross-origin' : 'same-origin');
-    // Record uses the camera and microphone. Only this page may ask: a frame from another origin (a site preview, a
-    // page a loop shows) can't, whatever the app's window allows.
-    c.header('permissions-policy', 'camera=(self), microphone=(self)');
+    // Record uses the camera and microphone. Only the Studio's own pages may ask: a frame from another origin can't,
+    // whatever the app's window allows, and neither can a site preview or a published site, written by an AI or a
+    // person and served from this same origin.
+    c.header(
+      'permissions-policy',
+      preview || published ? 'camera=(), microphone=()' : 'camera=(self), microphone=(self)',
+    );
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────

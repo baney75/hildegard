@@ -226,6 +226,11 @@ describe('record_link: where', () => {
       const res = await fetch(srv.url + path);
       expect(res.headers.get('permissions-policy'), path).toBe('camera=(self), microphone=(self)');
     }
+    // A site preview and a published site are pages someone wrote, on this same origin: they never may.
+    for (const path of ['/preview/anything/index.html', '/s/anything/']) {
+      const res = await fetch(srv.url + path);
+      expect(res.headers.get('permissions-policy'), path).toBe('camera=(), microphone=()');
+    }
   });
 
   it('refuses a link that opens on this computer to anyone who is not on it', async () => {
