@@ -45,6 +45,10 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              as unused once no installed model needs them; --with-unused deletes those too
   hildegard voice install    Set up speech, cloning and voice design for this GPU (--env speech,chatterbox,qwen;
                              hildegard voice: what's set up)
+  hildegard demo browser --url <address> [--extension <folder>] [--steps <file.json>] [--size 1280x800]
+                             [--backdrop viridian|dusk|vellum|ember|ink|paper|none|#rrggbb] [--aspect 16:9|1:1|9:16]
+                             [--zoom]: record a site or an extension as a tech demo, in Playwright's Chromium with a
+                             throwaway profile; without --steps you drive the window and press Ctrl+C to keep it
   hildegard setup --model <id> --accept-license <id> [--hf-token-stdin] --yes --json
                              Without questions, for agents: the license only when the owner said yes
   hildegard connect [<app>…] Let an AI app use Hildegard: ${dim('claude-code, claude-desktop, codex, omp, pi,')}
@@ -275,6 +279,8 @@ async function main(): Promise<Result | null> {
       return models(ctx, rest);
     case 'voice':
       return (await import('./voice.ts')).voice(ctx, rest);
+    case 'demo':
+      return (await import('./demo.ts')).demo(ctx, rest);
     case 'hf':
       return hf(ctx, rest);
     case 'choir':

@@ -50,6 +50,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'clone_voice',
       'convert_voice',
       'create_character',
+      'demo_browser',
       'design_voice',
       'direct_shot',
       'dub',

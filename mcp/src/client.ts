@@ -282,6 +282,15 @@ export interface Recording {
   interview?: { questions: number; answered: number } | null;
 }
 export type RecordSource = 'camera' | 'screen' | 'screen+camera' | 'voice';
+/** A browser demo, for the agent that asked for it. */
+export interface DemoView {
+  id: string;
+  status: 'starting' | 'recording' | 'rendering' | 'done' | 'failed' | 'stopped';
+  stage: string | null;
+  log: string[];
+  error: string | null;
+  recording: { id: string; url: string | null; file: string | null; seconds: number | null } | null;
+}
 /** Where an interview stands, for the agent that asked for it. */
 export interface InterviewView {
   id: string;
@@ -396,6 +405,9 @@ export class HildegardClient {
     this.call<Recording>('POST', `/api/record/imports?kind=${kind}`, undefined, bytes);
   cleanRecording = (id: string, body: { target_lufs?: number; peak?: number }) =>
     this.call<CleanJobView>('POST', `/api/record/${encodeURIComponent(id)}/clean`, body);
+  // ── Browser demos ──
+  startDemo = (body: Record<string, unknown>) => this.call<DemoView>('POST', '/api/demos', body);
+  demo = (id: string) => this.call<DemoView>('GET', `/api/demos/${encodeURIComponent(id)}`);
   interviewAsk = (id: string, question: string) =>
     this.call<{ id: string; index: number; questions: string[] }>(
       'POST',
