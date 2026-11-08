@@ -1,0 +1,46 @@
+{
+  "name": "whoosh",
+  "note": "A pass-by: air rising then falling away. Vary: filter.cutoff points (the middle value 2500 to 6000 Hz; higher is faster and smaller), dur on both layers and the env points (0.6 to 2.0 s), layers' pan for left to right.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "pink",
+      "stereo": true,
+      "dur": 1.2,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": [[0, 350], [0.5, 3200], [1.2, 500]],
+        "q": 2.2,
+        "poles": 4
+      },
+      "env": {
+        "points": [[0, 0], [0.5, 1], [1.2, 0]]
+      }
+    },
+    {
+      "source": "white",
+      "stereo": true,
+      "dur": 1.0,
+      "start": 0.1,
+      "filter": {
+        "type": "highpass",
+        "cutoff": [[0, 2500], [0.4, 6500], [1.0, 3000]],
+        "q": 0.8
+      },
+      "env": {
+        "points": [[0, 0], [0.4, 1], [1.0, 0]]
+      },
+      "gain_db": -12
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.1,
+      "room": 0.4
+    },
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}

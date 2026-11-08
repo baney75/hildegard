@@ -835,6 +835,7 @@ describe('the skills Hildegard ships', () => {
         'hildegard-app',
         'hildegard-council',
         'hildegard-sound',
+        'hildegard-music',
         'hildegard-setup',
       ]),
     );

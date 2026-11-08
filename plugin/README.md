@@ -27,6 +27,10 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
 - **hildegard-motion**: animated video drawn in code from a checked spec: title cards, promos, quotes, data reveals, photo
   slideshows and kinetic type, from six finished templates, with no GPU.
 - **hildegard-loop**: generate, render, critique, refine, by hand or as a coding-agent run your user starts.
+- **hildegard-music**: music, jingles, background beds, sound effects, and hour-long seamless soundscapes (binaural beats,
+  isochronic tones, ocean, rain, wind, creek, crickets, fire) from recipes any model can fill in, rendered by tested
+  scripts, checked for key, length, loudness and clipping, and drawn as a spectrogram sheet a model can look at.
+  Synthesized, not a recorded band.
 - **hildegard-film**, **hildegard-art**, **hildegard-sound**, **hildegard-photo-edit**, **hildegard-video-edit**,
   **hildegard-craft**, **hildegard-cloud** and **hildegard-setup**.
 

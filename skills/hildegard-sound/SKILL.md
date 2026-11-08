@@ -202,6 +202,9 @@ measuring scripts work on any file.
 If you have **hildegard-craft**, read it first for anything Hildegard makes; `references/slop.md` here is its slop
 catalogue, with a Sound section. Generic "epic" music and robotic narration are the sound of slop.
 
+For instrumental music, a jingle, a bed or a sound effect you can make without a model, use **hildegard-music**: presets
+and templates rendered by tested scripts, with its checks. The rest of this section is for briefing a music model or Suno.
+
 A music brief, not a mood word:
 
 - **Form and length:** "45 s: 8 bars intro, verse, lift at 0:28 on the door opening, ring out".
