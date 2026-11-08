@@ -1,0 +1,336 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// hildegard-photo-edit's scripts (straighten, color, denoise_sharpen, crop, measure, fix) do what the skill says on a synthetic scene
+// with a known tilt, a known colour cast and a marked subject: they measure, they never invent pixels, they refuse when unsure.
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+const python = process.env.HILDEGARD_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+const root = resolve(import.meta.dirname, '../../..');
+const scripts = join(root, 'skills/hildegard-photo-edit/scripts');
+const fixture = join(import.meta.dirname, 'photo_fixture.py');
+const hasPython = spawnSync(python, ['-c', 'import PIL, numpy']).status === 0;
+let dir: string;
+
+const py = (script: string, ...args: string[]) =>
+  spawnSync(python, ['-I', script, ...args], { encoding: 'utf8' });
+const tool = (name: string, ...args: string[]) => py(join(scripts, `${name}.py`), ...args);
+const make = (...args: string[]) => {
+  const r = py(fixture, ...args);
+  expect(r.status, r.stderr).toBe(0);
+  return r.stdout;
+};
+const stats = (path: string, ref?: string) =>
+  JSON.parse(make('stats', path, ...(ref ? [ref] : []))) as {
+    chroma_error?: number;
+    luma_error?: number;
+    black_border: number;
+  };
+const f = (name: string) => join(dir, name);
+const json = (r: { stdout: string; stderr: string; status: number | null }) => {
+  expect(r.status, r.stderr).toBe(0);
+  return JSON.parse(r.stdout);
+};
+
+describe.skipIf(!hasPython)('hildegard-photo-edit scripts', () => {
+  vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 }); // each case runs Python on a 1200 x 800 picture
+  let subject: number[];
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'photo-tools-'));
+    make('scene', f('scene.png'));
+    subject = JSON.parse(make('scene', f('scene.png'))).subject;
+    make('tilt', f('scene.png'), f('clean.png'), '0'); // the clean 1200 x 800 window every degradation starts from
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  describe('straighten.py', () => {
+    it.each([3.0, -2.2, 1.4, -4.5])(
+      'finds a known rotation of %s degrees within 0.3 and leaves no wedges',
+      (deg) => {
+        make('tilt', f('scene.png'), f('t.png'), String(deg));
+        const r = json(tool('straighten', f('t.png'), f('s.png'), '--json'));
+        expect(Math.abs(r.angle - deg)).toBeLessThanOrEqual(0.3);
+        expect(stats(f('s.png')).black_border).toBe(0);
+        // turned the right way: measuring the result again reads level
+        const again = tool('straighten', f('s.png'), f('s2.png'), '--json');
+        expect(Math.abs(JSON.parse(again.stdout || '{"tilt":0}').tilt ?? 0)).toBeLessThanOrEqual(0.3);
+        const m = JSON.parse(tool('measure', f('s.png'), '--json').stdout);
+        expect(Math.abs(m.tilt)).toBeLessThanOrEqual(0.5);
+      },
+    );
+
+    it('prints the angle and the direction in words', () => {
+      make('tilt', f('scene.png'), f('t.png'), '3');
+      const r = tool('straighten', f('t.png'), f('s.png'));
+      expect(r.stdout).toMatch(/tilt found: \+3\.0\d degrees, picture turned counter-clockwise/);
+      expect(r.stdout).toMatch(/no empty corners/);
+    });
+
+    it('refuses a picture with no straight lines, writes nothing, and obeys --angle', () => {
+      make('flat', f('flat.png'));
+      const r = tool('straighten', f('flat.png'), f('flat-out.png'));
+      expect(r.status).toBe(2);
+      expect(r.stderr).toMatch(/not straightened/);
+      expect(existsSync(f('flat-out.png'))).toBe(false);
+      const given = tool('straighten', f('flat.png'), f('flat-out.png'), '--angle', '2');
+      expect(given.status, given.stderr).toBe(0);
+      expect(stats(f('flat-out.png')).black_border).toBe(0);
+    });
+
+    it('leaves a tilt under 0.6 degrees alone', () => {
+      make('tilt', f('scene.png'), f('t.png'), '0.4');
+      const r = json(tool('straighten', f('t.png'), f('s.png'), '--json'));
+      expect(r.size).toEqual([1200, 800]);
+    });
+  });
+
+  describe('color.py', () => {
+    it.each([
+      [0.82, 1.0, 1.2],
+      [1.15, 1.0, 0.8],
+    ])('fixes a known cast %s %s %s to within the scorer limit of 0.05', (r, g, b) => {
+      make('cast', f('clean.png'), f('cast.png'), String(r), String(g), String(b));
+      const before = stats(f('cast.png'), f('clean.png')).chroma_error ?? 1;
+      expect(before).toBeGreaterThan(0.15);
+      json(tool('color', f('cast.png'), f('fixed.png'), '--exposure', 'none', '--json'));
+      expect(stats(f('fixed.png'), f('clean.png')).chroma_error ?? 1).toBeLessThanOrEqual(0.05);
+    });
+
+    it('brings a dark picture and a bright one back to within 0.06 of the clean brightness', () => {
+      for (const stops of [-1.0, 0.8]) {
+        make('stops', f('clean.png'), f('exp.png'), String(stops));
+        json(tool('color', f('exp.png'), f('fixed.png'), '--wb', 'none', '--json'));
+        expect(Math.abs(stats(f('fixed.png'), f('clean.png')).luma_error ?? 1)).toBeLessThanOrEqual(0.06);
+      }
+    });
+
+    it('does nothing to a picture that is already right, and prints before and after', () => {
+      const r = tool('color', f('clean.png'), f('same.png'));
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/mean_luma\s+[\d.]+ -> [\d.]+/);
+      expect(stats(f('same.png'), f('clean.png')).chroma_error ?? 1).toBeLessThanOrEqual(0.03);
+    });
+
+    it('never paints: a flat grey stays grey, with no gradient or cast added', () => {
+      make('flat', f('flat.png'));
+      json(tool('color', f('flat.png'), f('flat-out.png'), '--json'));
+      const m = JSON.parse(tool('measure', f('flat-out.png'), '--json').stdout);
+      expect(m.gray_world_error).toBeLessThan(0.1); // grain this heavy moves the colour a little, never into a cast
+    });
+  });
+
+  describe('denoise_sharpen.py', () => {
+    it('never lets sharpening raise noise past the ceiling, and lowers the noise of a noisy picture', () => {
+      make('noise', f('clean.png'), f('noisy.png'), '8');
+      for (const args of [[], ['--sharpen', '1.5'], ['--sharpen', '1.5', '--max-noise-increase', '0']]) {
+        const r = json(tool('denoise_sharpen', f('noisy.png'), f('out.png'), '--json', ...args));
+        expect(r.ceiling_held).toBe(true);
+        expect(r.noise_out).toBeLessThanOrEqual(r.ceiling + 0.01);
+        expect(r.noise_out).toBeLessThan(r.noise_in);
+      }
+    });
+
+    it('skips a clean picture and says so', () => {
+      const r = json(tool('denoise_sharpen', f('clean.png'), f('out.png'), '--json'));
+      expect(r.denoise).toMatch(/skipped/);
+      expect(r.noise_out).toBeLessThanOrEqual(r.ceiling + 0.01);
+    });
+  });
+
+  describe('crop.py', () => {
+    it.each([
+      ['4:5', 4 / 5],
+      ['1:1', 1],
+      ['16:9', 16 / 9],
+      ['9:16', 9 / 16],
+    ])('crops to %s and keeps the marked subject whole', (aspect, ratio) => {
+      const box = subject.join(',');
+      const r = json(
+        tool('crop', f('clean.png'), f('crop.png'), '--aspect', aspect, '--subject', box, '--json'),
+      );
+      const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = r.box as number[];
+      expect((x1 - x0) / (y1 - y0)).toBeCloseTo(ratio, 1);
+      const [fx0 = 0, fy0 = 0, fx1 = 0, fy1 = 0] = subject;
+      const [sx0, sy0, sx1, sy1] = [fx0 * 1200, fy0 * 800, fx1 * 1200, fy1 * 800];
+      expect(x0).toBeLessThanOrEqual(sx0);
+      expect(y0).toBeLessThanOrEqual(sy0);
+      expect(x1).toBeGreaterThanOrEqual(sx1);
+      expect(y1).toBeGreaterThanOrEqual(sy1);
+    });
+
+    it('guesses the subject from saliency when none is given, and says so', () => {
+      const r = tool('crop', f('clean.png'), f('crop.png'), '--aspect', '1:1');
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/GUESSED/);
+    });
+
+    it('resizes to an exact size', () => {
+      json(
+        tool(
+          'crop',
+          f('clean.png'),
+          f('crop.png'),
+          '--size',
+          '1080x1350',
+          '--subject',
+          subject.join(','),
+          '--json',
+        ),
+      );
+      expect(JSON.parse(tool('measure', f('crop.png'), '--json').stdout)).toMatchObject({
+        width: 1080,
+        height: 1350,
+      });
+    });
+
+    it('refuses a shape that would cut the subject, and writes nothing', () => {
+      const r = tool(
+        'crop',
+        f('clean.png'),
+        f('nope.png'),
+        '--aspect',
+        '9:16',
+        '--subject',
+        '0.05,0.1,0.95,0.9',
+      );
+      expect(r.status).toBe(2);
+      expect(r.stderr).toMatch(/not cropped/);
+      expect(existsSync(f('nope.png'))).toBe(false);
+    });
+  });
+
+  describe('fix.py', () => {
+    it('straightens, crops, corrects and prints a short report, at the exact size under the byte cap', () => {
+      make('tilt', f('scene.png'), f('t.png'), '-3');
+      make('cast', f('t.png'), f('bad.png'), '0.85', '1', '1.15');
+      make('noise', f('bad.png'), f('bad.jpg'), '5');
+      const out = f('fixed.jpg');
+      const r = tool(
+        'fix',
+        f('bad.jpg'),
+        out,
+        '--size',
+        '1000x800',
+        '--subject',
+        subject.join(','),
+        '--family',
+        'h',
+        '--max-bytes',
+        '400000',
+      );
+      expect(r.status, r.stderr).toBe(0);
+      const lines = r.stdout.split('\n');
+      for (const head of [
+        'straighten:',
+        'crop:',
+        'color:',
+        'denoise_sharpen:',
+        'before -> after:',
+        'wrote ',
+      ]) {
+        expect(
+          lines.some((l) => l.startsWith(head)),
+          `${head}\n${r.stdout}`,
+        ).toBe(true);
+      }
+      expect(r.stdout).toMatch(/tilt -3\.\d\d degrees/);
+      expect(readFileSync(out).length).toBeLessThanOrEqual(400000);
+      const m = JSON.parse(tool('measure', out, '--json').stdout);
+      expect([m.width, m.height]).toEqual([1000, 800]);
+      expect(Math.abs(m.tilt)).toBeLessThanOrEqual(0.5);
+      expect(m.gray_world_error).toBeLessThan(0.1);
+      expect(stats(out).black_border).toBe(0);
+    });
+
+    it('says when it could not trust the tilt, and still finishes the other steps', () => {
+      make('flat', f('flat.png'));
+      const r = tool('fix', f('flat.png'), f('flat-fixed.jpg'), '--size', '800x800');
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/straighten: skipped/);
+      expect(r.stdout).toMatch(/WARNING: NOT STRAIGHTENED/);
+      expect(r.stdout).toMatch(/WARNING: subject GUESSED/);
+    });
+
+    it('refuses (exit 2) when the shape cannot keep the subject', () => {
+      const r = tool(
+        'fix',
+        f('clean.png'),
+        f('nope2.jpg'),
+        '--aspect',
+        '9:16',
+        '--subject',
+        '0.05,0.1,0.95,0.9',
+      );
+      expect(r.status).toBe(2);
+      expect(existsSync(f('nope2.jpg'))).toBe(false);
+    });
+  });
+
+  describe('measure.py', () => {
+    it('reports tilt, light, clipping, noise, size and SSIM against a reference', () => {
+      const m = JSON.parse(tool('measure', f('clean.png'), f('clean.png'), '--json').stdout);
+      expect(m).toMatchObject({ width: 1200, height: 800, aspect: '3:2', ssim: 1 });
+      for (const k of [
+        'tilt',
+        'gray_world_error',
+        'mean_luma',
+        'clipped_highlights',
+        'clipped_shadows',
+        'noise',
+      ])
+        expect(m).toHaveProperty(k);
+    });
+  });
+
+  describe('missing packages', () => {
+    const BLOCKED = `
+import sys, runpy, importlib.abc
+block = set(sys.argv[1].split(","))
+class Block(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path, target=None):
+        if name.split(".")[0] in block:
+            raise ModuleNotFoundError("No module named " + repr(name), name=name)
+sys.meta_path.insert(0, Block())
+script = sys.argv[2]
+sys.argv = [script] + sys.argv[3:]
+runpy.run_path(script, run_name="__main__")
+`;
+    it.each(['straighten', 'color', 'denoise_sharpen', 'crop', 'measure', 'fix'])(
+      '%s.py names the install line, not a traceback',
+      (name) => {
+        for (const hidden of ['PIL', 'numpy']) {
+          const r = spawnSync(
+            python,
+            ['-I', '-c', BLOCKED, hidden, join(scripts, `${name}.py`), f('clean.png'), f('x.png')],
+            { encoding: 'utf8' },
+          );
+          expect(r.status).not.toBe(0);
+          expect(r.stderr).not.toMatch(/Traceback/);
+          expect(r.stderr).toContain('python3 -m pip install pillow numpy');
+        }
+      },
+    );
+  });
+
+  describe('SKILL.md', () => {
+    // Windows checks files out with CRLF (git's autocrlf), and `^`, `$` and the \n in these patterns mean LF. Read the
+    // file as LF: the checks below still look at the same words in the same places.
+    const md = readFileSync(join(scripts, '../SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+    it('starts with the fast path', () => {
+      const body = md.split(/^---$/m)[2] ?? '';
+      expect(body.trimStart().split('\n').slice(0, 3).join('\n')).toMatch(
+        /^# Editing photos\n\n## FAST PATH/,
+      );
+    });
+    it('gives the install line in every code block that runs one of the scripts', () => {
+      const blocks = [...md.matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1] ?? '');
+      const running = blocks.filter((b) =>
+        /scripts\/(straighten|color|denoise_sharpen|crop|measure|fix)\.py/.test(b),
+      );
+      expect(running.length).toBeGreaterThan(2);
+      for (const b of running) expect(b).toContain('python3 -m pip install pillow numpy');
+    });
+  });
+});

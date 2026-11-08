@@ -33,6 +33,11 @@ export const NEEDS_PACKAGES = [
   'figure_rig.py',
   'print_kit.py',
   'mesh_kit.py',
+  'straighten.py',
+  'color.py',
+  'denoise_sharpen.py',
+  'crop.py',
+  'fix.py',
 ];
 const SPECIAL = /^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i;
 
