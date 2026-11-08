@@ -4,8 +4,8 @@ import { api } from './api.ts';
 import { upsert } from './store.ts';
 
 /**
- * One more take of a take's shot with the same settings: a new seed unless one is given, and its quality unless
- * another is asked for (a draft's seed at final quality finalizes it). Resolves to the new take's id.
+ * One more take of a take's shot with the same settings: a new seed unless one is given, and draft quality unless
+ * final is asked for (a draft's seed at final quality finalizes it). Resolves to the new take's id.
  */
 export async function takeAgain(t: Take, over: { seed?: number; quality?: 'draft' | 'final' } = {}) {
   const r = await api.createShot({
@@ -14,7 +14,8 @@ export async function takeAgain(t: Take, over: { seed?: number; quality?: 'draft
       ...t.request,
       takes: 1,
       seed: over.seed,
-      format: { ...t.request.format, quality: over.quality ?? t.request.format.quality },
+      // Another take is a draft unless asked for final: after a Finalize, the shot's last take is a final one.
+      format: { ...t.request.format, quality: over.quality ?? 'draft' },
     },
   });
   upsert([{ type: 'shot', shot: r.shot }, ...r.takes.map((take) => ({ type: 'take' as const, take }))]);
