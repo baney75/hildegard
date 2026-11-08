@@ -6,7 +6,7 @@ const PRESETS = ['Hildegard', 'Vellum', 'Nocturne', 'Verdant', 'Silver'];
 
 test('a theme preset and an accent are picked in Settings and kept on reload', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/#/settings/computer');
+  await page.goto('/#/settings/appearance');
   const html = page.locator('html');
   const theme = (name: string) => page.getByRole('button', { name: new RegExp(`^${name}`) });
   await expect(theme('Hildegard')).toHaveAttribute('aria-pressed', 'true');
@@ -110,7 +110,7 @@ test('the look is on the page before the Studio’s own script runs, so nothing 
 
 test('every preset is readable in dark and light', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/#/settings/computer');
+  await page.goto('/#/settings/appearance');
   const mode = page.getByRole('radiogroup', { name: 'Appearance' });
   for (const m of ['Dark', 'Light']) {
     await mode.getByRole('radio', { name: m }).click();
@@ -119,5 +119,38 @@ test('every preset is readable in dark and light', async ({ page }) => {
       await expectAccessible(page, `${name} ${m} settings`);
     }
   }
+  expect(errors).toEqual([]);
+});
+
+test('settings: find one by what it does, switch the layout, and read every shortcut', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/#/settings');
+  const find = page.getByRole('searchbox', { name: 'Find a setting' });
+  const nav = page.getByRole('navigation', { name: 'Settings sections' });
+  await find.fill('token');
+  await expect(nav.getByRole('link')).toHaveText(['Hugging Face']);
+  await find.press('Enter');
+  await expect(page).toHaveURL(/#\/settings\/huggingface$/);
+  await expect(find).toHaveValue('');
+  await find.fill('theme');
+  await expect(nav.getByRole('link')).toHaveText(['Appearance']);
+  await find.fill('qwertyuiop');
+  await expect(nav.getByRole('status')).toHaveText('No setting matches “qwertyuiop”.');
+  await find.fill('');
+  // The layout switch takes effect at once and is kept for this device.
+  await page.goto('/#/settings/appearance');
+  const layout = page.getByRole('radiogroup', { name: 'Layout' });
+  await expect(layout.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true');
+  await layout.getByRole('radio', { name: 'Phone' }).click();
+  await expect(page.locator('.hg-app')).toHaveAttribute('data-wc', 'compact');
+  await page.reload();
+  await expect(page.locator('.hg-app')).toHaveAttribute('data-wc', 'compact');
+  await page.getByRole('radiogroup', { name: 'Layout' }).getByRole('radio', { name: 'Auto' }).click();
+  await expect(page.locator('.hg-app')).toHaveAttribute('data-wc', 'wide');
+  await expectAccessible(page, 'appearance');
+  await page.goto('/#/settings/shortcuts');
+  await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
+  await expect(page.getByText('Jump to the prompt, from anywhere in the Studio')).toBeVisible();
+  await expectAccessible(page, 'shortcuts');
   expect(errors).toEqual([]);
 });
