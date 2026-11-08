@@ -132,6 +132,20 @@ describe('voice_clean.py', () => {
     }
   }, 120_000);
 
+  it('keeps a video’s sound where it was when it starts after the picture (mp4 and webm)', () => {
+    const frame = 1 / 24;
+    for (const ext of ['mp4', 'webm']) {
+      make('delayed', f(`late.${ext}`), '6', '0.7');
+      const before = check<{ audio: number; video: number }>('starts', f(`late.${ext}`));
+      expect(before.audio - before.video, ext).toBeGreaterThan(0.6);
+      expect(clean(f(`late.${ext}`), f(`late-clean.${ext}`)), ext).toMatchObject({ ok: true });
+      const after = check<{ audio: number; video: number }>('starts', f(`late-clean.${ext}`));
+      // The sound still comes in 0.7 s after the picture, to within a frame.
+      expect(Math.abs(after.audio - after.video - 0.7), ext).toBeLessThanOrEqual(frame);
+      expect(Math.abs(after.audio - before.audio), ext).toBeLessThanOrEqual(frame);
+    }
+  }, 120_000);
+
   it('works on the speech clip in the repo’s fixtures', () => {
     copyFileSync(
       fileURLToPath(new URL('./fixtures/talk/lighthouse.wav', import.meta.url)),
@@ -190,6 +204,30 @@ describe('export_film.py with a voice-over', () => {
       check<{ db: number }>('band', f('plain.mp4'), '6000', t0, t1).db;
     expect(Math.abs(steady('0.1', '0.8') - steady('2', '6'))).toBeLessThan(1);
   }, 120_000);
+
+  it('writes the film’s picture and its mixed sound in time order past the muxer’s 10 s hold', () => {
+    // Four 5 s takes, 20 s in all, under a 6 s voice.
+    make('speech', f('lvo-raw.wav'), '6', '4');
+    expect(clean(f('lvo-raw.wav'), f('lvo.wav'))).toMatchObject({ ok: true });
+    for (const n of ['l1', 'l2', 'l3', 'l4']) make('film', f(`${n}.mp4`), '5', '0.2', '6000');
+    const spec = f('long-mix.json');
+    writeFileSync(
+      spec,
+      JSON.stringify({
+        out: f('long-mix.mp4'),
+        inputs: ['l1', 'l2', 'l3', 'l4'].map((n) => f(`${n}.mp4`)),
+        voiceover: { path: f('lvo.wav'), start_seconds: 2 },
+      }),
+    );
+    expect(runTool(exportScript, spec)).toMatchObject({ ok: true, seconds: 20 });
+    const i = info(f('long-mix.mp4'));
+    expect(i.types.sort()).toEqual(['audio', 'video']);
+    expect(Math.abs((i.seconds ?? 0) - 20)).toBeLessThan(0.1);
+    expect(Math.abs(i.audio_seconds - 20)).toBeLessThan(0.1);
+    // In file order the two never sit more than half a second apart; all the picture first would be ~10 s or more.
+    expect(check<{ max_gap: number }>('gaps', f('long-mix.mp4')).max_gap).toBeLessThan(0.5);
+    expect(Math.abs(measure(f('long-mix.mp4')).lufs - -14)).toBeLessThanOrEqual(1);
+  }, 180_000);
 
   it('follows duck_db and gain_db', () => {
     const shallow = film('shallow', { path: f('vo.wav'), start_seconds: 1, duck_db: 3 });

@@ -1,0 +1,1233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/baney75/hildegard/skills/hildegard-motion/references/spec.schema.json",
+  "title": "Hildegard motion spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["canvas", "scenes"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "canvas": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 160,
+          "maximum": 7680
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 160,
+          "maximum": 4320
+        },
+        "fps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "background": {
+          "$ref": "#/$defs/paint"
+        },
+        "safe": {
+          "type": "number",
+          "description": "safe margin as a fraction of each side, default 0.05",
+          "minimum": 0,
+          "maximum": 0.2
+        }
+      },
+      "additionalProperties": false,
+      "required": ["width", "height"]
+    },
+    "duration": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "total seconds; --check confirms the scenes add up to it"
+    },
+    "fonts": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/font"
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/scene"
+      }
+    },
+    "fade": {
+      "type": "object",
+      "properties": {
+        "in": {
+          "type": "number",
+          "minimum": 0
+        },
+        "out": {
+          "type": "number",
+          "minimum": 0
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      },
+      "additionalProperties": false
+    },
+    "captions": {
+      "type": "object",
+      "properties": {
+        "srt": {
+          "type": "string"
+        },
+        "cues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "number",
+                "minimum": 0
+              },
+              "end": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": ["start", "end", "text"]
+          }
+        },
+        "font": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number",
+          "minimum": 1
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "position": {
+          "type": "string",
+          "enum": ["bottom", "top", "center"]
+        },
+        "box": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "backing": {
+          "$ref": "#/$defs/backing"
+        },
+        "shadow": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "audio": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/track"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/track"
+          },
+          "minItems": 1
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|transparent)$",
+      "x-pattern-help": "is not a color: write it as #rrggbb (or #rrggbbaa for see-through), for example \"#1a2b3c\"",
+      "description": "#rgb, #rrggbb, #rrggbbaa or transparent"
+    },
+    "ease": {
+      "type": "string",
+      "enum": [
+        "linear",
+        "easeInSine",
+        "easeOutSine",
+        "easeInOutSine",
+        "easeInQuad",
+        "easeOutQuad",
+        "easeInOutQuad",
+        "easeInCubic",
+        "easeOutCubic",
+        "easeInOutCubic",
+        "easeInQuart",
+        "easeOutQuart",
+        "easeInOutQuart",
+        "easeInExpo",
+        "easeOutExpo",
+        "easeInOutExpo",
+        "easeInBack",
+        "easeOutBack",
+        "easeInOutBack",
+        "spring",
+        "bounce"
+      ],
+      "description": "named easing"
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["left", "right", "up", "down"]
+    },
+    "gradient": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["linear", "radial"]
+        },
+        "angle": {
+          "type": "number",
+          "description": "degrees, CSS style: 0 is up, 90 is to the right, 180 (default) is down"
+        },
+        "center": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "radius": {
+          "type": "number",
+          "description": "radial: fraction of the larger side of the box"
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "number",
+                "description": "0 to 1",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["at", "color"]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": ["stops"]
+    },
+    "paint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/color"
+        },
+        {
+          "$ref": "#/$defs/gradient"
+        }
+      ]
+    },
+    "anchor": {
+      "type": "string",
+      "enum": [
+        "center",
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "topleft",
+        "topright",
+        "bottomleft",
+        "bottomright"
+      ],
+      "description": "which point of the layer sits at x, y"
+    },
+    "enter": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "fade",
+            "rise",
+            "drop",
+            "slide-from-left",
+            "slide-from-right",
+            "zoom",
+            "pop",
+            "type",
+            "wipe",
+            "grow",
+            "draw"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "delay": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        },
+        "direction": {
+          "$ref": "#/$defs/direction"
+        },
+        "distance": {
+          "type": "number",
+          "description": "how far it travels, as a fraction of the frame"
+        },
+        "split": {
+          "type": "string",
+          "enum": ["word", "line", "char"],
+          "description": "text only: animate each word, line or character in turn"
+        },
+        "stagger": {
+          "type": "number",
+          "minimum": 0,
+          "description": "seconds between split pieces"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["type"]
+    },
+    "exit": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["fade", "rise", "drop", "slide-to-left", "slide-to-right", "zoom", "wipe"]
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        },
+        "direction": {
+          "$ref": "#/$defs/direction"
+        },
+        "distance": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["type"]
+    },
+    "tween": {
+      "type": "object",
+      "properties": {
+        "prop": {
+          "type": "string",
+          "enum": ["x", "y", "w", "h", "scale", "rotation", "opacity", "color", "reveal"]
+        },
+        "from": {
+          "type": ["number", "string"],
+          "description": "start value; leave out to start from the layer's own value"
+        },
+        "to": {
+          "type": ["number", "string"]
+        },
+        "at": {
+          "type": "number",
+          "minimum": 0,
+          "description": "seconds after the layer starts"
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["prop", "to"]
+    },
+    "shadow": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "blur": {
+              "type": "number",
+              "description": "percent of frame height"
+            },
+            "dx": {
+              "type": "number"
+            },
+            "dy": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "backing": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "pad": {
+          "type": "number",
+          "description": "percent of frame height",
+          "minimum": 0
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "outline": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "width": {
+          "type": "number",
+          "description": "percent of frame height",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "stroke": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "width": {
+          "type": "number",
+          "description": "percent of frame height",
+          "exclusiveMinimum": 0
+        },
+        "round": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "layer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "id": {
+              "type": "string",
+              "description": "a name for messages"
+            },
+            "start": {
+              "type": "number",
+              "minimum": 0,
+              "description": "seconds into the scene when the layer appears (default 0)"
+            },
+            "end": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "seconds into the scene when it disappears (default: scene end)"
+            },
+            "x": {
+              "type": "number",
+              "description": "0 to 1 across the frame (0.5 is the middle)"
+            },
+            "y": {
+              "type": "number",
+              "description": "0 to 1 down the frame (0.5 is the middle)"
+            },
+            "anchor": {
+              "$ref": "#/$defs/anchor"
+            },
+            "scale": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "rotation": {
+              "type": "number",
+              "description": "degrees clockwise"
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                }
+              ],
+              "description": "move with the scene camera (true, default for images), stay fixed (false, default for everything else) or a number for parallax"
+            },
+            "enter": {
+              "$ref": "#/$defs/enter"
+            },
+            "exit": {
+              "$ref": "#/$defs/exit"
+            },
+            "animate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/tween"
+              }
+            },
+            "direction": {
+              "$ref": "#/$defs/direction"
+            },
+            "reveal": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "reveal_style": {
+              "type": "string",
+              "enum": ["type", "wipe"]
+            },
+            "safe": {
+              "type": "boolean",
+              "description": "false lets this layer sit in the safe margin or off the edge on purpose"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "the words; use {n} where a counting number goes"
+            },
+            "font": {
+              "type": "string",
+              "description": "a name from \"fonts\" or a pinned Google family"
+            },
+            "size": {
+              "type": "number",
+              "description": "percent of frame height (headline 7 to 12, body 3 to 4)",
+              "minimum": 0.5,
+              "maximum": 60
+            },
+            "weight": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            },
+            "italic": {
+              "type": "boolean"
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "align": {
+              "type": "string",
+              "enum": ["left", "center", "right"]
+            },
+            "box": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1.5,
+              "description": "wrapping width as a fraction of the frame width"
+            },
+            "max_lines": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "line_height": {
+              "type": "number",
+              "minimum": 0.8,
+              "maximum": 3
+            },
+            "letter_spacing": {
+              "type": "number",
+              "description": "percent of frame height; 0.2 is open, negative is tight"
+            },
+            "shadow": {
+              "$ref": "#/$defs/shadow"
+            },
+            "backing": {
+              "$ref": "#/$defs/backing"
+            },
+            "outline": {
+              "$ref": "#/$defs/outline"
+            },
+            "count": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number"
+                },
+                "to": {
+                  "type": "number"
+                },
+                "decimals": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 6
+                },
+                "thousands": {
+                  "type": "boolean"
+                },
+                "at": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "duration": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "ease": {
+                  "$ref": "#/$defs/ease"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["to"]
+            }
+          },
+          "additionalProperties": false,
+          "required": ["type", "text"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "shape"
+            },
+            "id": {
+              "type": "string",
+              "description": "a name for messages"
+            },
+            "start": {
+              "type": "number",
+              "minimum": 0,
+              "description": "seconds into the scene when the layer appears (default 0)"
+            },
+            "end": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "seconds into the scene when it disappears (default: scene end)"
+            },
+            "x": {
+              "type": "number",
+              "description": "0 to 1 across the frame (0.5 is the middle)"
+            },
+            "y": {
+              "type": "number",
+              "description": "0 to 1 down the frame (0.5 is the middle)"
+            },
+            "anchor": {
+              "$ref": "#/$defs/anchor"
+            },
+            "scale": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "rotation": {
+              "type": "number",
+              "description": "degrees clockwise"
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                }
+              ],
+              "description": "move with the scene camera (true, default for images), stay fixed (false, default for everything else) or a number for parallax"
+            },
+            "enter": {
+              "$ref": "#/$defs/enter"
+            },
+            "exit": {
+              "$ref": "#/$defs/exit"
+            },
+            "animate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/tween"
+              }
+            },
+            "direction": {
+              "$ref": "#/$defs/direction"
+            },
+            "reveal": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "safe": {
+              "type": "boolean",
+              "description": "false lets this layer sit in the safe margin or off the edge on purpose"
+            },
+            "shape": {
+              "type": "string",
+              "enum": ["rect", "rounded", "circle", "ellipse", "line", "polygon", "path"]
+            },
+            "w": {
+              "type": "number",
+              "description": "width, a fraction of the frame width",
+              "minimum": 0
+            },
+            "h": {
+              "type": "number",
+              "description": "height, a fraction of the frame height",
+              "minimum": 0
+            },
+            "radius": {
+              "type": "number",
+              "description": "rounded corners, percent of frame height",
+              "minimum": 0
+            },
+            "fill": {
+              "$ref": "#/$defs/paint"
+            },
+            "stroke": {
+              "$ref": "#/$defs/stroke"
+            },
+            "from": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "to": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "points": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "d": {
+              "type": "string",
+              "description": "path in frame fractions: M x y, L x y, C x1 y1 x2 y2 x y, Q x1 y1 x y, Z"
+            }
+          },
+          "additionalProperties": false,
+          "x-not-used": {
+            "reveal_style": "does nothing on a shape: only text can type its letters; shapes and images always wipe. Fix: remove it, and use \"reveal\" or a \"wipe\" enter."
+          },
+          "required": ["type", "shape"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "image"
+            },
+            "id": {
+              "type": "string",
+              "description": "a name for messages"
+            },
+            "start": {
+              "type": "number",
+              "minimum": 0,
+              "description": "seconds into the scene when the layer appears (default 0)"
+            },
+            "end": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "seconds into the scene when it disappears (default: scene end)"
+            },
+            "x": {
+              "type": "number",
+              "description": "0 to 1 across the frame (0.5 is the middle)"
+            },
+            "y": {
+              "type": "number",
+              "description": "0 to 1 down the frame (0.5 is the middle)"
+            },
+            "anchor": {
+              "$ref": "#/$defs/anchor"
+            },
+            "scale": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "rotation": {
+              "type": "number",
+              "description": "degrees clockwise"
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                }
+              ],
+              "description": "move with the scene camera (true, default for images), stay fixed (false, default for everything else) or a number for parallax"
+            },
+            "enter": {
+              "$ref": "#/$defs/enter"
+            },
+            "exit": {
+              "$ref": "#/$defs/exit"
+            },
+            "animate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/tween"
+              }
+            },
+            "direction": {
+              "$ref": "#/$defs/direction"
+            },
+            "reveal": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "safe": {
+              "type": "boolean",
+              "description": "false lets this layer sit in the safe margin or off the edge on purpose"
+            },
+            "file": {
+              "type": "string",
+              "minLength": 1,
+              "description": "image path relative to the spec, or sample:dusk / dawn / moss / night / sand"
+            },
+            "fit": {
+              "type": "string",
+              "enum": ["cover", "contain"]
+            },
+            "w": {
+              "type": "number",
+              "description": "box width, fraction of the frame (default 1)",
+              "exclusiveMinimum": 0
+            },
+            "h": {
+              "type": "number",
+              "description": "box height, fraction of the frame (default 1)",
+              "exclusiveMinimum": 0
+            },
+            "focus": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "for cover: the part of the photo to keep, [0.5, 0.5] is the middle"
+            },
+            "dim": {
+              "type": "number",
+              "description": "darken the photo 0 to 1",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "radius": {
+              "type": "number",
+              "description": "rounded corners, percent of frame height",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "x-not-used": {
+            "reveal_style": "does nothing on a image: only text can type its letters; shapes and images always wipe. Fix: remove it, and use \"reveal\" or a \"wipe\" enter."
+          },
+          "required": ["type", "file"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "bars"
+            },
+            "id": {
+              "type": "string",
+              "description": "a name for messages"
+            },
+            "start": {
+              "type": "number",
+              "minimum": 0,
+              "description": "seconds into the scene when the layer appears (default 0)"
+            },
+            "end": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "seconds into the scene when it disappears (default: scene end)"
+            },
+            "x": {
+              "type": "number",
+              "description": "0 to 1 across the frame (0.5 is the middle)"
+            },
+            "y": {
+              "type": "number",
+              "description": "0 to 1 down the frame (0.5 is the middle)"
+            },
+            "anchor": {
+              "$ref": "#/$defs/anchor"
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                }
+              ],
+              "description": "move with the scene camera (true, default for images), stay fixed (false, default for everything else) or a number for parallax"
+            },
+            "exit": {
+              "$ref": "#/$defs/exit"
+            },
+            "safe": {
+              "type": "boolean",
+              "description": "false lets this layer sit in the safe margin or off the edge on purpose"
+            },
+            "data": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "color": {
+                    "$ref": "#/$defs/color"
+                  }
+                },
+                "additionalProperties": false,
+                "required": ["label", "value"]
+              }
+            },
+            "w": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "h": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "max": {
+              "type": "number",
+              "description": "the value at full height (default: the largest value)",
+              "exclusiveMinimum": 0
+            },
+            "font": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "value_color": {
+              "$ref": "#/$defs/color"
+            },
+            "label_color": {
+              "$ref": "#/$defs/color"
+            },
+            "axis_color": {
+              "$ref": "#/$defs/color"
+            },
+            "label_size": {
+              "type": "number",
+              "minimum": 1
+            },
+            "value_size": {
+              "type": "number",
+              "minimum": 1
+            },
+            "value_weight": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            },
+            "label_weight": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            },
+            "gap": {
+              "type": "number",
+              "description": "space between bars as a fraction of each slot",
+              "minimum": 0,
+              "maximum": 0.9
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0
+            },
+            "decimals": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "suffix": {
+              "type": "string"
+            },
+            "grow": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "duration": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "stagger": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "ease": {
+                  "$ref": "#/$defs/ease"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "x-not-used": {
+            "enter": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\" ({\"at\", \"duration\", \"stagger\", \"ease\"}), and start the whole chart later with \"start\".",
+            "animate": "does nothing on a bars chart: its parts follow \"data\" and \"grow\". Fix: move the whole chart with \"x\" and \"y\", or time the bars with \"grow\".",
+            "opacity": "does nothing on a bars chart. Fix: use see-through colors, such as \"color\": \"#4f8cffaa\".",
+            "scale": "does nothing on a bars chart. Fix: size it with \"w\" and \"h\".",
+            "rotation": "does nothing on a bars chart; a chart cannot be turned. Fix: remove it.",
+            "reveal": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\".",
+            "reveal_style": "does nothing on a bars chart: the bars grow by themselves. Fix: time them with \"grow\".",
+            "direction": "does nothing on a bars chart: the bars grow upward. Fix: remove it."
+          },
+          "required": ["type", "data"]
+        }
+      ],
+      "x-discriminator": "type"
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["cut", "crossfade", "slide", "wipe", "dip"]
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3
+        },
+        "direction": {
+          "$ref": "#/$defs/direction"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["type"]
+    },
+    "camera": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "enum": ["push-in", "pull-out", "pan-left", "pan-right", "pan-up", "pan-down", "drift"]
+        },
+        "amount": {
+          "type": "number",
+          "description": "how far: zoom for push-in/pull-out, share of the frame for pans",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5
+        },
+        "from": {
+          "type": "object",
+          "properties": {
+            "zoom": {
+              "type": "number",
+              "minimum": 1
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "to": {
+          "type": "object",
+          "properties": {
+            "zoom": {
+              "type": "number",
+              "minimum": 1
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ease": {
+          "$ref": "#/$defs/ease"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "seconds"
+        },
+        "background": {
+          "$ref": "#/$defs/paint"
+        },
+        "transition": {
+          "$ref": "#/$defs/transition"
+        },
+        "camera": {
+          "$ref": "#/$defs/camera"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/layer"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": ["duration", "layers"]
+    },
+    "track": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "volume_db": {
+          "type": "number",
+          "description": "gain; music under speech is about -14"
+        },
+        "fade_in": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fade_out": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lufs": {
+          "type": "number",
+          "description": "loudness target, default -14"
+        },
+        "loudnorm": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["file"]
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "google": {
+          "type": "string",
+          "description": "a pinned Google Fonts family"
+        },
+        "path": {
+          "type": "string",
+          "description": "a font file you may use"
+        }
+      }
+    }
+  }
+}

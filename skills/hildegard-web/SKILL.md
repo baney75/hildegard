@@ -11,12 +11,18 @@ the words first, a system of type, space and colour, the phone and the desktop b
 before it ships. Hildegard does the looking with you. Your design is the code itself, so nothing drifts between the
 design and what ships.
 
-Read **hildegard-craft** first (the brief and the gates), and **hildegard-loop** for the rounds.
+This skill works alone. With Hildegard linked, the site lives in Hildegard (`site_new`, `site_write`, `loop_start`,
+`loop_submit`) and it renders and audits every round. Without Hildegard, the site is a folder of plain files in
+your user's project, you render it yourself with Playwright (section 4) and audit it against the check list there.
+If you have them, **hildegard-craft** gives the brief and the gates, and **hildegard-loop** the rounds;
+`references/slop.md` here is the slop catalogue.
 
 ## 0. Start from something good
 
-Work in a **site** (`site_new`), so your user sees it live on the Studio's canvas at three widths while you write,
-and can retune its words and tokens themselves. Start it from:
+With Hildegard linked, work in a **site** (`site_new`), so your user sees it live on the Studio's canvas at three widths
+while you write, and can retune its words and tokens themselves. Without it, make a `site/` folder and work in files
+(`index.html`, `styles.css`; copy a template's folder from `templates/` here, and the tokens from
+`references/tokens.css`). Start it from:
 
 - **A template** when one fits (`site_templates` lists them; each is in `templates/` beside this skill): Hearth
   (bakery, café, shop), Atelier (architecture or design studio), Ledger (software product with pricing), Practice
@@ -33,6 +39,8 @@ and can retune its words and tokens themselves. Start it from:
 Read files with `site_files` and `site_read`; write with `site_write`. Start the loop with `site_id` (and no
 `file_path`): each round checks the site as it stands, and an imported site is held to its design image too, so
 "matches the Figma" is measured, not claimed. `site_tokens` lists and sets the system; `site_export` hands over a ZIP.
+Without Hildegard there is no import: ask for the Figma frames or the current site as screenshots and build the
+markup from them, and hand over the folder (zip it if they want one file).
 
 ## 1. Brief and words before layout
 
@@ -70,17 +78,21 @@ are `<button>` and links that are `<a href>`. Mobile first: the base CSS is the 
 the wider layouts. Use `clamp()` for fluid type, grid and flex for layout, `aspect-ratio` and `object-fit` for
 images, `:focus-visible` for a visible focus ring. JavaScript only for what needs it.
 
-**Images are yours.** Make them with Hildegard on your user's own GPUs (**hildegard-art**: art direction, a series,
-then the best one), at the exact aspect the layout needs (a 16:9 hero, a 4:5 portrait card), so there's no stock
+**Images are yours.** With Hildegard linked, make them on your user's own GPUs (**hildegard-art**: art direction, a
+series, then the best one); without it, use the photos your user gives you or the image tool you have. Either way, at
+the exact aspect the layout needs (a 16:9 hero, a 4:5 portrait card), so there's no stock
 photo and no per-image bill. Export each at two or three widths as WebP or AVIF with a JPEG fallback, with `srcset`,
 `sizes`, `width` and `height` (no layout shift), and `loading="lazy"` below the fold. Real product photos beat any
 generated image: ask for them first. Never generate a person and pass them off as a customer or a team member.
 
 **Bring everything in.** Hildegard opens the page with the network cut off, the way a careful reviewer would, so
 fonts, images, scripts and styles all come from the site's own folder. A request to anywhere else is named in the
-`offline` check.
+`offline` check. Without Hildegard, run `grep -rnE "(src|href)=.https?:|url\(.?https?:" site/` and move into the
+folder anything it finds that the page loads (a link the reader clicks is fine).
 
 ## 4. The loop
+
+With Hildegard linked, start it:
 
 ```json
 loop_start {
@@ -95,7 +107,22 @@ loop_start {
 Send the site with `loop_submit`: `file_path` to the folder (Hildegard packs it) or its `index.html`, a ZIP, or the
 HTML as `text` for a single page. Each round comes back as one sheet: every page's first screen at phone (390 px),
 tablet (820 px) and desktop (1440 px), then each whole page, in light and in dark, with every problem outlined in
-magenta. And the checks:
+magenta.
+
+Without Hildegard, make the same screens yourself, then open each image and look at it (needs Node; the first run
+may need `npx playwright install chromium`):
+
+```sh
+mkdir -p shots
+for size in 390,844 820,1180 1440,900; do for scheme in light dark; do
+  npx playwright screenshot --viewport-size="$size" --color-scheme="$scheme" --full-page \
+    "file://$PWD/site/index.html" "shots/index-${size%,*}-$scheme.png"
+done; done
+```
+
+Repeat for every page. Then go down the checks below one by one against the screens and the files, as an audit: each
+row is a thing to look for, and `fail` rows come first. Write what you find and what you changed in `rounds.md`. The
+checks:
 
 | Check | What fails it |
 | --- | --- |
@@ -122,7 +149,8 @@ of your user. Choose by the sentence, not by which is prettier.
 
 ## 5. Ship it
 
-`loop_finish` on the best round. Hand over the folder as it passed, the tokens, and a note: what was checked (every
+`loop_finish` on the best round (without Hildegard, the best round is the folder as it last passed your audit). Hand
+over the folder as it passed, the tokens, and a note: what was checked (every
 page, three widths, two themes, audited offline) and what wasn't (real devices, a screen reader, the content your user
 still owes you). Then, if the site lives in a framework, port it **after** it passes, keeping the tokens as CSS
 variables and the markup's structure, and send the built output through the loop once more: a port that changes the

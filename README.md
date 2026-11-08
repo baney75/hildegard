@@ -407,6 +407,25 @@ saw (the right-most `X-Forwarded-For` entry), and by account name, so keep the h
 tunnel. `hildegard host off` removes the name again; the tunnel and the DNS record are
 yours to remove with `cloudflared tunnel delete hildegard`.
 
+## Posts, and a site that anyone can read
+
+A site Hildegard keeps (Sites in the Studio, or `site_new` from your AI app) can carry a blog and be shown to the
+public from your own computer.
+
+- **Posts.** Your AI app writes one with `site_post`: a title, the body in Markdown, and a byline such as
+  “By Jane Doe, with Hildegard”. Hildegard draws `blog/<slug>/index.html` from the site's own stylesheet and keeps
+  `blog/index.html` (newest first), `feed.xml` (RSS 2.0) and `sitemap.xml` current. Raw HTML in the body is shown as
+  text, never run. A draft gets its page with a noindex tag and stays out of the list, the feed and the sitemap. The
+  interview or notes behind a post are kept at `notes/<slug>.md` and are never served.
+- **Publishing.** Nothing is public until you say so: `hildegard sites publish <id>` (or `site_publish`, or
+  `PUT /api/sites/<id>/publish`), and `--off` takes it down. Only an owner can. A published site answers at `/s/<id>/`
+  with no sign-in, on this computer and on your link (`hildegard host`), and nowhere else: GET and HEAD only, only the
+  site's own pages and files, never `notes/`, drafts, `site.json` or a name that starts with a dot. Every page is
+  sandboxed, with no scripts unless the site has scripts of its own, and Hildegard's cookies are neither read nor sent
+  there. `--address https://example.com/` says where the front page lives on the web, so the feed and sitemap link to it.
+- **Your own voice.** Settings › Writing keeps samples of what you wrote and notes on how you write, for you alone.
+  See [docs/writing.md](docs/writing.md#your-own-voice).
+
 ## Render on another device
 
 A Mac or laptop without a big GPU can render on one of your other computers. Put both on your
@@ -491,6 +510,7 @@ hildegard host [--funnel | --public-url https://<name>] | off | status | owner |
 hildegard host code | key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin
 hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
+hildegard sites publish <id> [--off] [--address <https://example.com/>]   Show a site to anyone at /s/<id>/, or take it down
 hildegard mcp [--remote <link>]   The MCP server, on stdio (AI apps run this); also at /mcp over HTTP
 ```
 
