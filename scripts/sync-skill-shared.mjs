@@ -15,7 +15,8 @@
 // copy whose entry left the manifest is removed by the next sync and is a problem for --check until then, so it cannot
 // keep shipping stale. Only a file that still holds the bytes the sync wrote is removed: one that was edited by hand
 // (a copy forked into its own version) is kept and dropped from the lock, and a file that is now a source is never
-// removed, whatever the lock says.
+// removed, whatever the lock says. Hashes and comparisons read CRLF as LF in a text file, so a Windows checkout that
+// changed the line endings is neither drift nor a hand edit.
 //
 // No link anywhere in a source or destination path is followed: a source or a destination that is a link, or sits under
 // a folder that is one, is refused, and a copy is written to a temporary file next to its destination and renamed.
@@ -101,7 +102,21 @@ function writeFileAtomic(at, data) {
 
 const LOCK = 'skills/SHARED.lock.json';
 
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+/**
+ * The bytes as they are compared and hashed: a text file (no NUL byte) with CRLF read as LF, so a Windows checkout that
+ * rewrote the line endings of a source, a copy or both still matches the lock committed from Linux or macOS. A file
+ * with a NUL byte is binary and is left as it is.
+ */
+function canon(bytes) {
+  if (bytes.includes(0)) return bytes;
+  const text = bytes.toString('latin1');
+  return text.includes('\r\n') ? Buffer.from(text.replaceAll('\r\n', '\n'), 'latin1') : bytes;
+}
+
+/** Whether two files hold the same content, line endings aside. */
+const same = (a, b) => canon(a).equals(canon(b));
+
+const sha = (bytes) => createHash('sha256').update(canon(bytes)).digest('hex');
 
 /** The copies the last sync wrote: { entries, hashes, problem }. entries is null when there is no lock yet. */
 function readLock(repo) {
@@ -243,7 +258,7 @@ export function drift(repo = root) {
     const want = readFileSync(join(repo, source));
     const at = join(repo, dest);
     if (!existsSync(at)) problems.push(`${dest} is missing: run node scripts/sync-skill-shared.mjs`);
-    else if (!readFileSync(at).equals(want))
+    else if (!same(readFileSync(at), want))
       problems.push(
         `${dest} differs from ${source}: change the source, then run node scripts/sync-skill-shared.mjs`,
       );
@@ -286,7 +301,7 @@ export function syncAll(repo = root) {
   for (const { source, dest } of list) {
     const want = readFileSync(join(repo, source));
     const at = join(repo, dest);
-    if (existsSync(at) && readFileSync(at).equals(want)) continue;
+    if (existsSync(at) && same(readFileSync(at), want)) continue;
     writeFileAtomic(at, want);
     wrote.push(dest);
   }

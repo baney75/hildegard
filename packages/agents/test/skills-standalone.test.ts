@@ -453,6 +453,34 @@ describe('a skill taken out of a manifest entry (skills/SHARED.lock.json)', () =
     rmSync(repo, { recursive: true, force: true });
   });
 
+  it('counts a copy with CRLF line endings (a Windows checkout) as unedited and the lock as current', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const lockFile = join(repo, 'skills', 'SHARED.lock.json');
+    const lock = readFileSync(lockFile, 'utf8');
+    const crlf = (path: string) => writeFileSync(path, readFileSync(path, 'utf8').replace(/\r?\n/g, '\r\n'));
+    // A checkout with core.autocrlf rewrites the source and every copy; the lock is committed with LF.
+    crlf(join(repo, 'tools', 'x.py'));
+    crlf(join(repo, 'skills', 'a', 'scripts', 'x.py'));
+    crlf(join(repo, 'skills', 'b', 'scripts', 'x.py'));
+    expect(readFileSync(join(repo, 'skills', 'b', 'scripts', 'x.py'), 'utf8')).toBe('print(1)\r\n');
+    expect(drift(repo)).toEqual([]);
+    // A copy that is CRLF while its source is LF is the same text too.
+    writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
+    expect(drift(repo)).toEqual([]);
+    expect(syncAll(repo).wrote).toEqual([]);
+    expect(readFileSync(lockFile, 'utf8')).toBe(lock);
+    // Still unedited when its entry leaves the manifest: the sync removes it rather than keeping it as hand-edited.
+    manifest(['a']);
+    expect(drift(repo).join('\n')).toMatch(/skills\/b\/scripts\/x\.py is an orphaned copy/);
+    expect(syncAll(repo).removed).toEqual(['skills/b/scripts/x.py']);
+    // A real edit is still caught, whatever the line endings.
+    writeFileSync(join(repo, 'skills', 'a', 'scripts', 'x.py'), 'print(2)\r\n');
+    expect(drift(repo).join('\n')).toMatch(/skills\/a\/scripts\/x\.py differs/);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
   it('keeps a copy that was edited by hand, and drops it from the lock (first-F1)', () => {
     const { repo, manifest } = setup();
     manifest(['a', 'b']);
