@@ -2,11 +2,13 @@
 """runmeta.py <model> <run dir> [--confined]: read a responder's transcript and write final.txt (its last message) and meta.json
 (did it load a skill, which references it read, how many tool calls, whether the run errored, whether the transcript finished, the
 skills hash from skills.sha, and `confined`: whether the responder ran in sandbox.responder's box). Always writes meta.json, even when
-the transcript is missing or the responder died: then `finished` is false and `error` says why."""
+the transcript is missing or the responder died: then `finished` is false and `error` says why. `--links <names>` (respond.sh: symbolic
+links found in work/) sets `error` too, so the run is never scored or judged."""
 import json, os, re, sys
 
 model, run = sys.argv[1:3]
 confined = '--confined' in sys.argv[3:]
+links = sys.argv[sys.argv.index('--links') + 1] if '--links' in sys.argv[3:] else ''
 final, skills, reads, calls, is_error, cost, finished = '', [], [], 0, False, None, False
 try:
     lines = open(os.path.join(run, 'transcript.jsonl'), errors='replace').read().splitlines()
@@ -65,6 +67,8 @@ error = None
 if not finished:  # the responder died (or was killed at its time limit) before it finished a transcript
     is_error = True
     error = ('no finished transcript: ' if lines else 'no transcript: ') + (small('err.txt')[-300:] or 'the responder died with nothing on stderr')
+if links:
+    error = 'symbolic links in work/, so nothing on the host reads it: ' + links.strip()
 open(os.path.join(run, 'final.txt'), 'w').write(final)
 json.dump({'model': model, 'confined': confined, 'finished': finished, 'error': error, 'skills_hash': small('skills.sha') or None, 'skill_loaded': bool(loaded), 'skills_loaded': loaded, 'other_skills_loaded': other, 'references_read': refs, 'tool_calls': calls,
            'is_error': is_error, 'seconds': int(open(os.path.join(run, 'seconds')).read() or 0) if os.path.exists(os.path.join(run, 'seconds')) else None,

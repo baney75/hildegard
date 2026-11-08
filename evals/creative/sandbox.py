@@ -132,7 +132,8 @@ def responder(run, eval_dir):
     the passwd entry's), /tmp, /run (DNS's /run/systemd/resolve is bound back read-only) and the eval folder, so no ~/.ssh, no tokens
     in ~/.config, no agent or D-Bus sockets and no other run; this run's folder bound back read-only and its work/ read-write. Claude's
     state goes to a fresh CLAUDE_CONFIG_DIR on the tmpfs, with the owner's credentials file bound into it read-only, so nothing in the
-    box can change or replace it (a run that needs to save a refreshed token fails instead). The claude binary is bound back as that
+    box can change or replace it (a refresh would strand the owner's other sessions, so respond.sh stops the batch on a sign-in failure).
+    With CLAUDE_CODE_OAUTH_TOKEN set, no credentials file is bound and the token goes in through `--args 7`, a pipe respond.sh opens. The claude binary is bound back as that
     one file, and Chromium's own folder read-only; nothing else under the home folder is. The network stays (the model needs it); the
     environment is cleared to a few variables. New user, PID, IPC and UTS namespaces, no capabilities, killed with its parent. Refuses
     without a working bubblewrap: a session is never run unconfined."""
@@ -158,11 +159,13 @@ def responder(run, eval_dir):
     if chrome:
         a += ['--ro-bind', chrome, chrome]
     a += ['--ro-bind', run, run, '--bind', work, work, '--dir', state]
-    if os.path.isfile(creds):
+    tok = bool(os.environ.get('CLAUDE_CODE_OAUTH_TOKEN'))
+    if os.path.isfile(creds) and not tok:
         a += ['--ro-bind', creds, os.path.join(state, '.credentials.json')]
     a += ['--clearenv', '--setenv', 'HOME', home, '--setenv', 'USER', os.environ.get('USER', 'eval'), '--setenv', 'TMPDIR', '/tmp',
           '--setenv', 'PATH', os.path.dirname(exe) + ':/usr/local/bin:/usr/bin:/bin', '--setenv', 'LANG', os.environ.get('LANG', 'C.UTF-8'),
-          '--setenv', 'CLAUDE_CONFIG_DIR', state, '--setenv', 'DISABLE_AUTOUPDATER', '1', '--chdir', work, '--', exe]
+          '--setenv', 'CLAUDE_CONFIG_DIR', state, '--setenv', 'DISABLE_AUTOUPDATER', '1']
+    a += (['--args', '7'] if tok else []) + ['--chdir', work, '--', exe]
     return a
 
 

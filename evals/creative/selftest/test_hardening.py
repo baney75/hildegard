@@ -15,7 +15,8 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
       its work folder or in another run, cannot see other runs, can write in its work folder; with no bubblewrap the run is refused;
       the owner's credentials file is bound read-only (writing or replacing it fails, the host file is unchanged); the claude binary
       is bound as that one file, and an override that is a folder or a file directly in the home folder is refused; Chromium's folder
-      is bound only when it holds nothing else of the owner's"""
+      is bound only when it holds nothing else of the owner's; with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token (never in
+      argv) and no credentials file; a sign-in failure exits 99 and leaves STOP; a link left in work/ fails the run with no `done`"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
@@ -145,6 +146,10 @@ cat > /dev/null
 case $PWD in
   */{t2}/work) echo "Segmentation fault" >&2; exit 139 ;;
   */{t3}/work) echo '{{"type":"result","result":"You have hit your usage limit","is_error":true}}'; exit 0 ;;
+  */w3-5k-page/work) {{ [ "${{CLAUDE_CODE_OAUTH_TOKEN:-}}" = selftest-token ] && echo token=yes || echo token=no
+                       [ -e "$CLAUDE_CONFIG_DIR/.credentials.json" ] && echo creds=BOUND || echo creds=none; }} > report.txt ;;
+  */w4-cabinetmaker-bio/work) echo '{{"type":"result","result":"Failed to authenticate. API Error: 401 authentication_error: OAuth token has expired.","is_error":true}}'; exit 1 ;;
+  */w5-greenhouse-email/work) ln -s "$HOME/keep.txt" draft.md ;;
   */{t4}/work)
     {{ [ -e "$HOME/keep.txt" ] && rm -f "$HOME/keep.txt" 2>/dev/null && [ ! -e "$HOME/keep.txt" ] && echo home_rm=DELETED || echo home_rm=blocked
        echo bad > "$HOME/keep.txt" 2>/dev/null; echo bad > "$HOME/new.txt" 2>/dev/null
@@ -255,6 +260,29 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     srcs = [argv[i + 1] for i, x in enumerate(argv) if x in ('--bind', '--ro-bind')]
     check('F12 Playwright\'s Chromium binds its own folder and nothing else in the home folder',
           b.returncode == 0 and sorted(p for p in srcs if p.startswith(eh)) == sorted([os.path.join(eh, 'claude'), cdir]), (b.returncode, b.stderr, srcs))
+    # a long-lived CLAUDE_CODE_OAUTH_TOKEN goes into the box through a pipe, and the credentials file is not bound
+    sb = lambda **o: [x for x in subprocess.run([sys.executable, os.path.join(CR, 'sandbox.py'), 'responder', run('w3-5k-page'), ev], env={**env, **o},
+                                                capture_output=True, text=True, timeout=60).stdout.split('\0') if x]
+    plain, withtok = sb(), sb(CLAUDE_CODE_OAUTH_TOKEN='selftest-token')
+    check('F12 with CLAUDE_CODE_OAUTH_TOKEN set no credentials file is bound and the token is not in the argv',
+          any(creds in x for x in plain) and withtok and not any('.credentials.json' in x or 'selftest-token' in x for x in withtok), withtok)
+    r = respond('w3-5k-page', HOME=shome, CLAUDE_CODE_OAUTH_TOKEN='selftest-token')
+    rp = os.path.join(run('w3-5k-page'), 'work', 'report.txt')
+    rep = dict(l.split('=', 1) for l in open(rp).read().split()) if os.path.exists(rp) else {}
+    check('F12 with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token and no credentials file', r.returncode == 0 and rep == {'token': 'yes', 'creds': 'none'},
+          (r.returncode, r.stderr, rep))
+    # a sign-in or token-refresh failure stops the batch like a quota message
+    r = respond('w4-cabinetmaker-bio')
+    stop = os.path.join(run('w4-cabinetmaker-bio'), 'STOP')
+    check('F12 a sign-in failure in the session exits 99 and leaves STOP', r.returncode == 99 and os.path.exists(stop) and '/login' in r.stderr, (r.returncode, r.stderr))
+    if os.path.exists(stop):
+        os.remove(stop)
+    # a link the model leaves in work/ is never followed on the host: no `done`, the error in meta.json
+    r = respond('w5-greenhouse-email', HOME=shome)
+    lr = run('w5-greenhouse-email')
+    m = json.load(open(os.path.join(lr, 'meta.json'))) if os.path.exists(os.path.join(lr, 'meta.json')) else {}
+    check('F12 a symbolic link left in work/ fails the run with no done and the error in meta.json', r.returncode == 6 and not os.path.exists(os.path.join(lr, 'done'))
+          and 'symbolic links' in (m.get('error') or '') and 'original' not in json.dumps(m) + (text(os.path.join(lr, 'final.txt')) or ''), (r.returncode, r.stderr, m))
     calls_lst.hits = 0
 
     # F2: a fresh eval folder still gets main's skills (mktemp needs the folder to exist)

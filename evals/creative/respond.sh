@@ -6,9 +6,11 @@
 #   model  haiku  Claude Haiku 5.5 through `claude -p`; luna  GPT-6 Luna at low effort through `codex exec`
 # Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are unset. If a quota or billing message comes back, this
 # writes STOP in the run folder and exits 99 (dispatch.sh then halts every later job; a STOP file also stops this script before it
-# calls a model). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
+# calls a model). A sign-in or token-refresh failure in Haiku's session does the same, since a refresh in the box would strand the
+# owner's other sessions (README: Responder confinement). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
 # meta.json says `confined: true` (made in the box, so never one from before it). Exits 4, with no `done`, when
-# the responder dies before a finished transcript, and 5 when Haiku's session cannot be confined (no bubblewrap).
+# the responder dies before a finished transcript, 5 when Haiku's session cannot be confined (no bubblewrap), and 6 when the session left
+# a symbolic link in work/ (nothing on the host reads work/ then, so a link to the owner's files is never followed).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
 set -u
@@ -98,7 +100,9 @@ if [ "$MODEL" = haiku ]; then
     printf '{"name":"hildegard","version":"0.0.0","description":"eval copy of the skills"}' > "$RUN/plug/.claude-plugin/plugin.json"
     ARGS+=(--plugin-dir "$RUN/plug")
   fi
-  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 "${BOX[@]}" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
+  # CLAUDE_CODE_OAUTH_TOKEN reaches the box through a pipe that bwrap reads as arguments (sandbox.py adds `--args 7`), never argv or a file.
+  tok() { [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || printf '%s\0' --setenv CLAUDE_CODE_OAUTH_TOKEN "$CLAUDE_CODE_OAUTH_TOKEN"; }
+  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 "${BOX[@]}" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt" 7< <(tok))
 elif [ "$MODEL" = luna ]; then
   [ -n "$SK" ] && { mkdir -p "$WORK/.agents" && cp -r "$SK/skills" "$WORK/.agents/skills"; }
   # Codex also reads the owner's global skills (~/.agents/skills, ~/.codex/skills); switch each off by path so both arms see
@@ -116,12 +120,15 @@ else
 fi
 echo $(( $(date +%s) - T0 )) > "$RUN/seconds"
 
-python3 "$HERE/runmeta.py" "$MODEL" "$RUN" "${CONFINED[@]}" || true
+# A link in work/ points the host at whatever the model chose (~/.ssh, say), and everything after this runs unconfined: list links
+# before anything reads work/, and fail the run if there is one.
+LINKS=$(cd "$WORK" && find . -type l | head -5 | tr '\n' ' ')
+python3 "$HERE/runmeta.py" "$MODEL" "$RUN" "${CONFINED[@]}" ${LINKS:+--links "$LINKS"} || true
 # Exit 99 on a quota or billing message, found in the final text, stderr or the end of the transcript whether or not meta.json exists:
 # never top up, never switch to API billing. Exit 4 when the responder died before a finished transcript (no `done`, so it is made again).
-python3 - "$RUN" <<'PY'
+python3 - "$RUN" "$MODEL" <<'PY'
 import json, re, sys, os
-run = sys.argv[1]
+run, model = sys.argv[1:3]
 def read(name, tail=4000):
     try:
         return open(os.path.join(run, name), errors='replace').read()[-tail:]
@@ -133,11 +140,21 @@ except (OSError, ValueError):
     meta = {}
 bad = re.compile(r'usage limit|quota|billing|credit balance|rate.?limit|out of (extra )?usage|upgrade your plan|purchase', re.I)
 text = read('final.txt') if meta.get('is_error') else ''
+# claude's own words when its sign-in fails or a token refresh is refused (exit 98 here, STOP and 99 below)
+auth = re.compile(r'OAuth token (refresh failed|revoked|has expired)|token refresh failed|login expired|please run /login|run /login to|'
+                  r'not logged in|invalid api key|authentication_error|authentication_failed|invalid_grant|API Error: 401', re.I)
+if model == 'haiku' and (auth.search(text) or auth.search(read('err.txt')) or (not meta.get('finished') and auth.search(read('transcript.jsonl')))):
+    sys.exit(98)
 if bad.search(text) or bad.search(read('err.txt').replace('rmcp::transport', '')) or (not meta.get('finished') and bad.search(read('transcript.jsonl'))):
     sys.exit(99)
 sys.exit(0 if meta.get('finished') else 4)
 PY
 rc=$?
+if [ $rc -eq 98 ]; then
+  echo "Claude's sign-in failed in $RUN; stopping. Run claude on this computer and /login (or make a new CLAUDE_CODE_OAUTH_TOKEN), then delete $RUN/STOP" >&2
+  echo 'sign-in failed: /login on the host, then delete this file' > "$RUN/STOP"; exit 99
+fi
 if [ $rc -eq 99 ]; then echo "quota or billing message in $RUN; stopping" >&2; : > "$RUN/STOP"; exit 99; fi
+if [ -n "$LINKS" ]; then echo "the session left symbolic links in $RUN/work ($LINKS); the run fails and nothing reads them" >&2; exit 6; fi
 if [ $rc -ne 0 ]; then echo "the responder died before a finished transcript in $RUN: $(head -c 300 "$RUN/err.txt" 2>/dev/null)" >&2; exit 4; fi
 touch "$RUN/done"

@@ -76,7 +76,9 @@ ask me questions", so the eval measures making the work, not the interview.
   the judge's folder, and the responder box (F12: a stand-in for `claude` run through `respond.sh` cannot delete or write a file in its home, outside
   its work folder or in another run, cannot see other runs, can write in `work/`, can read but not write, truncate, replace or delete the
   credentials file; a native binary at `$HOME/claude` is the only thing of that home visible in the box; an override that is a folder or a file
-  directly in the home is refused; and with no usable bubblewrap the run is refused and no model is called).
+  directly in the home is refused; with `CLAUDE_CODE_OAUTH_TOKEN` set the box gets the token, never in argv, and no credentials file; a sign-in
+  failure exits 99 and leaves `STOP`; a link left in `work/` fails the run with no `done`; and with no usable bubblewrap the run is refused
+  and no model is called).
 - **Responder confinement**: Haiku's whole session, and so its Bash tool, runs in bubblewrap (`sandbox.responder`, used by `respond.sh`). The
   filesystem is read-only. A tmpfs covers the owner's home, `/tmp`, `/run` and the eval folder, so the model sees no `~/.ssh`, no tokens under
   `~/.config`, no agent or D-Bus socket paths and no other run; this run's folder is bound back read-only and only its `work/` is writable.
@@ -86,8 +88,16 @@ ask me questions", so the eval measures making the work, not the interview.
   name a file in a folder of its own, and a folder or a file directly in the home folder is refused. A `HILDEGARD_EVAL_CHROMIUM` whose folder
   is or holds the home folder, sits in or above the eval folder, or is any other folder in the home is refused too. Claude writes its state
   (`.claude.json`, `projects/`, `sessions/`, `backups/`) to a fresh `CLAUDE_CONFIG_DIR` on the tmpfs, and the credentials file is bound
-  into it read-only, so nothing in the box can change, truncate or replace it. If claude has to save a refreshed token mid-run it cannot,
-  and that run may fail; it is made again later. The environment is cleared to a few variables, and the session gets new user, PID, IPC and
+  into it read-only, so nothing in the box can change, truncate or replace it. A token refresh in the box would still rotate the refresh
+  token on the server and lose the new one, signing out the owner's other Claude Code sessions. So a sign-in or token-refresh failure in a
+  session (claude's own `OAuth token refresh failed`, `Please run /login`, `authentication_error`, `API Error: 401` and the like) stops the
+  batch the way a quota message does: exit 99 and a `STOP` file. Then run `claude` on this computer, sign in again with `/login`, and
+  delete the `STOP` file. **Recommended:** make a long-lived token yourself with `claude setup-token` and export it as
+  `CLAUDE_CODE_OAUTH_TOKEN` in the shell that runs `run.sh`. With it set, no credentials file is bound and the box never refreshes; the
+  token reaches bwrap through a pipe (`--args`), never argv or a file, and the harness never writes or stores it. The model in the box
+  can read it, as it could read the credentials file. After the session, before anything on the host reads `work/`, `respond.sh` looks
+  for symbolic links there; a link (say to `~/.ssh`) fails the run with exit 6, no `done` and the error in meta.json, so the unconfined
+  scorers and judge never follow it. The environment is cleared to a few variables, and the session gets new user, PID, IPC and
   UTS namespaces with no capabilities. Without a working bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5,
   never run unconfined. Codex runs Luna in its own `workspace-write` sandbox.
 
