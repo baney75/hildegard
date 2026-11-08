@@ -242,6 +242,8 @@ export interface BrowseSites {
   custom: Array<{ id: string; name: string; url: string }>;
   /** macOS 11 to 13 keeps every site's cookies in one store. */
   sharedCookies: boolean;
+  /** After a removal: what happened to the site's sign-in. */
+  notice?: string;
 }
 
 export interface WritingSample {

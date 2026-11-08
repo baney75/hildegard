@@ -39,7 +39,10 @@ export function Browse() {
           <p className="body sec-text hg-measure">
             In the Hildegard app each of these opens in a window of its own, with its own sign-in. Hildegard
             never reads what you sign in with, and it never posts: you sign in and press Post yourself. In a
-            browser they open as tabs. Sign out of a site from the Browse menu in the app.
+            browser they open as tabs.{' '}
+            {data?.sharedCookies
+              ? 'To sign out of a site, use its own Sign out in its window.'
+              : 'Sign out of a site from the Browse menu in the app.'}
           </p>
           <section className="hg-section" aria-labelledby="br-sites">
             <h2 id="br-sites" className="st-h2">
@@ -69,16 +72,25 @@ export function Browse() {
                     kind="ghost"
                     icon="trash"
                     aria-label={`Remove ${s.name}`}
-                    onClick={() => api.removeBrowseSite(s.id).then(setData).catch(toastError)}
+                    onClick={() =>
+                      api
+                        .removeBrowseSite(s.id)
+                        .then((next) => {
+                          setData(next);
+                          if (next.notice) toast(next.notice);
+                        })
+                        .catch(toastError)
+                    }
                   />
                 </li>
               ))}
             </ul>
             {data?.sharedCookies ? (
               <p className="body-sm hg-err" role="note">
-                On macOS 11 to 13 every site in the app shares one set of cookies, so a sign-in in one is
-                visible to the others, and signing out of one signs you out of all. macOS 14 and later keeps
-                them apart.
+                On macOS 11 to 13 every site in the app shares one set of cookies, with each other and with
+                the Studio, so a sign-in in one is visible to the others and Hildegard can’t sign you out of
+                just one. Sign out on the site itself, before you remove it. macOS 14 and later keeps them
+                apart.
               </p>
             ) : null}
           </section>

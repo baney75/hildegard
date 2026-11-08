@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Sites in their own windows: X, Instagram, TikTok, Facebook, Threads, Reddit, LinkedIn and YouTube, and any site the
 //! person adds. Each opens in a window of its own with a profile of its own (cookies, storage, sign-in), where the only
-//! pages it may show are that site's own and the few its sign-in uses. Everything else goes to the system browser.
+//! pages and frames it may show are that site's own and the few its sign-in uses. A link or popup to anywhere else, one
+//! that asks for a new window, goes to the system browser; any other page or frame from elsewhere is not loaded.
 //!
 //! What a site window does not have, on purpose: a capability (no page in it can call the app), an initialization
 //! script, or a user agent other than the webview's own. Google does not allow signing in inside an embedded window, so
-//! a Google sign-in page is never shown here: the person is offered their browser instead.
+//! a Google sign-in page is never shown here, not as a page and not as a frame. A link or popup to one offers the
+//! person their browser instead.
 //!
 //! This file is the decisions, with no window in them, so they can be tested: which pages belong to a site, where a
 //! profile lives, and what a link from the Studio opens.
@@ -36,7 +38,8 @@ pub struct Site {
   pub post: String,
   /// The site's own domains, and every subdomain of them.
   pub domains: Vec<String>,
-  /// Domains its sign-in uses besides its own.
+  /// What its sign-in uses besides its own domains: a domain (and its subdomains), or a host and the start of a path,
+  /// `www.google.com/recaptcha/`, for one part of a host that is otherwise somebody else's.
   pub auth: Vec<String>,
   pub opens_in: OpensIn,
 }
@@ -129,6 +132,15 @@ fn host_in(host: &str, domains: &[String]) -> bool {
   domains.iter().any(|d| host_matches(host, d))
 }
 
+/// `url` is one of a site's sign-in entries: on the domain, or for `host/path/`, on that host exactly and under that
+/// path. The path is the parsed one, so `/recaptcha/../search` is `/search` and not under `/recaptcha/`.
+fn auth_allows(entry: &str, host: &str, url: &Url) -> bool {
+  match entry.split_once('/') {
+    Some((h, path)) => host == h && url.path().starts_with(&format!("/{path}")),
+    None => host_matches(host, entry),
+  }
+}
+
 /// Google's sign-in pages: `accounts.google.com`, and its country forms (`accounts.google.co.uk`). Google forbids
 /// signing in there from an embedded window, so these are never loaded in one.
 /// https://developers.google.com/identity/protocols/oauth2/policies#browsers
@@ -183,12 +195,29 @@ pub fn route(site: &Site, url: &Url) -> Route {
     return Route::GoogleSignIn;
   }
   // The default port only: another port on a site's name is not the site.
-  let on_site = url.port().is_none() && (host_in(host, &site.domains) || host_in(host, &site.auth));
+  let on_site =
+    url.port().is_none() && (host_in(host, &site.domains) || site.auth.iter().any(|a| auth_allows(a, host, url)));
   if on_site {
     Route::Allow
   } else {
     Route::System
   }
+}
+
+/// Whether a site's window goes on to `url` when it navigates, the page or any frame in it. Linux and macOS report a
+/// frame's navigation the same way as the page's, with nothing to say a person asked for it, so a navigation never
+/// opens anything outside the window: what isn't the site's is not loaded, a Google sign-in included. The system
+/// browser and the Google offer are only for links and popups that ask for a window of their own.
+pub fn navigates(site: &Site, url: &Url) -> bool {
+  route(site, url) == Route::Allow
+}
+
+/// Whether a site's window on Windows loads a document, the page's or a frame's, at `uri`: the address WebView2 gives
+/// before it asks the network. The same rule as `navigates`, for the frames wry doesn't report there. An address that
+/// doesn't parse is not loaded.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn document_allowed(site: &Site, uri: &str) -> bool {
+  Url::parse(uri).is_ok_and(|u| route(site, &u) == Route::Allow)
 }
 
 /// What a link from the Studio's own window means for the sites: the site it belongs to, when that site opens in the
@@ -259,6 +288,23 @@ pub fn inside_ready(data: &Path, path: &str) -> Option<PathBuf> {
 /// Whether this macOS keeps a site's cookies apart from the others': 14 and later does. Older ones share one store.
 pub fn separate_stores(macos_major: u32) -> bool {
   macos_major >= 14
+}
+
+/// What "Sign out of this site" says on macOS 11 to 13, where clearing one site's cookies would clear every site's and
+/// the Studio's: Hildegard can't sign out of just one, so the person signs out on the site.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn shared_store_sign_out(name: &str) -> String {
+  format!(
+    "This Mac (macOS 11 to 13) keeps one set of cookies for every site in Hildegard and for the Studio, so Hildegard \
+     can’t sign you out of {name} alone. Sign out on the site itself: open {name} here and use its own Sign out. \
+     macOS 14 and later keeps each site apart, and there this signs you out for you."
+  )
+}
+
+/// The WebKit data stores (macOS 14 and later) that belong to no listed site: those of sites the person removed.
+#[cfg_attr(not(target_vendor = "apple"), allow(dead_code))]
+pub fn stores_to_remove(stores: &[[u8; 16]], keep: &[[u8; 16]]) -> Vec<[u8; 16]> {
+  stores.iter().filter(|s| !keep.contains(s)).copied().collect()
 }
 
 #[cfg(test)]
@@ -376,6 +422,115 @@ mod tests {
     }
     // A page that only looks like it is somebody else's, and goes to the system browser like any other.
     assert_eq!(route(&site("youtube"), &u("https://accounts.google.com.evil.example/")), Route::System);
+  }
+
+  #[test]
+  fn a_navigation_never_hands_anything_off() {
+    // Linux and macOS report a frame's navigation as a navigation: a captcha, a bot check or Google's sign-in button
+    // loading inside the page, with no click. None of them may open a browser tab or the Google offer, so the decision
+    // is only yes or no.
+    let reddit = site("reddit");
+    for (url, was) in [
+      ("https://evil.example/frame", Route::System),
+      ("https://accounts.google.com/gsi/button?client_id=x", Route::GoogleSignIn),
+      ("https://accounts.google.com/v3/signin/identifier", Route::GoogleSignIn),
+      ("http://www.reddit.com/", Route::System),
+      ("mailto:a@b.example", Route::System),
+      ("javascript:alert(1)", Route::Block),
+    ] {
+      assert_eq!(route(&reddit, &u(url)), was, "{url}");
+      assert!(!navigates(&reddit, &u(url)), "{url}");
+    }
+    for url in ["https://www.reddit.com/login/", "https://www.google.com/recaptcha/api2/anchor?k=x", "about:blank"] {
+      assert!(navigates(&reddit, &u(url)), "{url}");
+    }
+  }
+
+  #[test]
+  fn a_captcha_is_allowed_on_its_own_path_and_no_further() {
+    let reddit = site("reddit");
+    for ok in [
+      "https://www.google.com/recaptcha/api2/anchor?k=x",
+      "https://www.google.com/recaptcha/enterprise/anchor?k=x",
+      "https://www.google.com/recaptcha/api2/bframe?k=x",
+      "https://recaptcha.google.com/recaptcha/api2/anchor?k=x",
+    ] {
+      assert_eq!(route(&reddit, &u(ok)), Route::Allow, "{ok}");
+    }
+    for no in [
+      "https://www.google.com/",
+      "https://www.google.com/search?q=x",
+      "https://www.google.com/recaptcha",
+      "https://www.google.com/recaptchas/",
+      "https://www.google.com/recaptcha/../search",
+      "https://www.google.com/recaptcha/%2e%2e/search",
+      "https://www.google.com/x/recaptcha/",
+      "https://google.com/recaptcha/api2/anchor",
+      "https://mail.google.com/recaptcha/api2/anchor",
+      "https://www.google.com.evil.example/recaptcha/",
+      "https://www.google.com:8443/recaptcha/api2/anchor",
+      "https://evil.example/www.google.com/recaptcha/",
+    ] {
+      assert_eq!(route(&reddit, &u(no)), Route::System, "{no}");
+    }
+    // Each site has the checks its own sign-in frames, and not another's.
+    let x = site("x");
+    assert_eq!(route(&x, &u("https://iframe.arkoselabs.com/abc/index.html")), Route::Allow);
+    assert_eq!(route(&x, &u("https://www.recaptcha.net/recaptcha/api2/anchor")), Route::Allow);
+    assert_eq!(route(&x, &u("https://www.google.com/recaptcha/api2/anchor")), Route::System);
+    let tiktok = site("tiktok");
+    assert_eq!(route(&tiktok, &u("https://newassets.hcaptcha.com/captcha/v1/x/static/hcaptcha.html")), Route::Allow);
+    assert_eq!(route(&tiktok, &u("https://tiktok-api.arkoselabs.com/v2/x/enforcement.html")), Route::Allow);
+    assert_eq!(route(&site("linkedin"), &u("https://newassets.hcaptcha.com/")), Route::System);
+    assert_eq!(route(&site("instagram"), &u("https://www.fbsbx.com/captcha/recaptcha/iframe/")), Route::Allow);
+    // Google's sign-in is never one of them.
+    for s in catalog() {
+      assert_eq!(route(&s, &u("https://accounts.google.com/gsi/button")), Route::GoogleSignIn, "{}", s.id);
+    }
+  }
+
+  #[test]
+  fn every_sign_in_entry_is_a_domain_or_a_host_and_a_path() {
+    for s in catalog() {
+      for a in &s.auth {
+        let (host, path) = a.split_once('/').map_or((a.as_str(), None), |(h, p)| (h, Some(p)));
+        assert!(host.contains('.') && !host.starts_with('.') && !host.ends_with('.'), "{} {a}", s.id);
+        assert!(host.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'-'), "{a}");
+        // A path ends with `/`, so `/recaptcha/` can't also cover `/recaptchas`.
+        if let Some(p) = path {
+          assert!(!p.is_empty() && p.ends_with('/') && !p.contains(".."), "{} {a}", s.id);
+        }
+        // A Google host is only ever a path on it, never the whole host.
+        if host_matches(host, "google.com") {
+          assert!(path.is_some(), "{} {a}", s.id);
+        }
+      }
+    }
+  }
+
+  #[test]
+  fn the_windows_document_check_denies_other_hosts_and_allows_the_site_s_own() {
+    let reddit = site("reddit");
+    for ok in [
+      "https://www.reddit.com/login/",
+      "https://www.redditstatic.com/x.html",
+      "https://www.google.com/recaptcha/api2/anchor",
+    ] {
+      assert!(document_allowed(&reddit, ok), "{ok}");
+    }
+    for no in [
+      "https://evil.example/",
+      "https://accounts.google.com/gsi/button",
+      "https://accounts.google.com/o/oauth2/v2/auth",
+      "https://www.google.com/",
+      "http://www.reddit.com/",
+      "http://tauri.localhost/index.html",
+      "file:///C:/Windows/win.ini",
+      "not a url",
+      "",
+    ] {
+      assert!(!document_allowed(&reddit, no), "{no}");
+    }
   }
 
   #[test]
@@ -503,5 +658,17 @@ mod tests {
     assert!(!separate_stores(13));
     assert!(separate_stores(14));
     assert!(separate_stores(26));
+    // There, sign-out clears nothing and says where to sign out instead.
+    let text = shared_store_sign_out("Reddit");
+    assert!(text.contains("can’t sign you out of Reddit alone"), "{text}");
+    assert!(text.contains("Sign out on the site itself"), "{text}");
+  }
+
+  #[test]
+  fn a_removed_site_s_store_is_the_one_removed() {
+    let listed: Vec<_> = catalog().iter().map(|s| store_id(&s.id)).chain([store_id("c-kept")]).collect();
+    let stores = vec![store_id("x"), store_id("c-gone"), store_id("c-kept"), store_id("reddit")];
+    assert_eq!(stores_to_remove(&stores, &listed), vec![store_id("c-gone")]);
+    assert!(stores_to_remove(&[], &listed).is_empty());
   }
 }

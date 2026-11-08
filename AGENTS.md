@@ -140,11 +140,14 @@ Rules for changes here:
   reads inside a signed-in site. There is no "post with your account" mode and none is planned (Donovan, 2026-11-07).
   `post.test.ts` scans the Post code for network modules and platform API hosts, and watches a whole run for requests.
 - **A site window has no capability and no script of ours.** `capabilities/main.json` names `main` only and has no
-  `remote`; the window builder adds no `initialization_script`, sets no user agent, and sends every address outside the
-  site's domains (`presets/post-sites.json`, tested in `browse.rs`) to the system browser. `config.test.ts` holds all of it.
+  `remote`; the window builder adds no `initialization_script` and sets no user agent. It loads no page or frame outside
+  the site's domains and sign-in entries (`presets/post-sites.json`, tested in `browse.rs`), and only a link or popup
+  that asks for a window goes to the system browser: `on_navigation` sees frames on Linux and macOS and never hands off.
+  On Windows `frames.rs` checks every document through WebView2 and touches the webview for nothing else.
+  `config.test.ts` holds all of it.
   A new site is a line in `post-sites.json` with a test, not a code path.
-- **Google never signs in inside the app.** `accounts.google.*` is not shown in a window; the person is offered their
-  browser. Never spoof a user agent to change that.
+- **Google never signs in inside the app.** `accounts.google.*` is not shown in a window, as a page or a frame; a link
+  or popup to it offers the person their browser. Never spoof a user agent to change that.
 - **Profiles are private.** A site's cookies live in `<data>/browse/<site>/` and are never read, copied, logged or served
   by Hildegard, or by an agent: not by tools, not over MCP, not by a loop. Sign-out clears the folder.
 - **Owner only.** Preparing a post is the owner's. Showing a file, and adding or removing a site, change this computer and

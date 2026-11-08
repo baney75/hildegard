@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BrowseSiteError, BrowseSites, sharedCookies, siteUrl } from '../src/browse-sites.ts';
+import { BrowseSiteError, BrowseSites, removalNotice, sharedCookies, siteUrl } from '../src/browse-sites.ts';
 
 describe('which addresses are a site', () => {
   it('takes https on a real host and nothing else', () => {
@@ -45,7 +45,7 @@ describe('the list', () => {
     expect(JSON.parse(readFileSync(join(dir, 'browse', 'sites.json'), 'utf8'))).toEqual({ sites: [added] });
     mkdirSync(join(dir, 'browse', added.id), { recursive: true });
     writeFileSync(join(dir, 'browse', added.id, 'Cookies'), 'x');
-    sites.remove(added.id);
+    expect(sites.remove(added.id)).toEqual(added);
     expect(sites.list()).toEqual([]);
     // Its sign-in goes with it.
     expect(existsSync(join(dir, 'browse', added.id))).toBe(false);
@@ -76,6 +76,21 @@ describe('the list', () => {
       }),
     );
     expect(new BrowseSites(dir).list().map((s) => s.id)).toEqual(['c-aaaa']);
+  });
+});
+
+describe('what removing a site says', () => {
+  it('says its sign-in is gone where each site has its own store', () => {
+    expect(removalNotice('Bluesky', false)).toBe(
+      'Removed Bluesky. Its window closes, and its cookies and saved data are gone from Hildegard.',
+    );
+  });
+
+  it('says on macOS 11 to 13 that the sign-in may stay, and how to sign out on the site', () => {
+    const text = removalNotice('Bluesky', true);
+    expect(text).toMatch(/can’t clear Bluesky’s alone/);
+    expect(text).toMatch(/use its own Sign out/);
+    expect(text).not.toMatch(/gone/);
   });
 });
 

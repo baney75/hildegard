@@ -55,26 +55,55 @@ What a site window can and can't do:
 
 - **No capability.** `capabilities/main.json` names the `main` window only, and no remote URL. A page in a site window can
   call nothing in the app. The app adds no script to its pages and keeps the webview's own user agent.
-- **Its own pages only.** The window shows the site's domains, their subdomains and the few its sign-in uses
-  (`presets/post-sites.json`, which the Studio and the server read too). Any other link opens in your browser. A link
-  that wants a new window opens in the same one.
+- **Its own pages and frames only.** The window shows the site's domains, their subdomains and the few its sign-in uses
+  (`presets/post-sites.json`, which the Studio and the server read too), as a page or as a frame in one. A link or popup
+  that asks for a new window opens in your browser when it goes elsewhere, and in the same window when it doesn't. Any
+  other page or frame from elsewhere is simply not loaded: Linux and macOS report a frame's navigation like a click, so
+  a navigation never opens anything outside the window. On Windows, where wry reports the page's navigations only,
+  every document the window loads, its frames' included, passes the same check before it is fetched (`frames.rs`,
+  WebView2's `WebResourceRequested`); a refused one gets an empty 403. A WebView2 too old for that check (before
+  1.0.2365) doesn't open site windows.
 - **Downloads** go to your Downloads folder, under a name nothing there has.
 - **Files** can be dropped on the page or chosen with its own file picker, so the prepared file goes in the site's
   upload box.
 - **Sign out of this site** clears that site's profile (its Browse submenu, or the **Site** menu in its window).
+  Removing a site you added closes its window and clears its profile too.
 - A site you add is an `https` address on a real host: never an IP address, `localhost`, a bare name or a port. Its window
   shows that host and its subdomains and nothing else.
 
 **Google.** Google forbids signing in from an embedded window
 (<https://developers.google.com/identity/protocols/oauth2/policies#browsers>), so Hildegard never shows a Google sign-in
 page and never changes its user agent to get around that. Posting to YouTube opens your browser. If a site's window
-reaches `accounts.google.com` (YouTube's **Sign in**, or "Continue with Google" on another site) the window stays where
-it was and Hildegard offers your browser instead, with the caption copied and the file shown. Where a site has its own
-email or username sign-in, use that in the app.
+opens `accounts.google.com` in a new window or popup (YouTube's **Sign in**, or "Continue with Google" on another site),
+the window stays where it was and Hildegard offers your browser instead, with the caption copied and the file shown. A
+Google sign-in page or frame inside the window (Google's sign-in button, One Tap) is not loaded and offers nothing. Where
+a site has its own email or username sign-in, use that in the app.
+
+**Captchas and bot checks.** A site's sign-in often loads a captcha in a frame. Those hosts are in the site's `auth`
+list, and only for the site whose sign-in uses them. An entry is a domain (with its subdomains) or a host and the start of
+a path, so `www.google.com/recaptcha/` lets in Google's captcha and nothing else on www.google.com. Only pages and frames
+are checked, so a captcha's scripts and images need no entry. Each one, and where it comes from:
+
+| Entry | Sites | Source |
+| --- | --- | --- |
+| `www.google.com/recaptcha/`, `recaptcha.google.com/recaptcha/` | Reddit, Instagram, Facebook, Threads, TikTok | Google's reCAPTCHA frame hosts (<https://developers.google.com/recaptcha/docs/faq>, the frame-src list). Reddit: its admins say its login uses reCAPTCHA (r/help, "Changes to old Reddit login flow", May 2024). Facebook's and Instagram's login pages allow `www.google.com` and `*.google.com` frames in their CSP; Threads signs in through Instagram. TikTok's login CSP lists `recaptcha.google.com` and `www.google.com`. |
+| `recaptcha.net/recaptcha/`, `www.recaptcha.net/recaptcha/`, `recaptcha.google.com/recaptcha/` | X | X's login CSP (`x.com/i/flow/login`) frame-src names exactly these. Google: <https://developers.google.com/recaptcha/docs/faq> (www.recaptcha.net). |
+| `iframe.arkoselabs.com` | X | X's login CSP frame-src. |
+| `arkoselabs.com` | TikTok | TikTok's login CSP allows `*.arkoselabs.com` (frames fall back to its default-src) and loads `client-api.arkoselabs.com` and its own `tx41v.arkoselabs.com`. Arkose's client domains: <https://developer.arkoselabs.com/docs/domain-policy>. |
+| `hcaptcha.com` | TikTok | TikTok's login CSP lists `js.hcaptcha.com` and `newassets.hcaptcha.com`; hCaptcha asks for `hcaptcha.com` and `*.hcaptcha.com` in frame-src (<https://docs.hcaptcha.com/>, Content Security Policy). |
+| `static.captchami.com` | TikTok | TikTok's login CSP default-src, which its frames fall back to. |
+| `fbsbx.com` | Instagram, Facebook, Threads | Meta's captcha frame host: all three login pages' CSP frame-src allow `*.fbsbx.com`. |
+
+LinkedIn's login page refuses a plain request, so its CSP couldn't be read, and no primary source names its captcha:
+it has none listed. Cloudflare Turnstile (`challenges.cloudflare.com`) is in no listed site's login CSP, so it isn't
+listed either. The CSPs were read on 2026-11-07; sites change them, and a new captcha host is a line here and a test.
 
 **Profiles.** Each site's cookies and storage live under `<data>/browse/<site>/` (mode 0700 where the system has modes),
 nowhere else. On macOS 14 and later each site gets its own data store. macOS 11 to 13 has no way to keep them apart, so
-those sites share one cookie store; the app and the Sites page say so plainly, and signing out of one signs out of all.
+those sites share one cookie store with each other and with the Studio. There Hildegard can't sign out of one site or
+clear a removed one's cookies without clearing the Studio's too, so it doesn't: **Sign out of this site** and removing a
+site say to sign out on the site itself. On macOS 14 and later, removing a site removes its data store once its window
+has closed, and the app removes any store left from a site removed while it wasn't running.
 
 ## For agents
 

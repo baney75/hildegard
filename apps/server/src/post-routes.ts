@@ -17,7 +17,7 @@ import {
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Ctx, HgEnv } from './access.ts';
-import { BrowseSiteError, type BrowseSites, sharedCookies } from './browse-sites.ts';
+import { BrowseSiteError, type BrowseSites, removalNotice, sharedCookies } from './browse-sites.ts';
 import { PostError, type Poster } from './post.ts';
 
 export interface PostRouteDeps {
@@ -110,8 +110,9 @@ export function postRoutes(d: PostRouteDeps) {
   app.delete('/browse/:id', (c) => {
     if (!d.local(c)) return c.json({ error: 'Change sites on the computer Hildegard runs on.' }, 403);
     try {
-      d.browse.remove(c.req.param('id'));
-      return c.json(browseView());
+      const gone = d.browse.remove(c.req.param('id'));
+      const view = browseView();
+      return c.json({ ...view, notice: removalNotice(gone.name, view.sharedCookies) });
     } catch (e) {
       if (e instanceof BrowseSiteError) return c.json({ error: e.message }, e.status);
       throw e;

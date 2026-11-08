@@ -116,6 +116,41 @@ describe('the windows the app builds', () => {
     }
   });
 
+  it('on Windows touches the webview only to keep other sites’ frames out', () => {
+    // wry reports main-frame navigations only on Windows; frames.rs checks every document, and does nothing else.
+    const frames = code('src/frames.rs');
+    expect(lib).toMatch(/#\[cfg\(windows\)\]\s*mod frames;/);
+    expect(siteBuilder).toMatch(/#\[cfg\(windows\)\]\s*if let Err\(e\) = frames::guard\(/);
+    expect(frames.match(/\.with_webview\(/g)).toHaveLength(1);
+    expect(frames).toContain('AddWebResourceRequestedFilterWithRequestSourceKinds(');
+    expect(frames).toContain('COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT');
+    expect(frames).toContain('browse::document_allowed(&site,');
+    const calls = new Set([...frames.matchAll(/\.([A-Z][A-Za-z0-9]+|add_[A-Za-z]+)\(/g)].map((m) => m[1]));
+    expect([...calls].sort()).toEqual(
+      [
+        'AddWebResourceRequestedFilterWithRequestSourceKinds',
+        'CoreWebView2',
+        'CreateWebResourceResponse',
+        'Navigate',
+        'Request',
+        'ResourceContext',
+        'SetResponse',
+        'Uri',
+        'add_WebResourceRequested',
+      ].sort(),
+    );
+    for (const forbidden of [
+      'initialization_script',
+      'user_agent',
+      'UserAgent',
+      'Script',
+      'WebMessage',
+      'DevTools',
+      'HostObject',
+    ])
+      expect(frames, forbidden).not.toContain(forbidden);
+  });
+
   it('gives every site its own folder under Hildegard’s data, never a shared one', () => {
     expect(siteBuilder).toMatch(/browse::ensure_profile\(&hg\.layout\.data, &site\.id\)/);
     expect(siteBuilder).toMatch(/browse::window_label\(&site\.id\)/);
@@ -149,8 +184,12 @@ describe('the sites', () => {
 
   it('never lists a Google sign-in domain as a site’s own or a sign-in domain', () => {
     for (const s of sites)
-      for (const d of [...s.domains, ...s.auth])
+      for (const d of [...s.domains, ...s.auth]) {
         expect(d, s.id).not.toMatch(/(^|\.)accounts\.google\.|(^|\.)google\.com$/);
+        // Google's captcha is a path on its host, never the host.
+        if (/(^|\.)google\.com\//.test(d))
+          expect(d, s.id).toMatch(/^(www|recaptcha)\.google\.com\/recaptcha\/$/);
+      }
   });
 
   it('asks nothing of a site but https pages on its own domains', () => {

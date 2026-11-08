@@ -4,6 +4,8 @@
 //! is the server's, at http://127.0.0.1:<port>, and has no access to the app at all.
 
 mod browse;
+#[cfg(windows)]
+mod frames;
 mod install;
 mod nav;
 mod paths;
@@ -202,7 +204,7 @@ fn open_logs(app: AppHandle) -> Result<(), String> {
 // ── Sites in their own windows ───────────────────────────────────────────────────────────────────────────────────
 
 /// Opens a page in the system browser. The same page is not opened twice within two seconds, and nothing opens within
-/// half a second of the last: a page that loads many frames from outside its site must not stack up browser tabs.
+/// half a second of the last: a page that opens many popups to outside its site must not stack up browser tabs.
 fn open_outside(app: &AppHandle, url: &Url) {
   static LAST: Mutex<Option<(String, Instant)>> = Mutex::new(None);
   if !nav::opens_outside(url) {
@@ -283,17 +285,19 @@ fn build_site(app: &AppHandle, site: &Site, url: &Url) -> Result<(), String> {
       say(
         app,
         "Sites share their sign-ins on this Mac",
-        "On macOS 11 to 13, every site you open in Hildegard shares one set of cookies, so signing in to one is visible \
-         to the others. macOS 14 and later keeps each site apart. “Sign out of this site” signs you out of every \
-         site here until you update macOS."
+        "On macOS 11 to 13, every site you open in Hildegard shares one set of cookies with the others and with the \
+         Studio, so signing in to one is visible to the others, and Hildegard can’t sign you out of just one. To sign \
+         out, use the site’s own Sign out in its window. macOS 14 and later keeps each site apart."
           .into(),
       );
     }
   }
 
   // A site's window has no capability, so nothing in it can call the app; it has no initialization script and shows
-  // the webview's own user agent. All it can do is show its own pages, and the rest goes to the system browser.
-  let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url.clone()))
+  // the webview's own user agent. All it can do is show its own pages and frames. On Windows it starts blank and goes
+  // to the site once the frame check is in (frames.rs).
+  let first = if cfg!(windows) { Url::parse("about:blank").map_err(|e| e.to_string())? } else { url.clone() };
+  let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(first))
     .title(site.name.clone())
     .inner_size(1100.0, 800.0)
     .min_inner_size(480.0, 360.0)
@@ -301,20 +305,10 @@ fn build_site(app: &AppHandle, site: &Site, url: &Url) -> Result<(), String> {
     // Files dropped on the page (a video for the site's upload box) must reach the page; on Windows the app's own
     // drag-and-drop handler would otherwise take them.
     .disable_drag_drop_handler()
+    // The page and, on Linux and macOS, every frame: what isn't the site's is not loaded, and nothing opens outside.
     .on_navigation({
-      let (app, site) = (app.clone(), site.clone());
-      move |url| match browse::route(&site, url) {
-        Route::Allow => true,
-        Route::System => {
-          open_outside(&app, url);
-          false
-        }
-        Route::GoogleSignIn => {
-          google_offer(&app, &site);
-          false
-        }
-        Route::Block => false,
-      }
+      let site = site.clone();
+      move |url| browse::navigates(&site, url)
     })
     .on_new_window({
       let (app, site, label) = (app.clone(), site.clone(), label.clone());
@@ -338,7 +332,21 @@ fn build_site(app: &AppHandle, site: &Site, url: &Url) -> Result<(), String> {
   let builder = builder.data_store_identifier(browse::store_id(&site.id));
   #[cfg(not(target_os = "macos"))]
   let builder = builder.menu(site_window_menu(app, site).map_err(|e| e.to_string())?);
-  builder.build().map_err(|e| e.to_string())?;
+  let _window = builder.build().map_err(|e| e.to_string())?;
+  #[cfg(windows)]
+  if let Err(e) = frames::guard(&_window, site, url) {
+    let _ = _window.destroy();
+    say(
+      app,
+      "Update Microsoft Edge WebView2",
+      format!(
+        "Hildegard didn’t open {} because this computer’s WebView2 can’t keep other sites’ frames out of its window. \
+         Updating Microsoft Edge updates WebView2; then try again.",
+        site.name
+      ),
+    );
+    return Err(format!("the frame check didn’t start: {e}"));
+  }
   Ok(())
 }
 
@@ -391,8 +399,14 @@ fn handoff(app: &AppHandle, site: &Site) {
   });
 }
 
-/// Clears a site's profile: its cookies, storage and sign-in. Its window closes.
+/// Clears a site's profile: its cookies, storage and sign-in. Its window closes. On macOS 11 to 13 every webview,
+/// the Studio's too, keeps its cookies in one store, so there is no one site's to clear: the person is told to sign
+/// out on the site itself.
 fn sign_out(app: &AppHandle, site: &Site) {
+  if !browse::separate_stores(macos_major()) {
+    say(app, "Sign out on the site", browse::shared_store_sign_out(&site.name));
+    return;
+  }
   let (app, site) = (app.clone(), site.clone());
   std::thread::spawn(move || {
     let hg = app.state::<Hildegard>();
@@ -419,13 +433,69 @@ fn sign_out(app: &AppHandle, site: &Site) {
         let _ = std::fs::remove_dir_all(dir);
       }
     }
-    let text = if browse::separate_stores(macos_major()) {
-      format!("You’re signed out of {}. Its cookies and saved data are gone from Hildegard.", site.name)
-    } else {
-      "On macOS 11 to 13 every site in Hildegard shares one set of cookies, so this signed you out of every site here."
-        .to_owned()
-    };
-    say(&app, "Signed out", text);
+    say(
+      &app,
+      "Signed out",
+      format!("You’re signed out of {}. Its cookies and saved data are gone from Hildegard.", site.name),
+    );
+  });
+}
+
+/// A site the person took off the list: its window closes, and then its sign-in goes. Elsewhere that is its profile
+/// folder (the server deletes it too, but not from under an open window); on macOS 14 and later it is its WebKit data
+/// store, which only the app can remove. On macOS 11 to 13 there is no store of its own to remove.
+fn forget_site(app: &AppHandle, id: &str) {
+  let (app, id) = (app.clone(), id.to_owned());
+  std::thread::spawn(move || {
+    if let Some(w) = app.get_webview_window(&browse::window_label(&id)) {
+      let _ = w.destroy();
+    }
+    #[cfg(target_vendor = "apple")]
+    if browse::separate_stores(macos_major()) {
+      remove_store(&app, browse::store_id(&id));
+    }
+    if !cfg!(target_vendor = "apple") {
+      std::thread::sleep(Duration::from_secs(1));
+      if let Some(dir) = browse::profile_dir(&app.state::<Hildegard>().layout.data, &id) {
+        let _ = std::fs::remove_dir_all(dir);
+      }
+    }
+  });
+}
+
+/// Removes a WebKit data store, trying for a while: WebKit refuses while a webview that used it is still going away.
+#[cfg(target_vendor = "apple")]
+fn remove_store(app: &AppHandle, store: [u8; 16]) {
+  let mut why = String::new();
+  for _ in 0..10 {
+    std::thread::sleep(Duration::from_secs(1));
+    match tauri::async_runtime::block_on(app.remove_data_store(store)) {
+      Ok(()) => return,
+      Err(e) => why = e.to_string(),
+    }
+  }
+  log(&app.state::<Hildegard>().layout, &format!("Couldn’t remove a removed site’s data store: {why}"));
+}
+
+/// On macOS 14 and later, at launch: removes the data stores of sites no longer listed, such as one removed while
+/// the app wasn't running. Every store with an id is a site's; the Studio's window uses the default store.
+#[cfg(target_vendor = "apple")]
+fn prune_stores(app: &AppHandle) {
+  if !browse::separate_stores(macos_major()) {
+    return;
+  }
+  let app = app.clone();
+  std::thread::spawn(move || {
+    let keep: Vec<[u8; 16]> =
+      browse::all_sites(&app.state::<Hildegard>().layout.data).iter().map(|s| browse::store_id(&s.id)).collect();
+    match tauri::async_runtime::block_on(app.fetch_data_store_identifiers()) {
+      Ok(ids) => {
+        for id in browse::stores_to_remove(&ids, &keep) {
+          remove_store(&app, id);
+        }
+      }
+      Err(e) => log(&app.state::<Hildegard>().layout, &format!("Couldn’t list the sites’ data stores: {e}")),
+    }
   });
 }
 
@@ -470,8 +540,12 @@ fn browse_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
 fn refresh_browse(app: &AppHandle) {
   let hg = app.state::<Hildegard>();
   let now: Vec<String> = browse::all_sites(&hg.layout.data).into_iter().map(|s| s.id).collect();
-  if *hg.browse_listed.lock().unwrap() == now {
+  let before = hg.browse_listed.lock().unwrap().clone();
+  if before == now {
     return;
+  }
+  for gone in before.iter().filter(|id| !now.contains(id)) {
+    forget_site(app, gone);
   }
   for sub in hg.browse_menus.lock().unwrap().iter() {
     if let Ok(items) = sub.items() {
@@ -484,6 +558,25 @@ fn refresh_browse(app: &AppHandle) {
     }
   }
   *hg.browse_listed.lock().unwrap() = now;
+}
+
+/// Every menu choice: the tray's, the menu bar's and a site window's. Tauri hands each menu event to every handler
+/// registered for it, the app's and the tray's, so this is the only one: one click, one action.
+fn menu_event(app: &AppHandle, id: &str) {
+  match id {
+    "open" => show_window(app),
+    "sharing" => toggle_sharing(app),
+    "update" => {
+      let app = app.clone();
+      std::thread::spawn(move || restart_to_update(&app));
+    }
+    "quit" => {
+      let app = app.clone();
+      // Stopping Hildegard can take a few seconds; not on the thread that draws the menu.
+      std::thread::spawn(move || quit(&app));
+    }
+    other => browse_event(app, other),
+  }
 }
 
 /// A choice from any Browse menu, or from a site window's own.
@@ -654,20 +747,7 @@ fn tray(app: &AppHandle) -> tauri::Result<()> {
     .menu(&menu)
     // A click opens the window on Windows and Linux; on macOS the menu bar shows the menu, as it does for every app.
     .show_menu_on_left_click(cfg!(target_os = "macos"))
-    .on_menu_event(|app, e| match e.id().as_ref() {
-      "open" => show_window(app),
-      "sharing" => toggle_sharing(app),
-      "update" => {
-        let app = app.clone();
-        std::thread::spawn(move || restart_to_update(&app));
-      }
-      "quit" => {
-        let app = app.clone();
-        // Stopping Hildegard can take a few seconds; not on the thread that draws the menu.
-        std::thread::spawn(move || quit(&app));
-      }
-      other => browse_event(app, other),
-    })
+    // Its menu's choices reach the app's one menu handler, `menu_event`.
     .on_tray_icon_event(|tray, e| {
       if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
         show_window(tray.app_handle());
@@ -694,9 +774,8 @@ fn watch(app: AppHandle) {
         if tick % 10 == 0 {
           refresh_sharing(&app);
         }
-        if tick % 5 == 0 {
-          refresh_browse(&app);
-        }
+        // Reads one small file; the menus are redone, and a removed site's window closed, only when the list changed.
+        refresh_browse(&app);
         continue;
       }
       // An update restarts Hildegard as the new version; that's a pause, not a stop.
@@ -782,7 +861,7 @@ pub fn run() {
       tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::all() - StateFlags::VISIBLE).build(),
     )
     .invoke_handler(tauri::generate_handler![launch, install, open_logs])
-    .on_menu_event(|app, event| browse_event(app, event.id().as_ref()))
+    .on_menu_event(|app, event| menu_event(app, event.id().as_ref()))
     .setup(|app| {
       let layout = Layout::new(Os::current(), &system_env);
       let exe_dir = std::env::current_exe()?.parent().map(|p| p.to_path_buf()).unwrap_or_default();
@@ -847,6 +926,8 @@ pub fn run() {
         menu.insert(&browse_menu(app.handle())?, at)?;
         app.set_menu(menu)?;
       }
+      #[cfg(target_vendor = "apple")]
+      prune_stores(app.handle());
       watch(app.handle().clone());
       watch_updates(app.handle().clone());
       Ok(())
@@ -880,4 +961,21 @@ pub fn run() {
       let _ = app;
     }
   });
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn one_menu_handler_takes_every_choice() {
+    // Tauri gives every menu event to the app's handler and to the tray's: two handlers would act twice on one click
+    // (two windows, two browser tabs, two sign-outs).
+    let lib = include_str!("lib.rs");
+    let handler = [".on_menu", "_event("].concat();
+    assert_eq!(lib.matches(handler.as_str()).count(), 1);
+    assert!(lib.contains(&format!("{handler}|app, event| menu_event(app, event.id().as_ref()))")));
+    for id in ["\"open\"", "\"sharing\"", "\"update\"", "\"quit\"", "other => browse_event(app, other)"] {
+      let menu = &lib[lib.find("fn menu_event").unwrap()..lib.find("fn browse_event").unwrap()];
+      assert!(menu.contains(id), "{id}");
+    }
+  }
 }

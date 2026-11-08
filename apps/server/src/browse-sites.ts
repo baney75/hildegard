@@ -80,12 +80,17 @@ export class BrowseSites {
     return site;
   }
 
-  /** Takes a site off the list, and its profile folder (its sign-in) with it. */
-  remove(id: string): void {
+  /**
+   * Takes a site off the list, and its profile folder (its sign-in) with it. The Hildegard app sees the list change,
+   * closes the site's window, and clears what is left: the folder again, or on macOS 14 and later its WebKit store.
+   */
+  remove(id: string): CustomSite {
     const sites = this.list();
-    if (!sites.some((s) => s.id === id)) throw new BrowseSiteError('No such site', 404);
+    const site = sites.find((s) => s.id === id);
+    if (!site) throw new BrowseSiteError('No such site', 404);
     this.save(sites.filter((s) => s.id !== id));
     rmSync(join(this.dir, id), { recursive: true, force: true });
+    return site;
   }
 
   private save(sites: CustomSite[]) {
@@ -94,6 +99,20 @@ export class BrowseSites {
     writeFileSync(tmp, JSON.stringify({ sites }, null, 2));
     renameSync(tmp, this.file);
   }
+}
+
+/**
+ * What removing a site says. On macOS 11 to 13 every site's cookies, and the Studio's, are in one store, so removing
+ * one can't take its sign-in with it: the person signs out on the site itself.
+ */
+export function removalNotice(name: string, shared: boolean): string {
+  if (!shared)
+    return `Removed ${name}. Its window closes, and its cookies and saved data are gone from Hildegard.`;
+  return (
+    `Removed ${name}. On macOS 11 to 13 every site in the app shares one set of cookies, so Hildegard can’t clear ` +
+    `${name}’s alone and you may still be signed in to it. To sign out, add it again, open it, use its own Sign ` +
+    `out, then remove it.`
+  );
 }
 
 /** macOS before 14 keeps every site's cookies in one store, which the Browse page says plainly. */

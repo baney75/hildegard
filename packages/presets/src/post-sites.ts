@@ -13,6 +13,16 @@ import { PostPlatform } from './post.ts';
 const Host = z
   .string()
   .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/, 'a host name');
+/**
+ * A sign-in entry: a domain (and its subdomains), or a host and the start of a path, ending in `/`, for one part of a
+ * host that is otherwise somebody else's (`www.google.com/recaptcha/`).
+ */
+const AuthEntry = z
+  .string()
+  .regex(
+    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(\/([a-z0-9_-]+\/)+)?$/,
+    'a host name, or a host and a path ending in /',
+  );
 const Https = z
   .string()
   .url()
@@ -26,8 +36,8 @@ export const PostSite = z.object({
   post: Https,
   /** The site's own domains, and every subdomain of them. */
   domains: z.array(Host).min(1),
-  /** Domains its sign-in flow uses besides its own. */
-  auth: z.array(Host),
+  /** What its sign-in flow uses besides its own domains: captchas and bot checks included. */
+  auth: z.array(AuthEntry),
   /**
    * `app`: the link opens the site's window in the Hildegard app. `browser`: the site (Google's) does not allow
    * signing in inside an app, so links from the Studio open the system browser.

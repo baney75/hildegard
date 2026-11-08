@@ -30,6 +30,12 @@ serde_json = "1"
 # Plain HTTP to Hildegard on 127.0.0.1 only, so no TLS.
 ureq = { version = "=3.4.2", default-features = false, features = ["json"] }
 
+# Windows: the document check for a site window's frames (src/frames.rs), through the WebView2 bindings wry itself uses.
+# Keep these at the versions in Cargo.lock that wry depends on.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.39.1"
+windows-core = "=0.62.2"
+
 [profile.release]
 codegen-units = 1
 lto = true

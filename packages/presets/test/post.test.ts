@@ -186,4 +186,26 @@ describe('the sites', () => {
     ).toThrow(/defined twice/);
     expect(() => parsePostSites(JSON.stringify({ sites: [{ ...base, post: 'http://x.com/' }] }))).toThrow();
   });
+
+  it('takes a sign-in entry as a domain, or a host and a path ending in /', () => {
+    const base = {
+      id: 'x',
+      name: 'X',
+      home: 'https://x.com/',
+      post: 'https://x.com/p',
+      domains: ['x.com'],
+      opensIn: 'app',
+    };
+    const parse = (auth: string[]) => parsePostSites(JSON.stringify({ sites: [{ ...base, auth }] }));
+    expect(parse(['hcaptcha.com', 'www.google.com/recaptcha/'])[0]!.auth).toHaveLength(2);
+    for (const bad of [
+      'www.google.com/recaptcha',
+      'www.google.com/',
+      'www.google.com/../x/',
+      'https://www.google.com/recaptcha/',
+      'www.google.com/recaptcha/?x/',
+      'localhost',
+    ])
+      expect(() => parse([bad]), bad).toThrow();
+  });
 });

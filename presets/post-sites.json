@@ -6,7 +6,12 @@
       "home": "https://x.com/home",
       "post": "https://x.com/compose/post",
       "domains": ["x.com", "twitter.com", "twimg.com", "t.co"],
-      "auth": [],
+      "auth": [
+        "iframe.arkoselabs.com",
+        "recaptcha.net/recaptcha/",
+        "www.recaptcha.net/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
       "opensIn": "app"
     },
     {
@@ -31,7 +36,13 @@
       "home": "https://www.instagram.com/",
       "post": "https://www.instagram.com/",
       "domains": ["instagram.com", "cdninstagram.com", "fbcdn.net"],
-      "auth": ["facebook.com", "meta.com"],
+      "auth": [
+        "facebook.com",
+        "meta.com",
+        "fbsbx.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
       "opensIn": "app"
     },
     {
@@ -40,7 +51,14 @@
       "home": "https://www.tiktok.com/",
       "post": "https://www.tiktok.com/upload",
       "domains": ["tiktok.com", "tiktokcdn.com", "tiktokcdn-us.com", "tiktokv.com"],
-      "auth": ["appleid.apple.com"],
+      "auth": [
+        "appleid.apple.com",
+        "arkoselabs.com",
+        "hcaptcha.com",
+        "static.captchami.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
       "opensIn": "app"
     },
     {
@@ -49,7 +67,7 @@
       "home": "https://www.facebook.com/",
       "post": "https://www.facebook.com/",
       "domains": ["facebook.com", "fb.com", "fbcdn.net", "messenger.com", "facebook.net"],
-      "auth": ["meta.com"],
+      "auth": ["meta.com", "fbsbx.com", "www.google.com/recaptcha/", "recaptcha.google.com/recaptcha/"],
       "opensIn": "app"
     },
     {
@@ -58,7 +76,13 @@
       "home": "https://www.threads.com/",
       "post": "https://www.threads.com/",
       "domains": ["threads.com", "threads.net", "cdninstagram.com", "fbcdn.net"],
-      "auth": ["instagram.com", "meta.com"],
+      "auth": [
+        "instagram.com",
+        "meta.com",
+        "fbsbx.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
       "opensIn": "app"
     },
     {
@@ -67,7 +91,7 @@
       "home": "https://www.reddit.com/",
       "post": "https://www.reddit.com/submit",
       "domains": ["reddit.com", "redd.it", "redditmedia.com", "redditstatic.com", "reddituploads.com"],
-      "auth": ["appleid.apple.com"],
+      "auth": ["appleid.apple.com", "www.google.com/recaptcha/", "recaptcha.google.com/recaptcha/"],
       "opensIn": "app"
     },
     {
