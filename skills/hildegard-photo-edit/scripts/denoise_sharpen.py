@@ -3,8 +3,10 @@
 
   python3 denoise_sharpen.py IN OUT [--denoise auto|none|N] [--sharpen auto|none|AMOUNT] [--max-noise-increase PCT] [--json]
 
-  --denoise   auto (default): strength from the measured noise, none when the photo is already clean; or a multiplier such as 0.5 or 1.5
-  --sharpen   auto (default): the strongest unsharp mask whose result stays under the noise ceiling; none; or an amount from 0.1 to 1.5
+  --denoise   auto (default): strength from the measured noise, none when the photo is already clean; or a multiplier such as 0.5 or 1.5.
+              0 means off, the same as none
+  --sharpen   auto (default): the strongest unsharp mask whose result stays under the noise ceiling; none; or an amount from 0.1 to 1.5.
+              0 means off, the same as none
   --max-noise-increase  how many percent above the denoised photo's noise the sharpened result may be (default 15). The ceiling is the
               lower of that and the photo's own noise before denoising: sharpening never gives back what denoising took out
 
@@ -15,6 +17,7 @@ sharpening would pass the ceiling, it is skipped and the report says so. It prin
 Needs Pillow and numpy:  python3 -m pip install pillow numpy   (OpenCV is not used)"""
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -89,13 +92,18 @@ def sharpen(a, amount, radius, noise_levels):
     return np.clip(a + gain, 0, 1)
 
 
+def _off(mode):
+    """True for 'none' or a number of 0: a zero strength is off, never a blur of width 0."""
+    return mode == 'none' or (mode != 'auto' and float(mode) == 0.0)
+
+
 def run(im, denoise_mode='auto', sharpen_mode='auto', max_increase=15.0):
     """Process a PIL image. Returns (PIL image, report dict). The report always has noise_in, noise_denoised, noise_out, ceiling."""
     a = L.to_f(im)
     n_in = L.noise_of(im)
     native = L.noise_sigma(L.luma(a))
     rep = {'noise_in': round(n_in, 2), 'detail_in': round(L.gradient_energy(L.luma(a)), 2)}
-    if denoise_mode == 'none' or (denoise_mode == 'auto' and n_in < CLEAN):
+    if _off(denoise_mode) or (denoise_mode == 'auto' and n_in < CLEAN):
         d, strength = a, 0.0
         rep['denoise'] = 'skipped (already clean)' if denoise_mode == 'auto' else 'off'
     else:
@@ -108,7 +116,7 @@ def run(im, denoise_mode='auto', sharpen_mode='auto', max_increase=15.0):
     rep['ceiling'] = round(ceiling, 2)
     radius = float(np.clip(0.0009 * max(im.size), 0.6, 1.6))
     out, used = d, 0.0
-    if sharpen_mode != 'none':
+    if not _off(sharpen_mode):
         wanted = [float(sharpen_mode)] if sharpen_mode != 'auto' else [0.9, 0.65, 0.45, 0.3, 0.18]
         for amount in wanted:
             cand = sharpen(d, amount, radius, n_dn)
@@ -140,9 +148,11 @@ def main(argv=None):
     for name, v in (('--denoise', a.denoise), ('--sharpen', a.sharpen)):
         if v not in ('auto', 'none'):
             try:
-                float(v)
+                n = float(v)
             except ValueError:
-                L.die(f'{name} takes auto, none or a number, not {v!r}')
+                n = None
+            if n is None or not math.isfinite(n) or n < 0:
+                L.die(f'{name} takes auto, none (or 0) or a number above 0, not {v!r}')
     im = L.load(a.src)
     out, rep = run(im, a.denoise, a.sharpen, a.max_noise_increase)
     L.save(a.dst, out)
