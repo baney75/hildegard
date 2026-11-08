@@ -172,7 +172,8 @@ export async function pair(ctx: Ctx, args: string[]): Promise<Result> {
   producer.stdout?.pipe(consumer.stdin!);
   consumer.stdin?.on('error', () => {});
   const sent = collect(producer.stderr);
-  const said = collect(consumer.stdout);
+  // The join's whole answer, however many devices and models it lists: a cut-off answer would read as a failed join.
+  const said = collect(consumer.stdout, 16_000_000);
   const complained = collect(consumer.stderr);
   const timer = setTimeout(() => {
     producer.kill();

@@ -15,22 +15,14 @@ scripts (`.github/workflows/listing.yml`). Only the `publish` job, on a push to 
 new or empty folder, or one it marked itself (`.hildegard-listing-generated`), and inside the repository only under
 `dist/`.
 
-## Before any submission: approve the legal pages
+## The legal pages
 
-Every store asks for a privacy policy and terms of service URL. Both are **drafts** until the owner approves them.
-
-- Pages: `site/privacy/index.html` and `site/terms/index.html`, to be served at
-  `https://dbaney.com/hildegard/privacy/` and `https://dbaney.com/hildegard/terms/`. Each wears a visible DRAFT banner.
-- The privacy page lists every outside place the app can connect to, read from the code (update checks, installs,
-  Hugging Face model downloads, Tailscale, Cloudflare, Runpod, Figma, page imports, language-model addresses, bug-report
-  search). Check it against what you know.
-- Fill the `[Owner: …]` lines: contact email, the approval date, who hosts dbaney.com and how long it keeps logs, and the
-  paragraph on governing law (have a lawyer read it if you want one).
-- To publish: delete the `<p class="draft">` line in each page, remove `<meta name="robots" content="noindex">`, add
-  "Privacy" and "Terms" links to the footer of `site/index.html`, and deploy `site/`. Until then the URLs return nothing
-  or a draft, and the stores' validators will accept them but a reviewer reading them would not. Don't submit before.
-- `listing-fields.md` and the manifests carry these two URLs; if the site lives elsewhere, change `URLS` at the top of
-  `scripts/pack-listing.mjs`.
+Every store asks for a privacy policy and terms of service URL. Both were approved on November 7, 2026, and are served
+at `https://dbaney.com/hildegard/privacy/` and `https://dbaney.com/hildegard/terms/` (from `site/privacy/` and
+`site/terms/`, copied into the dbaney.com site's `hildegard/` folder). The contact is support@dbaney.com. The terms name
+no governing law. A change to either page changes its "Last updated" date; `apps/cli/test/listing.test.ts` fails if a
+draft banner, an `[Owner: ...]` blank or `noindex` comes back. If the site moves, change `URLS` at the top of
+`scripts/pack-listing.mjs`.
 
 ## 1. Anthropic: Claude directory (skills only)
 
@@ -55,7 +47,7 @@ Every store asks for a privacy policy and terms of service URL. Both are **draft
    the repository: it should hold `.claude-plugin/`,
    `skills/`, `README.md`, `LICENSE`, `LICENSE-APACHE` and `THIRD_PARTY_NOTICES.md`, and nothing else.
 3. Optional local check: `claude plugin validate <tree>` (it passes on the generated tree).
-4. Approve and publish the legal pages (above).
+4. Check the legal pages load (above).
 5. Paste the fields from `listing-fields.md` (name, description, URLs). Submit.
 
 **What the validator checks, and where we stand** (all enforced by `scripts/check-listing.mjs`):
@@ -127,10 +119,10 @@ page or in the portal's contact link.
 | Account | A **verified OpenAI developer account** (organization verification) |
 | File | `hildegard-openai.zip` |
 
-The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE, the Apache license for the site templates (`LICENSE-APACHE`) and notices. It has no MCP server and
+The zip is `.codex-plugin/plugin.json`, the icon, every skill, a README, the LICENSE, the Apache license for the site templates (`LICENSE-APACHE`) and notices; the check fails a README or notice that names a license file the package lacks. It has no MCP server and
 no hooks, which the directory refuses. `scripts/check-listing.mjs` checks every limit (and a test fails each one past
 it): name 64, displayName 30 (`Hildegard`), shortDescription 30 (29), longDescription 4,000, capabilities 20 of 120,
-defaultPrompt 3 of 128, a square PNG logo under 5 MiB, a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
+defaultPrompt 3 of 128, a logo that is really a square PNG, JPEG, WebP or SVG (64 to 4,096 px, under 5 MiB), a brand color with 2:1 contrast on white (`#133A24` has 12.7:1),
 and the four required URLs: `websiteURL`, `supportURL`, `privacyPolicyURL`, `termsOfServiceURL`.
 
 Two things are unconfirmed, because OpenAI's page can't be read from here: the URLs sit under `interface` in the

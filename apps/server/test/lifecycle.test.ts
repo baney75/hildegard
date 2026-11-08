@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const lifecycle = fileURLToPath(new URL('../src/lifecycle.ts', import.meta.url));
 
 /** A process that guards itself the way the server does, then idles until it's stopped. */
 function guarded() {
-  const code = `import { guardProcess } from ${JSON.stringify(lifecycle)};
+  const code = `import { guardProcess } from ${JSON.stringify(pathToFileURL(lifecycle).href)};
 guardProcess(() => process.exit(0));
 setInterval(() => {}, 1000);
 console.log('ready');`;
