@@ -109,6 +109,8 @@ ask me questions", so the eval measures making the work, not the interview.
   UTS namespaces with no capabilities. Without a working bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5,
   never run unconfined. Codex runs Luna in its own `workspace-write` sandbox.
 
+  **Luna is refused by default.** Luna runs outside the bubblewrap box (only an env wrapper with an empty home), so it can read the owner's files by absolute path. `respond.sh` refuses every Luna run with exit 5 and calls no model, so the cell has no `done` and is never scored; Haiku cells in the same batch still run. `HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1` runs it anyway, on a machine with nothing private on it. Boxing Luna in bubblewrap is a follow-up.
+
   What the box does not stop:
   - **The network.** The session shares the host's network, since the model needs it. Services on `127.0.0.1` and abstract Unix sockets
     (an X server's `@/tmp/.X11-unix/X0`, for one) stay reachable, so a local service that trusts any local process trusts this one too.

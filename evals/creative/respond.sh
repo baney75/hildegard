@@ -10,7 +10,7 @@
 # refresh in the box can strand the owner's other sessions (README: Responder confinement). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
 # meta.json says `confined: true` (made in the box, so never one from before it). Exits 4, with no `done`, when
 # the responder dies before a finished transcript, 5 when Haiku's session cannot be confined (no bubblewrap) or has no
-# CLAUDE_CODE_OAUTH_TOKEN (and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1), and 6 when the session left anything in work/ but regular files
+# CLAUDE_CODE_OAUTH_TOKEN (and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1) or when Luna is asked for without HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1, and 6 when the session left anything in work/ but regular files
 # and folders, a symbolic link or a FIFO say (nothing on the host reads work/ then, so a link to the owner's files is never followed).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
@@ -19,6 +19,12 @@ ARM=$1; MODEL=$2; TASK=$3
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(git -C "$HERE" rev-parse --show-toplevel)
 E=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 RUN=$E/runs/$ARM/$MODEL/$TASK; WORK=$RUN/work
+# Luna runs in JAIL (an env wrapper), not in the bubblewrap box, so it could read the owner's files by absolute path. Refused (exit 5, before
+# anything is written or any model called, so no `done` and never scored) unless the owner opts in on a machine with nothing private on it.
+if [ "$MODEL" = luna ] && [ "${HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA:-}" != 1 ]; then
+  echo "Luna runs outside the bubblewrap box and could read the owner's files; refused. Set HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1 to run it anyway, on a machine with nothing private on it." >&2
+  echo "not running $ARM/$MODEL/$TASK" >&2; exit 5
+fi
 
 case $ARM in
   none) SK="" ;;
