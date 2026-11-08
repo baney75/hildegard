@@ -1,12 +1,14 @@
 // Checks every file in skills/ for the shapes of an attack (mcp/src/skill-scan.ts): a skill is instructions agents
 // follow on their owners' computers, so a change to one is reviewed like code. A finding marked block fails, unless
 // skills/SCAN-ALLOW names that exact line, which only the owner may change (CODEOWNERS); findings marked review are
-// listed with --verbose, for the reviewer. No symlinks, and nothing but text. `node scripts/check-skills.mjs` exits 1 on a problem.
+// listed with --verbose, for the reviewer. No symlinks, and nothing but text. Files shared between skills must equal
+// their source (scripts/sync-skill-shared.mjs). `node scripts/check-skills.mjs` exits 1 on a problem.
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scanSkillText } from '../mcp/src/skill-scan.ts';
+import { drift } from './sync-skill-shared.mjs';
 
 const dir = fileURLToPath(new URL('../skills', import.meta.url));
 const TEXT = new Set([
@@ -65,6 +67,8 @@ const used = new Set();
     }
   }
 })(dir);
+// A file several skills need lives in each of them (skills/SHARED.json): a copy that differs from its source is drift.
+problems.push(...drift());
 for (const a of allowed)
   if (!used.has(a)) problems.push(`skills/SCAN-ALLOW: "${a}" matches nothing; remove it`);
 

@@ -9,16 +9,38 @@ where each check is {"id", "status": "pass"|"warn"|"fail", "value", "limit", "de
 
 These are the checks a machine can make honestly: exposure, frozen and flickering frames, colour pushed past what a
 camera records, sound that clips or is far too loud or quiet. They say nothing about whether the work is good; the
-contact sheet is for the person or agent who judges that. Uses PyAV, numpy and Pillow, which ComfyUI already installs.
+contact sheet is for the person or agent who judges that. Uses PyAV, numpy and Pillow, which ComfyUI already installs;
+on a bare Python install them with `python3 -m pip install pillow numpy av`. A check imports only what it uses: a still
+image needs Pillow and numpy, a sound PyAV and numpy, a video PyAV and numpy (and Pillow for the sheet). When a package
+is missing it prints that one line, as {"ok": false, "error": ...} on stdout and plain on stderr, and exits 1.
 """
 
 import json
 import math
 import sys
 
-import av
-import numpy as np
-from PIL import Image, ImageDraw
+np = av = Image = ImageDraw = None  # imported by require(), when a check needs them
+INSTALL = "python3 -m pip install pillow numpy av"
+
+
+class Missing(Exception):
+    pass
+
+
+def require(*names):
+    """Imports numpy, av or PIL (Pillow) now, or raises Missing with the line that says how to install it."""
+    global np, av, Image, ImageDraw
+    for name in names:
+        try:
+            if name == "numpy":
+                import numpy as np
+            elif name == "av":
+                import av
+            else:
+                from PIL import Image, ImageDraw
+        except ImportError:
+            pretty = {"numpy": "numpy", "av": "PyAV (av)", "PIL": "Pillow"}[name]
+            raise Missing(f"{pretty} is not installed and this check needs it. Install what the checkers use with: {INSTALL}") from None
 
 SAMPLES = 240  # frames analysed at most, spread evenly
 SMALL = 160  # analysis width in pixels
@@ -236,6 +258,7 @@ def audio_checks(samples, expect_audio):
 
 def draw_sheet(path, out, times):
     """A 3x3 grid of frames spread through the video, each marked with its time."""
+    require("PIL")
     want = sample_indices(len(times), SHEET_COLS * SHEET_ROWS) if times else []
     picks = [times[i] for i in want]
     tiles = []
@@ -271,6 +294,7 @@ def review(spec):
     final, film = bool(spec.get("final")), bool(spec.get("film"))
     lower = path.lower()
     if lower.endswith(IMAGE_EXT):
+        require("PIL", "numpy")
         img = Image.open(path).convert("RGB")
         w, h = img.size
         small = np.asarray(img.resize((SMALL, max(2, round(h * SMALL / w)))), dtype=np.float32) / 255.0
@@ -285,10 +309,12 @@ def review(spec):
         return {"ok": True, "kind": "image", "info": {"width": w, "height": h}, "checks": checks}
 
     if lower.endswith(AUDIO_EXT):
+        require("av", "numpy")
         samples = read_audio(path)
         info = {"seconds": round(samples.shape[1] / 48000, 2) if samples is not None else 0}
         return {"ok": True, "kind": "audio", "info": info, "checks": audio_checks(samples, True)}
 
+    require("av", "numpy")
     v = read_video(path)
     n, rate = len(v["small"]), v["rate"]
     seconds = round(n / rate, 2)
@@ -320,6 +346,10 @@ def main(spec_path):
         spec = json.load(f)
     try:
         print(json.dumps(review(spec)))
+    except Missing as e:
+        print(json.dumps({"ok": False, "error": str(e)}))
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
     except Exception as e:  # noqa: BLE001 - every failure becomes one line the caller can show
         print(json.dumps({"ok": False, "error": str(e) or type(e).__name__}))
         sys.exit(1)

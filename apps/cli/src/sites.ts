@@ -16,6 +16,11 @@ interface Site {
   pages: string[];
   notes: string[];
   preview: string;
+  published?: boolean;
+  /** Where it is for everyone when published: a path on this server. */
+  path?: string;
+  /** The public address of its front page, when it has one. */
+  address?: string | null;
 }
 interface Template {
   id: string;
@@ -38,7 +43,7 @@ const siteStep = (c: Ctx['config'], s: Site): Step => ({
   id: `site-${s.id}`,
   title: s.title,
   status: 'done',
-  detail: `${s.id} · ${s.pages.length} ${s.pages.length === 1 ? 'page' : 'pages'} · ${baseUrl(c)}/#/sites/${s.id}`,
+  detail: `${s.id} · ${s.pages.length} ${s.pages.length === 1 ? 'page' : 'pages'}${s.published ? ' · published' : ''} · ${baseUrl(c)}/#/sites/${s.id}`,
 });
 
 export async function sites(ctx: Ctx, args: string[]): Promise<Result> {
@@ -92,9 +97,48 @@ export async function sites(ctx: Ctx, args: string[]): Promise<Result> {
       return r;
     }
   }
+  if (action === 'publish') {
+    const id = args[1];
+    if (!id)
+      return result(
+        [{ id: 'publish', title: 'Publish a site', status: 'failed', detail: 'Give the site’s id.' }],
+        'Use `hildegard sites publish <id> [--off] [--address <https://example.com/>]`. `hildegard sites` lists the ids.',
+      );
+    const off = ctx.flags.has('off');
+    const title = off ? 'Take a site down' : 'Publish a site';
+    try {
+      // The owner's own address for the site's front page goes first, so the feed and sitemap carry it.
+      if (ctx.opts.has('address'))
+        await api(c, `/api/sites/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: { publicUrl: ctx.opts.get('address') },
+        });
+      const s = await api<Site>(c, `/api/sites/${encodeURIComponent(id)}/publish`, {
+        method: 'PUT',
+        body: { published: !off },
+      });
+      const where = s.address ?? `${baseUrl(c)}${s.path ?? `/s/${s.id}/`}`;
+      return result(
+        [
+          {
+            id: `site-${s.id}`,
+            title: s.title,
+            status: 'done',
+            detail: off ? 'No longer published.' : `Published at ${where}`,
+          },
+        ],
+        off
+          ? `${s.title} is no longer published. Its address answers 404.`
+          : `${s.title} is published at ${where}. Anyone with the address can read its pages and files, never its notes or drafts. From other devices it needs the link: \`hildegard host\`.`,
+        { site: s },
+      );
+    } catch (e) {
+      return failure('publish', title, e);
+    }
+  }
   return result(
     [{ id: 'sites', title: 'Sites', status: 'failed', detail: `Unknown: sites ${action}.` }],
-    'Use `hildegard sites`, `sites templates`, or `sites new [<template>] [--figma <link> | --url <address>] [--name <name>]`.',
+    'Use `hildegard sites`, `sites templates`, `sites new [<template>] [--figma <link> | --url <address>] [--name <name>]`, or `sites publish <id> [--off]`.',
   );
 }
 

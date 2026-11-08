@@ -262,6 +262,110 @@ export function registerSiteTools(
   );
 
   server.registerTool(
+    'site_post',
+    {
+      title: 'Write a post on a site',
+      description:
+        'Write a blog post on one of the owner’s sites, in the site’s own look: give the title, the body in Markdown (raw HTML is shown as text, never run) and a byline such as “By Jane Doe, with Hildegard”. It makes blog/<slug>/index.html and keeps blog/index.html (newest first), feed.xml and sitemap.xml up to date. Run lint_writing on the body first, and write in the person’s voice (writing_voice). With draft true the post has its page, asks search engines to skip it and is left out of the list, the feed and the sitemap. Give notes_md to keep the interview or notes the post came from at notes/<slug>.md, which is never shown to the public. Posting again with the same slug replaces the post. Nothing is visible to the public until the owner publishes the site (site_publish).',
+      inputSchema: {
+        site_id: z.string().max(40),
+        title: z.string().min(1).max(200),
+        body_md: z
+          .string()
+          .min(1)
+          .max(500_000)
+          .describe('The post, in Markdown. Start sections at “#”: the title is already the page’s heading.'),
+        byline: z.string().min(1).max(200).describe('Such as “By Jane Doe, with Hildegard”.'),
+        date: z.string().max(10).optional().describe('YYYY-MM-DD. Today when left out.'),
+        slug: z
+          .string()
+          .max(60)
+          .optional()
+          .describe('Lower-case letters, digits and hyphens. From the title when left out.'),
+        summary: z
+          .string()
+          .max(600)
+          .optional()
+          .describe('One or two sentences for the list and the feed. The start of the post when left out.'),
+        draft: z.boolean().optional().describe('True to keep it out of the list, the feed and the sitemap.'),
+        notes_md: z
+          .string()
+          .max(500_000)
+          .optional()
+          .describe('The interview or notes behind the post, kept private.'),
+      },
+      annotations: {
+        title: 'Write a post on a site',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    guard(
+      async (a: {
+        site_id: string;
+        title: string;
+        body_md: string;
+        byline: string;
+        date?: string;
+        slug?: string;
+        summary?: string;
+        draft?: boolean;
+        notes_md?: string;
+      }) => {
+        const { site_id, ...body } = a;
+        const r = await client.postToSite(site_id, body);
+        const where = r.site.published
+          ? r.site.address
+            ? `It is public at ${r.site.address}blog/${r.slug}/.`
+            : `It is public at ${remote ? 'the Hildegard link' : client.url}${r.site.path}blog/${r.slug}/.`
+          : 'The site isn’t published, so nobody outside Hildegard can see it yet; the owner publishes it with site_publish.';
+        return text(
+          [
+            r.draft
+              ? `Saved the draft ${r.path}. It is out of the list, the feed and the sitemap, and asks search engines to skip it.`
+              : `Wrote ${r.path} (${r.date}) and updated blog/index.html, feed.xml and sitemap.xml.`,
+            r.draft ? '' : where,
+            r.lint.fails.length
+              ? `Prose lint fails: ${r.lint.fails.join(', ')}. Fix them and post again.`
+              : r.lint.warns.length
+                ? `Prose lint passes, with warnings to weigh: ${r.lint.warns.join(', ')}.`
+                : 'Prose lint is clean.',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+      },
+    ),
+  );
+
+  server.registerTool(
+    'site_publish',
+    {
+      title: 'Publish a site, or take it back',
+      description:
+        'Make a site visible to everyone at its address (/s/<site_id>/ on the Hildegard link, no sign-in), or take it down again with published false. Only the owner can do this, because it changes what the public sees. Only the site’s pages and files are shown: never its notes, its drafts or anything outside the site. Ask the owner before you publish.',
+      inputSchema: { site_id: z.string().max(40), published: z.boolean() },
+      annotations: {
+        title: 'Publish a site, or take it back',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    guard(async (a: { site_id: string; published: boolean }) => {
+      const s = await client.publishSite(a.site_id, a.published);
+      return text(
+        a.published
+          ? `“${s.title}” is published at ${s.address ?? `${remote ? 'the Hildegard link' : client.url}${s.path}`}. Anyone with the address can read it. It is only reachable from other devices when the owner has put Hildegard at a link (hildegard host).`
+          : `“${s.title}” is no longer published. Its address answers 404.`,
+      );
+    }),
+  );
+
+  server.registerTool(
     'site_tokens',
     {
       title: 'A site’s design tokens',

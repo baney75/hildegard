@@ -224,6 +224,8 @@ export interface SiteSummary {
   bytes: number;
   /** Where its pages are served, framed only by the Studio. */
   preview: string;
+  /** Whether everyone can read it at /s/<id>/. */
+  published?: boolean;
 }
 export interface SiteDetail extends SiteSummary {
   fileList: Array<{ path: string; bytes: number }>;
@@ -275,7 +277,38 @@ export interface TalkTurn {
   device: string;
 }
 
+export interface WritingSample {
+  id: string;
+  title: string;
+  source: string;
+  addedAt: string;
+  words: number;
+}
+export interface WritingEdit {
+  at: string;
+  draftWords: number;
+  finalWords: number;
+  removed: string[];
+  added: string[];
+  lintBefore: { fails: number; warns: number };
+  lintAfter: { fails: number; warns: number };
+  note: string;
+}
+export interface WritingState {
+  person: string;
+  voice: { md: string; updatedAt: string | null; versions: number };
+  samples: WritingSample[];
+  edits: WritingEdit[];
+  topCut: Array<{ phrase: string; count: number }>;
+}
+
 export const api = {
+  writing: () => call<WritingState>('GET', '/api/writing/voice'),
+  setWritingVoice: (md: string) =>
+    call<{ person: string; voice: WritingState['voice'] }>('PUT', '/api/writing/voice', { md }),
+  addWritingSample: (body: { title: string; text: string; source?: string }) =>
+    call<{ sample: WritingSample }>('POST', '/api/writing/samples', body),
+  removeWritingSample: (id: string) => call<{ ok: true }>('DELETE', `/api/writing/samples/${id}`),
   sites: () =>
     call<{
       sites: SiteSummary[];

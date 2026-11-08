@@ -1,0 +1,78 @@
+{
+  "title": "A bar chart that grows to the real numbers, with one takeaway",
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "background": {
+      "type": "linear",
+      "angle": 180,
+      "stops": [{ "at": 0, "color": "#0c1428" }, { "at": 1, "color": "#16213f" }]
+    }
+  },
+  "duration": 10,
+  "fonts": { "head": { "google": "Space Grotesk" }, "body": { "google": "Inter" } },
+  "fade": { "in": 0.5, "out": 0.8 },
+  "scenes": [
+    {
+      "id": "chart",
+      "duration": 10,
+      "layers": [
+        {
+          "type": "text",
+          "text": "Weekly attendance, January to May",
+          "font": "head",
+          "weight": 700,
+          "size": 5.2,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.12,
+          "enter": { "type": "fade", "duration": 0.6 }
+        },
+        {
+          "type": "bars",
+          "font": "head",
+          "x": 0.4,
+          "y": 0.58,
+          "w": 0.62,
+          "h": 0.66,
+          "color": "#4f8cff",
+          "label_color": "#c9d3ee",
+          "value_color": "#ffffff",
+          "data": [
+            { "label": "Jan", "value": 112 },
+            { "label": "Feb", "value": 128 },
+            { "label": "Mar", "value": 141 },
+            { "label": "Apr", "value": 167 },
+            { "label": "May", "value": 203, "color": "#f2b84b" }
+          ],
+          "grow": { "at": 0.5, "duration": 1.2, "stagger": 0.35 }
+        },
+        {
+          "type": "text",
+          "text": "{n}%",
+          "font": "head",
+          "weight": 700,
+          "size": 18,
+          "color": "#f2b84b",
+          "x": 0.82,
+          "y": 0.5,
+          "count": { "from": 0, "to": 81, "at": 3.2, "duration": 1.6 },
+          "enter": { "type": "fade", "duration": 0.4, "delay": 3.2 }
+        },
+        {
+          "type": "text",
+          "text": "more people in May than in January",
+          "font": "body",
+          "weight": 500,
+          "size": 3.4,
+          "color": "#c9d3ee",
+          "x": 0.82,
+          "y": 0.66,
+          "box": 0.24,
+          "enter": { "type": "fade", "duration": 0.6, "delay": 4.2 }
+        }
+      ]
+    }
+  ]
+}
