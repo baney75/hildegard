@@ -10,7 +10,7 @@ each one by line and column, says why it reads that way, and says what to do ins
 video prompts: `review_prompt` does those. Code blocks, inline code, link targets and HTML are skipped, and so are
 words in quotation marks, since a list of banned words should not fail for naming them.
 
-It looks for 28 kinds of tell. The rule ids are in the output, and a few examples are:
+It looks for 30 kinds of tell. The rule ids are in the output, and a few examples are:
 
 - Stock words and empty openers: "delve", "tapestry", "let's dive in", "as an AI".
 - Contrasts of the form "it's not X, it's Y", a trailing "-ing" clause that claims meaning, a colon followed by a reveal.
@@ -69,11 +69,11 @@ often as on machines is noise, so it either warns only or is gone.
 | --- | --- | --- |
 | AI drafts that fail (recall) | 11.9% (21 of 176) | 29.5% (52 of 176) |
 | People's pieces that fail | 33.6% (74 of 220) | 0.0% (0 of 220) |
-| People's pieces with any warn | 44.1% | 49.5% (109 of 220, the em dash warns on 79) |
+| People's pieces with any warn | 44.1% | 48.2% (106 of 220, the em dash warns on 79) |
 | AI drafts with any finding | 60.8% | 84.7% |
 | Recall by model (Haiku, Sonnet, Opus, Luna) | 16, 5, 9, 18% | 36, 21, 48, 14% |
 | Holdout: AI recall, people failing | 6.3%, 30.1% | 33.3%, 0.0% |
-| **Strict profile** (see below): AI recall, people failing | | 79.0% (139 of 176), 46.4% (102 of 220) |
+| **Strict profile** (see below): AI recall, people failing | | 79.0% (139 of 176), 45.9% (101 of 220) |
 | 100,000 characters, TypeScript | 28 ms | 12 ms (2.4 times faster) |
 | 100,000 characters, Python script | 456 ms | 117 ms (3.9 times faster) |
 
@@ -97,7 +97,7 @@ for older models that wrote "delve" and "it's worth noting".
 | Rule | Tier | Catches | People | AI |
 | --- | --- | --- | --- | --- |
 | `stacked-tells` | fail | Two or more different kinds of weak tell in one piece | 0% | 18.2% |
-| `unfinished` | fail | TODO, TK, "lorem ipsum dolor", template slots such as `[Business Name]`, `[your name]`, `{{name}}`, `<insert the date>` and `XX/XX/XXXX`. Ordinary brackets, such as a link `[our contact page]` or `the [church] voted`, pass | 0% | 11.4% |
+| `unfinished` | fail | TODO, TK, "lorem ipsum dolor", template slots such as `[Business Name]`, `[your name]`, `{{name}}`, `{{ first_name }}`, `<insert the date>`, `XX/XX/XXXX`, `(xxx) xxx-xxxx` and `$xx`. Ordinary brackets, such as a link `[our contact page]`, a link whose `[website]: https://…` definition is in the text (a `[label]:` line with no destination defines nothing), or `the [church] voted`, pass, and so do Hugo and Jekyll tags (`{{< figure >}}`, `{{ site.title }}`, `{% include x %}`) and a sign-off of `xx xx` or `XX XX` kisses | 0% | 11.4% |
 | `stock-words` | fail | "delve", "tapestry", "testament to", "multifaceted", "bustling", "nestled" | 0% | 0% |
 | `empty-phrases` | fail | "let's dive in", "as an AI", "I hope this helps", "look no further", "in today's fast-paced world" | 0% | 0% |
 | `throat-clearing`, `faux-insight`, `puffery`, `chatbot` | fail | "here's the thing", "most people skip", "stands as a testament", "great question" | 0% | 1.7% |
@@ -105,17 +105,21 @@ for older models that wrote "delve" and "it's worth noting".
 | `em-dash` | warn (fail when strict) | An em dash, or a spaced double hyphen used as one. Not a hyphen, an en dash or a number range | 35.9% | 17.6% |
 | `not-but` | warn, fail past one | "It's not X, it's Y", "more than a X. It was Y" | 3.6% | 3.4% |
 | `summary-ending` | fail for "In conclusion", warn for "Overall" | A last paragraph that recaps | 0.5% | 0% |
-| `headings` | warn | Three or more headings and one for every 125 words or fewer | 6.8% | 42.6% |
+| `headings` | warn | Three or more headings and one for every 125 words or fewer | 4.5% | 42.6% |
 | `bold-list-leads` | warn | Bullets that each open on a bold label | 3.2% | 30.1% |
-| `warm-boilerplate` | warn, two or more | "we're grateful to", "thank you for being part of", "feel free to reach out" | 0% | 14.8% |
+| `warm-boilerplate` | warn, two or more | "we're grateful to", "thank you for being part of", "feel free to reach out"; "were" for "we're" does not count | 0% | 14.8% |
 | `uniform-paragraphs` | warn | Six or more paragraphs, nearly all under 46 words, none over 60 | 4.5% | 16.5% |
 | `bold`, `bold-leads` | warn | Bold through a paragraph, or opening most paragraphs | 4.1%, 0.9% | 15.9%, 4.0% |
 | `triads`, `colon-reveal` | warn | Lists of three on every other line, a colon then a reveal | 4.1%, 0% | 14.2%, 1.7% |
-| `metadiscourse`, `weasel` | warn | "as you can see", "to be honest", "experts agree" | 0.5%, 0% | 14.8%, 0% |
-| `corporate-words`, `cliches`, `loaded-words`, `summary-openers`, `filler-adverbs` | warn, only when several | "leverage", "when it comes to", "crucial", "in summary", "actually" | 0.5% to 0.9% | 0% |
+| `metadiscourse`, `weasel` | warn | "as you can see", "to be honest", "experts agree" | 0.5%, 0% | 13.1%, 0% |
+| `chatty-openers` | warn | "the good news is", "the best part is". People say these, so the rule never stacks with a plain `bold` word | 0% | 2.3% |
+| `corporate-words`, `cliches`, `loaded-words`, `summary-openers`, `filler-adverbs` | warn, only when several | "leverage", "when it comes to", "crucial", "in summary", "actually" | 0.5% | 0% |
 
 Stacking counts kinds, not hits: `bold`, `bold-leads` and `bold-list-leads` are one habit, so a piece with all three and
-nothing else does not fail. `headings` and `uniform-paragraphs` warn but do not stack, because a web page has both.
+nothing else does not fail. `metadiscourse` and `chatty-openers` are one kind too, because people use both in the same
+letter ("To be honest, I was worried. The good news is the roof held."). `chatty-openers` and a plain `bold` do not count
+toward each other, so "The good news is the roof is done. Sign up for **Saturday** or **Sunday** shifts." only warns.
+`headings` and `uniform-paragraphs` warn but do not stack, because a web page has both.
 
 Stacked fragments, even sentence lengths and low counts of names and numbers were rules before. Each fired on people as
 often as on machines or more, so they are gone.
@@ -138,43 +142,20 @@ running time: it is a plain text search, and a text with no dash is searched onc
 ### The strict profile
 
 For writing that must carry no tells at all, ask for the strict profile. Every warn in `strict.fail` in
-`prose-rules.json` then fails: the em dash, `corporate-words`, `cliches`, `metadiscourse`, `weasel`, `loaded-words`,
+`prose-rules.json` then fails: the em dash, `corporate-words`, `cliches`, `metadiscourse`, `chatty-openers`, `weasel`, `loaded-words`,
 `summary-openers`, `filler-adverbs`, `warm-boilerplate`, `not-but`, `colon-reveal`, `summary-ending`, `triads`,
 `bold-leads`, `bold-list-leads`, `bold` and `uniform-paragraphs`. `headings` stays a warning, because a page needs
 headings. Nothing else changes: the same findings are reported in the same places, and only their severity and `ok` move.
 
 | Profile | AI recall | People failing | People with any warn |
 | --- | --- | --- | --- |
-| Default | 29.5% (52 of 176) | 0.0% (0 of 220) | 49.5% (109 of 220) |
-| Strict | 79.0% (139 of 176) | 46.4% (102 of 220) | 6.8% (15 of 220, `headings` only) |
-| Strict, holdout | 77.1% (37 of 48) | 35.6% (26 of 73) | |
+| Default | 29.5% (52 of 176) | 0.0% (0 of 220) | 48.2% (106 of 220) |
+| Strict | 79.0% (139 of 176) | 45.9% (101 of 220) | 4.5% (10 of 220, `headings` only) |
+| Strict, holdout | 77.1% (37 of 48) | 34.2% (25 of 73) | |
 
 Strict is not for judging whether a person wrote something: it fails about half of the people's pieces on purpose. It is
 for an owner who has decided a piece should carry none of these tells and will rewrite until it does. The default stays
 the one that must never fail a person, and the ratchet holds it to 0.0 percent.
-
-, and is clean when nothing is found at all.
-Some rules stay quiet until they find a few: one office word is a habit, three read as a press release.
-
-For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before
-showing it to anyone. For everyday prose (a post, an email, a page, an announcement), fix every fail, fix each warn
-that is not the writer's voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and
-academic papers, every finding is a warning: keep what the voice, form or field needs, and say which you kept.
-
-## Four ways to run it
-
-All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so they agree on the same text.
-
-| Where | How | Needs |
-| --- | --- | --- |
-| Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }`, up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
-| MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, and `max` places to show for each finding. | A linked AI app |
-| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
-| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
-
-The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
-It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
-at the top of `docs/`, so the two cannot drift apart without the tests failing.
 
 ### Changing a rule
 

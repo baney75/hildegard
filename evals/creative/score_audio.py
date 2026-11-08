@@ -42,7 +42,7 @@ def run_script(task_id, script, out_name, timeout=120):
         shutil.copy(os.path.join(E, 'inputs', task_id, f), tmp)
     shutil.copy(script, os.path.join(tmp, 'process.sh'))
     env = {'PATH': '/usr/bin:/bin:/usr/local/bin', 'HOME': tmp, 'LANG': 'C.UTF-8', 'TMPDIR': tmp}
-    cmd = sandbox.wrap(['bash', 'process.sh'], tmp)
+    cmd = sandbox.wrap(['bash', 'process.sh'], tmp, hide=[E])  # the clean references, inputs and other runs live under E
     t0 = time.time()
     try:
         r = subprocess.run(cmd, cwd=tmp, env=env, capture_output=True, text=True, timeout=timeout)

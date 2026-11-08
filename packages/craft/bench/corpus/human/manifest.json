@@ -1295,9 +1295,9 @@
     "date": "2020-12-22",
     "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/astrobee/",
     "license": "US government work, generally not copyrighted (nasa.gov/nasa-brand-center/images-and-media)",
-    "words": 443,
+    "words": 324,
     "excerpt": false,
-    "sha256": "d7d4747ea87fed29da5aa7d6bfa978e4bc5e49b8463f318d0790721be99ea1d4"
+    "sha256": "a29504ad3a3a1582b45c9a69c2a247796f0c05d4aecac642aeaaf7e4ff295987"
   },
   {
     "id": "nasa-05",
@@ -1360,9 +1360,9 @@
     "date": "2020-12-12",
     "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/thermal-protection-systems-modeling-tps-m/",
     "license": "US government work, generally not copyrighted (nasa.gov/nasa-brand-center/images-and-media)",
-    "words": 283,
+    "words": 182,
     "excerpt": false,
-    "sha256": "75e03ee480b8699f2576ae936a8ed82df2d6c840d0c83e254c5db93be73b8841"
+    "sha256": "9a6ddcd1d812f0f9bc576abe5e5dff9bd7fe51120e61d2161e69d80365bc5923"
   },
   {
     "id": "nasa-10",
@@ -1373,9 +1373,9 @@
     "date": "2020-12-14",
     "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/manufacturing-innovation-mip/",
     "license": "US government work, generally not copyrighted (nasa.gov/nasa-brand-center/images-and-media)",
-    "words": 392,
+    "words": 292,
     "excerpt": false,
-    "sha256": "d68831c0502ceb4135b8380d28a3b29269c11f9f6cf80f899303e32939746762"
+    "sha256": "05fcbefdc40da4e3a093075a299488520d282be23b392a30814112d3631dae0f"
   },
   {
     "id": "nasa-11",
@@ -1425,9 +1425,9 @@
     "date": "2020-12-02",
     "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/mixed-reality-crew-assistance-mrca/",
     "license": "US government work, generally not copyrighted (nasa.gov/nasa-brand-center/images-and-media)",
-    "words": 278,
+    "words": 181,
     "excerpt": false,
-    "sha256": "c5f3aa489e2f78704953c998189fc95c4daad8e7be262cccd1d0fa8409f3d26f"
+    "sha256": "a5c31ac07279161f5ae7b826111d910693ad87434e08b28ca556ab0c44ea77f5"
   },
   {
     "id": "nasa-15",
@@ -1438,9 +1438,9 @@
     "date": "2020-12-14",
     "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/nuclear-thermal-propulsion-ntp/",
     "license": "US government work, generally not copyrighted (nasa.gov/nasa-brand-center/images-and-media)",
-    "words": 428,
+    "words": 332,
     "excerpt": false,
-    "sha256": "ee27c7785e8aa777297f7baf23af9b010e1d0da2ec833c08c6994bd5a8a95316"
+    "sha256": "f42759406f29158a332f1965a30c739c14ee47a736f08963d0c5605e5b2d486f"
   },
   {
     "id": "creativecommons-01",

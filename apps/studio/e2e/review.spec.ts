@@ -33,19 +33,56 @@ test('first run: the welcome fits the window, with nothing hidden below it', asy
   const errors = watchErrors(page);
   await asFirstRun(page, request);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to Hildegard.' })).toBeVisible();
-  // The quote at the foot of the side panel sits inside the window, and the page has nothing to scroll.
-  const quote = await page.locator('.hg-welcome__quote').boundingBox();
-  expect(quote!.y + quote!.height).toBeLessThanOrEqual(900);
-  const scroll = await page.locator('.hg-welcome').evaluate((el) => el.scrollHeight - el.clientHeight);
+  await expect(page.getByRole('heading', { name: 'Direct films on your own GPU.' })).toBeVisible();
+  // The model to start with, its license and the one button that accepts it all sit inside the window.
+  const go = page.getByRole('button', { name: 'Accept and download · 17 GB' });
+  await expect(go).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('heading', { name: 'Wan 2.2 5B' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Read the full Apache-2.0' })).toBeVisible();
+  const scroll = await page.locator('.hg-first').evaluate((el) => el.scrollHeight - el.clientHeight);
   expect(scroll).toBeLessThanOrEqual(0);
   await expectAccessible(page, 'welcome');
   await expectCurlyQuotes(page, 'welcome');
-  await page.getByRole('button', { name: /Set up this computer/ }).click();
-  await expect(page.getByRole('heading', { name: 'Pick a video model.' })).toBeVisible();
+  await page.getByText('Other models').click();
+  await expect(page.locator('.hg-model', { hasText: 'LTX-2 distilled' })).toBeVisible();
   await expectAccessible(page, 'welcome models');
   await expectCurlyQuotes(page, 'welcome models');
   expect(errors).toEqual([]);
+});
+
+test('first run: the license is accepted only by the owner’s click, then the Studio opens', async ({
+  page,
+  request,
+}) => {
+  await asFirstRun(page, request);
+  const asked: unknown[] = [];
+  await page.route('**/api/models/*/install', (route) => {
+    asked.push({ url: route.request().url(), body: route.request().postDataJSON() });
+    return route.fulfill({ json: [] });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Direct films on your own GPU.' })).toBeVisible();
+  expect(asked).toEqual([]);
+  await page.getByRole('button', { name: /^Accept and download/ }).click();
+  expect(asked).toEqual([
+    { url: expect.stringMatching(/\/api\/models\/wan-2-2-ti2v-5b\/install$/), body: { acceptLicense: true } },
+  ]);
+  await expect(page.locator('.hg-toast', { hasText: 'Wan 2.2 5B is downloading.' })).toBeVisible();
+  await expect(page.locator('.hg-first')).toHaveCount(0);
+});
+
+test('first run: linking an AI app is one link away, and the welcome waits at the front door', async ({
+  page,
+  request,
+}) => {
+  await asFirstRun(page, request);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Link an AI app' }).click();
+  await expect(page).toHaveURL(/#\/agents$/);
+  await expect(page.locator('.hg-first')).toHaveCount(0);
+  // Nothing was chosen, so the Studio's front door still offers the first model.
+  await page.goto('/#/');
+  await expect(page.getByRole('heading', { name: 'Direct films on your own GPU.' })).toBeVisible();
 });
 
 test('light theme: chosen in Settings, kept on reload, and readable everywhere', async ({
@@ -97,8 +134,11 @@ test('light theme: the first-run welcome stays readable', async ({ page, request
   await page.addInitScript(() => localStorage.setItem('hildegard.theme', 'light'));
   await asFirstRun(page, request);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to Hildegard.' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Hildegard' })).toHaveAttribute('src', /wordmark-green/);
+  await expect(page.getByRole('heading', { name: 'Direct films on your own GPU.' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Hildegard', exact: true })).toHaveAttribute(
+    'src',
+    /wordmark-green/,
+  );
   await expectAccessible(page, 'light welcome');
 });
 

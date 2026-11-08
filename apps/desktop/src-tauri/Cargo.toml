@@ -26,6 +26,10 @@ serde_json = "1"
 # Plain HTTP to Hildegard on 127.0.0.1 only, so no TLS.
 ureq = { version = "=3.4.2", default-features = false, features = ["json"] }
 
+# WebKitGTK ships with MediaStream off; media.rs switches it on so the Studio can record. The same version Tauri uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "=2.0.2", features = ["v2_4"] }
+
 [profile.release]
 codegen-units = 1
 lto = true

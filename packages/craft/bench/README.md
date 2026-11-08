@@ -22,7 +22,7 @@ node packages/craft/bench/gen-ai.mjs [--only haiku,sonnet,opus,luna]   # draft t
   son. Each piece records its source URL, author, license and the SHA-256 of the text as saved. Every license allows
   copies, so the pieces are committed; `fetch-human.mjs` rebuilds them from the sources and `--check` fails if one has
   changed. It skips any page with a date of 2021 or later and any page of filler text (`test/corpus.test.ts` fails on a
-  later date). **What it does not cover:** small-business pages. No site of that kind carries a license that allows copies,
+  later date). The NASA pages come from the site's current HTML, so `htmlToMd` cuts the site's own chrome (the share bullets, the details box, "Explore More" cards with their relative times, "Related links" and the "archived project" note) at the first such block; `nasa-04`, `-09`, `-10`, `-14` and `-15` carried it and were rebuilt, and all five kept 181 to 332 words of a project's own prose. **What it does not cover:** small-business pages. No site of that kind carries a license that allows copies,
   so the 18F and Digital.gov pages (a team describing itself and its services) stand in for them.
 - **AI** (`corpus/ai`, 176 pieces). Twenty-two briefs (a bakery post, a parish newsletter item, a congregation email, a
   plumber's About page, a sermon, a 4-H newsletter and so on) drafted by Claude Haiku, Sonnet and Opus (`claude -p`) and

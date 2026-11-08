@@ -45,8 +45,9 @@ ask me questions", so the eval measures making the work, not the interview.
   network. The clean source for each cleaning task is kept in `ref/` and never shown to a responder.
 - **Audio scoring** (`score_audio.py`). The responder's script is re-run here, not trusted: in a temp folder holding only the inputs, under
   `sandbox.py` and a 120 s timeout: bubblewrap with the filesystem read-only, a tmpfs over the owner's home, `/tmp` and `/run`,
-  only that folder writable, no network, new PID, IPC and UTS namespaces, no capabilities and no new privileges. Without bubblewrap it falls back to
-  `unshare -rn` plus `setpriv --no-new-privs` and warns that the filesystem is then not isolated; with neither it refuses. The output is measured: integrated loudness and true peak (ffmpeg `ebur128`) against
+  only that folder writable, no network, new PID, IPC and UTS namespaces, no capabilities and no new privileges, and a tmpfs over `$EVAL_DIR` wherever it is (the clean references, the inputs
+  and the other arm's runs live there, so a script that names their path finds nothing). Scoring a script therefore needs bubblewrap: the `unshare` fallback and `EVAL_SANDBOX=none` cannot hide that folder, so the scorer refuses in those modes;
+  with neither it refuses too. The output is measured: integrated loudness and true peak (ffmpeg `ebur128`) against
   the brief's targets; clipped samples; for cleaning tasks the hum prominence at 60/120/180 Hz in the pauses, speech minus pause level, rumble,
   how much the quiet stretches were evened out, how far the pop was tamed, and a STOI-like fidelity against the clean reference (band-envelope
   correlation in 1/3-octave bands; documented in `stoi_like`; it ranks, it is not the standardized STOI). For mix tasks the voice and music
@@ -55,7 +56,8 @@ ask me questions", so the eval measures making the work, not the interview.
   hard cut. Each metric becomes a pass/fail check, and the full table goes to the judge.
 - **Design rendering** (`score.py`): model HTML is untrusted. Chromium gets a throwaway profile and `HOME` in a temp folder (removed afterwards), its own
   sandbox on (`--no-sandbox` only if this machine cannot run it; `chromium_sandbox` in score.json says which), and a dead proxy for every request except
-  Google Fonts, loopback and IP addresses included.
+  Google Fonts, loopback and IP addresses included. Limit: Chromium runs outside the bubblewrap sandbox, so a page opened from `file://` can still
+  show other local files by path (an image or a frame), the eval folder included; scripts (audio and video edit) run under bubblewrap, which hides it.
 - **Video-edit scoring** (`score.py`): ran, edit.sh under the same sandbox, length in range, 1280x720, 30 fps, H.264 and AAC, scene changes (ffmpeg scene score above 0.12), loudness
   within 2 LU, `blackdetect` for black stretches over half a second, and an estimate of which of the four clips appear (colour-histogram match).
 - **Writing scoring** (`score.py`): `skills/hildegard/scripts/prose_lint.py --json` on the draft with front matter removed (the repo's `lint` command
@@ -73,9 +75,12 @@ ask me questions", so the eval measures making the work, not the interview.
   the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
   sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render
   isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, and the judge's folder.
-- **Not sandboxed**: the responder sessions themselves. Haiku's Bash tool runs on the host with the network (its tool list is Read, Write, Bash and Skill), and
+- **Not sandboxed**: the responder sessions themselves (a Haiku session's Bash can read `$EVAL_DIR/ref`; only the re-run of its script cannot). Haiku's Bash tool runs on the host with the network (its tool list is Read, Write, Bash and Skill), and
   Codex runs with its own `workspace-write` sandbox. Only the re-run of a finished script, and the render of its HTML, is isolated.
-- **Reuse**: a response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
+- **Reuse**: a verdict is reused only while both runs it judged are unchanged (it records each run's skills hash and a hash of the deliverable and its score); a run made again is judged again.
+  `--judge-only` refuses when a run's `skills.sha` differs from the arm's skills now or is missing (`--allow-stale` judges them anyway and warns). The committed blind results (`results-cand4-blind.json`,
+  `results-heldout2-blind.json`) were made before that check and say `unrecorded`: they are not tied to a skills version.
+  A response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
   the arm's skills folder; `main` is archived from `origin/main` into `skills-main-<tree>` so a moved `main` is never mixed with an old one; the report prints the hashes
   each arm used. A run from before this check has no hash, and `run.sh` makes it again.
 
