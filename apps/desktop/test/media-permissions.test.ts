@@ -37,11 +37,27 @@ describe('camera and microphone in the app', () => {
   it('every system: the window allows the camera and microphone for the Studio only, and refuses them elsewhere', () => {
     const lib = read('src/lib.rs');
     expect(lib).toMatch(/\.on_permission_request\(/);
-    expect(lib).toMatch(/PermissionKind::Microphone \| PermissionKind::Camera/);
+    expect(lib).toMatch(
+      /PermissionKind::Microphone \| PermissionKind::Camera \| PermissionKind::DisplayCapture/,
+    );
     expect(lib).toMatch(/media::may_capture\(&url, None, studio_port\.load/);
     // Not the Studio (or no address to judge by): refused, never allowed by default.
     expect(lib).toMatch(/_ => PermissionResponse::Deny/);
     expect(lib).not.toMatch(/PermissionResponse::Allow,\s*_ => PermissionResponse::Allow/);
+  });
+
+  it('the screen: shared from the Studio only, and the Studio hides Screen where the window can’t share it', () => {
+    // WebKitGTK asks as DisplayCapture, judged like the camera (above); the notes say what each system does.
+    const media = read('src/media.rs');
+    expect(media).toMatch(/Linux, WebKitGTK: .*DisplayCapture/);
+    expect(media).toMatch(/Windows, WebView2: `getDisplayMedia` works/);
+    expect(media).toMatch(/macOS, WKWebView: WebKit gives an app's web view no `getDisplayMedia`/);
+    // The Studio looks for getDisplayMedia itself and gives a one-line reason in place of failing.
+    const capture = readFileSync(join(tauri, '..', '..', 'studio', 'src', 'lib', 'capture.ts'), 'utf8');
+    expect(capture).toMatch(/typeof navigator\.mediaDevices\?\.getDisplayMedia !== 'function'/);
+    expect(capture).toMatch(/This window can’t share the screen\./);
+    // Nothing else is granted the screen: no default allow for it.
+    expect(read('src/lib.rs')).not.toMatch(/DisplayCapture\s*=>\s*PermissionResponse::Allow/);
   });
 
   it('Linux: MediaStream is switched on in WebKitGTK, with the same crate version Tauri uses', () => {

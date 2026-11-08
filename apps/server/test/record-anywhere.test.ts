@@ -224,12 +224,16 @@ describe('record_link: where', () => {
     const { srv } = await boot({ tailscale: 'missing', cloudflared: false });
     for (const path of ['/', '/record/anything', '/api/health']) {
       const res = await fetch(srv.url + path);
-      expect(res.headers.get('permissions-policy'), path).toBe('camera=(self), microphone=(self)');
+      expect(res.headers.get('permissions-policy'), path).toBe(
+        'camera=(self), microphone=(self), display-capture=(self)',
+      );
     }
     // A site preview and a published site are pages someone wrote, on this same origin: they never may.
     for (const path of ['/preview/anything/index.html', '/s/anything/']) {
       const res = await fetch(srv.url + path);
-      expect(res.headers.get('permissions-policy'), path).toBe('camera=(), microphone=()');
+      expect(res.headers.get('permissions-policy'), path).toBe(
+        'camera=(), microphone=(), display-capture=()',
+      );
     }
   });
 

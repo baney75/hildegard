@@ -118,6 +118,8 @@ const DIRECTOR: Record<string, RegExp[]> = {
     // A recording link's page, a recording of their own, and a cleaning job they started.
     /^\/api\/record\/?$/,
     /^\/api\/record\/(rec_[0-9a-f]{16}|[A-Za-z0-9_-]{43}|clean\/rcj_[0-9a-f]{16})$/,
+    // Where an interview of theirs stands.
+    /^\/api\/record\/rec_[0-9a-f]{16}\/interview$/,
     /^\/api\/characters\/[^/]+\/consent$/,
     /^\/api\/stills\/[^/]+\/preview$/,
     /^\/media\//,
@@ -131,6 +133,9 @@ const DIRECTOR: Record<string, RegExp[]> = {
     /^\/api\/auth\//,
     /^\/api\/consent\/[^/]+\/recording$/,
     /^\/api\/record\/(links|imports|status|rec_[0-9a-f]{16}\/clean|[A-Za-z0-9_-]{43})$/,
+    // An interview: a follow-up for one of theirs, chapters, and (on a link's page) an answer or chapters by token.
+    /^\/api\/record\/rec_[0-9a-f]{16}\/(ask|chapters)$/,
+    /^\/api\/record\/[A-Za-z0-9_-]{43}\/(answers|chapters)$/,
     /^\/api\/characters$/,
     /^\/api\/characters\/[^/]+\/(references|stills|consent|consent\/revoke)$/,
     /^\/api\/images$/,
@@ -176,6 +181,8 @@ export function open(method: string, path: string): boolean {
   // be read to see what is asked and used once to send it. Everything else under /api/record (making links, status,
   // cleaning) needs a sign-in, and a token is 43 characters where those paths are not.
   if ((method === 'GET' || method === 'POST') && /^\/api\/record\/[A-Za-z0-9_-]{43}$/.test(path)) return true;
+  // An interview's answers on Next and the chapters before the full recording: the same token, the same page.
+  if (method === 'POST' && /^\/api\/record\/[A-Za-z0-9_-]{43}\/(answers|chapters)$/.test(path)) return true;
   // A real person giving (or taking back) consent for a character of them: the one-time link is their key.
   if (path.startsWith('/api/likeness/')) return true;
   if ((method === 'GET' || method === 'HEAD') && !path.startsWith('/api/') && !path.startsWith('/media/'))

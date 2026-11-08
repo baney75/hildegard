@@ -17,10 +17,16 @@ const nodeData = mkdtempSync(join(tmpdir(), 'hildegard-e2e-node-'));
 // is "installed" there, so there's something to link.
 const home = mkdtempSync(join(tmpdir(), 'hildegard-e2e-home-'));
 mkdirSync(join(home, '.cursor'));
-// A stand-in microphone, allowed without asking, for recording voice samples and consent.
+// A stand-in microphone and camera, allowed without asking, for recording voice samples and consent; and a stand-in
+// screen with its own sound for Record's Screen sources, chosen without the picker (headless picks it on the fake flags
+// alone; the auto-select flag does the same in a headed run).
 const chromium = {
   ...(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {}),
-  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+  args: [
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    '--auto-select-desktop-capture-source=Entire screen',
+  ],
 };
 
 export default defineConfig({

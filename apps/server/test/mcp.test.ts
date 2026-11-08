@@ -58,6 +58,8 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'hildegard_status',
       'install_model',
       'install_voice_model',
+      'interview_ask',
+      'interview_status',
       'keep_designed_voice',
       'keep_still',
       'link_on',

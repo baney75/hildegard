@@ -76,7 +76,7 @@ test('records a voice from the Voice page with noise suppression on, listens bac
   expect(errors.filter((e) => !/decode|AudioContext/i.test(e))).toEqual([]);
 });
 
-test('records a video with sound from the Record button in the sidebar, and keeps it', async ({
+test('records a video with sound from the Record page in the sidebar, and keeps it', async ({
   page,
   request,
 }) => {
@@ -86,20 +86,21 @@ test('records a video with sound from the Record button in the sidebar, and keep
   await page.goto('/#/queue');
   await page
     .getByRole('navigation', { name: 'Main' })
-    .getByRole('button', { name: 'Record', exact: true })
+    .getByRole('link', { name: 'Record', exact: true })
     .click();
-  const dlg = page.getByRole('dialog', { name: 'Record' });
-  await dlg.getByRole('radio', { name: 'Video with sound' }).click();
-  await dlg.getByRole('button', { name: 'Start recording' }).click();
-  await expect(dlg.getByLabel('Your camera')).toBeVisible();
+  await page.getByRole('radio', { name: 'Camera', exact: true }).click();
+  await page.getByRole('button', { name: 'Start recording' }).click();
+  await page.getByRole('button', { name: /Start now/ }).click();
+  await expect(page.getByLabel('Your camera')).toBeVisible();
   await page.waitForTimeout(2000);
-  await dlg.getByRole('button', { name: 'Stop recording' }).click();
-  await expect(dlg.getByLabel('Your video')).toBeVisible();
-  await dlg.getByRole('button', { name: 'Keep' }).click();
-  await expect(dlg.getByRole('heading', { name: 'Kept' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop recording' }).click();
+  await expect(page.getByLabel('Your video')).toBeVisible();
+  await page.getByRole('button', { name: 'Keep' }).click();
+  await expect(page.getByText('Kept with your recordings')).toBeVisible();
   const after = await recordings(request);
   expect(after).toHaveLength(before.length + 1);
   expect(after[0]).toMatchObject({ kind: 'video', status: 'received' });
+  await expect(page.getByRole('article', { name: /^Video · / }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 

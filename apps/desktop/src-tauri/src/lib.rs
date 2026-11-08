@@ -502,10 +502,11 @@ pub fn run() {
           }
         })
         .on_download(downloads)
-        // Record in the Studio needs the camera and microphone: the Studio may have them, nothing else may. The
-        // system asks the person on its own (Info.plist's usage strings on macOS).
+        // Record in the Studio needs the camera, the microphone and the screen: the Studio may have them, nothing else
+        // may. The system asks the person on its own (Info.plist's usage strings on macOS, the desktop portal's
+        // screen picker on Linux). See media.rs for which systems can share the screen at all.
         .on_permission_request(move |webview, kind| match kind {
-          PermissionKind::Microphone | PermissionKind::Camera => match webview.url() {
+          PermissionKind::Microphone | PermissionKind::Camera | PermissionKind::DisplayCapture => match webview.url() {
             Ok(url) if media::may_capture(&url, None, studio_port.load(Ordering::SeqCst)) => PermissionResponse::Allow,
             _ => PermissionResponse::Deny,
           },

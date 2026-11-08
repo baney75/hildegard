@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Recording from any chat. A chat can't count on the microphone, so it asks for a link, shows it, and the person
- * records on Hildegard's own page. The tools: record_link, link_on, recording_status and clean_voice. (export_film takes the
+ * records on Hildegard's own page. The tools: record_link, link_on, recording_status, clean_voice, and for an interview
+ * interview_ask and interview_status. (export_film takes the
  * cleaned recording as a voice-over.) The link is a secret for the person who asked: the call that makes it is the only
  * one that ever returns it, and nothing here writes it anywhere.
  */
@@ -17,6 +18,8 @@ type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
 const fail = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }], isError: true });
 
+/** 75.5 seconds as 1:15. */
+const stamp = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const lu = (n: number) => `${n.toFixed(1)} LUFS`;
 const tp = (n: number) => `${n.toFixed(1)} dBTP`;
 
@@ -64,7 +67,30 @@ export function registerRecordTools(
       description:
         'Get a link where the person records their voice (a voice-over, a line, a narration) or a video of themselves, even though this chat can’t use their microphone. They open it, tap Record, listen or watch back, re-record if they like, and tap Send. Show them the link and the sentence it comes with. Then call recording_status until it says received. The link works once for 30 minutes and is a secret: share it only with the person you asked it for. For voice, call clean_voice on what comes back. `where` says what they record on: "here" is this computer (a link that opens in any browser on it, nothing to set up), "phone" is their phone (it needs Hildegard’s own link; if none is on, this does not turn one on: it returns the route this computer would use and, for a private one, the question to ask them word for word, and you call link_on only after they say yes; a public route is never turned on from a chat, the person does that themselves), "auto" (the default) is here when you run on their computer, unless they said phone.',
       inputSchema: {
-        kind: z.enum(['voice', 'video']).describe('voice: sound only. video: camera and sound.'),
+        kind: z
+          .enum(['voice', 'video'])
+          .optional()
+          .describe('voice: sound only. video: a picture and sound. Leave out when you give sources.'),
+        sources: z
+          .array(z.enum(['camera', 'screen', 'screen+camera', 'voice']))
+          .min(1)
+          .max(4)
+          .optional()
+          .describe(
+            'What the page may record from, the first one chosen to start: camera, screen (their screen and its sound), screen+camera (the screen with them in a bubble), voice (sound only). Voice can’t be mixed with the others. A phone can’t share its screen.',
+          ),
+        script: z
+          .string()
+          .max(20_000)
+          .optional()
+          .describe('Text for the teleprompter: the page scrolls it while they record.'),
+        questions: z
+          .array(z.string().min(1).max(500))
+          .max(30)
+          .optional()
+          .describe(
+            'Make it an interview: the page shows these one at a time, and each answer reaches you on Next (follow it with interview_status, add a follow-up with interview_ask). The full recording comes at the end with a chapter per question.',
+          ),
         where: z
           .enum(['here', 'phone', 'auto'])
           .optional()
@@ -88,8 +114,12 @@ export function registerRecordTools(
       },
     },
     guard(async (a) => {
+      if (!a.kind && !a.sources) throw new HildegardError(422, 'Give kind or sources.');
       const l = await client.recordLink({
         kind: a.kind,
+        sources: a.sources,
+        script: a.script,
+        questions: a.questions,
         where: a.where,
         private: a.private,
         purpose: a.purpose,
@@ -122,7 +152,9 @@ export function registerRecordTools(
       // has one; else the address this app reached Hildegard at, which the page is on too.
       const url = l.where === 'here' ? l.url : !remote && l.viaLink ? l.url : `${client.url}${l.path}`;
       const mins = Math.max(1, Math.round((Date.parse(l.expiresAt) - Date.now()) / 60_000));
-      const what = a.kind === 'voice' ? 'a voice recording' : 'a video with sound';
+      const kind = a.kind ?? (a.sources?.[0] === 'voice' ? 'voice' : 'video');
+      const what = kind === 'voice' ? 'a voice recording' : 'a video with sound';
+      const interview = !!a.questions?.length;
       const phone = l.where === 'phone';
       const out: CallToolResult = {
         content: [
@@ -133,8 +165,11 @@ export function registerRecordTools(
               phone ? 'It is for the person’s phone.' : 'It is for a browser on this computer.',
               `Recording id: ${l.id}. Check on it with recording_status (id: ${l.id}).`,
               phone
-                ? `Show the person this, in these words: “Open this link on your phone, or point its camera at the QR code. Tap Record, ${a.kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`
-                : `Show the person this, in these words: “Open this link in a browser on this computer. Tap Record, ${a.kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`,
+                ? `Show the person this, in these words: “Open this link on your phone, or point its camera at the QR code. Tap Record, ${interview ? 'answer each question and tap Next' : kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`
+                : `Show the person this, in these words: “Open this link in a browser on this computer. Tap Record, ${interview ? 'answer each question and tap Next' : kind === 'voice' ? 'say it' : 'do it'}, then listen back and tap Send. The link works once and ends in ${mins} minutes.”`,
+              interview
+                ? `It is an interview of ${a.questions!.length} questions. Each answer reaches you when they tap Next: call interview_status (id: ${l.id}) to hear it, and interview_ask to add a follow-up. Each answer keeps the link open 30 more minutes, up to 4 hours.`
+                : '',
               phone && l.public
                 ? 'This link is PUBLIC: it goes through a tunnel anyone on the internet can reach, so anyone who has Hildegard’s link can see its sign-in page. Tell the person that plainly.'
                 : '',
@@ -253,6 +288,9 @@ export function registerRecordTools(
         [
           `Received: media id ${r.id}, ${r.kind === 'voice' ? 'a voice recording' : 'a video'}${r.seconds !== null ? `, ${r.seconds.toFixed(1)} seconds` : ''}${r.clean ? `, cleaned to ${lu(r.clean.lufs)} with a true peak of ${tp(r.clean.truePeak)}` : ''}.`,
           w ? `${remote ? 'Link (opens without signing in, for a day)' : 'File'}: ${w}` : '',
+          r.chapters?.length
+            ? `Chapters:\n${r.chapters.map((c) => `- ${stamp(c.at)} ${c.title}`).join('\n')}`
+            : '',
           r.kind === 'voice' && !r.clean
             ? `Next: clean_voice with media_id ${r.id}, then export_film with that as the voiceover.`
             : '',
@@ -260,6 +298,64 @@ export function registerRecordTools(
           .filter(Boolean)
           .join('\n'),
       );
+    }),
+  );
+
+  server.registerTool(
+    'interview_ask',
+    {
+      title: 'Ask a follow-up in an interview',
+      description:
+        'Add a question to an interview the person is recording now (a record_link with questions). Their page picks it up within a few seconds and puts it after the questions already there. Ask one at a time, after hearing the answer that prompted it (interview_status). It works while the link is open and nothing has been sent.',
+      inputSchema: {
+        id: z.string().max(64).describe('The recording id record_link returned (rec_…).'),
+        question: z.string().min(1).max(500).describe('The question, as you would say it.'),
+      },
+    },
+    guard(async (a) => {
+      const r = await client.interviewAsk(a.id, a.question);
+      return text(
+        `Added as question ${r.index + 1} of ${r.questions.length}. Their page shows it after the ones before it. Call interview_status to hear the answer.`,
+      );
+    }),
+  );
+
+  server.registerTool(
+    'interview_status',
+    {
+      title: 'Where an interview stands',
+      description:
+        'For an interview from record_link: the question the person is on, and each answer so far with its transcript when Hildegard can transcribe (else its media id, to give transcribe), and the chapters once the full recording arrives.',
+      inputSchema: { id: z.string().max(64).describe('The recording id record_link returned (rec_…).') },
+    },
+    guard(async (a) => {
+      const v = await client.interview(a.id);
+      const lines = [
+        v.status === 'received'
+          ? `Received: the full recording arrived (media id ${v.id}).`
+          : v.status === 'expired'
+            ? `Expired: the link for ${v.id} ran out.`
+            : v.current
+              ? `In progress: on question ${v.current.index + 1} of ${v.questions.length}: “${v.current.question}”`
+              : `In progress: all ${v.questions.length} questions answered; waiting for them to send the recording.`,
+      ];
+      for (const x of v.answers) {
+        const w = x.file ?? (x.url ? (remote ? remote.link(x.url) : `${client.url}${x.url}`) : null);
+        lines.push(
+          `Answer ${x.index + 1} (“${x.question}”, at ${stamp(x.at)}${x.seconds ? `, ${x.seconds.toFixed(1)} seconds` : ''}): ${
+            x.transcript
+              ? x.transcript
+              : x.transcribing
+                ? `transcribing; ask again shortly. Media id ${x.mediaId}.`
+                : `no transcript (no transcription model is installed). Media id ${x.mediaId}${w ? `, ${remote ? 'link' : 'file'} ${w}` : ''}; give it to transcribe${remote ? ' as source_data' : ' as source_path'}.`
+          }`,
+        );
+      }
+      if (v.chapters.length)
+        lines.push(`Chapters:\n${v.chapters.map((c) => `- ${stamp(c.at)} ${c.title}`).join('\n')}`);
+      if (v.status === 'pending')
+        lines.push('To add a follow-up, call interview_ask with this id and the question.');
+      return text(lines.join('\n'));
     }),
   );
 

@@ -17,6 +17,12 @@ async function makeLink(
   expect(res.status()).toBe(201);
   return (await res.json()) as Link;
 }
+/** Press Record, then skip the 3-2-1 by tapping the number. */
+async function begin(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Start recording' }).click();
+  await page.getByRole('button', { name: /Start now/ }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Recording' })).toBeVisible();
+}
 const status = async (request: import('@playwright/test').APIRequestContext, id: string) =>
   (await (await request.get(`/api/record/${id}`)).json()) as Status;
 
@@ -49,7 +55,7 @@ test('records a voice for two seconds, plays it back, sends it, and the status t
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => (window as unknown as { asked: number }).asked)).toBe(0);
 
-  await page.getByRole('button', { name: 'Start recording' }).click();
+  await begin(page);
   await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible();
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Stop recording' }).click();
@@ -68,7 +74,7 @@ test('records a voice for two seconds, plays it back, sends it, and the status t
   // Record again throws that one away and starts over, then send the second.
   await page.getByRole('button', { name: 'Record again' }).click();
   await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible();
-  await page.getByRole('button', { name: 'Start recording' }).click();
+  await begin(page);
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Stop recording' }).click();
   await expect(page.getByLabel('Your recording')).toBeVisible();
@@ -101,7 +107,7 @@ test('records a video with sound, with the camera, and sends it', async ({ page,
   await page.context().grantPermissions(['microphone', 'camera']);
   await page.goto(link.url);
   await expect(page.getByText('Record a video')).toBeVisible();
-  await page.getByRole('button', { name: 'Start recording' }).click();
+  await begin(page);
   await expect(page.getByLabel('Your camera')).toBeVisible();
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: 'Stop recording' }).click();

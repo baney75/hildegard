@@ -5,6 +5,7 @@
  */
 import type { VoiceJob, VoiceState } from '@hildegard/presets';
 import { useEffect, useState } from 'react';
+import { RecordingPlayer } from '../../components/Recorder.tsx';
 import { Button, Icon, LiveRing, Menu, Segmented, toastError } from '../../components/ui.tsx';
 import { Clip, DropAudio, PlayButton } from '../../components/voice.tsx';
 import { type AudioUpload, api } from '../../lib/api.ts';
@@ -159,7 +160,11 @@ export function Recordings({ state, version = 0 }: { state: VoiceState; version?
               <div className="hg-between">
                 <b className="body-sm">{recordingLabel(r)}</b>
               </div>
-              {r.url ? <Clip url={r.url} label={recordingLabel(r)} seconds={r.seconds} /> : null}
+              {r.url && r.chapters?.length ? (
+                <RecordingPlayer url={r.url} kind={r.kind} label={recordingLabel(r)} chapters={r.chapters} />
+              ) : r.url ? (
+                <Clip url={r.url} label={recordingLabel(r)} seconds={r.seconds} />
+              ) : null}
             </article>
           ))
         ) : (

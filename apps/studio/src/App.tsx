@@ -2,7 +2,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import markGreen from './assets/mark-green.svg';
 import markVellum from './assets/mark-vellum.svg';
-import { RecordDialog } from './components/RecordDialog.tsx';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
@@ -14,6 +13,7 @@ import { Cinema } from './pages/Cinema.tsx';
 import { Images } from './pages/Images.tsx';
 import { Likeness, LikenessRevoke } from './pages/Likeness.tsx';
 import { Queue } from './pages/Queue.tsx';
+import { RecordStudio } from './pages/RecordStudio.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { AcceptInvite, SignIn } from './pages/SignIn.tsx';
 import { Sites } from './pages/Sites.tsx';
@@ -28,6 +28,7 @@ const NAV = [
   { to: '/images', match: /^\/images/, label: 'Images', icon: 'image' },
   { to: '/voice', match: /^\/voice/, label: 'Voice', icon: 'voice' },
   { to: '/talk', match: /^\/talk/, label: 'Talk', icon: 'mic' },
+  { to: '/record', match: /^\/record/, label: 'Record', icon: 'camera' },
   { to: '/characters', match: /^\/characters/, label: 'Characters', icon: 'person' },
   { to: '/sites', match: /^\/sites/, label: 'Sites', icon: 'desktop' },
   { to: '/agents', match: /^\/agents/, label: 'Agents', icon: 'agent' },
@@ -56,7 +57,6 @@ export function App() {
   const [route, go] = useHashRoute();
   const [layout] = useLocal<LayoutMode>('hildegard.layout', 'auto');
   const [welcomed, setWelcomed] = useLocal('hildegard.welcomed', false);
-  const [recording, setRecording] = useState(false);
   const app = useRef<HTMLDivElement>(null);
   const { wc, forced } = useWindowClass(app, layout);
   // The mark is drawn in vellum on dark grounds and in green on vellum.
@@ -121,6 +121,7 @@ export function App() {
   const parts = route.split('/').filter(Boolean);
   let page: React.ReactNode;
   if (parts[0] === 'queue') page = <Queue catalog={catalog} wc={wc} go={go} />;
+  else if (parts[0] === 'record') page = <RecordStudio />;
   else if (parts[0] === 'images') page = <Images catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
@@ -174,13 +175,7 @@ export function App() {
             <img src={mark} alt="Hildegard" height={30} />
           </div>
           {nav.slice(0, -1).map((n) => item(n, 'hg-nav-item'))}
-          <div className="hg-app__navfoot">
-            <button type="button" className="hg-nav-item" onClick={() => setRecording(true)}>
-              <Icon name="mic" />
-              <span>Record</span>
-            </button>
-            {item(nav.at(-1)!, 'hg-nav-item')}
-          </div>
+          <div className="hg-app__navfoot">{item(nav.at(-1)!, 'hg-nav-item')}</div>
         </nav>
         {page}
         <nav className="hg-tabbar" aria-label="Main">
@@ -205,7 +200,6 @@ export function App() {
           Reconnecting…
         </div>
       ) : null}
-      {recording ? <RecordDialog onClose={() => setRecording(false)} /> : null}
       <Toasts />
     </div>
   );

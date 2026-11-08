@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The page a link from a chat opens: record a voice or a video on this device, play it back, record again, and send
- * it. It needs no account; the link's token is the only key, it works once, and this page can do nothing else. It
- * never starts the microphone or camera until the person taps.
+ * The page a link from a chat opens: record on this device from what the link allows (the camera, the screen, the
+ * screen with the camera, or the voice), with a teleprompter when the link brought a script, and for an interview one
+ * question at a time. Each answer goes to Hildegard on Next, so the agent asking can hear it and ask a follow-up, which
+ * this page picks up within a few seconds. Then play it back, record again, and send it. It needs no account; the
+ * link's token is the only key, the full recording goes once, and this page can do nothing else. It never starts the
+ * microphone, camera or a screen share until the person presses Record.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import markGreen from '../assets/mark-green.svg';
 import markVellum from '../assets/mark-vellum.svg';
+import { Recorder, useInterview } from '../components/Recorder.tsx';
 import { Button, Icon } from '../components/ui.tsx';
 import { api, type RecordLinkInfo } from '../lib/api.ts';
-import { clock } from '../lib/format.ts';
+import { type Source, useStudioRecorder } from '../lib/capture.ts';
 import { useNow } from '../lib/hooks.ts';
-import { useCapture } from '../lib/record.ts';
+import { useTheme } from '../lib/theme.ts';
 
-function Preview({ stream }: { stream: MediaStream }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream;
-  }, [stream]);
-  return <video ref={ref} className="hg-record-media" autoPlay muted playsInline aria-label="Your camera" />;
-}
+/** The mark in green on vellum, in vellum on dark grounds, as the Studio draws it. */
+const useMark = () => (useTheme().theme === 'light' ? markGreen : markVellum);
+
+/** How often the page looks for a follow-up question. */
+const POLL_MS = 3000;
 
 export function RecordPage({ token }: { token: string }) {
   const [info, setInfo] = useState<RecordLinkInfo | null>(null);
@@ -26,9 +29,8 @@ export function RecordPage({ token }: { token: string }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const kind = info?.kind ?? 'voice';
-  const cap = useCapture(kind);
-  const now = useNow(!!info && !sent);
+  const [script, setScript] = useState('');
+  const mark = useMark();
 
   useEffect(() => {
     document.title = 'Record · Hildegard';
@@ -36,14 +38,104 @@ export function RecordPage({ token }: { token: string }) {
       .recordLinkInfo(token)
       .then((i) => {
         setInfo(i);
+        setScript(i.script ?? '');
         setSent(i.state === 'received');
       })
       .catch((e) => setError((e as Error).message));
   }, [token]);
 
+  if (!info)
+    return (
+      <main className="hg-phone-consent" id="main">
+        <img src={mark} alt="Hildegard" height={36} />
+        {error ? (
+          <div className="hg-stack" role="alert">
+            <h1 className="st-h1">This link doesn’t work</h1>
+            <p className="st-lead">{error}</p>
+          </div>
+        ) : (
+          <span className="hg-spin" role="status" aria-label="Opening" />
+        )}
+      </main>
+    );
+  return (
+    <LinkRecorder
+      token={token}
+      info={info}
+      setInfo={setInfo}
+      sent={sent}
+      setSent={setSent}
+      busy={busy}
+      setBusy={setBusy}
+      problem={problem}
+      setProblem={setProblem}
+      script={script}
+      setScript={setScript}
+    />
+  );
+}
+
+function LinkRecorder({
+  token,
+  info,
+  setInfo,
+  sent,
+  setSent,
+  busy,
+  setBusy,
+  problem,
+  setProblem,
+  script,
+  setScript,
+}: {
+  token: string;
+  info: RecordLinkInfo;
+  setInfo: (i: RecordLinkInfo) => void;
+  sent: boolean;
+  setSent: (b: boolean) => void;
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+  problem: string | null;
+  setProblem: (s: string | null) => void;
+  script: string;
+  setScript: (s: string) => void;
+}) {
+  const sources: Source[] = info.sources?.length
+    ? info.sources
+    : [info.kind === 'voice' ? 'voice' : 'camera'];
+  // Each link remembers its own choices only for this page: nothing is kept for the next link.
+  const rec = useStudioRecorder({ sources, storage: null });
+  const questions = info.questions?.length ? info.questions : null;
+  const interview = useInterview(rec, questions, async (i, at, clip) => {
+    await api.recordAnswer(token, i, at, clip);
+  });
+  const now = useNow(!sent);
+  const mark = useMark();
+
+  // An interview looks for follow-ups every few seconds while the page is open, and keeps its end time fresh.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: whether it is an interview, not each new list.
+  useEffect(() => {
+    if (!questions || sent) return;
+    let live = true;
+    const t = setInterval(() => {
+      api
+        .recordLinkInfo(token)
+        .then((i) => live && setInfo(i))
+        .catch(() => {});
+    }, POLL_MS);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [!!questions, sent, token, setInfo]);
+
+  const left = Date.parse(info.expiresAt) - now;
+  const on = rec.phase === 'recording' || rec.phase === 'paused' || rec.phase === 'countdown';
+
   const send = async () => {
-    if (!cap.clip || !info) return;
-    if (cap.clip.blob.size > info.maxBytes) {
+    const c = rec.clip;
+    if (!c) return;
+    if (c.blob.size > info.maxBytes) {
       setProblem(
         `That recording is over ${Math.round(info.maxBytes / 1024 / 1024)} MB, which is more than Hildegard takes here. Record a shorter one.`,
       );
@@ -52,7 +144,8 @@ export function RecordPage({ token }: { token: string }) {
     setBusy(true);
     setProblem(null);
     try {
-      await api.recordSend(token, cap.clip.blob);
+      if (c.chapters.length) await api.recordChapters(token, c.chapters);
+      await api.recordSend(token, c.blob);
       setSent(true);
     } catch (e) {
       setProblem((e as Error).message);
@@ -61,22 +154,10 @@ export function RecordPage({ token }: { token: string }) {
     }
   };
 
-  const left = info ? Date.parse(info.expiresAt) - now : 0;
-  const on = cap.state === 'recording';
-  const what = kind === 'voice' ? 'voice' : 'video';
-  return (
-    <main className="hg-phone-consent" id="main">
-      <img src={markVellum} alt="Hildegard" height={36} />
-      {!info ? (
-        error ? (
-          <div className="hg-stack" role="alert">
-            <h1 className="st-h1">This link doesn’t work</h1>
-            <p className="st-lead">{error}</p>
-          </div>
-        ) : (
-          <span className="hg-spin" role="status" aria-label="Opening" />
-        )
-      ) : sent ? (
+  if (sent)
+    return (
+      <main className="hg-phone-consent" id="main">
+        <img src={mark} alt="Hildegard" height={36} />
         <div className="hg-stack" role="status">
           <span className="hg-ok__icon">
             <Icon name="check" size={24} />
@@ -84,96 +165,76 @@ export function RecordPage({ token }: { token: string }) {
           <h1 className="st-h1">Sent</h1>
           <p className="st-lead">Your recording arrived. You can close this page.</p>
         </div>
-      ) : left <= 0 && cap.state !== 'recording' ? (
+      </main>
+    );
+  if (left <= 0 && !on && rec.phase !== 'review')
+    return (
+      <main className="hg-phone-consent" id="main">
+        <img src={mark} alt="Hildegard" height={36} />
         <div className="hg-stack" role="alert">
           <h1 className="st-h1">This link has run out</h1>
-          <p className="st-lead">Ask for a new one. Each works for 30 minutes, and once.</p>
+          <p className="st-lead">Ask for a new one.</p>
         </div>
-      ) : (
-        <>
-          <p className="hg-eyebrow">{kind === 'voice' ? 'Record your voice' : 'Record a video'}</p>
-          {info.purpose ? (
-            <blockquote className="st-prompter">
-              <b>{info.purpose}</b>
-            </blockquote>
-          ) : null}
-          {cap.state === 'review' && cap.clip ? (
-            <>
-              {kind === 'video' ? (
-                // biome-ignore lint/a11y/useMediaCaption: the person's own take, played back to check it
-                <video
-                  className="hg-record-media"
-                  src={cap.clip.url}
-                  controls
-                  playsInline
-                  aria-label="Your video"
-                />
-              ) : (
-                // biome-ignore lint/a11y/useMediaCaption: the person's own take, played back to check it
-                <audio className="hg-record-media" src={cap.clip.url} controls aria-label="Your recording" />
-              )}
-              <div className="hg-record-actions">
-                <Button icon="rotate" onClick={cap.again} disabled={busy}>
-                  Record again
-                </Button>
-                <Button icon="upload" kind="primary" onClick={() => void send()} busy={busy}>
-                  {busy ? 'Sending…' : 'Send'}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              {kind === 'video' && cap.stream ? <Preview stream={cap.stream} /> : null}
-              <button
-                type="button"
-                className={`st-rec${on ? '' : ' idle'}`}
-                aria-label={on ? 'Stop recording' : 'Start recording'}
-                aria-pressed={on}
-                disabled={cap.state === 'asking' || cap.state === 'unsupported' || cap.state === 'denied'}
-                onClick={() => (on ? cap.stop() : void cap.start())}
-              >
-                <Icon name={on ? 'stop' : kind === 'video' ? 'camera' : 'mic'} size={24} />
-              </button>
-              <span className="num body-sm muted" aria-live="off">
-                {on ? clock(cap.seconds) : `${Math.max(1, Math.ceil(left / 60_000))} min left`}
-              </span>
-              {cap.state === 'idle' ? (
-                <p className="body-sm sec-text">
-                  Tap the button to start. Hildegard asks your {kind === 'video' ? 'camera and ' : ''}
-                  microphone only then. You can listen back before you send.
-                </p>
-              ) : null}
-              {cap.state === 'denied' || cap.state === 'unsupported' ? (
-                <>
-                  <p className="body-sm hg-err" role="alert">
-                    {cap.state === 'denied'
-                      ? `The ${kind === 'video' ? 'camera or microphone is' : 'microphone is'} blocked. Allow it for this page, or choose a ${what} you already have.`
-                      : `This browser can’t record here. Choose a ${what} you already have.`}
-                  </p>
-                  <label className="hg-btn">
-                    <Icon name="upload" size={18} />
-                    <span>Choose a file</span>
-                    <input
-                      type="file"
-                      accept={kind === 'video' ? 'video/*' : 'audio/*'}
-                      hidden
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) cap.choose(f);
-                      }}
-                    />
-                  </label>
-                </>
-              ) : null}
-            </>
-          )}
-          {problem ? (
-            <p className="body-sm hg-err" role="alert">
-              {problem}
+      </main>
+    );
+
+  const what = questions
+    ? 'An interview'
+    : sources[0] === 'voice'
+      ? 'Record your voice'
+      : sources.some((s) => s !== 'camera')
+        ? 'Record your screen or camera'
+        : 'Record a video';
+  return (
+    <main className="hg-recpage" id="main">
+      <header className="hg-recpage__h">
+        <img src={mark} alt="Hildegard" height={28} />
+        <div style={{ minWidth: 0 }}>
+          <p className="hg-eyebrow">{what}</p>
+          {info.purpose ? <h1 className="st-h2">{info.purpose}</h1> : null}
+        </div>
+        <span className="num body-sm muted" aria-live="off">
+          {Math.max(1, Math.ceil(left / 60_000))} min left
+        </span>
+      </header>
+      <Recorder
+        rec={rec}
+        script={questions ? null : script}
+        setScript={setScript}
+        interview={interview}
+        intro={
+          questions ? (
+            <p>
+              <b>Each answer goes to Hildegard when you tap Next, so the interviewer can hear it.</b> The
+              questions show one at a time; new ones may arrive as you go. At the end you watch it back and
+              send the whole recording.
             </p>
-          ) : null}
-        </>
-      )}
+          ) : (
+            <p>
+              Press Record to start. Hildegard asks for your microphone
+              {sources.some((s) => s !== 'voice') ? ', camera or screen' : ''} only then. You can play it back
+              before you send it.
+            </p>
+          )
+        }
+        review={() => (
+          <>
+            <div className="hg-record-actions">
+              <Button icon="rotate" onClick={rec.again} disabled={busy}>
+                Record again
+              </Button>
+              <Button icon="upload" kind="primary" onClick={() => void send()} busy={busy}>
+                {busy ? 'Sending…' : 'Send'}
+              </Button>
+            </div>
+            {problem ? (
+              <p className="body-sm hg-err" role="alert">
+                {problem}
+              </p>
+            ) : null}
+          </>
+        )}
+      />
     </main>
   );
 }
