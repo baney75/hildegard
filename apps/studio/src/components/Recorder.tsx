@@ -607,14 +607,14 @@ export function Backdrops({
   disabled?: boolean;
 }) {
   return (
-    <div className="hg-swatches" role="radiogroup" aria-label="Backdrop">
+    <div className="hg-backdrops" role="radiogroup" aria-label="Backdrop">
       {DEMO_BACKDROPS.map((b) => (
         <button
           key={b.id}
           type="button"
           role="radio"
           aria-checked={value === b.id}
-          className="hg-swatch"
+          className="hg-backdrop"
           disabled={disabled}
           onClick={() => onChange(b.id)}
         >
@@ -623,7 +623,7 @@ export function Backdrops({
         </button>
       ))}
       {onPicture ? (
-        <label className={`hg-swatch${value === 'image' ? ' is-on' : ''}`}>
+        <label className={`hg-backdrop${value === 'image' ? ' is-on' : ''}`}>
           <i
             style={picture ? { backgroundImage: `url(${picture})`, backgroundSize: 'cover' } : undefined}
             aria-hidden="true"

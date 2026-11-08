@@ -7,6 +7,9 @@ import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { serveFolder } from '../src/browser.ts';
 import { parseArgs } from '../src/config.ts';
@@ -135,9 +138,16 @@ describe('what a demo may open', () => {
   });
 
   it('never downloads a browser: with none, it says the command and stops', () => {
-    const env = { PLAYWRIGHT_BROWSERS_PATH: mkdtempSync(join(tmpdir(), 'hg-nopw-')), HOME: root };
-    expect(() => demoChromium(env)).toThrow(expect.objectContaining({ status: 424 }));
-    expect(() => demoChromium(env)).toThrow(INSTALL_CHROMIUM);
+    // Playwright's own folder is looked for under the home folder too: both point at empty folders here.
+    const home = process.env.HOME;
+    process.env.HOME = root;
+    try {
+      const env = { PLAYWRIGHT_BROWSERS_PATH: mkdtempSync(join(tmpdir(), 'hg-nopw-')), HOME: root };
+      expect(() => demoChromium(env)).toThrow(expect.objectContaining({ status: 424 }));
+      expect(() => demoChromium(env)).toThrow(INSTALL_CHROMIUM);
+    } finally {
+      process.env.HOME = home;
+    }
     expect(INSTALL_CHROMIUM).toBe('npx playwright@1.63.0 install chromium');
   });
 });
@@ -224,7 +234,7 @@ pad = f[h // 2, 20].tolist()
 inset = round(min(w, h) * 0.1)
 k = min((w - 2 * inset) / 960, (h - 2 * inset) / 600)
 x0 = (w - round(960 * k)) // 2; y0 = (h - round(600 * k)) // 2
-badge = f[y0 + round(80 * k), x0 + round(80 * k)].tolist()
+badge = f[y0 + round(24 * k), x0 + round(24 * k)].tolist()
 print(json.dumps({"w": w, "h": h, "n": len(frames), "pad": pad, "badge": badge}))
 `,
         file,
@@ -343,5 +353,33 @@ describe('/api/demos', () => {
       if (was === undefined) delete process.env.PLAYWRIGHT_BROWSERS_PATH;
     }
     expect((await local('/api/demos/dmo_0000000000000000')).status).toBe(404);
+  });
+
+  it('demo_browser over the MCP: the install command when there’s no browser, and no folders for an app elsewhere', async () => {
+    const client = new Client({ name: 'test-chatbot', version: '1.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${srv.url}/mcp`)));
+    const call = async (args: Record<string, unknown>) => {
+      const r = (await client.callTool({ name: 'demo_browser', arguments: args })) as CallToolResult;
+      return {
+        error: !!r.isError,
+        text: r.content.map((c) => (c as { text?: string }).text ?? '').join('\n'),
+      };
+    };
+    const was = process.env.PLAYWRIGHT_BROWSERS_PATH;
+    const home = process.env.HOME;
+    process.env.PLAYWRIGHT_BROWSERS_PATH = mkdtempSync(join(tmpdir(), 'hg-nopw-'));
+    process.env.HOME = work;
+    try {
+      const r = await call({ url: 'https://example.com', steps: [{ do: 'pause', ms: 100 }] });
+      expect(r.error).toBe(true);
+      expect(r.text).toContain(INSTALL_CHROMIUM);
+      const bad = await call({ url: 'https://example.com', steps: [{ do: 'click' }] });
+      expect(bad.error).toBe(true);
+    } finally {
+      process.env.PLAYWRIGHT_BROWSERS_PATH = was;
+      process.env.HOME = home;
+      if (was === undefined) delete process.env.PLAYWRIGHT_BROWSERS_PATH;
+      await client.close();
+    }
   });
 });
