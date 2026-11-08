@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from browser import chromium_shot, find_chromium  # noqa: E402
 
 try:
-    from PIL import Image, ImageChops, ImageFilter
+    from PIL import Image, ImageChops
 except ImportError:  # the SVG checks still run
     Image = None
 
@@ -215,16 +215,34 @@ def ink_mask(png, pad):
     return out
 
 
-def erode(m, n):
-    for _ in range(n):
-        m = m.filter(ImageFilter.MinFilter(3))
+def _shift(m, dx, dy):
+    """Pixel (x, y) takes the value at (x + dx, y + dy); what comes in from outside the picture is 0 (paper)."""
+    return m.crop((dx, dy, m.width + dx, m.height + dy))
+
+
+def _square(m, n, join):
+    """Min (darker) or max (lighter) over the (2n+1) x (2n+1) square around every pixel: the same as n passes of a
+    3 x 3 rank filter, but built from log2(n) shifted copies per axis, so n = 60 costs 14 cheap ops, not 60 slow ones."""
+    if n <= 0:
+        return m
+    w = 2 * n + 1
+    for axis in (0, 1):
+        k, acc = 1, m
+        while 2 * k <= w:
+            acc = join(acc, _shift(acc, k * (1 - axis), k * axis))
+            k *= 2
+        if k < w:
+            acc = join(acc, _shift(acc, (w - k) * (1 - axis), (w - k) * axis))
+        m = _shift(acc, -n * (1 - axis), -n * axis)  # acc[x] covers x..x+w-1; centre it on x
     return m
+
+
+def erode(m, n):
+    return _square(m, n, ImageChops.darker)
 
 
 def dilate(m, n):
-    for _ in range(n):
-        m = m.filter(ImageFilter.MaxFilter(3))
-    return m
+    return _square(m, n, ImageChops.lighter)
 
 
 def count(m):
@@ -242,16 +260,12 @@ def thin_parts(m, p):
 
 def finest(m, total, limit=60, share=0.01):
     """Width in px (2p+1) of the finest strokes, and of the finest gaps, that still hold at least `share` of the ink."""
-    e, d, ink_w, gap_w = m, m, None, None
+    ink_w, gap_w = None, None
     for p in range(1, limit + 1):
-        if ink_w is None:
-            e = e.filter(ImageFilter.MinFilter(3))
-            if count(ImageChops.subtract(m, dilate(e, p))) > share * total:
-                ink_w = 2 * p - 1
-        if gap_w is None:
-            d = d.filter(ImageFilter.MaxFilter(3))
-            if count(ImageChops.subtract(erode(d, p), m)) > share * total:
-                gap_w = 2 * p - 1
+        if ink_w is None and count(ImageChops.subtract(m, dilate(erode(m, p), p))) > share * total:
+            ink_w = 2 * p - 1
+        if gap_w is None and count(ImageChops.subtract(erode(dilate(m, p), p), m)) > share * total:
+            gap_w = 2 * p - 1
         if ink_w is not None and gap_w is not None:
             break
     return ink_w or 2 * limit + 1, gap_w or 2 * limit + 1
