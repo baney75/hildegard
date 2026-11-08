@@ -97,7 +97,7 @@ for older models that wrote "delve" and "it's worth noting".
 | Rule | Tier | Catches | People | AI |
 | --- | --- | --- | --- | --- |
 | `stacked-tells` | fail | Two or more different kinds of weak tell in one piece | 0% | 18.2% |
-| `unfinished` | fail | TODO, TK, "lorem ipsum dolor", template slots such as `[Business Name]`, `[your name]`, `{{name}}`, `<insert the date>` and `XX/XX/XXXX`. Ordinary brackets, such as a link `[our contact page]`, a link whose `[website]: https://…` definition is in the text, or `the [church] voted`, pass, and so do Hugo and Jekyll tags (`{{< figure >}}`, `{{ site.title }}`, `{% include x %}`), a sign-off of `xx xx` kisses and "were" for "we're" | 0% | 11.4% |
+| `unfinished` | fail | TODO, TK, "lorem ipsum dolor", template slots such as `[Business Name]`, `[your name]`, `{{name}}`, `{{ first_name }}`, `<insert the date>`, `XX/XX/XXXX`, `(xxx) xxx-xxxx` and `$xx`. Ordinary brackets, such as a link `[our contact page]`, a link whose `[website]: https://…` definition is in the text (a `[label]:` line with no destination defines nothing), or `the [church] voted`, pass, and so do Hugo and Jekyll tags (`{{< figure >}}`, `{{ site.title }}`, `{% include x %}`) and a sign-off of `xx xx` or `XX XX` kisses | 0% | 11.4% |
 | `stock-words` | fail | "delve", "tapestry", "testament to", "multifaceted", "bustling", "nestled" | 0% | 0% |
 | `empty-phrases` | fail | "let's dive in", "as an AI", "I hope this helps", "look no further", "in today's fast-paced world" | 0% | 0% |
 | `throat-clearing`, `faux-insight`, `puffery`, `chatbot` | fail | "here's the thing", "most people skip", "stands as a testament", "great question" | 0% | 1.7% |
@@ -107,18 +107,19 @@ for older models that wrote "delve" and "it's worth noting".
 | `summary-ending` | fail for "In conclusion", warn for "Overall" | A last paragraph that recaps | 0.5% | 0% |
 | `headings` | warn | Three or more headings and one for every 125 words or fewer | 4.5% | 42.6% |
 | `bold-list-leads` | warn | Bullets that each open on a bold label | 3.2% | 30.1% |
-| `warm-boilerplate` | warn, two or more | "we're grateful to", "thank you for being part of", "feel free to reach out" | 0% | 14.8% |
+| `warm-boilerplate` | warn, two or more | "we're grateful to", "thank you for being part of", "feel free to reach out"; "were" for "we're" does not count | 0% | 14.8% |
 | `uniform-paragraphs` | warn | Six or more paragraphs, nearly all under 46 words, none over 60 | 4.5% | 16.5% |
 | `bold`, `bold-leads` | warn | Bold through a paragraph, or opening most paragraphs | 4.1%, 0.9% | 15.9%, 4.0% |
 | `triads`, `colon-reveal` | warn | Lists of three on every other line, a colon then a reveal | 4.1%, 0% | 14.2%, 1.7% |
 | `metadiscourse`, `weasel` | warn | "as you can see", "to be honest", "experts agree" | 0.5%, 0% | 13.1%, 0% |
-| `chatty-openers` | warn | "the good news is", "the best part is". People say these, so the rule never stacks with a bold word | 0% | 2.3% |
+| `chatty-openers` | warn | "the good news is", "the best part is". People say these, so the rule never stacks with a plain `bold` word | 0% | 2.3% |
 | `corporate-words`, `cliches`, `loaded-words`, `summary-openers`, `filler-adverbs` | warn, only when several | "leverage", "when it comes to", "crucial", "in summary", "actually" | 0.5% | 0% |
 
 Stacking counts kinds, not hits: `bold`, `bold-leads` and `bold-list-leads` are one habit, so a piece with all three and
-nothing else does not fail. `chatty-openers` and a plain `bold` do not count toward each other either, so "The good news
-is the roof is done. Sign up for **Saturday** or **Sunday** shifts." only warns. `headings` and `uniform-paragraphs` warn
-but do not stack, because a web page has both.
+nothing else does not fail. `metadiscourse` and `chatty-openers` are one kind too, because people use both in the same
+letter ("To be honest, I was worried. The good news is the roof held."). `chatty-openers` and a plain `bold` do not count
+toward each other, so "The good news is the roof is done. Sign up for **Saturday** or **Sunday** shifts." only warns.
+`headings` and `uniform-paragraphs` warn but do not stack, because a web page has both.
 
 Stacked fragments, even sentence lengths and low counts of names and numbers were rules before. Each fired on people as
 often as on machines or more, so they are gone.

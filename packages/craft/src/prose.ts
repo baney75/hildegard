@@ -394,17 +394,19 @@ const ENDING =
   /^\s*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?/i;
 
 /**
- * The placeholder patterns, compiled once: capitals are whole words, the rest match in any case, and `markersExact`
- * match as written (“XX/XX/XXXX” is a template, “Love, Gran xx xx” is kisses).
+ * The placeholder patterns, compiled once: capitals are whole words and the rest match in any case. “XX/XX/XXXX” and
+ * “(xxx) xxx-xxxx” are templates in any case; a run of x groups joined only by spaces (“Love, Gran XX XX”) is kisses.
  */
-const MARKERS = [
-  ...RULES.markers.map(
-    (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
-  ),
-  ...RULES.markersExact.map((m) => new RegExp(m, 'g')),
-];
-/** A link reference definition, “[website]: https://example.org”: the label it defines. */
+const MARKERS = RULES.markers.map(
+  (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
+);
+/** A link reference definition, “[website]: https://example.org”: the label it defines, up to the colon. */
 const REF_DEF = /^[^\S\n]{0,3}\[([^\]\n]+)\]:/gm;
+/**
+ * What must follow the colon, as in CommonMark: a destination that is not another bracket, so a template line
+ * “[Phone number]: [on the door]” defines nothing. Read in the text itself, since the lint blanks URLs.
+ */
+const REF_DEST = /[^\S\n]*(?:<[^>\n]+>|[^\s[<]\S*)/y;
 const labelKey = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 /** The kinds of weak tell that count toward `stacked-tells`: findings that come from one habit are one kind. */
 const KINDS: string[][] = RULES.stacked.kinds;
@@ -629,7 +631,14 @@ export function lintProse(text: string, opts: ProseOptions = {}): ProseLint {
   let labels: Set<string> | undefined;
   const isDefinedLink = (p: string, _index: number, m: string) => {
     if (!m.startsWith('[')) return false;
-    labels ??= new Set([...p.matchAll(REF_DEF)].map((d) => labelKey(d[1]!)));
+    labels ??= new Set(
+      [...p.matchAll(REF_DEF)]
+        .filter((d) => {
+          REF_DEST.lastIndex = d.index + d[0].length;
+          return REF_DEST.test(text);
+        })
+        .map((d) => labelKey(d[1]!)),
+    );
     return labels.has(labelKey(m.slice(1, -1)));
   };
   add(

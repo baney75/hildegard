@@ -393,13 +393,16 @@ def is_marker_word(m):
     return re.fullmatch("[A-Z]+", m) is not None
 
 
-# The placeholder patterns, compiled once: capitals are whole words, the rest match in any case, and markersExact
-# match as written ("XX/XX/XXXX" is a template, "Love, Gran xx xx" is kisses).
+# The placeholder patterns, compiled once: capitals are whole words and the rest match in any case. "XX/XX/XXXX" and
+# "(xxx) xxx-xxxx" are templates in any case; a run of x groups joined only by spaces ("Love, Gran XX XX") is kisses.
 MARKERS = [
     rx(rf"\b{m}\b" if is_marker_word(m) else js_pattern(m), 0 if is_marker_word(m) else re.I) for m in RULES["markers"]
-] + [rx(js_pattern(m)) for m in RULES["markersExact"]]
-# A link reference definition, "[website]: https://example.org": the label it defines.
+]
+# A link reference definition, "[website]: https://example.org": the label it defines, up to the colon.
 REF_DEF = rx(rf"{LINE_START}{SNL}{{0,3}}\[([^\]\n]+)\]:")
+# What must follow the colon, as in CommonMark: a destination that is not another bracket, so a template line
+# "[Phone number]: [on the door]" defines nothing. Read in the text itself, since the lint blanks URLs.
+REF_DEST = rx(rf"{SNL}*(?:<[^>\n]+>|[^{WS}\[<]{NS}*)")
 
 
 def label_key(s):
@@ -603,7 +606,7 @@ def lint_prose(text, strict=False):
         if not m.startswith("["):
             return False
         if labels is None:
-            labels = {label_key(d.group(1)) for d in REF_DEF.finditer(p)}
+            labels = {label_key(d.group(1)) for d in REF_DEF.finditer(p) if REF_DEST.match(t.text, d.end())}
         return label_key(m[1:-1]) in labels
 
     add(
