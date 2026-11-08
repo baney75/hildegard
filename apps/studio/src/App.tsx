@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import markGreen from './assets/mark-green.svg';
 import markVellum from './assets/mark-vellum.svg';
+import { RecordDialog } from './components/RecordDialog.tsx';
 import { Icon, Toasts } from './components/ui.tsx';
 import { reconcile } from './lib/draft.ts';
 import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/hooks.ts';
@@ -56,6 +57,7 @@ export function App() {
   const [route, go] = useHashRoute();
   const [layout] = useLocal<LayoutMode>('hildegard.layout', 'auto');
   const [welcomed, setWelcomed] = useLocal('hildegard.welcomed', false);
+  const [recording, setRecording] = useState(false);
   const app = useRef<HTMLDivElement>(null);
   const { wc, forced } = useWindowClass(app, layout);
   // The mark is drawn in vellum on dark grounds and in green on vellum.
@@ -102,8 +104,10 @@ export function App() {
     );
   }
 
-  // The welcome sets up models, which is the owner's to do.
+  // The welcome sets up models, which is the owner's to do. It answers the Studio's front door only, so its links
+  // (Hugging Face, devices, AI apps) open their pages, and coming back finds it again until a model is on its way.
   const firstRun =
+    (route === '/' || route === '') &&
     isOwner(auth) &&
     !welcomed &&
     projects.size === 0 &&
@@ -172,7 +176,13 @@ export function App() {
             <img src={mark} alt="Hildegard" height={30} />
           </div>
           {nav.slice(0, -1).map((n) => item(n, 'hg-nav-item'))}
-          <div className="hg-app__navfoot">{item(nav.at(-1)!, 'hg-nav-item')}</div>
+          <div className="hg-app__navfoot">
+            <button type="button" className="hg-nav-item" onClick={() => setRecording(true)}>
+              <Icon name="mic" />
+              <span>Record</span>
+            </button>
+            {item(nav.at(-1)!, 'hg-nav-item')}
+          </div>
         </nav>
         {page}
         <nav className="hg-tabbar" aria-label="Main">
@@ -197,6 +207,7 @@ export function App() {
           Reconnecting…
         </div>
       ) : null}
+      {recording ? <RecordDialog onClose={() => setRecording(false)} /> : null}
       <Toasts />
     </div>
   );

@@ -1,0 +1,7 @@
+# Gleanings among the Sheaves: The Hope of Heaven.
+
+Believers are not only to be with Christ, and to behold His glory, but they are to be like Christ, and to be glorified with Him. Is He glorious? So shall they be. Is He enthroned? So shall they be. Does He wear a crown? So shall they. Is He a priest? So shall they be kings to share His dominion, and priests to offer acceptable sacrifices forever. Mark, that in all Christ has, believers participate. They are to reign with Christ, and have a portion of His joy; to be honored with Him, to be accepted in Him. This is heaven indeed! If you have this hope, I beseech you hold it fast, live on it, rejoice in it.
+
+"A hope so much divine, May trials well endure; May purge your soul from sense and sin, As Christ the Lord is pure."
+
+Live near your Master now, so shall your evidences be bright; and when you come to cross the flood, you shall see Him face to face, and what that is only they can tell who enjoy it every hour. But if you have not this bright hope, how is it that you can live content? You are going through a dark world to a darker eternity. I beseech you stop and pause. Consider for a moment whether it is worth while to lose heaven for this poor earth. What! pawn eternal glories for the pitiful pence of a few moments of the world's enjoyments? No, stop, I beseech you; weigh the bargain ere you accept it. What shall it profit you to gain the whole world and lose your soul? What wailing and gnashing of teeth shall there be over the carelessness or misadventure by which men lose such a heaven as this?

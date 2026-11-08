@@ -14,13 +14,14 @@ const usage = (message: string) => Object.assign(new Error(message), { exitCode:
 
 /**
  * `hildegard lint <file...>`: the prose lint on this computer, no server needed. `-` reads standard input. Prints each
- * file's findings (or with --json the lint itself: one object for one file, a list of { file, … } for several) and
+ * file's findings (--strict: the em dash and the other tells fail, not only warn; or with --json the lint itself: one object for one file, a list of { file, … } for several) and
  * sets the exit status to 1 when any file fails, or 2 when it was used wrongly or a file can't be read.
  */
 export async function lint(ctx: Ctx, files: string[]): Promise<void> {
   if (!files.length) throw usage('Give the files to lint, or - to read from standard input.');
   const max = ctx.opts.has('max') ? Number(ctx.opts.get('max')) : ctx.flags.has('max') ? Number.NaN : 6;
   if (!Number.isInteger(max) || max < 1) throw usage('--max takes a whole number of places, 1 or more.');
+  const strict = ctx.flags.has('strict');
   const results = [];
   for (const file of files) {
     const text =
@@ -29,7 +30,7 @@ export async function lint(ctx: Ctx, files: string[]): Promise<void> {
         : await readFile(file, 'utf8').catch(() => {
             throw usage(`I can’t read ${file}.`);
           });
-    results.push({ file: file === '-' ? 'stdin' : file, lint: lintProse(text) });
+    results.push({ file: file === '-' ? 'stdin' : file, lint: lintProse(text, { strict }) });
   }
   if (ctx.json) {
     const out = results.length === 1 ? results[0]!.lint : results.map((r) => ({ file: r.file, ...r.lint }));

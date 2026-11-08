@@ -1,0 +1,51 @@
+{
+  "name": "page_turn",
+  "note": "A page turning: a swish and a little paper crinkle. Vary: dur and the env points (0.25 to 0.6 s), the bandpass cutoff points, layers[1].events.count (crinkle).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "pink",
+      "stereo": true,
+      "dur": 0.4,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": [[0, 2200], [0.22, 5200], [0.4, 3000]],
+        "q": 1.1
+      },
+      "env": {
+        "points": [[0, 0], [0.09, 1], [0.2, 0.5], [0.4, 0]]
+      }
+    },
+    {
+      "source": "white",
+      "dur": 0.006,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 3500
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.004,
+        "sustain": 0.0,
+        "release": 0.001
+      },
+      "gain_db": -12,
+      "events": {
+        "count": 16,
+        "span": 0.38,
+        "random": true,
+        "gain_jitter_db": 6
+      }
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.06,
+      "room": 0.2
+    },
+    "loudness": {
+      "lufs": -25,
+      "true_peak": -1
+    }
+  }
+}

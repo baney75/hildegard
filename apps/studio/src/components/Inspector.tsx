@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { fromRequest, setDraft } from '../lib/draft.ts';
 import { about, bytes, clock, deviceLabel, duration, modelName, resolution, roman } from '../lib/format.ts';
-import { upsert, useStore } from '../lib/store.ts';
+import { useStore } from '../lib/store.ts';
+import { takeAgain, toggleKeep } from '../lib/takes.ts';
 import { previewUrl, takeLabel, waitingFor } from './TakeCard.tsx';
 import { Button, Icon, LiveRing, Menu, Status, toast, toastError } from './ui.tsx';
 
@@ -49,17 +50,8 @@ export function Inspector({
   };
   const again = (over: { seed?: number; quality?: 'draft' | 'final' }) =>
     run(over.quality === 'final' ? 'final' : 'retake', async () => {
-      const r = await api.createShot({
-        shotId: t.shotId,
-        request: {
-          ...t.request,
-          takes: 1,
-          seed: over.seed,
-          format: { ...t.request.format, quality: over.quality ?? t.request.format.quality },
-        },
-      });
-      upsert([{ type: 'shot', shot: r.shot }, ...r.takes.map((take) => ({ type: 'take' as const, take }))]);
-      if (r.takes[0]) onSelect(r.takes[0].id);
+      const id = await takeAgain(t, over);
+      if (id) onSelect(id);
     });
 
   const where = deviceLabel(engine);
@@ -276,9 +268,7 @@ export function Inspector({
                 type="button"
                 className="cs-act"
                 aria-pressed={t.kept}
-                onClick={() =>
-                  run('keep', async () => upsert({ type: 'take', take: await api.keep(t.id, !t.kept) }))
-                }
+                onClick={() => run('keep', () => toggleKeep(t))}
               >
                 <Icon name="keep" />
                 {t.kept ? 'Kept' : 'Keep'}

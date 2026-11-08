@@ -348,33 +348,20 @@ dialog.hg-modal--bottom.st-dialog .st-dialog__f .hg-btn--force { flex: 1 1 100%;
 /* ── Welcome ─────────────────────────────────────────────────────────────────────────────────── */
 .hg-welcome { position: fixed; inset: 0; overflow: auto; background: var(--canvas); color: var(--text-primary); font-family: var(--font-sans); }
 .hg-welcome__brand { display: flex; align-items: center; gap: 12px; }
-.hg-welcome .st-ob__side > :not(.hg-welcome__orbit) { position: relative; }
-.hg-welcome__orbit { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke: var(--gold-leaf); }
-.hg-welcome__voice { transform-origin: 230px 620px; animation: hg-spin 60s linear infinite; }
-.hg-welcome__voice circle { fill: var(--gold-leaf); stroke: none; filter: drop-shadow(0 0 6px var(--gold)); }
-@media (prefers-reduced-motion: reduce) { .hg-welcome__voice { animation: none; } }
-.hg-welcome .st-obsteps { list-style: none; margin: 40px 0 0; padding: 0; }
-.hg-welcome .st-obsteps li { display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--text-secondary); }
+.hg-welcome .st-ob__side > * { position: relative; }
 .hg-welcome__quote { margin: auto 0 0; font: italic 500 20px/28px var(--font-display); color: color-mix(in oklab, var(--text-primary), transparent 25%); }
-.hg-welcome .st-obsteps li.cur { color: var(--text-primary); }
 .hg-welcome__quote span { font: 400 13px/18px var(--font-sans); color: var(--text-secondary); }
 .hg-welcome .st-ob__main { justify-content: safe center; max-width: 900px; }
 .hg-welcome .st-h1 { font-size: 56px; line-height: 60px; }
 .hg-welcome .st-lead { font-size: 18px; line-height: 28px; max-width: 640px; }
-.hg-welcome__mark { align-self: flex-start; }
-.hg-welcome__acts { display: grid; gap: 12px; max-width: 560px; margin-top: 12px; }
-.hg-welcome__go { height: 72px; width: 100%; justify-content: center; border-radius: 18px; text-align: center; }
-.hg-welcome__go b { font-size: 18px; line-height: 24px; }
-.hg-welcome__foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
 /* Sign-in and invites: the welcome's frame, with a form of a readable width. */
 .hg-signin > .st-tile { width: 100%; max-width: 520px; }
 @media (max-width: 899px) {
   .st-ob.hg-welcome { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(min-content, 1fr); }
   .hg-welcome .st-ob__side { min-height: 0; padding: 20px 24px; flex-direction: row; align-items: center; justify-content: space-between; }
-  .hg-welcome .st-obsteps, .hg-welcome__quote, .hg-welcome__orbit { display: none; }
+  .hg-welcome__quote { display: none; }
   .hg-welcome .st-ob__main { padding: 32px 24px 48px; }
   .hg-welcome .st-h1 { font-size: 40px; line-height: 44px; }
-  .hg-welcome__mark { display: none; }
 }
 
 /* ── Touch and motion ────────────────────────────────────────────────────────────────────────── */

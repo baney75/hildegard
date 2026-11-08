@@ -1,0 +1,67 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* First run: the one model to start with, beside frames people made here. */
+.hg-first, .hg-first * { box-sizing: border-box; }
+.hg-first { position: fixed; inset: 0; overflow: auto; background: var(--canvas); color: var(--text-primary); font-family: var(--font-sans); }
+.hg-first__grid { display: grid; min-height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-rows: minmax(24px, 1fr) auto auto auto minmax(24px, 1fr); grid-template-areas: ". work" "brand work" "intro work" "setup work" ". work"; column-gap: 8px; }
+.hg-first__brand, .hg-first__intro, .hg-first__setup { justify-self: end; width: 100%; max-width: 600px; padding-inline: clamp(24px, 5vw, 64px); }
+.hg-first__brand { grid-area: brand; display: flex; align-items: center; gap: 12px; padding-bottom: 24px; }
+.hg-first__intro { grid-area: intro; display: grid; gap: 12px; }
+.hg-first__setup { grid-area: setup; display: grid; gap: 16px; padding-top: 24px; }
+.hg-first .st-h1 { font-size: 48px; line-height: 52px; text-wrap: balance; }
+.hg-first .st-lead { font-size: 18px; line-height: 28px; }
+
+.hg-first__work { grid-area: work; align-self: center; display: grid; gap: 12px; width: 100%; max-width: 880px; margin: 0; padding: 40px 40px 40px 0; }
+.hg-first__frames { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hg-first__frames img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-lg); background: var(--raised); }
+.hg-first__frames img:first-child { grid-column: 1 / -1; aspect-ratio: 2 / 1; }
+.hg-first__work figcaption { font-size: 14px; line-height: 20px; color: var(--text-secondary); }
+
+.hg-first__pick { display: grid; gap: 8px; padding: 24px; background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); }
+.hg-first__pick p { margin: 0; }
+.hg-first__pickhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.hg-first__name { margin: 0; font: 600 32px/36px var(--font-display); }
+.hg-first__license { display: grid; gap: 4px; margin: 4px 0 8px; padding: 12px 0; border-block: 1px solid var(--hairline); }
+.hg-first__license p { color: var(--text-secondary); }
+.hg-first__license summary { display: inline-flex; align-items: center; min-height: 32px; color: var(--text-secondary); font-weight: 600; cursor: pointer; }
+.hg-first__license .hg-terms { margin: 4px 0 8px; gap: 4px; font-size: 14px; line-height: 20px; }
+.hg-first__license a { justify-self: start; min-height: 24px; color: var(--sapphire-text); }
+.hg-first__go { width: 100%; height: 52px; justify-content: center; font-size: 17px; }
+.hg-first a.hg-btn { justify-self: start; text-decoration: none; }
+.hg-first a.hg-btn--primary { color: var(--on-brand); }
+
+.hg-first__acts { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; }
+.hg-first__more summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: var(--radius-md); font-weight: 600; font-size: 15px; color: var(--text-secondary); cursor: pointer; }
+.hg-first__more summary:hover { background: var(--raised); color: var(--text-primary); }
+.hg-first__more[open] { flex-basis: 100%; }
+.hg-first__models { display: grid; gap: 12px; margin-top: 8px; }
+.hg-first__also { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text-secondary); }
+.hg-first__also a { color: var(--sapphire-text); font-weight: 600; }
+
+@media (max-width: 839px) {
+  .hg-first__grid { display: flex; flex-direction: column; gap: 12px; padding-bottom: 48px; }
+  .hg-first__brand, .hg-first__intro, .hg-first__setup { max-width: none; padding-inline: 16px; }
+  .hg-first__brand { padding-top: 16px; padding-bottom: 0; }
+  .hg-first__setup { padding-top: 0; }
+  .hg-first__work { max-width: none; padding: 0; }
+  /* On a phone the frames are a strip to swipe between the promise and the setup. */
+  .hg-first__frames { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
+  .hg-first__frames img, .hg-first__frames img:first-child { flex: 0 0 56%; width: auto; min-width: 0; aspect-ratio: 16 / 9; scroll-snap-align: start; }
+  .hg-first__work figcaption { padding: 0 16px; font-size: 13px; line-height: 18px; }
+  .hg-first .st-h1 { font-size: 32px; line-height: 36px; }
+  .hg-first__intro { gap: 8px; }
+  .hg-first .st-lead { font-size: 16px; line-height: 24px; }
+  .hg-first__pick { gap: 8px; }
+  .hg-first__license { margin-bottom: 4px; padding: 8px 0; }
+  .hg-first__pick { padding: 16px; }
+  .hg-first__name { font-size: 28px; line-height: 32px; }
+}
+@media (min-width: 600px) and (max-width: 839px) {
+  .hg-first__grid { padding-top: 16px; }
+  .hg-first__frames img, .hg-first__frames img:first-child { flex-basis: 40%; }
+  .hg-first__brand, .hg-first__intro, .hg-first__setup { padding-inline: 24px; }
+  .hg-first__frames { padding-inline: 24px; scroll-padding: 0 24px; }
+  .hg-first__work figcaption { padding-inline: 24px; }
+}
+@media (max-width: 599px) {
+  .hg-first .hg-model { grid-template-columns: minmax(0, 1fr); }
+}

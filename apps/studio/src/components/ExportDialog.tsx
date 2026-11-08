@@ -3,8 +3,10 @@ import type { Project, Take } from '@hildegard/presets';
 import { useId, useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { bytes, clock, roman } from '../lib/format.ts';
+import { recordingLabel, useRecordings } from '../lib/recordings.ts';
 import { isOwner, useStore } from '../lib/store.ts';
 import { PostSheet } from './PostSheet.tsx';
+import { RecordDialog } from './RecordDialog.tsx';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, Status, toastError } from './ui.tsx';
 
@@ -51,6 +53,10 @@ export function ExportDialog({
   const [starting, setStarting] = useState(false);
   const [posting, setPosting] = useState(false);
   const owner = isOwner(useStore((s) => s.auth));
+  // A voice-over is a voice recording of yours, mixed over the film; make one here if there isn't one yet.
+  const { list: voices, refresh: refreshVoices } = useRecordings('voice');
+  const [voiceover, setVoiceover] = useState('');
+  const [recording, setRecording] = useState(false);
   const total = chosen.reduce((n, c) => n + c.take.seconds, 0);
   const skipped = project.shotIds.length - chosen.length;
   // An export of other takes than these is out of date.
@@ -62,7 +68,7 @@ export function ExportDialog({
   const start = async () => {
     setStarting(true);
     try {
-      await api.exportFilm(project.id);
+      await api.exportFilm(project.id, voiceover ? { mediaId: voiceover } : undefined);
     } catch (e) {
       toastError(e);
     } finally {
@@ -138,6 +144,32 @@ export function ExportDialog({
               <Icon name="alert" size={16} /> {job.error}
             </p>
           ) : null}
+          {!ready && !running ? (
+            <div className="st-field">
+              <label htmlFor={`${id}-voiceover`}>Voice-over</label>
+              <div className="hg-between">
+                <select
+                  id={`${id}-voiceover`}
+                  className="hg-select"
+                  value={voiceover}
+                  onChange={(e) => setVoiceover(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {(voices ?? []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {recordingLabel(r)}
+                    </option>
+                  ))}
+                </select>
+                <Button icon="mic" onClick={() => setRecording(true)}>
+                  Record
+                </Button>
+              </div>
+              <small className="body-sm muted">
+                Your voice is mixed over the film, and the film gets quieter under it.
+              </small>
+            </div>
+          ) : null}
           <p className="body-sm muted">
             {skipped > 0
               ? `${skipped} ${skipped === 1 ? 'shot has' : 'shots have'} no finished take yet and ${skipped === 1 ? 'is' : 'are'} left out. `
@@ -194,6 +226,16 @@ export function ExportDialog({
           kind="video"
           compact={compact}
           onClose={() => setPosting(false)}
+        />
+      ) : null}
+      {recording ? (
+        <RecordDialog
+          kinds={['voice']}
+          onClose={() => setRecording(false)}
+          onKept={(r) => {
+            refreshVoices();
+            setVoiceover(r.id);
+          }}
         />
       ) : null}
     </>

@@ -36,6 +36,10 @@ ureq = { version = "=3.4.2", default-features = false, features = ["json"] }
 webview2-com = "=0.39.1"
 windows-core = "=0.62.2"
 
+# WebKitGTK ships with MediaStream off; media.rs switches it on so the Studio can record. The same version Tauri uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "=2.0.2", features = ["v2_4"] }
+
 [profile.release]
 codegen-units = 1
 lto = true

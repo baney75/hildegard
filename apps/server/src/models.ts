@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import {
   type Catalog,
@@ -8,6 +8,7 @@ import {
   type Model,
   type ModelFile,
   type ModelLock,
+  type ModelRemoval,
   type ModelState,
   type SafetyCheck,
 } from '@hildegard/presets';
@@ -156,6 +157,61 @@ export class ModelManager {
         error: this.errors.get(m.id) ?? null,
       };
     });
+  }
+
+  /**
+   * What removing a model would do. A file only this model uses is its own; one that another catalog model (or the
+   * safety classifier every model needs) also names is shared. A shared file is kept while an installed or downloading
+   * model needs it, and is unused once none does. Only files on disk are listed.
+   */
+  removalPlan(id: string): ModelRemoval {
+    const m = this.model(id);
+    const others = this.catalog.models.filter((x) => x.id !== id);
+    const kept = others.filter(
+      (x) => this.jobs.has(x.id) || this.filesOf(x).every((f) => this.isInstalled(f)),
+    );
+    const entry = (f: ModelFile) => ({
+      file: `${f.dir}/${basename(f.path)}`,
+      bytes: statSync(this.pathOf(f)).size,
+    });
+    const own: ModelRemoval['own'] = [];
+    const shared: ModelRemoval['shared'] = [];
+    for (const f of this.filesOf(m)) {
+      if (!existsSync(this.pathOf(f))) continue;
+      const key = lockKey(f);
+      if (!others.some((x) => this.filesOf(x).some((g) => lockKey(g) === key))) own.push(entry(f));
+      else
+        shared.push({
+          ...entry(f),
+          neededBy: kept.filter((x) => this.filesOf(x).some((g) => lockKey(g) === key)).map((x) => x.id),
+        });
+    }
+    return { id, own, shared, removed: [], freedBytes: 0, dryRun: false };
+  }
+
+  /**
+   * Delete a model's own files. Shared files stay unless `withUnused` and no other installed model needs them; the
+   * result lists every one that is unused either way, so the caller can say what is left to free.
+   */
+  remove(id: string, opts: { withUnused?: boolean; dryRun?: boolean } = {}): ModelRemoval {
+    if (this.jobs.has(id))
+      throw new ModelError('busy', 'It is downloading. Stop the download first, then remove it.');
+    const plan = this.removalPlan(id);
+    const doomed = [...plan.own, ...(opts.withUnused ? plan.shared.filter((f) => !f.neededBy.length) : [])];
+    const files = new Map(this.filesOf(this.model(id)).map((f) => [`${f.dir}/${basename(f.path)}`, f]));
+    if (!opts.dryRun)
+      for (const d of doomed) {
+        const f = files.get(d.file)!;
+        rmSync(this.pathOf(f), { force: true });
+        rmSync(`${this.pathOf(f)}.part`, { force: true });
+      }
+    if (!opts.dryRun && doomed.length) this.emit(true);
+    return {
+      ...plan,
+      removed: doomed.map((d) => d.file),
+      freedBytes: doomed.reduce((n, d) => n + d.bytes, 0),
+      dryRun: !!opts.dryRun,
+    };
   }
 
   private emit(force = false) {

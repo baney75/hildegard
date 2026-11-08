@@ -7,6 +7,7 @@ mod browse;
 #[cfg(windows)]
 mod frames;
 mod install;
+mod media;
 mod nav;
 mod paths;
 mod server;
@@ -23,7 +24,7 @@ use tauri::image::Image;
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::webview::{DownloadEvent, NewWindowResponse};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse};
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent, Wry};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -910,7 +911,8 @@ pub fn run() {
       app.manage(update::Pending::default());
 
       let handle = app.handle().clone();
-      WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+      let studio_port = port.clone();
+      let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Hildegard")
         .inner_size(1280.0, 820.0)
         .min_inner_size(720.0, 520.0)
@@ -937,7 +939,20 @@ pub fn run() {
           }
         })
         .on_download(downloads)
+        // Record in the Studio needs the camera and microphone: the Studio may have them, nothing else may. The
+        // system asks the person on its own (Info.plist's usage strings on macOS).
+        .on_permission_request(move |webview, kind| match kind {
+          PermissionKind::Microphone | PermissionKind::Camera => match webview.url() {
+            Ok(url) if media::may_capture(&url, None, studio_port.load(Ordering::SeqCst)) => PermissionResponse::Allow,
+            _ => PermissionResponse::Deny,
+          },
+          _ => PermissionResponse::Default,
+        })
         .build()?;
+      #[cfg(target_os = "linux")]
+      media::enable_media_stream(&window);
+      #[cfg(not(target_os = "linux"))]
+      let _ = &window;
 
       tray(app.handle())?;
       // On macOS the menu bar shows the app's own menus; Browse joins them. Elsewhere the Browse menu is the tray's.

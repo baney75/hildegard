@@ -747,7 +747,7 @@ export function registerTools(
     'lint_writing',
     {
       title: 'Lint writing before you show it',
-      description: `Check words a person will read for the tells that make writing read as machine-made: stock words, empty openers, dashes, "not X but Y" contrasts, stacked fragments, lists of three, bold used as slides, placeholder text and more. Run it on every piece of prose before you show it to anyone. For everyday prose (blog posts, emails, pages, captions, announcements) fix every fail, fix each warn unless it is your writer’s deliberate voice, then lint again until it passes. For poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning: keep what the voice, form or field needs and say which you kept. ${
+      description: `Check words a person will read for the tells that make writing read as machine-made: stock words, empty openers, em dashes, "not X but Y" contrasts, stacked fragments, lists of three, bold used as slides, placeholder text and more. Run it on every piece of prose before you show it to anyone. For everyday prose (blog posts, emails, pages, captions, announcements) fix every fail, fix each warn unless it is your writer’s deliberate voice, then lint again until it passes. For poems, fiction, scripts, prayers, speeches and academic papers, every finding is a warning: keep what the voice, form or field needs and say which you kept. An em dash is a warning, since many readers now take one for a machine tell; pass strict: true for writing that must carry no tells at all, where it and every other warning fail. ${
         files
           ? 'Give the text itself, or the path to a file on this computer.'
           : remote
@@ -781,6 +781,12 @@ export function registerTools(
           .max(50)
           .optional()
           .describe('Places to show for each problem. Default 6.'),
+        strict: z
+          .boolean()
+          .optional()
+          .describe(
+            'For writing that must carry no tells: the em dash and every other warning fail too. Default false, where they are warnings for the writer to weigh.',
+          ),
       },
       annotations: { readOnlyHint: true },
     },
@@ -807,7 +813,7 @@ export function registerTools(
           );
         prose = await readTextFile(path);
       }
-      return text(describeProseLint(await client.lintWriting(prose!), a.max ?? 6));
+      return text(describeProseLint(await client.lintWriting(prose!, a.strict), a.max ?? 6));
     }),
   );
 

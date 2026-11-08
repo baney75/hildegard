@@ -216,16 +216,55 @@ export interface VoiceoverArgs {
   duckDb?: number;
 }
 export interface RecordLink {
+  needsLink?: undefined;
   id: string;
+  /** Where the person records: on this computer, or on their phone. */
+  where: 'here' | 'phone';
+  /** The link is https, so a phone allows its microphone; over plain http it can only send a file. */
+  secure: boolean;
   /** The secret that opens the link. Only the call that made the link ever returns it. */
   token: string;
   path: string;
   url: string;
   /** `url` is Hildegard's own link, which a phone can reach; otherwise it is only the address the request came to. */
   viaLink: boolean;
+  /** The link is on the internet: anyone who has Hildegard's link can reach its sign-in page. */
+  public: boolean;
   expiresAt: string;
   /** The link opens only on the computer Hildegard runs on, not on a phone. */
   localOnly: boolean;
+}
+/** What turning on a link would do, decided once by the server. `id` goes back with the person's yes. */
+export interface LinkPlan {
+  route: 'tailscale' | 'quick' | 'none';
+  /** The sign-in page would be on the internet. */
+  public: boolean;
+  id: string;
+  ask: string;
+}
+/** A phone link was asked for and there is no (private) link on: nothing was made, and the person decides. */
+export interface NeedsLink {
+  needsLink: true;
+  where: 'phone';
+  plan: LinkPlan;
+  /** For a private plan, the question to ask word for word; otherwise what the person has to do themselves. */
+  ask: string;
+  /** A link is on, but it is public, and a private one was asked for. */
+  existingPublic: boolean;
+  /** Null when no AI app may turn it on (a public route, or nothing to use). */
+  turnOn: { tool: string; rest: string; next: string } | null;
+}
+/** What `link_on` did, or why it needs the owner. */
+export interface LinkOnResult {
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  plan?: LinkPlan;
+  already?: boolean;
+  via?: string;
+  url?: string;
+  private?: boolean;
+  temporary?: boolean;
+  message: string;
+  steps: { id: string; title: string; detail: string; command?: string }[];
 }
 export interface Recording {
   id: string;
@@ -312,8 +351,18 @@ export class HildegardClient {
   preparePost = (body: PostRequest) => this.call<PostState>('POST', '/api/post', body);
   postState = (id: string) => this.call<PostState>('GET', `/api/post/${encodeURIComponent(id)}`);
   // ── Recording from any chat ──
-  recordLink = (body: { kind: 'voice' | 'video'; purpose?: string; filmId?: string }) =>
-    this.call<RecordLink>('POST', '/api/record/links', body);
+  recordLink = (body: {
+    kind: 'voice' | 'video';
+    purpose?: string;
+    filmId?: string;
+    where?: 'here' | 'phone' | 'auto';
+    private?: boolean;
+  }) => this.call<RecordLink | NeedsLink>('POST', '/api/record/links', body);
+  /**
+   * Turns on the private link a plan names. Only this computer may ask. It sends the plan id and never `acceptPublic`:
+   * a public link is the person's own to turn on (Studio, terminal), not an AI app's.
+   */
+  linkOn = (plan?: string) => this.call<LinkOnResult>('POST', '/api/link/on', plan ? { plan } : {});
   /** A recording by its id, or by the link's token (which travels in the body, never the address). */
   recording = (by: { id: string } | { token: string }) =>
     'id' in by
@@ -352,7 +401,8 @@ export class HildegardClient {
     agent: string;
   }) => this.call<{ stills: Still[] }>('POST', '/api/images', body);
   /** The prose lint (up to 200,000 characters): the tells that make writing read as machine-made. */
-  lintWriting = (text: string) => this.call<ProseLint>('POST', '/api/writing/lint', { text });
+  lintWriting = (text: string, strict?: boolean) =>
+    this.call<ProseLint>('POST', '/api/writing/lint', strict ? { text, strict } : { text });
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
   updateNow = () => this.call<UpdateState>('POST', '/api/update');

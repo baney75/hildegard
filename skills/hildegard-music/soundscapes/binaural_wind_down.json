@@ -1,0 +1,50 @@
+{
+  "name": "binaural_wind_down",
+  "note": "A 30 minute journey of binaural beats, 14 Hz to 10 to 6 to 3, with slow glides between the steps, a soft pad and pink noise. Needs stereo headphones: the two ears hear different tones and the beat forms in the listener's head. No health claim is made. Vary: each stage's minutes (keep them adding up to the piece length), beat_hz per stage, ramp_s (30 to 120).",
+  "vary": ["stages", "ramp_s", "layers[1].notes", "minutes"],
+  "seed": 1,
+  "minutes": 30,
+  "layers": [
+    {
+      "type": "binaural",
+      "carrier_hz": 200,
+      "ramp_s": 90,
+      "stages": [
+        {
+          "beat_hz": 14,
+          "minutes": 5
+        },
+        {
+          "beat_hz": 10,
+          "minutes": 8
+        },
+        {
+          "beat_hz": 6,
+          "minutes": 10
+        },
+        {
+          "beat_hz": 3,
+          "minutes": 7
+        }
+      ],
+      "gain_db": -4
+    },
+    {
+      "type": "pad",
+      "notes": ["A2", "E3", "C4", "E4"],
+      "gain_db": -12
+    },
+    {
+      "type": "noise",
+      "color": "pink",
+      "lowpass": 3000,
+      "gain_db": -8
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

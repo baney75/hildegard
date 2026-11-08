@@ -1,7 +1,7 @@
 # The motion spec
 
 A spec is one JSON file. `spec.schema.json` (next to this file) describes every field; `motion.py --check` validates against
-it and then runs the checks that need measuring. This page says what each field does. Templates in `../templates/` are
+it and then runs the checks that need measuring. This page says what each field does. Templates in this skill's `templates/` folder are
 working examples of all of it.
 
 ```sh
@@ -64,6 +64,7 @@ they do not band after encoding.
   as `{"zoom": 1.0, "x": 0.5, "y": 0.5}` (`x`, `y` is the point at the center of the view) and an `ease`. By default the
   camera moves **images only**; give another layer `"camera": true` to move with it, or a number like `0.4` for parallax.
   `--check` errors if a camera move shows the edge of a full-frame photo.
+  The camera runs to the scene's last frame, so leave it off the last scene: `--check` warns when it moves through the final second.
 - Layers are drawn in order: the **last layer is on top**.
 
 ## Layers: what they all share

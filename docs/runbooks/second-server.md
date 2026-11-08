@@ -11,10 +11,9 @@ systemd unit (a LaunchAgent on macOS):
 ```sh
 curl -fsSL https://github.com/baney75/hildegard/releases/latest/download/install.sh | sh -s -- --server
 hildegard doctor            # service, voice, llm and sharing are done, or each says its fix
-hildegard choir invite --long --json
 ```
 
-Then go on at [section 4](#4-pair-it) with `hildegard choir invite --long --json` in place of the `curl`, and
+Then go on at [section 4](#4-pair-it), where `hildegard choir pair <this-server>` on the primary takes the place of the `curl`, and
 `loginctl enable-linger $USER` if it should keep serving after you sign out (the installer asks; it's the owner's
 choice). The rest of this page runs the server from a source checkout with its own data folder, beside an install
 that's already there.
@@ -73,8 +72,9 @@ ssh abbey1 '
 delete `invite.json`. Without `"long": true` the invite gives only a short `HG-XXXX-XXXX` code under `short` and
 `code` is `null`, so there is nothing to keep.
 
-On an installed Hildegard the same step is `hildegard choir invite --long --json`, and the primary joins with
-`printf %s "$CODE" | hildegard choir join --code-stdin --json`.
+On an installed Hildegard the same step is one command on the primary, `hildegard choir pair <ssh-host>`: the code goes
+from the server's `choir invite --code-only` into the primary's `choir join --code-stdin` and is never shown. Do not
+print it or retype it.
 
 A short code is for typing on the other device. It works once, for 10 minutes, and names no address, so the harness
 needs the invite's `url` with it: set `HILDEGARD_SECOND_URL` next to `HILDEGARD_SECOND_CODE`. Given a short code

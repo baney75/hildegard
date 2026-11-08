@@ -1,0 +1,7 @@
+# Letters from a Self-Made Merchant to His Son: Dear Pierrepont: I met young Horshey, of Horshey &
+
+Dear Pierrepont: I met young Horshey, of Horshey & Horter, the grain and provision brokers, at luncheon yesterday, and while we were talking over the light run of hogs your name came up somehow, and he congratulated me on having such a smart son. Like an old fool, I allowed that you were bright enough to come in out of the rain if somebody called you, though I ought to have known better, for it seems as if I never start in to brag about your being sound and sweet that I don't have to wind up by allowing a rebate for skippers.
+
+Horshey was so blamed anxious to show that you were over-weight—he wants to handle some of my business on 'Change—that he managed to prove you a light-weight. Told me you had ordered him to sell a hundred thousand ribs short last week, and that he had just bought them in on a wire from you at a profit of four hundred and sixty-odd dollars. I was mighty hot, you bet, to know that you had been speculating, but I had to swallow and allow that you were a pretty sharp boy. I told Horshey to close out the account and send me a check for your profits and I would forward it, as I wanted to give you a tip on the market before you did any more trading.
+
+I inclose the check herewith. Please indorse it over to the treasurer of The Home for Half Orphans and return at once. I will see that he gets it with your compliments.

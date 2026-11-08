@@ -1647,6 +1647,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "ureq",
+ "webkit2gtk",
  "webview2-com",
  "windows-core",
 ]
