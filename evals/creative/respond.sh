@@ -6,7 +6,8 @@
 #   model  haiku  Claude Haiku 5.5 through `claude -p`; luna  GPT-6 Luna at low effort through `codex exec`
 # Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are unset. If a quota or billing message comes back, this
 # writes STOP in the run folder and exits 99 (dispatch.sh then halts every later job; a STOP file also stops this script before it
-# calls a model). Skips a run that finished (its `done` file) with the same skills hash (skills.sha). Exits 4, with no `done`, when
+# calls a model). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
+# meta.json says `confined: true` (made in the box, so never one from before it). Exits 4, with no `done`, when
 # the responder dies before a finished transcript, and 5 when Haiku's session cannot be confined (no bubblewrap).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
@@ -29,17 +30,20 @@ case $ARM in
   *) echo "arm: none|main|new" >&2; exit 2 ;;
 esac
 # A finished run is reused only while the skills it was made with are unchanged (a run from before this check has no skills.sha
-# and is made again). The hash goes into meta.json, and the report prints it.
+# and is made again). The hash goes into meta.json, and the report prints it. A Haiku run is reused only when meta.json says it was
+# made confined, so a run from before the box is made again and an arm never mixes runs from both.
 if [ -n "$SK" ]; then HASH=$(python3 "$HERE/skillhash.py" "$SK/skills") || exit 2; else HASH=none; fi
-[ -f "$RUN/done" ] && { [ "$ARM" = none ] || [ "$(cat "$RUN/skills.sha" 2>/dev/null)" = "$HASH" ]; } && exit 0
+confined() { [ "$MODEL" != haiku ] || python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1])).get("confined") is True else 1)' "$RUN/meta.json" 2>/dev/null; }
+[ -f "$RUN/done" ] && { [ "$ARM" = none ] || [ "$(cat "$RUN/skills.sha" 2>/dev/null)" = "$HASH" ]; } && confined && exit 0
 # One quota or billing message anywhere halts every later response until its STOP file is removed.
 if find "$E/runs" -name STOP 2>/dev/null | grep -q .; then echo "a STOP file is present under $E/runs; not calling a model" >&2; exit 99; fi
 # Haiku's session runs in bubblewrap (sandbox.py responder): the filesystem read-only, the owner's home, /tmp and the eval folder
 # hidden, only this run's work/ writable. Without bubblewrap it is refused (exit 5), never run unconfined.
+CONFINED=()
 if [ "$MODEL" = haiku ]; then
   BOXF=$(mktemp "${TMPDIR:-/tmp}/hg-box.XXXXXX") || exit 2
   python3 "$HERE/sandbox.py" responder "$RUN" "$E" > "$BOXF" || { rm -f "$BOXF"; echo "not running $ARM/$MODEL/$TASK unconfined" >&2; exit 5; }
-  mapfile -d '' BOX < "$BOXF"; rm -f "$BOXF"
+  mapfile -d '' BOX < "$BOXF"; rm -f "$BOXF"; CONFINED=(--confined)
 fi
 rm -rf "$RUN"; mkdir -p "$WORK"; printf '%s\n' "$HASH" > "$RUN/skills.sha"
 
@@ -112,7 +116,7 @@ else
 fi
 echo $(( $(date +%s) - T0 )) > "$RUN/seconds"
 
-python3 "$HERE/runmeta.py" "$MODEL" "$RUN" || true
+python3 "$HERE/runmeta.py" "$MODEL" "$RUN" "${CONFINED[@]}" || true
 # Exit 99 on a quota or billing message, found in the final text, stderr or the end of the transcript whether or not meta.json exists:
 # never top up, never switch to API billing. Exit 4 when the responder died before a finished transcript (no `done`, so it is made again).
 python3 - "$RUN" <<'PY'

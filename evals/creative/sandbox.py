@@ -10,7 +10,7 @@ EVAL_SANDBOX=bwrap|fallback forces a mode.
 sandbox.responder(run, eval_dir) is the same idea for a model's whole session (Haiku through `claude -p`), which needs the network:
 bubblewrap only, never a fallback and never EVAL_SANDBOX=none. See responder() for what it can see and write.
 `python3 sandbox.py responder <run> <eval dir>` prints that argv, NUL-separated, for respond.sh."""
-import os, pwd, shutil, subprocess, sys
+import glob, os, pwd, shutil, subprocess, sys
 
 _mode = None
 
@@ -66,11 +66,28 @@ def _elf(p):
         return False
 
 
+def _homes():
+    return {os.path.realpath(os.path.expanduser('~')), os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)}
+
+
+def _under(p, root):
+    return p == root or p.startswith(root.rstrip(os.sep) + os.sep)
+
+
 def claude_bin():
     """The claude binary the session runs: $HILDEGARD_EVAL_CLAUDE as given, else `claude` on PATH when that is the native binary,
-    else mise's (a launcher script that calls `mise use -g` writes outside the box and cannot run in it)."""
-    if os.environ.get('HILDEGARD_EVAL_CLAUDE'):
-        return os.path.realpath(os.environ['HILDEGARD_EVAL_CLAUDE'])
+    else mise's (a launcher script that calls `mise use -g` writes outside the box and cannot run in it). Only this one file is bound
+    into the box, so the override must name a file, and one in a folder of its own: a folder, or a file directly in the home folder,
+    is refused."""
+    o = os.environ.get('HILDEGARD_EVAL_CLAUDE')
+    if o:
+        p = os.path.realpath(o)
+        if not os.path.isfile(p):
+            raise SystemExit(f'HILDEGARD_EVAL_CLAUDE must name the claude binary itself, and {o} is not a file; refusing to run.')
+        if os.path.dirname(p) in _homes():
+            raise SystemExit(f'HILDEGARD_EVAL_CLAUDE resolves to {p}, directly in your home folder; move the binary into a folder of its '
+                             'own and point HILDEGARD_EVAL_CLAUDE there. Refusing to run.')
+        return p
     w = shutil.which('claude')
     if w and _elf(os.path.realpath(w)):
         return os.path.realpath(w)
@@ -84,14 +101,41 @@ def claude_bin():
     raise SystemExit(f'no native claude binary found ({w or "none on PATH"} is not one); set HILDEGARD_EVAL_CLAUDE to it')
 
 
+def chromium_dir(home, ev):
+    """The folder of the Chromium the prompt names ($HILDEGARD_EVAL_CHROMIUM, else the newest Playwright one), which the box binds
+    read-only, or None when there is none. Chromium needs its whole folder, so the folder must hold nothing else of the owner's: one
+    inside the home folder must be a browser's own folder under ~/.cache/ms-playwright, and one that is or holds the home folder, or
+    is in or above the eval folder, is refused."""
+    pw = os.path.join(home, '.cache', 'ms-playwright')
+    o = os.environ.get('HILDEGARD_EVAL_CHROMIUM')
+    if o:
+        c = os.path.dirname(os.path.realpath(o))
+    else:
+        g = sorted(glob.glob(os.path.join(pw, 'chromium-*', 'chrome-linux*', 'chrome')))
+        if not g:
+            return None
+        c = os.path.dirname(os.path.realpath(g[-1]))
+    if not os.path.isdir(c):
+        return None
+    homes = _homes() | {home}
+    bad = any(_under(h, c) for h in homes) or _under(c, ev) or _under(ev, c)
+    if any(_under(c, h) for h in homes) and not (_under(c, os.path.realpath(pw)) and c != os.path.realpath(pw)):
+        bad = True
+    if bad:
+        raise SystemExit(f'Chromium\'s folder {c} holds more than Chromium (it is in or above your home or the eval folder); point '
+                         'HILDEGARD_EVAL_CHROMIUM at a Chromium in a folder of its own. Refusing to run.')
+    return c
+
+
 def responder(run, eval_dir):
     """argv that runs a claude session for one run, confined: the whole filesystem read-only; a tmpfs over the owner's home ($HOME and
     the passwd entry's), /tmp, /run (DNS's /run/systemd/resolve is bound back read-only) and the eval folder, so no ~/.ssh, no tokens
-    in ~/.config, no agent or D-Bus sockets and no other run; this run's folder bound back read-only and its work/ read-write. Claude's state goes to a fresh
-    CLAUDE_CONFIG_DIR on the tmpfs, with the owner's credentials file bound into it read-write (a token refresh is written back, so the
-    owner's other sessions stay signed in). The claude binary and Playwright's Chromium are bound back read-only. The network stays (the
-    model needs it); the environment is cleared to a few variables. New user, PID, IPC and UTS namespaces, no capabilities, killed with
-    its parent. Refuses without a working bubblewrap: a session is never run unconfined."""
+    in ~/.config, no agent or D-Bus sockets and no other run; this run's folder bound back read-only and its work/ read-write. Claude's
+    state goes to a fresh CLAUDE_CONFIG_DIR on the tmpfs, with the owner's credentials file bound into it read-only, so nothing in the
+    box can change or replace it (a run that needs to save a refreshed token fails instead). The claude binary is bound back as that
+    one file, and Chromium's own folder read-only; nothing else under the home folder is. The network stays (the model needs it); the
+    environment is cleared to a few variables. New user, PID, IPC and UTS namespaces, no capabilities, killed with its parent. Refuses
+    without a working bubblewrap: a session is never run unconfined."""
     if not _bwrap_ok():
         raise SystemExit('bubblewrap (bwrap) is not usable here, so a Haiku session cannot be confined; refusing to run it. Install bubblewrap.')
     home = os.path.realpath(os.path.expanduser('~'))
@@ -106,18 +150,16 @@ def responder(run, eval_dir):
          '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--tmpfs', '/run']
     if os.path.isdir('/run/systemd/resolve'):
         a += ['--ro-bind', '/run/systemd/resolve', '/run/systemd/resolve']
-    for h in sorted({home, os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)}):
+    for h in sorted(_homes()):
         a += ['--tmpfs', h]
     a += ['--tmpfs', ev]
-    ro = [os.path.dirname(exe), os.path.join(home, '.cache', 'ms-playwright')]
-    if os.environ.get('HILDEGARD_EVAL_CHROMIUM'):
-        ro.append(os.path.dirname(os.path.realpath(os.environ['HILDEGARD_EVAL_CHROMIUM'])))
-    for p in ro:
-        if os.path.isdir(p):
-            a += ['--ro-bind', p, p]
+    a += ['--ro-bind', exe, exe]
+    chrome = chromium_dir(home, ev)
+    if chrome:
+        a += ['--ro-bind', chrome, chrome]
     a += ['--ro-bind', run, run, '--bind', work, work, '--dir', state]
     if os.path.isfile(creds):
-        a += ['--bind', creds, os.path.join(state, '.credentials.json')]
+        a += ['--ro-bind', creds, os.path.join(state, '.credentials.json')]
     a += ['--clearenv', '--setenv', 'HOME', home, '--setenv', 'USER', os.environ.get('USER', 'eval'), '--setenv', 'TMPDIR', '/tmp',
           '--setenv', 'PATH', os.path.dirname(exe) + ':/usr/local/bin:/usr/bin:/bin', '--setenv', 'LANG', os.environ.get('LANG', 'C.UTF-8'),
           '--setenv', 'CLAUDE_CONFIG_DIR', state, '--setenv', 'DISABLE_AUTOUPDATER', '1', '--chdir', work, '--', exe]

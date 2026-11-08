@@ -72,22 +72,37 @@ ask me questions", so the eval measures making the work, not the interview.
 - **Selftest**: `python3 evals/creative/selftest/test_scorers.py` runs a passthrough control and a competent reference script through the scorers;
   the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
   sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render
-  isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, the judge's folder, and the
-  responder box (F12: a stand-in for `claude` run through `respond.sh` cannot delete or write a file in its home, outside its work folder or in
-  another run, cannot see other runs, can write in `work/`, and with no usable bubblewrap the run is refused and no model is called).
+  isolation, run reuse keyed by the skills hash and the `confined` marker, skill-load parsing, a responder that dies, a quota message halting dispatch,
+  the judge's folder, and the responder box (F12: a stand-in for `claude` run through `respond.sh` cannot delete or write a file in its home, outside
+  its work folder or in another run, cannot see other runs, can write in `work/`, can read but not write, truncate, replace or delete the
+  credentials file; a native binary at `$HOME/claude` is the only thing of that home visible in the box; an override that is a folder or a file
+  directly in the home is refused; and with no usable bubblewrap the run is refused and no model is called).
 - **Responder confinement**: Haiku's whole session, and so its Bash tool, runs in bubblewrap (`sandbox.responder`, used by `respond.sh`). The
   filesystem is read-only. A tmpfs covers the owner's home, `/tmp`, `/run` and the eval folder, so the model sees no `~/.ssh`, no tokens under
-  `~/.config`, no agent or D-Bus sockets and no other run; this run's folder is bound back read-only and only its `work/` is writable. The
-  claude binary and Playwright's Chromium are bound back read-only (a launcher script on PATH, such as a mise one, is skipped for the native
-  binary; `HILDEGARD_EVAL_CLAUDE` overrides). Claude writes its state (`.claude.json`, `projects/`, `sessions/`, `backups/`) to a fresh
-  `CLAUDE_CONFIG_DIR` on the tmpfs, and the owner's credentials file is bound into it read-write, so a token refresh is written back and
-  the owner's other sessions stay signed in; nothing else of the owner's is writable. The network stays (the model needs it), the
-  environment is cleared to a few variables, and it gets new user, PID, IPC and UTS namespaces with no capabilities. Without a working
-  bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5, never run unconfined. Codex runs Luna in its own
-  `workspace-write` sandbox.
+  `~/.config`, no agent or D-Bus socket paths and no other run; this run's folder is bound back read-only and only its `work/` is writable.
+  Nothing under the home folder comes back except three things, all read-only: the claude binary as that one file (a launcher script on
+  PATH, such as a mise one, is skipped for the native binary), the folder of the Chromium the prompt names (a Playwright browser folder under
+  `~/.cache/ms-playwright`, or one outside the home), and the owner's credentials file. `HILDEGARD_EVAL_CLAUDE` overrides the binary; it must
+  name a file in a folder of its own, and a folder or a file directly in the home folder is refused. A `HILDEGARD_EVAL_CHROMIUM` whose folder
+  is or holds the home folder, sits in or above the eval folder, or is any other folder in the home is refused too. Claude writes its state
+  (`.claude.json`, `projects/`, `sessions/`, `backups/`) to a fresh `CLAUDE_CONFIG_DIR` on the tmpfs, and the credentials file is bound
+  into it read-only, so nothing in the box can change, truncate or replace it. If claude has to save a refreshed token mid-run it cannot,
+  and that run may fail; it is made again later. The environment is cleared to a few variables, and the session gets new user, PID, IPC and
+  UTS namespaces with no capabilities. Without a working bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5,
+  never run unconfined. Codex runs Luna in its own `workspace-write` sandbox.
+
+  What the box does not stop:
+  - **The network.** The session shares the host's network, since the model needs it. Services on `127.0.0.1` and abstract Unix sockets
+    (an X server's `@/tmp/.X11-unix/X0`, for one) stay reachable, so a local service that trusts any local process trusts this one too.
+  - **DNS other than systemd-resolved.** Only `/run/systemd/resolve` is bound back under `/run`. Where `/etc/resolv.conf` points elsewhere
+    in `/run` (NetworkManager's or resolvconf's file), names do not resolve in the box and every Haiku run fails without a `done`.
+  - **Tools installed under the home folder.** PATH is the binary's folder, `/usr/local/bin`, `/usr/bin` and `/bin`, and the home is
+    hidden, so pip `--user` packages, virtual environments and mise's python, node or ffmpeg are gone. The model has only what the system
+    has installed.
 - **Reuse**: a response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
   the arm's skills folder; `main` is archived from `origin/main` into `skills-main-<tree>` so a moved `main` is never mixed with an old one; the report prints the hashes
-  each arm used. A run from before this check has no hash, and `run.sh` makes it again.
+  each arm used. A run from before this check has no hash, and `run.sh` makes it again. A Haiku run is also reused only when its meta.json says `confined: true`, so a
+  run made before the box is made again and an arm never mixes confined and unconfined responses.
 
 ## Run it
 

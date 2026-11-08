@@ -3,7 +3,7 @@
 No model is called: respond.sh runs against a fake `claude`, and the judge's `ask` is replaced. Needs the inputs from make_audio.py.
 
   F1  responder scripts run sandboxed: no write to the real home or outside the task folder, no network, no new privileges
-  F2  a finished run is reused only while the skills it used are unchanged
+  F2  a finished run is reused only while the skills it used are unchanged, and a Haiku run only when meta.json says it ran confined
   F3  skill loads are found when the path ends in `;` or the command is chained
   F4  a responder that dies leaves meta.json with the error and no `done`
   F5  model HTML renders with a throwaway profile and HOME, and its requests to anything but Google Fonts go nowhere
@@ -12,7 +12,10 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
   F10 a run with no `done` (the responder timed out or died) is never scored or judged; it is an automatic loss
   F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left
   F12 Haiku's session runs confined (sandbox.responder): a stand-in for claude cannot delete or write a file in its home, outside
-      its work folder or in another run, cannot see other runs, can write in its work folder; with no bubblewrap the run is refused"""
+      its work folder or in another run, cannot see other runs, can write in its work folder; with no bubblewrap the run is refused;
+      the owner's credentials file is bound read-only (writing or replacing it fails, the host file is unchanged); the claude binary
+      is bound as that one file, and an override that is a folder or a file directly in the home folder is refused; Chromium's folder
+      is bound only when it holds nothing else of the owner's"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
@@ -130,6 +133,11 @@ with tempfile.TemporaryDirectory() as root:
         os.makedirs(p)
     for p in (os.path.join(shome, 'keep.txt'), os.path.join(outside, 'keep.txt'), os.path.join(other, 'work', 'draft.md')):
         open(p, 'w').write('original\n')
+    # a stand-in for the owner's credentials file, in the CLAUDE_CONFIG_DIR the box reads it from
+    cfg = os.path.join(root, 'cfg')
+    creds = os.path.join(cfg, '.credentials.json')
+    os.makedirs(cfg)
+    open(creds, 'w').write('{"selftest": "original"}\n')
     fake = os.path.join(bindir, 'claude')
     open(fake, 'w').write(f'''#!/bin/bash
 exec 3<>/dev/tcp/127.0.0.1/{calls_lst.port} && read -t 5 -u 3 _; exec 3<&-
@@ -148,6 +156,12 @@ case $PWD in
        echo made > made.txt && echo work=wrote || echo work=blocked
        ls /home/*/.ssh >/dev/null 2>&1 && echo ssh=VISIBLE
        env | grep -q ANTHROPIC_API_KEY && echo key=PRESENT
+       c="$CLAUDE_CONFIG_DIR/.credentials.json"
+       grep -q original "$c" 2>/dev/null && echo creds_read=yes || echo creds_read=no
+       echo bad > "$c" 2>/dev/null && echo creds_write=WROTE || echo creds_write=blocked
+       : > "$c" 2>/dev/null && echo creds_truncate=WROTE || echo creds_truncate=blocked
+       echo '{{}}' > /tmp/c.json && mv -f /tmp/c.json "$c" 2>/dev/null && echo creds_mv=REPLACED || echo creds_mv=blocked
+       rm -f "$c" 2>/dev/null; [ -e "$c" ] && echo creds_rm=blocked || echo creds_rm=DELETED
     }} > report.txt ;;
 esac
 echo '{{"type":"assistant","message":{{"content":[{{"type":"text","text":"made it"}}]}}}}'
@@ -155,7 +169,7 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
 ''')
     os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
     env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'EVAL_DIR': ev, 'NEW_SKILLS': skills, 'HILDEGARD_EVAL_CLAUDE': fake,
-           'CLAUDE_CONFIG_DIR': os.path.join(root, 'cfg')}
+           'CLAUDE_CONFIG_DIR': cfg}
     env.pop('ANTHROPIC_API_KEY', None)
 
     def respond(task, **over):
@@ -188,6 +202,10 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
           text(os.path.join(other, 'work', 'draft.md')) == 'original\n' and not os.path.exists(os.path.join(ev, 'planted')))
     check('F12 writing in the work folder works', rep.get('work') == 'wrote' and text(os.path.join(run(t4), 'work', 'made.txt')) == 'made\n', rep)
     check('F12 the real ~/.ssh is not visible and the API key is not passed in', 'ssh' not in rep and 'key' not in rep, rep)
+    check('F12 the credentials file can be read in the box', rep.get('creds_read') == 'yes', rep)
+    check('F12 writing, truncating, replacing or deleting the credentials file fails in the box',
+          all(rep.get(k) == 'blocked' for k in ('creds_write', 'creds_truncate', 'creds_mv', 'creds_rm')), rep)
+    check('F12 the owner\'s credentials file is unchanged', text(creds) == '{"selftest": "original"}\n', text(creds))
     # without a working bubblewrap the session is refused, and no model is called
     nobw = os.path.join(root, 'nobwrap')
     os.makedirs(nobw)
@@ -196,6 +214,47 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     r = respond(t1, PATH=nobw + ':' + env['PATH'])
     check('F12 with no usable bubblewrap a Haiku run is refused (exit 5) and calls no model', r.returncode == 5 and calls() == before and 'bubblewrap' in r.stderr
           and not os.path.exists(os.path.join(run(t1), 'done')), (r.returncode, calls(), before, r.stderr))
+    # an override that would bind more than the binary file is refused, and no model is called
+    shutil.copy(fake, os.path.join(shome, 'claude'))
+    r = respond(t1, HOME=shome, HILDEGARD_EVAL_CLAUDE=os.path.join(shome, 'claude'))
+    check('F12 HILDEGARD_EVAL_CLAUDE directly in the home folder is refused (exit 5) and calls no model', r.returncode == 5 and calls() == before
+          and 'home folder' in r.stderr and not os.path.exists(os.path.join(run(t1), 'done')), (r.returncode, r.stderr))
+    r = respond(t1, HILDEGARD_EVAL_CLAUDE=bindir)
+    check('F12 HILDEGARD_EVAL_CLAUDE naming a folder is refused (exit 5) and calls no model', r.returncode == 5 and calls() == before
+          and 'not a file' in r.stderr, (r.returncode, r.stderr))
+    os.remove(os.path.join(shome, 'claude'))
+    # a native claude found on PATH directly in the home folder: only that file is bound, nothing else of the home is visible
+    eh = os.path.join(root, 'elfhome')
+    erun = os.path.join(ev, 'runs', 'none', 'haiku', 'w2-groomer-blog')
+    os.makedirs(os.path.join(erun, 'work'))
+    os.makedirs(os.path.join(eh, '.ssh'))
+    open(os.path.join(eh, 'keep.txt'), 'w').write('original\n')
+    shutil.copy(shutil.which('ls'), os.path.join(eh, 'claude'))
+    eenv = {k: v for k, v in env.items() if k not in ('HILDEGARD_EVAL_CLAUDE', 'HILDEGARD_EVAL_CHROMIUM', 'CLAUDE_CONFIG_DIR')}
+    eenv.update(HOME=eh, PATH=eh + ':/usr/bin:/bin')
+
+    def box(**over):
+        b = subprocess.run([sys.executable, os.path.join(CR, 'sandbox.py'), 'responder', erun, ev], env={**eenv, **over}, capture_output=True, text=True, timeout=60)
+        return b, [x for x in b.stdout.split('\0') if x]
+
+    b, argv = box()
+    srcs = [argv[i + 1] for i, x in enumerate(argv) if x in ('--bind', '--ro-bind')]
+    check('F12 a native claude at $HOME/claude binds that one file and nothing else in the home folder',
+          b.returncode == 0 and [p for p in srcs if p.startswith(eh)] == [os.path.join(eh, 'claude')], (b.returncode, b.stderr, srcs))
+    seen = subprocess.run(argv + ['-A', eh], capture_output=True, text=True, timeout=60) if b.returncode == 0 else None
+    check('F12 inside the box the home folder shows only the claude binary', seen is not None and seen.stdout.split() == ['claude'],
+          (seen.returncode, seen.stdout, seen.stderr) if seen else b.stderr)
+    # Chromium: a binary directly in the home folder is refused; a Playwright browser folder is bound, and only that folder
+    shutil.copy(shutil.which('ls'), os.path.join(eh, 'chrome'))
+    b, _ = box(HILDEGARD_EVAL_CHROMIUM=os.path.join(eh, 'chrome'))
+    check('F12 a Chromium directly in the home folder is refused', b.returncode != 0 and 'Chromium' in b.stderr, (b.returncode, b.stderr))
+    cdir = os.path.join(eh, '.cache', 'ms-playwright', 'chromium-1', 'chrome-linux64')
+    os.makedirs(cdir)
+    shutil.copy(shutil.which('ls'), os.path.join(cdir, 'chrome'))
+    b, argv = box()
+    srcs = [argv[i + 1] for i, x in enumerate(argv) if x in ('--bind', '--ro-bind')]
+    check('F12 Playwright\'s Chromium binds its own folder and nothing else in the home folder',
+          b.returncode == 0 and sorted(p for p in srcs if p.startswith(eh)) == sorted([os.path.join(eh, 'claude'), cdir]), (b.returncode, b.stderr, srcs))
     calls_lst.hits = 0
 
     # F2: a fresh eval folder still gets main's skills (mktemp needs the folder to exist)
@@ -218,6 +277,20 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     meta2 = json.load(open(os.path.join(run(t1), 'meta.json')))
     check('F2 one changed skill file redoes the run', calls() == 2, calls())
     check('F2 meta.json names the skills hash, and it changed', bool(meta2.get('skills_hash')) and meta2.get('skills_hash') != meta1.get('skills_hash'), (meta1.get('skills_hash'), meta2.get('skills_hash')))
+    # a Haiku run made before the box (no `confined` in meta.json) is made again, never reused
+    check('F2 a Haiku run made in the box says confined: true in meta.json', meta2.get('confined') is True, meta2)
+    old = {k: v for k, v in meta2.items() if k != 'confined'}
+    json.dump(old, open(os.path.join(run(t1), 'meta.json'), 'w'))
+    before = calls()
+    r = respond(t1)
+    meta3 = json.load(open(os.path.join(run(t1), 'meta.json')))
+    check('F2 a finished Haiku run without the confined marker is made again, in the box', r.returncode == 0 and calls() == before + 1
+          and meta3.get('confined') is True, (calls(), before, meta3.get('confined')))
+    json.dump({**meta3, 'confined': False}, open(os.path.join(run(t1), 'meta.json'), 'w'))
+    respond(t1)
+    check('F2 a run marked confined: false is made again too', calls() == before + 2, (calls(), before))
+    respond(t1)
+    check('F2 a confined run with the same skills is still reused', calls() == before + 2, (calls(), before))
 
     # F4
     r = respond(t2)
