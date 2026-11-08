@@ -16,3 +16,6 @@ __pycache__/
 
 # pnpm dev’s own data folder
 .dev-data/
+
+# Reference screenshots are private study material (design-references skill): never committed.
+docs/design/refs/*/screenshots/

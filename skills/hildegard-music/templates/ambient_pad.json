@@ -1,0 +1,104 @@
+{
+  "name": "ambient_pad",
+  "note": "An ambient bed: glass and choir pads, a soft low root, sparse bells, no drums. Loops well when you keep the same length. Vary: tempo (54 to 72), key, the bell melody.",
+  "vary": ["tempo 54 to 72", "key (C lydian, A dorian, E minor)", "mute the bell melody", "bars per section"],
+  "seed": 51,
+  "tempo": 66,
+  "key": "C lydian",
+  "time": "4/4",
+  "length_s": 66,
+  "sections": [
+    {
+      "name": "a",
+      "bars": 8,
+      "chords": ["Imaj7", "II", "Imaj7", "vi7"]
+    },
+    {
+      "name": "b",
+      "bars": 8,
+      "chords": ["vi7", "II", "Imaj7", "Imaj7"]
+    },
+    {
+      "name": "outro",
+      "bars": 2,
+      "chords": ["Imaj7"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "pad",
+      "instrument": "glass_pad",
+      "chorus": 0.8,
+      "level_db": -6,
+      "sections": {
+        "a": "sustain",
+        "b": "sustain",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "pad",
+      "instrument": "choir",
+      "chorus": 0.5,
+      "level_db": -10,
+      "sections": {
+        "b": "swell",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "pad",
+      "instrument": "warm_pad",
+      "octave": -1,
+      "level_db": -10,
+      "sections": {
+        "a": "sustain",
+        "b": "sustain",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "sub_bass",
+      "level_db": -4,
+      "sections": {
+        "a": "root",
+        "b": "root",
+        "outro": "root"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "harp",
+      "level_db": -4,
+      "sections": {
+        "b": "sparse"
+      }
+    },
+    {
+      "role": "melody",
+      "instrument": "bell",
+      "level_db": 0,
+      "sections": {
+        "a": "5^:2 r:2 | 6:2 r:2 | 5^:1 3^:1 r:2 | 3^:4",
+        "b": "3^:2 r:2 | 6^:2 r:2 | 7:4 | 5^:4",
+        "outro": "1^:4"
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 15,
+    "velocity": 0.1
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.92,
+      "damp": 0.45,
+      "level_db": -1
+    }
+  },
+  "master": {
+    "fade_out": 3.0,
+    "tail": 5
+  }
+}

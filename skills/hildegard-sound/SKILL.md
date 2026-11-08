@@ -75,7 +75,7 @@ Edit `START` (seconds of music before the voice), `FADEIN`, `FADEOUT`, `TAIL` (s
 set -euo pipefail
 VOICE=${VOICE:-voice.wav}; MUSIC=${MUSIC:-music.wav}; OUT=${OUT:-out.wav}
 START=${START:-4}; FADEIN=${FADEIN:-3}; FADEOUT=${FADEOUT:-4}; TAIL=${TAIL:-4}; DUCK=${DUCK:-16}; REL=${REL:--8}
-TARGET=${TARGET:--16}; PEAK=${PEAK:--1.5}; TOTAL=${TOTAL:-}   # TOTAL empty = START + the voice's last word + TAIL
+TARGET=${TARGET:--16}; PEAK=${PEAK:--1.5}; TOTAL=${TOTAL:-}   # TOTAL empty = START + the voice's last word + TAIL; ALLOW_OVERRUN=1 grows a TOTAL that is too short
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 # 1) where the voice speaks: silencedetect finds pauses of 0.6 s or more; speech is what lies between them.
 VD=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VOICE")
@@ -90,7 +90,8 @@ FULL=$(awk -v s="$START" -v e="$LASTEND" -v t="$TAIL" 'BEGIN{printf "%.2f", s+e+
 if [ -z "$TOTAL" ]; then TOTAL=$FULL
 elif awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{exit !(t < s+e+0.1)}'; then
   OVER=$(awk -v t="$TOTAL" -v s="$START" -v e="$LASTEND" 'BEGIN{printf "%.2f", s+e+0.1-t}')
-  [ "${ALLOW_OVERRUN:-0}" = 1 ] || { echo "the voice runs $OVER s over TOTAL ($TOTAL s). Use a TOTAL of at least $FULL or ALLOW_OVERRUN=1 to let it grow. Nothing was written." >&2; exit 1; }; TOTAL=$FULL
+  [ "${ALLOW_OVERRUN:-0}" = 1 ] || { echo "the voice speaks until $(awk -v s="$START" -v e="$LASTEND" 'BEGIN{printf "%.2f", s+e}') s but TOTAL is $TOTAL s: $OVER s over. Use a TOTAL of at least $(awk -v t="$TOTAL" -v o="$OVER" 'BEGIN{printf "%.1f", int((t+o)*10+0.999999)/10}'), a shorter voice or a smaller START, or ALLOW_OVERRUN=1 to let the total grow. Nothing was written." >&2; exit 1; }
+  echo "note: the voice needs $OVER s more than TOTAL, so the total grows from $TOTAL s to $FULL s" >&2; TOTAL=$FULL
 fi
 # 2) music level: set REL dB from the voice's own loudness, before ducking.
 lufs() { ffmpeg -hide_banner -nostats -i "$1" ${2:-} -af ebur128 -f null - 2>&1 | sed -n 's/.*  I: *\(-*[0-9.]*\) LUFS.*/\1/p' | tail -1; }
@@ -202,6 +203,9 @@ measuring scripts work on any file.
 If you have **hildegard-craft**, read it first for anything Hildegard makes; `references/slop.md` here is its slop
 catalogue, with a Sound section. Generic "epic" music and robotic narration are the sound of slop.
 
+For instrumental music, a jingle, a bed or a sound effect you can make without a model, use **hildegard-music**: presets
+and templates rendered by tested scripts, with its checks. The rest of this section is for briefing a music model or Suno.
+
 A music brief, not a mood word:
 
 - **Form and length:** "45 s: 8 bars intro, verse, lift at 0:28 on the door opening, ring out".
@@ -226,8 +230,14 @@ concrete scene.
 ### A person's own voice, for a voice-over
 
 You can't use your user's microphone from a chat, so ask Hildegard for a page that can. `record_link` with
-`kind: "voice"` and a short `purpose` gives a link that works once for 30 minutes. Show your user the link and the
-sentence it comes with, then call `recording_status` until it says received. The link is a secret for that person:
+`kind: "voice"` and a short `purpose` gives a link that works once for 30 minutes. On your user's own computer it opens
+in a browser there, with nothing to set up. If they want to record on a phone, ask for `where: "phone"`: with
+Hildegard's link on you get a link and a QR code to show (if the answer says the link is public, tell them so). With none
+on, nothing is made; the answer gives a private route with its question, or says a phone link would be public. For a
+private one, ask them the sentence word for word and call `link_on` with `confirmed: true` and the plan id only after
+they say yes. A public link you can't turn on from a chat: tell them what the answer says (the Studio's “Record on your
+phone” button, or `hildegard tunnel cloudflare --quick` in a terminal) and offer to record on this computer. Show your
+user the link and the sentence it comes with, then call `recording_status` until it says received. The link is a secret for that person:
 don't paste it anywhere else. Then `clean_voice` with the `media_id`: it takes out hum, rumble, clicks and room noise,
 evens the level and sets it to -16 LUFS with the true peak under -1.5 dB (`target_lufs` and `peak` change that), and
 returns the loudness it measured. Listen to the cleaned file before you use it. The cleanup chain lives in one place,

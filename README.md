@@ -226,7 +226,7 @@ what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
-`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
+`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link` (a link that opens on this computer with nothing to set up, or `where: "phone"` with a QR code; `link_on` after a yes turns on a private Tailscale link only, and a public one is yours to turn on), follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. `stream_status` says how the owner’s stream is going; going live is theirs to press ([docs/streaming.md](docs/streaming.md)). The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
@@ -291,6 +291,7 @@ make on their own pages; Hildegard never makes one for you.
 
 ```sh
 hildegard tunnel                                   # where Tailscale and Cloudflare stand here, and what each needs
+hildegard tunnel auto                              # the best link this computer can make: Tailscale if signed in, else a quick tunnel
 hildegard tunnel tailscale                         # your own devices only (add --funnel for the public internet)
 hildegard tunnel cloudflare --hostname hildegard.example.com   # a name on your domain, through a named tunnel
 hildegard tunnel cloudflare --quick                # no account: a temporary trycloudflare.com name
@@ -439,7 +440,10 @@ hildegard choir invite
 It prints a short code, `HG-XXXX-XXXX` (good once, for 10 minutes), the address it is redeemed at, and the one command
 for the other computer; Settings › Devices › **Share this GPU** shows the same, large, with Copy and a countdown. A
 short code makes no key until it is used. For the long `hgc1_…` code (older builds, or pasting), run
-`hildegard choir invite --long` or press **Show long code**. On the other computer:
+`hildegard choir invite --long` or press **Show long code**. A script or an AI agent never prints or retypes either:
+on the other computer, `hildegard choir pair gpu-a` (an ssh name) does the whole join with the code passing from one
+process to the next, and `ssh gpu-a hildegard choir invite --code-only | hildegard choir join --code-stdin` is the same
+by hand. On the other computer:
 
 ```sh
 hildegard choir join HG-XXXX-XXXX --url http://100.x.y.z:7341   # gpu-a's address, as the invite prints it
@@ -503,7 +507,7 @@ hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
-hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
+hildegard choir invite | pair <ssh-host> | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
 hildegard tunnel [status] | tailscale [--funnel] | cloudflare [--hostname <name> | --quick | --login] | install cloudflare | off  (--signup)
 hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>

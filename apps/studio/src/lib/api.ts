@@ -51,6 +51,51 @@ export interface RecordLinkInfo {
   maxBytes: number;
 }
 
+/** A recording Hildegard keeps for the person: one they made in the Studio or on a phone, or brought in. */
+export interface RecordingInfo {
+  id: string;
+  kind: 'voice' | 'video';
+  purpose: string | null;
+  status: 'pending' | 'received' | 'expired';
+  receivedAt: string | null;
+  seconds: number | null;
+  bytes: number | null;
+  /** Under /media, once it has arrived. */
+  url: string | null;
+  from: string | null;
+  /** Set once it has been cleaned (clean_voice). */
+  clean: { lufs: number } | null;
+}
+/** A link to record on a phone, or why there isn't one yet. */
+export type PhoneLink =
+  | { needsLink: true; plan: LinkPlan; ask: string }
+  | {
+      needsLink?: undefined;
+      id: string;
+      url: string;
+      expiresAt: string;
+      secure: boolean;
+      /** The link is on the internet: anyone who has it can reach Hildegard’s sign-in page. */
+      public: boolean;
+    };
+/** What turning the link on would do, decided once by the server; `id` goes back with the person's yes. */
+export interface LinkPlan {
+  route: 'tailscale' | 'quick' | 'none';
+  public: boolean;
+  id: string;
+  ask: string;
+}
+/** What turning the link on did (the server's link-on.ts). */
+export interface LinkOnAnswer {
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  plan?: LinkPlan;
+  url?: string;
+  private?: boolean;
+  temporary?: boolean;
+  message: string;
+  steps: { id: string; title: string; detail: string; command?: string }[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly field: string | undefined;
@@ -293,7 +338,8 @@ export const api = {
   catalog: () => call<Catalog>('GET', '/api/catalog'),
   createProject: (title?: string) => call<Project>('POST', '/api/projects', { title }),
   renameProject: (id: string, title: string) => call<Project>('PATCH', `/api/projects/${id}`, { title }),
-  exportFilm: (id: string) => call<ExportState>('POST', `/api/projects/${id}/export`),
+  exportFilm: (id: string, voiceover?: { mediaId: string }) =>
+    call<ExportState>('POST', `/api/projects/${id}/export`, voiceover ? { voiceover } : undefined),
   createShot: (body: { projectId?: string; shotId?: string; request: unknown }) =>
     call<{ project: Project; shot: Shot; takes: Take[] }>('POST', '/api/shots', body),
   renameShot: (id: string, title: string) => call<Shot>('PATCH', `/api/shots/${id}`, { title }),
@@ -512,6 +558,24 @@ export const api = {
   obsService: (destination: StreamDestinationId) =>
     call<ObsState & { passwordSaved: boolean }>('POST', '/api/stream/obs/service', { destination }),
   recordLinkInfo: (token: string) => call<RecordLinkInfo>('GET', `/api/record/${encodeURIComponent(token)}`),
+  /** The recordings that have arrived for this person, newest first. */
+  recordings: () => call<{ recordings: RecordingInfo[] }>('GET', '/api/record').then((r) => r.recordings),
+  /** Keeps a recording made in the Studio, with the person's others. */
+  keepRecording: (clip: Blob, kind: 'voice' | 'video') =>
+    call<RecordingInfo>('POST', `/api/record/imports?kind=${kind}`, undefined, clip),
+  recording: (id: string) => call<RecordingInfo>('GET', `/api/record/${encodeURIComponent(id)}`),
+  /** A link for recording on a phone. With no private link on, nothing is made and `needsLink` says so. */
+  phoneRecordLink: (kind: 'voice' | 'video') =>
+    call<PhoneLink>('POST', '/api/record/links', { kind, where: 'phone' }),
+  /**
+   * Turns on the route of the plan the person just confirmed (and no other: a changed plan comes back as `confirm`).
+   * `acceptPublic` is their own yes to a public one; this dialog sends it only for a plan it named public.
+   */
+  linkOn: (plan: LinkPlan) =>
+    call<LinkOnAnswer>('POST', '/api/link/on', {
+      plan: plan.id,
+      ...(plan.public ? { acceptPublic: true } : {}),
+    }),
   /** Sends the recording a link was made for. The link works once. */
   recordSend: (token: string, clip: Blob) =>
     call<{ received: boolean }>('POST', `/api/record/${encodeURIComponent(token)}`, undefined, clip),

@@ -4,8 +4,8 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import markGreenUrl from '../../studio/src/assets/mark-green.svg';
 import markUrl from '../../studio/src/assets/mark-vellum.svg';
-import wordmarkGreenUrl from '../../studio/src/assets/wordmark-green.svg';
 import wordmarkUrl from '../../studio/src/assets/wordmark-vellum.svg';
+import frameUrl from '../../studio/src/assets/work/illuminator-quill-1600.webp';
 import {
   blocker,
   cause,
@@ -52,16 +52,17 @@ const stagesEl = document.getElementById('stages')!;
 // Dark, like the Studio it hands over to, so the window doesn't flip themes when the Studio opens. The preview
 // harness can show light (warm vellum, with the green logo).
 
+document.querySelector<HTMLImageElement>('.hd-frame')!.src = frameUrl;
+
 function applyTheme() {
   const forced = root.dataset.previewTheme;
   const theme = forced === 'light' ? 'light' : 'dark';
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
   const light = theme === 'light';
-  document.querySelector<HTMLImageElement>('.hd-brand img[data-mark]')!.src = light ? markGreenUrl : markUrl;
-  document.querySelector<HTMLImageElement>('.hd-brand img[data-wordmark]')!.src = light
-    ? wordmarkGreenUrl
-    : wordmarkUrl;
+  // The side panel is a dark frame in either theme, so its logo is always the vellum one.
+  document.querySelector<HTMLImageElement>('.hd-brand img[data-mark]')!.src = markUrl;
+  document.querySelector<HTMLImageElement>('.hd-brand img[data-wordmark]')!.src = wordmarkUrl;
   for (const img of main.querySelectorAll<HTMLImageElement>('img[data-mark]'))
     img.src = light ? markGreenUrl : markUrl;
 }

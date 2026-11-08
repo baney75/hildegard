@@ -3,7 +3,9 @@ import type { Project, Take } from '@hildegard/presets';
 import { useId, useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { bytes, clock, roman } from '../lib/format.ts';
+import { recordingLabel, useRecordings } from '../lib/recordings.ts';
 import { useStore } from '../lib/store.ts';
+import { RecordDialog } from './RecordDialog.tsx';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, Status, toastError } from './ui.tsx';
 
@@ -48,6 +50,10 @@ export function ExportDialog({
   const chosen = useChosenTakes(project);
   const job = useStore((s) => s.exports.get(project.id));
   const [starting, setStarting] = useState(false);
+  // A voice-over is a voice recording of yours, mixed over the film; make one here if there isn't one yet.
+  const { list: voices, refresh: refreshVoices } = useRecordings('voice');
+  const [voiceover, setVoiceover] = useState('');
+  const [recording, setRecording] = useState(false);
   const total = chosen.reduce((n, c) => n + c.take.seconds, 0);
   const skipped = project.shotIds.length - chosen.length;
   // An export of other takes than these is out of date.
@@ -59,7 +65,7 @@ export function ExportDialog({
   const start = async () => {
     setStarting(true);
     try {
-      await api.exportFilm(project.id);
+      await api.exportFilm(project.id, voiceover ? { mediaId: voiceover } : undefined);
     } catch (e) {
       toastError(e);
     } finally {
@@ -68,115 +74,153 @@ export function ExportDialog({
   };
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      labelledBy={id}
-      variant={compact ? 'bottom' : 'dialog'}
-      className="st-dialog hg-exportdlg"
-    >
-      <div className="st-dialog__h">
-        <div style={{ flex: 1 }}>
-          <h2 id={id}>Export film</h2>
-          <p>
-            {chosen.length} {chosen.length === 1 ? 'shot' : 'shots'} ·{' '}
-            {clock(ready && job.seconds != null ? job.seconds : total)}, joined in order into one MP4.
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        labelledBy={id}
+        variant={compact ? 'bottom' : 'dialog'}
+        className="st-dialog hg-exportdlg"
+      >
+        <div className="st-dialog__h">
+          <div style={{ flex: 1 }}>
+            <h2 id={id}>Export film</h2>
+            <p>
+              {chosen.length} {chosen.length === 1 ? 'shot' : 'shots'} ·{' '}
+              {clock(ready && job.seconds != null ? job.seconds : total)}, joined in order into one MP4.
+            </p>
+          </div>
+        </div>
+        <div className="st-dialog__b">
+          {ready ? (
+            // biome-ignore lint/a11y/useMediaCaption: generated films have no dialogue track to caption.
+            <video
+              className="hg-export__video"
+              src={job.url!}
+              poster={chosen[0]?.take.poster ?? undefined}
+              controls
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <ol className="hg-export__list">
+              {chosen.map(({ no, shot, take }, i) => (
+                <li key={shot.id} data-done={running && job && i < job.done ? '' : undefined}>
+                  <span className="hg-export__no" aria-hidden="true">
+                    {roman(no)}
+                  </span>
+                  <span className="hg-export__thumb" aria-hidden="true">
+                    {take.poster ? <img src={take.poster} alt="" loading="lazy" decoding="async" /> : null}
+                  </span>
+                  <span className="hg-export__t">
+                    <b>
+                      <span className="sr">Shot {no}: </span>
+                      {shot.title}
+                    </b>
+                    <small className="body-sm muted">
+                      {takeLabel(take)} · {clock(take.seconds)}
+                    </small>
+                  </span>
+                  {running && job && i < job.done ? <Icon name="check" size={16} /> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+          {running && job ? (
+            <div className="hg-export__progress" role="status">
+              <div className="st-meter" aria-hidden="true">
+                <i style={{ width: `${Math.max(4, (job.done / job.total) * 100)}%` }} />
+              </div>
+              <span className="body-sm sec-text">
+                Joining take {Math.min(job.done + 1, job.total)} of {job.total}…
+              </span>
+            </div>
+          ) : null}
+          {job?.status === 'failed' && current ? (
+            <p className="body-sm hg-err" role="alert">
+              <Icon name="alert" size={16} /> {job.error}
+            </p>
+          ) : null}
+          {!ready && !running ? (
+            <div className="st-field">
+              <label htmlFor={`${id}-voiceover`}>Voice-over</label>
+              <div className="hg-between">
+                <select
+                  id={`${id}-voiceover`}
+                  className="hg-select"
+                  value={voiceover}
+                  onChange={(e) => setVoiceover(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {(voices ?? []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {recordingLabel(r)}
+                    </option>
+                  ))}
+                </select>
+                <Button icon="mic" onClick={() => setRecording(true)}>
+                  Record
+                </Button>
+              </div>
+              <small className="body-sm muted">
+                Your voice is mixed over the film, and the film gets quieter under it.
+              </small>
+            </div>
+          ) : null}
+          <p className="body-sm muted">
+            {skipped > 0
+              ? `${skipped} ${skipped === 1 ? 'shot has' : 'shots have'} no finished take yet and ${skipped === 1 ? 'is' : 'are'} left out. `
+              : ''}
+            {draftNote(chosen)}
+            Each shot uses its kept take, or its newest. The file says it is AI-generated, as the model
+            licenses ask.
           </p>
         </div>
-      </div>
-      <div className="st-dialog__b">
-        {ready ? (
-          // biome-ignore lint/a11y/useMediaCaption: generated films have no dialogue track to caption.
-          <video
-            className="hg-export__video"
-            src={job.url!}
-            poster={chosen[0]?.take.poster ?? undefined}
-            controls
-            playsInline
-            preload="metadata"
-          />
-        ) : (
-          <ol className="hg-export__list">
-            {chosen.map(({ no, shot, take }, i) => (
-              <li key={shot.id} data-done={running && job && i < job.done ? '' : undefined}>
-                <span className="hg-export__no" aria-hidden="true">
-                  {roman(no)}
-                </span>
-                <span className="hg-export__thumb" aria-hidden="true">
-                  {take.poster ? <img src={take.poster} alt="" loading="lazy" decoding="async" /> : null}
-                </span>
-                <span className="hg-export__t">
-                  <b>
-                    <span className="sr">Shot {no}: </span>
-                    {shot.title}
-                  </b>
-                  <small className="body-sm muted">
-                    {takeLabel(take)} · {clock(take.seconds)}
-                  </small>
-                </span>
-                {running && job && i < job.done ? <Icon name="check" size={16} /> : null}
-              </li>
-            ))}
-          </ol>
-        )}
-        {running && job ? (
-          <div className="hg-export__progress" role="status">
-            <div className="st-meter" aria-hidden="true">
-              <i style={{ width: `${Math.max(4, (job.done / job.total) * 100)}%` }} />
-            </div>
-            <span className="body-sm sec-text">
-              Joining take {Math.min(job.done + 1, job.total)} of {job.total}…
-            </span>
-          </div>
-        ) : null}
-        {job?.status === 'failed' && current ? (
-          <p className="body-sm hg-err" role="alert">
-            <Icon name="alert" size={16} /> {job.error}
-          </p>
-        ) : null}
-        <p className="body-sm muted">
-          {skipped > 0
-            ? `${skipped} ${skipped === 1 ? 'shot has' : 'shots have'} no finished take yet and ${skipped === 1 ? 'is' : 'are'} left out. `
-            : ''}
-          {draftNote(chosen)}
-          Each shot uses its kept take, or its newest. The file says it is AI-generated, as the model licenses
-          ask.
-        </p>
-      </div>
-      <div className="st-dialog__f">
-        {ready ? (
-          <>
-            <span className="st-cost">
-              {job.seconds != null ? clock(job.seconds) : ''} · {job.bytes != null ? bytes(job.bytes) : ''}
-            </span>
-            <Button kind="ghost" onClick={onClose}>
-              Done
-            </Button>
-            <a className="hg-btn hg-btn--primary" href={`${job.url}?download`} download data-autofocus="">
-              <Icon name="download" size={18} />
-              Download
-            </a>
-          </>
-        ) : (
-          <>
-            {running ? <Status kind="running">Exporting</Status> : null}
-            <span style={{ flex: 1 }} />
-            <Button kind="ghost" onClick={onClose}>
-              {running ? 'Close' : 'Cancel'}
-            </Button>
-            <Button
-              kind="primary"
-              icon="film"
-              busy={starting || running}
-              disabled={!chosen.length}
-              onClick={start}
-              data-autofocus=""
-            >
-              {job?.status === 'failed' && current ? 'Try again' : 'Export'}
-            </Button>
-          </>
-        )}
-      </div>
-    </Modal>
+        <div className="st-dialog__f">
+          {ready ? (
+            <>
+              <span className="st-cost">
+                {job.seconds != null ? clock(job.seconds) : ''} · {job.bytes != null ? bytes(job.bytes) : ''}
+              </span>
+              <Button kind="ghost" onClick={onClose}>
+                Done
+              </Button>
+              <a className="hg-btn hg-btn--primary" href={`${job.url}?download`} download data-autofocus="">
+                <Icon name="download" size={18} />
+                Download
+              </a>
+            </>
+          ) : (
+            <>
+              {running ? <Status kind="running">Exporting</Status> : null}
+              <span style={{ flex: 1 }} />
+              <Button kind="ghost" onClick={onClose}>
+                {running ? 'Close' : 'Cancel'}
+              </Button>
+              <Button
+                kind="primary"
+                icon="film"
+                busy={starting || running}
+                disabled={!chosen.length}
+                onClick={start}
+                data-autofocus=""
+              >
+                {job?.status === 'failed' && current ? 'Try again' : 'Export'}
+              </Button>
+            </>
+          )}
+        </div>
+      </Modal>
+      {recording ? (
+        <RecordDialog
+          kinds={['voice']}
+          onClose={() => setRecording(false)}
+          onKept={(r) => {
+            refreshVoices();
+            setVoiceover(r.id);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

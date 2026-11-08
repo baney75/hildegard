@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Merged into the app's Info.plist by Tauri when it bundles. These are the words macOS shows when Go live first asks
-     for the camera, the microphone, or the screen. Hildegard asks only when you press Go live or Show a preview. -->
+<!-- Merged into the app's Info.plist by Tauri when it bundles. These are the words macOS shows when the Studio first asks
+     for the camera, the microphone, or the screen: to record in the Studio, or when you press Go live or Show a preview.
+     Hildegard asks only then. -->
 <plist version="1.0">
 <dict>
   <key>NSCameraUsageDescription</key>
-  <string>Hildegard uses your camera when you go live or show a preview, so viewers can see you. It stays on this computer until you press Go live.</string>
+  <string>Hildegard uses your camera only when you tap Record in the Studio or press Go live or Show a preview, to record yourself for a film or so viewers can see you. Recordings stay on this computer, and nothing is streamed until you press Go live.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Hildegard uses your microphone when you go live, so viewers can hear you. It records and streams only while you are live.</string>
+  <string>Hildegard uses your microphone only when you tap Record in the Studio or press Go live, to record your voice for a film or so viewers can hear you. Recordings stay on this computer, and it streams only while you are live.</string>
   <key>NSScreenCaptureUsageDescription</key>
   <string>Hildegard captures your screen when you go live or show a preview, so viewers can see it. Nothing is captured until you ask.</string>
 </dict>

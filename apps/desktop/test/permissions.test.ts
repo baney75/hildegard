@@ -43,7 +43,7 @@ describe('what macOS shows when Go live asks for a device', () => {
 
   it('is backed by entitlements the bundle names, for the camera and the microphone and nothing else', () => {
     const name = conf.bundle.macOS.entitlements;
-    expect(name).toBe('entitlements.plist');
+    expect(name).toBe('Entitlements.plist');
     expect(existsSync(join(tauri, name!))).toBe(true);
     const keys = [...read(name!).matchAll(/<key>([^<]+)<\/key>/g)].map((m) => m[1]);
     expect(keys).toEqual(['com.apple.security.device.camera', 'com.apple.security.device.audio-input']);

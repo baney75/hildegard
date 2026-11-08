@@ -1,0 +1,28 @@
+{
+  "name": "rain_storm_build",
+  "note": "A storm that builds and eases over 30 minutes: rain from light to heavy and back, with rising wind. intensity is a curve of [minutes, 0 to 1]. Vary: the curve points, minutes.",
+  "vary": ["layers[0].intensity", "minutes"],
+  "seed": 1,
+  "minutes": 30,
+  "layers": [
+    {
+      "type": "rain",
+      "intensity": [[0, 0.15], [10, 0.4], [18, 0.95], [24, 0.6], [30, 0.2]],
+      "surface": "roof"
+    },
+    {
+      "type": "wind",
+      "strength": 0.6,
+      "gustiness": 0.7,
+      "whistle": 0.2,
+      "gain_db": -14,
+      "automation": [[0, -24], [14, -10], [20, -8], [30, -22]]
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

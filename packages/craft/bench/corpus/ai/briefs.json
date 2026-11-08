@@ -1,0 +1,156 @@
+[
+  {
+    "id": "bakery",
+    "genre": "blog",
+    "split": "dev",
+    "brief": "Write a blog post for my bakery's website. I'm Ruth Kessler, I run Kessler's Bread on Main Street in Sidney, Ohio. Facts: we switched from commercial yeast to a sourdough starter in January 2025; the starter came from my grandmother's 1962 crock; we lost money for four months because loaves took 20 hours instead of 4; we kept 3 of 11 breads; sales of the country loaf went from 60 to 140 a week by September; a customer named Mr. Albright, who is diabetic, told me his blood sugar handles our sourdough better (I don't want to make medical claims). I want people to come try the country loaf on Saturday mornings. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my bakery's website about why we switched to a sourdough starter. Write it now, don't ask me questions."
+  },
+  {
+    "id": "potluck",
+    "genre": "newsletter",
+    "split": "test",
+    "brief": "Write a short announcement for our church newsletter about the Harvest Potluck. St. Brendan's Catholic Church, Sunday October 26 after the 10:30 Mass, in the parish hall. Bring a dish to share with a card listing ingredients (we have two kids with nut allergies). Father Tom will bless the food. Last year 140 people came and we ran out of plates by noon. The Knights of Columbus are smoking two briskets. Sign up on the sheet in the narthex so we don't get nine pans of green beans again. Write it now, don't ask me questions.",
+    "generic": "Write a short announcement for our church newsletter about the Harvest Potluck. Write it now, don't ask me questions."
+  },
+  {
+    "id": "mowers",
+    "genre": "blog",
+    "split": "test",
+    "brief": "Write a blog post for my small engine repair shop, Dale's Small Engine in Marion, Indiana, about putting your mower away for winter. Facts from me: 80% of the spring repairs I see are gummed carburetors from old gas; ethanol gas goes bad in about 30 days; I tell people to run it dry or use stabilizer and run it 5 minutes; a carb rebuild costs $85-$120 at my shop vs $8 for a bottle of stabilizer; pull the plug wire before touching the blade; I sharpen blades for $12 if they drop them off by November 15. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my small engine repair shop about putting your lawn mower away for winter. Write it now, don't ask me questions."
+  },
+  {
+    "id": "carpentry",
+    "genre": "blog",
+    "split": "dev",
+    "brief": "Write a blog post for my homeschool blog. I'm a dad, Mark, teaching my 11-year-old daughter Anna math through carpentry. We built a 4x8 chicken coop last spring; she figured the rafter angle with a speed square and got it wrong the first time (cut two rafters 3 inches short, $14 of lumber wasted); fractions finally clicked when she read a tape measure to 1/16; we spent about $310 on materials; the hens laid their first egg June 3. I want other homeschool parents to try one building project this winter. Write it now, don't ask me questions.",
+    "generic": "Write a post for my homeschool blog about teaching my daughter math by building a chicken coop. Write it now, don't ask me questions."
+  },
+  {
+    "id": "fourh",
+    "genre": "newsletter",
+    "split": "dev",
+    "brief": "Write the November newsletter for our 4-H club, the Clover Creek Champions in Bremen, Indiana. Facts: 23 members this year, up from 17; at the Marshall County fair in July, Hannah Yoder's Hampshire gilt won reserve grand champion; the club sold 410 pounds of pecans in the fall fundraiser and cleared $1,180, which pays for the spring trip to the state fairgrounds; the December meeting moves to Tuesday the 9th at 7 p.m. at the Bremen Public Library because the fire station hall is being repainted; we need two parent volunteers to drive to the state fair trip. Write it now, don't ask me questions.",
+    "generic": "Write the November newsletter for our 4-H club. Write it now, don't ask me questions."
+  },
+  {
+    "id": "realtor",
+    "genre": "about",
+    "split": "test",
+    "brief": "Write the About page for my real estate website. I'm Teresa Walsh, an agent with Lakeshore Realty in Ludington, Michigan. Facts: licensed since 2011; I grew up in Scottville, 9 miles east; before real estate I taught 4th grade for six years; I've sold 312 homes, about half to first-time buyers; I speak Spanish; I only work Mason and Lake counties; I answer texts until 9 p.m. My phone is (231) 555-0144. Write it now, don't ask me questions.",
+    "generic": "Write the About page for my real estate website. I'm a local agent in a small lakeside town. Write it now, don't ask me questions."
+  },
+  {
+    "id": "guide",
+    "genre": "guide",
+    "split": "test",
+    "brief": "Write a blog post for my fishing guide business, Big Two-Hearted Outfitters, on what to bring for a fall steelhead float trip on the Pere Marquette River. Facts from me: trips run October through early December; water is 38 to 46 degrees; I supply rods, reels, flies and the drift boat; bring breathable waders and wading boots without felt soles because Michigan bans felt on some rivers (I won't let felt in my boat); wear layers, no cotton; a Michigan fishing license with an all-species endorsement is required; we launch at 7 a.m. from the Gleason's Landing access; trips are $525 for two people. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my fishing guide business about what to bring for a fall steelhead float trip. Write it now, don't ask me questions."
+  },
+  {
+    "id": "dentist",
+    "genre": "email",
+    "split": "test",
+    "brief": "Write a post for our family dental office's website announcing our move. Dr. Samuel Okafor, Okafor Family Dentistry, in Fort Wayne. Facts: we are moving from 1420 N. Wells St. to 6115 Stellhorn Rd. on January 12; the new office has 6 chairs instead of 4, a wheelchair-accessible entrance and parking for 30 cars; we will be closed January 5 to 9 for the move; all appointments after the 12th stay as booked; phone number stays the same, (260) 555-0198; Dr. Okafor has practiced here since 2004. Write it now, don't ask me questions.",
+    "generic": "Write a post for our family dental office's website announcing that we are moving to a new building. Write it now, don't ask me questions."
+  },
+  {
+    "id": "congregation",
+    "genre": "email",
+    "split": "dev",
+    "brief": "Write an email to our congregation about the roof. I'm Pastor Greg Hollis, Grace Lutheran Church in Ames, Iowa. Facts: the sanctuary roof leaks over the north pews; the bid from Hauge Roofing is $64,200; we have $21,500 in the building fund; the council voted 7 to 1 to ask the congregation for the rest by Easter; a pancake breakfast is planned for March 8 with all proceeds to the roof; Evelyn Marsh has offered a $5,000 matching gift if we reach $20,000 in other gifts by March 31. The congregation meeting is Sunday, February 16 after worship. Write it now, don't ask me questions.",
+    "generic": "Write an email to our congregation about repairing the church roof and how we will pay for it. Write it now, don't ask me questions."
+  },
+  {
+    "id": "sermon",
+    "genre": "sermon",
+    "split": "test",
+    "brief": "Write about 600 words of a sermon for our church website. I'm Pastor Dale Henning, Faith Bible Church in Lima, Ohio. Text: Luke 15, the lost sheep and the lost coin. Facts: last month a boy from our youth group walked away from the church after his dad's funeral; three of us drove to his apartment on a Tuesday night and sat on his porch for an hour and he never said a word; he came to youth group two weeks later; I don't want it to sound like a formula. Write it now, don't ask me questions.",
+    "generic": "Write about 600 words of a sermon for our church website on the parable of the lost sheep. Write it now, don't ask me questions."
+  },
+  {
+    "id": "csa",
+    "genre": "newsletter",
+    "split": "dev",
+    "brief": "Write this week's newsletter for our CSA. I'm Tom Reyes, Reyes Family Farm outside Corvallis, Oregon. Facts: week 9 of 20; boxes this week have tomatoes, green beans, two zucchini, a head of cabbage, and the first Walla Walla onions; the late blight hit the potatoes and we lost about a third of them, so no potatoes in boxes until week 13; the walnut tree came down in the windstorm on Tuesday and missed the greenhouse by six feet; pickup is Thursday 3 to 6 at the barn; bring back your box and the egg cartons; a recipe card from my wife Marisol for green bean salad is in each box. Write it now, don't ask me questions.",
+    "generic": "Write this week's newsletter for our community supported agriculture farm. Write it now, don't ask me questions."
+  },
+  {
+    "id": "plumber",
+    "genre": "about",
+    "split": "test",
+    "brief": "Write the About page for my plumbing business. I'm Carl Dobbs, Dobbs Plumbing and Drain in Waco, Texas. Facts: I started in 2004 after eleven years as a journeyman for a big outfit; it's me and two other plumbers, Luis and Danny, and my wife Pat answers the phone; we do repairs, water heaters and drain cleaning, no new construction; I charge a flat rate quoted before I start; we're on call for burst pipes any hour; I fix about 6 water heaters a week in winter; I won't sell anyone a repipe they don't need. Write it now, don't ask me questions.",
+    "generic": "Write the About page for my plumbing business. Write it now, don't ask me questions."
+  },
+  {
+    "id": "music-teacher",
+    "genre": "email",
+    "split": "dev",
+    "brief": "Write an email to the parents of my piano students about the spring recital. I'm Ellen Park, Park Piano Studio in Bellingham, Washington. Facts: the recital is Saturday, May 17 at 2 pm at Trinity Methodist, doors at 1:30; each student plays one piece, two minutes max, there are 18 students; students arrive by 1:15 and sit in the front two rows; dress is church clothes, no jeans; send me the final piece title by April 25; reception with cookies after; my cousin will film it and share a link; the Johnson twins are doing a duet. Write it now, don't ask me questions.",
+    "generic": "Write an email to the parents of my piano students about the spring recital. Write it now, don't ask me questions."
+  },
+  {
+    "id": "landscaper",
+    "genre": "blog",
+    "split": "dev",
+    "brief": "Write a blog post for my landscaping company's website about fall lawn care. I'm Janet Moss, Moss Lawn and Garden in Duluth, Minnesota. Facts: aerate and overseed between August 20 and September 20 while the soil is still warm; the first hard frost here is usually around October 5; mow the last time at 2.5 inches, not shorter; rake or mulch leaves so they don't smother the grass; we charge $140 to aerate a quarter acre; don't fertilize after October 15; I saw a customer on Lakeside Drive lose half a lawn to snow mold last year because of leaves left on all winter. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my landscaping company's website about fall lawn care. Write it now, don't ask me questions."
+  },
+  {
+    "id": "pantry",
+    "genre": "newsletter",
+    "split": "dev",
+    "brief": "Write the food pantry update for our community newsletter. I'm Barb Lindqvist, volunteer coordinator at the Cedar Falls Community Pantry. Facts: we served 412 families in October, up from 331 a year ago; 61 of them were new; we're short on peanut butter, canned chicken and diapers (size 4 and 5); Hy-Vee gave us 1,800 pounds of produce; open Tuesdays 4 to 7 and Saturdays 9 to noon at 218 West 3rd Street; we need two more drivers for Friday pickups; the Lions Club food drive is November 22. Write it now, don't ask me questions.",
+    "generic": "Write the food pantry update for our community newsletter. Write it now, don't ask me questions."
+  },
+  {
+    "id": "hardware",
+    "genre": "about",
+    "split": "dev",
+    "brief": "Write the Our Story page for our hardware store's website. I'm Ray Becker, Becker Hardware in Hastings, Nebraska. Facts: my grandfather Walt opened it in 1955 with a loan of $2,000; we sell paint, plumbing, fasteners by the pound, and we cut keys and glass; my dad added the garden center in 1982; the 2019 flood put four feet of water in the basement and neighbors showed up with shop vacs; we have 11 employees, the longest is Doris who has worked the register for 31 years; we're open Monday to Saturday 7:30 to 6; we are not trying to compete with the big box stores on price. Write it now, don't ask me questions.",
+    "generic": "Write the Our Story page for our family hardware store's website. Write it now, don't ask me questions."
+  },
+  {
+    "id": "vet",
+    "genre": "email",
+    "split": "holdout",
+    "brief": "Write an email to our clients about our new Saturday hours. I'm Dr. Ana Ruiz, Ruiz Animal Clinic in Yakima, Washington. Facts: starting March 1 we are open Saturdays 8 to noon for sick visits and vaccines only, no surgeries; Dr. Tom Pak joins us from Pullman on March 3; wellness visits stay Monday to Friday; walk-ins are first come first served, but call ahead if your pet is vomiting or limping; the after-hours emergency number is 509-555-0142; rabies clinic is March 15, $18 a shot with no exam fee; we are closing for lunch 12 to 1 on weekdays now. Write it now, don't ask me questions.",
+    "generic": "Write an email to our clients about our new Saturday hours at the animal clinic. Write it now, don't ask me questions."
+  },
+  {
+    "id": "florist",
+    "genre": "about",
+    "split": "holdout",
+    "brief": "Write the About page for my flower shop. I'm Nadine Fournier, Petal & Pine in Rutland, Vermont. Facts: opened in 2012 in a former hardware store on Center Street; two full-time designers, Josh and Leah, and three part-timers at holidays; we grow dahlias and zinnias on two acres in Pittsford and buy the rest from a co-op in Brattleboro; weddings book 9 months out; we deliver within 15 miles on Tuesdays through Saturdays for $12; we did 1,400 funeral arrangements last year; I don't do artificial flowers. Write it now, don't ask me questions.",
+    "generic": "Write the About page for my flower shop. Write it now, don't ask me questions."
+  },
+  {
+    "id": "littleleague",
+    "genre": "newsletter",
+    "split": "holdout",
+    "brief": "Write the spring newsletter for our Little League. I'm Gary Tolliver, president of the Maple Grove Little League in Maple Grove, Minnesota. Facts: registration closes March 12 and costs $95 a child, $60 for the second sibling; we have 14 teams this year, up from 11; the Saturday work day at Veterans Field is April 5 at 9 am, we need 20 parents with rakes and drills; coaches clinic is March 22 at the high school gym; opening day is April 26 with a parade from the fire station at 9; we lost the snack shack roof to the January ice storm and the insurance paid $7,800 of an $11,000 repair; the Kiwanis club gave us $1,500. Write it now, don't ask me questions.",
+    "generic": "Write the spring newsletter for our Little League. Write it now, don't ask me questions."
+  },
+  {
+    "id": "cabinetmaker",
+    "genre": "blog",
+    "split": "holdout",
+    "brief": "Write a blog post for my woodworking shop's website about finishing a walnut dining table. I'm Hank Oberg, Oberg Woodworks in Duluth, Georgia. Facts: I make about 30 tables a year; I use a hand-rubbed oil and wax finish, three coats of Danish oil, 24 hours between coats, then paste wax; a film finish like polyurethane looks like plastic and chips; water rings can be sanded out with 400 grit and re-oiled in an afternoon; a table I made in 2009 for the Hollis family has had weekly dinners for 15 years and only needed one re-oil; oil finish adds about $200 to the price; walnut darkens over the first year in sun. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my woodworking shop's website about finishing a walnut dining table. Write it now, don't ask me questions."
+  },
+  {
+    "id": "daycare",
+    "genre": "email",
+    "split": "holdout",
+    "brief": "Write a letter to parents from our home daycare about a policy change. I'm Marcy Ellison, Little Acorns Home Daycare in Bend, Oregon. Facts: starting June 1 the weekly rate goes from $265 to $285; late pickup after 5:30 is $1 a minute; I take 8 children, ages 1 to 4, with my assistant Priya; we are closed the week of July 4 and Thanksgiving Thursday and Friday; the new sunscreen policy requires parents to sign a form; we served 31 families in 6 years; we just replaced the fence, $3,200; I'll hold open houses on May 10 from 10 to noon. Write it now, don't ask me questions.",
+    "generic": "Write a letter to parents from our home daycare about a policy change. Write it now, don't ask me questions."
+  },
+  {
+    "id": "autoshop",
+    "genre": "blog",
+    "split": "holdout",
+    "brief": "Write a blog post for my auto repair shop about winter battery care. I'm Luis Moreno, Moreno Auto in Cheyenne, Wyoming. Facts: a battery loses about a third of its starting power at 32 degrees and half at zero; most last 3 to 5 years and ours in Wyoming average about 4; a load test is free at my shop and takes ten minutes; replacement runs $140 to $220 installed; clean corroded terminals with baking soda and a wire brush; if the engine cranks slow or the dash lights dim at idle, test it before the first cold snap; I jump-started 42 cars in the first week of last January. Write it now, don't ask me questions.",
+    "generic": "Write a blog post for my auto repair shop about winter battery care. Write it now, don't ask me questions."
+  }
+]

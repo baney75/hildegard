@@ -1,0 +1,40 @@
+{
+  "name": "beach_rain_alpha",
+  "note": "A mix: waves, light rain, a soft pad, and a 10 Hz binaural beat underneath. Needs headphones for the beat. No health claim is made. Vary: each layer's gain_db (that is the mixer), the pad's notes, beat_hz.",
+  "vary": ["each layer's gain_db", "layers[3].beat_hz", "layers[2].notes", "minutes"],
+  "seed": 1,
+  "minutes": 20,
+  "layers": [
+    {
+      "type": "waves",
+      "period_s": 10,
+      "intensity": 0.55,
+      "foam": 0.5,
+      "distance": 0.3,
+      "gain_db": 0
+    },
+    {
+      "type": "rain",
+      "intensity": 0.25,
+      "surface": "leaves",
+      "gain_db": -8
+    },
+    {
+      "type": "pad",
+      "notes": ["A2", "E3", "C4", "E4"],
+      "gain_db": -11
+    },
+    {
+      "type": "binaural",
+      "carrier_hz": 200,
+      "beat_hz": 10,
+      "gain_db": -12
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}
