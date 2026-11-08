@@ -1,0 +1,41 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Results: the film as it stands above the board, played back to back, and a shot's takes compared side by side. */
+.cs-film { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 16px; padding: 12px 32px; border-bottom: 1px solid var(--hairline); background: color-mix(in oklab, var(--panel), transparent 20%); }
+.cs-film__play { flex: none; }
+.cs-film__m { flex: none; font-size: 13px; line-height: 18px; color: var(--text-secondary); white-space: nowrap; }
+.cs-film__strip { display: flex; gap: 8px; min-width: 0; margin: 0; padding: 2px; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.cs-film__shot { position: relative; display: block; width: 112px; aspect-ratio: 16 / 9; padding: 0; overflow: hidden; border: 0; border-radius: var(--radius-md); background: var(--sapphire-deep); color: #f2ecdd; cursor: pointer; }
+.cs-film__shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cs-film__shot[aria-pressed="true"] { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.cs-film__shot.is-empty { display: grid; place-items: center; border: 1.5px dashed var(--hairline); background: transparent; color: var(--text-muted); cursor: default; }
+.cs-film__no { position: absolute; left: 6px; bottom: 4px; font: 500 15px/18px var(--font-display); text-shadow: 0 1px 3px #000c; }
+.cs-film__shot.is-empty .cs-film__no { position: static; text-shadow: none; }
+.cs-film__kept { position: absolute; top: 4px; right: 4px; color: var(--gold-leaf); filter: drop-shadow(0 1px 2px #000c); }
+.hg-app[data-wc="compact"] .cs-film { gap: 8px; padding: 8px 16px; }
+.hg-app[data-wc="compact"] .cs-film__m { display: none; }
+.hg-app[data-wc="compact"] .cs-film__shot { width: 80px; }
+
+dialog.hg-modal--center.cs-player, dialog.hg-modal--center.cs-compare { width: min(1120px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 16px 20px 20px; background: var(--raised); }
+.cs-player__h, .cs-compare__h { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.cs-player__h h2, .cs-compare__h h2 { margin: 0; font: 500 24px/30px var(--font-display); }
+.cs-player__h h2 { flex: 1; }
+.cs-compare__h > div { flex: 1; min-width: 0; }
+.cs-compare__h p { margin: 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.cs-player__v { display: block; width: 100%; max-height: calc(100dvh - 200px); aspect-ratio: 16 / 9; border-radius: var(--radius-lg); background: #000; }
+.cs-player__marks { display: flex; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; }
+.cs-player__marks li { min-width: 32px; }
+.cs-player__marks button { display: grid; place-items: center; width: 100%; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: var(--panel); color: var(--text-secondary); font: 500 14px/1 var(--font-display); cursor: pointer; }
+.cs-player__marks button.is-past { background: color-mix(in oklab, var(--brand), transparent 70%); color: var(--text-primary); }
+.cs-player__marks button[aria-current="true"] { background: var(--brand); color: var(--on-brand); }
+
+.cs-compare__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cs-compare__grid[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cs-compare__take { display: grid; gap: 8px; margin: 0; }
+.cs-compare__take video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-lg); background: #000; }
+.cs-compare__take figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cs-compare__take figcaption > span { display: grid; }
+.cs-compare__f { margin: 12px 0 0; }
+@media (max-width: 599px) {
+  .cs-compare__grid, .cs-compare__grid[data-n="3"] { grid-template-columns: minmax(0, 1fr); }
+  .cs-compare__h { flex-wrap: wrap; }
+}

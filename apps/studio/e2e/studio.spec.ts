@@ -53,6 +53,41 @@ test('directs a shot: drafts render with progress, then finalize', async ({ page
   expect(errors).toEqual([]);
 });
 
+test('the film strip plays the chosen takes, and Compare keeps one', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await freshFilm(page, request);
+  await createShot(page, 'A kestrel hangs over a hedgerow in the wind');
+  const shot = page.getByRole('region', { name: /A kestrel hangs/ });
+  await expect(shot.locator('.cs-card.is-running, .cs-card.is-queued')).toHaveCount(0, { timeout: 15_000 });
+  // The strip shows the film as Export would make it: shot I, its newest take until one is kept.
+  const film = page.getByRole('region', { name: 'The film' });
+  await expect(film).toContainText('1 of 1 shot');
+  await expect(film.getByRole('button', { name: /^Shot 1: .*newest take$/ })).toBeVisible();
+  // Compare the shot's two drafts and keep the first.
+  await shot.getByRole('button', { name: /^Open Draft 1,/ }).click();
+  await page.getByRole('button', { name: 'Compare the 2 takes of this shot' }).click();
+  const compare = page.getByRole('dialog', { name: 'Compare the takes of shot I' });
+  await expect(compare.locator('video')).toHaveCount(2);
+  await expectAccessible(page, 'compare');
+  await compare.getByRole('button', { name: 'Keep' }).first().click();
+  await expect(compare.getByRole('button', { name: 'Kept' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(compare).toBeHidden();
+  await expect(film.getByRole('button', { name: /^Shot 1: .*kept take$/ })).toBeVisible();
+  // Play film: the chosen takes back to back, with a mark per shot.
+  await film.getByRole('button', { name: 'Play film' }).click();
+  const player = page.getByRole('dialog', { name: /^Shot I/ });
+  await expect(player.locator('video')).toHaveAttribute('src', /\/media\/\w+\.mp4$/);
+  await expect(player.getByRole('button', { name: 'Play from shot I' })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await expectAccessible(page, 'film player');
+  await player.getByRole('button', { name: 'Close the film' }).click();
+  await expect(player).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
 test('rig, motion, look and format sheets change the next shot', async ({ page, request }) => {
   const errors = watchErrors(page);
   await freshFilm(page, request);

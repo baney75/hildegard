@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board, EmptyHero } from '../components/Board.tsx';
 import { Composer } from '../components/Composer.tsx';
 import { ExportDialog, useChosenTakes } from '../components/ExportDialog.tsx';
+import { FilmStrip } from '../components/FilmStrip.tsx';
 import { ForceDialog } from '../components/ForceDialog.tsx';
 import { Inspector } from '../components/Inspector.tsx';
 import { takeLabel } from '../components/TakeCard.tsx';
@@ -165,6 +166,9 @@ export function Cinema({
       </header>
       <main className="cs-stage" id="main">
         {ambient ? <div className="cs-ambient" style={{ backgroundImage: `url(${ambient})` }} /> : null}
+        {project && shotCount ? (
+          <FilmStrip project={project} selected={selected} onSelect={setSelected} />
+        ) : null}
         {project && shotCount ? (
           <Board
             project={project}

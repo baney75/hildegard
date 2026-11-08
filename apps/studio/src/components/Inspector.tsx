@@ -5,6 +5,7 @@ import { api } from '../lib/api.ts';
 import { fromRequest, setDraft } from '../lib/draft.ts';
 import { about, bytes, clock, deviceLabel, duration, modelName, resolution, roman } from '../lib/format.ts';
 import { upsert, useStore } from '../lib/store.ts';
+import { Compare } from './Compare.tsx';
 import { previewUrl, takeLabel, waitingFor } from './TakeCard.tsx';
 import { Button, Icon, LiveRing, Menu, Status, toast, toastError } from './ui.tsx';
 
@@ -32,6 +33,12 @@ export function Inspector({
   focusPrompt,
 }: Props) {
   const engine = useStore((s) => s.engine);
+  const takes = useStore((s) => s.takes);
+  const [comparing, setComparing] = useState(false);
+  // The shot's finished takes, to compare side by side.
+  const siblings = (shot?.takeIds ?? [])
+    .map((id) => takes.get(id))
+    .filter((x): x is Take => !!x && x.status === 'done' && !!x.video);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a different take starts paused
@@ -330,6 +337,19 @@ export function Inspector({
                 ]}
               />
             </div>
+            {siblings.length > 1 ? (
+              <Button icon="board" className="hg-btn--block" onClick={() => setComparing(true)}>
+                Compare the {siblings.length} takes of this shot
+              </Button>
+            ) : null}
+            {comparing ? (
+              <Compare
+                shotNo={shotNo}
+                title={shot?.prompt ?? shot?.title ?? ''}
+                takes={siblings}
+                onClose={() => setComparing(false)}
+              />
+            ) : null}
           </>
         ) : null}
 
