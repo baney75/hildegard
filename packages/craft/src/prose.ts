@@ -393,12 +393,23 @@ const HEADING_LINE = /^[^\S\n]{0,3}#{2,6}[^\S\n]+\S[^\n]*/gm;
 const ENDING =
   /^\s*(?:(in conclusion|in summary|to sum up|all in all)|ultimately|overall|in the end)\b[,:]?/i;
 
-/** The placeholder patterns, compiled once: capitals are whole words, the rest match in any case. */
-const MARKERS = RULES.markers.map(
-  (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
-);
+/**
+ * The placeholder patterns, compiled once: capitals are whole words, the rest match in any case, and `markersExact`
+ * match as written (“XX/XX/XXXX” is a template, “Love, Gran xx xx” is kisses).
+ */
+const MARKERS = [
+  ...RULES.markers.map(
+    (m) => new RegExp(/^[A-Z]+$/.test(m) ? `\\b${m}\\b` : m, /^[A-Z]+$/.test(m) ? 'g' : 'gi'),
+  ),
+  ...RULES.markersExact.map((m) => new RegExp(m, 'g')),
+];
+/** A link reference definition, “[website]: https://example.org”: the label it defines. */
+const REF_DEF = /^[^\S\n]{0,3}\[([^\]\n]+)\]:/gm;
+const labelKey = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 /** The kinds of weak tell that count toward `stacked-tells`: findings that come from one habit are one kind. */
 const KINDS: string[][] = RULES.stacked.kinds;
+/** Pairs of kinds that never stack with each other. */
+const APART: string[][] = RULES.stacked.apart;
 /** The warns that fail in the strict profile. */
 const STRICT = new Set<string>(RULES.strict.fail);
 
@@ -614,16 +625,29 @@ export function lintProse(text: string, opts: ProseOptions = {}): ProseLint {
     bold,
   );
 
+  // A bracketed word that the text defines as a link reference is a link, not a slot: “Visit our [website]”.
+  let labels: Set<string> | undefined;
+  const isDefinedLink = (p: string, _index: number, m: string) => {
+    if (!m.startsWith('[')) return false;
+    labels ??= new Set([...p.matchAll(REF_DEF)].map((d) => labelKey(d[1]!)));
+    return labels.has(labelKey(m.slice(1, -1)));
+  };
   add(
     'unfinished',
     'fail',
     'Placeholder text left in.',
     'Write the real words, or cut the line.',
-    MARKERS.flatMap((re) => all(re, unquoted, text)).sort((a, b) => a.index - b.index),
+    MARKERS.flatMap((re) => all(re, unquoted, text, isDefinedLink)).sort((a, b) => a.index - b.index),
   );
 
   // No single weak tell proves anything. Several different ones in one piece is how generated drafts read.
-  const weak = KINDS.map((ids) => findings.filter((f) => ids.includes(f.id))).filter((fs) => fs.length);
+  const kinds = KINDS.map((ids) => findings.filter((f) => ids.includes(f.id))).filter((fs) => fs.length);
+  // Some pairs say nothing together (“The good news is…” and a bold day of the week): a kind counts only beside a kind
+  // it isn't apart from.
+  const only = (fs: ProseFinding[], id: string) => fs.every((f) => f.id === id);
+  const apart = (a: ProseFinding[], b: ProseFinding[]) =>
+    APART.some(([x, y]) => (only(a, x!) && only(b, y!)) || (only(a, y!) && only(b, x!)));
+  const weak = kinds.filter((fs) => kinds.some((o) => o !== fs && !apart(fs, o)));
   if (weak.length >= RULES.stacked.min)
     add(
       'stacked-tells',

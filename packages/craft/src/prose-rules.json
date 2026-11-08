@@ -179,14 +179,18 @@
         "long story short",
         "the takeaway (is|here)",
         "here['’]?s (how|what|why) (it|this|we|you|to)",
-        "the good news is",
-        "the best part is",
         "i won['’]?t pretend",
         "i['’]?d be lying",
         "if i['’]?m (being )?honest",
         "to be (completely |totally )?honest",
         "i['’]?ll admit"
       ]
+    },
+    "chatty-openers": {
+      "severity": "warn",
+      "why": "A line that announces its news before giving it. People talk this way too, so it never fails a piece alone or beside a bold word.",
+      "fix": "Say the news.",
+      "patterns": ["the good news is", "the best part is"]
     },
     "weasel": {
       "severity": "warn",
@@ -282,7 +286,7 @@
       "patterns": [
         "thank you for being (a )?part of",
         "thank you for (your )?(continued |ongoing )?(support|generosity|partnership|trust)",
-        "we['’]?re (so |truly )?(grateful|thankful) (for|to)",
+        "we['’]re (so |truly )?(grateful|thankful) (for|to)",
         "we are (so |truly )?(grateful|thankful) (for|to)",
         "(your|our) (support|generosity|help|partnership) (means|makes)",
         "(it|this) truly makes a difference",
@@ -291,11 +295,11 @@
         "every (little )?(bit|gift|donation) helps",
         "(we|i) look forward to (seeing|welcoming|serving|hearing|having|helping|meeting)",
         "we can['’]?t wait to (see|welcome|meet|hear)",
-        "(we|i)['’]?(m|re) (so |very |truly )?(excited|thrilled|delighted|pleased) to (announce|share|invite|introduce|welcome)",
+        "(we['’]re|i['’]?m) (so |very |truly )?(excited|thrilled|delighted|pleased) to (announce|share|invite|introduce|welcome)",
         "(we|i) am (so |very |truly )?(excited|thrilled|delighted|pleased) to (announce|share|invite|introduce|welcome)",
         "warm(ly)? (welcome|invitation)",
         "heartfelt",
-        "(i|we)['’]?(m|re) (so |truly |incredibly )?(grateful|thankful|proud)",
+        "(we['’]re|i['’]?m) (so |truly |incredibly )?(grateful|thankful|proud)",
         "(i|we) (am|are) (so |truly |incredibly )?(grateful|thankful|proud)",
         "feel free to (reach out|ask|let me know)"
       ],
@@ -316,10 +320,10 @@
     "lorem ipsum dolor",
     "\\[(?:your|insert|add) [^\\],\\n]{1,40}\\](?!\\()",
     "\\[(?:(?!(?:the|a|an|our|his|her|their|its|this|that|these|those|my|of|for|to|in|on|at|by|with)\\b)[\\w'\u2019&-]+\\s+){0,3}(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact)(?:\\s+(?:or|and)\\s+(?:[\\w'\u2019&-]+\\s+)?(?:name|date|time|address|phone|number|city|state|zip|email|url|link|website|location|amount|price|title|details?|information|info|contact))?\\](?![(\\[:])",
-    "\\{\\{\\s*[^{}\\n]{1,40}\\}\\}",
-    "<(?:insert|your|add)\\s[^>\\n]{1,40}>",
-    "(?<!\\w)(?:\\(?X{2,}\\)?[-/. ]){1,3}X{2,}\\b|\\$X{2,}\\b"
+    "\\{\\{[A-Za-z_][\\w-]{0,30}\\}\\}",
+    "<(?:insert|your|add)\\s[^>\\n]{1,40}>"
   ],
+  "markersExact": ["(?<!\\w)(?:\\(?X{2,}\\)?[-/. ]){1,3}X{2,}\\b|\\$X{2,}\\b"],
   "triads": {
     "perHundred": 1.5,
     "minWords": 200
@@ -340,10 +344,12 @@
     "kinds": [
       ["warm-boilerplate"],
       ["metadiscourse"],
+      ["chatty-openers"],
       ["weasel"],
       ["colon-reveal"],
       ["bold", "bold-leads", "bold-list-leads"]
-    ]
+    ],
+    "apart": [["chatty-openers", "bold"]]
   },
   "uniform": {
     "minParagraphs": 6,
@@ -357,6 +363,7 @@
       "corporate-words",
       "cliches",
       "metadiscourse",
+      "chatty-openers",
       "weasel",
       "loaded-words",
       "summary-openers",
