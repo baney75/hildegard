@@ -37,7 +37,9 @@ describe('camera and microphone in the app', () => {
   it('every system: the window allows the camera and microphone for the Studio only, and refuses them elsewhere', () => {
     const lib = read('src/lib.rs');
     expect(lib).toMatch(/\.on_permission_request\(/);
-    expect(lib).toMatch(/PermissionKind::Microphone \| PermissionKind::Camera \| PermissionKind::DisplayCapture/);
+    expect(lib).toMatch(
+      /PermissionKind::Microphone \| PermissionKind::Camera \| PermissionKind::DisplayCapture/,
+    );
     expect(lib).toMatch(/media::may_capture\(&url, None, studio_port\.load/);
     // Not the Studio (or no address to judge by): refused, never allowed by default.
     expect(lib).toMatch(/_ => PermissionResponse::Deny/);
@@ -58,7 +60,7 @@ describe('camera and microphone in the app', () => {
     expect(read('src/lib.rs')).not.toMatch(/DisplayCapture\s*=>\s*PermissionResponse::Allow/);
   });
 
-    it('Linux: MediaStream is switched on in WebKitGTK, with the same crate version Tauri uses', () => {
+  it('Linux: MediaStream is switched on in WebKitGTK, with the same crate version Tauri uses', () => {
     expect(read('src/media.rs')).toContain('set_enable_media_stream(true)');
     const cargo = read('Cargo.toml');
     const dep =
