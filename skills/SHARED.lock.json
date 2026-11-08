@@ -1,5 +1,5 @@
 {
-  "about": "Written by node scripts/sync-skill-shared.mjs: every copy it made from skills/SHARED.json. A copy that leaves the manifest is removed by the next sync. Do not edit.",
+  "about": "Written by node scripts/sync-skill-shared.mjs: every copy it made from skills/SHARED.json, with the hash of the bytes it wrote. A copy that leaves the manifest is removed by the next sync unless it was edited by hand or is now a source. Do not edit.",
   "copies": [
     "skills/hildegard-3d/references/print3d-license.md",
     "skills/hildegard-3d/references/slop.md",
@@ -34,5 +34,40 @@
     "skills/hildegard-video-edit/scripts/review_media.py",
     "skills/hildegard-video-edit/scripts/spot.py",
     "skills/hildegard-web/references/slop.md"
-  ]
+  ],
+  "hashes": {
+    "skills/hildegard-3d/references/print3d-license.md": "0a26048b0a941c7a44a0971d9ee6d9f901e9fd78760277e7f0bf6927d8917d9a",
+    "skills/hildegard-3d/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-3d/scripts/review_mesh.py": "03cc6e3151505d745aeac9df7b23f1014a1fe343bcab86968f4660155744d29c",
+    "skills/hildegard-art/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-art/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-art/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-blog/scripts/prose_lint.py": "ca8cd1092cb3b4b60e13358cb1404afacb08b2f690d4feabd68be120d9b5d1c6",
+    "skills/hildegard-blog/scripts/prose_rules.json": "5b72ef636215d3ecaf8935971c3918e06c99d583f3ccfc6540f8261c61db89b9",
+    "skills/hildegard-craft/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-craft/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-film/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-film/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-film/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-loop/references/print3d-license.md": "0a26048b0a941c7a44a0971d9ee6d9f901e9fd78760277e7f0bf6927d8917d9a",
+    "skills/hildegard-loop/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-loop/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-loop/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-loop/scripts/review_mesh.py": "03cc6e3151505d745aeac9df7b23f1014a1fe343bcab86968f4660155744d29c",
+    "skills/hildegard-openscad/references/print3d-license.md": "0a26048b0a941c7a44a0971d9ee6d9f901e9fd78760277e7f0bf6927d8917d9a",
+    "skills/hildegard-openscad/scripts/review_mesh.py": "03cc6e3151505d745aeac9df7b23f1014a1fe343bcab86968f4660155744d29c",
+    "skills/hildegard-photo-edit/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-photo-edit/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-photo-edit/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-print/scripts/mesh_kit.py": "bc5522692c49a49631f0e7a6cedee99f4d8e02ee90178d83cbba33d8463d5f07",
+    "skills/hildegard-print/scripts/review_mesh.py": "03cc6e3151505d745aeac9df7b23f1014a1fe343bcab86968f4660155744d29c",
+    "skills/hildegard-sound/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-video-edit/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
+    "skills/hildegard-video-edit/scripts/clean_voice.py": "aafe921232e62ecaea16595aadda60e06cc96702727753a3117139d875a19601",
+    "skills/hildegard-video-edit/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
+    "skills/hildegard-video-edit/scripts/duck_mix.py": "3dc028175377ed5e48c847cfcc08dd836e73ee065c6f093d67d0b8b459bd150d",
+    "skills/hildegard-video-edit/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
+    "skills/hildegard-video-edit/scripts/spot.py": "badec534e6cd287b56f56cb1d941d747f0aaf0831fa12b74342bb41f80a7e249",
+    "skills/hildegard-web/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a"
+  }
 }

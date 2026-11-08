@@ -11,12 +11,15 @@
 // scripts/check-skills.mjs fails when a copy differs, and the standalone test (packages/agents/test) packs each skill
 // alone and fails when something it names is missing.
 //
-// skills/SHARED.lock.json is written by the sync and lists every copy it made. A copy whose entry left the manifest is
-// removed by the next sync and is a problem for --check until then, so it cannot keep shipping stale.
+// skills/SHARED.lock.json is written by the sync and lists every copy it made, with the hash of the bytes it wrote. A
+// copy whose entry left the manifest is removed by the next sync and is a problem for --check until then, so it cannot
+// keep shipping stale. Only a file that still holds the bytes the sync wrote is removed: one that was edited by hand
+// (a copy forked into its own version) is kept and dropped from the lock, and a file that is now a source is never
+// removed, whatever the lock says.
 //
 // No link anywhere in a source or destination path is followed: a source or a destination that is a link, or sits under
 // a folder that is one, is refused, and a copy is written to a temporary file next to its destination and renamed.
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   existsSync,
   lstatSync,
@@ -98,20 +101,27 @@ function writeFileAtomic(at, data) {
 
 const LOCK = 'skills/SHARED.lock.json';
 
-/** The copies the last sync wrote: { entries, problem }. entries is null when there is no lock yet. */
+const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+/** The copies the last sync wrote: { entries, hashes, problem }. entries is null when there is no lock yet. */
 function readLock(repo) {
   const bad = pathProblem(repo, LOCK);
-  if (bad) return { entries: null, problem: `${LOCK}: ${bad}` };
+  if (bad) return { entries: null, hashes: {}, problem: `${LOCK}: ${bad}` };
   const file = join(repo, LOCK);
-  if (!existsSync(file)) return { entries: null, problem: '' };
+  if (!existsSync(file)) return { entries: null, hashes: {}, problem: '' };
   try {
-    const entries = JSON.parse(readFileSync(file, 'utf8')).copies;
+    const lock = JSON.parse(readFileSync(file, 'utf8'));
+    const entries = lock.copies;
     if (!Array.isArray(entries) || entries.some((e) => typeof e !== 'string'))
       throw new Error('copies must list paths');
-    return { entries, problem: '' };
+    const hashes = {};
+    for (const [k, v] of Object.entries(lock.hashes ?? {}))
+      if (typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)) hashes[k] = v;
+    return { entries, hashes, problem: '' };
   } catch (e) {
     return {
       entries: null,
+      hashes: {},
       problem: `${LOCK} is not a lock file: ${e.message}; run node scripts/sync-skill-shared.mjs`,
     };
   }
@@ -125,12 +135,37 @@ const removable = (repo, e) =>
   pathProblem(repo, e) === '' &&
   lstatSync(join(repo, e), { throwIfNoEntry: false })?.isFile() === true;
 
+/** What to do with a lock entry the manifest no longer lists: 'source' (it is one now), 'remove', 'hand-edited' or 'gone'. */
+function orphanFate(repo, e, sources, hashes) {
+  if (!lstatSync(join(repo, e), { throwIfNoEntry: false })) return 'gone';
+  if (sources.has(e)) return 'source';
+  if (!removable(repo, e)) return 'gone';
+  return hashes[e] && sha(readFileSync(join(repo, e))) === hashes[e] ? 'remove' : 'hand-edited';
+}
+
+/** The text of the lock for `list`: every copy the sync keeps, with the hash of its bytes. */
+function lockText(repo, list) {
+  const hashes = {};
+  for (const { source, dest } of list) hashes[dest] = sha(readFileSync(join(repo, source)));
+  const copies = Object.keys(hashes).sort();
+  return `${JSON.stringify(
+    {
+      about:
+        'Written by node scripts/sync-skill-shared.mjs: every copy it made from skills/SHARED.json, with the hash of the bytes it wrote. A copy that leaves the manifest is removed by the next sync unless it was edited by hand or is now a source. Do not edit.',
+      copies,
+      hashes: Object.fromEntries(copies.map((d) => [d, hashes[d]])),
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 /** The copies the manifest asks for, as { source, dest, skill }, with the paths from the repository root. */
 export function copies(repo = root) {
   const file = join(repo, 'skills', 'SHARED.json');
   const problems = [];
   const out = [];
-  if (!existsSync(file)) return { copies: out, problems };
+  if (!existsSync(file)) return { copies: out, problems, sources: new Set() };
   let manifest;
   try {
     manifest = JSON.parse(readFileSync(file, 'utf8'));
@@ -138,9 +173,11 @@ export function copies(repo = root) {
     return {
       copies: out,
       problems: [`skills/SHARED.json is not JSON: ${e.message}`],
+      sources: new Set(),
     };
   }
   const seen = new Set();
+  const sources = new Set();
   for (const [i, c] of (manifest.copies ?? []).entries()) {
     const at = `skills/SHARED.json copies[${i}]`;
     const to = c.to ?? 'scripts';
@@ -192,14 +229,15 @@ export function copies(repo = root) {
       if (seen.has(dest)) problems.push(`${at}: ${dest} is listed twice`);
       seen.add(dest);
       out.push({ source: c.source, dest, skill });
+      sources.add(c.source);
     }
   }
-  return { copies: out, problems };
+  return { copies: out, problems, sources };
 }
 
 /** Problems with the copies: each one missing or different from its source, or left over. Reads only. */
 export function drift(repo = root) {
-  const { copies: list, problems } = copies(repo);
+  const { copies: list, problems, sources } = copies(repo);
   const manifestOk = problems.length === 0;
   for (const { source, dest } of list) {
     const want = readFileSync(join(repo, source));
@@ -211,31 +249,40 @@ export function drift(repo = root) {
       );
   }
   if (manifestOk && existsSync(join(repo, 'skills', 'SHARED.json'))) {
-    const { entries, problem } = readLock(repo);
+    const { entries, hashes, problem } = readLock(repo);
     const now = new Set(list.map((c) => c.dest));
     if (problem) problems.push(problem);
     const stale = (entries ?? []).filter((e) => !now.has(e));
-    for (const e of stale)
-      if (lstatSync(join(repo, e), { throwIfNoEntry: false }))
+    for (const e of stale) {
+      const fate = orphanFate(repo, e, sources, hashes);
+      if (fate === 'remove')
         problems.push(
           `${e} is an orphaned copy: skills/SHARED.json no longer lists it. Run node scripts/sync-skill-shared.mjs to remove it`,
         );
+      else if (fate === 'hand-edited')
+        problems.push(
+          `${e} is no longer shared and was changed by hand: delete it or keep it, then run node scripts/sync-skill-shared.mjs to drop it from the lock (the sync does not delete it)`,
+        );
+    }
     if (
       problems.length === 0 &&
       now.size > 0 &&
-      (entries === null || stale.length > 0 || [...now].some((d) => !entries.includes(d)))
+      (entries === null ||
+        stale.length > 0 ||
+        readFileSync(join(repo, LOCK), 'utf8') !== lockText(repo, list))
     )
       problems.push(`${LOCK} is out of date: run node scripts/sync-skill-shared.mjs`);
   }
   return problems;
 }
 
-/** Copies every source over its destinations and removes the copies the manifest dropped. Returns { wrote, removed }. */
+/** Copies every source over its destinations and removes the copies the manifest dropped. Returns { wrote, removed, kept }. */
 export function syncAll(repo = root) {
-  const { copies: list, problems } = copies(repo);
+  const { copies: list, problems, sources } = copies(repo);
   if (problems.length) throw new Error(problems.join('\n'));
   const wrote = [];
   const removed = [];
+  const kept = [];
   for (const { source, dest } of list) {
     const want = readFileSync(join(repo, source));
     const at = join(repo, dest);
@@ -245,26 +292,21 @@ export function syncAll(repo = root) {
   }
   if (existsSync(join(repo, 'skills', 'SHARED.json'))) {
     const now = new Set(list.map((c) => c.dest));
-    const { entries, problem } = readLock(repo);
+    const { entries, hashes, problem } = readLock(repo);
     if (problem && entries === null && pathProblem(repo, LOCK)) throw new Error(problem);
-    for (const e of entries ?? [])
-      if (!now.has(e) && removable(repo, e)) {
+    for (const e of entries ?? []) {
+      if (now.has(e)) continue;
+      const fate = orphanFate(repo, e, sources, hashes);
+      if (fate === 'remove') {
         rmSync(join(repo, e));
         removed.push(e);
-      }
-    const lock = `${JSON.stringify(
-      {
-        about:
-          'Written by node scripts/sync-skill-shared.mjs: every copy it made from skills/SHARED.json. A copy that leaves the manifest is removed by the next sync. Do not edit.',
-        copies: [...now].sort(),
-      },
-      null,
-      2,
-    )}\n`;
+      } else if (fate === 'hand-edited') kept.push(e);
+    }
+    const lock = lockText(repo, list);
     if (!existsSync(join(repo, LOCK)) || readFileSync(join(repo, LOCK), 'utf8') !== lock)
       writeFileAtomic(join(repo, LOCK), lock);
   }
-  return { wrote, removed };
+  return { wrote, removed, kept };
 }
 
 /** Copies every source over its destinations. Returns the destinations it wrote. */
@@ -279,8 +321,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     }
     console.log('Every shared skill file matches its source.');
   } else {
-    const { wrote, removed } = syncAll();
-    const lines = [...wrote.map((w) => `wrote ${w}`), ...removed.map((r) => `removed ${r}`)];
+    const { wrote, removed, kept } = syncAll();
+    const lines = [
+      ...wrote.map((w) => `wrote ${w}`),
+      ...removed.map((r) => `removed ${r}`),
+      ...kept.map((k) => `kept ${k}: no longer shared and changed by hand, so it is not deleted`),
+    ];
     console.log(lines.length ? lines.join('\n') : 'Every shared skill file is up to date.');
   }
 }

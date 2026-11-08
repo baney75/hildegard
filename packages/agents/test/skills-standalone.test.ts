@@ -453,6 +453,47 @@ describe('a skill taken out of a manifest entry (skills/SHARED.lock.json)', () =
     rmSync(repo, { recursive: true, force: true });
   });
 
+  it('keeps a copy that was edited by hand, and drops it from the lock (first-F1)', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const forked = join(repo, 'skills', 'b', 'scripts', 'x.py');
+    writeFileSync(forked, 'print("b has its own version")\n');
+    manifest(['a']);
+    expect(drift(repo).join('\n')).toMatch(
+      /skills\/b\/scripts\/x\.py is no longer shared and was changed by hand/,
+    );
+    expect(drift(repo).join('\n')).not.toMatch(/Run node scripts\/sync-skill-shared\.mjs to remove it/);
+    const done = syncAll(repo);
+    expect(done.removed).toEqual([]);
+    expect(done.kept).toEqual(['skills/b/scripts/x.py']);
+    expect(readFileSync(forked, 'utf8')).toBe('print("b has its own version")\n');
+    expect(JSON.parse(readFileSync(join(repo, 'skills', 'SHARED.lock.json'), 'utf8')).copies).toEqual([
+      'skills/a/scripts/x.py',
+    ]);
+    expect(drift(repo)).toEqual([]);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('never removes the file the manifest now names as its source (second-F5)', () => {
+    const { repo, manifest } = setup();
+    manifest(['a', 'b']);
+    syncAll(repo);
+    const moved = join(repo, 'skills', 'a', 'scripts', 'x.py');
+    writeFileSync(
+      join(repo, 'skills', 'SHARED.json'),
+      JSON.stringify({ copies: [{ source: 'skills/a/scripts/x.py', skills: ['b'] }] }),
+    );
+    expect(drift(repo).join('\n')).not.toMatch(/orphaned/);
+    const done = syncAll(repo);
+    expect(done.removed).toEqual([]);
+    expect(existsSync(moved)).toBe(true);
+    expect(readFileSync(join(repo, 'skills', 'b', 'scripts', 'x.py'), 'utf8')).toBe('print(1)\n');
+    expect(drift(repo)).toEqual([]);
+    expect(() => syncAll(repo)).not.toThrow();
+    rmSync(repo, { recursive: true, force: true });
+  });
+
   it('never lets a hand-edited lock delete SKILL.md or anything outside a skill folder', () => {
     const { repo, manifest } = setup();
     manifest(['a']);
