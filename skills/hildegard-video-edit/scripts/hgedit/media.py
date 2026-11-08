@@ -111,6 +111,40 @@ def file_sha256(path):
     return h.hexdigest()
 
 
+FULL_HASH_MAX = 64 << 20  # a file this small is hashed whole
+SAMPLE_BLOCKS = 32  # a larger one is hashed at this many evenly spaced 1 MiB blocks, the first and the last among them
+_IDENTITY = {}
+
+
+def content_identity(path):
+    """A string that changes when the file's content does, for binding a render to the footage it was made from.
+
+    Hashing a whole source is exact but reads every byte: minutes for an hour of 4K, on every verify. So a file up to
+    64 MiB is hashed whole, and a larger one by its size and 32 evenly spaced 1 MiB blocks (first and last included).
+    A re-render or re-encode changes bytes through the whole of an MP4 (the sample tables at one end, the coded
+    pictures everywhere), so a sampled hash sees it; only an edit that keeps the size and touches nothing in those
+    blocks gets past, and that is not what a render of other footage looks like. No mtime: a copied project keeps
+    its content but not its times, and must still verify."""
+    st = os.stat(path)
+    key = (os.path.abspath(path), st.st_size, st.st_mtime_ns)
+    if key in _IDENTITY:
+        return _IDENTITY[key]
+    size = st.st_size
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        if size <= FULL_HASH_MAX:
+            for block in iter(lambda: f.read(1 << 20), b""):
+                h.update(block)
+            ident = "sha256:" + h.hexdigest()
+        else:
+            for i in range(SAMPLE_BLOCKS):
+                f.seek(min(size - (1 << 20), i * (size - (1 << 20)) // (SAMPLE_BLOCKS - 1)))
+                h.update(f.read(1 << 20))
+            ident = f"sampled:{size}:{h.hexdigest()}"
+    _IDENTITY[key] = ident
+    return ident
+
+
 def video_frames(path, step=None, start=0.0, end=None, size=None, pick=None):
     """Yields (time_seconds, rgb ndarray) for a file's picture. With `step`, about one frame every `step` seconds; with
     `pick`, only the frames whose time it returns True for (asked in order, before a frame is converted)."""

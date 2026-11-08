@@ -59,6 +59,18 @@ def render_key(edl, base_dir):
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
 
 
+def input_identities(plan):
+    """{"sources": {id: identity}, "music": identity} of the footage and music a resolved plan reads, for the render
+    record. An edit that names another edit's out.mp4 as a source resolves to that file, which another render can replace
+    with the same duration, size and fps; the identity is what tells it apart (see media.content_identity)."""
+    from . import media  # noqa: PLC0415
+
+    ids = {"sources": {sid: media.content_identity(s["path"]) for sid, s in plan["sources"].items()}}
+    if plan.get("music"):
+        ids["music"] = media.content_identity(plan["music"]["path"])
+    return ids
+
+
 # ── JSON Schema subset ──────────────────────────────────────────────────────────────────────────────────────────
 
 

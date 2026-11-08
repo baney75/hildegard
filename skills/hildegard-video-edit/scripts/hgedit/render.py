@@ -240,8 +240,7 @@ def _group_key(plan, f0, f1, encoder, opts):
     srcs = {}
     for s in segs:
         p = plan["sources"][s["source"]]["path"]
-        st = os.stat(p)
-        srcs[s["source"]] = [p, st.st_size, int(st.st_mtime)]
+        srcs[s["source"]] = [p, media.content_identity(p)]
     blob = json.dumps({
         "v": VERSION, "f": [f0, f1], "segs": segs, "srcs": srcs, "enc": encoder, "opts": opts, "fps": [plan["fps_num"], plan["fps_den"]],
         "out": plan["output"], "reframe": plan["reframe"], "blur": plan["blur"], "boxes": plan["boxes"], "titles": plan["titles"],
@@ -519,6 +518,7 @@ def render(edl_path, out_path, workers=None, encoder=None, crf=18, keep_work=Fal
     base = os.path.dirname(os.path.abspath(edl_path))
     stage("Reading the edit list")
     plan = plan_mod.resolve(edl, base)
+    inputs = edl_mod.input_identities(plan)  # taken before the first frame is read, so footage that changes mid-render can't pass
     out_path = os.path.abspath(out_path)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     work = out_path + ".work"
@@ -591,7 +591,7 @@ def render(edl_path, out_path, workers=None, encoder=None, crf=18, keep_work=Fal
         chapters_in = embed_chapters(out_path, plan["chapters"], plan["out_seconds"])
     # What the gate binds this video to: the edit list it came from and the file exactly as written.
     sidecar = out_path + ".plan.json"
-    record = dict(plan, edl_sha256=edl_mod.render_key(edl, base), out_sha256=media.file_sha256(out_path))
+    record = dict(plan, edl_sha256=edl_mod.render_key(edl, base), out_sha256=media.file_sha256(out_path), inputs=inputs)
     with open(sidecar, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=1, default=str)
     if not keep_work:

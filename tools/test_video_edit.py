@@ -439,6 +439,54 @@ class Rendering(Tmp):
         self.assertFalse(rep["ok"])
         self.assertEqual(next(c for c in rep["checks"] if c["id"] == "render")["status"], "fail")
 
+    def test_an_edit_made_from_another_edit_fails_when_that_edit_is_rendered_again_with_other_footage(self):
+        # B is rendered, A is rendered from B's out.mp4. B is then rendered again from different footage with the same
+        # duration, size and fps: A's file is unchanged and its list is unchanged, but the video it shows is no longer B's.
+        other = self.p("other.mp4")
+        make_clip(other, seconds=8.0, talk=((0.3, 2.5), (3.5, 6.0)), scene=lambda i, t: np.full((180, 320, 3), 200 - (i % 7), np.uint8))
+        b_path = self.write_edl({"version": 1, "sources": {"a": {"path": self.clip}}, "audio": {"clean": "no"}}, "b.edl.json")
+        b_out = self.p("b-out.mp4")
+        render.render(b_path, b_out, workers=1, encoder="libx264")
+        a = {"version": 1, "sources": {"b": {"path": b_out}}, "keep": [{"start": 0.0, "end": 4.0}], "audio": {"clean": "no"}}
+        a_path = self.write_edl(a, "a.edl.json")
+        a_out = self.p("a-out.mp4")
+        render.render(a_path, a_out, workers=1, encoder="libx264")
+        rep = verify.verify(a_out, a_path)
+        self.assertEqual(next(c for c in rep["checks"] if c["id"] == "render")["status"], "pass", rep)
+        before = (media.probe(b_out)["seconds"], media.probe(b_out)["width"], media.probe(b_out)["fps"])
+        self.write_edl({"version": 1, "sources": {"a": {"path": other}}, "audio": {"clean": "no"}}, "b.edl.json")
+        render.render(b_path, b_out, workers=1, encoder="libx264")
+        after = (media.probe(b_out)["seconds"], media.probe(b_out)["width"], media.probe(b_out)["fps"])
+        self.assertEqual(before, after)  # the shape alone can't tell them apart
+        rep = verify.verify(a_out, a_path)
+        self.assertFalse(rep["ok"])
+        c = next(c for c in rep["checks"] if c["id"] == "render")
+        self.assertEqual(c["status"], "fail")
+        self.assertIn("Source changed since render", c["detail"])
+        self.assertIn("Re-render", c["detail"])
+        render.render(a_path, a_out, workers=1, encoder="libx264")  # rendering again makes it pass
+        self.assertEqual(next(c for c in verify.verify(a_out, a_path)["checks"] if c["id"] == "render")["status"], "pass")
+        # A record with no account of the footage proves nothing either.
+        with open(a_out + ".plan.json") as f:
+            rec = json.load(f)
+        rec.pop("inputs")
+        self.dump_edl(rec, a_out + ".plan.json")
+        self.assertEqual(next(c for c in verify.verify(a_out, a_path)["checks"] if c["id"] == "render")["status"], "fail")
+
+    def test_a_large_source_is_identified_by_blocks_across_the_file(self):
+        f = self.p("big.bin")
+        old = (media.FULL_HASH_MAX, media.SAMPLE_BLOCKS)
+        media.FULL_HASH_MAX, media.SAMPLE_BLOCKS = 1 << 20, 8
+        self.addCleanup(lambda: (setattr(media, "FULL_HASH_MAX", old[0]), setattr(media, "SAMPLE_BLOCKS", old[1])))
+        with open(f, "wb") as fh:
+            fh.write(os.urandom(12 << 20))
+        first = media.content_identity(f)
+        self.assertTrue(first.startswith("sampled:"))
+        with open(f, "r+b") as fh:
+            fh.seek(0)
+            fh.write(b"\1")  # the first block
+        self.assertNotEqual(first, media.content_identity(f))
+
     def dump_edl(self, edl, path):
         with open(path, "w") as f:
             json.dump(edl, f)
@@ -826,6 +874,35 @@ class OcrReading(Tmp):
             self.assertIn("open-ended repeats", str(e.exception))
         for rx in ("a*a*b", r"sk-[A-Za-z0-9_-]{20,}", r"\d{3}-\d{2}-\d{4}", r"password\s*[:=]\s*\S+", r"[\w.]+@[\w.]+\.[a-z]{2,}"):
             self.plan(secrets=[{"regex": rx}])  # ordinary key patterns still pass
+
+    def test_a_pattern_the_static_checks_miss_is_stopped_by_the_clock_and_reads_as_unproven(self):
+        import time  # noqa: PLC0415
+
+        rx = "(?:a*a*a*a*a*b|z)"  # adjacent repeats inside an alternative: no inspection of the pattern sees the cost
+        plan = self.plan(secrets=[{"regex": rx}])
+        self.frames(2.0, (64, 36))
+        self.reads(text_always="a" * 200000)
+        t = time.monotonic()
+        c = verify.ocr_check("out.mp4", plan)
+        self.assertLess(time.monotonic() - t, 10.0)
+        self.assertEqual(c["status"], "warn", c)
+        self.assertTrue(c.get("unproven"))
+        self.assertIn("could not be evaluated in time", c["detail"])
+        c = verify.ocr_check("out.mp4", self.plan(secrets=[{"regex": rx}], verify={"require_ocr": True}))
+        self.assertEqual(c["status"], "fail", c)  # required OCR fails the gate
+        t = time.monotonic()
+        with self.assertRaises(verify.RegexTimeout):
+            verify.find_leaks("a" * 200000, "", [{"regex": rx}], [])
+        self.assertLess(time.monotonic() - t, 10.0)
+
+    def test_a_normal_declared_pattern_still_matches_through_the_jail(self):
+        self.frames(2.0, (64, 36))
+        self.reads(text_always="the key is sk-abcdefghij1234567890 ok")
+        c = verify.ocr_check("out.mp4", self.plan(secrets=[{"regex": r"sk-[a-z0-9]{20}"}]))
+        self.assertEqual(c["status"], "fail", c)
+        self.assertEqual({x["kind"] for x in c["leaks"]}, {"declared pattern"})
+        self.assertEqual(verify.find_leaks("nothing here", "", [{"regex": r"sk-[a-z0-9]{20}"}], []), [])
+        self.assertEqual([k for k, _ in verify.find_leaks("a sk-abcdefghij1234567890", "", [{"regex": r"sk-[a-z0-9]{20}"}], [])], ["declared pattern"])
 
     def test_a_tesseract_that_fails_is_not_an_empty_read(self):
         self.frames(4.0, (320, 180))

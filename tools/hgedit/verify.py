@@ -29,10 +29,14 @@ import difflib
 import gc
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 
@@ -278,6 +282,111 @@ def _search(rx, text):
     return next((m for a in range(0, max(1, len(text)), TEXT_CAP - 200) if (m := re.search(rx, text[a : a + TEXT_CAP]))), None)
 
 
+class RegexTimeout(Exception):
+    """A declared secrets pattern did not finish in time, so what it looks for is unproven."""
+
+
+REGEX_BUDGET = 3.0  # seconds of waiting on declared patterns in one OCR check, all frames together
+
+# The child's whole program: read one JSON request per line (a pattern, the texts to search, the piece size), answer with
+# the first match's text or null. It runs on its own so that a pattern that backtracks for hours costs a kill, not the job.
+_JAIL = r"""
+import json, re, sys
+for line in sys.stdin:
+    q = json.loads(line)
+    try:
+        rx, cap, out = q["rx"], q["cap"], None
+        for text in q["texts"]:
+            for a in range(0, max(1, len(text)), cap - 200):
+                m = re.search(rx, text[a : a + cap])
+                if m:
+                    out = m.group(0)
+                    break
+            if out is not None:
+                break
+        r = {"m": out}
+    except Exception as e:
+        r = {"err": type(e).__name__}
+    sys.stdout.write(json.dumps(r) + "\n")
+    sys.stdout.flush()
+"""
+
+
+class RegexJail:
+    """Runs declared secrets patterns in a child Python process under a hard deadline. Inspecting a pattern can't promise
+    it finishes (a*a*a*a*b, or the same inside an alternative), so the guarantee is a clock: every match is asked of the
+    child, the time spent waiting is added up, and when REGEX_BUDGET is used up the child is killed and every later match
+    fails the same way (RegexTimeout). Threads take turns; the child starts on first use."""
+
+    def __init__(self, budget=REGEX_BUDGET):
+        self.budget, self.spent, self.dead = budget, 0.0, False
+        self.proc = None
+        self.lock = threading.Lock()
+        self.replies = queue.Queue()
+
+    def _start(self):
+        self.proc = subprocess.Popen([sys.executable, "-I", "-c", _JAIL], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=subprocess.DEVNULL, text=True, encoding="utf-8")
+        proc, replies = self.proc, self.replies
+
+        def pump():
+            try:
+                for line in proc.stdout:
+                    replies.put(line)
+            except (OSError, ValueError):  # closed by _kill
+                pass
+            replies.put(None)
+
+        threading.Thread(target=pump, daemon=True).start()
+
+    def _kill(self):
+        self.dead = True
+        if self.proc is not None:
+            try:
+                self.proc.kill()
+            except OSError:
+                pass
+            for pipe in (self.proc.stdin, self.proc.stdout):
+                try:
+                    pipe.close()
+                except OSError:
+                    pass
+            try:
+                self.proc.wait(timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def search(self, rx, texts):
+        """The first match's text (or None) of `rx` over the pieces of each of `texts`. Raises RegexTimeout."""
+        why = RegexTimeout("A secrets regex could not be evaluated in time, so whether that secret is readable is unproven.")
+        with self.lock:
+            if self.dead:
+                raise why
+            started = time.monotonic()
+            try:
+                if self.proc is None:
+                    self._start()
+                self.proc.stdin.write(json.dumps({"rx": rx, "texts": texts, "cap": TEXT_CAP}) + "\n")
+                self.proc.stdin.flush()
+                left = self.budget - self.spent
+                line = self.replies.get(timeout=max(0.01, left)) if left > 0 else None
+            except (queue.Empty, OSError, ValueError):
+                line = None
+            self.spent += time.monotonic() - started
+            if not line:
+                self._kill()
+                raise why
+            r = json.loads(line)
+            if "err" in r:
+                raise RegexTimeout(f"A secrets regex could not be evaluated ({r['err']}), so whether that secret is readable is unproven.")
+            return r["m"]
+
+    def close(self):
+        with self.lock:
+            if self.proc is not None and not self.dead:
+                self._kill()
+
+
 def _kind_hits(text, kinds):
     hits = []
     flat = re.sub(r"[ \t]+", "", text)
@@ -290,9 +399,20 @@ def _kind_hits(text, kinds):
     return hits
 
 
-def find_leaks(full_text, crop_text, secrets, kinds, full_kinds=()):
+def find_leaks(full_text, crop_text, secrets, kinds, full_kinds=(), jail=None):
     """[(label, masked text)] for what OCR read: declared secrets (strings, patterns and the kinds in `full_kinds`)
-    anywhere on the frame, and `kinds` in the hidden region's crop."""
+    anywhere on the frame, and `kinds` in the hidden region's crop. Declared patterns run in `jail` (one of the caller's,
+    or a short-lived one); RegexTimeout is raised when one does not finish in time."""
+    own = jail is None and any(isinstance(x, dict) and "regex" in x for x in secrets)
+    jail = RegexJail() if own else jail
+    try:
+        return _find_leaks(full_text, crop_text, secrets, kinds, full_kinds, jail)
+    finally:
+        if own:
+            jail.close()
+
+
+def _find_leaks(full_text, crop_text, secrets, kinds, full_kinds, jail):
     hits = []
     both = full_text + "\n" + crop_text
     for sec in secrets:
@@ -303,9 +423,9 @@ def find_leaks(full_text, crop_text, secrets, kinds, full_kinds=()):
             if fuzzy_has(both, sec["text"]):
                 hits.append(("declared secret", mask(sec["text"])))
         elif "regex" in sec:
-            m = _search(sec["regex"], both) or _search(sec["regex"], re.sub(r"\s+", "", both))
+            m = jail.search(sec["regex"], [both, re.sub(r"\s+", "", both)])
             if m:
-                hits.append(("declared pattern", mask(m.group(0))))
+                hits.append(("declared pattern", mask(m)))
     if full_kinds and full_text.strip():
         hits += _kind_hits(full_text, full_kinds)
     if crop_text.strip():
@@ -386,6 +506,7 @@ def ocr_check(out_path, plan):
     scan_all = v.get("ocr_scan") == "all"
     kinds = secret_kinds(plan) if (plan["blur"] or scan_all) else []
     d = tempfile.mkdtemp(prefix="hg-ocr-")
+    jail = RegexJail()
 
     def prepare(i, t, rgb):
         """The frame as PNG files for tesseract (the whole frame, no wider than OCR_WIDTH, and each hidden region's crop),
@@ -421,7 +542,7 @@ def ocr_check(out_path, plan):
                 except OSError:
                     pass
         fk = full_kinds + [k for k in kinds if k not in full_kinds] if scan_all or any(a <= t <= b for a, b in near) else full_kinds
-        return t, find_leaks(full, crop_txt, secrets, kinds, fk)
+        return t, find_leaks(full, crop_txt, secrets, kinds, fk, jail)
 
     workers = max(1, min(4, os.cpu_count() or 1))
     # Decoding runs beside the reader threads: with PyAV's log callback on (voice_clean leaves it on after a measure), an
@@ -447,8 +568,13 @@ def ocr_check(out_path, plan):
         status = "fail" if v.get("require_ocr") else "warn"
         return check("ocr", status, f"OCR couldn’t run: {e}. Nothing was read, so nothing proves the hidden text is unreadable in the output (unproven). "
                      "Fix tesseract and verify again.", unproven=True)
+    except RegexTimeout as e:
+        status = "fail" if v.get("require_ocr") else "warn"
+        return check("ocr", status, f"{e} Nothing proves the declared secrets are unreadable in the output (unproven). Simplify the pattern "
+                     f"(or use text instead) and verify again.", unproven=True)
     finally:
         ex.shutdown(wait=True, cancel_futures=True)
+        jail.close()
         shutil.rmtree(d, ignore_errors=True)
         av.logging.set_level(log_level)
     if not count:
@@ -494,6 +620,19 @@ def _region_at(plan, b, t_out, win_start):
 # ── The gate ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 
+def _inputs_changed(was, plan):
+    """None when the footage and music are the files the video was rendered from; otherwise what to tell the person."""
+    now = edl_mod.input_identities(plan)
+    if not isinstance(was, dict):
+        return "The render left no record of the footage it used, so nothing proves it is still the same. Render again, then verify."
+    if was.get("sources") != now["sources"] or was.get("music") != now.get("music"):
+        changed = [sid for sid, i in now["sources"].items() if (was.get("sources") or {}).get(sid) != i]
+        if was.get("music") != now.get("music"):
+            changed.append("music")
+        return f"Source changed since render ({', '.join(changed) or 'the set of sources'}): its file is not the one this video was made from. Re-render, then verify."
+    return None
+
+
 def verify(out_path, edl_path, base_dir=None):
     """Check the file at `out_path` against the edit list at `edl_path`. Returns {ok, checks, unproven, ...}."""
     edl = edl_mod.load(edl_path)
@@ -523,6 +662,8 @@ def verify(out_path, edl_path, base_dir=None):
         checks.append(check("render", "fail", "This video was rendered from a different edit list. Render again, then verify."))
     elif was.get("out_sha256") != media.file_sha256(out_path):
         checks.append(check("render", "fail", "This video changed after it was rendered. Render again, then verify."))
+    elif (changed := _inputs_changed(was.get("inputs"), plan)) is not None:
+        checks.append(check("render", "fail", changed))
     else:
         checks.append(check("render", "pass", "This video is the render of this edit list, unchanged since."))
         # Where the renderer put the crop is the one thing resolve() can't know without searching the footage again.
