@@ -114,17 +114,33 @@ export class Browser {
   private buffer = '';
   private closed = false;
 
-  /** `offline` (the default) shuts the browser off from everything but loopback. */
-  constructor(chrome: string, opts: { offline?: boolean } = {}) {
+  /**
+   * `offline` (the default) shuts the browser off from everything but loopback. A browser demo (demo.ts) also asks
+   * for a window a person can see (`headless: false`), one unpacked extension and nothing else, and the window's size.
+   */
+  constructor(
+    chrome: string,
+    opts: {
+      offline?: boolean;
+      headless?: boolean;
+      extension?: string | null;
+      window?: { width: number; height: number };
+    } = {},
+  ) {
     const offline = opts.offline ?? true;
     this.profile = mkdtempSync(join(tmpdir(), 'hg-web-'));
     const args = [
-      '--headless=new',
+      ...(opts.headless === false ? [] : ['--headless=new']),
       '--remote-debugging-pipe',
       `--user-data-dir=${this.profile}`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--disable-extensions',
+      ...(opts.extension
+        ? [`--disable-extensions-except=${opts.extension}`, `--load-extension=${opts.extension}`]
+        : ['--disable-extensions']),
+      ...(opts.window ? [`--window-size=${opts.window.width},${opts.window.height}`] : []),
+      '--hide-crash-restore-bubble',
+      '--password-store=basic',
       '--disable-background-networking',
       '--disable-component-update',
       '--disable-sync',

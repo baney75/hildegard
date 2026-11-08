@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { isIP } from 'node:net';
 import { homedir, hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import { Readable } from 'node:stream';
 import { ComfySdkEngine, type Engine } from '@hildegard/comfy';
 import { type FakeProxy, startFakeProxy } from '@hildegard/comfy/fake';
 import {
@@ -17,7 +18,7 @@ import {
   type ModelState,
   type VoiceCatalog,
 } from '@hildegard/presets';
-import { ComfyRuntime, detectGpu } from '@hildegard/runtime';
+import { ComfyRuntime, detectGpu, resource } from '@hildegard/runtime';
 import { serve } from '@hono/node-server';
 import { createApp, SOURCE, VERSION } from './app.ts';
 import { findChrome } from './browser.ts';
@@ -36,7 +37,8 @@ import {
 import { redeemRoutes } from './choir-redeem.ts';
 import { type Config, homeId, portFile } from './config.ts';
 import { ConsentSigner } from './consent.ts';
-import { Exporter, makePoster, meshReviewer, reviewer } from './export.ts';
+import { Demos } from './demo.ts';
+import { Exporter, exportPython, makePoster, meshReviewer, reviewer } from './export.ts';
 import type { FigmaFetch } from './figma.ts';
 import { Grants } from './grants.ts';
 import { fileStore, HfLink, keychainStore, type SecretStore, secretStores } from './hf.ts';
@@ -661,6 +663,20 @@ async function serveStudio(
       },
     },
   };
+  // Browser demos: Playwright's Chromium with a throwaway profile, recorded onto a backdrop by tools/demo_render.py.
+  const demos = new Demos({
+    keep: async (owner, file) => {
+      const v = await recordStore.import(
+        owner,
+        'video',
+        Readable.toWeb(createReadStream(file)) as ReadableStream<Uint8Array>,
+        statSync(file).size,
+      );
+      return v.id;
+    },
+    python: () => exportPython(config.dataDir),
+    script: () => resource(join('tools', 'demo_render.py')),
+  });
   // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
   // git. The port is the one this server listens on, known once it does.
   const entry = process.env.HILDEGARD_ENTRY;
@@ -719,6 +735,7 @@ async function serveStudio(
     updates,
     voice: { studio: voice, models: voiceModels, publicKey: consentSigner.publicKey },
     records,
+    demos,
     talk: { ...talk, onDevice, primary: () => choir.primary },
     likeness: new Likeness(config.dataDir),
     exporter,

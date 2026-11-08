@@ -5,11 +5,13 @@
  * type, each one a chapter. What you keep lands with your recordings, chapters and all.
  */
 import { useEffect, useId, useState } from 'react';
+import { BrowserDemo } from '../components/BrowserDemo.tsx';
 import { Recorder, RecordingPlayer, useInterview } from '../components/Recorder.tsx';
-import { Button, Icon, Switch, toastError } from '../components/ui.tsx';
+import { Button, Icon, Segmented, Switch, toastError } from '../components/ui.tsx';
 import { api, type RecordingInfo } from '../lib/api.ts';
 import { hasPicture, remember, remembered, useStudioRecorder } from '../lib/capture.ts';
 import { recordingLabel, useRecordings } from '../lib/recordings.ts';
+import { useStore } from '../lib/store.ts';
 
 const SCRIPT_KEY = 'hildegard.record.script';
 const QUESTIONS_KEY = 'hildegard.record.questions';
@@ -36,6 +38,10 @@ export function RecordStudio() {
   const [kept, setKept] = useState<RecordingInfo | null>(null);
   const mine = useRecordings();
   const live = rec.phase === 'recording' || rec.phase === 'paused' || rec.phase === 'countdown';
+  const [mode, setMode] = useState<'record' | 'demo'>(() =>
+    remembered('hildegard.record.mode') === 'demo' ? 'demo' : 'record',
+  );
+  const here = useStore((s) => !!s.auth?.local);
 
   useEffect(() => {
     if (rec.phase === 'countdown') setKept(null);
@@ -68,7 +74,21 @@ export function RecordStudio() {
       </header>
       <main className="cs-stage hg-scroll" id="main">
         <div className="st-page hg-recstudio">
-          {kept ? (
+          <Segmented
+            className="hg-seg hg-recstudio__mode"
+            label="What to make"
+            value={mode}
+            onChange={(m: 'record' | 'demo') => {
+              setMode(m);
+              remember('hildegard.record.mode', m);
+            }}
+            options={[
+              { value: 'record', label: 'Record yourself or your screen', disabled: live },
+              { value: 'demo', label: 'Browser demo', disabled: live },
+            ]}
+          />
+          {mode === 'demo' ? <BrowserDemo here={here} onKept={mine.refresh} /> : null}
+          {kept && mode === 'record' ? (
             <div className="st-tile hg-banner" role="status">
               <Icon name="check" size={18} />
               <span>
@@ -77,53 +97,55 @@ export function RecordStudio() {
               </span>
             </div>
           ) : null}
-          <Recorder
-            rec={rec}
-            script={script}
-            setScript={setScript}
-            interview={interview}
-            intro={<p>Nothing starts until you press Record, and nothing leaves this computer.</p>}
-            footer={
-              <section className="hg-rec__group" aria-labelledby={`${id}-pi`}>
-                <div className="hg-between">
-                  <h3 id={`${id}-pi`} className="hg-rec__label">
-                    Practice interview
-                  </h3>
-                  <Switch checked={practice} onChange={setPractice} label="Practice interview" />
+          {mode === 'record' ? (
+            <Recorder
+              rec={rec}
+              script={script}
+              setScript={setScript}
+              interview={interview}
+              intro={<p>Nothing starts until you press Record, and nothing leaves this computer.</p>}
+              footer={
+                <section className="hg-rec__group" aria-labelledby={`${id}-pi`}>
+                  <div className="hg-between">
+                    <h3 id={`${id}-pi`} className="hg-rec__label">
+                      Practice interview
+                    </h3>
+                    <Switch checked={practice} onChange={setPractice} label="Practice interview" />
+                  </div>
+                  {practice ? (
+                    <label className="hg-field--block">
+                      Your questions, one on each line
+                      <textarea
+                        className="cs-area"
+                        rows={5}
+                        value={typed}
+                        disabled={live}
+                        onChange={(e) => {
+                          setTyped(e.target.value);
+                          remember(QUESTIONS_KEY, e.target.value || null);
+                        }}
+                        placeholder={'What are you making?\nWho is it for?'}
+                      />
+                    </label>
+                  ) : (
+                    <p className="body-sm muted">
+                      Questions you write show one at a time, and each starts a chapter.
+                    </p>
+                  )}
+                </section>
+              }
+              review={() => (
+                <div className="hg-record-actions">
+                  <Button icon="rotate" onClick={rec.again} disabled={busy}>
+                    Record again
+                  </Button>
+                  <Button icon="keep" kind="primary" onClick={() => void keep()} busy={busy}>
+                    {busy ? 'Keeping…' : 'Keep'}
+                  </Button>
                 </div>
-                {practice ? (
-                  <label className="hg-field--block">
-                    Your questions, one on each line
-                    <textarea
-                      className="cs-area"
-                      rows={5}
-                      value={typed}
-                      disabled={live}
-                      onChange={(e) => {
-                        setTyped(e.target.value);
-                        remember(QUESTIONS_KEY, e.target.value || null);
-                      }}
-                      placeholder={'What are you making?\nWho is it for?'}
-                    />
-                  </label>
-                ) : (
-                  <p className="body-sm muted">
-                    Questions you write show one at a time, and each starts a chapter.
-                  </p>
-                )}
-              </section>
-            }
-            review={() => (
-              <div className="hg-record-actions">
-                <Button icon="rotate" onClick={rec.again} disabled={busy}>
-                  Record again
-                </Button>
-                <Button icon="keep" kind="primary" onClick={() => void keep()} busy={busy}>
-                  {busy ? 'Keeping…' : 'Keep'}
-                </Button>
-              </div>
-            )}
-          />
+              )}
+            />
+          ) : null}
           <section aria-labelledby={`${id}-mine`} className="hg-stack">
             <h2 id={`${id}-mine`} className="st-h2">
               Your recordings

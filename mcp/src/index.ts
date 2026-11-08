@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HildegardClient } from './client.ts';
+import { registerDemoTools } from './demo-tools.ts';
 import { registerLoopTools } from './loop-tools.ts';
 import { registerRecordTools } from './record-tools.ts';
 import { registerReportTools } from './report-tools.ts';
@@ -84,6 +85,7 @@ export function createMcpServer(client = new HildegardClient(), opts: McpOptions
   registerSiteTools(server, client, opts.remote);
   registerWritingTools(server, client);
   registerRecordTools(server, client, opts.remote);
+  registerDemoTools(server, client, opts.remote);
   registerSkillTools(server, opts.skillsDir === undefined ? findSkills() : opts.skillsDir);
   return server;
 }

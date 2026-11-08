@@ -71,6 +71,15 @@ export interface RecordingInfo {
   /** Where each part starts, in seconds: an interview's questions, or marks made while recording. */
   chapters?: { at: number; title: string }[];
 }
+/** A browser demo: where it stands, what it did, and the recording once it is made. */
+export interface DemoInfo {
+  id: string;
+  status: 'starting' | 'recording' | 'rendering' | 'done' | 'failed' | 'stopped';
+  stage: string | null;
+  log: string[];
+  error: string | null;
+  recording: { id: string; url: string | null; file: string | null; seconds: number | null } | null;
+}
 /** A link to record on a phone, or why there isn't one yet. */
 export type PhoneLink =
   | { needsLink: true; plan: LinkPlan; ask: string }
@@ -558,6 +567,10 @@ export const api = {
       plan: plan.id,
       ...(plan.public ? { acceptPublic: true } : {}),
     }),
+  /** A browser demo, in a browser of its own, recorded onto a backdrop. */
+  startDemo: (body: Record<string, unknown>) => call<DemoInfo>('POST', '/api/demos', body),
+  demo: (id: string) => call<DemoInfo>('GET', `/api/demos/${encodeURIComponent(id)}`),
+  stopDemo: (id: string) => call<DemoInfo>('POST', `/api/demos/${encodeURIComponent(id)}/stop`, {}),
   /** One interview answer's sound, sent on Next. */
   recordAnswer: (token: string, index: number, at: number, clip: Blob) =>
     call<{ received: boolean; index: number }>(

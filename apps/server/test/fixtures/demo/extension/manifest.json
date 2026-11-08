@@ -1,0 +1,7 @@
+{
+  "manifest_version": 3,
+  "name": "Hildegard test badge",
+  "version": "1.0.0",
+  "description": "Adds a badge to every page, so a test can see the extension ran.",
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["badge.js"], "run_at": "document_idle" }]
+}

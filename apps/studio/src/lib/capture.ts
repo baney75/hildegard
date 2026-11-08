@@ -31,6 +31,59 @@ export interface Chapter {
   at: number;
   title: string;
 }
+/**
+ * A clean backdrop for a tech demo: the shared window or tab sits on it, padded, with rounded corners and a soft
+ * shadow, in a frame of its own shape. It is drawn into the recording only; the desktop, its wallpaper and its icons
+ * are never touched.
+ */
+export interface Clean {
+  on: boolean;
+  backdrop: string;
+  /** A picture the person picked, as an object URL, for the backdrop `image`. */
+  image: string | null;
+  padding: number;
+  aspect: '16:9' | '1:1' | '9:16';
+}
+/** The same names and colors as the server's browser demos (demo.ts). */
+export const DEMO_BACKDROPS: { id: string; name: string; colors: string[]; css: string }[] = [
+  {
+    id: 'viridian',
+    name: 'Viridian',
+    colors: ['#2c7350', '#12301f'],
+    css: 'linear-gradient(135deg, #2c7350, #12301f)',
+  },
+  {
+    id: 'dusk',
+    name: 'Dusk',
+    colors: ['#3451b2', '#8a2943'],
+    css: 'linear-gradient(135deg, #3451b2, #8a2943)',
+  },
+  {
+    id: 'vellum',
+    name: 'Vellum',
+    colors: ['#faf5e8', '#e2d6b8'],
+    css: 'linear-gradient(135deg, #faf5e8, #e2d6b8)',
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    colors: ['#c4602a', '#5a1e0c'],
+    css: 'linear-gradient(135deg, #c4602a, #5a1e0c)',
+  },
+  { id: 'ink', name: 'Ink', colors: ['#0a0e13'], css: '#0a0e13' },
+  { id: 'paper', name: 'Paper', colors: ['#f4eedd'], css: '#f4eedd' },
+  {
+    id: 'none',
+    name: 'None',
+    colors: [],
+    css: 'repeating-conic-gradient(#9996 0 25%, transparent 0 50%) 0 0 / 12px 12px',
+  },
+];
+const OUT: Record<Clean['aspect'], [number, number]> = {
+  '16:9': [1920, 1080],
+  '1:1': [1080, 1080],
+  '9:16': [1080, 1920],
+};
 export interface Clip {
   blob: Blob;
   url: string;
@@ -155,6 +208,16 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
     } catch {}
     return { corner: 'br', size: 'M', shape: 'round' };
   });
+  const [clean, setCleanState] = useState<Clean>(() => {
+    try {
+      const c = JSON.parse((key && remembered(`${key}.clean`)) || 'null') as Clean | null;
+      if (c && typeof c.on === 'boolean' && OUT[c.aspect])
+        return { ...c, image: null, backdrop: c.backdrop === 'image' ? 'viridian' : c.backdrop };
+    } catch {}
+    return { on: false, backdrop: 'viridian', image: null, padding: 0.06, aspect: '16:9' };
+  });
+  const cleanRef = useRef(clean);
+  cleanRef.current = clean;
   const [level, setLevel] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [count, setCount] = useState(0);
@@ -181,6 +244,12 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
   const setCam = (id: string | null) => {
     setCamState(id);
     if (key) remember(`${key}.cam`, id);
+  };
+  const setClean = (c: Partial<Clean>) => {
+    const next = { ...cleanRef.current, ...c };
+    setCleanState(next);
+    // A picked picture is this page's only: it isn't kept for next time.
+    if (key) remember(`${key}.clean`, JSON.stringify({ ...next, image: null }));
   };
   const setBubble = (b: Partial<Bubble>) => {
     const next = { ...bubbleRef.current, ...b };
@@ -236,7 +305,10 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
     try {
       if (usesScreen(s)) {
         display = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: { ideal: FPS } },
+          // On a backdrop, a window or a tab is what looks right: the browser's picker starts there.
+          video: cleanRef.current.on
+            ? ({ frameRate: { ideal: FPS }, displaySurface: 'window' } as MediaTrackConstraints)
+            : { frameRate: { ideal: FPS } },
           // The screen's own sound, when the browser offers it (a tab, or the whole screen on some systems).
           audio: true,
           // @ts-expect-error: newer hints, ignored where unknown.
@@ -272,7 +344,11 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
   };
 
   /** Draws the screen full frame and the camera in its bubble, at a steady 30 frames a second. */
-  const composite = (screenTrack: MediaStreamTrack, camTrack: MediaStreamTrack | null) => {
+  const composite = (
+    screenTrack: MediaStreamTrack,
+    camTrack: MediaStreamTrack | null,
+    look: Clean | null,
+  ) => {
     const sv = document.createElement('video');
     sv.muted = true;
     sv.playsInline = true;
@@ -289,21 +365,95 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
     const st = screenTrack.getSettings();
     const scale = Math.min(1, 1920 / (st.width || 1920));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round((st.width || 1920) * scale) & ~1;
-    canvas.height = Math.round((st.height || 1080) * scale) & ~1;
+    if (look) [canvas.width, canvas.height] = OUT[look.aspect];
+    else {
+      canvas.width = Math.round((st.width || 1920) * scale) & ~1;
+      canvas.height = Math.round((st.height || 1080) * scale) & ~1;
+    }
     const g = canvas.getContext('2d')!;
+    // The backdrop is drawn once, off screen, and copied under each frame.
+    let back: HTMLCanvasElement | null = null;
+    let picture: HTMLImageElement | null = null;
+    if (look?.image) {
+      picture = new Image();
+      picture.src = look.image;
+    }
+    const paintBack = () => {
+      if (!look) return null;
+      const b = document.createElement('canvas');
+      b.width = canvas.width;
+      b.height = canvas.height;
+      const bg = b.getContext('2d')!;
+      const spec = DEMO_BACKDROPS.find((x) => x.id === look.backdrop) ?? DEMO_BACKDROPS[0]!;
+      if (look.backdrop === 'image' && picture?.complete && picture.naturalWidth) {
+        const k = Math.max(b.width / picture.naturalWidth, b.height / picture.naturalHeight);
+        const w = picture.naturalWidth * k;
+        const h = picture.naturalHeight * k;
+        bg.drawImage(picture, (b.width - w) / 2, (b.height - h) / 2, w, h);
+      } else if (spec.colors.length > 1) {
+        const gr = bg.createLinearGradient(0, 0, b.width, b.height);
+        for (const [i, c] of spec.colors.entries()) gr.addColorStop(i / (spec.colors.length - 1), c);
+        bg.fillStyle = gr;
+        bg.fillRect(0, 0, b.width, b.height);
+      } else {
+        bg.fillStyle = spec.colors[0] ?? '#000';
+        bg.fillRect(0, 0, b.width, b.height);
+      }
+      return b;
+    };
     const draw = () => {
       const W = canvas.width;
       const H = canvas.height;
-      if (sv.videoWidth && (sv.videoWidth !== W / scale || sv.videoHeight !== H / scale)) {
-        // The shared window was resized: follow it, within 1920 wide.
-        const k = Math.min(1, 1920 / sv.videoWidth);
-        canvas.width = Math.round(sv.videoWidth * k) & ~1;
-        canvas.height = Math.round(sv.videoHeight * k) & ~1;
+      if (look && look.backdrop !== 'none') {
+        if (!back || (look.backdrop === 'image' && back.dataset.ready !== '1' && picture?.complete)) {
+          back = paintBack();
+          if (back && picture?.complete) back.dataset.ready = '1';
+        }
+        if (back) g.drawImage(back, 0, 0);
+        if (sv.readyState >= 2 && sv.videoWidth) {
+          // The window, fitted inside the padding, with rounded corners and a soft shadow.
+          const pad = Math.round(Math.min(W, H) * look.padding);
+          const k = Math.min((W - 2 * pad) / sv.videoWidth, (H - 2 * pad) / sv.videoHeight);
+          const w = Math.round(sv.videoWidth * k);
+          const h = Math.round(sv.videoHeight * k);
+          const x = Math.round((W - w) / 2);
+          const y = Math.round((H - h) / 2);
+          const r = Math.round(Math.min(W, H) * 0.016);
+          g.save();
+          g.shadowColor = 'rgba(0,0,0,0.38)';
+          g.shadowBlur = Math.round(Math.min(W, H) * 0.035);
+          g.shadowOffsetY = Math.round(Math.min(W, H) * 0.012);
+          g.beginPath();
+          g.roundRect(x, y, w, h, r);
+          g.fillStyle = '#000';
+          g.fill();
+          g.restore();
+          g.save();
+          g.beginPath();
+          g.roundRect(x, y, w, h, r);
+          g.clip();
+          g.drawImage(sv, x, y, w, h);
+          g.restore();
+        }
+      } else {
+        if (!look && sv.videoWidth && (sv.videoWidth !== W / scale || sv.videoHeight !== H / scale)) {
+          // The shared window was resized: follow it, within 1920 wide.
+          const k = Math.min(1, 1920 / sv.videoWidth);
+          canvas.width = Math.round(sv.videoWidth * k) & ~1;
+          canvas.height = Math.round(sv.videoHeight * k) & ~1;
+        }
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, canvas.width, canvas.height);
+        if (sv.readyState >= 2) {
+          if (look && sv.videoWidth) {
+            // No backdrop, but a frame of its own shape: the window fitted inside it.
+            const k = Math.min(canvas.width / sv.videoWidth, canvas.height / sv.videoHeight);
+            const w = sv.videoWidth * k;
+            const h = sv.videoHeight * k;
+            g.drawImage(sv, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+          } else g.drawImage(sv, 0, 0, canvas.width, canvas.height);
+        }
       }
-      g.fillStyle = '#000';
-      g.fillRect(0, 0, canvas.width, canvas.height);
-      if (sv.readyState >= 2) g.drawImage(sv, 0, 0, canvas.width, canvas.height);
       if (cv && cv.readyState >= 2 && cv.videoWidth) {
         const b = bubbleRef.current;
         const d = Math.round(canvas.height * BUBBLE[b.size]);
@@ -396,8 +546,9 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
     const screenTrack = got.display?.getVideoTracks()[0] ?? null;
     const camTrack = got.user.getVideoTracks()[0] ?? null;
     let stopComposite = () => {};
-    if (source === 'screen+camera' && screenTrack) {
-      const c = composite(screenTrack, camTrack);
+    const look = cleanRef.current.on && usesScreen(source) ? { ...cleanRef.current } : null;
+    if ((source === 'screen+camera' || look) && screenTrack) {
+      const c = composite(screenTrack, source === 'screen+camera' ? camTrack : null, look);
       video = c.stream.getVideoTracks()[0]!;
       worker = c.worker;
       shown = c.stream;
@@ -667,6 +818,8 @@ export function useStudioRecorder(o: { sources: Source[]; storage?: string | nul
     setCam,
     bubble,
     setBubble,
+    clean,
+    setClean,
     level,
     seconds,
     count,

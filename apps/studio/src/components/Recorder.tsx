@@ -9,6 +9,7 @@ import {
   type BubbleSize,
   type Chapter,
   type Corner,
+  DEMO_BACKDROPS,
   hasPicture,
   remember,
   remembered,
@@ -492,6 +493,57 @@ export function Recorder({
           </section>
         ) : null}
 
+        {rec.source === 'screen' || rec.source === 'screen+camera' ? (
+          <section className="hg-rec__group" aria-labelledby={`${id}-bd`}>
+            <div className="hg-between">
+              <h3 id={`${id}-bd`} className="hg-rec__label">
+                Clean backdrop
+              </h3>
+              <Switch
+                checked={rec.clean.on}
+                onChange={(v) => rec.setClean({ on: v })}
+                label="Clean backdrop"
+              />
+            </div>
+            {rec.clean.on ? (
+              <>
+                <p className="body-sm muted">
+                  Share one window or tab: it sits on the backdrop in the recording. Your desktop stays as it
+                  is.
+                </p>
+                <Backdrops
+                  value={rec.clean.backdrop}
+                  onChange={(b) => rec.setClean({ backdrop: b })}
+                  picture={rec.clean.image}
+                  onPicture={(url) => rec.setClean({ image: url, backdrop: 'image' })}
+                  disabled={busy}
+                />
+                <Slider
+                  label="Padding"
+                  value={Math.round(rec.clean.padding * 100)}
+                  min={0}
+                  max={20}
+                  step={1}
+                  onChange={(v) => rec.setClean({ padding: v / 100 })}
+                  valueText={`${Math.round(rec.clean.padding * 100)} percent`}
+                  head={<span className="body-sm sec-text">Padding</span>}
+                />
+                <Segmented
+                  className="hg-seg hg-seg--fill"
+                  label="Video shape"
+                  value={rec.clean.aspect}
+                  onChange={(a: '16:9' | '1:1' | '9:16') => rec.setClean({ aspect: a })}
+                  options={[
+                    { value: '16:9', label: '16:9', disabled: busy },
+                    { value: '1:1', label: '1:1', disabled: busy },
+                    { value: '9:16', label: '9:16', disabled: busy },
+                  ]}
+                />
+              </>
+            ) : null}
+          </section>
+        ) : null}
+
         {script !== null && !interview ? (
           <section className="hg-rec__group" aria-labelledby={`${id}-tp`}>
             <div className="hg-between">
@@ -536,6 +588,61 @@ export function Recorder({
         ) : null}
         {footer}
       </div>
+    </div>
+  );
+}
+
+/** The backdrops, as swatches with their names, and a picture of your own when `onPicture` is given. */
+export function Backdrops({
+  value,
+  onChange,
+  picture,
+  onPicture,
+  disabled,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  picture?: string | null;
+  onPicture?: (url: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="hg-backdrops" role="radiogroup" aria-label="Backdrop">
+      {DEMO_BACKDROPS.map((b) => (
+        <button
+          key={b.id}
+          type="button"
+          role="radio"
+          aria-checked={value === b.id}
+          className="hg-backdrop"
+          disabled={disabled}
+          onClick={() => onChange(b.id)}
+        >
+          <i style={{ background: b.css }} aria-hidden="true" />
+          <span>{b.name}</span>
+        </button>
+      ))}
+      {onPicture ? (
+        <label className={`hg-backdrop${value === 'image' ? ' is-on' : ''}`}>
+          <i
+            style={picture ? { backgroundImage: `url(${picture})`, backgroundSize: 'cover' } : undefined}
+            aria-hidden="true"
+          >
+            {picture ? null : <Icon name="image" size={16} />}
+          </i>
+          <span>{picture ? 'Your picture' : 'A picture'}</span>
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            disabled={disabled}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onPicture(URL.createObjectURL(f));
+            }}
+          />
+        </label>
+      ) : null}
     </div>
   );
 }
