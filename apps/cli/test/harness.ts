@@ -198,6 +198,52 @@ export async function hildegard(home: string, ...args: string[]) {
   return JSON.parse(stdout) as Out;
 }
 
+/**
+ * `hildegard …` at a terminal (a pty from python3, so POSIX only), answering each `[y/N]` question with `answer`.
+ * The command's own words come back, since a terminal gets sentences, not JSON.
+ */
+export async function hildegardAtTerminal(
+  home: string,
+  env: Record<string, string>,
+  answer: string,
+  ...args: string[]
+): Promise<{ code: number; text: string }> {
+  track(home, args);
+  const py = [
+    'import os, pty, sys',
+    'answer = sys.argv[1].encode() + b"\\n"',
+    'pid, fd = pty.fork()',
+    'if pid == 0:',
+    '    os.execv(sys.argv[2], sys.argv[2:])',
+    'out = b""',
+    'seen = 0',
+    'while True:',
+    '    try:',
+    '        d = os.read(fd, 4096)',
+    '    except OSError:',
+    '        break',
+    '    if not d:',
+    '        break',
+    '    out += d',
+    // Readline may follow the prompt with cursor codes, so look for the question anywhere in what is new.
+    '    if out.find(b"[y/N]", seen) != -1:',
+    '        seen = len(out)',
+    '        os.write(fd, answer)',
+    'sys.stdout.buffer.write(out)',
+    'sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))',
+  ].join('\n');
+  const r = await watch(
+    run('python3', ['-c', py, answer, process.execPath, main, ...args], {
+      env: { ...cliEnv(home), ...env, PATH: process.env.PATH ?? '' },
+      timeout: 60_000,
+    }),
+  ).then(
+    (o) => ({ code: 0, text: o.stdout }),
+    (e: { stdout: string; code: number }) => ({ code: e.code, text: e.stdout }),
+  );
+  return r;
+}
+
 /** The same, with more environment (test doubles for outside services). */
 export async function hildegardEnv(home: string, env: Record<string, string>, ...args: string[]) {
   track(home, args);

@@ -1549,6 +1549,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "ureq",
+ "webkit2gtk",
 ]
 
 [[package]]

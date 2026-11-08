@@ -1,0 +1,11 @@
+# ESA/NASA’s Sun-Observing SOHO Mission Celebrates a Quarter-Century in Space
+
+The Solar and Heliospheric Observatory launched on December 2, 1995. A joint mission between the European Space Agency and NASA, SOHO’s original operating phase was scheduled for two years – and now, through repeated extensions, it is celebrating a quarter century in orbit. Over the years, its set of groundbreaking instruments became a source for numerous scientific findings, an inspiration for follow-on missions, and an outlet for citizen scientists. SOHO also survived near catastrophe twice and has become the longest-running Sun-surveying spacecraft. What this powerhouse mission has witnessed in its 25 years has changed the way humanity sees the Sun.
+
+The revolution started in its design. SOHO was meant to provide a comprehensive look at the flow of energy and material from the Sun toward Earth. The 12 instruments onboard allowed the spacecraft to return a specialized combination of observations – an asset for solar scientists who wanted to understand how our star worked. At the time, this kind of basic physics research was considered the main goal, but over the last quarter of a century, researchers learned they could, in fact, begin to monitor our Sun in real time, studying and attempting to predict the space weather it sent our way.
+
+“At the time SOHO was designed, very few people talked or thought about space weather,” SOHO Project Scientist Bernhard Fleck at ESA said. “But now, I look at SOHO observations like weather radar. Now it is as normal as opening your weather app and checking when the rain is coming.”
+
+This ability is due to SOHO’s coronagraphs, specialized telescopes that block the bright face of the Sun to allow for better visibility of the faint light extending from the star. SOHO’s Large Angle and Spectrometric Coronagraph, known as LASCO, provides a 360-degree view of the atmosphere around the Sun.
+
+New science came out of LASCO’s ability to image giant eruptions of solar material and magnetic fields, known as coronal mass ejections, or CMEs. Researchers could finally see the shape and structure of CMEs in breathtaking detail. When these storms are aimed at Earth, they can impact the functionality of spacecraft, threaten astronauts on spacewalks and even, when very intense, impact power grids on the ground.

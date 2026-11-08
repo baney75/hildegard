@@ -1,0 +1,108 @@
+{
+  "name": "church_announcement",
+  "note": "A warm, quiet acoustic bed to sit under a spoken announcement: fingerpicked nylon guitar, soft pad, felt piano, upright bass. No melody on top of the words. Vary: tempo (66 to 84), key, the guitar track's level_db (-8 to -2).",
+  "vary": [
+    "tempo 66 to 84",
+    "key (G major to D major for a brighter bed)",
+    "tracks[1].level_db louder or softer guitar",
+    "drop the drums track for pure acoustic"
+  ],
+  "seed": 11,
+  "tempo": 76,
+  "key": "G major",
+  "time": "4/4",
+  "length_s": 64,
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 2,
+      "chords": ["I", "V"]
+    },
+    {
+      "name": "a",
+      "bars": 8,
+      "chords": ["I", "V", "vi", "IV", "I", "V", "IV", "V"]
+    },
+    {
+      "name": "b",
+      "bars": 8,
+      "chords": ["IV", "I", "ii", "V", "IV", "I", "V", "I"]
+    },
+    {
+      "name": "outro",
+      "bars": 2,
+      "chords": ["IV", "I"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "pad",
+      "instrument": "warm_pad",
+      "level_db": -9,
+      "sections": {
+        "intro": "swell",
+        "a": "sustain",
+        "b": "sustain",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "nylon_guitar",
+      "pan": 0.2,
+      "sections": {
+        "intro": "sparse",
+        "a": "fingerpick",
+        "b": "fingerpick",
+        "outro": "sparse"
+      }
+    },
+    {
+      "role": "keys",
+      "instrument": "felt_piano",
+      "pan": -0.2,
+      "level_db": -6,
+      "sections": {
+        "a": "half",
+        "b": "ballad",
+        "outro": "sustain"
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "upright_bass",
+      "level_db": -1,
+      "sections": {
+        "intro": "root",
+        "a": "root_half",
+        "b": "root_half",
+        "outro": "root"
+      }
+    },
+    {
+      "role": "drums",
+      "kit": "soft",
+      "level_db": -2,
+      "sections": {
+        "b": {
+          "grid": {
+            "shaker": "x.x.x.x.x.x.x.x."
+          }
+        }
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 12,
+    "velocity": 0.1
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.6,
+      "level_db": -4
+    }
+  },
+  "master": {
+    "fade_out": 1.5
+  }
+}

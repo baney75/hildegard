@@ -1042,6 +1042,25 @@ describe('host and doctor', () => {
       expect(made.ok, made.message).toBe(true);
       expect(made.site).toMatchObject({ title: 'Corner Bakery', pages: ['index.html'] });
       expect((await hildegard(home, 'sites', ...at)).steps[0]).toMatchObject({ title: 'Corner Bakery' });
+      // Publishing: nobody sees the site until the owner says so, and --off takes it down again.
+      const id = (made.site as { id: string }).id;
+      const front = `${new URL(srv.url).origin}/s/${id}/`;
+      expect((await fetch(front)).status).toBe(404);
+      expect((await hildegard(home, 'sites', 'publish', ...at)).ok).toBe(false);
+      const pub = await hildegard(
+        home,
+        'sites',
+        'publish',
+        id,
+        '--address',
+        'https://bakery.example/',
+        ...at,
+      );
+      expect(pub.ok, pub.message).toBe(true);
+      expect(pub.message).toContain('https://bakery.example/');
+      expect((await fetch(front)).status).toBe(200);
+      expect((await hildegard(home, 'sites', 'publish', id, '--off', ...at)).ok).toBe(true);
+      expect((await fetch(front)).status).toBe(404);
       const needs = await hildegard(
         home,
         'sites',
@@ -1343,7 +1362,7 @@ describe('hildegard lint', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hg-lint-'));
   const bad = join(dir, 'bad.md');
   const good = join(dir, 'good.md');
-  writeFileSync(bad, 'A red barn.\n\nWe will delve into it \u2014 fast.\n');
+  writeFileSync(bad, 'A red barn.\n\nWe will delve into it. TODO fast.\n');
   writeFileSync(good, 'We bought a red barn in 2019 and painted it.\n');
 
   it('lists the tells with where they are, and exits 1 when a file fails', async () => {
@@ -1365,8 +1384,8 @@ describe('hildegard lint', () => {
 
   it('prints the lint itself with --json, and names each file when given several', async () => {
     const one = JSON.parse((await lint([bad, '--json'])).stdout);
-    expect(one).toMatchObject({ ok: false, words: 9 });
-    expect(one.findings.map((f: { id: string }) => f.id)).toEqual(['stock-words', 'dashes']);
+    expect(one).toMatchObject({ ok: false, words: 10 });
+    expect(one.findings.map((f: { id: string }) => f.id)).toEqual(['stock-words', 'unfinished']);
     const both = await lint([good, bad, '--json']);
     expect(both.code).toBe(1);
     expect(JSON.parse(both.stdout).map((r: { file: string; ok: boolean }) => [r.file, r.ok])).toEqual([
@@ -1376,6 +1395,38 @@ describe('hildegard lint', () => {
     const text = (await lint([good, bad])).stdout;
     expect(text).toContain(`${good}\nClean`);
     expect(text).toContain(`\n${bad}\nFails`);
+  });
+
+  it('warns on an em dash and passes, and fails it only with --strict', async () => {
+    const dashed = join(dir, 'dashed.md');
+    writeFileSync(dashed, 'We painted the barn in May\u2014the weather held.\n');
+    const plain = await lint([dashed]);
+    expect(plain.code).toBe(0);
+    expect(plain.stdout).toMatch(/^Passes, with 1 to weigh/);
+    expect(plain.stdout).toMatch(/- warn em-dash: .+ At 1:27 \u201c\u2014\u201d/);
+    const strict = await lint([dashed, '--strict']);
+    expect(strict.code).toBe(1);
+    expect(strict.stdout).toMatch(/^Fails: 1 tell to fix/);
+    expect(strict.stdout).toMatch(/- fail em-dash: /);
+    expect(JSON.parse((await lint([dashed, '--strict', '--json'])).stdout)).toMatchObject({ ok: false });
+    expect(JSON.parse((await lint([dashed, '--json'])).stdout)).toMatchObject({ ok: true });
+    // Clean writing passes in either profile.
+    expect(await lint([good, '--strict'])).toEqual({ code: 0, stdout: 'Clean: no tells in 10 words.\n' });
+  });
+
+  it('takes --strict as a flag in any position, never as the name of the next file', async () => {
+    const dashed = join(dir, 'dashed2.md');
+    writeFileSync(dashed, 'We painted the barn in May\u2014the weather held.\n');
+    for (const args of [
+      ['--strict', dashed],
+      [dashed, '--strict'],
+      ['--max', '3', '--strict', dashed, good],
+      ['--strict', good, dashed],
+    ])
+      expect((await lint(args)).code, args.join(' ')).toBe(1);
+    // The file after --strict is linted, not swallowed as its value.
+    expect((await lint(['--strict', dashed])).stdout).toMatch(/^Fails: 1 tell to fix/);
+    expect((await lint(['--strict', good])).code).toBe(0);
   });
 
   it('exits 2, not the 1 of a failing lint, when it was used wrongly or has nothing to read', async () => {

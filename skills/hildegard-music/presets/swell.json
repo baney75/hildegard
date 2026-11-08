@@ -1,0 +1,72 @@
+{
+  "name": "swell",
+  "note": "A slow warm swell of a major chord that blooms and fades, for a scene change. Vary: the three freq values (A3 C#4 E4 is A major; use C4 Eb4 G4 for minor), env attack and release (1 to 3.5 s), filter.cutoff.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "saw",
+      "freq": "A3",
+      "dur": 5.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 300], [2.5, 1800], [5.0, 400]],
+        "q": 0.9
+      },
+      "env": {
+        "points": [[0, 0], [2.5, 1], [5.0, 0]]
+      },
+      "pan": -0.3,
+      "gain_db": -6
+    },
+    {
+      "source": "saw",
+      "freq": "C#4",
+      "dur": 5.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 300], [2.5, 1800], [5.0, 400]],
+        "q": 0.9
+      },
+      "env": {
+        "points": [[0, 0], [2.5, 1], [5.0, 0]]
+      },
+      "pan": 0.0,
+      "gain_db": -6
+    },
+    {
+      "source": "saw",
+      "freq": "E4",
+      "dur": 5.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 300], [2.5, 1800], [5.0, 400]],
+        "q": 0.9
+      },
+      "env": {
+        "points": [[0, 0], [2.5, 1], [5.0, 0]]
+      },
+      "pan": 0.3,
+      "gain_db": -6
+    },
+    {
+      "source": "triangle",
+      "freq": "A2",
+      "dur": 5.0,
+      "env": {
+        "points": [[0, 0], [2.5, 1], [5.0, 0]]
+      },
+      "gain_db": -8
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.35,
+      "room": 0.8,
+      "damp": 0.5
+    },
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

@@ -4,10 +4,11 @@ name: Listing
 # (scripts/check-listing.mjs). Two jobs, split so the deploy key never meets code from a pull request:
 #
 # - build runs on pull requests and pushes with contents: read and no secret.
-# - publish runs only on a push to main, in the "listing" environment, from the pushed commit. It builds the Claude
-#   directory's plugin tree again and pushes only that tree to baney75/hildegard-plugin, using the repository secret
-#   LISTING_DEPLOY_KEY (a write-enabled deploy key the owner creates, docs/listings.md) through ssh-agent, and does
-#   nothing without it. apps/cli/test/listing-workflow.test.ts holds this file to those rules.
+# - publish runs only on main (a push, or a manual run from main), in the "listing" environment, from that commit. It
+#   builds the Claude directory's plugin tree again and pushes only that tree to baney75/hildegard-plugin, using the
+#   environment secret LISTING_DEPLOY_KEY (a write-enabled deploy key the owner creates, docs/listings.md) through
+#   ssh-agent, and does nothing without it. The environment's deployment branches are main only: a pull request can
+#   edit this file, but GitHub gives the environment's secret to no other branch. apps/cli/test/listing-workflow.test.ts holds this file to those rules.
 
 on:
   push:
@@ -72,9 +73,9 @@ jobs:
 
   publish:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # The owner can add required reviewers to this environment (Settings › Environments) to gate each publish.
+    # The environment allows deployment from main only; the owner can add required reviewers to gate each publish.
     environment: listing
     permissions:
       contents: read

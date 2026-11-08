@@ -1,0 +1,22 @@
+{
+  "name": "white_noise",
+  "note": "White noise (equal power at every frequency): bright and hissy; lower the lowpass for a softer sound. Vary: lowpass (4000 to 16000), width.",
+  "vary": ["lowpass", "highpass", "width", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "noise",
+      "color": "white",
+      "lowpass": 12000,
+      "highpass": 40,
+      "width": 1
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -26,
+      "true_peak": -1
+    }
+  }
+}

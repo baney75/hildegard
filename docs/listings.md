@@ -46,11 +46,13 @@ Every store asks for a privacy policy and terms of service URL. Both are **draft
 
 1. Create the public repository `baney75/hildegard-plugin` (empty, no `.gitattributes`, no LFS), and a deploy key:
    `ssh-keygen -t ed25519 -f hildegard-plugin-deploy -N ""`, add the public half to that repository's Settings ›
-   Deploy keys with **write access**, and save the private half as the secret `LISTING_DEPLOY_KEY` in the
-   environment `listing` on `baney75/hildegard` (Settings › Environments › listing › Environment secrets; the first
-   run creates the environment). An environment secret never reaches a pull request, and you can add yourself as a
-   required reviewer there to approve each publish. The workflow does nothing without the key.
-2. Merge, let the `Listing` workflow run on `main`, and open the repository: it should hold `.claude-plugin/`,
+   Deploy keys with **write access**. On `baney75/hildegard`, open Settings › Environments › listing (it exists;
+   create it if not) and check Deployment branches and tags: it must say **Selected branches and tags** with only
+   `main`. A pull request can edit the workflow, so this rule is what keeps the key from any other branch. Add yourself
+   as a required reviewer there to approve each publish. Then save the private half as `LISTING_DEPLOY_KEY` under
+   Environment secrets. The workflow does nothing without the key.
+2. Run the `Listing` workflow from the Actions tab on `main` (Run workflow), or merge a change to the skills, and open
+   the repository: it should hold `.claude-plugin/`,
    `skills/`, `README.md`, `LICENSE`, `LICENSE-APACHE` and `THIRD_PARTY_NOTICES.md`, and nothing else.
 3. Optional local check: `claude plugin validate <tree>` (it passes on the generated tree).
 4. Approve and publish the legal pages (above).

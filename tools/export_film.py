@@ -13,6 +13,8 @@ A voice-over, {"path": file, "start_seconds": 0, "gain_db": 0, "duck_db": 12}, i
 film is turned down by duck_db while the voice speaks (the voice's level sets the envelope: it follows within 30 ms,
 starts 50 ms ahead of the first word, and lets go over 300 ms), the voice is padded or cut to the film's length, and the
 mix is loudnormed to -14 LUFS and -1 dBTP (voice_clean.normalize). The last line then adds "lufs" and "true_peak".
+With a voice-over the picture is first written alone, the sound is mixed and encoded, and the two are then written
+together in time order, so a long film's sound sits beside its picture and not a minute away from it.
 """
 
 import json
@@ -59,67 +61,92 @@ def main(spec_path):
     width, height = width - width % 2, height - height % 2
 
     tmp = out + ".part"
+    voiceover = spec.get("voiceover")
+    # With a voice-over the sound can't be written as the takes go by: it is mixed once all of it is known. The picture
+    # goes to a file of its own meanwhile, and is joined to the sound afterwards.
+    pic = out + ".picture.part" if voiceover else tmp
     total_frames = 0
-    with av.open(tmp, "w", format="mp4", options={"movflags": "+faststart"}) as dst:
-        dst.metadata["title"] = spec.get("title", "")
-        dst.metadata["comment"] = spec.get("comment", "")
-        vs = dst.add_stream("libx264", rate=fps)
-        vs.width, vs.height, vs.pix_fmt = width, height, "yuv420p"
-        vs.options = {"crf": "18", "preset": "medium"}
-        # Frames are numbered in 1/fps; the muxer gives the stream its own time base once it starts writing.
-        tb = Fraction(1, 1) / fps
-        vs.time_base = tb
-        aus = dst.add_stream("aac", rate=RATE, layout="stereo")
-        aus.time_base = Fraction(1, RATE)
-        voiceover = spec.get("voiceover")
-        audio = Audio(dst, aus, collect=[] if voiceover else None)
+    loud = None
+    try:
+        with av.open(pic, "w", format="mp4", options={} if voiceover else {"movflags": "+faststart"}) as dst:
+            if not voiceover:
+                dst.metadata["title"] = spec.get("title", "")
+                dst.metadata["comment"] = spec.get("comment", "")
+            vs = dst.add_stream("libx264", rate=fps)
+            vs.width, vs.height, vs.pix_fmt = width, height, "yuv420p"
+            vs.options = {"crf": "18", "preset": "medium"}
+            # Frames are numbered in 1/fps; the muxer gives the stream its own time base once it starts writing.
+            tb = Fraction(1, 1) / fps
+            vs.time_base = tb
+            if voiceover:
+                audio = Collector()
+            else:
+                aus = dst.add_stream("aac", rate=RATE, layout="stereo")
+                aus.time_base = Fraction(1, RATE)
+                audio = Audio(dst, aus)
 
-        for i, path in enumerate(inputs):
-            take_frames = 0
-            with av.open(path) as src:
-                stream = src.streams.video[0]
-                src_fps = Fraction(stream.average_rate or stream.guessed_rate or fps)
-                for j, frame in enumerate(src.decode(stream)):
-                    img = fit(frame, width, height)
-                    # Keep each take's own timing: repeat or drop frames when its rate differs from the film's.
-                    while take_frames / fps < (j + 1) / src_fps:
-                        img.pts = total_frames
-                        img.time_base = tb
-                        total_frames += 1
-                        take_frames += 1
-                        for p in vs.encode(img):
-                            dst.mux(p)
-            # This take's sound, cut or padded with silence to its picture's length, so sound stays in sync.
-            want = round(take_frames / fps * RATE)
-            got = 0
-            with av.open(path) as src:
-                if src.streams.audio:
-                    rs = av.AudioResampler(format=audio.fmt, layout="stereo", rate=RATE)
-                    frames = []
-                    for frame in src.decode(src.streams.audio[0]):
-                        frames.extend(rs.resample(frame))
-                    frames.extend(rs.resample(None))
-                    for fr in frames:
-                        if got >= want:
-                            break
-                        n = min(fr.samples, want - got)
-                        arr = fr.to_ndarray()[..., :n] if n < fr.samples else fr.to_ndarray()
-                        audio.push(arr)
-                        got += n
-            if got < want:
-                audio.silence(want - got)
-            say(done=i + 1, total=len(inputs))
+            for i, path in enumerate(inputs):
+                take_frames = 0
+                with av.open(path) as src:
+                    stream = src.streams.video[0]
+                    src_fps = Fraction(stream.average_rate or stream.guessed_rate or fps)
+                    for j, frame in enumerate(src.decode(stream)):
+                        img = fit(frame, width, height)
+                        # Keep each take's own timing: repeat or drop frames when its rate differs from the film's.
+                        while take_frames / fps < (j + 1) / src_fps:
+                            img.pts = total_frames
+                            img.time_base = tb
+                            total_frames += 1
+                            take_frames += 1
+                            for p in vs.encode(img):
+                                dst.mux(p)
+                # This take's sound, cut or padded with silence to its picture's length, so sound stays in sync.
+                want = round(take_frames / fps * RATE)
+                got = 0
+                with av.open(path) as src:
+                    if src.streams.audio:
+                        rs = av.AudioResampler(format=audio.fmt, layout="stereo", rate=RATE)
+                        frames = []
+                        for frame in src.decode(src.streams.audio[0]):
+                            frames.extend(rs.resample(frame))
+                        frames.extend(rs.resample(None))
+                        for fr in frames:
+                            if got >= want:
+                                break
+                            n = min(fr.samples, want - got)
+                            arr = fr.to_ndarray()[..., :n] if n < fr.samples else fr.to_ndarray()
+                            audio.push(arr)
+                            got += n
+                if got < want:
+                    audio.silence(want - got)
+                say(done=i + 1, total=len(inputs))
 
-        for p in vs.encode():
-            dst.mux(p)
-        loud = None
+            for p in vs.encode():
+                dst.mux(p)
+            if not voiceover:
+                audio.close()
         if voiceover:
             say(stage="voice-over")
-            loud = audio.mix_voiceover(voiceover)
-        audio.close()
+            mix, lufs, tp = mix_voiceover(audio.film(), voiceover)
+            loud = (lufs, tp)
+            join(pic, tmp, mix, spec.get("title", ""), spec.get("comment", ""))
+    finally:
+        if voiceover and os.path.exists(pic):
+            os.remove(pic)
     os.replace(tmp, out)
     extra = {"lufs": loud[0], "true_peak": loud[1]} if loud else {}
     say(ok=True, seconds=round(float(total_frames / fps), 3), bytes=os.path.getsize(out), **extra)
+
+
+def join(picture, out, mix, title, comment):
+    """The picture file's video, copied as it is, with the mixed sound `mix` (2, samples), in time order, as `out`."""
+    with av.open(picture) as inp, av.open(out, "w", format="mp4", options={"movflags": "+faststart"}) as dst:
+        dst.metadata["title"] = title
+        dst.metadata["comment"] = comment
+        vin = inp.streams.video[0]
+        vout = dst.add_stream_from_template(vin)
+        aus = dst.add_stream("aac", rate=RATE, layout="stereo")
+        voice_clean.write_interleaved(dst, inp, vin, vout, voice_clean.encode_sound(aus, mix))
 
 
 def fit(frame, width, height):
@@ -167,54 +194,58 @@ def duck_envelope(voice, duck_db, hop=RATE // 100):
     return np.interp(np.arange(n), centers, gain).astype(np.float32)
 
 
+class Collector:
+    """Keeps a film's sound in memory, as the 2-channel float32 the AAC encoder takes, until a voice is mixed over it."""
+
+    fmt = "fltp"
+
+    def __init__(self):
+        self.parts = []
+
+    def push(self, arr):
+        self.parts.append(np.asarray(arr, dtype=np.float32))
+
+    def silence(self, n):
+        self.parts.append(np.zeros((2, n), dtype=np.float32))
+
+    def film(self):
+        return np.concatenate(self.parts, axis=1) if self.parts else np.zeros((2, 0), dtype=np.float32)
+
+
+def mix_voiceover(film, vo):
+    """The voice laid over `film` (2, samples) and loudnormed. Returns (mix, lufs, true_peak)."""
+    n = film.shape[1]
+    start = round(float(vo.get("start_seconds", 0) or 0) * RATE)
+    if start < 0:
+        raise ValueError("The voice-over can’t start before the film does.")
+    if start >= n:
+        raise ValueError("The voice-over starts after the film ends.")
+    voice = voice_clean.decode(vo["path"], 2) * np.float32(10 ** (float(vo.get("gain_db", 0) or 0) / 20))
+    placed = np.zeros((2, n), dtype=np.float32)
+    take = min(voice.shape[1], n - start)
+    placed[:, start : start + take] = voice[:, :take]
+    duck = float(12 if vo.get("duck_db") is None else vo["duck_db"])
+    mix = film * duck_envelope(placed, duck) + placed
+    backend = voice_clean.choose_backend()
+    return voice_clean.normalize(backend, mix, FILM_LUFS, FILM_PEAK - FILM_MARGIN)
+
+
 class Audio:
-    """Feeds the AAC encoder whole 1024-sample frames, which is all it takes.
+    """Feeds the AAC encoder whole 1024-sample frames, which is all it takes."""
 
-    With `collect`, the sound is kept instead, until `mix_voiceover` mixes a voice over it and sends it on."""
-
-    def __init__(self, dst, stream, collect=None):
+    def __init__(self, dst, stream):
         self.dst, self.stream = dst, stream
         self.fmt = stream.codec_context.format.name
         self.size = stream.codec_context.frame_size or 1024
         self.fifo = av.AudioFifo()
         self.pts = 0
-        self.collect = collect
 
     def push(self, arr):
-        if self.collect is not None:
-            a = np.asarray(arr, dtype=np.float32)
-            self.collect.append(a if self.fmt.endswith("p") else a.reshape(-1, 2).T)
-            return
-        self.send(arr)
-
-    def send(self, arr):
         fr = av.AudioFrame.from_ndarray(np.ascontiguousarray(arr), format=self.fmt, layout="stereo")
         fr.sample_rate = RATE
         fr.pts = None
         self.fifo.write(fr)
         self.drain(self.size)
-
-    def mix_voiceover(self, vo):
-        """Mix the voice over the collected film sound, loudnorm it, and encode it. Returns (lufs, true_peak)."""
-        film = np.concatenate(self.collect, axis=1) if self.collect else np.zeros((2, 0), dtype=np.float32)
-        self.collect = None
-        n = film.shape[1]
-        start = round(float(vo.get("start_seconds", 0) or 0) * RATE)
-        if start < 0:
-            raise ValueError("The voice-over can’t start before the film does.")
-        if start >= n:
-            raise ValueError("The voice-over starts after the film ends.")
-        voice = voice_clean.decode(vo["path"], 2) * np.float32(10 ** (float(vo.get("gain_db", 0) or 0) / 20))
-        placed = np.zeros((2, n), dtype=np.float32)
-        take = min(voice.shape[1], n - start)
-        placed[:, start : start + take] = voice[:, :take]
-        duck = float(12 if vo.get("duck_db") is None else vo["duck_db"])
-        mix = film * duck_envelope(placed, duck) + placed
-        backend = voice_clean.choose_backend()
-        mix, lufs, tp = voice_clean.normalize(backend, mix, FILM_LUFS, FILM_PEAK - FILM_MARGIN)
-        for i in range(0, mix.shape[1], 4096):
-            self.send(mix[:, i : i + 4096])
-        return lufs, tp
 
     def silence(self, n):
         planar = self.fmt.endswith("p")

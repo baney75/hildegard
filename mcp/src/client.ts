@@ -155,6 +155,8 @@ export interface SiteSummary {
   bytes: number;
   notes: string[];
   reference: { file: string; width: number } | null;
+  /** Whether everyone can read it at /s/<id>/. */
+  published: boolean;
   /** The preview's path on the server: /preview/<id>/<key>/. */
   preview: string;
 }
@@ -169,6 +171,32 @@ export interface TemplateInfo {
   sections: string[];
   images: { file: string; aspect: string; prompt: string }[];
   pages: string[];
+}
+export interface WritingEdit {
+  at: string;
+  draftWords: number;
+  finalWords: number;
+  removed: string[];
+  added: string[];
+  lintBefore: { fails: number; warns: number };
+  lintAfter: { fails: number; warns: number };
+  note: string;
+}
+export interface WritingVoice {
+  person: string;
+  voice: { md: string; updatedAt: string | null; versions: number };
+  samples: { id: string; title: string; source: string; addedAt: string; words: number }[];
+  /** The last ten edits, newest first. */
+  edits: WritingEdit[];
+  topCut: { phrase: string; count: number }[];
+}
+export interface PostResult {
+  slug: string;
+  draft: boolean;
+  path: string;
+  date: string;
+  site: SiteDetail & { path: string; address: string | null };
+  lint: { ok: boolean; fails: string[]; warns: string[] };
 }
 export interface SiteToken {
   name: string;
@@ -185,16 +213,55 @@ export interface VoiceoverArgs {
   duckDb?: number;
 }
 export interface RecordLink {
+  needsLink?: undefined;
   id: string;
+  /** Where the person records: on this computer, or on their phone. */
+  where: 'here' | 'phone';
+  /** The link is https, so a phone allows its microphone; over plain http it can only send a file. */
+  secure: boolean;
   /** The secret that opens the link. Only the call that made the link ever returns it. */
   token: string;
   path: string;
   url: string;
   /** `url` is Hildegard's own link, which a phone can reach; otherwise it is only the address the request came to. */
   viaLink: boolean;
+  /** The link is on the internet: anyone who has Hildegard's link can reach its sign-in page. */
+  public: boolean;
   expiresAt: string;
   /** The link opens only on the computer Hildegard runs on, not on a phone. */
   localOnly: boolean;
+}
+/** What turning on a link would do, decided once by the server. `id` goes back with the person's yes. */
+export interface LinkPlan {
+  route: 'tailscale' | 'quick' | 'none';
+  /** The sign-in page would be on the internet. */
+  public: boolean;
+  id: string;
+  ask: string;
+}
+/** A phone link was asked for and there is no (private) link on: nothing was made, and the person decides. */
+export interface NeedsLink {
+  needsLink: true;
+  where: 'phone';
+  plan: LinkPlan;
+  /** For a private plan, the question to ask word for word; otherwise what the person has to do themselves. */
+  ask: string;
+  /** A link is on, but it is public, and a private one was asked for. */
+  existingPublic: boolean;
+  /** Null when no AI app may turn it on (a public route, or nothing to use). */
+  turnOn: { tool: string; rest: string; next: string } | null;
+}
+/** What `link_on` did, or why it needs the owner. */
+export interface LinkOnResult {
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  plan?: LinkPlan;
+  already?: boolean;
+  via?: string;
+  url?: string;
+  private?: boolean;
+  temporary?: boolean;
+  message: string;
+  steps: { id: string; title: string; detail: string; command?: string }[];
 }
 export interface Recording {
   id: string;
@@ -278,8 +345,18 @@ export class HildegardClient {
       voiceover ? { voiceover } : undefined,
     );
   // ── Recording from any chat ──
-  recordLink = (body: { kind: 'voice' | 'video'; purpose?: string; filmId?: string }) =>
-    this.call<RecordLink>('POST', '/api/record/links', body);
+  recordLink = (body: {
+    kind: 'voice' | 'video';
+    purpose?: string;
+    filmId?: string;
+    where?: 'here' | 'phone' | 'auto';
+    private?: boolean;
+  }) => this.call<RecordLink | NeedsLink>('POST', '/api/record/links', body);
+  /**
+   * Turns on the private link a plan names. Only this computer may ask. It sends the plan id and never `acceptPublic`:
+   * a public link is the person's own to turn on (Studio, terminal), not an AI app's.
+   */
+  linkOn = (plan?: string) => this.call<LinkOnResult>('POST', '/api/link/on', plan ? { plan } : {});
   /** A recording by its id, or by the link's token (which travels in the body, never the address). */
   recording = (by: { id: string } | { token: string }) =>
     'id' in by
@@ -318,7 +395,8 @@ export class HildegardClient {
     agent: string;
   }) => this.call<{ stills: Still[] }>('POST', '/api/images', body);
   /** The prose lint (up to 200,000 characters): the tells that make writing read as machine-made. */
-  lintWriting = (text: string) => this.call<ProseLint>('POST', '/api/writing/lint', { text });
+  lintWriting = (text: string, strict?: boolean) =>
+    this.call<ProseLint>('POST', '/api/writing/lint', strict ? { text, strict } : { text });
   keepStill = (id: string) => this.call<Character>('POST', `/api/stills/${encodeURIComponent(id)}/keep`);
   updateCheck = () => this.call<UpdateState>('POST', '/api/update/check');
   updateNow = () => this.call<UpdateState>('POST', '/api/update');
@@ -405,6 +483,32 @@ export class HildegardClient {
     }
     return new Uint8Array(await res.arrayBuffer());
   }
+  postToSite = (id: string, body: Record<string, unknown>) =>
+    this.call<PostResult>('POST', `/api/sites/${encodeURIComponent(id)}/posts`, body);
+  publishSite = (id: string, published: boolean) =>
+    this.call<SiteDetail & { path: string; address: string | null }>(
+      'PUT',
+      `/api/sites/${encodeURIComponent(id)}/publish`,
+      { published },
+    );
+  // ── Writing ──
+  writingVoice = () => this.call<WritingVoice>('GET', '/api/writing/voice');
+  setWritingVoice = (md: string) =>
+    this.call<{ person: string; voice: WritingVoice['voice'] }>('PUT', '/api/writing/voice', { md });
+  addWritingSample = (body: { title: string; text: string; source?: string }) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] }>(
+      'POST',
+      '/api/writing/samples',
+      body,
+    );
+  /** One saved sample, with its text. */
+  writingSample = (id: string) =>
+    this.call<{ person: string; sample: WritingVoice['samples'][number] & { text: string } }>(
+      'GET',
+      `/api/writing/samples/${encodeURIComponent(id)}`,
+    );
+  recordWritingEdit = (body: { draft: string; final: string; note?: string }) =>
+    this.call<{ person: string; edit: WritingEdit }>('POST', '/api/writing/edits', body);
   siteZip = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/zip`);
   siteReference = (id: string) => this.bytes(`/api/sites/${encodeURIComponent(id)}/reference`);
   // ── The printer ──

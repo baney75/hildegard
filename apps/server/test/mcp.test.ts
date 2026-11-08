@@ -60,6 +60,7 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'install_voice_model',
       'keep_designed_voice',
       'keep_still',
+      'link_on',
       'lint_writing',
       'list_characters',
       'list_presets',
@@ -87,6 +88,8 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'site_export',
       'site_files',
       'site_new',
+      'site_post',
+      'site_publish',
       'site_read',
       'site_templates',
       'site_tokens',
@@ -95,6 +98,11 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
       'transcribe',
       'update_hildegard',
       'voice_job_status',
+      'writing_voice',
+      'writing_voice_add_sample',
+      'writing_voice_record_edit',
+      'writing_voice_samples',
+      'writing_voice_update',
     ]);
     expect(client.getInstructions()).toContain('hildegard_status');
   });
@@ -239,12 +247,12 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
   });
 
   it('lints writing before the agent shows it, from text or from a file', async () => {
-    const stock = 'We will delve into the realm of it — and it is robust.';
+    const stock = 'We will delve into the realm of it. TODO make it robust.';
     const bad = await call('lint_writing', { text: stock });
     expect(bad.isError).toBeFalsy();
     expect(textOf(bad)).toMatch(/^Fails: \d tells? to fix/);
     expect(textOf(bad)).toMatch(/- fail stock-words: .+ At 1:9 “delve”/);
-    expect(textOf(bad)).toMatch(/- fail dashes: /);
+    expect(textOf(bad)).toMatch(/- fail unfinished: /);
 
     const file = join(dir, 'post.md');
     writeFileSync(file, 'We bought a red barn in 2019 and painted it.\n\nWe will delve into it.\n');
@@ -257,6 +265,16 @@ describe('Hildegard MCP server', { timeout: 30_000 }, () => {
     expect(textOf(await call('lint_writing', { text: 'delve delved delving', max: 1 }))).toContain(
       'and 2 more',
     );
+
+    // An em dash is a warning by default and a fail with strict: true.
+    const dashed = 'We painted the barn in May\u2014the weather held.';
+    expect(textOf(await call('lint_writing', { text: dashed }))).toMatch(
+      /^Passes, with 1 to weigh[\s\S]*- warn em-dash/,
+    );
+    expect(textOf(await call('lint_writing', { text: dashed, strict: true }))).toMatch(
+      /^Fails: 1 tell to fix[\s\S]*- fail em-dash/,
+    );
+    expect(textOf(await call('lint_writing', { text: dashed, strict: false }))).toMatch(/^Passes/);
 
     // Only a regular file small enough to be 200,000 characters: never a folder, a pipe or a device that never ends.
     const big = join(dir, 'big.md');
