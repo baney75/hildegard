@@ -342,7 +342,24 @@ with tempfile.TemporaryDirectory() as ev:
         r = subprocess.run(['bash', os.path.join(CR, 'run.sh'), 'f13', '--base', 'none', '--cand', 'new', '--models', 'haiku', '--only', 'd1-fall-festival', '--judge-only'],
                            env={**os.environ, 'EVAL_DIR': ev2}, capture_output=True, text=True, timeout=120)
         check('F13 run.sh --judge-only refuses (exit 3) and judges nothing', r.returncode == 3 and 'other skills' in r.stderr and not os.path.exists(os.path.join(ev2, 'judge')), (r.returncode, r.stderr))
+        check('F13 the refusal carries skillhash\'s own line, so the check really ran', 'd1-fall-festival' in r.stderr, r.stderr)
+        # A check that crashed is not a stale result: it stops the run even with --allow-stale.
+        # (the main arm's skills come from `git archive origin/main`; a git folder that isn't there makes it fail)
+        rc = subprocess.run(['bash', os.path.join(CR, 'run.sh'), 'f13', '--base', 'main', '--cand', 'new', '--models', 'haiku', '--only', 'd1-fall-festival', '--judge-only', '--allow-stale'],
+                            env={**os.environ, 'EVAL_DIR': ev2, 'GIT_DIR': os.path.join(root, 'no-such-git')}, capture_output=True, text=True, timeout=120)
+        check('F13 a crashed skills check stops the run (exit 4), --allow-stale or not', rc.returncode == 4 and 'check itself failed' in rc.stderr and not os.path.exists(os.path.join(ev2, 'judge')), (rc.returncode, rc.stderr))
         os.environ.pop('NEW_SKILLS')
+    # The sandbox hides the eval folder from every script, even when the caller names nothing to hide.
+    if sandbox.mode() == 'bwrap':
+        with tempfile.TemporaryDirectory() as ev3, tempfile.TemporaryDirectory() as rw:
+            old = os.environ.get('EVAL_DIR')
+            os.environ['EVAL_DIR'] = ev3
+            argv = sandbox.wrap(['true'], rw)
+            check('F3 wrap hides the eval folder by default', '--tmpfs' in argv and os.path.realpath(ev3) in argv, argv)
+            if old is None:
+                os.environ.pop('EVAL_DIR')
+            else:
+                os.environ['EVAL_DIR'] = old
     # the real ask: Read is scoped to the judge folder, and no other folder is added
     cmds = []
     real = subprocess.run

@@ -1,0 +1,144 @@
+{
+ "label": "f13",
+ "base": "main",
+ "cand": "new",
+ "models": [
+  "haiku"
+ ],
+ "tasks": [],
+ "summary": {},
+ "skill_loaded": {
+  "main": {
+   "haiku": [
+    0,
+    0
+   ]
+  },
+  "new": {
+   "haiku": [
+    0,
+    0
+   ]
+  }
+ },
+ "skills_hash": {
+  "main": {},
+  "new": {}
+ },
+ "unfinished_verdicts": 0,
+ "runs": {
+  "main": {
+   "haiku": {
+    "d1-fall-festival": {
+     "meta": {},
+     "score": {}
+    },
+    "d2-bluegrass-cover": {
+     "meta": {},
+     "score": {}
+    },
+    "d3-hardware-anniversary": {
+     "meta": {},
+     "score": {}
+    },
+    "v1-detailing-reel": {
+     "meta": {},
+     "score": {}
+    },
+    "v2-christmas-eve": {
+     "meta": {},
+     "score": {}
+    },
+    "v3-woodshop-film": {
+     "meta": {},
+     "score": {}
+    },
+    "a1-podcast-clean": {
+     "meta": {},
+     "score": {}
+    },
+    "a2-church-duck": {
+     "meta": {},
+     "score": {}
+    },
+    "a3-radio-spot": {
+     "meta": {},
+     "score": {}
+    },
+    "w1-congregation-email": {
+     "meta": {},
+     "score": {}
+    },
+    "w2-groomer-blog": {
+     "meta": {},
+     "score": {}
+    },
+    "w3-5k-page": {
+     "meta": {},
+     "score": {}
+    },
+    "e1-canoe-cut": {
+     "meta": {},
+     "score": {}
+    }
+   }
+  },
+  "new": {
+   "haiku": {
+    "d1-fall-festival": {
+     "meta": {},
+     "score": {}
+    },
+    "d2-bluegrass-cover": {
+     "meta": {},
+     "score": {}
+    },
+    "d3-hardware-anniversary": {
+     "meta": {},
+     "score": {}
+    },
+    "v1-detailing-reel": {
+     "meta": {},
+     "score": {}
+    },
+    "v2-christmas-eve": {
+     "meta": {},
+     "score": {}
+    },
+    "v3-woodshop-film": {
+     "meta": {},
+     "score": {}
+    },
+    "a1-podcast-clean": {
+     "meta": {},
+     "score": {}
+    },
+    "a2-church-duck": {
+     "meta": {},
+     "score": {}
+    },
+    "a3-radio-spot": {
+     "meta": {},
+     "score": {}
+    },
+    "w1-congregation-email": {
+     "meta": {},
+     "score": {}
+    },
+    "w2-groomer-blog": {
+     "meta": {},
+     "score": {}
+    },
+    "w3-5k-page": {
+     "meta": {},
+     "score": {}
+    },
+    "e1-canoe-cut": {
+     "meta": {},
+     "score": {}
+    }
+   }
+  }
+ },
+ "verdicts": []
+}

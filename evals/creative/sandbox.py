@@ -40,6 +40,9 @@ def mode():
 
 
 def wrap(cmd, rw_dir, hide=()):
+    # The eval folder (clean references, inputs, every arm's runs) is always hidden, so a new caller can't forget it.
+    e = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
+    hide = list(hide) + ([e] if e not in hide and os.path.exists(e) else [])
     m = mode()
     if hide and m != 'bwrap':
         raise SystemExit(f'cannot hide {", ".join(hide)} from the script without bubblewrap (mode: {m}); install bwrap')

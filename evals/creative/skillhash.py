@@ -50,7 +50,13 @@ def stale(eval_dir, arms, models, ids):
 
 if __name__ == '__main__':
     if sys.argv[1] == '--stale':
-        lines = stale(sys.argv[2], *(a.split() for a in sys.argv[3:6]))
+        # Exit 1 means stale and nothing else: a crash (no origin/main, a bad argument) is a different code, so run.sh
+        # never reads a check that didn't run as a check that found stale runs.
+        try:
+            lines = stale(sys.argv[2], *(a.split() for a in sys.argv[3:6]))
+        except Exception as e:
+            print(f'skillhash could not check the runs: {e}', file=sys.stderr)
+            sys.exit(4)
         print('\n'.join(lines))
         sys.exit(1 if lines else 0)
     print(tree_hash(sys.argv[1]))

@@ -36,7 +36,11 @@ PY
 )
 
 if [ $JUDGE_ONLY = 1 ]; then
-  if ! STALE=$(python3 skillhash.py --stale "$EVAL_DIR" "$BASE $CAND" "$MODELS" "$IDS"); then
+  STALE=$(python3 "$HERE/skillhash.py" --stale "$EVAL_DIR" "$BASE $CAND" "$MODELS" "$IDS"); RC=$?
+  if [ $RC -ne 0 ] && [ $RC -ne 1 ]; then
+    echo "The skills check itself failed (exit $RC), so nothing is judged, --allow-stale or not." >&2; exit 4
+  fi
+  if [ $RC = 1 ]; then
     printf '%s\n' "$STALE" >&2
     [ $STALE_OK = 1 ] && echo "WARNING: judging runs the current skills did not make (--allow-stale); do not read this as a result for them." >&2 \
       || { echo "--judge-only would judge runs made with other skills than the ones now. Run without --judge-only to make them again, or pass --allow-stale." >&2; exit 3; }

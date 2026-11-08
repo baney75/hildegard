@@ -56,7 +56,8 @@ ask me questions", so the eval measures making the work, not the interview.
   hard cut. Each metric becomes a pass/fail check, and the full table goes to the judge.
 - **Design rendering** (`score.py`): model HTML is untrusted. Chromium gets a throwaway profile and `HOME` in a temp folder (removed afterwards), its own
   sandbox on (`--no-sandbox` only if this machine cannot run it; `chromium_sandbox` in score.json says which), and a dead proxy for every request except
-  Google Fonts, loopback and IP addresses included.
+  Google Fonts, loopback and IP addresses included. Limit: Chromium runs outside the bubblewrap sandbox, so a page opened from `file://` can still
+  show other local files by path (an image or a frame), the eval folder included; scripts (audio and video edit) run under bubblewrap, which hides it.
 - **Video-edit scoring** (`score.py`): ran, edit.sh under the same sandbox, length in range, 1280x720, 30 fps, H.264 and AAC, scene changes (ffmpeg scene score above 0.12), loudness
   within 2 LU, `blackdetect` for black stretches over half a second, and an estimate of which of the four clips appear (colour-histogram match).
 - **Writing scoring** (`score.py`): `skills/hildegard/scripts/prose_lint.py --json` on the draft with front matter removed (the repo's `lint` command
