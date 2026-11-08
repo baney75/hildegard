@@ -1,0 +1,1789 @@
+{
+ "label": "brand-skill",
+ "base": "none",
+ "cand": "council",
+ "models": [
+  "haiku",
+  "luna"
+ ],
+ "tasks": [
+  "l4-ironwood-tree",
+  "l5-blackwater-roasting",
+  "b4-kettle-river",
+  "b5-northfield-dental",
+  "p4-bus-tracker",
+  "p5-fair-checkin"
+ ],
+ "summary": {
+  "logo": {
+   "haiku": {
+    "cand": 2,
+    "base": 2,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 1,
+    "tasks_lost": 1,
+    "cand_rate": 0.5
+   },
+   "luna": {
+    "cand": 3,
+    "base": 1,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 1,
+    "tasks_lost": 0,
+    "cand_rate": 0.75
+   }
+  },
+  "brand": {
+   "haiku": {
+    "cand": 1,
+    "base": 3,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 0,
+    "tasks_lost": 1,
+    "cand_rate": 0.25
+   },
+   "luna": {
+    "cand": 3,
+    "base": 1,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 1,
+    "tasks_lost": 0,
+    "cand_rate": 0.75
+   }
+  },
+  "app": {
+   "haiku": {
+    "cand": 4,
+    "base": 0,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 2,
+    "tasks_lost": 0,
+    "cand_rate": 1.0
+   },
+   "luna": {
+    "cand": 2,
+    "base": 2,
+    "tie": 0,
+    "n": 4,
+    "auto": 0,
+    "tasks_won": 1,
+    "tasks_lost": 1,
+    "cand_rate": 0.5
+   }
+  }
+ },
+ "skill_loaded": {
+  "none": {
+   "haiku": [
+    0,
+    6
+   ],
+   "luna": [
+    0,
+    6
+   ]
+  },
+  "council": {
+   "haiku": [
+    6,
+    6
+   ],
+   "luna": [
+    6,
+    6
+   ]
+  }
+ },
+ "skills_hash": {
+  "none": {
+   "unrecorded": 12
+  },
+  "council": {
+   "unrecorded": 12
+  }
+ },
+ "unfinished_verdicts": 0,
+ "runs": {
+  "none": {
+   "haiku": {
+    "l4-ironwood-tree": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 17,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 135,
+      "cost_usd_reported": 0.024449919999999993
+     },
+     "score": {
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [],
+      "checks_warned": [
+       "logo.svg:embroidery"
+      ],
+      "fails": 0,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "pass",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "32 px wide on screen (32 px tall), 6 mm printed, 32 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "l5-blackwater-roasting": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 14,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 197,
+      "cost_usd_reported": 0.02508192
+     },
+     "score": {
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [
+       "logo.svg:one-color",
+       "mark.svg:one-color"
+      ],
+      "checks_warned": [
+       "logo.svg:embroidery",
+       "logo.svg:small-header"
+      ],
+      "fails": 2,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "fail",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "4 px wide on screen (4 px tall), 6 mm printed, 4 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "b4-kettle-river": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 20,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 164,
+      "cost_usd_reported": 0.028294849999999996
+     },
+     "score": {
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "audiences",
+       "brand",
+       "contrast",
+       "imagery",
+       "logo",
+       "palette",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 2,
+      "contrast_examples": [
+       {
+        "text": "Aa",
+        "ratio": 3.95,
+        "need": 4.5,
+        "fg": "#a4502a",
+        "bg": "#e2d8c3",
+        "size": 12
+       },
+       {
+        "text": "Aa",
+        "ratio": 2.14,
+        "need": 4.5,
+        "fg": "#2d3a2e",
+        "bg": "#a4502a",
+        "size": 12
+       }
+      ],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1027,
+      "placeholder": 0,
+      "fonts": [
+       "Source Sans 3",
+       "Bitter",
+       "ui-monospace"
+      ],
+      "smallest_px": 9
+     }
+    },
+    "b5-northfield-dental": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 14,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 114,
+      "cost_usd_reported": 0.02370296
+     },
+     "score": {
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "contrast",
+       "imagery",
+       "logo",
+       "name",
+       "palette",
+       "typography",
+       "version",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 1,
+      "contrast_examples": [
+       {
+        "text": "Aa",
+        "ratio": 4.22,
+        "need": 4.5,
+        "fg": "#c2553a",
+        "bg": "#faf7f2",
+        "size": 11
+       }
+      ],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1000,
+      "placeholder": 0,
+      "fonts": [
+       "Nunito Sans",
+       "Fraunces"
+      ],
+      "smallest_px": 10
+     }
+    },
+    "p4-bus-tracker": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 10,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 72,
+      "cost_usd_reported": 0.015125379999999999
+     },
+     "score": {
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [
+       "screen:contrast",
+       "offline:contrast"
+      ],
+      "checks_warned": [
+       "screen:safe-area",
+       "offline:safe-area"
+      ],
+      "fails": 2,
+      "contrast_fails": 8,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    },
+    "p5-fair-checkin": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 7,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 70,
+      "cost_usd_reported": 0.01366249
+     },
+     "score": {
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [],
+      "checks_warned": [
+       "screen:targets",
+       "empty:targets"
+      ],
+      "fails": 0,
+      "contrast_fails": 0,
+      "small_targets": 3,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    }
+   },
+   "luna": {
+    "l4-ironwood-tree": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 10,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 147,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [
+       "logo.svg:strokes",
+       "logo.svg:text",
+       "mark.svg:embroidery",
+       "mark.svg:hairlines",
+       "mark.svg:strokes"
+      ],
+      "checks_warned": [
+       "logo.svg:embroidery",
+       "logo.svg:small-header",
+       "mark.svg:favicon-16"
+      ],
+      "fails": 5,
+      "hairlines": "fail",
+      "embroidery": "fail",
+      "one-color": "pass",
+      "favicon-16": "warn",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "96 px wide on screen (96 px tall), 14.4 mm printed, 96 mm embroidered",
+      "live_text": true,
+      "sheet_rendered": true
+     }
+    },
+    "l5-blackwater-roasting": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 16,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 136,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [
+       "logo.svg:strokes",
+       "logo.svg:text",
+       "mark.svg:embroidery",
+       "mark.svg:hairlines"
+      ],
+      "checks_warned": [
+       "logo.svg:embroidery",
+       "logo.svg:small-header",
+       "mark.svg:favicon-16"
+      ],
+      "fails": 4,
+      "hairlines": "fail",
+      "embroidery": "fail",
+      "one-color": "pass",
+      "favicon-16": "warn",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "53 px wide on screen (53 px tall), 8 mm printed, 53 mm embroidered",
+      "live_text": true,
+      "sheet_rendered": true
+     }
+    },
+    "b4-kettle-river": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 5,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 80,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "brand",
+       "contrast",
+       "imagery",
+       "location",
+       "palette",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 1,
+      "contrast_examples": [
+       {
+        "text": "Rust / Stock",
+        "ratio": 3.99,
+        "need": 4.5,
+        "fg": "#b85c38",
+        "bg": "#f4f0e6",
+        "size": 10
+       }
+      ],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1023,
+      "placeholder": 0,
+      "fonts": [
+       "Source Sans 3",
+       "Oswald"
+      ],
+      "smallest_px": 10
+     }
+    },
+    "b5-northfield-dental": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 8,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 106,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "brand",
+       "contrast",
+       "imagery",
+       "location",
+       "palette",
+       "practice",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 5,
+      "contrast_examples": [
+       {
+        "text": "Clay",
+        "ratio": 3.8,
+        "need": 4.5,
+        "fg": "#24363a",
+        "bg": "#c97859",
+        "size": 10
+       },
+       {
+        "text": "#C97859",
+        "ratio": 3.8,
+        "need": 4.5,
+        "fg": "#24363a",
+        "bg": "#c97859",
+        "size": 9
+       },
+       {
+        "text": "Don\u2019t: \u201cYou should have come in sooner.\u201d",
+        "ratio": 3.67,
+        "need": 4.5,
+        "fg": "#66797a",
+        "bg": "#dce9e2",
+        "size": 10
+       }
+      ],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1028,
+      "placeholder": 0,
+      "fonts": [
+       "DM Sans",
+       "DM Serif Display"
+      ],
+      "smallest_px": 9
+     }
+    },
+    "p4-bus-tracker": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 6,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 168,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [
+       "screen:contrast",
+       "screen:text-size",
+       "offline:contrast",
+       "offline:text-size"
+      ],
+      "checks_warned": [
+       "screen:safe-area",
+       "offline:safe-area"
+      ],
+      "fails": 4,
+      "contrast_fails": 20,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    },
+    "p5-fair-checkin": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": false,
+      "skills_loaded": [],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 9,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 187,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [
+       "screen:contrast",
+       "screen:text-size",
+       "empty:contrast",
+       "empty:text-size"
+      ],
+      "checks_warned": [
+       "screen:targets",
+       "empty:targets"
+      ],
+      "fails": 4,
+      "contrast_fails": 22,
+      "small_targets": 4,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    }
+   }
+  },
+  "council": {
+   "haiku": {
+    "l4-ironwood-tree": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-brand"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand/references/logo.md"
+      ],
+      "tool_calls": 19,
+      "council_ran": true,
+      "council_tallies": 3,
+      "council_briefs": 1,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 133,
+      "cost_usd_reported": 0.026499370000000005
+     },
+     "score": {
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [],
+      "checks_warned": [
+       "logo.svg:embroidery"
+      ],
+      "fails": 0,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "pass",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "18 px wide on screen (18 px tall), 6 mm printed, 18 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "l5-blackwater-roasting": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-brand"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 59,
+      "council_ran": true,
+      "council_tallies": 1,
+      "council_briefs": 2,
+      "subagents": 6,
+      "is_error": false,
+      "seconds": 842,
+      "cost_usd_reported": 0.05849926500000001
+     },
+     "score": {
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [],
+      "checks_warned": [
+       "logo.svg:embroidery"
+      ],
+      "fails": 0,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "pass",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "11 px wide on screen (11 px tall), 6 mm printed, 11 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "b4-kettle-river": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-brand"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 23,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 107,
+      "cost_usd_reported": 0.02514245999999999
+     },
+     "score": {
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "audience",
+       "colors",
+       "date",
+       "imagery",
+       "logo",
+       "name",
+       "pairs",
+       "summary",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 0,
+      "contrast_examples": [],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1018,
+      "placeholder": 0,
+      "fonts": [
+       "Work Sans",
+       "Fraunces"
+      ],
+      "smallest_px": 9
+     }
+    },
+    "b5-northfield-dental": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-brand"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand/references/brand-system.md"
+      ],
+      "tool_calls": 28,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 151,
+      "cost_usd_reported": 0.03451257
+     },
+     "score": {
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "audience",
+       "colors",
+       "contrast",
+       "imagery",
+       "logo",
+       "name",
+       "summary",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 0,
+      "contrast_examples": [],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1038,
+      "placeholder": 0,
+      "fonts": [
+       "Instrument Sans",
+       "Public Sans"
+      ],
+      "smallest_px": 13
+     }
+    },
+    "p4-bus-tracker": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-app"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 64,
+      "council_ran": true,
+      "council_tallies": 2,
+      "council_briefs": 2,
+      "subagents": 12,
+      "is_error": false,
+      "seconds": 184,
+      "cost_usd_reported": 0.06507479
+     },
+     "score": {
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [],
+      "checks_warned": [],
+      "fails": 0,
+      "contrast_fails": 0,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    },
+    "p5-fair-checkin": {
+     "meta": {
+      "model": "haiku",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard:hildegard-app"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [],
+      "tool_calls": 11,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 95,
+      "cost_usd_reported": 0.0160875
+     },
+     "score": {
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [],
+      "checks_warned": [],
+      "fails": 0,
+      "contrast_fails": 0,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    }
+   },
+   "luna": {
+    "l4-ironwood-tree": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard-brand",
+       "hildegard-craft"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand",
+       "hildegard-brand/references/logo.md",
+       "hildegard-brand/references/rubrics.md",
+       "hildegard-brand/scripts",
+       "hildegard-brand/scripts/browser.py;",
+       "hildegard-brand/scripts/council.py",
+       "hildegard-brand/scripts/council.py;",
+       "hildegard-brand/scripts/lockup.py",
+       "hildegard-brand/scripts/logo_check.py",
+       "hildegard-brand/scripts/logo_check.py;",
+       "hildegard-brand/scripts/wordmark.py",
+       "hildegard-brand/templates/example/logo-horizontal.svg;",
+       "hildegard-brand/templates/example/mark.svg"
+      ],
+      "tool_calls": 49,
+      "council_ran": true,
+      "council_tallies": 3,
+      "council_briefs": 1,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 354,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "l4-ironwood-tree",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [],
+      "checks_warned": [
+       "logo.svg:embroidery"
+      ],
+      "fails": 0,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "pass",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "8 px wide on screen (7 px tall), 6 mm printed, 8 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "l5-blackwater-roasting": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard",
+       "hildegard-brand",
+       "hildegard-craft"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand/references/brand-system.md",
+       "hildegard-brand/references/logo.md",
+       "hildegard-brand/references/rubrics.md",
+       "hildegard-brand/scripts",
+       "hildegard-brand/scripts/browser.py",
+       "hildegard-brand/scripts/council.py",
+       "hildegard-brand/scripts/lockup.py",
+       "hildegard-brand/scripts/logo_check.py",
+       "hildegard-brand/scripts/wordmark.py",
+       "hildegard-brand/templates/example/mark.svg",
+       "hildegard-craft/references/slop.md"
+      ],
+      "tool_calls": 26,
+      "council_ran": true,
+      "council_tallies": 1,
+      "council_briefs": 6,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 304,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "l5-blackwater-roasting",
+      "domain": "logo",
+      "deliverable": true,
+      "has_mark": true,
+      "has_logo": true,
+      "has_sheet": true,
+      "checks_failed": [],
+      "checks_warned": [
+       "logo.svg:embroidery"
+      ],
+      "fails": 0,
+      "hairlines": "pass",
+      "embroidery": "pass",
+      "one-color": "pass",
+      "favicon-16": "pass",
+      "text": "pass",
+      "flat": "pass",
+      "colors": "pass",
+      "min_size": "11 px wide on screen (11 px tall), 6 mm printed, 11 mm embroidered",
+      "live_text": false,
+      "sheet_rendered": true
+     }
+    },
+    "b4-kettle-river": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard-brand",
+       "hildegard-craft"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand/references/brand-system.md;",
+       "hildegard-brand/references/logo.md;",
+       "hildegard-brand/references/rubrics.md",
+       "hildegard-brand/scripts",
+       "hildegard-brand/scripts/brand_guide.py",
+       "hildegard-brand/scripts/brand_guide.py;",
+       "hildegard-brand/scripts/council.py",
+       "hildegard-brand/templates/example/brand.json;",
+       "hildegard-council/SKILL.md;"
+      ],
+      "tool_calls": 11,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 70,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "b4-kettle-river",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "audience",
+       "colors",
+       "imagery",
+       "logo",
+       "name",
+       "pairs",
+       "summary",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 0,
+      "contrast_examples": [],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1018,
+      "placeholder": 0,
+      "fonts": [
+       "Work Sans",
+       "Fraunces"
+      ],
+      "smallest_px": 9
+     }
+    },
+    "b5-northfield-dental": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard-brand",
+       "hildegard-craft",
+       "hildegard-web"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-brand/references/brand-system.md",
+       "hildegard-brand/references/brand-system.md;",
+       "hildegard-brand/references/logo.md",
+       "hildegard-brand/references/rubrics.md",
+       "hildegard-brand/scripts",
+       "hildegard-brand/scripts/brand_guide.py;",
+       "hildegard-brand/scripts/council.py",
+       "hildegard-brand/templates/example/brand.json;",
+       "hildegard-brand;",
+       "hildegard-council/SKILL.md;",
+       "hildegard-council/references/rubrics.md",
+       "hildegard-craft/SKILL.md;",
+       "hildegard-web/SKILL.md;",
+       "hildegard/references/code-rendering.md;",
+       "hildegard/references/color.md"
+      ],
+      "tool_calls": 13,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 139,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "b5-northfield-dental",
+      "domain": "brand",
+      "deliverable": true,
+      "has_json": true,
+      "json_ok": true,
+      "json_keys": [
+       "audience",
+       "colors",
+       "contrast",
+       "imagery",
+       "logo",
+       "name",
+       "summary",
+       "type",
+       "voice"
+      ],
+      "rendered": true,
+      "contrast_fails": 0,
+      "contrast_examples": [],
+      "clipped": 0,
+      "one_page": true,
+      "scroll": [
+       816,
+       1056
+      ],
+      "content_bottom": 1024,
+      "placeholder": 0,
+      "fonts": [
+       "Public Sans",
+       "Source Serif 4"
+      ],
+      "smallest_px": 8
+     }
+    },
+    "p4-bus-tracker": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard-app",
+       "hildegard-council",
+       "hildegard-craft"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-app/references/platforms.md",
+       "hildegard-app/scripts/browser.py",
+       "hildegard-app/scripts/screen_check.py",
+       "hildegard-app/templates/screen.html",
+       "hildegard-app/templates/tokens.css",
+       "hildegard-council/references/rubrics.md",
+       "hildegard-craft/references/slop.md"
+      ],
+      "tool_calls": 18,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 150,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "p4-bus-tracker",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [],
+      "checks_warned": [
+       "screen:text-size",
+       "screen:safe-area",
+       "offline:text-size",
+       "offline:safe-area"
+      ],
+      "fails": 0,
+      "contrast_fails": 0,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    },
+    "p5-fair-checkin": {
+     "meta": {
+      "model": "luna",
+      "skill_loaded": true,
+      "skills_loaded": [
+       "hildegard-app",
+       "hildegard-council",
+       "hildegard-craft"
+      ],
+      "other_skills_loaded": [],
+      "references_read": [
+       "hildegard-app",
+       "hildegard-app/references/platforms.md",
+       "hildegard-app/references/rubrics.md;",
+       "hildegard-app/scripts",
+       "hildegard-app/scripts/browser.py",
+       "hildegard-app/scripts/screen_check.py",
+       "hildegard-app/templates/screen-empty.html",
+       "hildegard-app/templates/screen.html",
+       "hildegard-app/templates/tokens.css",
+       "hildegard-council"
+      ],
+      "tool_calls": 17,
+      "council_ran": false,
+      "council_tallies": 0,
+      "council_briefs": 0,
+      "subagents": 0,
+      "is_error": false,
+      "seconds": 146,
+      "cost_usd_reported": null
+     },
+     "score": {
+      "task": "p5-fair-checkin",
+      "domain": "app",
+      "deliverable": true,
+      "states_delivered": 2,
+      "states_asked": 2,
+      "checks_failed": [],
+      "checks_warned": [],
+      "fails": 0,
+      "contrast_fails": 0,
+      "small_targets": 0,
+      "overflow": false,
+      "clipped": 0,
+      "placeholder": 0,
+      "sheet": true
+     }
+    }
+   }
+  }
+ },
+ "verdicts": [
+  {
+   "model": "haiku",
+   "task": "l4-ironwood-tree",
+   "domain": "logo",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "none",
+   "margin": "clear",
+   "auto": false,
+   "why": "A's mark is a trunk with a felling notch and root flare, drawn from the arborist's own work. It is a solid, simple silhouette that stays the same shape at 32 and 16 px and works in one color, cut vinyl and embroidery. B's tree-ring disc with a wedge cut is a more familiar category motif and can read as a power or refresh icon. Its thin concentric rings blur together at 16 px, and its reversed version changes the figure-ground of the center rather than simply inverting it. Both spell the name correctly and add nothing. A's condensed wordmark with tracked TREE CARE is the more deliberate lockup, while B uses a default-looking bold sans.",
+   "invented": {
+    "none": [],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "l4-ironwood-tree",
+   "domain": "logo",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "none",
+   "margin": "clear",
+   "auto": false,
+   "why": "Both spell the name exactly and add nothing invented, and both marks hold their shape at 16 and 32 px and in one color and reversed. B's mark is a trunk with a felling notch cut into it, which comes straight from an arborist's work and isn't a green tree in a circle; A's notched ring reads more like a generic 'C', a camera or a power icon, so the tree-ring idea gets lost. B's lockup also looks more deliberate (a condensed ironwood-weight wordmark over widely spaced TREE CARE), while A pairs its mark with a default-looking bold sans, though B's small spaced line will need care when embroidered.",
+   "invented": {
+    "council": [],
+    "none": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "l5-blackwater-roasting",
+   "domain": "logo",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "A's BR monogram fails in one color and reversed: the letters disappear and leave a blank rounded square. That breaks the brief's one-ink stamp and embroidery use. B's split disc stays the same bold shape at 16 px, in one ink and reversed, with no thin parts, and its serif wordmark sets the full name correctly. B's mark is generic and could pass for a coffee bean or any horizon emblem, but A's default-looking condensed sans in a rounded app-icon box is no more distinctive and fails the more important survival test.",
+   "invented": {
+    "none": [],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "l5-blackwater-roasting",
+   "domain": "logo",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "B's mark breaks in one ink and reversed: the BR letters are knocked out in a second color, so the one-color and reversed versions turn into a blank rounded square. That fails the brief's single-ink stamp on kraft bags and its embroidery. A's split disc stays solid and recognizable at 16 px, in one ink and reversed, and its serif wordmark is set cleanly. Its one weakness is a generic idea: it vaguely suggests a horizon or dark water but could belong to anyone, as could B's monogram in a rounded box, so B gains nothing on concept.",
+   "invented": {
+    "council": [],
+    "none": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "b4-kettle-river",
+   "domain": "brand",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "none",
+   "margin": "slight",
+   "auto": false,
+   "why": "Neither guide invents facts. A's palette is more specific to this client: copper, river blue and barley gold each have a clear role and a full contrast table. Its voice do/don't pairs and its responsible-drinking imagery rules fit a family taproom, and it adds a useful note on can labeling compliance. B's layout is cleaner and shows the logo on light and dark backgrounds, but its palette is an almost monochrome green and cream that could belong to any brewery, it repeats the filename in the footer ('logo.svg, logo.svg') and its contrast ratios don't match each other. A's main flaw is that its logo misuse bullets have no 'Don't' heading, so 'Stretch, skew, or rotate' reads as if it were allowed.",
+   "invented": {
+    "none": [
+     "'Designated drivers, we've got you' suggests a designated-driver offer the brief doesn't mention"
+    ],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "b4-kettle-river",
+   "domain": "brand",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "slight",
+   "auto": false,
+   "why": "A sticks to the brief throughout. B adds small unsupported details: a stone facade on the bank building and a 'Designated drivers, we've got you' line that suggests a service the client never mentioned. B also lists its logo misuse rules ('Stretch, skew, or rotate', 'Recolor outside the palette') with no 'Don't' label, so they read as instructions. B has the richer, more distinctive palette (copper, river blue, gold) and the sharper voice and compliance notes, but A's clear color roles, contrast table, named type scale and imagery rules you can check a photo against are accurate and usable. A's flaws are smaller: an all-green palette that feels a bit flat, a logo too small to read on the green panel, and a footer that lists logo.svg twice.",
+   "invented": {
+    "council": [],
+    "none": [
+     "bank building's stone facade",
+     "'Designated drivers, we've got you' (implies a designated-driver offering)"
+    ]
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "b5-northfield-dental",
+   "domain": "brand",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "none",
+   "margin": "clear",
+   "auto": false,
+   "why": "A gives every color a hex value and a specific role, checks the contrast of each text pairing, names the font, weight and size for each type level, and has three voice principles with do/don't examples, including ones for kids and for adults who haven't been in for years. That fits this client's nervous patients and parents of toddlers well. B's palette is a generic teal on gray, and its type scale lists sizes without saying which font goes with each. Its picture rules also run the do's and don'ts side by side with no labels, so the 'stock models' column reads as if it were allowed. It also asks for close-ups of tools, which works against calming nervous patients.",
+   "invented": {
+    "none": [],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "b5-northfield-dental",
+   "domain": "brand",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "none",
+   "margin": "clear",
+   "auto": false,
+   "why": "Neither guide invents facts. B gives a fuller system that fits this client better: each color has a clear role, the contrast table flags coral as not for text, each of three voice principles has a do and a don't aimed at nervous adults and toddlers, and the imagery rules are specific enough to check a photo against (no drills or open mouths in first-visit images, written consent, daylight at eye level). A is clean and legible but its all-teal-and-gray palette is generic, its picture rules have unlabeled do and avoid columns, it suggests close-ups of dental tools that could scare nervous patients, and its type section leaves a large empty area; B's main flaws are a leftover 'N cap height' placeholder in the logo clear-space rule and small 11\u201313 px body and caption sizes.",
+   "invented": {
+    "council": [],
+    "none": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "p4-bus-tracker",
+   "domain": "app",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "A invents three street names that aren't in the brief (Elm St. & Birch Ln., Hollis Ct., Walnut Ave.). The facts criterion treats that as a serious fault, even though A's route timeline and offline 'last seen here' treatment are richer. B shows exactly the brief's content: 3 stops away, about 6 minutes, Oak St. and Ridgeway Ave., and Mr. Dorsey. Its offline state labels the data as last known and gives a clear 'Try again' action. B is weaker on craft: the route card has a lot of empty space, the status bar is generic, and A's offline footer slightly overlaps its card. These are minor next to A's made-up content.",
+   "invented": {
+    "none": [
+     "Stop name 'Elm St. & Birch Ln.'",
+     "Stop name 'Hollis Ct.'",
+     "Stop name 'Walnut Ave.'"
+    ],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "p4-bus-tracker",
+   "domain": "app",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "B makes up three intermediate stop names (Elm St. & Birch Ln., Hollis Ct., Walnut Ave.) that the brief never gives, which is a serious factual fault in a tracker parents rely on. A shows the same three-stops-away route as unnamed stops and invents nothing, and its offline state clearly says 'No connection. Last update 2 minutes ago', labels the bus as 'Last known position' and gives a clear 'Try again' action. B is more polished and handles staleness well (grayed values, a dashed 'last seen' marker), but its invented stops and the offline footer crowding the route card outweigh that.",
+   "invented": {
+    "council": [],
+    "none": [
+     "Stop name 'Elm St. & Birch Ln.' (marked passed)",
+     "Stop name 'Hollis Ct.'",
+     "Stop name 'Walnut Ave.'"
+    ]
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "p5-fair-checkin",
+   "domain": "app",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "slight",
+   "auto": false,
+   "why": "B fits the volunteer's actual job better: each remaining animal has an 'Ear tag and health papers checked' confirmation that gates its own check-in button. A's prominent 'Check in remaining (2)' bulk button invites skipping the per-animal tag and papers check the brief requires. A has the more polished Android craft and a stronger empty state, which shows the searched number and suggests asking the fair office. B's empty state clears the search field, so the volunteer loses their place, and that keeps the margin slight.",
+   "invented": {
+    "none": [
+     "Exhibitor number #1207 (example search value)",
+     "Bulk 'Check in remaining' action",
+     "Fair office referral"
+    ],
+    "council": []
+   }
+  },
+  {
+   "model": "haiku",
+   "task": "p5-fair-checkin",
+   "domain": "app",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "slight",
+   "auto": false,
+   "why": "The brief says the volunteer checks in each animal after seeing its tag and health papers. A builds that into the screen: each animal has an 'Ear tag and health papers checked' box, and its check-in button stays inactive until the box is ticked. B's main action, 'Check in remaining (2)', checks in several animals with one tap and skips that check. B handles the empty state better, because it keeps the number that was searched and tells the volunteer what to do next. A clears the number, so the volunteer loses their place. B also has some rough craft, like boxed buttons in the app bar.",
+   "invented": {
+    "council": [],
+    "none": [
+     "Exhibitor number #1207 (example search value)",
+     "'Check in remaining' bulk action not in brief",
+     "Referral to 'the fair office'",
+     "Overflow menu with unspecified actions"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "l4-ironwood-tree",
+   "domain": "logo",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "none",
+   "margin": "clear",
+   "auto": false,
+   "why": "Both spell the name exactly and invent nothing. B's blocky pixel mark stays crisp at 16 px, but it reads more like an airplane or antenna than a tree, and it sits next to a default bold sans with no lockup design, so it's ambiguous and has no craft. A's shield-and-branch is a deliberate, balanced lockup with a strong serif and spaced caps that suits a certified-arborist trade. Its shield silhouette and stem still hold up at 32 and 16 px and in one color and reversed, though the thin inner line would need dropping for embroidery and the hard-hat sticker.",
+   "invented": {
+    "none": [],
+    "council": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "l4-ironwood-tree",
+   "domain": "logo",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "slight",
+   "auto": false,
+   "why": "Both spell the name correctly and add nothing, so survival decides: A's chunky blocky tree keeps exactly the same shape at 32 and 16 px and in one color and reversed. B's shield-and-branch turns to grey mush at 16 px, and its thin inner gold outline, hairline rule and tiny tracked 'TREE CARE' would vanish when embroidered or cut in vinyl. B is the more polished drawing, but both rely on a generic tree, and A's crude mark and default bold sans make this a narrow win.",
+   "invented": {
+    "council": [],
+    "none": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "l5-blackwater-roasting",
+   "domain": "logo",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "Neither sheet invents anything, and both spell the name correctly. B's solid, notched B is the same clear shape at 32 and 16 px and holds up in one ink, reversed, stamped and embroidered. A's thin outlined B with its small mountain/water detail turns to grey mush at 16 px, and its hairline rule and tiny tracked 'ROASTING CO.' would vanish on embroidery or a kraft stamp. A's waterfall idea is closer to the client's own subject, while B's mark is only a generic initial set beside a default-looking serif, but survival at small sizes ranks higher and decides it.",
+   "invented": {
+    "none": [],
+    "council": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "l5-blackwater-roasting",
+   "domain": "logo",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "Both sheets spell the name correctly and add nothing invented, so the decision comes down to where the mark has to live. A's heavy solid B keeps the same shape at 32 and 16 px and will stamp, embroider and reverse cleanly; B's thin outlined B with water lines and a zigzag turns to gray mush at 16 px, and its hairline strokes and rule under BLACKWATER would disappear on kraft stamping or embroidery. B's water and ridge idea is closer to the client's own subject than A's plain monogram with its notched counters, but that does not make up for it failing at small sizes.",
+   "invented": {
+    "council": [],
+    "none": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "b4-kettle-river",
+   "domain": "brand",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "slight",
+   "auto": false,
+   "why": "B is the more complete working system. It has a logo section with clear-space and no-redraw rules, a full contrast table with a role for every color, named Fraunces and Work Sans weights with a six-step size scale, and imagery do's and don'ts specific enough to judge a photo against. Its voice examples come straight from brief facts (Quarry Lager 4.6%, Thursday to Sunday, county cans). A is cleaner and well composed, but it leaves out logo usage and gives thin imagery guidance. It also adds a slogan the client never gave. B has small flaws: Bank Plaster and Warm Chalk share the same hex, and the footer lists logo.svg twice.",
+   "invented": {
+    "none": [
+     "Tagline 'Good beer. Good company.' presented as brand headline"
+    ],
+    "council": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "b4-kettle-river",
+   "domain": "brand",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "none",
+   "margin": "slight",
+   "auto": false,
+   "why": "Neither guide invents facts, and both give hex values with clear roles and name a type pairing. A is more thorough, with a full contrast table and named size steps, but it has visible errors: the same hex (#fffcf4) is listed twice as two different colors, and the footer reads 'logo.svg, logo.svg'. B makes stronger choices for this client, with a rust accent limited to large type, condensed Oswald headlines, voice cards that pair each Do with a Don't, and imagery rules (brick, wood, steel, warm daylight, no generic wilderness) that are concrete enough to check a photo against. Its page layout also has clearer intent.",
+   "invented": {
+    "council": [],
+    "none": [
+     "Tagline 'Good beer. Good company.' (a made-up slogan, not a factual claim)"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "b5-northfield-dental",
+   "domain": "brand",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "B gives every color a hex value and a stated role (ground, surface, ink, muted, accent, on-accent), backs this with a contrast table, and names a full type scale with sizes. It also adds logo-usage rules and specific Choose/Avoid imagery rules that a photo could be judged against. A's colors have names but no roles, and its hero service pills are visibly clipped by the bottom edge of the header panel. A also leaves a large empty band at the bottom of the page, while B is the tighter and more complete system for this nervous-adult, toddler and insurance audience.",
+   "invented": {
+    "none": [
+     "'Brand Guide \u00b7 2026' year label",
+     "implied service of estimating insurance coverage before treatment ('We'll review options and estimate coverage before treatment')"
+    ],
+    "council": []
+   }
+  },
+  {
+   "model": "luna",
+   "task": "b5-northfield-dental",
+   "domain": "brand",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "A gives every color a hex value and a stated role (ground, surface, ink, accent, on-accent), backed by a checked contrast table. It also names its type pairing with a full size scale and includes logo usage rules, while B has no logo section and never says which color is for text, background or accent. B also has craft faults: the service pills in its hero are clipped at the bottom edge, its body text is only 12 px, and one voice example promises a service the brief never mentions. A's SAY/SKIP pairs and its CHOOSE/AVOID imagery lists are concrete enough for a writer or photographer to work from.",
+   "invented": {
+    "council": [],
+    "none": [
+     "'We'll review options and estimate coverage before treatment' (a pre-treatment coverage estimate service is not in the brief)",
+     "'Brand Guide \u00b7 2026' date label"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "p4-bus-tracker",
+   "domain": "app",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "none",
+   "margin": "slight",
+   "auto": false,
+   "why": "A's route makes sense: the bus has passed two stops, Pine St. is next, and Oak St. & Ridgeway is three stops on. The card and banner hierarchy also look like a finished iOS product. B's route contradicts itself: the school comes before the morning pickup, 'Bus 14' is listed as a stop after Maya's stop, and the 'Wi-Fi' text and placeholder icons make it look like a wireframe. A loses ground for inventing a parent name ('Jordan', 'JB'), four stop names and extra tabs. Its offline screen also still shows a connected Wi-Fi icon and lets the tab bar cover the driver card, and neither design says what to do next while offline.",
+   "invented": {
+    "none": [
+     "Parent name 'Jordan' and 'JB' avatar",
+     "Stop names Lincoln Elementary, Maple & 3rd, Pine St., Cedar Ave.",
+     "Schedule and Profile tabs",
+     "Driver subtitle 'Driving bus 14 this morning' (harmless)"
+    ],
+    "council": [
+     "'Lakeview School' as a route stop before the pickup",
+     "'Ridgeway Ave.' as a separate stop that is '2 stops away'",
+     "'Bus 14' listed as a route stop after Maya's stop"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "p4-bus-tracker",
+   "domain": "app",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "none",
+   "margin": "slight",
+   "auto": false,
+   "why": "A's route line doesn't make sense: it lists 'Lakeview School' as a stop, then Ridgeway Ave., then Maya's stop, and ends with 'Bus 14' as if the bus were a stop, so a parent can't see where the bus is compared with Maya's stop. B shows a clear progression: two stops passed, the next stop, then Maya's stop three stops away. It also has a strong status card and an offline banner with a badge that explains the data is the last saved location from 2 minutes ago. B loses ground for inventing a parent name and stop names, and for an odd 'Maya' text label. On its offline screen the driver card also slides under the tab bar, and neither design tells the parent what to do next when offline.",
+   "invented": {
+    "council": [
+     "'Lakeview School' as a route stop",
+     "'Bus 14' listed as a stop on the route line",
+     "'Ridgeway Ave.' as a separate stop 2 away"
+    ],
+    "none": [
+     "Parent name 'Jordan' and 'JB' avatar",
+     "Stop names: Lincoln Elementary, Maple & 3rd, Pine St., Cedar Ave.",
+     "Schedule and Profile tabs"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "p5-fair-checkin",
+   "domain": "app",
+   "order": 0,
+   "A": "none",
+   "B": "council",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "B gives each animal its own large 'Check in' button, so the volunteer's job is obvious at a glance. A uses small checkboxes and a vague 'Continue check-in' button, with tiny gray text that's hard to read in a barn. A also adds details the brief doesn't give: exhibitor numbers, a check-in time for Tank, a 'Synced' badge and an edit control. B's empty state is weaker because it clears the search field and doesn't show which number was searched, but it is still clear and offers a way forward.",
+   "invented": {
+    "none": [
+     "exhibitor number #1842",
+     "searched exhibitor number #2916",
+     "Tank checked in at 8:06 AM",
+     "'Synced' status badge",
+     "'Tag verified' sub-status",
+     "edit exhibitor button",
+     "'ask the fair office to add their animals' guidance"
+    ],
+    "council": [
+     "Schedule tab in bottom navigation"
+    ]
+   }
+  },
+  {
+   "model": "luna",
+   "task": "p5-fair-checkin",
+   "domain": "app",
+   "order": 1,
+   "A": "council",
+   "B": "none",
+   "winner": "council",
+   "margin": "clear",
+   "auto": false,
+   "why": "A gives each animal its own large, obvious 'Check in' button and shows 1 of 3 checked in, so the volunteer's job is clear in seconds. B hides the action behind small checkboxes and a vague 'Continue check-in' button, and much of its text is tiny and low-contrast. B also invents content the brief doesn't give, including exhibitor numbers, a 'Synced' status, a check-in timestamp and a fair-office instruction. B's empty state is more specific because it shows the number that was searched, but that doesn't outweigh its invented facts and weaker primary action.",
+   "invented": {
+    "council": [],
+    "none": [
+     "Exhibitor number #1842",
+     "Searched exhibitor number #2916",
+     "'Synced' status indicator",
+     "'Tag verified' at 8:06 AM timestamp",
+     "Instruction to 'ask the fair office to add their animals'",
+     "'Exhibitor \u00b7 Wilmington, OH' subtitle and edit control"
+    ]
+   }
+  }
+ ]
+}
