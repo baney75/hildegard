@@ -69,7 +69,7 @@ describe('the step script', () => {
       describeStep({ do: 'type', text, ...extra } as Parameters<typeof describeStep>[0]);
     expect(type('Ada Lovelace')).toBe('Type “Ada Lovelace”');
     expect(type('correct horse battery', { mask: true })).toMatch(/^Type “•+”$/);
-    expect(describeStep({ do: 'type', text: 'hunter2hunter2' }, { password: true })).not.toContain('hunter2');
+    expect(describeStep({ do: 'type', text: 'hunter2hunter2' }, { hidden: true })).not.toContain('hunter2');
     for (const key of [
       fake('sk-', 'proj-abc123def456ghi789'),
       fake('gh', 'p_', '1234567890abcdefghij', 'ABCDEFGHIJ123456'),
