@@ -10,13 +10,18 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
   F8  a quota message halts the dispatch of every later job
   F9  the judge works in a fresh folder outside the eval tree holding only A.* and B.*, and a leak scan guards it
   F10 a run with no `done` (the responder timed out or died) is never scored or judged; it is an automatic loss
+  F12 a verdict is reused only while both runs it judged are unchanged: a run made again is judged again
+  F13 --judge-only refuses runs made with other skills than the arm's skills now, or with no recorded hash
+  F14 the eval folder (clean references, inputs, other runs) is not readable from the sandbox, wherever EVAL_DIR is; without bubblewrap the scorer refuses
   F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
 sys.path.insert(0, CR)
 import score_audio as sa
+import sandbox
 import score
+import skillhash
 import judge
 
 fails = []
@@ -294,6 +299,81 @@ with tempfile.TemporaryDirectory() as ev:
         except SystemExit as e:
             check(f'F11 the leak scan fails on {t!r}', 'leak' in str(e), e)
     shutil.rmtree(left)
+
+    # F12: the main arm's run is made again with other skills; the old verdict must not come back
+    judge.ask = spy
+    shutil.rmtree(os.path.join(ev, 'judge'), ignore_errors=True)
+    seen.clear()
+    rdm = os.path.join(ev, 'runs', 'main', 'haiku', task['id'])
+    open(os.path.join(rdm, 'work', 'draft.md'), 'w').write('The bake sale is on Saturday at nine, in the church hall, and every pie is five dollars, come early.')
+    open(os.path.join(rdm, 'skills.sha'), 'w').write('aaa\n')
+    judge.judge(('lbl6', 'haiku', task, 0, 'none', 'main'))
+    judge.judge(('lbl6', 'haiku', task, 0, 'none', 'main'))
+    check('F12 an unchanged pair is judged once', len(seen) == 1, len(seen))
+    open(os.path.join(rdm, 'skills.sha'), 'w').write('bbb\n')
+    judge.judge(('lbl6', 'haiku', task, 0, 'none', 'main'))
+    check('F12 the same answer from other skills is judged again', len(seen) == 2, len(seen))
+    open(os.path.join(rdm, 'work', 'draft.md'), 'w').write('Pies are five dollars at the church hall on Saturday at nine, and the bake sale runs until noon, come early.')
+    judge.judge(('lbl6', 'haiku', task, 0, 'none', 'main'))
+    check('F12 a different answer from the same skills is judged again', len(seen) == 3, len(seen))
+    old = os.path.join(ev, 'judge', 'lbl6', 'haiku', task['id'], 'order0.json')
+    rec = json.load(open(old))
+    rec.pop('fingerprint')
+    json.dump(rec, open(old, 'w'))
+    judge.judge(('lbl6', 'haiku', task, 0, 'none', 'main'))
+    check('F12 a verdict saved without a fingerprint is judged again', len(seen) == 4, len(seen))
+
+    # F13
+    with tempfile.TemporaryDirectory() as root:
+        sk = os.path.join(root, 'skills')
+        os.makedirs(os.path.join(sk, 'hildegard'))
+        open(os.path.join(sk, 'hildegard', 'SKILL.md'), 'w').write('one\n')
+        ev2, now = os.path.join(root, 'eval'), skillhash.tree_hash(sk)
+        os.environ['NEW_SKILLS'] = sk
+        r13 = os.path.join(ev2, 'runs', 'new', 'haiku', 'd1-fall-festival')
+        os.makedirs(r13)
+        stale = lambda: skillhash.stale(ev2, ['none', 'new'], ['haiku'], ['d1-fall-festival'])
+        check('F13 a run with no recorded hash is stale', len(stale()) == 1 and 'no recorded hash' in stale()[0], stale())
+        open(os.path.join(r13, 'skills.sha'), 'w').write('0123456789abcdef\n')
+        check('F13 a run made with other skills is stale', len(stale()) == 1 and '0123456789ab' in stale()[0], stale())
+        open(os.path.join(r13, 'skills.sha'), 'w').write(now + '\n')
+        check('F13 a run made with the skills as they are is not', stale() == [], stale())
+        open(os.path.join(sk, 'hildegard', 'SKILL.md'), 'w').write('two\n')
+        check('F13 editing a skill after the run makes it stale', len(stale()) == 1, stale())
+        r = subprocess.run(['bash', os.path.join(CR, 'run.sh'), 'f13', '--base', 'none', '--cand', 'new', '--models', 'haiku', '--only', 'd1-fall-festival', '--judge-only'],
+                           env={**os.environ, 'EVAL_DIR': ev2}, capture_output=True, text=True, timeout=120)
+        check('F13 run.sh --judge-only refuses (exit 3) and judges nothing', r.returncode == 3 and 'other skills' in r.stderr and not os.path.exists(os.path.join(ev2, 'judge')), (r.returncode, r.stderr))
+        check('F13 the refusal carries skillhash\'s own line, so the check really ran', 'd1-fall-festival' in r.stderr, r.stderr)
+        # A check that crashed is not a stale result: it stops the run even with --allow-stale.
+        # (the main arm's skills come from `git archive origin/main`; a git folder that isn't there makes it fail)
+        rc = subprocess.run(['bash', os.path.join(CR, 'run.sh'), 'f13', '--base', 'main', '--cand', 'new', '--models', 'haiku', '--only', 'd1-fall-festival', '--judge-only', '--allow-stale'],
+                            env={**os.environ, 'EVAL_DIR': ev2, 'GIT_DIR': os.path.join(root, 'no-such-git')}, capture_output=True, text=True, timeout=120)
+        check('F13 a crashed skills check stops the run (exit 4), --allow-stale or not', rc.returncode == 4 and 'check itself failed' in rc.stderr and not os.path.exists(os.path.join(ev2, 'judge')), (rc.returncode, rc.stderr))
+        for leftover in ('results-f13.json', 'results-f13.md'):  # run.sh's report for the label, which a test must not leave
+            if os.path.exists(os.path.join(CR, leftover)):
+                os.remove(os.path.join(CR, leftover))
+        os.environ.pop('NEW_SKILLS')
+        # An arm arms.py made (council, nocouncil) is checked against its own folder, the one respond.sh hashed, not origin/main's.
+        arm = os.path.join(ev2, 'arms', 'nocouncil', 'skills')
+        shutil.copytree(sk, arm)
+        ra = os.path.join(ev2, 'runs', 'nocouncil', 'haiku', 'b1-prairie-signal')
+        os.makedirs(ra)
+        open(os.path.join(ra, 'skills.sha'), 'w').write(skillhash.tree_hash(arm) + '\n')
+        arm_stale = lambda: skillhash.stale(ev2, ['nocouncil'], ['haiku'], ['b1-prairie-signal'])
+        check('F13 a run made with an arms.py arm as it is now is not stale', arm_stale() == [], arm_stale())
+        open(os.path.join(arm, 'hildegard', 'SKILL.md'), 'w').write('three\n')
+        check('F13 editing that arm after the run makes it stale', len(arm_stale()) == 1, arm_stale())
+    # The sandbox hides the eval folder from every script, even when the caller names nothing to hide.
+    if sandbox.mode() == 'bwrap':
+        with tempfile.TemporaryDirectory() as ev3, tempfile.TemporaryDirectory() as rw:
+            old = os.environ.get('EVAL_DIR')
+            os.environ['EVAL_DIR'] = ev3
+            argv = sandbox.wrap(['true'], rw)
+            check('F3 wrap hides the eval folder by default', '--tmpfs' in argv and os.path.realpath(ev3) in argv, argv)
+            if old is None:
+                os.environ.pop('EVAL_DIR')
+            else:
+                os.environ['EVAL_DIR'] = old
     # the real ask: Read is scoped to the judge folder, and no other folder is added
     cmds = []
     real = subprocess.run
@@ -306,6 +386,36 @@ with tempfile.TemporaryDirectory() as ev:
     c = cmds[-1]
     allowed = c[c.index('--allowedTools') + 1]
     check('F9 Read is limited to the judge folder and --add-dir is not used', allowed != 'Read' and allowed.startswith('Read(') and '--add-dir' not in c, c)
+
+# ---- F14: the eval folder is out of the script's reach ----------------------------------------------------------------
+ev = tempfile.mkdtemp(prefix=f'{tag}-', dir='/var/tmp')  # not under $HOME, and /tmp is a tmpfs inside the sandbox anyway
+saved = sa.E, sandbox._mode
+try:
+    assert not os.path.realpath(ev).startswith(os.path.realpath(home) + os.sep)
+    sa.E = ev
+    for sub in ('inputs', 'ref', 'runs/new/haiku/x'):
+        os.makedirs(os.path.join(ev, sub, tid) if sub in ('inputs', 'ref') else os.path.join(ev, sub))
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=d=1', os.path.join(ev, 'inputs', tid, 'in.wav')], check=True)
+    shutil.copy(os.path.join(ev, 'inputs', tid, 'in.wav'), os.path.join(ev, 'ref', tid, 'clean.wav'))
+    steal = script(os.path.join(ev, 'steal.sh'), f'cp {ev}/ref/{tid}/clean.wav out.wav 2>/dev/null\nls {ev}/ref {ev}/runs {ev}/inputs > seen.txt 2>&1\ncat seen.txt >&2\n')
+    sandbox._mode = None
+    if shutil.which('bwrap') and sandbox.mode() == 'bwrap':
+        ok, secs, tmp, log, code = sa.run_script(tid, steal, 'out.wav')
+        check('F14 a script cannot copy the clean reference, with EVAL_DIR outside $HOME', not os.path.exists(os.path.join(tmp, 'out.wav')), log)
+        check('F14 the eval folder looks empty from inside', 'a1-podcast-clean' not in open(os.path.join(tmp, 'seen.txt')).read(), log)
+        good = script(os.path.join(ev, 'good.sh'), 'f=$(ls *.wav | head -1)\nffmpeg -v error -y -i "$f" out.wav\n')
+        check('F14 the inputs copied into the script folder still work', sa.run_script(tid, good, 'out.wav')[0])
+        shutil.rmtree(tmp, ignore_errors=True)
+    for m in ('fallback', 'none'):
+        sandbox._mode = m
+        try:
+            sa.run_script(tid, steal, 'out.wav')
+            check(f'F14 mode {m} cannot hide the folder, so the scorer refuses', False)
+        except SystemExit as e:
+            check(f'F14 mode {m} cannot hide the folder, so the scorer refuses', 'bubblewrap' in str(e), e)
+finally:
+    sa.E, sandbox._mode = saved
+    shutil.rmtree(ev, ignore_errors=True)
 
 print('\n%d failed' % len(fails) if fails else '\nall passed')
 sys.exit(1 if fails else 0)

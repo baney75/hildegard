@@ -11,7 +11,7 @@ A missing deliverable never goes to the judge: if only one arm produced one it w
 did the verdict is a tie. "Produced one" means the responder finished (a `done` file and a meta.json with no error; a run that timed
 out or died leaves partial files that are never scored or judged) and, for audio and video edit, the script ran and wrote its file.
 Text deliverables have any skill path, skill name or reference file name replaced by "[reference]" in both arms before the judge sees them."""
-import concurrent.futures as cf, glob, json, os, re, shutil, subprocess, sys, tempfile
+import concurrent.futures as cf, glob, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -52,6 +52,7 @@ RUBRIC = {
 3. The states: each state the brief asked for (empty, error, offline) is designed for what actually happened, says what to do next, and keeps the person's place, not a generic message.
 4. Platform and craft: it follows the platform's conventions (iOS, Android or desktop), uses a consistent system of type, spacing and color, and looks like a real, careful product rather than a template or a wireframe.""",
 }
+DEFAULT = {'video': 'plan.md', 'writing': 'draft.md', 'audio': 'process.sh', 'videoedit': 'edit.sh'}
 FILES = {'design': ('png',), 'video': ('md',), 'writing': ('md',), 'audio': ('sh',), 'videoedit': ('sh', 'png')}
 
 
@@ -102,6 +103,17 @@ def available(arm, model, task):
     if d == 'writing':
         return s.get('words', 0) >= 20
     return bool(s.get('ran')) and not s.get('score_error')
+
+
+def fingerprint(arm, model, task):
+    """What a verdict judged: the run's skills hash and a hash of the deliverable and its score, so a run made again (new skills, or the
+    same skills and a different answer) is judged again and never gets the old verdict."""
+    rd = run_dir(arm, model, task)
+    h = hashlib.sha256()
+    for f in ('design.png' if task['domain'] == 'design' else os.path.join('work', task.get('deliverable') or DEFAULT[task['domain']]), 'score.json'):
+        h.update(open(os.path.join(rd, f), 'rb').read() if os.path.exists(os.path.join(rd, f)) else b'-')
+    sha = os.path.join(rd, 'skills.sha')
+    return {'skills': open(sha).read().strip() if os.path.exists(sha) else None, 'content': h.hexdigest()[:16]}
 
 
 def body(path):
@@ -189,11 +201,14 @@ def scan(w, arms):
 def judge(job):
     label, model, task, order, base, cand = job
     out = os.path.join(E, 'judge', label, model, task['id'], f'order{order}.json')
-    if os.path.exists(out):
-        return json.load(open(out))
     a_arm, b_arm = (base, cand) if order == 0 else (cand, base)
+    fp = {a: fingerprint(a, model, task) for a in (a_arm, b_arm)}
+    if os.path.exists(out):
+        old = json.load(open(out))
+        if old.get('fingerprint') == fp:
+            return old
     ok = {a: available(a, model, task) for a in (a_arm, b_arm)}
-    rec = {'model': model, 'task': task['id'], 'domain': task['domain'], 'order': order, 'A': a_arm, 'B': b_arm}
+    rec = {'model': model, 'task': task['id'], 'domain': task['domain'], 'order': order, 'A': a_arm, 'B': b_arm, 'fingerprint': fp}
     if not ok[a_arm] or not ok[b_arm]:
         win = a_arm if ok[a_arm] else b_arm if ok[b_arm] else 'tie'
         rec.update(winner=win, margin='clear' if win != 'tie' else '', auto=True, why='no usable deliverable from ' + ('either arm' if win == 'tie' else (b_arm if win == a_arm else a_arm)),
