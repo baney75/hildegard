@@ -1,0 +1,45 @@
+{
+  "name": "ui_click",
+  "note": "A soft tick for a button press. Vary: layers[0].freq (1800 to 3200 Hz; higher is lighter), layers[0].dur (0.03 to 0.08).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "sine",
+      "freq": 2400,
+      "sweep": {
+        "to": 1500,
+        "time": 0.03
+      },
+      "dur": 0.06,
+      "env": {
+        "attack": 0.0004,
+        "decay": 0.05,
+        "sustain": 0.0,
+        "release": 0.004
+      },
+      "gain_db": -2
+    },
+    {
+      "source": "white",
+      "dur": 0.012,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 3500,
+        "q": 0.9
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.0098,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "gain_db": -10
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

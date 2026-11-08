@@ -1,0 +1,5 @@
+# Letters of a Woman Homesteader: MY DEAR FRIEND,—
+
+I have put off writing you and thanking you for your thought for us until now so that I could tell you of our very happy Christmas and our deer hunt all at once.
+
+To begin with, Mr. Stewart and Junior have gone to Boulder to spend the winter. Clyde wanted his mother to have a chance to enjoy our boy, so, as he had to go, he took Junior with him. Then those of my dear neighbors nearest my heart decided to prevent a lonely Christmas for me, so on December 21st came Mrs. Louderer, laden with an immense plum pudding and a big "wurst," and a little later came Mrs. O'Shaughnessy on her frisky pony, Chief, her scarlet sweater making a bright bit of color against our snow-wrapped horizon. Her face and ways are just as bright and cheery as can be. When she saw Mrs. Louderer's pudding and sausage she said she had brought nothing because she had come to get something to eat herself, "and," she continued, "it is a private opinion of mine that my neighbors are so glad to see me that they are glad to feed me." Now wouldn't that little speech have made her welcome anywhere?

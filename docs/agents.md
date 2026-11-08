@@ -228,25 +228,31 @@ Devices render on each other over Tailscale: one with a GPU shares it, the other
 on every device (on one without a GPU, `hildegard install --yes --json` then skip the model), and have Tailscale signed
 in on each.
 
-1. **On the device with the GPU**, with a model installed:
+1. **On the device with the GPU**, a model installed (after the owner accepts its license), and Tailscale signed in.
+   Without Tailscale the invite returns `needs-owner` with `tailscale up`; pass `--url http://<tailscale-ip>:7341`
+   only with an address on the tailnet.
+
+2. **On each other device**, one command, and **nobody prints, echoes, `printf`s or pastes the join code**: it is a
+   key, and a transcript or a process list keeps it.
 
    ```sh
-   hildegard choir invite --json
+   hildegard choir pair <ssh-host> --json
    ```
 
-   `shortCode` is a one-time code, `HG-XXXX-XXXX`, good for 10 minutes (`expiresAt`), and `command` is what to run on
-   the other device, with the address in it. `code` appears only with `--long`: the long `hgc1_…` join code holding a
-   key. Hand either straight to the next step; never log them. Without Tailscale it
-   returns `needs-owner` with `tailscale up`; pass `--url http://<tailscale-ip>:7341` only with an address on the
-   tailnet.
-
-2. **On each other device**, pipe the code in (a code on the command line lands in shell history):
+   `pair` runs `hildegard choir invite --code-only` on `<ssh-host>` and connects its output to this device's
+   `hildegard choir join --code-stdin`. The code is never shown, saved or put in an argument, and the answer is the
+   joined device with its models. By hand, the same pipe (it works because `--code-only` prints only the code, and
+   only when stdout is not a terminal):
 
    ```sh
-   printf %s "$CODE" | hildegard choir join --code-stdin --json
+   ssh <ssh-host> hildegard choir invite --code-only | hildegard choir join --code-stdin --json
    ```
 
-   For a short code, add `--url <address from the invite>`: `join` needs it and sends the code nowhere else.
+   From the GPU device the other way: `hildegard choir pair --to <ssh-host>`. If `hildegard` isn't on the other
+   device's PATH, `pair` tries `~/.local/bin`, `/usr/local/bin` and `/opt/homebrew/bin` there. A device with no
+   `ssh` to it is for the owner: `hildegard choir invite` shows a short code to type, and
+   `hildegard choir join HG-XXXX-XXXX --url <address>` takes it. Do not run `choir invite --json` yourself: it exists
+   for the Studio and apps, and its `code` is a secret.
 
    A device without ComfyUI switches to rendering there at once. Otherwise `hildegard choir use <device> --json`, or
    `hildegard choir use auto --json` to send each take to whichever device is free for it, this one included.

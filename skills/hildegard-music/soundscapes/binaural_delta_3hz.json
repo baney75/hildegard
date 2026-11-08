@@ -1,0 +1,32 @@
+{
+  "name": "binaural_delta_3hz",
+  "note": "Binaural beat at 3 Hz (delta range) on a 200 Hz carrier, under a soft brown-noise bed. Needs stereo headphones: the two ears hear different tones and the beat forms in the listener's head. No health claim is made. Vary: minutes, layers[0].carrier_hz (150 to 300), layers[0].beat_hz, the tone's gain_db against the bed.",
+  "vary": [
+    "minutes",
+    "layers[0].beat_hz (0.5 to 40)",
+    "layers[0].carrier_hz (150 to 300)",
+    "layers[0].gain_db"
+  ],
+  "seed": 1,
+  "minutes": 20,
+  "layers": [
+    {
+      "type": "binaural",
+      "carrier_hz": 200,
+      "beat_hz": 3,
+      "gain_db": -3
+    },
+    {
+      "type": "noise",
+      "color": "brown",
+      "lowpass": 900,
+      "gain_db": 0
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

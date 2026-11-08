@@ -86,10 +86,11 @@ import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
 import { type Host, HostError, hostKey } from './host.ts';
 import { CONSENT_PHOTOS, type Likeness, LikenessError, MAX_CONSENT_PHOTO, statement } from './likeness.ts';
+import { isPrivateLink, linkOn, planLink } from './link-on.ts';
 import { directWithLocal, LlmError, type LocalModels, llmProxyRoutes } from './llm.ts';
 import type { Loops } from './loop.ts';
 import { loopRoutes } from './loop-routes.ts';
-import type { ModelManager } from './models.ts';
+import { ModelError, type ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { type OpenScad, usesManifold } from './openscad.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
@@ -184,6 +185,8 @@ export interface AppDeps {
   host: Host;
   /** The Cloudflare tunnel Hildegard runs as a front door, when asked. */
   cloudflared?: Cloudflared;
+  /** The port the Studio's own listener answers on, once it is listening (config.port can be 0 until then). */
+  listeningPort?: () => number;
   /** Sign-in attempts allowed per account and per address, in 15 minutes; tests lower them. */
   limits?: { perName: number; perClient: number };
   /** Keys and chatbots that use the MCP from other devices. */
@@ -360,6 +363,13 @@ export function createApp(deps: AppDeps) {
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
     c.header('cross-origin-resource-policy', preview || published ? 'cross-origin' : 'same-origin');
+    // Record uses the camera and microphone. Only the Studio's own pages may ask: a frame from another origin can't,
+    // whatever the app's window allows, and neither can a site preview or a published site, written by an AI or a
+    // person and served from this same origin.
+    c.header(
+      'permissions-policy',
+      preview || published ? 'camera=(), microphone=()' : 'camera=(self), microphone=(self)',
+    );
   });
 
   // ── Who is asking: this computer, someone signed in, or nobody yet ──────────────────────────────────────────
@@ -1822,6 +1832,39 @@ export function createApp(deps: AppDeps) {
     void deps.models.install(id).catch(() => {});
     return c.json(deps.models.states(), 202);
   });
+  // Deletes files on this computer, so only from here, and never under a render or a download.
+  app.post('/api/models/:id/remove', async (c) => {
+    if (!local(c)) return c.json({ error: 'Remove models from the computer Hildegard runs on.' }, 403);
+    const id = c.req.param('id');
+    if (!catalog.models.some((m) => m.id === id)) return c.json({ error: 'No such model' }, 404);
+    const remote = deps.choir.active();
+    if (remote)
+      return c.json(
+        {
+          error: `Takes render on ${remote.name}, so its models are there. On ${remote.name}, run \`hildegard models remove ${id}\`.`,
+          code: 'remote',
+        },
+        409,
+      );
+    const body = z
+      .object({ withUnused: z.boolean().optional(), dryRun: z.boolean().optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Say withUnused or dryRun as true or false.' }, 400);
+    if (!body.data.dryRun && (!scheduler.idle || scheduler.queued().length))
+      return c.json(
+        {
+          error: 'Hildegard is rendering or has takes waiting. Remove models once they finish.',
+          code: 'busy',
+        },
+        409,
+      );
+    try {
+      return c.json(deps.models.remove(id, body.data));
+    } catch (e) {
+      if (e instanceof ModelError) return c.json({ error: e.message, code: e.code }, 409);
+      throw e;
+    }
+  });
   app.post('/api/models/:id/cancel', (c) =>
     deps.models.cancel(c.req.param('id'))
       ? c.json(deps.models.states())
@@ -2245,6 +2288,7 @@ export function createApp(deps: AppDeps) {
           text: z
             .string()
             .max(MAX_LINT_CHARS, `Send up to ${MAX_LINT_CHARS.toLocaleString('en-US')} characters.`),
+          strict: z.boolean().optional(),
         })
         .safeParse(await c.req.json().catch(() => null));
       if (!body.success)
@@ -2252,7 +2296,7 @@ export function createApp(deps: AppDeps) {
           { error: body.error.issues[0]?.message ?? 'Send { "text": "…" }.', field: 'text' },
           400,
         );
-      return c.json(lintProse(body.data.text));
+      return c.json(lintProse(body.data.text, { strict: body.data.strict }));
     },
   );
 
@@ -2513,6 +2557,31 @@ export function createApp(deps: AppDeps) {
     return c.json(await host.off());
   });
 
+  // The best available link in one step, for a phone that needs to reach this computer. It changes the computer, so
+  // only this computer may ask; a remote owner or an AI app on another device is told to ask here.
+  const linkDeps = { host, cloudflared: deps.cloudflared, owner: () => people.hasOwner() };
+  app.post('/api/link/on', async (c) => {
+    if (!local(c))
+      return c.json(
+        {
+          error:
+            'Turn on the link from the computer Hildegard runs on: in the Studio there (Settings › Sharing), or with `hildegard tunnel auto`.',
+        },
+        403,
+      );
+    // `plan` is the id of the plan that was shown to the person; `acceptPublic` is the person's own yes to a public one
+    // (the Studio's dialog, the CLI's confirm). The MCP sends the first and never the second.
+    const body = z
+      .object({ plan: z.string().max(40).optional(), acceptPublic: z.boolean().optional() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'Send the plan id you were shown.' }, 400);
+    try {
+      return c.json(await linkOn(linkDeps, body.data));
+    } catch (e) {
+      return hostFail(c, e);
+    }
+  });
+
   // ── Tunnels: where Tailscale and Cloudflare stand here, signing in, and fetching cloudflared on the owner's word ──
   const cloudflared = deps.cloudflared;
   app.get('/api/tunnel', async (c) => {
@@ -2591,9 +2660,13 @@ export function createApp(deps: AppDeps) {
         // The link the person opens on their own device: this Hildegard's link if it has one; else the address this
         // request came to (this computer's own, or the device a signed-in person is on).
         linkBase: (c) => {
-          const shared = host.state().url;
-          return shared ? { base: shared, viaLink: true } : { base: originOf(c), viaLink: false };
+          const h = host.state();
+          return h.url
+            ? { base: h.url, viaLink: true, public: !isPrivateLink(h) }
+            : { base: originOf(c), viaLink: false, public: false };
         },
+        plan: () => planLink(linkDeps),
+        hereBase: () => `http://127.0.0.1:${deps.listeningPort?.() ?? config.port}`,
         sees: (c, filmId) => sees(c, filmId),
       }),
     );

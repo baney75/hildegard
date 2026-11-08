@@ -1,0 +1,30 @@
+{
+  "humanN": 220,
+  "humanFails": 0,
+  "humanWarns": 106,
+  "aiN": 176,
+  "aiFails": 52,
+  "testHumanN": 49,
+  "testHumanFails": 0,
+  "testAiN": 56,
+  "testAiFails": 16,
+  "holdoutHumanN": 73,
+  "holdoutHumanFails": 0,
+  "holdoutAiN": 48,
+  "holdoutAiFails": 16,
+  "strict": {
+    "humanN": 220,
+    "humanFails": 101,
+    "humanWarns": 10,
+    "aiN": 176,
+    "aiFails": 139,
+    "testHumanN": 49,
+    "testHumanFails": 29,
+    "testAiN": 56,
+    "testAiFails": 46,
+    "holdoutHumanN": 73,
+    "holdoutHumanFails": 25,
+    "holdoutAiN": 48,
+    "holdoutAiFails": 37
+  }
+}

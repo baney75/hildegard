@@ -1,0 +1,5 @@
+# Moving on from Creative Commons
+
+I have some bittersweet professional news to share. I will be stepping down from my position at Creative Commons and joining the Wikimedia Foundation as Chief of Staff. Leading Creative Commons has been the most challenging and rewarding role of my career. It has been a privilege to do this work, and together we’ve had some incredible accomplishments. I’m deeply grateful for the opportunity to work with such a dedicated and professional staff, and a caring and driven community — I deeply believe that our collaborative efforts are the reason for every success we’ve had. I’m excited to continue working on issues that I care about in the open community. And I’m excited to continue working collaboratively with the CC team as a community member and partner.
+
+Looking back on five years as CC’s CEO, I believe that the organization is in a stronger position than it has ever been. CC’s focus is clear, building a vibrant, usable commons powered by collaboration and gratitude through community support and training, product development and partnerships, and engagement.

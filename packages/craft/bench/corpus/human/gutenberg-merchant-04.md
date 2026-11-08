@@ -1,0 +1,5 @@
+# Letters from a Self-Made Merchant to His Son: Dear Pierrepont: When I saw you start off yesterda
+
+Dear Pierrepont: When I saw you start off yesterday I was just a little uneasy; for you looked so blamed important and chesty that I am inclined to think you will tell the first customer who says he doesn't like our sausage that he knows what he can do about it. Repartee makes reading lively, but business dull. And what the house needs is more orders.
+
+Sausage is the one subject of all others that a fellow in the packing business ought to treat solemnly. Half the people in the world take a joke seriously from the start, and the other half if you repeat it often enough. Only last week the head of our sausage department started to put out a tin-tag brand of frankfurts, but I made him take it off the market quicker than lightning, because I knew that the first fool who saw the tin-tag would ask if that was the license. And, though people would grin a little at first, they'd begin to look serious after a while; and whenever the butcher tried to sell them our brand they'd imagine they heard the bark, and ask for "that real country sausage" at twice as much a pound.
