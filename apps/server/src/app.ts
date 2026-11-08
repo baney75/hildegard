@@ -81,6 +81,8 @@ import { type Choir, ChoirError } from './choir.ts';
 import { redeemRoutes } from './choir-redeem.ts';
 import { CodeBook } from './codes.ts';
 import type { Config } from './config.ts';
+import type { Demos } from './demo.ts';
+import { demoRoutes } from './demo-routes.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
@@ -207,6 +209,8 @@ export interface AppDeps {
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
   /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
   records?: { store: RecordStore; cleaner: CleanJobs; transcriber?: RecordRouteDeps['transcriber'] };
+  /** Browser demos, recorded into the person's recordings. */
+  demos?: Demos;
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -2673,6 +2677,8 @@ export function createApp(deps: AppDeps) {
         sees: (c, filmId) => sees(c, filmId),
       }),
     );
+  if (deps.demos && deps.records)
+    app.route('/api/demos', demoRoutes({ demos: deps.demos, records: deps.records.store, who: whoOf }));
   if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 
   // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────

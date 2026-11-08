@@ -110,6 +110,7 @@ for (const node of ['hildegard_look', 'hildegard_guard'])
 // The voice engine and the pinned packages each of its environments installs; its tests stay behind.
 copy('voice-engine', 'voice-engine', (s) => !/__pycache__|\.pyc$|[\\/]tests([\\/]|$)|\.pytest_cache/.test(s));
 copy('packages/comfy/fixtures', 'fixtures');
+copy('tools/demo_render.py', 'tools/demo_render.py');
 copy('tools/export_film.py', 'tools/export_film.py');
 copy('tools/poster.py', 'tools/poster.py');
 copy('tools/review_media.py', 'tools/review_media.py');
