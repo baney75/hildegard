@@ -164,10 +164,12 @@ describe.skipIf(!hasPython)('hildegard-photo-edit scripts', () => {
         expect(m.mean_luma).toBeLessThan(0.28);
         const r = json(tool('color', f('db.png'), f('db-out.png'), '--wb', 'none', '--json'));
         expect(r.done.exposure_stops).toBe(0);
-        expect(r.done.exposure_note).toMatch(/--exposure [+-]0\.5/);
+        // a dark picture is lifted, clipped highlights or not: the note names +0.5, never a cut
+        const named = /--exposure ([+-]0\.5)/.exec(r.done.exposure_note ?? '')?.[1];
+        expect(named).toBe('+0.5');
         // and the number it names does something
         const lifted = json(
-          tool('color', f('db.png'), f('db-out.png'), '--wb', 'none', '--exposure', '+0.5', '--json'),
+          tool('color', f('db.png'), f('db-out.png'), '--wb', 'none', '--exposure', named ?? '', '--json'),
         );
         expect(lifted.after.mean_luma).toBeGreaterThan(lifted.before.mean_luma + 0.02);
       },
@@ -177,6 +179,7 @@ describe.skipIf(!hasPython)('hildegard-photo-edit scripts', () => {
       const md = readFileSync(join(scripts, '../SKILL.md'), 'utf8');
       expect(md).toMatch(/mean luminance under 0\.28[^\n]*bright highlights[^\n]*`--exposure \+0\.5`/);
       expect(md).toMatch(/clipped highlights over 0\.05[^\n]*only when the picture is bright overall/);
+      expect(md).toMatch(/clipped highlights over 0\.05[^\n]*dark picture[^\n]*`--exposure \+0\.5`/);
       expect(readFileSync(join(scripts, 'color.py'), 'utf8')).not.toContain('sane band');
     });
 

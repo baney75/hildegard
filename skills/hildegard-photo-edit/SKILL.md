@@ -59,7 +59,7 @@ python3 scripts/contact_sheet.py compare.png photo.jpg out.jpg       # then LOOK
 | gray-world error over 0.2 | strong cast, or a scene that is one colour | `color.py --wb auto`; keep warm light with `--wb none` |
 | mean luminance under 0.28 | dark | `color.py --exposure auto` lifts it when its brightest areas are well under white. If the picture has bright highlights (a window, a lamp, cloud) auto leaves it and the report says so: give `--exposure +0.5` (stops), check the highlights, or leave a night scene dark |
 | mean luminance over 0.65 | bright | `color.py --exposure auto` lowers it when highlights are blown |
-| clipped highlights over 0.05 | blown | `color.py --exposure auto` lowers exposure only when the picture is bright overall (mean 0.40 or more); in a dark picture it says so and `--exposure -0.5` is yours to give (detail already lost stays lost) |
+| clipped highlights over 0.05 | blown | `color.py --exposure auto` lowers exposure only when the picture is bright overall (mean 0.40 or more); in a dark picture (mean under 0.28) it says so and gives `--exposure +0.5` as in the dark row, since lowering pixels already at white only turns them grey; between 0.28 and 0.40 `--exposure -0.5` is yours to give (detail already lost stays lost) |
 | clipped shadows over 0.08 | crushed | `color.py` opens the floor (`--black none` for silhouettes) |
 | noise over 4 | grainy | `denoise_sharpen.py` |
 

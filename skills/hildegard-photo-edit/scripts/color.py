@@ -135,12 +135,13 @@ def exposure_note(a, stops, clipped):
     mean = float(L.luma(a).mean())
     if abs(stops) >= 0.03:
         return None
+    if mean < DARK_MEAN:  # a dark picture is lifted, whether or not some of it is clipped: lowering pixels at white only turns them grey
+        clip = ' (the pixels already at white stay clipped)' if clipped > CLIP_SHARE else ''
+        return (f'left as shot: the mean brightness is {mean:.2f} (dark) but the brightest areas are already near white, so lifting would blow them; '
+                f'if it should look brighter, give --exposure +0.5 (stops) and check the highlights after{clip}, or leave a night or low-key scene dark')
     if clipped > CLIP_SHARE and mean < BRIGHT_MEAN:
         return (f'left as shot: {clipped * 100:.0f} percent of the picture is at white but the mean brightness is only {mean:.2f}, so the scene '
                 f'is dark on purpose or the highlights are lost for good (lost detail stays lost); give --exposure -0.5 to bring the whites down, or leave it')
-    if mean < DARK_MEAN:
-        return (f'left as shot: the mean brightness is {mean:.2f} (dark) but the brightest areas are already near white, so lifting would blow them; '
-                f'if it should look brighter, give --exposure +0.5 (stops) and check the highlights after, or leave a night or low-key scene dark')
     return None
 
 
