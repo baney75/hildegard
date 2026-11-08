@@ -17,6 +17,9 @@ your user's project, you render it yourself with Playwright (section 4) and audi
 If you have them, **hildegard-craft** gives the brief and the gates, and **hildegard-loop** the rounds;
 `references/slop.md` here is the slop catalogue.
 
+The screens inside an app (iOS, Android, desktop, a web app's working screens) are **hildegard-app**'s; a logo or
+brand guide is **hildegard-brand**'s; a poster, flyer or social image is **hildegard-design**'s.
+
 ## 0. Start from something good
 
 With Hildegard linked, work in a **site** (`site_new`), so your user sees it live on the Studio's canvas at three widths

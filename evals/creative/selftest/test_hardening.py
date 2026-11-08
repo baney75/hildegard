@@ -21,7 +21,8 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
       `chmod 0111 .` or in a 0311 folder, and a FIFO each fail the run with no `done`
   F13 --judge-only refuses runs made with other skills than the arm's skills now, or with no recorded hash
   F14 the eval folder (clean references, inputs, other runs) is not readable from the sandbox, wherever EVAL_DIR is; without bubblewrap the scorer refuses
-  F15 a verdict is reused only while both runs it judged are unchanged: a run made again is judged again"""
+  F15 a verdict is reused only while both runs it judged are unchanged: a run made again is judged again
+  F16 a Luna run (codex exec, outside the box) is refused (exit 5) without HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1: no model call, no done, no final; with it, it runs"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
@@ -322,6 +323,27 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
               and 'original' not in json.dumps(m) + r.stderr + (text(os.path.join(lr, 'final.txt')) or ''), (r.returncode, r.stderr, m))
     calls_lst.hits = 0
 
+    # F16: Luna runs outside the box, so it is refused unless the owner opts in; the stand-in codex counts its calls like the fake claude
+    script(os.path.join(bindir, 'codex'), 'exec 3<>/dev/tcp/127.0.0.1/PORT && read -t 5 -u 3 _; exec 3<&-\ncat > /dev/null\n'.replace('PORT', str(calls_lst.port))
+           + 'echo \'{"type":"item.completed","item":{"type":"agent_message","text":"made it"}}\'\necho \'{"type":"turn.completed"}\'\n')
+    lunaenv = {k: v for k, v in env.items() if k != 'HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA'}
+
+    def respond_luna(task, **over):
+        return subprocess.run(['bash', os.path.join(CR, 'respond.sh'), 'new', 'luna', task], env={**lunaenv, **over}, capture_output=True, text=True, timeout=120)
+    lrun = os.path.join(ev, 'runs', 'new', 'luna', t1)
+    before = calls()
+    r = respond_luna(t1)
+    check('F16 a Luna run without HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1 is refused (exit 5), never calls codex and names the opt-in',
+          r.returncode == 5 and calls() == before and 'HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1' in r.stderr, (r.returncode, calls(), before, r.stderr))
+    check('F16 a refused Luna run writes no done, no final and no transcript',
+          not any(os.path.exists(os.path.join(lrun, f)) for f in ('done', 'final.txt', 'transcript.jsonl', 'meta.json')), os.listdir(lrun) if os.path.isdir(lrun) else [])
+    r = respond_luna(t1, HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA='0')
+    check('F16 any value but 1 is still a refusal', r.returncode == 5 and calls() == before, (r.returncode, calls(), before))
+    r = respond_luna(t1, HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA='1')
+    check('F16 with HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1 Luna runs as before: codex is called once and the run is done',
+          r.returncode == 0 and calls() == before + 1 and os.path.exists(os.path.join(lrun, 'done')), (r.returncode, calls(), before, r.stderr))
+    calls_lst.hits = 0
+
     # F2: a fresh eval folder still gets main's skills (mktemp needs the folder to exist)
     fresh = os.path.join(root, 'fresh')
     fr = os.path.join(fresh, 'runs', 'main', 'haiku', t1)
@@ -550,6 +572,16 @@ with tempfile.TemporaryDirectory() as ev:
             if os.path.exists(os.path.join(CR, leftover)):
                 os.remove(os.path.join(CR, leftover))
         os.environ.pop('NEW_SKILLS')
+        # An arm arms.py made (council, nocouncil) is checked against its own folder, the one respond.sh hashed, not origin/main's.
+        arm = os.path.join(ev2, 'arms', 'nocouncil', 'skills')
+        shutil.copytree(sk, arm)
+        ra = os.path.join(ev2, 'runs', 'nocouncil', 'haiku', 'b1-prairie-signal')
+        os.makedirs(ra)
+        open(os.path.join(ra, 'skills.sha'), 'w').write(skillhash.tree_hash(arm) + '\n')
+        arm_stale = lambda: skillhash.stale(ev2, ['nocouncil'], ['haiku'], ['b1-prairie-signal'])
+        check('F13 a run made with an arms.py arm as it is now is not stale', arm_stale() == [], arm_stale())
+        open(os.path.join(arm, 'hildegard', 'SKILL.md'), 'w').write('three\n')
+        check('F13 editing that arm after the run makes it stale', len(arm_stale()) == 1, arm_stale())
     # The sandbox hides the eval folder from every script, even when the caller names nothing to hide.
     if sandbox.mode() == 'bwrap':
         with tempfile.TemporaryDirectory() as ev3, tempfile.TemporaryDirectory() as rw:

@@ -64,7 +64,7 @@ def main():
     P(f'\n== {label}: {cand} vs {base}, one response per task, both judge orders ==\n')
     P('Per domain (verdicts = tasks x 2 orders; rate counts a tie as half; "won"/"lost" = both orders agree)')
     P(f'{"domain":<10} {"model":<6} {cand+" wins":>9} {base+" wins":>9} {"ties":>5} {"n":>3} {"rate":>6}  won/lost tasks  (auto)')
-    for d in ('design', 'video', 'audio', 'writing', 'videoedit'):
+    for d in ('design', 'video', 'audio', 'writing', 'videoedit', 'logo', 'brand', 'app'):
         for m in models:
             s = summary.get(d, {}).get(m)
             if s:
@@ -80,6 +80,10 @@ def main():
     P('\nSkills used (hash of the skills folder -> responses; "unrecorded" = made before runs recorded it; none = no skills):')
     for arm in arms:
         P('  ' + arm + ': ' + ', '.join(f'{h[:12]} x{n}' for h, n in sorted(hashes[arm].items())))
+    P('\nCouncil run (runs that tallied a council / runs; critic subagents started):')
+    for arm in arms:
+        P('  ' + arm + ': ' + ', '.join(f'{m} {sum(1 for r in runs[arm][m].values() if r["meta"].get("council_ran"))}/{sum(1 for r in runs[arm][m].values() if r["meta"])}'
+                                         f' ({sum(r["meta"].get("subagents", 0) for r in runs[arm][m].values())} subagents)' for m in models))
     P('\nSkill loaded (runs where the responder loaded or read a Hildegard skill / runs):')
     for arm in arms:
         P('  ' + arm + ': ' + ', '.join(f'{m} {x[0]}/{x[1]}' for m, x in skill[arm].items()))
@@ -111,7 +115,18 @@ def main():
             if ws:
                 P(f'  {m:<6} {arm:<5} lint fails {sum(w.get("fails", 0) for w in ws)}, warns {sum(w.get("warns", 0) for w in ws)} over {len(ws)} drafts; '
                   f'invented facts {sum(inv)} over {len(inv)} judgments ({sum(inv) / len(inv):.1f} each)' if inv else f'  {m:<6} {arm:<5} lint fails {sum(w.get("fails", 0) for w in ws)}, warns {sum(w.get("warns", 0) for w in ws)}')
-    for d in ('design', 'video'):
+    P('\nLogo, brand and app, measured (each arm\'s files through the skills\' own checkers; lower is better except where noted):')
+    keys = {'logo': ('fails', 'hairlines', 'embroidery', 'one-color', 'live_text', 'has_sheet'),
+            'brand': ('json_ok', 'one_page', 'contrast_fails', 'clipped', 'placeholder'),
+            'app': ('fails', 'contrast_fails', 'small_targets', 'clipped', 'overflow', 'states_delivered')}
+    for t in tasks:
+        if t['domain'] not in keys:
+            continue
+        for m in models:
+            for arm in arms:
+                sc = runs[arm][m][t['id']]['score']
+                P(f'  {t["id"]:<22} {m:<6} {arm:<9} ' + ', '.join(f'{k}={sc.get(k)}' for k in keys[t['domain']]))
+    for d in ('design', 'video', 'logo', 'brand', 'app'):
         for m in models:
             for arm in arms:
                 inv = [len(v['invented'].get(arm, [])) for v in verdicts if v['model'] == m and v['domain'] == d and not v['auto']]
@@ -121,8 +136,13 @@ def main():
 
 
 def contact(label, tasks, arms, models):
+    for d in ('logo', 'brand', 'app'):
+        contact_for(label, [t for t in tasks if t['domain'] == d], arms, models, {'logo': 'logo-sheet.png', 'brand': 'guide.png', 'app': 'screens.png'}[d], d)
+    contact_for(label, [t for t in tasks if t['domain'] == 'design'], arms, models, 'design.png', 'design')
+
+
+def contact_for(label, ds, arms, models, pic, dom):
     from PIL import Image, ImageDraw
-    ds = [t for t in tasks if t['domain'] == 'design']
     if not ds:
         return
     cols = [(arm, m) for m in models for arm in arms]
@@ -130,7 +150,7 @@ def contact(label, tasks, arms, models):
     cells, widths = {}, {}
     for t in ds:
         for arm, m in cols:
-            p = os.path.join(E, 'runs', arm, m, t['id'], 'design.png')
+            p = os.path.join(E, 'runs', arm, m, t['id'], pic)
             im = Image.open(p).convert('RGB') if os.path.exists(p) else None
             if im:
                 im = im.resize((max(1, int(im.width * H / im.height)), H))
@@ -155,9 +175,9 @@ def contact(label, tasks, arms, models):
                 dr.text((x + 10, y + 30), 'no usable output', fill=(200, 80, 80))
             dr.text((x, y), t['id'], fill=(170, 170, 170))
             x += w + pad
-    p = os.path.join(E, f'contact-sheet-{label}.png')
+    p = os.path.join(E, f'contact-sheet-{label}{"" if dom == "design" else "-" + dom}.png')
     sheet.save(p)
-    print('\nDesign contact sheet:', p)
+    print(f'\n{dom.capitalize()} contact sheet:', p)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "l4-ironwood-tree",
+    "domain": "logo",
+    "brief": "I'm Cass Whitfield, owner of Ironwood Tree Care in Asheville, North Carolina. We're certified arborists: pruning, removals, storm cleanup, and saving old trees people think are lost. Three crews, a bucket truck and a crane. The logo goes on the truck doors (cut vinyl, one color), our hard hats (a small one-color sticker), the website and its tab icon, and our shirts (embroidered on the chest). The name is \"Ironwood Tree Care\". No tagline. Not a generic green tree in a circle, please; every tree service has that. Don't ask me questions; make it."
+  },
+  {
+    "id": "l5-blackwater-roasting",
+    "domain": "logo",
+    "brief": "I roast coffee in small batches in a 1940s feed mill in Davis, West Virginia, near Blackwater Falls. The company is Blackwater Roasting Co.; it's me (June Pak) and one roaster, a 15-kilo Diedrich. We sell bags online and to six cafes. The logo is stamped in one ink on our kraft-paper bags, embroidered on aprons, printed on cup sleeves, and used as the Instagram avatar and website icon. Name: \"Blackwater Roasting Co.\". No tagline. No coffee bean and no steaming cup. Don't ask me questions; make it."
+  },
+  {
+    "id": "b4-kettle-river",
+    "domain": "brand",
+    "inputs": ["logo.svg"],
+    "logo": {
+      "text": "Kettle River Brewing",
+      "family": "Bitter",
+      "weight": 700,
+      "color": "#2d3a2e"
+    },
+    "brief": "We're Kettle River Brewing in Sandstone, Minnesota: a 7-barrel brewery and taproom in the old bank building on Main Street, run by brothers Erik and Nils Lund. We make lagers and a few seasonal ales; our best seller is Quarry Lager (4.6%). The taproom is open Thursday to Sunday, families and dogs welcome, and we sell cans to bars and liquor stores in the county. We have a logo (logo.svg). I need the brand system as a one-page guide for our can designer, our bartenders and whoever posts for us. Don't ask me questions; make it."
+  },
+  {
+    "id": "b5-northfield-dental",
+    "domain": "brand",
+    "inputs": ["logo.svg"],
+    "logo": {
+      "text": "Northfield Family Dental",
+      "family": "Instrument Sans",
+      "weight": 600,
+      "color": "#1b4b5a"
+    },
+    "brief": "I'm Dr. Ana Ruiz, and I own Northfield Family Dental in Northfield, Minnesota: cleanings, fillings, crowns and kids' dentistry, with two dentists and four hygienists. A lot of our new patients are nervous adults who haven't been to a dentist in years, and parents bringing toddlers for a first visit. We take most insurance and have Saturday hours. We have a logo (logo.svg). I need the brand system as a one-page guide for our front desk, our website person and our mailers. Don't ask me questions; make it."
+  },
+  {
+    "id": "p4-bus-tracker",
+    "domain": "app",
+    "size": [390, 844],
+    "platform": "iOS (iPhone)",
+    "states": ["screen", "offline"],
+    "brief": "Parents in the Lakeview School District (Battle Creek, Michigan) use our app to see where their child's school bus is. The main screen shows one child's bus: Maya, bus 14, morning route, stop at Oak St. and Ridgeway Ave. Right now the bus is 3 stops away, about 6 minutes, and the driver is Mr. Dorsey. A map isn't needed; a simple route line with stops is enough. Screen 1 (screen.html): the bus 3 stops away. Screen 2 (offline.html): the same screen when the parent's phone has lost its connection; the last update was 2 minutes ago. Don't ask me questions; make it."
+  },
+  {
+    "id": "p5-fair-checkin",
+    "domain": "app",
+    "size": [412, 915],
+    "platform": "Android (phone)",
+    "states": ["screen", "empty"],
+    "brief": "At the Clinton County 4-H Fair (Wilmington, Ohio), volunteers check in livestock with this app on their phones in the barn. The check-in screen for one exhibitor shows: exhibitor Hannah Brewer, age 14, Wilmington Clovers club; her animals: market hog \"Tank\" (ear tag 4471), market hog \"Biscuit\" (ear tag 4472), and a breeding gilt (ear tag 4490); weigh-in Monday 8 a.m. at the swine barn. The volunteer checks each animal in after seeing its tag and health papers. Screen 1 (screen.html): Hannah's check-in, with Tank already checked in and the other two not yet. Screen 2 (empty.html): the screen when the volunteer searches for an exhibitor number that has no animals entered. Don't ask me questions; make it."
+  }
+]

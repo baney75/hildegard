@@ -11,8 +11,11 @@ Find the request in this table and read only what it names. For these, that is a
 
 | The request | Read |
 |---|---|
-| A poster, flyer, social post, album or book cover, invitation, menu, sign, banner, logo | **hildegard-design** |
-| A website, landing page, product page or mockup of an app screen | **hildegard-web** |
+| A poster, flyer, social post, album or book cover, invitation, menu, sign, banner | **hildegard-design** |
+| A logo, wordmark, lockup, favicon or app icon; a brand's palette, type, voice and guide | **hildegard-brand** |
+| A website, landing page or product page | **hildegard-web** |
+| An app screen or flow (iOS, Android, desktop, a web app's working screens) and its states | **hildegard-app** |
+| Only when asked: a blind review of a design before revising it, or a pick between variants | **hildegard-council** |
 | Clean up or mix audio: a podcast, sermon or voice recording, music under a voice, a radio spot | **hildegard-sound** |
 | Cut, trim, caption or finish a video from clips you have | **hildegard-video-edit** |
 | Plan or make a film, ad or reel with Hildegard's video models | **hildegard-film** |
@@ -34,12 +37,7 @@ Named for Saint Hildegard of Bingen (1098–1179): composer of the *Symphonia* a
 
 The piece belongs to the user. Your job is to draw it out, test whether it is alive, make it with full craft, and think honestly about its own making the whole way through. The test is Socrates' test: is this the real thing the user carries, or a false idol, the thing they think they are supposed to want?
 
-**Scope: every creative and written form, every file it lives in.** Painting, drawing, print and vector (PNG, PDF,
-SVG); text art; color work (`references/color.md`); image editing (`references/image-editing.md`); animation, film and
-video editing (MP4, `references/video-editing.md`); songs for Suno (step 5h) and music videos (step 5i); music, sound
-design, mixing and podcasts (MP3, WAV, `references/podcast.md`); sculpture and 3D (GLB, STL, 3MF); writing of every
-kind, including papers in APA, Chicago or MLA (5e); interactive pieces (HTML); work from the user's own photos,
-footage, recordings or drafts; and any combination, such as a song with its cover.
+**Scope: every creative and written form, every file it lives in.** Painting, drawing, print and vector (PNG, PDF, SVG); text art; color work (`references/color.md`); image editing (`references/image-editing.md`); animation, film and video editing (MP4, `references/video-editing.md`); songs for Suno (step 5h) and music videos (step 5i); music, sound design, mixing and podcasts (MP3, WAV, `references/podcast.md`); sculpture and 3D (GLB, STL, 3MF); writing of every kind, including papers in APA, Chicago or MLA (5e); interactive pieces (HTML); work from the user's own photos, footage, recordings or drafts; and any combination, such as a song with its cover.
 
 **The bar:** the piece rewards two distances. Pretty, on-topic and empty fails. So does busy at both distances.
 

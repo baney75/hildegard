@@ -831,6 +831,9 @@ describe('the skills Hildegard ships', () => {
         'hildegard-art',
         'hildegard-design',
         'hildegard-blog',
+        'hildegard-brand',
+        'hildegard-app',
+        'hildegard-council',
         'hildegard-sound',
         'hildegard-music',
         'hildegard-setup',
@@ -850,5 +853,20 @@ describe('the skills Hildegard ships', () => {
       for (const [, link] of md.matchAll(/\]\(((?!https?:)[^)#]+)\)/g))
         expect(existsSync(join(s.dir, link!))).toBe(true);
     }
+  });
+
+  it('carries the browser helper into each skill that uses it, byte for byte', () => {
+    // Each skill is also uploaded alone (one zip per skill), so hildegard-app holds its own copy; the source is
+    // hildegard-brand's, and skills/SHARED.json keeps it (node scripts/sync-skill-shared.mjs).
+    const shared = JSON.parse(readFileSync(join(dir, 'SHARED.json'), 'utf8')) as {
+      copies: { source: string; skills: string[] }[];
+    };
+    expect(shared.copies).toContainEqual({
+      source: 'skills/hildegard-brand/scripts/browser.py',
+      skills: ['hildegard-app'],
+    });
+    expect(readFileSync(join(dir, 'hildegard-app/scripts/browser.py'), 'utf8')).toBe(
+      readFileSync(join(dir, 'hildegard-brand/scripts/browser.py'), 'utf8'),
+    );
   });
 });

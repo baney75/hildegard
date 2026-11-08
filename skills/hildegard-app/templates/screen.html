@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brickyard Press: Proofs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@700&family=Work+Sans:wght@400;500;600&display=block">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--ground); color: var(--ink); font: 400 var(--body)/1.35 var(--font);
+         display: grid; grid-template-rows: var(--status) auto 1fr calc(var(--tabbar) + var(--home)); }
+  /* the system's own chrome: drawn so the layout is honest, marked so the checks skip it */
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 14px 32px 0;
+            font: 600 var(--headline)/1 -apple-system, system-ui, sans-serif; }
+  header { padding: var(--s2) var(--s4) var(--s3); }
+  header h1 { font: 700 var(--large-title)/1.1 var(--font-display); letter-spacing: -0.01em; }
+  header p { color: var(--muted); font-size: var(--subhead); margin-top: var(--s1); }
+  main { overflow: auto; padding: 0 var(--s4) var(--s6); display: grid; gap: var(--s3); align-content: start; }
+  .card { background: var(--surface); border-radius: var(--radius); padding: var(--s4); display: grid; gap: var(--s3);
+          box-shadow: 0 0 0 1px var(--line); }
+  .card .top { display: flex; justify-content: space-between; gap: var(--s3); align-items: baseline; }
+  .card h2 { font: 600 var(--headline)/1.25 var(--font); }
+  .meta { color: var(--muted); font-size: var(--subhead); }
+  .pill { font: 600 var(--caption)/1 var(--font); padding: 6px 10px; border-radius: 999px; white-space: nowrap; }
+  .pill.wait { background: #f3e3c7; color: #5c3b00; }
+  .pill.ok { background: #dcebd9; color: #234f2b; }
+  .actions { display: flex; gap: var(--s2); }
+  button { font: 600 var(--callout)/1 var(--font); min-height: var(--target); border-radius: var(--radius-sm);
+           border: 0; padding: 0 var(--s4); }
+  .primary { background: var(--accent); color: var(--on-accent); flex: 1; }
+  .secondary { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .done { opacity: 1; }
+  .done h2 { color: var(--muted); }
+  nav.tabs { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; padding-top: 4px;
+             background: var(--surface); box-shadow: 0 -1px 0 var(--line); }
+  nav.tabs a { display: grid; justify-items: center; gap: 2px; min-height: var(--target); color: var(--muted);
+               text-decoration: none; font: 500 11px/1.2 var(--font); }
+  nav.tabs a[aria-current] { color: var(--accent); }
+  nav.tabs svg { width: 26px; height: 26px; }
+</style>
+</head>
+<body>
+  <div class="status" data-system aria-hidden="true"><span>9:41</span><span>●●● 100%</span></div>
+  <header>
+    <h1>Proofs</h1>
+    <p>Two need your eyes before we print.</p>
+  </header>
+  <main>
+    <article class="card">
+      <div class="top"><h2>Hale &amp; Moreno wedding suite</h2><span class="pill wait">Your turn</span></div>
+      <p class="meta">Invitation, RSVP card, envelope · Proof 2 · sent Tuesday</p>
+      <div class="actions">
+        <button type="button" class="primary">Approve proof</button>
+        <button type="button" class="secondary">Ask for changes</button>
+      </div>
+    </article>
+    <article class="card">
+      <div class="top"><h2>Fernhill Bakery business cards</h2><span class="pill wait">Your turn</span></div>
+      <p class="meta">500 cards, two colors · Proof 1 · sent today</p>
+      <div class="actions">
+        <button type="button" class="primary">Approve proof</button>
+        <button type="button" class="secondary">Ask for changes</button>
+      </div>
+    </article>
+    <article class="card done">
+      <div class="top"><h2>Ridge Road Farm poster</h2><span class="pill ok">On the press</span></div>
+      <p class="meta">Approved Monday · ready Friday</p>
+    </article>
+  </main>
+  <nav class="tabs" aria-label="Sections">
+    <a href="proofs.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Proofs</a>
+    <a href="orders.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16v12H4zM4 7l2-3h12l2 3"/></svg>Orders</a>
+    <a href="messages.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z"/></svg>Messages</a>
+  </nav>
+</body>
+</html>

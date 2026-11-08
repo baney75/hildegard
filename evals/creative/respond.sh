@@ -10,7 +10,7 @@
 # refresh in the box can strand the owner's other sessions (README: Responder confinement). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
 # meta.json says `confined: true` (made in the box, so never one from before it). Exits 4, with no `done`, when
 # the responder dies before a finished transcript, 5 when Haiku's session cannot be confined (no bubblewrap) or has no
-# CLAUDE_CODE_OAUTH_TOKEN (and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1), and 6 when the session left anything in work/ but regular files
+# CLAUDE_CODE_OAUTH_TOKEN (and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1) or when Luna is asked for without HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1, and 6 when the session left anything in work/ but regular files
 # and folders, a symbolic link or a FIFO say (nothing on the host reads work/ then, so a link to the owner's files is never followed).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
@@ -19,6 +19,12 @@ ARM=$1; MODEL=$2; TASK=$3
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(git -C "$HERE" rev-parse --show-toplevel)
 E=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 RUN=$E/runs/$ARM/$MODEL/$TASK; WORK=$RUN/work
+# Luna runs in JAIL (an env wrapper), not in the bubblewrap box, so it could read the owner's files by absolute path. Refused (exit 5, before
+# anything is written or any model called, so no `done` and never scored) unless the owner opts in on a machine with nothing private on it.
+if [ "$MODEL" = luna ] && [ "${HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA:-}" != 1 ]; then
+  echo "Luna runs outside the bubblewrap box and could read the owner's files; refused. Set HILDEGARD_EVAL_ALLOW_UNCONFINED_LUNA=1 to run it anyway, on a machine with nothing private on it." >&2
+  echo "not running $ARM/$MODEL/$TASK" >&2; exit 5
+fi
 
 case $ARM in
   none) SK="" ;;
@@ -30,7 +36,7 @@ case $ARM in
         fi
         [ -d "$SK/skills" ] || { echo "could not archive origin/main skills into $SK" >&2; exit 2; } ;;
   new)  SK=$(dirname "${NEW_SKILLS:-$REPO/skills}"); [ "$(basename "${NEW_SKILLS:-$REPO/skills}")" = skills ] || { echo "NEW_SKILLS must end in /skills" >&2; exit 2; } ;;
-  *) echo "arm: none|main|new" >&2; exit 2 ;;
+  *) if [ -d "$E/arms/$ARM/skills" ]; then SK=$E/arms/$ARM; else echo "arm: none|main|new, or a folder made by arms.py in $E/arms" >&2; exit 2; fi ;;
 esac
 # A finished run is reused only while the skills it was made with are unchanged (a run from before this check has no skills.sha
 # and is made again). The hash goes into meta.json, and the report prints it. A Haiku run is reused only when meta.json says it was
@@ -55,7 +61,7 @@ rm -rf "$RUN"; mkdir -p "$WORK"; printf '%s\n' "$HASH" > "$RUN/skills.sha"
 PROMPT=$(python3 - "$HERE" "$TASK" "$ARM" "$MODEL" <<'PY'
 import json, sys, os
 here, tid, arm, model = sys.argv[1:]
-t = next(t for f in ('tasks.json', 'heldout.json', 'heldout2.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
+t = next(t for f in ('tasks.json', 'heldout.json', 'heldout2.json', 'tasks-brand.json', 'heldout-brand.json') for t in json.load(open(os.path.join(here, f))) if t['id'] == tid)
 chrome = os.environ.get('HILDEGARD_EVAL_CHROMIUM') or ''
 if not chrome:
     import glob
@@ -76,6 +82,20 @@ elif d == 'video':
 elif d == 'audio':
     tail = (f"Files in the current folder: {inputs}. Deliver one bash script named process.sh in the current folder that uses only ffmpeg and ffprobe (sox is also installed) and ordinary shell tools: no Python, no network. "
             "It will be run later as `bash process.sh` in a folder that holds only the input files above, and it must write out.wav in that folder in under 120 seconds. Test it yourself on the files here before you finish. Print only a one-line note when you are done.")
+elif d == 'logo':
+    tail = (f"Deliver in the current folder: mark.svg (the mark alone: the symbol or monogram that becomes the favicon), logo.svg (the main lockup: the mark and the name together, side by side), "
+            f"and sheet.png, a logo sheet that shows the lockups, the mark at 16, 32 and 64 px, one-color and reversed versions, clear space and the minimum size. Each SVG must be self-contained (no external files or fonts). "
+            f"Tools here: python3 with Pillow, rsvg-convert, and Chromium at {chrome} (for example `{chrome} --no-sandbox --hide-scrollbars --window-size=1200,1600 --screenshot=out.png file://$PWD/page.html`). The internet is available for Google Fonts. Print only a one-line note when you are done.")
+elif d == 'brand':
+    tail = (f"Files in the current folder: {inputs} (the client's logo). Deliver in the current folder: brand.json, the brand system as data (palette with each color's role and hex, the contrast of the text and background pairs, "
+            f"the type pairing and scale, the voice in three lines with do and don't examples, imagery rules); and guide.html, a one-page brand guide built from it, exactly one US letter page: 816 x 1056 CSS px, html and body margin 0, nothing beyond that size. "
+            f"Google Fonts through a <link> are allowed; images must be inline or files in this folder. It will be rendered with Chromium at 816 x 1056. You can render it yourself: `{chrome} --no-sandbox --hide-scrollbars --window-size=816,1056 --screenshot=check.png file://$PWD/guide.html`. Print only a one-line note when you are done.")
+elif d == 'app':
+    w, h = t['size']
+    states = ' and '.join(f'{s}.html' for s in t['states'])
+    tail = (f"Deliver in the current folder: {states}, each one self-contained HTML file (inline CSS and SVG; Google Fonts through a <link> are allowed; no JavaScript needed) showing the app screen at exactly {w} x {h} CSS px "
+            f"on a {t['platform']} device, as the brief describes each state. They will be rendered with Chromium in a {w} x {h} viewport. You can render one yourself: `{chrome} --no-sandbox --hide-scrollbars --window-size={max(w, 520)},{h} --screenshot=check.png file://$PWD/screen.html` "
+            f"(the window can't be narrower than about 500 px, so crop to {w} px wide). Print only a one-line note when you are done.")
 elif d == 'writing':
     tail = "Save the final text as draft.md in the current folder, and print only the final text."
 elif d == 'videoedit':
@@ -92,10 +112,22 @@ PY
 )
 printf '%s' "$PROMPT" > "$RUN/prompt.txt"
 
+# Luna's session sees little of the host: an empty HOME (so no shell profile puts ~/.local/bin, the hildegard CLI or a
+# browser launcher on PATH), only the CLIs it needs, its own process namespace (no view of the real Hildegard service)
+# and no new privileges (no sudo). Its sign-in comes through CODEX_HOME. Haiku's session never runs in JAIL: it runs only in
+# the bubblewrap box above (BOX), whose claude binary sandbox.py picks and binds (HILDEGARD_EVAL_CLAUDE is the self-test's hook).
+BIN=$E/bin; mkdir -p "$BIN" "$RUN/home"
+ln -sf "$(command -v node)" "$BIN/node"; ln -sf "$(readlink -f "$(command -v codex)")" "$BIN/codex"
+CHROME=$(ls -d "$HOME"/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell 2>/dev/null | sort | tail -1)
+JAIL=(env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR HOME="$RUN/home"
+      CLAUDE_CONFIG_DIR="$HOME/.claude" CODEX_HOME="${CODEX_HOME:-$HOME/.codex}" PATH="$BIN:/usr/bin:/bin" HILDEGARD_CHROMIUM="$CHROME"
+      unshare -rpf --mount-proc setpriv --no-new-privs)
+LIMIT=1200; case $TASK in l*|b*|p*) LIMIT=2700;; esac
+
 T0=$(date +%s)
 if [ "$MODEL" = haiku ]; then
   ARGS=(-p --model haiku --setting-sources "" --strict-mcp-config --mcp-config '{"mcpServers":{}}' --no-session-persistence
-        --tools "Read,Write,Bash,Skill" --allowedTools "Read,Write,Bash,Skill" --max-turns 60 --output-format stream-json --verbose)
+        --tools "Read,Write,Bash,Skill,Agent" --allowedTools "Read,Write,Bash,Skill,Agent" --max-turns 120 --output-format stream-json --verbose)
   if [ -n "$SK" ]; then
     mkdir -p "$RUN/plug/.claude-plugin" && cp -r "$SK/skills" "$RUN/plug/skills"
     printf '{"name":"hildegard","version":"0.0.0","description":"eval copy of the skills"}' > "$RUN/plug/.claude-plugin/plugin.json"
@@ -103,7 +135,7 @@ if [ "$MODEL" = haiku ]; then
   fi
   # CLAUDE_CODE_OAUTH_TOKEN reaches the box through a pipe that bwrap reads as arguments (sandbox.py adds `--args 7`), never argv or a file.
   tok() { [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || printf '%s\0' --setenv CLAUDE_CODE_OAUTH_TOKEN "$CLAUDE_CODE_OAUTH_TOKEN"; }
-  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 "${BOX[@]}" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt" 7< <(tok))
+  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout "$LIMIT" "${BOX[@]}" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt" 7< <(tok))
 elif [ "$MODEL" = luna ]; then
   [ -n "$SK" ] && { mkdir -p "$WORK/.agents" && cp -r "$SK/skills" "$WORK/.agents/skills"; }
   # Codex also reads the owner's global skills (~/.agents/skills, ~/.codex/skills); switch each off by path so both arms see
@@ -114,7 +146,7 @@ ps = [p for r in ('~/.agents/skills', '~/.codex/skills') for p in glob.glob(os.p
 print('skills.config=[' + ','.join('{path="%s",enabled=false}' % p for p in ps) + ']')
 PY
 )
-  (printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 codex exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
+  (printf '%s' "$PROMPT" | timeout "$LIMIT" "${JAIL[@]}" codex exec -m gpt-6-luna -c model_reasoning_effort=low -c "$CFG" \
       --skip-git-repo-check --ignore-user-config --ephemeral -s workspace-write -C "$WORK" --json - > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 else
   echo "model: haiku|luna" >&2; exit 2

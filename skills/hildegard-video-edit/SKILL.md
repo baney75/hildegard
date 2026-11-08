@@ -225,5 +225,6 @@ hildegard review final.mp4 --final --film --audio --sheet final-sheet.jpg   # Hi
 python3 scripts/check_video.py final.mp4 --lufs -14 --size 1920x1080         # without Hildegard; then the sheet and spec.json checks above, with "final": true
 ```
 
-Look at the sheet and listen through once. Then tell your user the path, the length, what you cut and why, and
+Look at the sheet and listen through once.
+Then tell your user the path, the length, what you cut and why, and
 anything you couldn't fix. Keep Hildegard's "made with" label in the file's metadata when the footage is generated.

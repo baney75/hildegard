@@ -1,0 +1,64 @@
+{
+  "name": "Brickyard Press",
+  "summary": "A two-press letterpress shop in an old brickworks, printing wedding suites, business cards and posters by hand.",
+  "audience": "couples planning a wedding and small businesses who want cards people keep",
+  "date": "2026",
+  "logo": {
+    "horizontal": "logo-horizontal.svg",
+    "stacked": "logo-stacked.svg",
+    "mark": "mark.svg",
+    "clear_space": "Clear space: a quarter of the logo's height on every side.",
+    "min_size": "Smallest: horizontal 320 px or 48 mm wide; the mark alone down to 16 px, 6 mm printed, 17 mm stitched."
+  },
+  "colors": [
+    { "name": "Newsprint", "hex": "#f5f0e6", "role": "ground", "use": "paper and page backgrounds" },
+    { "name": "Cotton", "hex": "#fbf8f2", "role": "surface", "use": "cards and panels on the page" },
+    { "name": "Press Black", "hex": "#2b211c", "role": "ink", "use": "all body text and the wordmark" },
+    { "name": "Slate", "hex": "#5f5750", "role": "muted", "use": "captions, dates, small labels" },
+    { "name": "Brick", "hex": "#7a2e1d", "role": "accent", "use": "the mark, buttons, one word a page" },
+    { "name": "Cotton on Brick", "hex": "#fbf8f2", "role": "on-accent", "use": "text on Brick buttons" }
+  ],
+  "pairs": [{ "text": "accent", "on": "surface", "use": "large" }],
+  "type": {
+    "display": { "family": "Libre Caslon Text", "weight": 700, "use": "the wordmark, headlines" },
+    "text": { "family": "Work Sans", "weight": 400, "use": "text, labels, prices" },
+    "license": "Both from Google Fonts, free to use.",
+    "scale": [
+      { "name": "Display", "px": 48 },
+      { "name": "Headline", "px": 32 },
+      { "name": "Title", "px": 24 },
+      { "name": "Lead", "px": 19 },
+      { "name": "Body", "px": 16 },
+      { "name": "Caption", "px": 13 }
+    ]
+  },
+  "voice": {
+    "lines": [
+      "We talk like printers at the counter: plain, warm, a little proud of the work.",
+      "We name the paper, the ink and the press; specifics beat adjectives.",
+      "We give the price and the wait up front, and never rush a couple."
+    ],
+    "examples": [
+      {
+        "do": "Printed on 600 gsm cotton, two colors, on the 1952 Heidelberg. Ready in three weeks.",
+        "dont": "Elevate your special day with our luxurious, bespoke stationery solutions!"
+      },
+      {
+        "do": "The proof is in your inbox. Mark anything you'd change and we'll set it again.",
+        "dont": "Please review the attached deliverable at your earliest convenience."
+      }
+    ]
+  },
+  "imagery": {
+    "do": [
+      "Real work on the real press, in window light",
+      "Close enough to see the bite of the type in the paper",
+      "Hands, tools and paper; the brick walls of the shop"
+    ],
+    "dont": [
+      "Stock flat-lays with eucalyptus and gold rings",
+      "Mockups pretending to be printed pieces",
+      "Filters that fake grain or age"
+    ]
+  }
+}

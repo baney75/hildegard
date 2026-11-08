@@ -1,0 +1,23 @@
+/* Tokens for one app, by role. Fill them from the brand (brand.json) and use nothing else in the screens.
+   Sizes follow the platform: iOS points, Android dp, desktop px are all CSS px here. */
+:root {
+  /* color, by role */
+  --ground: #f5f0e6;      /* the screen behind everything */
+  --surface: #fbf8f2;     /* cards, sheets, rows */
+  --ink: #2b211c;         /* text, 13.8:1 on ground */
+  --muted: #5f5750;       /* secondary text, 6.2:1 on ground */
+  --line: #e2d9cb;        /* hairline dividers: decoration only, never the only cue */
+  --accent: #7a2e1d;      /* the one primary action, selection */
+  --on-accent: #fbf8f2;   /* text on accent, 8.9:1 */
+  --ok: #2f6b3a; --warn: #8a5a00; --danger: #a3261a;
+  /* type: iOS default sizes (Android: 16 body, 14 secondary, 22 title, 28 large title) */
+  --font: "Work Sans", -apple-system, system-ui, sans-serif;
+  --font-display: "Libre Caslon Text", Georgia, serif;
+  --large-title: 34px; --title: 22px; --headline: 17px; --body: 17px; --callout: 16px;
+  --subhead: 15px; --footnote: 13px; --caption: 12px;
+  /* space: a 4 px grid */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --radius: 14px; --radius-sm: 10px;
+  /* platform chrome (iOS, iPhone 15 and later) */
+  --status: 47px; --home: 34px; --nav: 44px; --tabbar: 49px; --target: 44px;
+}

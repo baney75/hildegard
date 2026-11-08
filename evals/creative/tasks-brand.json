@@ -1,0 +1,77 @@
+[
+  {
+    "id": "l1-maumee-bee",
+    "domain": "logo",
+    "brief": "I'm Dale Kessler. I run Maumee Bee Supply in Defiance, Ohio: we sell hives, frames, smokers, protective suits and local honey to hobby beekeepers, mostly retirees and young families who keep two or three hives. We also run beginner classes in our pole barn every spring. The store is on the bank of the Maumee River. I need a logo. It goes on the sign over the door, on the website (and its browser-tab icon), embroidered on the caps we sell and wear, and burned into the wooden frames we build. The name is \"Maumee Bee Supply\". No tagline. Please, no cartoon bee with a smile. Don't ask me questions; make it."
+  },
+  {
+    "id": "l2-okafor-reyes-cpa",
+    "domain": "logo",
+    "brief": "We're Okafor & Reyes, a two-partner CPA firm in San Antonio, Texas: Adaeze Okafor and Luis Reyes. We do tax returns and bookkeeping for small businesses (restaurants, contractors, landscapers) and families, in English and Spanish. We need a logo for our letterhead, the glass door of our office (one-color white vinyl), our LinkedIn and Google profile picture (a small circle), and the website. The name as it should appear: \"Okafor & Reyes\" with \"Certified Public Accountants\" as a smaller line. No tagline. We don't want a calculator, a graph arrow, or a dollar sign. Don't ask me questions; make it."
+  },
+  {
+    "id": "l3-little-otter",
+    "domain": "logo",
+    "brief": "I own Little Otter Swim School in Bend, Oregon. We teach kids from 6 months to 10 years to swim in our own warm indoor pool, in small groups of four. Parents book on our app. I need a logo that goes on the app icon, the swim caps (printed in one color), the side of our building, and the kids' progress certificates. The name is \"Little Otter Swim School\". Friendly, but not babyish: parents are paying for real water safety. No tagline. Don't ask me questions; make it."
+  },
+  {
+    "id": "b1-prairie-signal",
+    "domain": "brand",
+    "inputs": ["logo.svg"],
+    "logo": {
+      "text": "Prairie Signal",
+      "family": "Archivo",
+      "weight": 700,
+      "color": "#1f3a4d"
+    },
+    "brief": "We're Prairie Signal, a member-owned rural internet co-op in Rice County, Kansas. We run fiber to farms and small towns that the big companies skipped; 2,100 members so far, $65 a month for 500 megabits, no contracts, no data caps, and a local office in Lyons where members can walk in. Our members are farmers, retirees and families, many of whom had bad experiences with satellite internet. We have a logo (logo.svg) and nothing else. I need our brand system: colors, type, how we talk, what our photos should look like, as a one-page brand guide our volunteers and the local print shop can follow. Don't ask me questions; make it."
+  },
+  {
+    "id": "b2-hearthstone-care",
+    "domain": "brand",
+    "inputs": ["logo.svg"],
+    "logo": {
+      "text": "Hearthstone Home Care",
+      "family": "Source Serif 4",
+      "weight": 600,
+      "color": "#4a3b5c"
+    },
+    "brief": "I'm Teresa Hollins, owner of Hearthstone Home Care in Dayton, Ohio. Our caregivers go to seniors' homes to help with meals, bathing, medications and company, from 4 hours a week up to around the clock. Most of our calls come from adult children, often in a crisis after a fall, who live out of town. We have 38 caregivers, all background-checked and trained by our own nurse, Grace Mbeki, RN. We have a logo (logo.svg). I need the brand system as a one-page guide: colors, type, how we sound, what our photos show. Don't ask me questions; make it."
+  },
+  {
+    "id": "b3-ironclad-gym",
+    "domain": "brand",
+    "inputs": ["logo.svg"],
+    "logo": {
+      "text": "IRONCLAD BARBELL",
+      "family": "Oswald",
+      "weight": 700,
+      "color": "#111111"
+    },
+    "brief": "I run Ironclad Barbell, a strength gym in a converted tractor dealership in Ames, Iowa. Barbells, racks, platforms, no mirrors and no treadmills. Members are college athletes, farmers, nurses and a strong group of women over 50 in our Thursday morning class. $55 a month, coaching included, open 5 a.m. to 9 p.m. We have a logo (logo.svg). I need our brand system as a one-page guide for our coaches and whoever makes our shirts and Instagram posts. Don't ask me questions; make it."
+  },
+  {
+    "id": "p1-csa-box",
+    "domain": "app",
+    "size": [390, 844],
+    "platform": "iOS (iPhone)",
+    "states": ["screen", "empty"],
+    "brief": "We're Two Creeks Farm, a CSA farm near Viroqua, Wisconsin, with 140 member households. Our app's home screen shows a member this week's box. This week (pickup Thursday 3 to 6 p.m. at the farm, or Saturday 9 to noon at the Viroqua Food Co-op): sweet corn (6 ears), heirloom tomatoes (2 lb), green beans (1 lb), Walla Walla onions (3), basil (1 bunch), and a new item, ground cherries (1 pint). Members can switch their pickup day until Wednesday at noon, or donate this week's box to the food pantry. Screen 1 (screen.html): the home screen with this week's box. Screen 2 (empty.html): the same screen in a week with no box (the farm's off week, July 4th week); the next box is July 11. Don't ask me questions; make it."
+  },
+  {
+    "id": "p2-groomer-booking",
+    "domain": "app",
+    "size": [412, 915],
+    "platform": "Android (phone)",
+    "states": ["screen", "error"],
+    "brief": "I run Shear Joy Grooming in Knoxville, Tennessee, with two groomers, Bree and Marcus. Our app lets customers book. The booking screen shows the dog (the customer has two: Biscuit, a goldendoodle, and Pepper, a schnauzer), the service (Full groom $85, Bath and tidy $55, Nail trim $15), and open times for the next three days with each groomer. Screen 1 (screen.html): booking a Full groom for Biscuit, showing open times Tuesday, Wednesday and Thursday. Screen 2 (error.html): the same screen after the time they picked was taken by someone else a moment before they confirmed. Don't ask me questions; make it."
+  },
+  {
+    "id": "p3-hardware-inventory",
+    "domain": "app",
+    "size": [1280, 800],
+    "platform": "desktop (Windows, in a browser)",
+    "states": ["screen", "empty"],
+    "brief": "Back-office app for Hartley Hardware in Marion, Indiana (three stores: Marion, Gas City, Upland). The inventory screen is where the manager, Jean, finds items running low and orders more. It shows a table of items with SKU, name, on hand at each store, reorder point and supplier (Orgill or Do it Best), with the items below their reorder point first. Example rows: 1/2 in. PEX pipe 10 ft (SKU 228-410), on hand 4 / 11 / 2, reorder at 10, Orgill; Rust-Oleum flat black 12 oz (SKU 7776-830), 30 / 2 / 6, reorder at 8, Do it Best; 3 in. deck screws 1 lb (SKU 91-2203), 0 / 14 / 9, reorder at 12, Orgill; Kwikset Tylo knob, satin nickel (SKU 400-2219), 7 / 6 / 5, reorder at 4, Do it Best. Screen 1 (screen.html): the inventory screen with these items. Screen 2 (empty.html): the same screen when Jean has filtered to the Upland store and searched for \"generator\" and nothing matches. Don't ask me questions; make it."
+  }
+]

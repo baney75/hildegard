@@ -3,7 +3,8 @@
 A run made with these skills is reused only while this value is unchanged.
 
 skillhash.py --stale <eval dir> "<arms>" "<models>" "<task ids>": for each run on disk, compare its skills.sha with the hash of the
-arm's skills as they are now (main: origin/main's skills folder; new: $NEW_SKILLS or this checkout's skills/). Prints one line per run
+arm's skills as they are now (main: origin/main's skills folder; new: $NEW_SKILLS or this checkout's skills/; an arm arms.py made:
+<eval dir>/arms/<arm>/skills, as respond.sh hashes it). Prints one line per run
 that differs or has no hash, and exits 1 if there are any. --judge-only uses it, so it never judges a run the current skills did not make."""
 import hashlib, os, subprocess, sys, tempfile
 
@@ -19,11 +20,14 @@ def tree_hash(root):
     return h.hexdigest()
 
 
-def current(arm):
+def current(arm, eval_dir=None):
     """The hash of the arm's skills folder now; None for the arm with no skills."""
     repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if arm == 'none':
         return None
+    made = os.path.join(eval_dir or '', 'arms', arm, 'skills')
+    if arm not in ('main', 'new') and eval_dir and os.path.isdir(made):  # council, nocouncil: respond.sh uses these too
+        return tree_hash(made)
     if arm == 'new':
         return tree_hash(os.environ.get('NEW_SKILLS') or os.path.join(repo, 'skills'))
     with tempfile.TemporaryDirectory() as t:
@@ -34,7 +38,7 @@ def current(arm):
 def stale(eval_dir, arms, models, ids):
     out = []
     for arm in arms:
-        now = current(arm)
+        now = current(arm, eval_dir)
         for m in models:
             for t in ids:
                 run = os.path.join(eval_dir, 'runs', arm, m, t)

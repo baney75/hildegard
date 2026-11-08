@@ -51,6 +51,23 @@ with tempfile.TemporaryDirectory() as d:
     s = json.load(open(os.path.join(d, 'score.json')))
     check('e1 empty script scores as not run', not s['ran'] and s['passed'] == 0, s['checks'])
 
+# A brand guide fixed at one letter page with overflow hidden reports scrollHeight 1056 even when its last section is cut off;
+# one_page must come from where the content ends.
+with tempfile.TemporaryDirectory() as d:
+    os.makedirs(os.path.join(d, 'work'))
+    open(os.path.join(d, 'done'), 'w').close()
+    page = ('<!doctype html><html lang="en"><head><meta charset="utf-8"><style>*{margin:0}html,body{width:816px;height:1056px;overflow:hidden}'
+            'body{font:14px/1.4 sans-serif;color:#111;background:#fff}</style></head><body><h1>Prairie Signal</h1><div style="height:%dpx"></div>'
+            '<h2>05 Imagery</h2><p>Members at their kitchen tables.</p></body></html>')
+    brand_score = lambda: (subprocess.run([sys.executable, os.path.join(CR, 'score.py'), 'b1-prairie-signal', d, '--tasks', os.path.join(CR, 'tasks-brand.json')], check=True),
+                           json.load(open(os.path.join(d, 'score.json'))))[1]
+    open(os.path.join(d, 'work', 'guide.html'), 'w').write(page % 1100)
+    s = brand_score()
+    check('a guide cut off at the bottom of a fixed page is not one page, and its cut text counts as clipped', s.get('one_page') is False and s.get('clipped', 0) >= 2, s)
+    open(os.path.join(d, 'work', 'guide.html'), 'w').write(page % 600)
+    s = brand_score()
+    check('a guide that ends on the page is one page with nothing clipped', s.get('one_page') is True and s.get('clipped') == 0, s)
+
 rng = np.random.default_rng(0)
 x = sa.read_audio(os.path.join(sa.E, 'ref', 'a1-podcast-clean', 'clean.wav'), sr=16000)
 check('stoi_like of a signal with itself is about 1', sa.stoi_like(x, x) > 0.99)

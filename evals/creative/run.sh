@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # The whole eval: inputs, responses, scores, judge, report. Resumable: each stage skips what already exists.
 #
-#   evals/creative/run.sh <label> [--set tuned|heldout|heldout2|both] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4] [--judge-only [--allow-stale]]
+#   evals/creative/run.sh <label> [--set tuned|heldout|heldout2|both|brand|heldout-brand|brand-both] [--base none] [--cand main] [--models "haiku luna"] [--only id,id] [--jobs 4] [--judge-only [--allow-stale]]
 #
 # --judge-only judges and reports the responses already on disk (inputs, responses and scores are not touched, no responder runs). It refuses when a
 # run's skills.sha differs from the arm's skills now (or has none); --allow-stale judges them anyway and says so in the output.
@@ -20,11 +20,14 @@ while [ $# -gt 0 ]; do case $1 in
   *) echo "unknown option $1" >&2; exit 2;; esac; done
 export EVAL_DIR=${EVAL_DIR:-$HOME/.cache/hildegard-creative-eval}
 unset ANTHROPIC_API_KEY OPENAI_API_KEY
-case $SET in tuned) FILES=(tasks.json);; heldout) FILES=(heldout.json);; both) FILES=(tasks.json heldout.json);; heldout2) FILES=(heldout2.json);; *) echo "--set tuned|heldout|heldout2|both" >&2; exit 2;; esac
+case $SET in tuned) FILES=(tasks.json);; heldout) FILES=(heldout.json);; both) FILES=(tasks.json heldout.json);; heldout2) FILES=(heldout2.json);;
+  brand) FILES=(tasks-brand.json);; heldout-brand) FILES=(heldout-brand.json);; brand-both) FILES=(tasks-brand.json heldout-brand.json);;
+  *) echo "--set tuned|heldout|heldout2|both|brand|heldout-brand|brand-both" >&2; exit 2;; esac
 cd "$HERE" || exit 1
 git -C "$HERE" fetch -q origin 2>/dev/null
 
 echo "== 1/5 inputs"; [ $JUDGE_ONLY = 1 ] || python3 make_audio.py "${FILES[@]}" || exit 1
+case $SET in *brand*) [ $JUDGE_ONLY = 1 ] || python3 arms.py --tasks "${FILES[@]}" || exit 1;; esac  # the council and nocouncil arms, and the brand tasks' logos
 IDS=$(ONLY_IDS="$ONLY" python3 - "${FILES[@]}" <<'PY'
 import json, os, sys
 only = [x for x in os.environ.get('ONLY_IDS', '').split(',') if x]

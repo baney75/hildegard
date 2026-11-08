@@ -12,7 +12,14 @@ voice, music, 3D, print and web work on your own GPUs, with nothing sent anywher
   and every edit they make; interviews them for the material and posts to their Hildegard site.
 - **hildegard-design**: posters, flyers, social posts, covers, invitations, menus and signs, built in HTML at their exact
   size, rendered, and read back line by line so no word is cut or invented.
-- **hildegard-web**: websites and web app screens as real HTML and CSS, rendered at phone, tablet and desktop width in
+- **hildegard-brand**: logos and brand systems built as SVG and JSON: a mark on a grid, a hand-kerned wordmark,
+  lockups, a logo sheet measured at 16 px, in one ink and embroidered, and a one-page brand guide with every contrast
+  pair worked out.
+- **hildegard-app**: app screens for iOS, Android and desktop, built at device size from tokens, every state designed
+  (empty, loading, error, offline), rendered and checked for contrast, tap targets and clipped text.
+- **hildegard-council**: on request, six critics (art director, typographer, brand strategist, legibility, the
+  customer, production) who judge a design blind, each with a rubric, or pick between variants shown as A and B.
+- **hildegard-web**: websites as real HTML and CSS, rendered at phone, tablet and desktop width in
   light and dark, and audited until they pass. Start from one of eight finished templates, a Figma link, a pen.dev
   file or a live page; your user watches the site on Hildegard's canvas while you build it.
 - **hildegard-openscad**: exact, parametric parts in OpenSCAD code, sent as source; Hildegard renders it, checks the

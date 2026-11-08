@@ -161,9 +161,11 @@ describe('the privacy page and the skills', () => {
     for (const [, body] of all)
       for (const m of body.matchAll(/https?:\/\/([A-Za-z0-9.-]+)/g)) if (!text.has(m[1]!)) hosts.add(m[1]!);
     for (const h of hosts) expect(html, h).toContain(h.toLowerCase());
-    // The one helper that downloads (a pinned font, checked by hash) is on the page by name.
+    // The helpers that download (fonts, each named on the page with its host) are on the page by name.
     const downloads: Record<string, string> = {
       [join('skills', 'hildegard-motion', 'scripts', 'motion.py')]: 'raw.githubusercontent.com',
+      [join('skills', 'hildegard-brand', 'scripts', 'wordmark.py')]: 'fonts.googleapis.com',
+      [join('skills', 'hildegard-brand', 'scripts', 'brand_guide.py')]: 'fonts.googleapis.com',
     };
     for (const [f, host] of Object.entries(downloads)) {
       expect(html, f).toContain(f.split(/[\\/]/).at(-1)!);
@@ -171,7 +173,7 @@ describe('the privacy page and the skills', () => {
     }
     for (const [f, body] of all.filter(([f]) => f.endsWith('.py') && !(f in downloads)))
       expect(body, f).not.toMatch(
-        /^\s*(?:import|from)\s+(?:urllib|http|socket|requests|httpx|ftplib|smtplib|aiohttp|websockets|ssl|webbrowser)\b/m,
+        /^\s*(?:from\s+(?:urllib|http|socket|requests|httpx|ftplib|smtplib|aiohttp|websockets|ssl|webbrowser)\b|import\s[^\n#]*\b(?:urllib\.request|urllib\.error|http\.client|socket|requests|httpx|ftplib|smtplib|aiohttp|websockets|ssl|webbrowser)\b)/m,
       );
   });
 
