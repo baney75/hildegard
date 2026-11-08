@@ -1,6 +1,6 @@
 # Templates
 
-Six finished specs. Each renders to a good result with no edits (`python3 ../scripts/motion.py title-card.json out.mp4`)
+Six finished specs. Each renders to a good result with no edits (`python3 scripts/motion.py templates/title-card.json out.mp4` from the skill's folder)
 and passes `--check`. Copy one, change the words, colors and timings, and check again. They are 1920x1080 at 30 fps; add
 `--scale 0.5` to draft quickly.
 
