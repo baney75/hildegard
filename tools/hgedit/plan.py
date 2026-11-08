@@ -380,6 +380,9 @@ def resolve(edl, base_dir=".", analyze=True, track=True):
                     if _nested(sec["regex"]):
                         errors.append((f"secrets[{i}].regex", "repeats a group that itself repeats or has a choice, like (a+)+ or (a|aa)+, "
                                        "which can take hours to run. Write it without the repeat around the group"))
+                    elif _repeat_cost(sec["regex"]) > REPEAT_BUDGET:
+                        errors.append((f"secrets[{i}].regex", "has too many open-ended repeats in a row, like a*a*a*b, "
+                                       "which can take hours to run on a long line. Use fewer, or give them a limit like {1,40}"))
                 except re.error as e:
                     errors.append((f"secrets[{i}].regex", f"isn’t a valid pattern: {e}"))
     if errors:
@@ -477,3 +480,51 @@ def _nested(rx):
         return False
 
     return walk(P.parse(rx), False)
+
+
+REPEAT_BUDGET = 2000 * 2000  # verify.TEXT_CAP squared: two open-ended repeats are fine, three can backtrack for hours
+
+
+def _repeat_cost(rx):
+    """How many ways a pattern's repeats can split one 2000-character piece of text. Repeats that can take the same
+    characters with only such characters between them, like a*a*a*b or \\w*x\\w*x\\w*, multiply (n cubed), which _nested
+    does not see; a separator they cannot match, like the colon in \\s*[:=]\\s*, starts the count again."""
+    import re  # noqa: PLC0415
+    from re import _compiler, _constants as C, _parser as P  # noqa: PLC0415
+
+    def chars(op, arg):
+        try:
+            sp = P.SubPattern(P.State(), [(op, arg)])
+            rx_ = _compiler.compile(sp, 0)
+            return {c for c in range(256) if rx_.fullmatch(chr(c))}
+        except Exception:  # noqa: BLE001 - anything odd matches anything
+            return set(range(256))
+
+    def flat(node):
+        for op, arg in node:
+            if op is C.SUBPATTERN:
+                yield from flat(arg[3])
+            else:
+                yield op, arg
+
+    def walk(node):
+        best = cost = 1
+        prev = None  # (chars) of the last repeat in this chain
+        between = set()
+        for op, arg in flat(node):
+            if op in (C.MAX_REPEAT, C.MIN_REPEAT):
+                inner = list(flat(arg[2]))
+                span = max(1, min(arg[1], 2000) - arg[0]) * walk(arg[2])
+                cs = set().union(*(chars(o, a) for o, a in inner)) if inner else set()
+                if prev is not None and prev & cs and between <= (prev | cs):
+                    cost *= span
+                else:
+                    cost = span
+                prev, between = cs, set()
+                best = max(best, cost, 1)
+                cost = min(cost, 10**12)
+            elif prev is not None:
+                between |= chars(op, arg)
+        return min(best, 10**12)
+
+    return walk(P.parse(rx))

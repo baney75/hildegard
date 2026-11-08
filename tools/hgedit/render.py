@@ -174,7 +174,7 @@ class Composer:
         if self.fit == "none" or (sw, sh) == (W, H) and self.fit != "pad":
             if (sw, sh) == (W, H):
                 return img
-            return np.asarray(Image.fromarray(img).resize((W, H), Image.LANCZOS if sw > W else Image.BICUBIC))
+            return np.array(Image.fromarray(img).resize((W, H), Image.LANCZOS if sw > W else Image.BICUBIC))
         sa = sw / sh
         if self.fit == "pad":
             im = Image.fromarray(img)
@@ -182,10 +182,10 @@ class Composer:
             scale = min(W / sw, H / sh)
             fw, fh = max(2, round(sw * scale)), max(2, round(sh * scale))
             bg.paste(im.resize((fw, fh), Image.LANCZOS), ((W - fw) // 2, (H - fh) // 2))
-            return np.asarray(bg)
+            return np.array(bg)
         _, x0, y0, cw, ch = plan_mod.crop_geometry(self.p, sid, t)
         crop = Image.fromarray(img[y0 : y0 + ch, x0 : x0 + cw])
-        return np.asarray(crop.resize((W, H), Image.LANCZOS if cw > W else Image.BICUBIC))
+        return np.array(crop.resize((W, H), Image.LANCZOS if cw > W else Image.BICUBIC))
 
 
 # ── One group of frames ─────────────────────────────────────────────────────────────────────────────────────────

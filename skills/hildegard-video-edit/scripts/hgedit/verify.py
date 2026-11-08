@@ -383,7 +383,8 @@ def ocr_check(out_path, plan):
     sampler = _Sampler(near, step_near, step_all)
     ranges = [(0.0, total)] if whole else near
     full_kinds = [k for k in ALL_KINDS if any(isinstance(s, dict) and s.get("kind") == k for s in secrets)]
-    kinds = secret_kinds(plan) if plan["blur"] else []
+    scan_all = v.get("ocr_scan") == "all"
+    kinds = secret_kinds(plan) if (plan["blur"] or scan_all) else []
     d = tempfile.mkdtemp(prefix="hg-ocr-")
 
     def prepare(i, t, rgb):
@@ -419,7 +420,7 @@ def ocr_check(out_path, plan):
                     os.remove(f)
                 except OSError:
                     pass
-        fk = full_kinds + [k for k in kinds if k not in full_kinds] if any(a <= t <= b for a, b in near) else full_kinds
+        fk = full_kinds + [k for k in kinds if k not in full_kinds] if scan_all or any(a <= t <= b for a, b in near) else full_kinds
         return t, find_leaks(full, crop_txt, secrets, kinds, fk)
 
     workers = max(1, min(4, os.cpu_count() or 1))

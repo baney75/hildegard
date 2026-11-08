@@ -426,6 +426,19 @@ class Rendering(Tmp):
         os.remove(out + ".plan.json")
         self.assertFalse(verify.verify(out, path)["ok"])
 
+    def test_reversing_the_sources_invalidates_a_render_even_when_the_shape_is_equal(self):
+        b = self.p("b.mp4")
+        make_clip(b, seconds=8.0, talk=((0.3, 2.5),))  # same size, rate and length as a.mp4, so nothing else tells them apart
+        edl = {"version": 1, "sources": {"a": {"path": self.clip}, "b": {"path": b}}, "audio": {"keep_original": False}}
+        _, rep, path, out = self.gate(edl)
+        self.assertTrue(rep["ok"], rep)
+        with open(path) as f:
+            rendered = json.load(f)
+        self.dump_edl(dict(rendered, sources={"b": rendered["sources"]["b"], "a": rendered["sources"]["a"]}), path)
+        rep = verify.verify(out, path)
+        self.assertFalse(rep["ok"])
+        self.assertEqual(next(c for c in rep["checks"] if c["id"] == "render")["status"], "fail")
+
     def dump_edl(self, edl, path):
         with open(path, "w") as f:
             json.dump(edl, f)
@@ -521,6 +534,16 @@ class Rendering(Tmp):
         self.gate(edl, "centre.mp4", workers=1)
         frame = sheet._frames_at(self.p("centre.mp4"), [1.5])[1.5]
         self.assertLess((frame.min(axis=2) > 200).sum(), 20)
+
+    def test_a_title_is_drawn_on_every_kind_of_reframe(self):
+        big = self.p("wide2.mp4")
+        make_clip(big, seconds=2.0, size=(640, 360), talk=((0, 2),), scene=lambda i, t: _moving_block(640, 360, t, 0.5))
+        for name, edl in (("crop", {"target": "shorts", "reframe": {"mode": "center"}}), ("pad", {"target": "shorts", "reframe": {"fit": "pad"}}),
+                          ("scale", {"target": {"name": "sd", "height": 180}}), ("none", {})):
+            edl = dict(edl, version=1, sources={"a": {"path": big}}, audio={"keep_original": False},
+                       titles=[{"text": "Hello", "start": 0.0, "end": 1.5}])
+            r, rep, _, _ = self.gate(edl, name + ".mp4", workers=1)
+            self.assertTrue(rep["ok"], (name, rep))
 
     def test_music_ducks_under_the_voice_by_the_recipe(self):
         # a music bed of two chords; the voice speaks 0.5-2.5 and 5-7 of an 8 s clip.
@@ -776,6 +799,16 @@ class OcrReading(Tmp):
         self.assertEqual(c["status"], "fail", c)
         self.assertTrue(any(x["t"] < 3.5 for x in c["leaks"]), c["leaks"])
 
+    def test_scan_all_applies_the_built_in_kinds_to_every_frame_not_just_near_a_blur(self):
+        self.frames(4.0, (320, 180), bright_after=3.0)
+        self.reads(text_when_bright="write to ann@example.com today")  # readable from 3 s, far from a blur at 0.5 to 1.0 s
+        blur = [{"start": 0.5, "end": 1.0, "box": list(selftest.KEY_BOX), "style": "solid"}]
+        c = verify.ocr_check("out.mp4", self.plan(blur=blur, verify={"ocr_scan": "all"}))
+        self.assertEqual(c["status"], "fail", c)
+        self.assertTrue(all(x["t"] >= 3.0 for x in c["leaks"]), c["leaks"])
+        c = verify.ocr_check("out.mp4", self.plan(blur=blur))  # the default scans windows only, as documented
+        self.assertNotEqual(c["status"], "fail", c)
+
     def test_a_pattern_that_can_backtrack_for_hours_is_refused_and_long_text_is_matched_in_pieces(self):
         import time  # noqa: PLC0415
 
@@ -785,6 +818,14 @@ class OcrReading(Tmp):
         t = time.monotonic()
         self.assertEqual(verify.find_leaks("a" * 200000, "", [{"regex": "a*b"}], []), [])
         self.assertLess(time.monotonic() - t, 3.0)
+
+    def test_adjacent_overlapping_repeats_are_refused_too(self):
+        for rx in ("a*a*a*a*a*b", "a+a+a+b", "(a*)(a*)(a*)b", r"\w*x\w*x\w*@"):
+            with self.assertRaises(edl_mod.EdlError, msg=rx) as e:
+                self.plan(secrets=[{"regex": rx}])
+            self.assertIn("open-ended repeats", str(e.exception))
+        for rx in ("a*a*b", r"sk-[A-Za-z0-9_-]{20,}", r"\d{3}-\d{2}-\d{4}", r"password\s*[:=]\s*\S+", r"[\w.]+@[\w.]+\.[a-z]{2,}"):
+            self.plan(secrets=[{"regex": rx}])  # ordinary key patterns still pass
 
     def test_a_tesseract_that_fails_is_not_an_empty_read(self):
         self.frames(4.0, (320, 180))

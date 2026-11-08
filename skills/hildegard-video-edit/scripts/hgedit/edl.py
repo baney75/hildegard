@@ -47,6 +47,8 @@ def render_key(edl, base_dir):
     """A SHA-256 of everything in the edit list that goes into the video, with the transcript file it names, so the gate
     can tell whether a video was rendered from this very list."""
     body = {k: v for k, v in edl.items() if k not in NOT_RENDERED}
+    if isinstance(edl.get("sources"), dict):
+        body["source_order"] = list(edl["sources"])  # sort_keys erases it, and with no keep list the first source plays first
     caps = edl.get("captions")
     if isinstance(caps, dict) and isinstance(caps.get("transcript"), str):
         try:
