@@ -284,7 +284,7 @@ export function drift(repo = root) {
       now.size > 0 &&
       (entries === null ||
         stale.length > 0 ||
-        readFileSync(join(repo, LOCK), 'utf8') !== lockText(repo, list))
+        readFileSync(join(repo, LOCK), 'utf8').replace(/\r\n/g, '\n') !== lockText(repo, list))
     )
       problems.push(`${LOCK} is out of date: run node scripts/sync-skill-shared.mjs`);
   }

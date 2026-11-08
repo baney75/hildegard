@@ -466,6 +466,10 @@ describe('a skill taken out of a manifest entry (skills/SHARED.lock.json)', () =
     crlf(join(repo, 'skills', 'b', 'scripts', 'x.py'));
     expect(readFileSync(join(repo, 'skills', 'b', 'scripts', 'x.py'), 'utf8')).toBe('print(1)\r\n');
     expect(drift(repo)).toEqual([]);
+    // autocrlf rewrites the lock too, since it is text: still current.
+    crlf(lockFile);
+    expect(drift(repo)).toEqual([]);
+    writeFileSync(lockFile, lock);
     // A copy that is CRLF while its source is LF is the same text too.
     writeFileSync(join(repo, 'tools', 'x.py'), 'print(1)\n');
     expect(drift(repo)).toEqual([]);
