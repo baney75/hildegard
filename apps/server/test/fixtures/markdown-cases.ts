@@ -29,6 +29,8 @@ export const CASES: Record<string, () => string> = {
   'a long run of spaces': () => `a${rep(' ', N - 2)}x`,
   'a long run of spaces before a line break': () => `a${rep(' ', N - 2)}\nb`,
   'a heading with a long run of spaces': () => `# a${rep(' ', N - 4)}x`,
+  'headings with a line separator': () => rep('# a\u2028b\n'),
+  'headings ending in a paragraph separator': () => rep('# a\u2029\n'),
   'a fence line with a long run of spaces': () => `\`\`\`${rep(' ', N - 4)}!`,
   'quotes nested deeper than any post': () => rep('>'),
   'quotes, one per line': () => rep('> ', N),

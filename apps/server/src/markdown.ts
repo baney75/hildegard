@@ -324,7 +324,7 @@ export function markdown(src: string, opts: { shift?: number; depth?: number } =
       continue;
     }
     const h = /^\s{0,3}(#{1,6})\s+/.exec(line);
-    if (h && !/[\u2028\u2029]/.test(line)) {
+    if (h) {
       // The text, without the spaces after it and without a closing run of #s (one run, after a space).
       let text = line.slice(h[0].length).trimEnd();
       let k = text.length;
@@ -366,7 +366,8 @@ export function markdown(src: string, opts: { shift?: number; depth?: number } =
       continue;
     }
     // A paragraph runs to the next blank line or the start of another block.
-    const para: string[] = [];
+    // The first line is always taken, so this branch advances whatever the line is.
+    const para: string[] = [lines[i++]!];
     while (
       i < lines.length &&
       !blank(lines[i]) &&

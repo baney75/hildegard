@@ -81,6 +81,18 @@ describe('the Markdown renderer', () => {
     },
     60_000,
   );
+  it('reads a heading that holds U+2028 or U+2029, and always makes progress (second-S1, sol-F1)', () => {
+    // Run in a child with a timeout: on the old code this loops forever, and the main thread would hang the suite.
+    const script = `import { markdown } from ${JSON.stringify(join(import.meta.dirname, '../src/markdown.ts'))};
+      process.stdout.write(JSON.stringify(['# Title\\u2028', '# a\\u2028b', '# a\\u2029'].map((s) => markdown(s))));`;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      timeout: 5_000,
+    });
+    expect(run.error, run.error?.message).toBeUndefined();
+    expect(run.status, run.stderr.slice(-300)).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual(['<h2>Title</h2>', '<h2>a\u2028b</h2>', '<h2>a</h2>']);
+  });
   it('reads code spans by CommonMark’s rule: a span closes at the next run of the same length', () => {
     expect(markdown('a `x` b ``y ` z`` c ```k``` d')).toBe(
       '<p>a <code>x</code> b <code>y ` z</code> c <code>k</code> d</p>',
