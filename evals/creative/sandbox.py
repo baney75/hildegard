@@ -140,14 +140,22 @@ def responder(run, eval_dir):
     """argv that runs a claude session for one run, confined: the whole filesystem read-only; a tmpfs over the owner's home ($HOME and
     the passwd entry's), /tmp, /run (DNS's /run/systemd/resolve is bound back read-only) and the eval folder, so no ~/.ssh, no tokens
     in ~/.config, no agent or D-Bus sockets and no other run; this run's folder bound back read-only and its work/ read-write. Claude's
-    state goes to a fresh CLAUDE_CONFIG_DIR on the tmpfs, with the owner's credentials file bound into it read-only, so nothing in the
-    box can change or replace it (a refresh would strand the owner's other sessions, so respond.sh stops the batch on a sign-in failure).
-    With CLAUDE_CODE_OAUTH_TOKEN set, no credentials file is bound and the token goes in through `--args 7`, a pipe respond.sh opens. The claude binary is bound back as that
+    state goes to a fresh CLAUDE_CONFIG_DIR on the tmpfs. It needs CLAUDE_CODE_OAUTH_TOKEN (the owner's `claude setup-token`), which
+    goes in through `--args 7`, a pipe respond.sh opens, and is refused without it: a session that refreshes the owner's credentials
+    file in the box rotates the refresh token and signs the owner out of their other sessions. Only HILDEGARD_EVAL_ALLOW_CREDENTIALS=1
+    binds that file instead, read-only, so nothing in the box can change or replace it (respond.sh stops the batch on a sign-in
+    failure, which comes after the harm). The claude binary is bound back as that
     one file, and Chromium's own folder read-only; nothing else under the home folder is. The network stays (the model needs it); the
     environment is cleared to a few variables. New user, PID, IPC and UTS namespaces, no capabilities, killed with its parent. Refuses
     without a working bubblewrap: a session is never run unconfined."""
     if not _bwrap_ok():
         raise SystemExit('bubblewrap (bwrap) is not usable here, so a Haiku session cannot be confined; refusing to run it. Install bubblewrap.')
+    tok = bool(os.environ.get('CLAUDE_CODE_OAUTH_TOKEN'))
+    if not tok and os.environ.get('HILDEGARD_EVAL_ALLOW_CREDENTIALS') != '1':
+        raise SystemExit('A Haiku run needs CLAUDE_CODE_OAUTH_TOKEN: run `claude setup-token` yourself, then export the token it prints as '
+                         'CLAUDE_CODE_OAUTH_TOKEN in the shell that runs run.sh. Without it the session would use your credentials file, and a '
+                         'token refresh there can sign you out of your other Claude Code sessions (HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 takes '
+                         'that risk; see the README). Refusing to run.')
     home = os.path.realpath(os.path.expanduser('~'))
     run, ev = os.path.realpath(run), os.path.realpath(eval_dir)
     work = os.path.join(run, 'work')
@@ -168,7 +176,6 @@ def responder(run, eval_dir):
     if chrome:
         a += ['--ro-bind', chrome, chrome]
     a += ['--ro-bind', run, run, '--bind', work, work, '--dir', state]
-    tok = bool(os.environ.get('CLAUDE_CODE_OAUTH_TOKEN'))
     if os.path.isfile(creds) and not tok:
         a += ['--ro-bind', creds, os.path.join(state, '.credentials.json')]
     a += ['--clearenv', '--setenv', 'HOME', home, '--setenv', 'USER', os.environ.get('USER', 'eval'), '--setenv', 'TMPDIR', '/tmp',

@@ -13,10 +13,12 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
   F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left
   F12 Haiku's session runs confined (sandbox.responder): a stand-in for claude cannot delete or write a file in its home, outside
       its work folder or in another run, cannot see other runs, can write in its work folder; with no bubblewrap the run is refused;
-      the owner's credentials file is bound read-only (writing or replacing it fails, the host file is unchanged); the claude binary
-      is bound as that one file, and an override that is a folder or a file directly in the home folder is refused; Chromium's folder
-      is bound only when it holds nothing else of the owner's; with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token (never in
-      argv) and no credentials file; a sign-in failure exits 99 and leaves STOP; a link left in work/ fails the run with no `done`
+      with neither CLAUDE_CODE_OAUTH_TOKEN nor HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 the run is refused (exit 5) and calls no model;
+      under the opt-in the owner's credentials file is bound read-only (writing or replacing it fails, the host file is unchanged); the
+      claude binary is bound as that one file, and an override that is a folder or a file directly in the home folder is refused;
+      Chromium's folder is bound only when it holds nothing else of the owner's; with CLAUDE_CODE_OAUTH_TOKEN set the box gets the token
+      (never in argv) and no credentials file; a sign-in failure exits 99 and leaves STOP; a link left in work/, one hidden by
+      `chmod 0111 .` or in a 0311 folder, and a FIFO each fail the run with no `done`
   F13 --judge-only refuses runs made with other skills than the arm's skills now, or with no recorded hash
   F14 the eval folder (clean references, inputs, other runs) is not readable from the sandbox, wherever EVAL_DIR is; without bubblewrap the scorer refuses
   F15 a verdict is reused only while both runs it judged are unchanged: a run made again is judged again"""
@@ -155,6 +157,9 @@ case $PWD in
                        [ -e "$CLAUDE_CONFIG_DIR/.credentials.json" ] && echo creds=BOUND || echo creds=none; }} > report.txt ;;
   */w4-cabinetmaker-bio/work) echo '{{"type":"result","result":"Failed to authenticate. API Error: 401 authentication_error: OAuth token has expired.","is_error":true}}'; exit 1 ;;
   */w5-greenhouse-email/work) ln -s "$HOME/keep.txt" draft.md ;;
+  */v6-memorial-film/work) ln -s "$HOME/keep.txt" draft.md; chmod 0111 . ;;
+  */v7-ramen-winter/work) mkdir sub && ln -s "$HOME/keep.txt" sub/draft.md && chmod 0311 sub ;;
+  */v8-pool-lifeguards/work) mkfifo draft.md ;;
   */{t4}/work)
     {{ [ -e "$HOME/keep.txt" ] && rm -f "$HOME/keep.txt" 2>/dev/null && [ ! -e "$HOME/keep.txt" ] && echo home_rm=DELETED || echo home_rm=blocked
        echo bad > "$HOME/keep.txt" 2>/dev/null; echo bad > "$HOME/new.txt" 2>/dev/null
@@ -179,8 +184,9 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
 ''')
     os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
     env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'EVAL_DIR': ev, 'NEW_SKILLS': skills, 'HILDEGARD_EVAL_CLAUDE': fake,
-           'CLAUDE_CONFIG_DIR': cfg}
+           'CLAUDE_CONFIG_DIR': cfg, 'HILDEGARD_EVAL_ALLOW_CREDENTIALS': '1'}
     env.pop('ANTHROPIC_API_KEY', None)
+    env.pop('CLAUDE_CODE_OAUTH_TOKEN', None)
 
     def respond(task, **over):
         return subprocess.run(['bash', os.path.join(CR, 'respond.sh'), 'new', 'haiku', task], env={**env, **over}, capture_output=True, text=True, timeout=120)
@@ -212,7 +218,7 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
           text(os.path.join(other, 'work', 'draft.md')) == 'original\n' and not os.path.exists(os.path.join(ev, 'planted')))
     check('F12 writing in the work folder works', rep.get('work') == 'wrote' and text(os.path.join(run(t4), 'work', 'made.txt')) == 'made\n', rep)
     check('F12 the real ~/.ssh is not visible and the API key is not passed in', 'ssh' not in rep and 'key' not in rep, rep)
-    check('F12 the credentials file can be read in the box', rep.get('creds_read') == 'yes', rep)
+    check('F12 under HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 the credentials file can be read in the box', rep.get('creds_read') == 'yes', rep)
     check('F12 writing, truncating, replacing or deleting the credentials file fails in the box',
           all(rep.get(k) == 'blocked' for k in ('creds_write', 'creds_truncate', 'creds_mv', 'creds_rm')), rep)
     check('F12 the owner\'s credentials file is unchanged', text(creds) == '{"selftest": "original"}\n', text(creds))
@@ -224,6 +230,11 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     r = respond(t1, PATH=nobw + ':' + env['PATH'])
     check('F12 with no usable bubblewrap a Haiku run is refused (exit 5) and calls no model', r.returncode == 5 and calls() == before and 'bubblewrap' in r.stderr
           and not os.path.exists(os.path.join(run(t1), 'done')), (r.returncode, calls(), before, r.stderr))
+    # with no CLAUDE_CODE_OAUTH_TOKEN and no opt-in a refresh in the box could sign the owner out, so the run is refused before any model call
+    r = respond(t1, HILDEGARD_EVAL_ALLOW_CREDENTIALS='')
+    check('F12 with no CLAUDE_CODE_OAUTH_TOKEN and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 a Haiku run is refused (exit 5), calls no model and names claude setup-token',
+          r.returncode == 5 and calls() == before and 'claude setup-token' in r.stderr and 'CLAUDE_CODE_OAUTH_TOKEN' in r.stderr
+          and not os.path.exists(os.path.join(run(t1), 'transcript.jsonl')) and not os.path.exists(os.path.join(run(t1), 'done')), (r.returncode, calls(), before, r.stderr))
     # an override that would bind more than the binary file is refused, and no model is called
     shutil.copy(fake, os.path.join(shome, 'claude'))
     r = respond(t1, HOME=shome, HILDEGARD_EVAL_CLAUDE=os.path.join(shome, 'claude'))
@@ -269,6 +280,10 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     sb = lambda **o: [x for x in subprocess.run([sys.executable, os.path.join(CR, 'sandbox.py'), 'responder', run('w3-5k-page'), ev], env={**env, **o},
                                                 capture_output=True, text=True, timeout=60).stdout.split('\0') if x]
     plain, withtok = sb(), sb(CLAUDE_CODE_OAUTH_TOKEN='selftest-token')
+    ci = [i for i, x in enumerate(plain) if x == creds]
+    check('F12 HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 binds the credentials file read-only', len(ci) == 1 and plain[ci[0] - 1] == '--ro-bind'
+          and plain[ci[0] + 1].endswith('/.credentials.json'), plain)
+    check('F12 sandbox.py prints no box with neither the token nor the opt-in', sb(HILDEGARD_EVAL_ALLOW_CREDENTIALS='') == [])
     check('F12 with CLAUDE_CODE_OAUTH_TOKEN set no credentials file is bound and the token is not in the argv',
           any(creds in x for x in plain) and withtok and not any('.credentials.json' in x or 'selftest-token' in x for x in withtok), withtok)
     r = respond('w3-5k-page', HOME=shome, CLAUDE_CODE_OAUTH_TOKEN='selftest-token')
@@ -288,6 +303,16 @@ echo '{{"type":"result","result":"made it","is_error":false}}'
     m = json.load(open(os.path.join(lr, 'meta.json'))) if os.path.exists(os.path.join(lr, 'meta.json')) else {}
     check('F12 a symbolic link left in work/ fails the run with no done and the error in meta.json', r.returncode == 6 and not os.path.exists(os.path.join(lr, 'done'))
           and 'symbolic links' in (m.get('error') or '') and 'original' not in json.dumps(m) + (text(os.path.join(lr, 'final.txt')) or ''), (r.returncode, r.stderr, m))
+    # the model owns work/, so it can hide a link from the scan by making a folder unreadable, or leave a FIFO that hangs whatever opens it
+    for task, what, name in (('v6-memorial-film', 'a link hidden behind `chmod 0111 .`', './draft.md'),
+                             ('v7-ramen-winter', 'a link in a 0311 subfolder', './sub/draft.md'),
+                             ('v8-pool-lifeguards', 'a FIFO named draft.md', './draft.md')):
+        r = respond(task, HOME=shome)
+        lr = run(task)
+        m = json.load(open(os.path.join(lr, 'meta.json'))) if os.path.exists(os.path.join(lr, 'meta.json')) else {}
+        check(f'F12 {what} in work/ fails the run (exit 6) with no done, names it in meta.json, and nothing on the host read it',
+              r.returncode == 6 and not os.path.exists(os.path.join(lr, 'done')) and name in (m.get('error') or '')
+              and 'original' not in json.dumps(m) + r.stderr + (text(os.path.join(lr, 'final.txt')) or ''), (r.returncode, r.stderr, m))
     calls_lst.hits = 0
 
     # F2: a fresh eval folder still gets main's skills (mktemp needs the folder to exist)

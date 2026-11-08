@@ -6,11 +6,12 @@
 #   model  haiku  Claude Haiku 5.5 through `claude -p`; luna  GPT-6 Luna at low effort through `codex exec`
 # Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are unset. If a quota or billing message comes back, this
 # writes STOP in the run folder and exits 99 (dispatch.sh then halts every later job; a STOP file also stops this script before it
-# calls a model). A sign-in or token-refresh failure in Haiku's session does the same, since a refresh in the box would strand the
-# owner's other sessions (README: Responder confinement). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
+# calls a model). A sign-in or token-refresh failure in Haiku's session does the same, since with HILDEGARD_EVAL_ALLOW_CREDENTIALS=1 a
+# refresh in the box can strand the owner's other sessions (README: Responder confinement). Skips a run that finished (its `done` file) with the same skills hash (skills.sha), and for Haiku only one whose
 # meta.json says `confined: true` (made in the box, so never one from before it). Exits 4, with no `done`, when
-# the responder dies before a finished transcript, 5 when Haiku's session cannot be confined (no bubblewrap), and 6 when the session left
-# a symbolic link in work/ (nothing on the host reads work/ then, so a link to the owner's files is never followed).
+# the responder dies before a finished transcript, 5 when Haiku's session cannot be confined (no bubblewrap) or has no
+# CLAUDE_CODE_OAUTH_TOKEN (and no HILDEGARD_EVAL_ALLOW_CREDENTIALS=1), and 6 when the session left anything in work/ but regular files
+# and folders, a symbolic link or a FIFO say (nothing on the host reads work/ then, so a link to the owner's files is never followed).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
 set -u
@@ -44,7 +45,7 @@ if find "$E/runs" -name STOP 2>/dev/null | grep -q .; then echo "a STOP file is 
 CONFINED=()
 if [ "$MODEL" = haiku ]; then
   BOXF=$(mktemp "${TMPDIR:-/tmp}/hg-box.XXXXXX") || exit 2
-  python3 "$HERE/sandbox.py" responder "$RUN" "$E" > "$BOXF" || { rm -f "$BOXF"; echo "not running $ARM/$MODEL/$TASK unconfined" >&2; exit 5; }
+  python3 "$HERE/sandbox.py" responder "$RUN" "$E" > "$BOXF" || { rm -f "$BOXF"; echo "not running $ARM/$MODEL/$TASK" >&2; exit 5; }
   mapfile -d '' BOX < "$BOXF"; rm -f "$BOXF"; CONFINED=(--confined)
 fi
 rm -rf "$RUN"; mkdir -p "$WORK"; printf '%s\n' "$HASH" > "$RUN/skills.sha"
@@ -120,9 +121,17 @@ else
 fi
 echo $(( $(date +%s) - T0 )) > "$RUN/seconds"
 
-# A link in work/ points the host at whatever the model chose (~/.ssh, say), and everything after this runs unconfined: list links
-# before anything reads work/, and fail the run if there is one.
-LINKS=$(cd "$WORK" && find . -type l | head -5 | tr '\n' ' ')
+# A link in work/ points the host at whatever the model chose (~/.ssh, say), a FIFO hangs whatever opens it, and everything after
+# this runs unconfined. So before anything reads work/: make every folder in it readable and searchable again (the model owns them
+# and may have run `chmod 0111 .` to hide a link from find; chmod -R follows no link), then fail the run if work/ holds anything
+# but regular files and folders, or if either step fails.
+LINKS=
+if [ -L "$WORK" ] || [ ! -d "$WORK" ]; then LINKS='work/ itself'
+elif ! chmod -R u+rwX "$WORK"; then LINKS='(work/ could not be made readable)'
+else
+  ODD=$(cd "$WORK" && find . ! -type f ! -type d) || ODD='(work/ could not be searched)'
+  [ -z "$ODD" ] || LINKS=$(printf '%s\n' "$ODD" | head -5 | tr '\n' ' ')
+fi
 python3 "$HERE/runmeta.py" "$MODEL" "$RUN" "${CONFINED[@]}" ${LINKS:+--links "$LINKS"} || true
 # Exit 99 on a quota or billing message, found in the final text, stderr or the end of the transcript whether or not meta.json exists:
 # never top up, never switch to API billing. Exit 4 when the responder died before a finished transcript (no `done`, so it is made again).
@@ -155,6 +164,6 @@ if [ $rc -eq 98 ]; then
   echo 'sign-in failed: /login on the host, then delete this file' > "$RUN/STOP"; exit 99
 fi
 if [ $rc -eq 99 ]; then echo "quota or billing message in $RUN; stopping" >&2; : > "$RUN/STOP"; exit 99; fi
-if [ -n "$LINKS" ]; then echo "the session left symbolic links in $RUN/work ($LINKS); the run fails and nothing reads them" >&2; exit 6; fi
+if [ -n "$LINKS" ]; then echo "the session left symbolic links or other special files in $RUN/work ($LINKS); the run fails and nothing reads them" >&2; exit 6; fi
 if [ $rc -ne 0 ]; then echo "the responder died before a finished transcript in $RUN: $(head -c 300 "$RUN/err.txt" 2>/dev/null)" >&2; exit 4; fi
 touch "$RUN/done"
