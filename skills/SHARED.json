@@ -69,6 +69,89 @@
       "source": "skills/hildegard-print/references/print3d-license.md",
       "to": "references",
       "skills": ["hildegard-3d", "hildegard-loop", "hildegard-openscad"]
+    },
+    {
+      "source": "tools/edit_video.py",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/voice_clean.py",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/__init__.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/edl.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/edl.schema.json",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/encoders.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/media.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/plan.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/planner.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/presets.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/render.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/selftest.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/sheet.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/signals.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/textfx.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/transcript.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
+    },
+    {
+      "source": "tools/hgedit/verify.py",
+      "to": "scripts/hgedit",
+      "skills": ["hildegard-video-edit"]
     }
   ]
 }

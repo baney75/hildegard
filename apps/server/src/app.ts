@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
@@ -81,6 +81,8 @@ import { type Choir, ChoirError } from './choir.ts';
 import { redeemRoutes } from './choir-redeem.ts';
 import { CodeBook } from './codes.ts';
 import type { Config } from './config.ts';
+import { EditError, type EditJobs, type EditStore, PUBLIC_FILES } from './edit.ts';
+import { editRoutes } from './edit-routes.ts';
 import { ExportError, type Exporter } from './export.ts';
 import { GrantError, type Grants } from './grants.ts';
 import type { HfLink, SecretStore } from './hf.ts';
@@ -207,6 +209,8 @@ export interface AppDeps {
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
   /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
   records?: { store: RecordStore; cleaner: CleanJobs };
+  /** Video edits: edit lists, rendered and proven on the output by tools/edit_video.py. */
+  edits?: { store: EditStore; jobs: EditJobs };
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -2670,6 +2674,46 @@ export function createApp(deps: AppDeps) {
         sees: (c, filmId) => sees(c, filmId),
       }),
     );
+  if (deps.edits)
+    app.route(
+      '/api/edits',
+      editRoutes({
+        store: deps.edits.store,
+        jobs: deps.edits.jobs,
+        who: whoOf,
+        recordFile: (id, who) => {
+          const rec = deps.records?.store.get(id);
+          if (!rec || !mayOpen(who, rec) || rec.state !== 'received' || !deps.records!.store.exists(rec))
+            return null;
+          return deps.records!.store.path(rec);
+        },
+        exportFile: (id, who) => {
+          const ex = deps.exporter.get(id);
+          const p = ex && who ? store.projects.get(ex.projectId) : undefined;
+          if (ex?.status !== 'done' || !seesProject(who, p)) return null;
+          return deps.exporter.file(ex);
+        },
+        // Words and times come from the owner's voice studio, and only the owner and this computer may use it.
+        transcribe: deps.voice
+          ? async (wav) => {
+              const studio = deps.voice!.studio;
+              const up = await studio.upload(new Uint8Array(readFileSync(wav)));
+              const job = studio.transcribe(
+                { source: up.name, title: 'Edit plan' },
+                { source: { kind: 'studio' }, priority: 'interactive' },
+              );
+              const done = await studio.whenDone(job.id, 30 * 60_000);
+              if (done.status !== 'done' || !done.transcript)
+                throw new EditError(
+                  502,
+                  'voice',
+                  done.error?.message ?? 'The voice studio couldn’t transcribe that.',
+                );
+              return done.transcript;
+            }
+          : undefined,
+      }),
+    );
   if (deps.talk) app.route('/api/talk', talkRoutes({ ...deps.talk, ownerOnly }));
 
   // ── Loops ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2787,7 +2831,7 @@ export function createApp(deps: AppDeps) {
   app.get('/media/*', (c) => {
     const rel = c.req.path.slice('/media/'.length);
     if (
-      !/^(recordings\/[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]+|((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+)$/.test(
+      !/^(recordings\/[A-Za-z0-9-]{1,64}\/[A-Za-z0-9._-]+|edits\/[A-Za-z0-9-]{1,64}\/ed_[0-9a-f]{16}\/[a-z0-9._]+|((uploads|exports|voice|stills)\/)?[A-Za-z0-9._-]+)$/.test(
         rel,
       ) ||
       rel.includes('..')
@@ -2803,6 +2847,22 @@ export function createApp(deps: AppDeps) {
         resolve(mediaDir, rel),
         rec.kind === 'video' && extname(rel) === '.webm'
           ? 'video/webm'
+          : (TYPES[extname(rel)] ?? 'application/octet-stream'),
+        'private, no-store',
+      );
+    }
+    // A video edit's finished file, contact sheet and chapters are its owner's: the person who made it, the owner of this
+    // Hildegard and this computer, or a signed link from an MCP result.
+    const edited = /^edits\/([A-Za-z0-9-]{1,64})\/(ed_[0-9a-f]{16})\/([a-z0-9._]+)$/.exec(rel);
+    if (edited) {
+      const ed = deps.edits?.store.get(edited[2]!);
+      if (!ed || ed.owner !== edited[1] || !PUBLIC_FILES.test(edited[3]!)) return c.body(null, 404);
+      if (!(c.get('signedMedia') || mayOpen(whoOf(c), ed))) return c.body(null, 404);
+      return sendFile(
+        c,
+        resolve(mediaDir, rel),
+        edited[3] === 'chapters.txt'
+          ? 'text/plain; charset=utf-8'
           : (TYPES[extname(rel)] ?? 'application/octet-stream'),
         'private, no-store',
       );

@@ -7,6 +7,7 @@ import type {
   CharacterView,
   ChoirDevice,
   ChoirState,
+  EditView,
   ExportState,
   MarkCheck,
   Project,
@@ -419,6 +420,22 @@ export class HildegardClient {
   isOurs = (source: string) => this.call<MarkCheck>('POST', '/api/voice/check', { source });
   installVoiceModel = (id: string, acceptLicense: boolean) =>
     this.call<unknown>('POST', `/api/voice/models/${encodeURIComponent(id)}/install`, { acceptLicense });
+  // ── Video edits ──
+  edits = () => this.call<{ edits: EditView[] }>('GET', '/api/edits');
+  edit = (id: string) => this.call<EditView>('GET', `/api/edits/${encodeURIComponent(id)}`);
+  createEdit = (body: { title?: string; source?: string; edl?: Record<string, unknown> }) =>
+    this.call<EditView>('POST', '/api/edits', body);
+  writeEdl = (id: string, edl: Record<string, unknown>) =>
+    this.call<EditView>('PUT', `/api/edits/${encodeURIComponent(id)}/edl`, edl);
+  planEdit = (id: string, body: Record<string, unknown>) =>
+    this.call<EditView>('POST', `/api/edits/${encodeURIComponent(id)}/plan`, body);
+  renderEdit = (id: string, body: Record<string, unknown>) =>
+    this.call<EditView>('POST', `/api/edits/${encodeURIComponent(id)}/render`, body);
+  verifyEdit = (id: string) => this.call<EditView>('POST', `/api/edits/${encodeURIComponent(id)}/verify`, {});
+  editWords = async (id: string) => {
+    const b = await this.bytes(`/api/edits/${encodeURIComponent(id)}/words`);
+    return b ? new TextDecoder().decode(b) : null;
+  };
   // ── Loops ──
   loops = () => this.call<{ loops: LoopSummary[] }>('GET', '/api/loops');
   loop = (id: string) => this.call<LoopDetail>('GET', `/api/loops/${encodeURIComponent(id)}`);

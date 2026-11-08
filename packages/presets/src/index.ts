@@ -2,6 +2,7 @@
 export * from './api.ts';
 export * from './characters.ts';
 export * from './compose.ts';
+export * from './edit.ts';
 export * from './images.ts';
 export * from './load.ts';
 export * from './public-url.ts';
