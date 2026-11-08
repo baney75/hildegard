@@ -34,6 +34,10 @@ const gated = videos.find((m) => m.gated)!;
 const open = videos.filter((m) => !m.gated);
 
 describe('the first model to offer', () => {
+  it('is none until this computer’s model list has arrived, so nothing is offered on a guess', () => {
+    expect(firstPick(catalog, [], unlinked)).toBeNull();
+  });
+
   it('is the smallest that downloads now when the GPU is unknown', () => {
     const p = firstPick(catalog, states(), unlinked)!;
     expect(p.model.id).toBe(smallest.id);
