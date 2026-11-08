@@ -348,6 +348,9 @@ with tempfile.TemporaryDirectory() as ev:
         rc = subprocess.run(['bash', os.path.join(CR, 'run.sh'), 'f13', '--base', 'main', '--cand', 'new', '--models', 'haiku', '--only', 'd1-fall-festival', '--judge-only', '--allow-stale'],
                             env={**os.environ, 'EVAL_DIR': ev2, 'GIT_DIR': os.path.join(root, 'no-such-git')}, capture_output=True, text=True, timeout=120)
         check('F13 a crashed skills check stops the run (exit 4), --allow-stale or not', rc.returncode == 4 and 'check itself failed' in rc.stderr and not os.path.exists(os.path.join(ev2, 'judge')), (rc.returncode, rc.stderr))
+        for leftover in ('results-f13.json', 'results-f13.md'):  # run.sh's report for the label, which a test must not leave
+            if os.path.exists(os.path.join(CR, leftover)):
+                os.remove(os.path.join(CR, leftover))
         os.environ.pop('NEW_SKILLS')
     # The sandbox hides the eval folder from every script, even when the caller names nothing to hide.
     if sandbox.mode() == 'bwrap':
