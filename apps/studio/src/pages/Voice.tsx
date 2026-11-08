@@ -4,6 +4,7 @@
  * and transcribe, revoice or dub recordings. Everything runs on the owner's own GPUs.
  */
 import { useEffect, useState } from 'react';
+import { RecordDialog } from '../components/RecordDialog.tsx';
 import { Button, Icon, Segmented, WithCode } from '../components/ui.tsx';
 import { VoiceModelsSheet } from '../components/voice.tsx';
 import { api } from '../lib/api.ts';
@@ -23,6 +24,8 @@ export function Voice({ parts, wc, go }: { parts: string[]; wc: WindowClass; go:
   const consents = useStore((s) => s.consents);
   const [error, setError] = useState<string | null>(null);
   const [showModels, setShowModels] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [kept, setKept] = useState(0);
   const [redo, setRedo] = useState<'consent' | 'record' | null>(null);
 
   useEffect(() => {
@@ -146,6 +149,13 @@ export function Voice({ parts, wc, go }: { parts: string[]; wc: WindowClass; go:
               </Button>
             </>
           ) : null}
+          <Button
+            icon="mic"
+            aria-label={wc === 'compact' ? 'Record' : undefined}
+            onClick={() => setRecording(true)}
+          >
+            {wc === 'compact' ? null : 'Record'}
+          </Button>
           <Button kind="ghost" icon="models" aria-label="Voice models" onClick={() => setShowModels(true)} />
         </div>
       </>
@@ -154,7 +164,7 @@ export function Voice({ parts, wc, go }: { parts: string[]; wc: WindowClass; go:
       tab === 'voices' ? (
         <Library state={state} go={go} />
       ) : tab === 'recordings' ? (
-        <Recordings state={state} />
+        <Recordings state={state} version={kept} />
       ) : (
         <Speak state={state} wc={wc} go={go} initialVoice={sub === 'speak' ? (parts[2] ?? null) : null} />
       );
@@ -177,6 +187,9 @@ export function Voice({ parts, wc, go }: { parts: string[]; wc: WindowClass; go:
         ) : null}
         {body}
       </main>
+      {recording ? (
+        <RecordDialog onClose={() => setRecording(false)} onKept={() => setKept((n) => n + 1)} />
+      ) : null}
       {state ? (
         <VoiceModelsSheet
           open={showModels}

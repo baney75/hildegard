@@ -7,6 +7,9 @@ with its parent. Without bubblewrap it falls back to `unshare -rn` plus `setpriv
 new privileges, and says so on stderr. With neither it refuses; set EVAL_SANDBOX=none to run bare anyway (a deliberate choice).
 EVAL_SANDBOX=bwrap|fallback forces a mode.
 
+wrap(cmd, rw_dir, hide=[dirs]) also puts a tmpfs over each dir, wherever it is (outside $HOME too), so a script cannot read them. Only
+bubblewrap can do that: in any other mode wrap() refuses, because the script could read the dirs by their path.
+
 sandbox.responder(run, eval_dir) is the same idea for a model's whole session (Haiku through `claude -p`), which needs the network:
 bubblewrap only, never a fallback and never EVAL_SANDBOX=none. See responder() for what it can see and write.
 `python3 sandbox.py responder <run> <eval dir>` prints that argv, NUL-separated, for respond.sh."""
@@ -40,8 +43,13 @@ def mode():
     return _mode
 
 
-def wrap(cmd, rw_dir):
+def wrap(cmd, rw_dir, hide=()):
+    # The eval folder (clean references, inputs, every arm's runs) is always hidden, so a new caller can't forget it.
+    e = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
+    hide = list(hide) + ([e] if e not in hide and os.path.exists(e) else [])
     m = mode()
+    if hide and m != 'bwrap':
+        raise SystemExit(f'cannot hide {", ".join(hide)} from the script without bubblewrap (mode: {m}); install bwrap')
     if m == 'none':
         return list(cmd)
     if m == 'fallback':
@@ -50,8 +58,9 @@ def wrap(cmd, rw_dir):
     home = os.path.realpath(os.path.expanduser('~'))
     return (['bwrap', '--unshare-user', '--unshare-pid', '--unshare-net', '--unshare-ipc', '--unshare-uts', '--unshare-cgroup-try',
              '--die-with-parent', '--new-session', '--cap-drop', 'ALL',
-             '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--tmpfs', '/run', '--tmpfs', home,
-             '--bind', rw, rw, '--chdir', rw, '--'] + list(cmd))
+             '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp', '--tmpfs', '/run', '--tmpfs', home] +
+            [a for h in hide if os.path.exists(h) for a in ('--tmpfs', os.path.realpath(h))] +
+            ['--bind', rw, rw, '--chdir', rw, '--'] + list(cmd))
 
 
 def _bwrap_ok():
