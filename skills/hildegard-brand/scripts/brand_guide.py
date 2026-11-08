@@ -135,6 +135,11 @@ def check(b, base):
             fails.append(f'logo.{f} is missing')
         elif not os.path.exists(os.path.join(base, p)):
             fails.append(f'logo.{f}: no file {p}')
+    # The page says only what brand.json says: a rule left out is asked for, never filled in from the example.
+    if not (b['logo'] or {}).get('clear_space'):
+        warns.append('logo.clear_space is missing: write the rule for this mark (references/logo.md), or the guide shows none')
+    if not t.get('license'):
+        warns.append('type.license is missing: say where both faces come from and their license, or the guide says nothing about it')
     # contrast
     want = [('ink', 'ground', 'body'), ('muted', 'ground', 'small'), ('on-accent', 'accent', 'body'), ('accent', 'ground', 'ui'),
             ('ink', 'surface', 'body'), ('muted', 'surface', 'small')]
@@ -254,10 +259,10 @@ footer{{display:flex;justify-content:space-between;color:var(--muted);font-size:
 <div class="lede">{e(b['summary'])}{f'<small>For {e(b["audience"])}</small>' if b.get('audience') else ''}</div>
 <div class="cols"><div>
 <section><h2>Logo</h2><div class="logos"><div class="tile"><img src="{horiz}" alt=""></div><div class="tile rev"><img src="{horiz}" alt=""></div><div class="tile acc"><img src="{mark}" alt=""></div></div>
-<p class="note">{e(lg.get('clear_space', 'Clear space: the height of the mark’s top block on every side.'))} {e(lg.get('min_size', ''))}</p></section>
+<p class="note">{e(' '.join(x for x in (lg.get('clear_space'), lg.get('min_size')) if x))}</p></section>
 <section><h2>Color</h2><div class="chips">{''.join(chips)}</div><table>{rows}</table></section>
 <section><h2>Type</h2><div class="spec"><div><div class="big" style="font-family:var(--d)">{e(b['name'])}</div>
-<p class="fam"><b>{e(disp['family'])}</b> {e(str(disp.get('weight', 700)))}, {e(disp.get('use', 'headlines'))}<br><b>{e(text['family'])}</b> {e(str(text.get('weight', 400)))}, {e(text.get('use', 'text'))}<br>Both from Google Fonts, free to use.</p></div>
+<p class="fam"><b>{e(disp['family'])}</b> {e(str(disp.get('weight', 700)))}, {e(disp.get('use', 'headlines'))}<br><b>{e(text['family'])}</b> {e(str(text.get('weight', 400)))}, {e(text.get('use', 'text'))}{f'<br>{e(b["type"]["license"])}' if b['type'].get('license') else ''}</p></div>
 <ul class="scale">{scale}</ul></div></section>
 </div><div>
 <section><h2>Voice</h2><ol class="voice">{voice}</ol>{ex}</section>

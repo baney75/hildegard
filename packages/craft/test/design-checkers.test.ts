@@ -107,6 +107,39 @@ describe('brand_guide.py page', () => {
     if (!hasChromium) expect(r.out).toMatch(/Wrote/);
   });
 
+  it('says nothing about clear space or the font license that brand.json does not say, and asks for both', () => {
+    const b = JSON.parse(readFileSync(join(example, 'brand.json'), 'utf8'));
+    delete b.logo.clear_space;
+    delete b.type.license;
+    const d = join(dir, 'no-rules');
+    rmSync(d, { recursive: true, force: true });
+    mkdirSync(d, { recursive: true });
+    for (const f of ['mark.svg', 'logo-horizontal.svg', 'logo-stacked.svg'])
+      writeFileSync(join(d, f), readFileSync(join(example, f)));
+    writeFileSync(join(d, 'brand.json'), JSON.stringify(b));
+    const r = run(join(brand, 'scripts/brand_guide.py'), [
+      join(d, 'brand.json'),
+      '--offline',
+      '--out',
+      join(d, 'g'),
+    ]);
+    expect(r.out).toMatch(/WARN logo\.clear_space is missing/);
+    expect(r.out).toMatch(/WARN type\.license is missing/);
+    const page = readFileSync(join(d, 'g', 'guide.html'), 'utf8');
+    expect(page).not.toMatch(/Clear space/i);
+    expect(page).not.toMatch(/top block/);
+    expect(page).not.toMatch(/free to use|Google Fonts,/);
+
+    b.logo.clear_space = 'Clear space: the width of the R on every side.';
+    b.type.license = 'Both licensed from the client’s type foundry.';
+    writeFileSync(join(d, 'brand.json'), JSON.stringify(b));
+    run(join(brand, 'scripts/brand_guide.py'), [join(d, 'brand.json'), '--offline', '--out', join(d, 'g2')]);
+    const own = readFileSync(join(d, 'g2', 'guide.html'), 'utf8');
+    expect(own).toMatch(/the width of the R on every side/);
+    expect(own).toMatch(/licensed from the client’s type foundry/);
+    expect(own).not.toMatch(/free to use/);
+  });
+
   it('names each logo file once when the logos share one file', () => {
     const b = JSON.parse(readFileSync(join(example, 'brand.json'), 'utf8'));
     b.logo.horizontal = b.logo.stacked = 'logo-horizontal.svg';
@@ -191,6 +224,49 @@ describe('screen_check.py clipped', () => {
       expect(c.state).toBe('pass');
     },
   );
+
+  it.skipIf(!hasChromium)('passes a screen-reader label moved far off the screen', () => {
+    const c = clipped(
+      'sronly',
+      shell(
+        '<main style="padding:80px 20px"><h1>Next bus</h1>' +
+          '<span style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">Updated a minute ago</span></main>',
+      ),
+    );
+    expect(c.state).toBe('pass');
+  });
+
+  it.skipIf(!hasChromium)('fails a later line of a paragraph that runs below the screen', () => {
+    const name = 'lines';
+    const c = clipped(
+      name,
+      shell(
+        '<p style="position:absolute;top:800px;left:20px;line-height:24px">Next bus<br>Route 14 at 8:12<br>Last updated</p>',
+      ),
+    );
+    expect(c.state).toBe('fail');
+    expect(c.message).toMatch(/Last updated/);
+    const rep = JSON.parse(readFileSync(join(dir, `sc-${name}`, 'report.json'), 'utf8'));
+    expect(rep.screens[name].audit.contentBottom).toBeGreaterThan(844);
+  });
+
+  it.skipIf(!hasChromium)(
+    'passes the template with many rows in its scrolling main, and fails rows past a main that does not scroll',
+    () => {
+      const tpl = join(root, 'skills/hildegard-app/templates');
+      const card = (i: number) =>
+        `<article class="card"><div class="top"><h2>Order ${i + 101} for Hale &amp; Moreno</h2></div><p class="meta">Proof ${i} · sent Tuesday</p></article>`;
+      const many = Array.from({ length: 12 }, (_, i) => card(i)).join('');
+      const page = readFileSync(join(tpl, 'screen.html'), 'utf8').replace('</main>', `${many}</main>`);
+      writeFileSync(join(dir, 'tokens.css'), readFileSync(join(tpl, 'tokens.css')));
+      const c = clipped('rows', page);
+      expect(c.state).toBe('pass');
+      expect(c.message).toMatch(/below the fold/);
+
+      const stuck = clipped('stuck', page.replace('main { overflow: auto;', 'main { overflow: visible;'));
+      expect(stuck.state).toBe('fail');
+    },
+  );
 });
 
 describe('wordmark.py and lockup.py', () => {
@@ -232,6 +308,26 @@ describe('wordmark.py and lockup.py', () => {
       expect(out.match(/<path /g)!.length).toBe(5);
     },
   );
+
+  it.skipIf(!font)('writes well-formed SVG for a name with an ampersand and quotation marks', () => {
+    const name = 'Okafor & Reyes "CPA" <1998>';
+    const r = run(join(brand, 'scripts/wordmark.py'), [name, '--font', font!, '--out', join(dir, 'amp.svg')]);
+    expect(r.code).toBe(0);
+    const parsed = spawnSync(
+      python,
+      [
+        '-I',
+        '-c',
+        'import sys, xml.etree.ElementTree as E; r = E.parse(sys.argv[1]).getroot(); print(r.get("aria-label")); print(len(r.findall(".//{http://www.w3.org/2000/svg}path")))',
+        join(dir, 'amp.svg'),
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(parsed.stderr).toBe('');
+    const [label, paths] = parsed.stdout.trim().split('\n');
+    expect(label).toBe(name);
+    expect(Number(paths)).toBeGreaterThan(10);
+  });
 });
 
 describe('council.py', () => {

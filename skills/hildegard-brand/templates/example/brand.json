@@ -22,6 +22,7 @@
   "type": {
     "display": { "family": "Libre Caslon Text", "weight": 700, "use": "the wordmark, headlines" },
     "text": { "family": "Work Sans", "weight": 400, "use": "text, labels, prices" },
+    "license": "Both from Google Fonts, free to use.",
     "scale": [
       { "name": "Display", "px": 48 },
       { "name": "Headline", "px": 32 },

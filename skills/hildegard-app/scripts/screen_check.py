@@ -12,7 +12,8 @@ report.json. Checks:
   overflow     nothing wider than the screen (sideways scrolling)                                   fail
   contrast     every visible text at least 4.5:1 (3:1 at 24 px, or 18.7 px bold) against its background  fail
   clipped      text cut off by its own box or a box around it that hides overflow (no ellipsis), or
-               running off any edge of the screen, the bottom included                                fail
+               running off any edge of the screen, the bottom included, where no scrolling box around
+               it can bring it into view (text below the fold of a scrolling list is counted, not failed)  fail
   targets      tap targets under 24 px fail; under the platform's size (44 pt iOS, 48 dp Android,
                24 px desktop) warn
   text-size    text under 11 px fails; body under the platform's (17 pt iOS, 16 sp Android, 14 px desktop) warns
@@ -59,6 +60,21 @@ const clipBox=(el,tr)=>{let esc=false;const rootVis=/visible/.test(S(d.documentE
         if((cx&&(tr.left<l-1||tr.right>r+1))||(cy&&(tr.top<t-1||tr.bottom>bt+1)))return true}}
     if(s.position==='fixed')return false;if(s.position==='absolute')esc=true}
   return false};
+// Text past the right or bottom edge that a scrolling box around it can bring into view: overflow auto or scroll on that
+// axis, with more content than it shows, on the element or an ancestor whose overflow reaches it, the text not above or
+// left of where that box scrolls from, and the box itself on the screen or in reach the same way. As in clipBox, the
+// viewport's own scrolling doesn't count: a screen is one view.
+const reachAx=(el,tr,y,self)=>{let esc=false;const rootVis=/visible/.test(S(d.documentElement).overflow);
+  for(let n=el;n&&n.nodeType===1&&n!==d.documentElement;n=n.parentElement){const s=S(n);
+    if(esc&&(s.position!=='static'||s.transform!=='none'))esc=false;
+    if((n!==el||self)&&!esc&&!(n===d.body&&rootVis)&&/auto|scroll/.test(y?s.overflowY:s.overflowX)&&(y?n.scrollHeight>n.clientHeight+1:n.scrollWidth>n.clientWidth+1)){
+      const b=n.getBoundingClientRect(),l=b.left+n.clientLeft,t=b.top+n.clientTop,box={left:l,top:t,right:l+n.clientWidth,bottom:t+n.clientHeight};
+      if(y?tr.top<t-1:tr.left<l-1)return false;
+      if(y?box.top<-1:box.left<-1)return false;
+      return (y?box.bottom<=H+1:box.right<=W+1)||reachAx(n,box,y,false)}
+    if(s.position==='fixed')return false;if(s.position==='absolute')esc=true}
+  return false};
+const reach=(el,tr)=>tr.top>=-1&&tr.left>=-1&&(tr.bottom<=H+1||reachAx(el,tr,true,true))&&(tr.right<=W+1||reachAx(el,tr,false,true));
 // Where the letters are: the text's box less the part of the font's ascent and descent its glyphs don't reach, so a line
 // whose letters end just above an edge is not counted as cut off for the empty descent below them.
 const cv=d.createElement('canvas').getContext('2d');
@@ -67,23 +83,27 @@ const textRect=(t,el,s)=>{const g=d.createRange();g.selectNodeContents(t);const 
   const up=Math.max(0,m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)||0,dn=Math.max(0,m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)||0;
   return {left:r.left,right:r.right,top:r.top+Math.min(up,r.height/2),bottom:r.bottom-Math.min(dn,r.height/2)}};
 const label=el=>((el.getAttribute('aria-label')||el.textContent||el.getAttribute('title')||el.tagName)+'').replace(/\s+/g,' ').trim().slice(0,40);
-const out={W,H,scrollW:d.documentElement.scrollWidth,scrollH:d.documentElement.scrollHeight,contrast:[],texts:0,sizes:[],clipped:[],offscreen:[],
+const out={W,H,scrollW:d.documentElement.scrollWidth,scrollH:d.documentElement.scrollHeight,contrast:[],texts:0,sizes:[],clipped:[],offscreen:[],fold:[],
   targets:0,small:[],fonts:{},noAlt:0,placeholder:[],safe:[],contentBottom:0,viewport:!!d.querySelector('meta[name=viewport]'),title:d.title||''};
-const seen=new Set();const tw=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let t;
-while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=t.parentElement;if(!el||seen.has(el)||el.closest('svg,script,style,noscript'))continue;
-  seen.add(el);if(!vis(el))continue;if(el.closest('[aria-hidden=true]')&&!el.closest('[data-system]'))continue;
-  const s=S(el),fs=parseFloat(s.fontSize),fw=parseInt(s.fontWeight)||400;out.texts++;
+// Every text node is measured for where it sits (a paragraph's later lines can run off the screen when its first doesn't);
+// what belongs to the element (its color, its box) is counted once.
+const seen=new Set(),wide=new Set();const tw=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let t;
+while((t=tw.nextNode())){const s0=t.textContent.trim();if(!s0)continue;const el=t.parentElement;if(!el||el.closest('svg,script,style,noscript'))continue;
+  const first=!seen.has(el);seen.add(el);if(!vis(el))continue;if(el.closest('[aria-hidden=true]')&&!el.closest('[data-system]'))continue;
+  const s=S(el),fs=parseFloat(s.fontSize),fw=parseInt(s.fontWeight)||400;
   const txt=s0.replace(/\s+/g,' ').slice(0,40);out.sizes.push([fs,txt,!!el.closest('[data-system]'),s0.length]);
-  if(!el.closest('[data-system]'))out.fonts[s.fontFamily.split(',')[0].replace(/["']/g,'').trim()]=1;
-  const bg=bgOf(el);const fg=parse(s.color);if(fg&&!bg.img){const c=over(fg,bg.c);const r=cr(c,bg.c);const large=fs>=24||(fs>=18.66&&fw>=700);const need=large?3:4.5;
-    if(r<need-0.005)out.contrast.push({text:txt,ratio:Math.round(r*100)/100,need,fg:hex(c),bg:hex(bg.c),size:fs})}
-  const r=el.getBoundingClientRect(),tr=textRect(t,el,s);out.contentBottom=Math.max(out.contentBottom,tr.bottom);
-  if(tr.right>W+1||tr.left<-1||tr.bottom>H+1||tr.top<-1)out.offscreen.push(txt);
-  else if(r.width<=1||r.height<=1){}  // a 1 px box is text hidden on purpose for screen readers
-  else if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis')out.clipped.push(txt);
+  const r=el.getBoundingClientRect(),tr=textRect(t,el,s);
+  if(first){out.texts++;
+    if(!el.closest('[data-system]'))out.fonts[s.fontFamily.split(',')[0].replace(/["']/g,'').trim()]=1;
+    const bg=bgOf(el);const fg=parse(s.color);if(fg&&!bg.img){const c=over(fg,bg.c);const r=cr(c,bg.c);const large=fs>=24||(fs>=18.66&&fw>=700);const need=large?3:4.5;
+      if(r<need-0.005)out.contrast.push({text:txt,ratio:Math.round(r*100)/100,need,fg:hex(c),bg:hex(bg.c),size:fs})}
+    if(!el.closest('[data-system]')&&(r.top<SAFE_TOP||r.bottom>H-SAFE_BOTTOM)&&r.bottom>0&&r.top<H)out.safe.push(txt)}
+  if(r.width<=1||r.height<=1)continue;  // a 1 px box is text hidden on purpose for screen readers, wherever it sits
+  out.contentBottom=Math.max(out.contentBottom,tr.bottom);
+  if(tr.right>W+1||tr.left<-1||tr.bottom>H+1||tr.top<-1){if(reach(el,tr))out.fold.push(txt);else out.offscreen.push(txt)}
+  else if((s.overflowX==='hidden'||s.overflowX==='clip'||s.overflow==='hidden')&&el.scrollWidth>el.clientWidth+1&&s.textOverflow!=='ellipsis'){if(!wide.has(el)){wide.add(el);out.clipped.push(txt)}}
   else if(s.textOverflow!=='ellipsis'&&s.webkitLineClamp==='none'&&clipBox(el,tr))out.clipped.push(txt);
-  if(/lorem ipsum|dolor sit amet|\bTODO\b|your text here|placeholder text|^item \d+$/i.test(s0))out.placeholder.push(txt);
-  if(!el.closest('[data-system]')&&(r.top<SAFE_TOP||r.bottom>H-SAFE_BOTTOM)&&r.bottom>0&&r.top<H)out.safe.push(txt)}
+  if(/lorem ipsum|dolor sit amet|\bTODO\b|your text here|placeholder text|^item \d+$/i.test(s0))out.placeholder.push(txt)}
 const sel='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=tab],[role=checkbox],[role=switch],[role=menuitem],[onclick]';
 for(const el of d.querySelectorAll(sel)){if(!vis(el)||el.closest('[data-system]'))continue;out.targets++;const r=el.getBoundingClientRect();const m=Math.min(r.width,r.height);
   if(m<MIN_TARGET)out.small.push({label:label(el),w:Math.round(r.width),h:Math.round(r.height)});
@@ -111,7 +131,9 @@ def judge(a, plat):
     add('fail' if c else 'pass', 'contrast', f'{len(c)} of {a["texts"]} texts under WCAG AA: ' + '; '.join(
         f'"{x["text"]}" {x["ratio"]}:1 ({x["fg"]} on {x["bg"]}, needs {x["need"]})' for x in c[:4]) if c else f'all {a["texts"]} texts pass AA')
     cl = a['clipped'] + a['offscreen']
-    add('fail' if cl else 'pass', 'clipped', ('cut off: ' + '; '.join(f'"{x}"' for x in cl[:4])) if cl else 'no text cut off')
+    fold = len(a.get('fold', []))
+    add('fail' if cl else 'pass', 'clipped', ('cut off: ' + '; '.join(f'"{x}"' for x in cl[:4])) if cl else 'no text cut off'
+        + (f'; {fold} texts below the fold of a scrolling box (scroll to look at them)' if fold else ''))
     tiny = [x for x in a['small'] if min(x['w'], x['h']) < 24]
     small = [x for x in a['small'] if x not in tiny]
     if tiny:

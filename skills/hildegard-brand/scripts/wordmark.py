@@ -16,7 +16,7 @@ names every pair off by more than 20%, with a first guess at the kern. The numbe
 
 The SVG carries data-cap-height, data-x-height and data-baseline (in its own units) so lockup.py can line it up with
 the mark. Standard library only for the paths; TrueType outlines (glyf) only, which is what Google Fonts serves."""
-import argparse, json, os, re, struct, sys, urllib.error, urllib.parse, urllib.request
+import argparse, html, json, os, re, struct, sys, urllib.error, urllib.parse, urllib.request
 
 CACHE = os.path.join(os.path.expanduser('~'), '.cache', 'hildegard-fonts')
 
@@ -396,6 +396,7 @@ def layout(font, text, tracking, kern):
 def svg(font, placed, size, color, name):
     s = size / font.upem
     asc = font.ascent
+    q = lambda v: html.escape(str(v), quote=True)  # a name like "Okafor & Reyes" is still well-formed XML
     paths, xs, ys = [], [], []
     for ch, g, x in placed:
         cs = font.contours(g)
@@ -404,7 +405,7 @@ def svg(font, placed, size, color, name):
                 xs.append((x + px) * s)
                 ys.append((asc - py) * s)
         if cs:
-            paths.append(f'<path data-letter="{ch if ch not in "<>&\"" else "?"}" d="{path_data(cs, x, s, asc)}"/>')
+            paths.append(f'<path data-letter="{q(ch)}" d="{path_data(cs, x, s, asc)}"/>')
     if not xs:
         raise SystemExit('nothing to draw: the font has none of these letters')
     x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
@@ -413,7 +414,7 @@ def svg(font, placed, size, color, name):
     base = round(asc * s, 2)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{" ".join(map(str, vb))}" '
             f'data-baseline="{base}" data-cap-height="{round(font.cap * s, 2)}" data-x-height="{round(font.xh * s, 2)}" '
-            f'aria-label="{name}"><g fill="{color}">\n' + '\n'.join(paths) + '\n</g></svg>\n')
+            f'aria-label="{q(name)}"><g fill="{q(color)}">\n' + '\n'.join(paths) + '\n</g></svg>\n')
 
 
 def spacing(font, placed, px=160):
