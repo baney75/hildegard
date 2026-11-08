@@ -169,8 +169,11 @@ describe('the harness, headless', () => {
     if (!chrome) ctx.skip();
     const kept: string[] = [];
     const out = mkdtempSync(join(tmpdir(), 'hg-demoout-'));
-    const mine = () => readdirSync(tmpdir()).filter((n) => /^hg-(demo|web)-/.test(n)).length;
-    const before = mine();
+    // A temp folder of its own, so the check below sees only this demo's profile and frames, not other tests'.
+    const tmp = mkdtempSync(join(tmpdir(), 'hg-demotmp-'));
+    const was = process.env.TMPDIR;
+    process.env.TMPDIR = tmp;
+    const mine = () => readdirSync(tmp).filter((n) => /^hg-(demo|web)-/.test(n));
     const demos = new Demos({
       keep: async (_owner, file) => {
         const dest = join(out, 'kept.mp4');
@@ -214,7 +217,9 @@ describe('the harness, headless', () => {
     expect(j.log.join('\n')).not.toContain('sk-proj');
     // The throwaway profile and the frames are gone.
     await new Promise((r) => setTimeout(r, 2500));
-    expect(mine()).toBeLessThanOrEqual(before);
+    process.env.TMPDIR = was;
+    if (was === undefined) delete process.env.TMPDIR;
+    expect(mine()).toEqual([]);
 
     const file = kept[0]!;
     expect(existsSync(file)).toBe(true);
