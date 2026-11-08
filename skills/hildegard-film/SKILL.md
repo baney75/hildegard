@@ -127,6 +127,10 @@ Common fixes:
    writes a sheet of nine frames. `python3 scripts/contact_sheet.py sheet.png --video film.mp4 --every 2` makes a
    denser, time-labelled sheet. Look at the sheet.
 5. Tell your user: the film's path, its length, what each shot is, and anything still imperfect.
+6. To post it: `prepare_post` with the film id and the platforms. It makes each platform's file (size, shape, length,
+   loudness), a thumbnail, and a title and caption from the facts your user gave you, in a Ready to post folder. Give
+   it only their facts: a title, a line about it, their own tags, a link. You never post. Your user presses Post, in
+   Studio's Post sheet, on the site; don't sign in to a site, click inside it or read its pages for them.
 
 Sound: LTX makes sound with the picture; Wan doesn't. For a voice-over, **hildegard-sound** has the steps: a person
 records it through `record_link`, `clean_voice` cleans it, and `export_film` takes it as `voiceover`. For music or a

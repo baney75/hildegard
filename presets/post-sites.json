@@ -1,0 +1,112 @@
+{
+  "sites": [
+    {
+      "id": "x",
+      "name": "X",
+      "home": "https://x.com/home",
+      "post": "https://x.com/compose/post",
+      "domains": ["x.com", "twitter.com", "twimg.com", "t.co"],
+      "auth": [
+        "iframe.arkoselabs.com",
+        "recaptcha.net/recaptcha/",
+        "www.recaptcha.net/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
+      "outbound": ["t.co"],
+      "opensIn": "app"
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "home": "https://www.youtube.com/",
+      "post": "https://www.youtube.com/upload",
+      "domains": [
+        "youtube.com",
+        "youtu.be",
+        "ytimg.com",
+        "ggpht.com",
+        "googlevideo.com",
+        "youtube-nocookie.com"
+      ],
+      "auth": [],
+      "opensIn": "browser"
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "home": "https://www.instagram.com/",
+      "post": "https://www.instagram.com/",
+      "domains": ["instagram.com", "cdninstagram.com", "fbcdn.net"],
+      "auth": [
+        "facebook.com",
+        "meta.com",
+        "fbsbx.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
+      "outbound": ["l.instagram.com", "l.facebook.com"],
+      "opensIn": "app"
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "home": "https://www.tiktok.com/",
+      "post": "https://www.tiktok.com/upload",
+      "domains": ["tiktok.com", "tiktokcdn.com", "tiktokcdn-us.com", "tiktokv.com"],
+      "auth": [
+        "appleid.apple.com",
+        "arkoselabs.com",
+        "hcaptcha.com",
+        "static.captchami.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
+      "opensIn": "app"
+    },
+    {
+      "id": "facebook",
+      "name": "Facebook",
+      "home": "https://www.facebook.com/",
+      "post": "https://www.facebook.com/",
+      "domains": ["facebook.com", "fb.com", "fbcdn.net", "messenger.com", "facebook.net"],
+      "auth": ["meta.com", "fbsbx.com", "www.google.com/recaptcha/", "recaptcha.google.com/recaptcha/"],
+      "outbound": ["l.facebook.com"],
+      "opensIn": "app"
+    },
+    {
+      "id": "threads",
+      "name": "Threads",
+      "home": "https://www.threads.com/",
+      "post": "https://www.threads.com/",
+      "domains": ["threads.com", "threads.net", "cdninstagram.com", "fbcdn.net"],
+      "auth": [
+        "instagram.com",
+        "meta.com",
+        "fbsbx.com",
+        "www.google.com/recaptcha/",
+        "recaptcha.google.com/recaptcha/"
+      ],
+      "outbound": ["l.threads.com", "l.threads.net", "l.instagram.com", "l.facebook.com"],
+      "opensIn": "app"
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "home": "https://www.reddit.com/",
+      "post": "https://www.reddit.com/submit",
+      "domains": ["reddit.com", "redd.it", "redditmedia.com", "redditstatic.com", "reddituploads.com"],
+      "auth": ["appleid.apple.com", "www.google.com/recaptcha/", "recaptcha.google.com/recaptcha/"],
+      "opensIn": "app"
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "home": "https://www.linkedin.com/feed/",
+      "post": "https://www.linkedin.com/feed/",
+      "domains": ["linkedin.com", "licdn.com", "lnkd.in"],
+      "auth": ["appleid.apple.com"],
+      "outbound": ["lnkd.in"],
+      "opensIn": "app"
+    }
+  ]
+}

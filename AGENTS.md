@@ -10,13 +10,14 @@ or a fleet, is [docs/agents.md](docs/agents.md).)
 | `apps/cli` | The `hildegard` command: install, setup, start/stop, models, connect, hf, choir, host, doctor, mcp. Commands return `{ ok, needsOwner, steps[], message }` |
 | `apps/server` | The local HTTP server (Hono): projects, shots, the render queue, model downloads, Hugging Face, agents, loops (`loop.ts`). Serves the Studio |
 | `apps/studio` | The Studio UI: React and Vite. Pages in `src/pages`, design tokens and components in `src/styles` and `src/components` |
-| `apps/desktop` | The Hildegard app (Tauri 2): the Studio from the local server in a native window, a tray, and the first-run install (`ui/`). `src-tauri` is the Rust shell |
+| `apps/desktop` | The Hildegard app (Tauri 2): the Studio from the local server in a native window, a tray, the first-run install (`ui/`), and a window for each site you post to (`src/browse.rs`). `src-tauri` is the Rust shell |
 | `mcp` | The MCP server: tools for AI apps, talking to the HTTP server, the loop tools (`loop-tools.ts`) and the skills over MCP (`skill-tools.ts`) |
 | `packages/presets` | Cameras, lenses, looks and models (`presets/*.toml`), prompt composition, and the API types shared by everything |
 | `packages/comfy` | ComfyUI graphs for each model, the engine that runs them through comfy-api-proxy, and a fake proxy for tests |
 | `packages/craft` | Quality gates against slop: prompt lint, `reviewMedia` and `reviewMesh` (run `tools/review_media.py` and `tools/review_mesh.py`), and critique rubrics |
 | `packages/agents` | Runs Claude Code, Codex, OMP and Pi only in the ways each provider's terms allow (`policy.ts`), and installs `skills/` for them |
 | `packages/cloud` | Rented GPUs: the Runpod REST client and pod spec; `deploy/runpod/boot.sh` is what the pod runs |
+| `tools/export_post.py`, `presets/post-sites.json` | Post: each platform's file, and the sites the app opens in windows. See [docs/post.md](docs/post.md) |
 | `skills/` | Agent skills for creative work (hildegard), film, video and photo editing, art, sound, 3D, the loop, setup and cloud, with Hildegard's quality gates. Packed for uploads by `scripts/pack-skills.mjs` |
 | `.claude-plugin/`, `plugin/` | The repository as a Claude Code plugin and marketplace; `plugin/mcp.mjs` starts the installed Hildegard's MCP server. See [docs/chatbots.md](docs/chatbots.md) |
 | `packages/runtime` | Installs and supervises ComfyUI (uv, pinned ComfyUI, PyTorch per GPU), detects the GPU, links AI apps |
@@ -130,6 +131,33 @@ now (issue #49). PR CLAIMs that rely on this gate must say the same: honor-syste
   start one over MCP. `voice-engine/` is Apache-2.0. [docs/voice.md](docs/voice.md) has the method and the installer.
 - **Brand files come from the design system.** Never hand-draw an icon or edit a rendered PNG; change
   `brand/app-icons/` and run `node scripts/app-icons.mjs`.
+
+## Post: files for each platform, and your sites in windows
+
+Hildegard prepares what someone posts and takes them to the site; they press Post. Two parts: `post.ts`, `post-routes.ts`
+and `tools/export_post.py` in `apps/server` make the files and words ([docs/post.md](docs/post.md)); `browse.rs` and
+`lib.rs` in `apps/desktop/src-tauri` open each site in a window of its own.
+
+Rules for changes here:
+
+- **Never post.** No code path holds a platform account, key or OAuth client, calls a platform's API, or clicks, types or
+  reads inside a signed-in site. There is no "post with your account" mode and none is planned (Donovan, 2026-11-07).
+  `post.test.ts` scans the Post code for network modules and platform API hosts, and watches a whole run for requests.
+- **A site window has no capability and no script of ours.** `capabilities/main.json` names `main` only and has no
+  `remote`; the window builder adds no `initialization_script` and sets no user agent. It loads no page or frame outside
+  the site's domains and sign-in entries (`presets/post-sites.json`, tested in `browse.rs`), and only a link or popup
+  that asks for a window goes to the system browser: `on_navigation` sees frames on Linux and macOS and never hands off.
+  On Windows `frames.rs` checks every document through WebView2 and touches the webview for nothing else.
+  `config.test.ts` holds all of it.
+  A new site is a line in `post-sites.json` with a test, not a code path.
+- **Google never signs in inside the app.** `accounts.google.*` is not shown in a window, as a page or a frame; a link
+  or popup to it offers the person their browser. Never spoof a user agent to change that.
+- **Profiles are private.** A site's cookies live in `<data>/browse/<site>/` and are never read, copied, logged or served
+  by Hildegard, or by an agent: not by tools, not over MCP, not by a loop. Sign-out clears the folder.
+- **Owner only.** Preparing a post is the owner's. Showing a file, and adding or removing a site, change this computer and
+  answer only from it.
+- **A new platform** is a `PostTarget` in `post.ts` (its limits as the platform publishes them), a site in
+  `post-sites.json`, and a test of the file and the caption.
 
 ## Choir: rendering on another device
 

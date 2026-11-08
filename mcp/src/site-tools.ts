@@ -10,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type SiteDetail } from './client.ts';
+import { readable } from './private.ts';
 import { PackError, zipFolder } from './zip.ts';
 
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
@@ -137,7 +138,7 @@ export function registerSiteTools(
           if (a.pen_path) {
             if (!isAbsolute(a.pen_path))
               throw new HildegardError(422, 'pen_path has to be an absolute path.');
-            pen = readFileSync(a.pen_path, 'utf8');
+            pen = readFileSync(readable(a.pen_path), 'utf8');
             const base = dirname(a.pen_path);
             for (const m of pen.matchAll(/"url"\s*:\s*"([^"]{1,300})"/g)) {
               const rel = m[1]!;
@@ -240,7 +241,7 @@ export function registerSiteTools(
           ? new TextEncoder().encode(a.text)
           : a.data !== undefined
             ? Buffer.from(a.data.replace(/^data:[\w/+.-]+;base64,/, ''), 'base64')
-            : readFileSync(a.file_path!);
+            : readFileSync(readable(a.file_path!));
       const s = await client.writeSiteFile(a.site_id, a.path, bytes);
       return text(
         `Wrote ${a.path} (${size(bytes.length)}). The site has ${s.files} files, ${size(s.bytes)}.`,

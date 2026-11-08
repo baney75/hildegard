@@ -4,7 +4,8 @@ import { useId, useMemo, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { bytes, clock, roman } from '../lib/format.ts';
 import { recordingLabel, useRecordings } from '../lib/recordings.ts';
-import { useStore } from '../lib/store.ts';
+import { isOwner, useStore } from '../lib/store.ts';
+import { PostSheet } from './PostSheet.tsx';
 import { RecordDialog } from './RecordDialog.tsx';
 import { takeLabel } from './TakeCard.tsx';
 import { Button, Icon, Modal, Status, toastError } from './ui.tsx';
@@ -50,6 +51,8 @@ export function ExportDialog({
   const chosen = useChosenTakes(project);
   const job = useStore((s) => s.exports.get(project.id));
   const [starting, setStarting] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const owner = isOwner(useStore((s) => s.auth));
   // A voice-over is a voice recording of yours, mixed over the film; make one here if there isn't one yet.
   const { list: voices, refresh: refreshVoices } = useRecordings('voice');
   const [voiceover, setVoiceover] = useState('');
@@ -185,6 +188,11 @@ export function ExportDialog({
               <Button kind="ghost" onClick={onClose}>
                 Done
               </Button>
+              {owner ? (
+                <Button icon="link" onClick={() => setPosting(true)}>
+                  Post…
+                </Button>
+              ) : null}
               <a className="hg-btn hg-btn--primary" href={`${job.url}?download`} download data-autofocus="">
                 <Icon name="download" size={18} />
                 Download
@@ -211,6 +219,15 @@ export function ExportDialog({
           )}
         </div>
       </Modal>
+      {posting && job ? (
+        <PostSheet
+          source={{ kind: 'export', id: job.id }}
+          title={project.title}
+          kind="video"
+          compact={compact}
+          onClose={() => setPosting(false)}
+        />
+      ) : null}
       {recording ? (
         <RecordDialog
           kinds={['voice']}

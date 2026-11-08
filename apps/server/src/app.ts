@@ -32,6 +32,7 @@ import {
   type NewInvite,
   type NewKey,
   type PeopleResponse,
+  type PostSite,
   PresetError,
   type Priority,
   type Project,
@@ -77,6 +78,7 @@ import {
   snapshotFor,
   type Who,
 } from './access.ts';
+import type { BrowseSites } from './browse-sites.ts';
 import { type Choir, ChoirError } from './choir.ts';
 import { redeemRoutes } from './choir-redeem.ts';
 import { CodeBook } from './codes.ts';
@@ -94,6 +96,8 @@ import { ModelError, type ModelManager } from './models.ts';
 import { type FetchMetadata, oauthRoutes } from './oauth.ts';
 import { type OpenScad, usesManifold } from './openscad.ts';
 import { DIRECTOR_QUEUE, INVITE_HOURS, Limiter, type People, PeopleError, SESSION } from './people.ts';
+import type { Poster } from './post.ts';
+import { postRoutes } from './post-routes.ts';
 import {
   findSlicer,
   type Printer,
@@ -155,6 +159,8 @@ export interface AppDeps {
   hf: HfLink;
   mediaDir: string;
   exporter: Exporter;
+  /** Posting: files and words per platform, in a folder. */
+  post?: { poster: Poster; sites: PostSite[]; browse: BrowseSites; reveal: (path: string) => void };
   /** Stops the whole server: `hildegard stop` asks for this. */
   onStop?: () => void;
   /** The base URL people and agents reach this server at. */
@@ -245,6 +251,8 @@ const MAX_LINT_BODY = 2_000_000;
 
 /** A loop's round or sheet, which an MCP result may link to like media. */
 const LOOP_FILE = /^\/api\/loops\/[a-f0-9]{16}\/files\/[\w.-]+$/;
+/** A prepared post's file, which an MCP result may link to like media. */
+const POST_FILE = /^\/api\/post\/[a-f0-9]{16}\/files\/[\w.-]+$/;
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const MAX_UPLOAD = 20 * 1024 * 1024;
 /** A character's reference image, at most, so four of them travel to a paired device in one render. */
@@ -403,7 +411,7 @@ export function createApp(deps: AppDeps) {
     // A link from an MCP result: one file, until it expires, without signing in.
     if (
       (c.req.method === 'GET' || c.req.method === 'HEAD') &&
-      (path.startsWith('/media/') || LOOP_FILE.test(path)) &&
+      (path.startsWith('/media/') || LOOP_FILE.test(path) || POST_FILE.test(path)) &&
       deps.signer.verify(path, c.req.query('exp'), c.req.query('sig'))
     ) {
       c.set('who', fromThisComputer(c) ? { kind: 'local' } : null);
@@ -2679,6 +2687,21 @@ export function createApp(deps: AppDeps) {
       loopRoutes({
         loops: deps.loops,
         ownerOnly,
+        sendFile: (c, file, type) => sendFile(c, file, type, 'private, max-age=31536000, immutable'),
+      }),
+    );
+
+  // ── Post ────────────────────────────────────────────────────────────────────────────────────────────────────
+  if (deps.post)
+    app.route(
+      '/api/post',
+      postRoutes({
+        poster: deps.post.poster,
+        sites: deps.post.sites,
+        browse: deps.post.browse,
+        ownerOnly,
+        local,
+        reveal: deps.post.reveal,
         sendFile: (c, file, type) => sendFile(c, file, type, 'private, max-age=31536000, immutable'),
       }),
     );

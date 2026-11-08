@@ -18,6 +18,10 @@ tauri-build = { version = "=2.7.2", features = [] }
 [dependencies]
 tauri = { version = "=2.12.3", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "=2.7.1"
+# A native message with two buttons (the Google sign-in offer) and the clipboard, both used from Rust only: no window has
+# a capability, so neither plugin's commands can be called from a page.
+tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-clipboard-manager = "=2.5.0"
 tauri-plugin-single-instance = "=2.5.3"
 tauri-plugin-window-state = "=2.5.0"
 tauri-plugin-updater = "=2.13.0"
@@ -25,6 +29,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Plain HTTP to Hildegard on 127.0.0.1 only, so no TLS.
 ureq = { version = "=3.4.2", default-features = false, features = ["json"] }
+
+# Windows: the document check for a site window's frames (src/frames.rs), through the WebView2 bindings wry itself uses.
+# Keep these at the versions in Cargo.lock that wry depends on.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.39.1"
+windows-core = "=0.62.2"
 
 # WebKitGTK ships with MediaStream off; media.rs switches it on so the Studio can record. The same version Tauri uses.
 [target.'cfg(target_os = "linux")'.dependencies]

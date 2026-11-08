@@ -11,6 +11,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type Recording } from './client.ts';
+import { readable } from './private.ts';
 import { qrPng } from './qr.ts';
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
@@ -32,7 +33,8 @@ export async function importPath(
       422,
       'Hildegard runs on another computer, so it can’t read a path on yours. Use media_id: the id recording_status gives for a recording you made with record_link.',
     );
-  const bytes = await readFile(path).catch(() => {
+  const bytes = await readFile(readable(path)).catch((e) => {
+    if (e instanceof HildegardError) throw e;
     throw new HildegardError(0, `Cannot read ${path}`);
   });
   return client.importRecording(bytes, kind);

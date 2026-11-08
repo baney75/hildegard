@@ -11,6 +11,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { CallToolResult, ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { type HildegardClient, HildegardError, type VoiceJobDetail } from './client.ts';
+import { readable } from './private.ts';
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s }] });
@@ -66,7 +67,8 @@ export function registerVoiceTools(
           422,
           'Hildegard runs on another computer, so it can’t read a path on yours. Send the recording itself as source_data (base64).',
         );
-      const bytes = await readFile(a.source_path).catch(() => {
+      const bytes = await readFile(readable(a.source_path)).catch((e) => {
+        if (e instanceof HildegardError) throw e;
         throw new HildegardError(0, `Cannot read ${a.source_path}`);
       });
       return client.uploadAudio(bytes);

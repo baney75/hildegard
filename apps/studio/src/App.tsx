@@ -9,6 +9,7 @@ import { type LayoutMode, useHashRoute, useLocal, useWindowClass } from './lib/h
 import { allowedIn, isOwner, useStore } from './lib/store.ts';
 import { useTheme } from './lib/theme.ts';
 import { Agents } from './pages/Agents.tsx';
+import { Browse } from './pages/Browse.tsx';
 import { Characters } from './pages/Characters.tsx';
 import { Cinema } from './pages/Cinema.tsx';
 import { Images } from './pages/Images.tsx';
@@ -124,6 +125,7 @@ export function App() {
   else if (parts[0] === 'images') page = <Images catalog={catalog} wc={wc} go={go} />;
   else if (parts[0] === 'characters') page = <Characters wc={wc} go={go} selectedParam={parts[1] ?? null} />;
   else if (parts[0] === 'agents' && isOwner(auth)) page = <Agents wc={wc} />;
+  else if (parts[0] === 'browse' && isOwner(auth)) page = <Browse />;
   else if (parts[0] === 'sites' && isOwner(auth))
     page = <Sites wc={wc} go={go} siteParam={parts[1] ?? null} />;
   else if (parts[0] === 'voice' && isOwner(auth)) page = <Voice parts={parts} wc={wc} go={go} />;

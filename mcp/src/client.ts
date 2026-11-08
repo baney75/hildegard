@@ -9,6 +9,8 @@ import type {
   ChoirState,
   ExportState,
   MarkCheck,
+  PostRequest,
+  PostState,
   Project,
   Shot,
   ShotRequestInput,
@@ -20,6 +22,7 @@ import type {
   VoiceJob,
   VoiceState,
 } from '@hildegard/presets';
+import { readable } from './private.ts';
 import type { Draft } from './report.ts';
 
 export class HildegardError extends Error {
@@ -344,6 +347,9 @@ export class HildegardClient {
       `/api/projects/${encodeURIComponent(id)}/export`,
       voiceover ? { voiceover } : undefined,
     );
+  // ── Post: files and words per platform, prepared and never posted ──
+  preparePost = (body: PostRequest) => this.call<PostState>('POST', '/api/post', body);
+  postState = (id: string) => this.call<PostState>('GET', `/api/post/${encodeURIComponent(id)}`);
   // ── Recording from any chat ──
   recordLink = (body: {
     kind: 'voice' | 'video';
@@ -534,7 +540,8 @@ export class HildegardClient {
   }
 
   async upload(path: string): Promise<string> {
-    const bytes = await readFile(path).catch(() => {
+    const bytes = await readFile(readable(path)).catch((e) => {
+      if (e instanceof HildegardError) throw e;
       throw new HildegardError(0, `Cannot read ${path}`);
     });
     return this.uploadBytes(bytes);
