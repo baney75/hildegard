@@ -10,7 +10,9 @@ No model is called: respond.sh runs against a fake `claude`, and the judge's `as
   F8  a quota message halts the dispatch of every later job
   F9  the judge works in a fresh folder outside the eval tree holding only A.* and B.*, and a leak scan guards it
   F10 a run with no `done` (the responder timed out or died) is never scored or judged; it is an automatic loss
-  F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left"""
+  F11 skill paths, skill names and reference file names in a deliverable are redacted in both arms, and the leak scan fails on one that is left
+  F12 Haiku's session runs confined (sandbox.responder): a stand-in for claude cannot delete or write a file in its home, outside
+      its work folder or in another run, cannot see other runs, can write in its work folder; with no bubblewrap the run is refused"""
 import json, os, shutil, socket, stat, subprocess, sys, tempfile, threading
 HERE = os.path.dirname(os.path.abspath(__file__))
 CR = os.path.dirname(HERE)
@@ -111,37 +113,99 @@ with tempfile.TemporaryDirectory() as d:
     check('F3 a reference path loses its pipe', m['references_read'] == ['hildegard-art/references/color.md'], m['references_read'])
 
 # ---- fake claude for respond.sh --------------------------------------------------------------------------------------
+# respond.sh runs it inside the responder box (sandbox.responder), which clears the environment and hides the owner's home and
+# the eval folder, so the fake picks its mode from its task folder and counts each call over a localhost connection.
+calls_lst = Listener()
 with tempfile.TemporaryDirectory() as root:
     bindir, ev = os.path.join(root, 'bin'), os.path.join(root, 'eval')
     skills = os.path.join(root, 'newsk', 'skills')
     os.makedirs(bindir)
     os.makedirs(os.path.join(skills, 'hildegard'))
     open(os.path.join(skills, 'hildegard', 'SKILL.md'), 'w').write('one\n')
-    count = os.path.join(root, 'calls')
-    open(count, 'w').write('')
+    t1, t2, t3, t4 = 'd1-fall-festival', 'd2-bluegrass-cover', 'd3-hardware-anniversary', 'w1-congregation-email'
+    # F12's stand-in: a scratch home with a file in it, a folder outside both, and another run's files in the eval folder
+    shome, outside = os.path.join(root, 'home'), os.path.join(root, 'outside')
+    other = os.path.join(ev, 'runs', 'none', 'haiku', t1)
+    for p in (shome, outside, os.path.join(other, 'work')):
+        os.makedirs(p)
+    for p in (os.path.join(shome, 'keep.txt'), os.path.join(outside, 'keep.txt'), os.path.join(other, 'work', 'draft.md')):
+        open(p, 'w').write('original\n')
     fake = os.path.join(bindir, 'claude')
     open(fake, 'w').write(f'''#!/bin/bash
-echo x >> {count}
+exec 3<>/dev/tcp/127.0.0.1/{calls_lst.port} && read -t 5 -u 3 _; exec 3<&-
 cat > /dev/null
-case ${{FAKE_MODE:-ok}} in
-  ok) echo '{{"type":"assistant","message":{{"content":[{{"type":"text","text":"made it"}}]}}}}'
-      echo '{{"type":"result","result":"made it","is_error":false}}' ;;
-  quota) echo '{{"type":"result","result":"You have hit your usage limit","is_error":true}}' ;;
-  crash) echo "Segmentation fault" >&2; exit 139 ;;
+case $PWD in
+  */{t2}/work) echo "Segmentation fault" >&2; exit 139 ;;
+  */{t3}/work) echo '{{"type":"result","result":"You have hit your usage limit","is_error":true}}'; exit 0 ;;
+  */{t4}/work)
+    {{ [ -e "$HOME/keep.txt" ] && rm -f "$HOME/keep.txt" 2>/dev/null && [ ! -e "$HOME/keep.txt" ] && echo home_rm=DELETED || echo home_rm=blocked
+       echo bad > "$HOME/keep.txt" 2>/dev/null; echo bad > "$HOME/new.txt" 2>/dev/null
+       rm -f {outside}/keep.txt 2>/dev/null; echo bad > {outside}/new.txt 2>/dev/null
+       echo bad > {ev}/planted 2>/dev/null; echo bad > /var/tmp/{tag} 2>/dev/null
+       rm -rf {other} 2>/dev/null; echo bad > {other}/work/draft.md 2>/dev/null
+       cat {other}/work/draft.md >/dev/null 2>&1 && echo other_run=READ || echo other_run=hidden
+       echo "runs=$(ls {ev}/runs/*/* 2>/dev/null | tr '\\n' ,)"
+       echo made > made.txt && echo work=wrote || echo work=blocked
+       ls /home/*/.ssh >/dev/null 2>&1 && echo ssh=VISIBLE
+       env | grep -q ANTHROPIC_API_KEY && echo key=PRESENT
+    }} > report.txt ;;
 esac
+echo '{{"type":"assistant","message":{{"content":[{{"type":"text","text":"made it"}}]}}}}'
+echo '{{"type":"result","result":"made it","is_error":false}}'
 ''')
     os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
-    env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'EVAL_DIR': ev, 'NEW_SKILLS': skills}
+    env = {**os.environ, 'PATH': bindir + ':' + os.environ['PATH'], 'EVAL_DIR': ev, 'NEW_SKILLS': skills, 'HILDEGARD_EVAL_CLAUDE': fake,
+           'CLAUDE_CONFIG_DIR': os.path.join(root, 'cfg')}
     env.pop('ANTHROPIC_API_KEY', None)
 
-    def respond(task, mode='ok'):
-        return subprocess.run(['bash', os.path.join(CR, 'respond.sh'), 'new', 'haiku', task], env={**env, 'FAKE_MODE': mode}, capture_output=True, text=True, timeout=120)
+    def respond(task, **over):
+        return subprocess.run(['bash', os.path.join(CR, 'respond.sh'), 'new', 'haiku', task], env={**env, **over}, capture_output=True, text=True, timeout=120)
 
     def calls():
-        return len(open(count).read().split())
+        return calls_lst.hits
 
     run = lambda task: os.path.join(ev, 'runs', 'new', 'haiku', task)
-    t1, t2, t3 = 'd1-fall-festival', 'd2-bluegrass-cover', 'd3-hardware-anniversary'
+
+    def text(p):
+        try:
+            return open(p).read()
+        except OSError:
+            return None
+
+    # F12: the stand-in deletes and writes outside its work folder and looks for other runs
+    r = respond(t4, HOME=shome, ANTHROPIC_API_KEY='sk-ant-selftest')
+    rp = os.path.join(run(t4), 'work', 'report.txt')
+    rep = dict(l.split('=', 1) for l in open(rp).read().split()) if os.path.exists(rp) else {}
+    check('F12 the stand-in responder ran and finished', r.returncode == 0 and calls() == 1 and os.path.exists(os.path.join(run(t4), 'done')), (r.returncode, r.stderr, rep))
+    check('F12 deleting or overwriting a file in the home folder fails', text(os.path.join(shome, 'keep.txt')) == 'original\n' and rep.get('home_rm') == 'blocked', rep)
+    check('F12 a new file in the home folder never lands', not os.path.exists(os.path.join(shome, 'new.txt')))
+    check('F12 deleting or writing a file outside home and work fails', text(os.path.join(outside, 'keep.txt')) == 'original\n'
+          and not os.path.exists(os.path.join(outside, 'new.txt')) and not os.path.exists(f'/var/tmp/{tag}'))
+    if os.path.exists(f'/var/tmp/{tag}'):
+        os.remove(f'/var/tmp/{tag}')
+    check('F12 another run in the eval folder is hidden and untouched', rep.get('other_run') == 'hidden' and rep.get('runs', '').strip(',') in ('', t4), rep)
+    check('F12 another run\'s files are still there, and nothing was planted in the eval folder',
+          text(os.path.join(other, 'work', 'draft.md')) == 'original\n' and not os.path.exists(os.path.join(ev, 'planted')))
+    check('F12 writing in the work folder works', rep.get('work') == 'wrote' and text(os.path.join(run(t4), 'work', 'made.txt')) == 'made\n', rep)
+    check('F12 the real ~/.ssh is not visible and the API key is not passed in', 'ssh' not in rep and 'key' not in rep, rep)
+    # without a working bubblewrap the session is refused, and no model is called
+    nobw = os.path.join(root, 'nobwrap')
+    os.makedirs(nobw)
+    script(os.path.join(nobw, 'bwrap'), 'exit 1\n')
+    before = calls()
+    r = respond(t1, PATH=nobw + ':' + env['PATH'])
+    check('F12 with no usable bubblewrap a Haiku run is refused (exit 5) and calls no model', r.returncode == 5 and calls() == before and 'bubblewrap' in r.stderr
+          and not os.path.exists(os.path.join(run(t1), 'done')), (r.returncode, calls(), before, r.stderr))
+    calls_lst.hits = 0
+
+    # F2: a fresh eval folder still gets main's skills (mktemp needs the folder to exist)
+    fresh = os.path.join(root, 'fresh')
+    fr = os.path.join(fresh, 'runs', 'main', 'haiku', t1)
+    r = subprocess.run(['bash', os.path.join(CR, 'respond.sh'), 'main', 'haiku', t1], env={**env, 'EVAL_DIR': fresh}, capture_output=True, text=True, timeout=120)
+    empty = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+    check('F2 the main arm in a fresh eval folder runs with main\'s skills', r.returncode == 0 and os.path.isfile(os.path.join(fr, 'plug', 'skills', 'hildegard', 'SKILL.md'))
+          and (text(os.path.join(fr, 'skills.sha')) or empty).strip() != empty, (r.returncode, r.stderr))
+    calls_lst.hits = 0
 
     # F2
     r = respond(t1)
@@ -156,7 +220,7 @@ esac
     check('F2 meta.json names the skills hash, and it changed', bool(meta2.get('skills_hash')) and meta2.get('skills_hash') != meta1.get('skills_hash'), (meta1.get('skills_hash'), meta2.get('skills_hash')))
 
     # F4
-    r = respond(t2, 'crash')
+    r = respond(t2)
     mp = os.path.join(run(t2), 'meta.json')
     m = json.load(open(mp)) if os.path.exists(mp) else {}
     check('F4 a responder that dies is not marked done and exits non-zero', r.returncode != 0 and r.returncode != 99 and not os.path.exists(os.path.join(run(t2), 'done')), (r.returncode, r.stderr))
@@ -164,7 +228,7 @@ esac
 
     # F8
     before = calls()
-    r = respond(t3, 'quota')
+    r = respond(t3)
     check('F8 a quota message exits 99 and leaves STOP', r.returncode == 99 and os.path.exists(os.path.join(run(t3), 'STOP')), (r.returncode, r.stderr))
     mid = calls()
     r = respond('d6-fire-pancakes')
@@ -175,6 +239,7 @@ esac
                        capture_output=True, text=True, timeout=60)
     started = len(open(jobs).read().splitlines()) if os.path.exists(jobs) else -1
     check('F8 dispatch starts no job after one exits 99', started == 1 and r.returncode != 0, (started, r.returncode, r.stderr))
+calls_lst.s.close()
 
 # ---- F5: rendering untrusted HTML -------------------------------------------------------------------------------------
 chrome = score.chromium()

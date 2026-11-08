@@ -72,9 +72,19 @@ ask me questions", so the eval measures making the work, not the interview.
 - **Selftest**: `python3 evals/creative/selftest/test_scorers.py` runs a passthrough control and a competent reference script through the scorers;
   the controls must fail the checks they should, and the references must pass. `python3 evals/creative/selftest/test_hardening.py` checks the
   sandbox (a script that writes to the real home or outside its folder, connects out or sees `~/.ssh` fails, a normal ffmpeg script passes), the render
-  isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, and the judge's folder.
-- **Not sandboxed**: the responder sessions themselves. Haiku's Bash tool runs on the host with the network (its tool list is Read, Write, Bash and Skill), and
-  Codex runs with its own `workspace-write` sandbox. Only the re-run of a finished script, and the render of its HTML, is isolated.
+  isolation, run reuse keyed by the skills hash, skill-load parsing, a responder that dies, a quota message halting dispatch, the judge's folder, and the
+  responder box (F12: a stand-in for `claude` run through `respond.sh` cannot delete or write a file in its home, outside its work folder or in
+  another run, cannot see other runs, can write in `work/`, and with no usable bubblewrap the run is refused and no model is called).
+- **Responder confinement**: Haiku's whole session, and so its Bash tool, runs in bubblewrap (`sandbox.responder`, used by `respond.sh`). The
+  filesystem is read-only. A tmpfs covers the owner's home, `/tmp`, `/run` and the eval folder, so the model sees no `~/.ssh`, no tokens under
+  `~/.config`, no agent or D-Bus sockets and no other run; this run's folder is bound back read-only and only its `work/` is writable. The
+  claude binary and Playwright's Chromium are bound back read-only (a launcher script on PATH, such as a mise one, is skipped for the native
+  binary; `HILDEGARD_EVAL_CLAUDE` overrides). Claude writes its state (`.claude.json`, `projects/`, `sessions/`, `backups/`) to a fresh
+  `CLAUDE_CONFIG_DIR` on the tmpfs, and the owner's credentials file is bound into it read-write, so a token refresh is written back and
+  the owner's other sessions stay signed in; nothing else of the owner's is writable. The network stays (the model needs it), the
+  environment is cleared to a few variables, and it gets new user, PID, IPC and UTS namespaces with no capabilities. Without a working
+  bubblewrap (macOS, or Linux without `bwrap`) a Haiku run is refused with exit 5, never run unconfined. Codex runs Luna in its own
+  `workspace-write` sandbox.
 - **Reuse**: a response is reused only while the skills it was made with are unchanged. `skills.sha` in each run folder (and `skills_hash` in meta.json) is a SHA-256 over
   the arm's skills folder; `main` is archived from `origin/main` into `skills-main-<tree>` so a moved `main` is never mixed with an old one; the report prints the hashes
   each arm used. A run from before this check has no hash, and `run.sh` makes it again.
@@ -93,7 +103,7 @@ State lives in `~/.cache/hildegard-creative-eval/` (`runs/<arm>/<model>/<task>/`
 A quota or billing message stops the whole run: the response exits 99, `dispatch.sh` makes xargs stop starting jobs, and a `STOP` file under `runs/` keeps later
 responses from calling a model until you delete it. A responder that dies before a finished transcript leaves a `meta.json` with the error and no `done`, so it is made again.
 It writes `evals/creative/results-<label>.json` and prints the summary and a design contact sheet path. Needs `claude` and `codex` signed in
-with a subscription, `ffmpeg`, `numpy`, `Pillow` and Playwright's Chromium. One response per task, arm and model is about 52 responses
+with a subscription, bubblewrap (`bwrap`, for Haiku), `ffmpeg`, `numpy`, `Pillow` and Playwright's Chromium. One response per task, arm and model is about 52 responses
 and 52 Opus verdicts for the tuned set.
 
 ## Reading results

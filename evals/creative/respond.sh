@@ -7,7 +7,7 @@
 # Subscriptions only: ANTHROPIC_API_KEY and OPENAI_API_KEY are unset. If a quota or billing message comes back, this
 # writes STOP in the run folder and exits 99 (dispatch.sh then halts every later job; a STOP file also stops this script before it
 # calls a model). Skips a run that finished (its `done` file) with the same skills hash (skills.sha). Exits 4, with no `done`, when
-# the responder dies before a finished transcript.
+# the responder dies before a finished transcript, and 5 when Haiku's session cannot be confined (no bubblewrap).
 #
 # Layout: $EVAL_DIR/runs/<arm>/<model>/<task>/{work/, plug/ (haiku), prompt.txt, transcript.jsonl, err.txt, final.txt, meta.json, skills.sha, done}
 set -u
@@ -22,8 +22,9 @@ case $ARM in
         TREE=$(git -C "$REPO" rev-parse origin/main:skills) || { echo "no origin/main:skills" >&2; exit 2; }
         SK=$E/skills-main-${TREE:0:12}
         if [ ! -d "$SK/skills" ]; then
-          T=$(mktemp -d "$SK.XXXXXX") && git -C "$REPO" archive origin/main skills | tar -x -C "$T" && { mv -T "$T" "$SK" 2>/dev/null || rm -rf "$T"; }
-        fi ;;
+          mkdir -p "$E" && T=$(mktemp -d "$SK.XXXXXX") && git -C "$REPO" archive origin/main skills | tar -x -C "$T" && { mv -T "$T" "$SK" 2>/dev/null || rm -rf "$T"; }
+        fi
+        [ -d "$SK/skills" ] || { echo "could not archive origin/main skills into $SK" >&2; exit 2; } ;;
   new)  SK=$(dirname "${NEW_SKILLS:-$REPO/skills}"); [ "$(basename "${NEW_SKILLS:-$REPO/skills}")" = skills ] || { echo "NEW_SKILLS must end in /skills" >&2; exit 2; } ;;
   *) echo "arm: none|main|new" >&2; exit 2 ;;
 esac
@@ -33,6 +34,13 @@ if [ -n "$SK" ]; then HASH=$(python3 "$HERE/skillhash.py" "$SK/skills") || exit 
 [ -f "$RUN/done" ] && { [ "$ARM" = none ] || [ "$(cat "$RUN/skills.sha" 2>/dev/null)" = "$HASH" ]; } && exit 0
 # One quota or billing message anywhere halts every later response until its STOP file is removed.
 if find "$E/runs" -name STOP 2>/dev/null | grep -q .; then echo "a STOP file is present under $E/runs; not calling a model" >&2; exit 99; fi
+# Haiku's session runs in bubblewrap (sandbox.py responder): the filesystem read-only, the owner's home, /tmp and the eval folder
+# hidden, only this run's work/ writable. Without bubblewrap it is refused (exit 5), never run unconfined.
+if [ "$MODEL" = haiku ]; then
+  BOXF=$(mktemp "${TMPDIR:-/tmp}/hg-box.XXXXXX") || exit 2
+  python3 "$HERE/sandbox.py" responder "$RUN" "$E" > "$BOXF" || { rm -f "$BOXF"; echo "not running $ARM/$MODEL/$TASK unconfined" >&2; exit 5; }
+  mapfile -d '' BOX < "$BOXF"; rm -f "$BOXF"
+fi
 rm -rf "$RUN"; mkdir -p "$WORK"; printf '%s\n' "$HASH" > "$RUN/skills.sha"
 
 # The task's inputs, and the prompt.
@@ -86,7 +94,7 @@ if [ "$MODEL" = haiku ]; then
     printf '{"name":"hildegard","version":"0.0.0","description":"eval copy of the skills"}' > "$RUN/plug/.claude-plugin/plugin.json"
     ARGS+=(--plugin-dir "$RUN/plug")
   fi
-  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 claude "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
+  (cd "$WORK" && printf '%s' "$PROMPT" | env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY timeout 1200 "${BOX[@]}" "${ARGS[@]}" > "$RUN/transcript.jsonl" 2> "$RUN/err.txt")
 elif [ "$MODEL" = luna ]; then
   [ -n "$SK" ] && { mkdir -p "$WORK/.agents" && cp -r "$SK/skills" "$WORK/.agents/skills"; }
   # Codex also reads the owner's global skills (~/.agents/skills, ~/.codex/skills); switch each off by path so both arms see
