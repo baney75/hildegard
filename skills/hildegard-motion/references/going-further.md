@@ -20,11 +20,11 @@ reuse `motion.py`'s own measurements.
 ## Reuse motion.py as a library
 
 ```python
-import sys; sys.path.insert(0, "skills/hildegard-motion/scripts")   # path to this skill's scripts
+import sys; sys.path.insert(0, "path/to/hildegard-motion/scripts")  # this skill's scripts folder
 import motion
 
 motion.contrast_ratio((255, 255, 255), (79, 140, 255))   # WCAG contrast of two colors
-motion.EASES["easeOutCubic"](0.4)                        # the named easings
+ease = motion.EASES["easeOutCubic"]; ease(0.4)          # the named easings
 motion.parse_color("#4f8cffcc")                          # (r, g, b, a)
 model, problems = motion.compile_spec("spec.json")       # the compiled spec and compile-time problems
 problems += motion.run_checks(model)                     # every --check rule on real rendered frames

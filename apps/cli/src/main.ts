@@ -40,6 +40,9 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
   hildegard open             Open the Studio in your browser
   hildegard models           Models, and whether they fit this GPU
   hildegard models install <id> [--accept-license]
+  hildegard models remove <id> [--with-unused] [--dry-run]
+                             Delete a model's own files. Shared files (text encoders, VAEs) stay and are listed
+                             as unused once no installed model needs them; --with-unused deletes those too
   hildegard voice install    Set up speech, cloning and voice design for this GPU (--env speech,chatterbox,qwen;
                              hildegard voice: what's set up)
   hildegard setup --model <id> --accept-license <id> [--hf-token-stdin] --yes --json
@@ -54,6 +57,13 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              your system keychain; pipe one in with --token-stdin
   hildegard choir invite     Share this GPU with your other devices over Tailscale: prints a short code (HG-XXXX-XXXX)
                              (--url to give the address yourself, --long for the long code too; choir revoke stops sharing)
+  hildegard choir pair <ssh-host>
+                             On the computer without the GPU: join the GPU on <ssh-host> in one step. The code
+                             goes from one process to the next and is never shown (--to <ssh-host>: the other
+                             way, this computer has the GPU). Scripts and agents use this, never invite + join
+  hildegard choir invite --code-only
+                             Only the long code, for a pipe: \`… invite --code-only | ssh <host> hildegard choir
+                             join --code-stdin\`. Refuses on a terminal, so a code is never on a screen
   hildegard choir join       On a computer without a big GPU: give that code (join HG-XXXX-XXXX --url <address>; the invite prints the whole command), and takes render there
   hildegard choir list       Devices, and which one renders (choir use <device|local|auto>, choir leave <device>);
                              use auto sends each take to the device free for it, this one included
@@ -113,7 +123,8 @@ const HELP = `${bold('hildegard')} ${VERSION}: your own film studio, on your own
                              For everyday prose, fix every fail, fix each warn unless it is your voice, and lint
                              again; for poems, fiction, scripts and papers every finding is a warning. Exits 1 when
                              any file fails, 2 for bad usage or a file it can't read (--json: the lint itself;
-                             --max N: places shown for each, 1 or more)
+                             --max N: places shown for each, 1 or more; --strict: for writing that must carry no
+                             tells, the em dash and the other warnings fail too)
 
   hildegard report bug "<what broke>" --what "<what you did, expected, got>"
   hildegard report idea "<what you want>" --what "<the work you want to make>"
@@ -187,6 +198,8 @@ const valued = new Set([
   'change-file',
   'figma',
   'max',
+  'from',
+  'to',
 ]);
 /** Flags that take a value only when one follows: `--accept-license` alone still means the model named before it. */
 const optional = new Set(['accept-license']);

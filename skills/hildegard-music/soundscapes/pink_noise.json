@@ -1,0 +1,21 @@
+{
+  "name": "pink_noise",
+  "note": "Pink noise (power falling 3 dB per octave): even to the ear across the range, softer than white. Vary: lowpass, highpass, width.",
+  "vary": ["lowpass", "highpass", "width", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "noise",
+      "color": "pink",
+      "highpass": 20,
+      "width": 1
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}

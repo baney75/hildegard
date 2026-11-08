@@ -1,0 +1,50 @@
+{
+  "name": "alarm_beeps",
+  "note": "Four urgent beeps for a warning or a timer. Vary: layers[0].freq (700 to 1400 Hz), events.count, events.interval (0.15 to 0.4).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "square",
+      "freq": 880,
+      "pulse_width": 0.5,
+      "dur": 0.12,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 3200,
+        "q": 0.8
+      },
+      "env": {
+        "attack": 0.003,
+        "decay": 0.0,
+        "sustain": 1.0,
+        "release": 0.01
+      },
+      "events": {
+        "count": 4,
+        "interval": 0.22
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 1760,
+      "dur": 0.12,
+      "env": {
+        "attack": 0.003,
+        "decay": 0.0,
+        "sustain": 1.0,
+        "release": 0.01
+      },
+      "gain_db": -12,
+      "events": {
+        "count": 4,
+        "interval": 0.22
+      }
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}

@@ -77,17 +77,19 @@ test('phone: the first-run welcome fits the screen', async ({ page, request }) =
   const errors = watchErrors(page);
   await asFirstRun(page, request);
   await page.goto('/');
-  const go = page.getByRole('button', { name: /Set up this computer/ });
+  // The one action is in thumb reach on the first screen, with the license it accepts on the card above it.
+  const go = page.getByRole('button', { name: /^Accept and download/ });
   await expect(go).toBeInViewport();
   const vp = page.viewportSize()!;
   const box = await go.boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(vp.height);
   await expectAccessible(page, 'phone welcome');
-  await go.click();
+  await page.getByText('Other models').click();
   // Each model's button sits below its words, not on top of them.
-  const row = page.locator('.hg-model', { hasText: 'Wan 2.2 5B' });
-  const words = await row.getByText(/no usage limits/).boundingBox();
+  const row = page.locator('.hg-model', { hasText: 'LTX-2 distilled' });
+  const words = await row.getByText(/camera-control/).boundingBox();
   const get = await row.getByRole('button', { name: /^Get/ }).boundingBox();
   expect(get!.y).toBeGreaterThanOrEqual(words!.y + words!.height);
   expect(get!.x + get!.width).toBeLessThanOrEqual(vp.width);

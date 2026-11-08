@@ -1,0 +1,21 @@
+{
+  "name": "wind_strong",
+  "note": "A strong wind with hard gusts and a whistle through gaps. Vary: strength, whistle.",
+  "vary": ["strength", "gustiness", "whistle", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "wind",
+      "strength": 0.9,
+      "gustiness": 0.8,
+      "whistle": 0.5
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

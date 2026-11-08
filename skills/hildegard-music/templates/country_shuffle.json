@@ -1,0 +1,101 @@
+{
+  "name": "country_shuffle",
+  "note": "A country-ish shuffle in G: brush drums, walking upright bass, boom-chick steel guitar, a fiddle tune over a 12-bar form. Vary: tempo (92 to 120), key (G, A, D), swing (0.8 to 1.0).",
+  "vary": ["tempo 92 to 120", "key", "swing 0.8 to 1.0", "mute the violin for an instrumental bed"],
+  "seed": 61,
+  "tempo": 104,
+  "key": "G major",
+  "time": "4/4",
+  "swing": 1.0,
+  "length_s": 38.5,
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 2,
+      "chords": ["I", "V"]
+    },
+    {
+      "name": "verse",
+      "bars": 12,
+      "chords": ["I", "I", "I", "I", "IV", "IV", "I", "I", "V", "IV", "I", "V"]
+    },
+    {
+      "name": "outro",
+      "bars": 2,
+      "chords": ["I", "I"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "drums",
+      "kit": "acoustic",
+      "level_db": -4,
+      "highcut": 7000,
+      "sections": {
+        "intro": {
+          "pattern": "tick",
+          "gain_db": -4
+        },
+        "verse": "country_shuffle",
+        "outro": {
+          "pattern": "tick",
+          "gain_db": -4
+        }
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "upright_bass",
+      "level_db": -2,
+      "sections": {
+        "intro": "root_fifth",
+        "verse": "shuffle_walk",
+        "outro": "root"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "steel_guitar",
+      "pan": 0.25,
+      "highcut": 8000,
+      "sections": {
+        "intro": "strum",
+        "verse": "boom_chick",
+        "outro": "strum"
+      }
+    },
+    {
+      "role": "keys",
+      "instrument": "piano",
+      "pan": -0.25,
+      "level_db": -9,
+      "sections": {
+        "verse": "offbeat"
+      }
+    },
+    {
+      "role": "melody",
+      "instrument": "violin",
+      "octave": 1,
+      "level_db": -3,
+      "highcut": 7500,
+      "sections": {
+        "verse": "5:1 3:0.5 5:0.5 1:2 | 3:1 5:1 6:1 5:1 | 5:1 3:0.5 5:0.5 1:1 3:1 | 5:2 1:2 | 6:1 4:1 6:2 | 4:2 6:1 1:1 | 5:1 3:1 1:2 | 3:1 2:1 3:1 5:1 | 5:2 7:1 2:1 | 6:1 4:1 6:1 1:1 | 3:1 5:1 3:1 1:1 | 2:1 7:1 5:2",
+        "outro": "5:1 3:1 1:2 | 1:4"
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 10,
+    "velocity": 0.1
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.4,
+      "level_db": -8
+    }
+  },
+  "master": {
+    "fade_out": 1.0
+  }
+}

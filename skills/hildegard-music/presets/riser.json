@@ -1,0 +1,76 @@
+{
+  "name": "riser",
+  "note": "A three-second tension riser into silence, for the beat before a drop or a title. Vary: dur on every layer and the points' times (2 to 8 s), the saw freq start/sweep.to (150..1500 vs 800..6000 Hz).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "saw",
+      "freq": 180,
+      "sweep": {
+        "to": 1400,
+        "time": 3.0,
+        "curve": "exp"
+      },
+      "dur": 3.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 500], [3.0, 7000]],
+        "q": 2.0
+      },
+      "env": {
+        "points": [[0, 0.03], [3.0, 1]],
+        "curve": "exp"
+      }
+    },
+    {
+      "source": "saw",
+      "freq": 184,
+      "sweep": {
+        "to": 1440,
+        "time": 3.0,
+        "curve": "exp"
+      },
+      "dur": 3.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 500], [3.0, 7000]],
+        "q": 2.0
+      },
+      "env": {
+        "points": [[0, 0.03], [3.0, 1]],
+        "curve": "exp"
+      },
+      "pan": 0.3,
+      "gain_db": -2
+    },
+    {
+      "source": "white",
+      "stereo": true,
+      "dur": 3.0,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": [[0, 600], [3.0, 9000]],
+        "q": 1.5,
+        "poles": 4
+      },
+      "env": {
+        "points": [[0, 0.03], [3.0, 1]],
+        "curve": "exp"
+      },
+      "gain_db": -6
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.15,
+      "room": 0.5
+    },
+    "fade": {
+      "out": 0.03
+    },
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}
