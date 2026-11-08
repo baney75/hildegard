@@ -152,6 +152,7 @@ describe('the privacy page and the skills', () => {
       'www.w3.org',
       'doi.org',
       'example.com',
+      'example.org',
       'shop.example',
       'tern.example',
       'json-schema.org',

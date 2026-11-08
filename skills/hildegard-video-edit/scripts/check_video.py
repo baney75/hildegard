@@ -7,8 +7,10 @@
 Every option is optional; with one, the line says OK or FIX and why. Black stretches over half a second are always FIX,
 and so is a true peak above --peak (default -1.0 dBTP, with 0.1 dB of measuring slack) when the video has sound.
 Cuts and transitions are counted from the picture itself: a hard cut is a jump between two frames far larger than the
-motion around it, a crossfade or dip is a change of colours across about half a second. Camera or subject motion inside
-one shot is not counted, and shots shorter than 0.4 s count once. Exit 0 when nothing says FIX.
+motion around it, a crossfade or dip is a change of colours across about half a second that stands out from the drift
+around it. Camera or subject motion inside one shot and a slow ramp in brightness are not counted, and shots shorter than
+0.4 s count once. A check that ffmpeg could not run (a build without blackdetect, a file it cannot read) is FIX, never a
+pass. Exit 0 when nothing says FIX.
 Needs only Python 3, ffmpeg and ffprobe on PATH.
 """
 import argparse, json, re, shutil, subprocess, sys
@@ -18,20 +20,28 @@ FFPROBE = shutil.which("ffprobe")
 
 
 def err(*a):
-    return subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
+    """(stderr, why). why is '' when ffmpeg ran to the end; otherwise a plain reason the analysis did not run (a missing filter, a bad file)."""
+    r = subprocess.run([FFMPEG, "-hide_banner", "-nostats", *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode == 0 and re.search(r"\bvideo:\d+\w* audio:\d+", r.stderr):  # the size line ffmpeg prints when it finishes
+        return r.stderr, ""
+    tail = [l for l in r.stderr.strip().splitlines() if l.strip()]
+    return r.stderr, (tail[-1] if tail else f"ffmpeg stopped with status {r.returncode} and said nothing")
 
 
 SAMPLE_FPS, W, H = 10, 32, 18  # the picture is read as 10 thumbnails a second, 32 x 18, in RGB
 MIN_SHOT = 0.4  # seconds: events closer than this count once
 SPIKE_MIN, SPIKE_RATIO = 0.12, 3.0  # a hard cut: a jump from one thumbnail to the next this big, and this many times the motion around it
 COLOUR_MIN = 0.30  # a crossfade or a dip: the colour histogram 0.3 s before and after differs by this much (0 same, 1 nothing shared)
+DRIFT_MAX = 0.06  # ...and the colours must also move this much more than they do around it: a slow ramp in brightness crosses histogram bins, not shots
 
 
 def thumbnails(path):
-    raw = subprocess.run([FFMPEG, "-v", "error", "-i", path, "-an", "-vf", f"fps={SAMPLE_FPS},scale={W}:{H}:flags=area,format=rgb24",
-                          "-f", "rawvideo", "-"], capture_output=True).stdout
+    r = subprocess.run([FFMPEG, "-v", "error", "-i", path, "-an", "-vf", f"fps={SAMPLE_FPS},scale={W}:{H}:flags=area,format=rgb24",
+                        "-f", "rawvideo", "-"], capture_output=True)
+    if r.returncode:
+        return None
     size = W * H * 3
-    return [raw[i:i + size] for i in range(0, len(raw) - size + 1, size)]
+    return [r.stdout[i:i + size] for i in range(0, len(r.stdout) - size + 1, size)]
 
 
 def histogram(frame):
@@ -42,9 +52,16 @@ def histogram(frame):
     return [c / n for c in h]
 
 
+def shift(a, b):
+    """How far the colours moved between two thumbnails, 0 to 1: the mean gap between their sorted values, so a slow change counts in proportion."""
+    return sum(sum(abs(x - y) for x, y in zip(sorted(a[c::3]), sorted(b[c::3]))) / (W * H) for c in range(3)) / 3 / 255
+
+
 def count_cuts(path):
-    """Hard cuts and crossfades in the picture, each counted once. Motion inside a shot is not a cut."""
+    """Hard cuts and crossfades in the picture, each counted once, or None when ffmpeg could not read the picture. Motion inside a shot is not a cut."""
     frames = thumbnails(path)
+    if frames is None:
+        return None
     n = len(frames)
     hist = [histogram(f) for f in frames]
     events = []  # seconds
@@ -58,6 +75,7 @@ def count_cuts(path):
     # crossfades and dips: the colours three samples before against three after, over a run of samples
     k = 3
     far = [sum(abs(a - b) for a, b in zip(hist[i - k], hist[i + k])) / 6 for i in range(k, n - k)]
+    drift = [shift(frames[i - k], frames[i + k]) for i in range(k, n - k)]
     i = 0
     while i < len(far):
         if far[i] < COLOUR_MIN:
@@ -66,7 +84,9 @@ def count_cuts(path):
         j = i
         while j + 1 < len(far) and far[j + 1] >= COLOUR_MIN:
             j += 1
-        events.append((i + j) / 2 / SAMPLE_FPS + k / SAMPLE_FPS)
+        around = sorted(drift[max(0, i - 15):j + 16])
+        if max(drift[i:j + 1]) - around[len(around) // 2] >= DRIFT_MAX:
+            events.append((i + j) / 2 / SAMPLE_FPS + k / SAMPLE_FPS)
         i = j + 1
     cuts, last = 0, None
     for t in sorted(events):
@@ -111,10 +131,12 @@ def main():
     line(f"codecs: video {v['codec_name']}, audio {au['codec_name'] if au else 'none'}", v["codec_name"] == "h264" and bool(au) and au["codec_name"] == "aac",
          "want H.264 video and AAC audio")
     if au:
-        t = err("-i", a.file, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-")
+        t, why = err("-i", a.file, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-")
         t = t[t.rfind("Summary:"):]
         mi, mp = re.search(r"I:\s+(-?[\d.]+) LUFS", t), re.search(r"Peak:\s+(-?[\d.]+) dBFS", t)
-        if mi and mp:
+        if why:
+            line("loudness: not measured", False, f"ffmpeg's loudness check did not run ({why}); fix that and run this again")
+        elif mi and mp:
             lufs, tp = float(mi.group(1)), float(mp.group(1))
             line(f"loudness: {lufs:.1f} LUFS", None if a.lufs is None else abs(lufs - a.lufs) <= 1.0,
                  f"want {a.lufs} LUFS within 1: run loudnorm again")
@@ -122,12 +144,18 @@ def main():
                  f"above {a.peak:g} dBTP: run loudnorm again with TP={a.peak - 0.5:g}, or lower the level")
         else:
             line("loudness: the audio is silent", False if a.lufs is not None else None, "no sound: lay the music bed under it")
-    b = err("-i", a.file, "-an", "-vf", "blackdetect=d=0.5:pix_th=0.1:pic_th=0.98", "-f", "null", "-")
+    b, why = err("-i", a.file, "-an", "-vf", "blackdetect=d=0.5:pix_th=0.1:pic_th=0.98", "-f", "null", "-")
     blk = re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", b)
-    line("black frames: " + (", ".join(f"{s}-{e} s" for s, e in blk) if blk else "none over half a second"), not blk,
-         "a black stretch over 0.5 s: a clip ends early or a card is black; fix the in/out points or the card colour")
+    if why:
+        line("black frames: not checked", False, f"ffmpeg's blackdetect did not run ({why}); use an FFmpeg that has it and run this again")
+    else:
+        line("black frames: " + (", ".join(f"{s}-{e} s" for s, e in blk) if blk else "none over half a second"), not blk,
+             "a black stretch over 0.5 s: a clip ends early or a card is black; fix the in/out points or the card colour")
     cuts = count_cuts(a.file)
-    line(f"cuts or transitions: {cuts}", None if a.cuts is None else cuts >= a.cuts, f"want at least {a.cuts}")
+    if cuts is None:
+        line("cuts or transitions: not counted", False, "ffmpeg could not read the picture; run this again on a file it can play")
+    else:
+        line(f"cuts or transitions: {cuts}", None if a.cuts is None else cuts >= a.cuts, f"want at least {a.cuts}")
     print("RESULT: " + ("FIX the lines above, then run this again" if bad else "all checks pass"))
     sys.exit(1 if bad else 0)
 

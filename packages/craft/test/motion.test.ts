@@ -183,6 +183,75 @@ describe.skipIf(!hasLibs)('hildegard-motion: --check catches what weak models ge
     expect(fixed.status).toBe(0);
   });
 
+  it('measures contrast for the color a layer animates to, not only its base color', () => {
+    const r = motion([
+      '--check',
+      write('color-anim', [
+        text('Fades to dark', {
+          color: '#ffffff',
+          animate: [{ prop: 'color', to: '#1a1a1a', at: 0.5, duration: 0.5 }],
+        }),
+      ]),
+    ]);
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/contrast \d\.\d:1/);
+    expect(r.out).toContain('text #1a1a1a');
+  });
+
+  it('refuses enter and exit fields the preset does not read', () => {
+    const shape = { type: 'shape', shape: 'rect', x: 0.5, y: 0.5, w: 0.3, h: 0.2, fill: '#ff0000' };
+    const cases: Array<[string, unknown, RegExp]> = [
+      ['split on a shape', { ...shape, enter: { type: 'fade', split: 'word', stagger: 0.2 } }, /"split"/],
+      ['stagger on a shape', { ...shape, enter: { type: 'fade', stagger: 0.2 } }, /"stagger"/],
+      ['distance on a fade', text('Hello there', { enter: { type: 'fade', distance: 0.2 } }), /"distance"/],
+      [
+        'direction on a fade exit',
+        text('Hello there', { exit: { type: 'fade', direction: 'left' } }),
+        /"direction"/,
+      ],
+      ['split on a wipe', text('Hello there', { enter: { type: 'wipe', split: 'word' } }), /"split"/],
+      ['stagger without split', text('Hello there', { enter: { type: 'fade', stagger: 0.2 } }), /"stagger"/],
+      [
+        'direction on a circle grow',
+        { ...shape, shape: 'circle', enter: { type: 'grow', direction: 'up' } },
+        /"direction"/,
+      ],
+      [
+        'two different directions',
+        text('Hello there', {
+          enter: { type: 'wipe', direction: 'left' },
+          exit: { type: 'wipe', direction: 'up' },
+        }),
+        /different directions/,
+      ],
+    ];
+    for (const [name, layer, expected] of cases) {
+      const r = motion(['--check', write(`unused-${name.replace(/\W+/g, '-')}`, [layer])]);
+      expect(r.status, name).toBe(1);
+      expect(r.out, name).toMatch(expected);
+    }
+    // the same fields on a preset that reads them stay clean
+    const ok = motion([
+      '--check',
+      write('unused-ok', [
+        text('Hello there', { enter: { type: 'rise', split: 'word', stagger: 0.1, distance: 0.1 } }),
+      ]),
+    ]);
+    expect(ok.out).toContain('result: clean');
+  }, 60_000);
+
+  it('warns when a camera keeps moving through the last second', () => {
+    const photo = { type: 'image', file: 'sample:dusk' };
+    const spec = (camera: unknown) =>
+      writeSpec(`last-camera-${camera ? 'on' : 'off'}`, {
+        scenes: [{ duration: 4, layers: [photo], ...(camera ? { camera } : {}) }],
+      });
+    const moving = motion(['--check', spec({ preset: 'push-in' })]);
+    expect(moving.status).toBe(0);
+    expect(moving.out).toMatch(/warning ending: the camera on the last scene moves until the video ends/);
+    expect(motion(['--check', spec(undefined)]).out).toContain('result: clean');
+  });
+
   it('measures contrast on the pixels behind the text, not on the background color alone', () => {
     // dark text over a dark shape that sits on a light page: fails; a light backing on the text fixes it
     const dark = { type: 'shape', shape: 'rect', x: 0.5, y: 0.5, w: 0.8, h: 0.4, fill: '#222222' };
@@ -312,6 +381,22 @@ function runProbe(kind: string) {
   expect(r.status, r.stderr).toBe(0);
   return JSON.parse(r.stdout);
 }
+
+describe.skipIf(!hasLibs)('hildegard-motion: --check names every field a preset ignores', () => {
+  it('draws or refuses each field inside enter and exit, on every layer type', () => {
+    const r = runProbe('nested');
+    expect(r.unexplained).toEqual([]);
+    expect(r.refused).toBeGreaterThan(100);
+  }, 300_000);
+});
+
+describe.skipIf(!hasLibs)('hildegard-motion: a wipe covers the backing and the shadow', () => {
+  it('leaves nothing of the padding visible at reveal 0, entering or leaving, in every direction', () => {
+    const worst = runProbe('wipepad') as Record<string, number>;
+    expect(Object.keys(worst)).toHaveLength(16);
+    for (const [k, v] of Object.entries(worst)) expect(v, k).toBeLessThanOrEqual(1);
+  });
+});
 
 describe.skipIf(!hasLibs)('hildegard-motion: an option present as {} is on, never dropped as falsy', () => {
   it('draws an empty backing, outline, shadow and stroke', () => {
