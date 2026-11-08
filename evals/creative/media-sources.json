@@ -1,0 +1,65 @@
+{
+  "produce-stand": {
+    "title": "Jalapenos, Tomatoes, Plums (9560828777).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Jalapenos,_Tomatoes,_Plums_(9560828777).jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Jalapenos%2C_Tomatoes%2C_Plums_%289560828777%29.jpg/1920px-Jalapenos%2C_Tomatoes%2C_Plums_%289560828777%29.jpg",
+    "sha256": "c05d47a0a196303a38382c7ae43d8e690efc9ec5fa70154e1e21c88a21c5c132",
+    "bytes": 526756,
+    "license": "Public domain",
+    "author": "USDAgov"
+  },
+  "iowa-barn": {
+    "title": "Earth Day - Rural Development (20221008-USDA-RD-IA-CRC-0001).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Earth_Day_-_Rural_Development_(20221008-USDA-RD-IA-CRC-0001).jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Earth_Day_-_Rural_Development_%2820221008-USDA-RD-IA-CRC-0001%29.jpg/1920px-Earth_Day_-_Rural_Development_%2820221008-USDA-RD-IA-CRC-0001%29.jpg",
+    "sha256": "c4e08c028348cd624cda9cba146dd0e98503be4ff6fe933078331f8849b12975",
+    "bytes": 478317,
+    "license": "Public domain",
+    "author": "USDAgov"
+  },
+  "bread-shelf": {
+    "title": "Artisan Loaves of Bread (Unsplash).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Artisan_Loaves_of_Bread_(Unsplash).jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Artisan_Loaves_of_Bread_%28Unsplash%29.jpg/1920px-Artisan_Loaves_of_Bread_%28Unsplash%29.jpg",
+    "sha256": "d286bc796748cd3011b600454669357839544e01c75308fa691d982a9d383888",
+    "bytes": 508921,
+    "license": "CC0",
+    "author": "Drew Coffman drewcoffman"
+  },
+  "pacific-sunset": {
+    "title": "Sun touching the Pacific horizon above dry grass and shrubs, Del Mar Bluffs, California.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Sun_touching_the_Pacific_horizon_above_dry_grass_and_shrubs,_Del_Mar_Bluffs,_California.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Sun_touching_the_Pacific_horizon_above_dry_grass_and_shrubs%2C_Del_Mar_Bluffs%2C_California.jpg/1920px-Sun_touching_the_Pacific_horizon_above_dry_grass_and_shrubs%2C_Del_Mar_Bluffs%2C_California.jpg",
+    "sha256": "ec3363c5e75fa7f5e0370254c2fe4daad5cbc12cbc324d5af416e80dd432d564",
+    "bytes": 797196,
+    "license": "CC0",
+    "author": "Z3lvs"
+  },
+  "pumpkin-field": {
+    "title": "Cornucopia Farm in Scottsburg, Indiana (20210930-NRCS-BJOC-100).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Cornucopia_Farm_in_Scottsburg,_Indiana_(20210930-NRCS-BJOC-100).jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Cornucopia_Farm_in_Scottsburg%2C_Indiana_%2820210930-NRCS-BJOC-100%29.jpg/1920px-Cornucopia_Farm_in_Scottsburg%2C_Indiana_%2820210930-NRCS-BJOC-100%29.jpg",
+    "sha256": "c9d21f52131bec9cc69d3328d1c5f960622f98e52ea265e3832869a2c7e08f46",
+    "bytes": 1002030,
+    "license": "Public domain",
+    "author": "USDAgov"
+  },
+  "pumpkin": {
+    "title": "Fruits and Vegetables (20210930-NRCS-BJOC-052).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Fruits_and_Vegetables_(20210930-NRCS-BJOC-052).jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Fruits_and_Vegetables_%2820210930-NRCS-BJOC-052%29.jpg/1920px-Fruits_and_Vegetables_%2820210930-NRCS-BJOC-052%29.jpg",
+    "sha256": "92e15ae76f358750bd4cd56ee6c220a83b79f8bc34e83ea4b622ef9835370ef8",
+    "bytes": 1218741,
+    "license": "Public domain",
+    "author": "USDAgov"
+  },
+  "church-interior": {
+    "title": "Gloria Dei (Old Swedes') Church National Historic Site GLDE5011.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Gloria_Dei_(Old_Swedes')_Church_National_Historic_Site_GLDE5011.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Gloria_Dei_%28Old_Swedes%27%29_Church_National_Historic_Site_GLDE5011.jpg/1920px-Gloria_Dei_%28Old_Swedes%27%29_Church_National_Historic_Site_GLDE5011.jpg",
+    "sha256": "d619f7d84dd7e24cbb86504ce08dab34f83830d1386cf5f45fa45a49fc13c2ff",
+    "bytes": 403111,
+    "license": "Public domain",
+    "author": "National Park Service Digital Image Archives"
+  }
+}

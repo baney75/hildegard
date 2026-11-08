@@ -1,0 +1,161 @@
+[
+  {
+    "id": "p4-bakery-shelf",
+    "domain": "photoedit",
+    "brief": "I'm Joanna Whitfield. I run Whitfield Bakehouse in Lancaster, Pennsylvania, and I want a product picture of our loaf shelf for the online order page. photo.jpg is too dark, too yellow from the shop's bulbs, and noisy. Brighten it so the crust colors read, take the yellow cast out while keeping the room warm, clean up the noise without smearing the bread, and crop to a square, exactly 1200 x 1200 pixels, keeping the baskets of bread. No text or borders. Save a JPEG under 250 KB. Don't ask me questions.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.sh", "process.py"],
+    "media": {
+      "photo": "bread-shelf",
+      "ops": {
+        "stops": -0.9,
+        "cast": [1.15, 1.0, 0.78],
+        "noise": 10
+      },
+      "seed": 14
+    },
+    "score": {
+      "size": [1200, 1200],
+      "max_bytes": 250000,
+      "subject": [0.36, 0.46, 0.94, 0.8],
+      "tilt_family": "v"
+    }
+  },
+  {
+    "id": "p5-sanctuary-cover",
+    "domain": "photoedit",
+    "brief": "I'm Pastor Mark Eklund at Salem Lutheran Church. photo.jpg is a scan of an old slide of our sanctuary from the balcony. It will be the cover of the bulletin for our 150th anniversary. The scan is tilted about four degrees, the shadows are crushed to black, the colors are cold, and the windows are a little blown out. Level it, open up the shadows, correct the color so the white woodwork is white, and crop to a 4:5 portrait, exactly 1200 x 1500 pixels, keeping the organ. No text or borders. Save a JPEG under 400 KB. Don't ask me questions.",
+    "inputs": ["photo.jpg"],
+    "deliverable": ["process.sh", "process.py"],
+    "media": {
+      "photo": "church-interior",
+      "ops": {
+        "tilt": -4.0,
+        "crush": 0.09,
+        "cast": [0.9, 0.98, 1.1],
+        "stops": 0.4
+      },
+      "seed": 15,
+      "precrop": [0.025, 0.03, 0.975, 0.97]
+    },
+    "score": {
+      "size": [1200, 1500],
+      "max_bytes": 400000,
+      "subject": [0.17, 0.15, 0.5, 0.55],
+      "tilt_family": "auto"
+    }
+  },
+  {
+    "id": "c4-foothills-print",
+    "domain": "photocreate",
+    "size": [2400, 3000],
+    "brief": "I'm Elena Ruiz. I want a minimalist landscape print for my office wall, 2400 x 3000 pixels (4:5 portrait): the Rocky Mountain foothills at dawn. Three to five flat layers of color receding into distance, one small warm light source, lots of calm space, no text, no outlines. Quiet and modern, the kind of print a design-minded person would frame. It must be made by code: an SVG, an HTML/CSS page, or a Python (Pillow, numpy) script. Don't ask me questions.",
+    "deliverable": ["make.py", "art.svg", "art.html"],
+    "score": {}
+  },
+  {
+    "id": "c5-vbs-lighthouse",
+    "domain": "photocreate",
+    "size": [2000, 2000],
+    "brief": "I'm the Vacation Bible School director at Bethel Church in Bend, Oregon. This year's theme is Lighthouse Cove. I need the main illustration for the T-shirt and the banner, 2000 x 2000 pixels, on a plain light background: a lighthouse on a rocky shore with the beam sweeping out, a couple of gulls. Bold, simple, kid-friendly shapes in four or five colors that would screen-print well, friendly and not babyish. No text. It must be made by code: an SVG, an HTML/CSS page, or a Python (Pillow, numpy) script. Don't ask me questions.",
+    "deliverable": ["make.py", "art.svg", "art.html"],
+    "score": {}
+  },
+  {
+    "id": "s4-title-whoosh",
+    "domain": "sfx",
+    "brief": "I edit lyric videos for a church band. I need a whoosh to go into a title card: a smooth swell of airy sound that rises, passes, and falls away over about two seconds (1.4 to 3 s), like something fast flying by, ending quiet so the title can land on silence. No tones, no voices, no music. Peak between -6 and -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "kind": "sfx",
+      "effect": "whoosh",
+      "dur": [1.2, 3.2],
+      "peak_min": -9
+    }
+  },
+  {
+    "id": "s5-shop-bell",
+    "domain": "sfx",
+    "brief": "I'm building the website for a hardware store, Hartwell Hardware. When someone opens the page I want the sound of an old brass shop-door bell: one bright ring (two or three clustered strikes at most) that rings out for about two seconds (1.5 to 4 s) and fades to silence. A clear metallic pitch with a few bell-like overtones, no noise, no reverb wash. Peak between -6 and -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "kind": "sfx",
+      "effect": "bell",
+      "dur": [1.5, 4.0],
+      "peak_min": -9
+    }
+  },
+  {
+    "id": "m4-radio-jingle",
+    "domain": "music",
+    "brief": "I run the sound for our local station's morning show. I need a 15-second bed for the station's jingle: bright and optimistic, 108 beats per minute, in F major, no vocals, a hook of a few notes a listener could hum, drums and bass under it, and a button at the end (a final chord that rings out to silence by the 15-second mark, not a hard cut). 15 seconds (within 1). Integrated loudness -16 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "kind": "music",
+      "dur": 15,
+      "lufs": -16,
+      "bpm": 108,
+      "key": "F major",
+      "dur_tol": 1.0
+    }
+  },
+  {
+    "id": "m5-memorial-bed",
+    "domain": "music",
+    "brief": "I'm a funeral director in Findlay, Ohio. I need a 36-second bed of music for the memorial photo slideshow families ask for: slow, tender and hymn-like, about 60 beats per minute, in E-flat major, no vocals, no drums, warm sustained sounds with a simple moving line, and a long peaceful fade or decay at the end. 36 seconds (within 2). Integrated loudness -20 LUFS (within 1.5), true peak no higher than -1 dBTP. Deliver a 44.1 kHz 16-bit WAV. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "kind": "music",
+      "dur": 36,
+      "lufs": -20,
+      "bpm": 60,
+      "key": "Eb major",
+      "dur_tol": 2.0
+    }
+  },
+  {
+    "id": "v4-csa-slideshow",
+    "domain": "codevideo",
+    "brief": "I run Bell Creek CSA, a small vegetable farm. I need a 16-second widescreen (1280 x 720) slideshow for our site from three photos I took: photo1.jpg (the pumpkin field), photo2.jpg (the first pumpkin of the season), photo3.jpg (our tomatoes, peppers and plums at the market). Use all three, each with a gentle move (a slow zoom or pan, no spinning), and a caption on each: photo1 'The north field, October', photo2 'First pumpkin of the season', photo3 'Market day, every Saturday'. Open with the title 'Bell Creek CSA' and 'Our 2025 season', and close with 'Sign-ups open January 5'. Show no other text, dates or numbers. Between 15 and 17 seconds, H.264 MP4, no audio needed. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "size": [1280, 720],
+      "dur": [15.0, 17.0],
+      "lines": [
+        "Bell Creek CSA",
+        "Our 2025 season",
+        "The north field, October",
+        "First pumpkin of the season",
+        "Market day, every Saturday",
+        "Sign-ups open January 5"
+      ],
+      "images": ["photo1.jpg", "photo2.jpg", "photo3.jpg"]
+    },
+    "inputs": ["photo1.jpg", "photo2.jpg", "photo3.jpg"],
+    "media": {
+      "images": {
+        "photo1.jpg": "pumpkin-field",
+        "photo2.jpg": "pumpkin",
+        "photo3.jpg": "produce-stand"
+      }
+    }
+  },
+  {
+    "id": "v5-save-the-date",
+    "domain": "codevideo",
+    "brief": "I'm Emma Lindqvist. My fiance Luke and I are getting married, and I want a 12-second widescreen (1280 x 720) save-the-date to text to family. Show exactly this and nothing else: 'Emma & Luke', 'Save the date', 'Saturday, June 13, 2026', 'Lakeside Pavilion, Door County, Wisconsin', 'Invitation to follow'. No other dates, numbers, names or logos. Elegant and quiet, with motion that reveals the lines in order. Between 11 and 13 seconds, H.264 MP4, no audio needed. Don't ask me questions.",
+    "deliverable": ["make.py", "make.sh"],
+    "score": {
+      "size": [1280, 720],
+      "dur": [11.0, 13.0],
+      "lines": [
+        "Emma & Luke",
+        "Save the date",
+        "Saturday, June 13, 2026",
+        "Lakeside Pavilion, Door County, Wisconsin",
+        "Invitation to follow"
+      ],
+      "max_static": 0.5
+    }
+  }
+]

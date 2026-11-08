@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Control: every line from the first frame to the last, nothing moves.
+import subprocess
+from PIL import Image, ImageDraw, ImageFont
+W, H = __SIZE__
+LINES = __LINES__
+font = ImageFont.truetype('/usr/share/fonts/liberation/LiberationSans-Bold.ttf', max(24, int(W / 22)))
+im = Image.new('RGB', (W, H), (240, 240, 240)); d = ImageDraw.Draw(im)
+for i, l in enumerate(LINES): d.text((40, 60 + i * int(H / (len(LINES) + 2))), l, font=font, fill=(10, 10, 10))
+im.save('f.png')
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-loop', '1', '-i', 'f.png', '-t', str(__DUR__), '-r', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'out.mp4'])

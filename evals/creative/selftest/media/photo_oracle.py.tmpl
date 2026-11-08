@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Oracle for the selftest: knows exactly what was done to the photo and undoes it. Not an example of how to find the faults.
+import numpy as np
+from PIL import Image, ImageFilter
+OPS = __OPS__
+W, H = __SIZE__
+CX, CY = __CENTER__
+im = Image.open('photo.jpg').convert('RGB')
+w, h = im.size
+if OPS.get('tilt'):
+    im = im.rotate(-OPS['tilt'], resample=Image.BICUBIC)
+    t = np.radians(abs(OPS['tilt']))
+    s = 1.0 / (np.cos(t) + (max(w, h) / min(w, h)) * np.sin(t))
+    cw, ch = int(w * s), int(h * s)
+    im = im.crop(((w - cw) // 2, (h - ch) // 2, (w - cw) // 2 + cw, (h - ch) // 2 + ch))
+w, h = im.size
+a = np.asarray(im, dtype=np.float32) / 255.0
+if OPS.get('noise'):
+    im = Image.fromarray((a * 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+    a = np.asarray(im, dtype=np.float32) / 255.0
+if OPS.get('crush'):
+    k = OPS['crush']
+    a = a * (1 - k) + k * 0.8
+if OPS.get('cast'):
+    a = np.clip(a / np.array(OPS['cast'], dtype=np.float32), 0, 1)
+if OPS.get('stops'):
+    lin = np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4) * 2.0 ** -OPS['stops']
+    lin = np.clip(lin, 0, 1)
+    a = np.where(lin <= 0.0031308, lin * 12.92, 1.055 * lin ** (1 / 2.4) - 0.055)
+im = Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8))
+asp = W / H
+cw = w if w / h <= asp else int(round(h * asp))
+ch = int(round(cw / asp)) if w / h <= asp else h
+x0 = int(min(max(CX * w - cw / 2, 0), w - cw)); y0 = int(min(max(CY * h - ch / 2, 0), h - ch))
+im = im.crop((x0, y0, x0 + cw, y0 + ch)).resize((W, H), Image.LANCZOS)
+im.save('out.jpg', quality=__Q__)

@@ -12,6 +12,7 @@ did the verdict is a tie. "Produced one" means the responder finished (a `done` 
 out or died leaves partial files that are never scored or judged) and, for audio and video edit, the script ran and wrote its file.
 Text deliverables have any skill path, skill name or reference file name replaced by "[reference]" in both arms before the judge sees them."""
 import concurrent.futures as cf, glob, json, os, re, shutil, subprocess, sys, tempfile
+import judge_media
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -37,6 +38,7 @@ RUBRIC = {
 4. Line-level craft: plain, varied sentences, nothing that makes a reader's eyes slide.""",
     'videoedit': """You are an editor reviewing two ffmpeg scripts that cut the same four clips and their measured results, choosing which finished video you would rather put on the client's website. The objective table is measured from the script's actual output and is reliable; weigh it, then look at each contact sheet (twelve frames across the finished piece, the last near the end) for the title and closing card (legible, correctly spelled, placed well), whether the vertical clip is handled properly (not stretched), shot variety and pacing, and read each script for sensible structure. A script that failed to produce a video loses to one that did.""",
 }
+RUBRIC.update(judge_media.RUBRIC)
 FILES = {'design': ('png',), 'video': ('md',), 'writing': ('md',), 'audio': ('sh',), 'videoedit': ('sh', 'png')}
 
 
@@ -74,6 +76,8 @@ def available(arm, model, task):
     if not finished(arm, model, task):
         return False
     s, d = load_score(arm, model, task), task['domain']
+    if d in judge_media.DOMAINS:
+        return judge_media.available(s, d)
     if d == 'design':
         return bool(s.get('rendered')) and not s.get('blank')
     if d == 'video':
@@ -153,11 +157,11 @@ def scan(w, arms):
     into the eval tree (the run, order and skills folders) or names a skill path, skill or reference file (redact() takes those out
     first, so this catches a gap in it). A bare word like "new" in prose is not a leak and is not checked."""
     for f in sorted(os.listdir(w)):
-        if not re.fullmatch(r'[AB](-frames)?\.(md|png|sh)', f):
+        if not re.fullmatch(r'[AB](-frames|-spectrogram|-script|-source)?\.(md|png|sh|jpg|txt)|(before|reference)\.jpg', f):
             raise SystemExit(f'leak: {f} does not belong in the judge folder')
         if any(a in f.lower() for a in arms):
             raise SystemExit(f'leak: file name {f} names an arm')
-        if not f.endswith('.png'):
+        if not f.endswith(('.png', '.jpg')):
             text = open(os.path.join(w, f), errors='replace').read()
             m = LEAKS.search(text) or next((m for m in (rx.search(text) for rx in skill_words() if rx) if m), None)
             if m:
@@ -183,9 +187,15 @@ def judge(job):
             raise SystemExit(f'the temp folder {w} is inside the eval tree; set TMPDIR elsewhere')
         d = task['domain']
         extra = ''
+        if d in judge_media.DOMAINS:
+            judge_media.stage_shared(w, task, E)
         for tag, arm in (('A', a_arm), ('B', b_arm)):
             rd = run_dir(arm, model, task)
-            if d == 'design':
+            if d in judge_media.DOMAINS:
+                judge_media.stage(w, tag, rd, task, E)
+                for f in glob.glob(os.path.join(w, f'{tag}-s*.txt')):  # the arm's script or source: no skill path, name or reference file in it
+                    open(f, 'w').write(redact(open(f, errors='replace').read()))
+            elif d == 'design':
                 shutil.copy(os.path.join(rd, 'design.png'), os.path.join(w, f'{tag}.png'))
             elif d in ('video', 'writing'):
                 open(os.path.join(w, f'{tag}.md'), 'w').write(redact(body(os.path.join(rd, 'work', task.get('deliverable') or ('plan.md' if d == 'video' else 'draft.md')))))
@@ -193,13 +203,15 @@ def judge(job):
                 open(os.path.join(w, f'{tag}.sh'), 'w').write(redact(open(os.path.join(rd, 'work', task.get('deliverable') or ('edit.sh' if d == 'videoedit' else 'process.sh')), errors='replace').read()))
                 if d == 'videoedit' and os.path.exists(os.path.join(rd, 'sheet.png')):
                     shutil.copy(os.path.join(rd, 'sheet.png'), os.path.join(w, f'{tag}-frames.png'))
-        if d == 'design':
+        if d in judge_media.DOMAINS:
+            extra = judge_media.extra(task, load_score(a_arm, model, task), load_score(b_arm, model, task))
+        elif d == 'design':
             extra = f"Read the two images A.png and B.png in the current folder (both rendered at {task['size'][0]} x {task['size'][1]} px)."
         elif d in ('video', 'writing'):
             extra = f"Read A.md and B.md in the current folder."
         else:
             extra = 'Read A.sh and B.sh in the current folder' + (', and look at A-frames.png and B-frames.png' if d == 'videoedit' else '') + '.\n\nMEASURED RESULTS (each script was run on a fresh copy of the inputs with no network):\n' + metrics_table(load_score(a_arm, model, task), load_score(b_arm, model, task), d)
-        inv = '' if d in ('audio', 'videoedit') else ', "invented_A": [strings], "invented_B": [strings]'
+        inv = '' if d in ('audio', 'videoedit') or (d in judge_media.DOMAINS and d not in judge_media.INVENTS) else ', "invented_A": [strings], "invented_B": [strings]'
         prompt = f"""You are judging two deliverables made for the same client brief. You do not know how either was made, and the labels A and B carry no information.
 
 CLIENT BRIEF:

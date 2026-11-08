@@ -5,6 +5,7 @@ Collects every run's metadata and score and every cached verdict into results-<l
 writes a contact sheet of every design (all arms and models) to $EVAL_DIR/contact-sheet-<label>.png."""
 import json, os, sys
 from judge import vals
+import report_media
 HERE = os.path.dirname(os.path.abspath(__file__))
 E = os.environ.get('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-creative-eval'))
 DROP = {'log_tail', 'lint_hits'}
@@ -64,7 +65,7 @@ def main():
     P(f'\n== {label}: {cand} vs {base}, one response per task, both judge orders ==\n')
     P('Per domain (verdicts = tasks x 2 orders; rate counts a tie as half; "won"/"lost" = both orders agree)')
     P(f'{"domain":<10} {"model":<6} {cand+" wins":>9} {base+" wins":>9} {"ties":>5} {"n":>3} {"rate":>6}  won/lost tasks  (auto)')
-    for d in ('design', 'video', 'audio', 'writing', 'videoedit'):
+    for d in ('design', 'video', 'audio', 'writing', 'videoedit', *report_media.DOMAINS):
         for m in models:
             s = summary.get(d, {}).get(m)
             if s:
@@ -117,7 +118,9 @@ def main():
                 inv = [len(v['invented'].get(arm, [])) for v in verdicts if v['model'] == m and v['domain'] == d and not v['auto']]
                 if inv:
                     P(f'  {d} {m:<6} {arm:<5} invented facts {sum(inv)} over {len(inv)} judgments ({sum(inv) / len(inv):.1f} each)')
+    report_media.objective(runs, verdicts, tasks, arms, models, cand)
     contact(label, tasks, arms, models)
+    report_media.contacts(label, tasks, arms, models, E)
 
 
 def contact(label, tasks, arms, models):
