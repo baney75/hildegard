@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { markdown } from '../src/markdown.ts';
@@ -83,7 +84,7 @@ describe('the Markdown renderer', () => {
   );
   it('reads a heading that holds U+2028 or U+2029, and always makes progress (second-S1, sol-F1)', () => {
     // Run in a child with a timeout: on the old code this loops forever, and the main thread would hang the suite.
-    const script = `import { markdown } from ${JSON.stringify(join(import.meta.dirname, '../src/markdown.ts'))};
+    const script = `import { markdown } from ${JSON.stringify(pathToFileURL(join(import.meta.dirname, '../src/markdown.ts')).href)};
       process.stdout.write(JSON.stringify(['# Title\\u2028', '# a\\u2028b', '# a\\u2029'].map((s) => markdown(s))));`;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
