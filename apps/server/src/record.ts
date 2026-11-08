@@ -11,6 +11,13 @@
  *    owner of this Hildegard and this computer see everything, as they do for films; a director sees only their own);
  *  - it is never written to a log, and never comes back from anything but the call that made it.
  *
+ * An interview is a link with questions. The page shows one at a time; on Next it sends that answer's sound on its
+ * own (`answer`), so the agent asking can hear it while the person goes on, and the agent may add a follow-up
+ * (`ask`). Those don't use the link up: only the full recording at the end does, with a chapter for each question.
+ * An interview runs longer than one take, so its link starts with an hour and each answer or follow-up moves the end
+ * to 30 minutes past it, never past 4 hours from when it was made: 30 questions at two or three minutes each is 60 to
+ * 90 minutes, and an idle link still closes 30 minutes after the last thing that happened, as a plain one does.
+ *
  * What arrives is stored under `<media>/recordings/<person>/<id>.<ext>`, with an id of its own. Cleaning it
  * (`record-clean.ts`) makes a second recording from it, never replacing the first.
  */
@@ -21,6 +28,40 @@ import { join } from 'node:path';
 import { sniffAudio } from './voice.ts';
 
 export type RecordKind = 'voice' | 'video';
+/** What the page records from: the camera, the screen, the screen with the camera in a bubble, or sound only. */
+export type RecordSource = 'camera' | 'screen' | 'screen+camera' | 'voice';
+export const SOURCES: readonly RecordSource[] = ['camera', 'screen', 'screen+camera', 'voice'];
+/** The kind of recording a source makes. */
+export const kindOf = (s: RecordSource): RecordKind => (s === 'voice' ? 'voice' : 'video');
+
+/** The teleprompter's text, at most. */
+export const MAX_SCRIPT = 20_000;
+/** Questions a link may start with, and how many it may hold with follow-ups. */
+export const MAX_QUESTIONS = 30;
+export const MAX_ASKED = 60;
+/** One question, at most. */
+export const MAX_QUESTION = 500;
+/** Chapters one recording may have. */
+export const MAX_CHAPTERS = 200;
+/** An interview's link: an hour to start, 30 minutes past each answer or follow-up, never past 4 hours. */
+export const INTERVIEW_MINUTES = { start: 60, slide: 30, most: 240 };
+
+/** A point in a recording, in seconds from its start, and what begins there. */
+export interface Chapter {
+  at: number;
+  title: string;
+}
+/** One answer in an interview, sent on Next: its sound is a recording of its own (`media`). */
+export interface Answer {
+  index: number;
+  question: string;
+  /** Seconds into the full recording where the question was put. */
+  at: number;
+  media: string;
+  receivedAt: string;
+  /** The transcription job for it, when Hildegard can transcribe. */
+  job: string | null;
+}
 
 /** How long a link works. */
 export const LINK_MINUTES = 30;
@@ -87,6 +128,16 @@ export interface Entry {
   /** The recording this one was cleaned from. */
   from: string | null;
   clean: { lufs: number; truePeak: number; targetLufs: number; peak: number; backend: string } | null;
+  /** What the page may record from; missing on links made before there was a choice (the kind's own). */
+  sources?: RecordSource[] | null;
+  /** Teleprompter text the page shows. */
+  script?: string | null;
+  /** An interview's questions, follow-ups included, in the order they are put. */
+  questions?: string[] | null;
+  answers?: Answer[];
+  chapters?: Chapter[] | null;
+  /** For an answer's sound: the interview link it belongs to. */
+  answerOf?: string | null;
 }
 
 /** What a recording looks like to the person who owns it. Never the token, never the link. */
@@ -104,6 +155,9 @@ export interface RecordingView {
   url: string | null;
   from: string | null;
   clean: Entry['clean'];
+  chapters: Chapter[];
+  /** For an interview: how many questions, and how many were answered. */
+  interview: { questions: number; answered: number } | null;
 }
 
 /** What the page behind a link may know: what is asked of the person, and whether it still can be done. */
@@ -113,6 +167,39 @@ export interface LinkView {
   expiresAt: string;
   state: 'pending' | 'received';
   maxBytes: number;
+  sources: RecordSource[];
+  script: string | null;
+  /** Every question so far, follow-ups included; the page polls for new ones. */
+  questions: string[];
+  answered: number;
+  /** Most one answer's sound may be. */
+  maxAnswerBytes: number;
+}
+
+/** Plain text from a person or an agent: no control characters but line breaks, trimmed and capped. */
+const tidy = (s: string | null | undefined, max: number, lines = false): string | null =>
+  (lines
+    ? s
+        ?.replace(/\r\n?/g, '\n')
+        .replace(/[^\P{Cc}\n\t]+/gu, ' ')
+        .trim()
+    : s?.replace(/\p{Cc}+/gu, ' ').trim()
+  )?.slice(0, max) || null;
+
+/** Chapters as given, checked: times in order within the recording, titles plain and short. */
+export function tidyChapters(list: unknown): Chapter[] {
+  if (!Array.isArray(list)) throw new RecordError(400, 'chapters', 'Chapters are a list.');
+  if (list.length > MAX_CHAPTERS)
+    throw new RecordError(400, 'chapters', `A recording has at most ${MAX_CHAPTERS} chapters.`);
+  const out: Chapter[] = [];
+  for (const c of list as { at?: unknown; title?: unknown }[]) {
+    const at = Number(c?.at);
+    const title = tidy(typeof c?.title === 'string' ? c.title : '', MAX_QUESTION);
+    if (!Number.isFinite(at) || at < 0 || at > 24 * 3600 || !title)
+      throw new RecordError(400, 'chapters', 'Each chapter has a time in seconds and a title.');
+    out.push({ at: Math.round(at * 100) / 100, title });
+  }
+  return out.sort((a, b) => a.at - b.at);
 }
 
 export interface MediaInfo {
@@ -216,9 +303,35 @@ export class RecordStore {
   /** A fresh link for `owner`. The token comes back here once and is kept only as its hash. */
   makeLink(
     owner: string,
-    o: { kind: RecordKind; purpose?: string | null; filmId?: string | null },
+    o: {
+      kind?: RecordKind;
+      purpose?: string | null;
+      filmId?: string | null;
+      sources?: RecordSource[] | null;
+      script?: string | null;
+      questions?: string[] | null;
+    },
   ): { id: string; token: string; expiresAt: number } {
     if (!OWNER_RE.test(owner)) throw new RecordError(400, 'owner', 'Who is asking?');
+    const sources = o.sources?.length ? [...new Set(o.sources)] : null;
+    if (sources?.some((s) => !SOURCES.includes(s)))
+      throw new RecordError(400, 'sources', 'Sources are camera, screen, screen+camera or voice.');
+    // Sound only and a picture are two kinds of recording; one link makes one kind.
+    const kinds = new Set(sources?.map(kindOf));
+    if (kinds.size > 1)
+      throw new RecordError(400, 'sources', 'Ask for voice on its own, or for sources with a picture.');
+    const kind = o.kind ?? (sources ? kindOf(sources[0]!) : 'voice');
+    if (sources && kindOf(sources[0]!) !== kind)
+      throw new RecordError(
+        400,
+        'sources',
+        kind === 'voice' ? 'A voice recording is sound only.' : 'A video needs a picture source.',
+      );
+    if ((o.script?.length ?? 0) > MAX_SCRIPT)
+      throw new RecordError(400, 'script', `A script is at most ${MAX_SCRIPT} characters.`);
+    if ((o.questions?.length ?? 0) > MAX_QUESTIONS)
+      throw new RecordError(400, 'questions', `An interview starts with at most ${MAX_QUESTIONS} questions.`);
+    const questions = (o.questions ?? []).map((q) => tidy(q, MAX_QUESTION)).filter((q): q is string => !!q);
     this.prune();
     // A link an upload is streaming through stays, however many are made meanwhile.
     const mine = this.entries.filter(
@@ -226,16 +339,12 @@ export class RecordStore {
     );
     while (mine.length >= MAX_PENDING) this.entries.splice(this.entries.indexOf(mine.shift()!), 1);
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = this.now() + LINK_MINUTES * 60_000;
-    const purpose =
-      o.purpose
-        ?.replace(/\p{Cc}+/gu, ' ')
-        .trim()
-        .slice(0, 200) || null;
+    const expiresAt = this.now() + (questions.length ? INTERVIEW_MINUTES.start : LINK_MINUTES) * 60_000;
+    const purpose = tidy(o.purpose, 200);
     const e: Entry = {
       id: newId(),
       owner,
-      kind: o.kind,
+      kind,
       purpose,
       filmId: o.filmId ?? null,
       createdAt: new Date(this.now()).toISOString(),
@@ -248,6 +357,11 @@ export class RecordStore {
       receivedAt: null,
       from: null,
       clean: null,
+      sources,
+      script: tidy(o.script, MAX_SCRIPT, true),
+      questions: questions.length ? questions : null,
+      answers: [],
+      chapters: null,
     };
     this.entries.push(e);
     this.persist();
@@ -291,7 +405,172 @@ export class RecordStore {
       expiresAt: new Date(e.expiresAt!).toISOString(),
       state: e.state,
       maxBytes: this.max[e.kind],
+      sources: e.sources?.length ? e.sources : [e.kind === 'voice' ? 'voice' : 'camera'],
+      script: e.script ?? null,
+      questions: e.questions ?? [],
+      answered: e.answers?.length ?? 0,
+      maxAnswerBytes: this.max.voice,
     };
+  }
+
+  // ── Interviews ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** An interview's link stays open while it is in use: 30 minutes past now, never past its last hour. */
+  private extend(e: Entry) {
+    if (e.expiresAt === null) return;
+    const most = Date.parse(e.createdAt) + INTERVIEW_MINUTES.most * 60_000;
+    e.expiresAt = Math.max(e.expiresAt, Math.min(most, this.now() + INTERVIEW_MINUTES.slide * 60_000));
+  }
+
+  /** A live interview link by id, for the person who made it (the routes check who that is). */
+  private live(id: string): Entry {
+    const e = this.get(id);
+    if (!e?.hash) throw new RecordError(404, 'missing', 'No such recording.');
+    if (!e.questions) throw new RecordError(409, 'interview', 'That link isn’t an interview.');
+    if (e.state === 'received')
+      throw new RecordError(409, 'used', 'That interview is over: its recording was sent.');
+    if ((e.expiresAt ?? 0) <= this.now())
+      throw new RecordError(410, 'expired', 'That interview’s link ran out. Make a new one.');
+    return e;
+  }
+
+  /** A follow-up question for a live interview; the page picks it up the next time it looks. */
+  ask(id: string, question: string): { index: number; questions: string[] } {
+    const e = this.live(id);
+    const q = tidy(question, MAX_QUESTION);
+    if (!q) throw new RecordError(400, 'question', 'Ask a question.');
+    if (e.questions!.length >= MAX_ASKED)
+      throw new RecordError(409, 'full', `An interview holds at most ${MAX_ASKED} questions.`);
+    e.questions!.push(q);
+    this.extend(e);
+    this.persist();
+    return { index: e.questions!.length - 1, questions: [...e.questions!] };
+  }
+
+  /**
+   * One answer's sound, sent on Next. It must be the next question's, it is checked like any recording, and it
+   * counts against the day's bytes of the person who made the link. It doesn't use the link up.
+   */
+  async answer(
+    token: string,
+    o: { index: number; at: number },
+    body: ReadableStream<Uint8Array> | null,
+    declared?: number,
+  ): Promise<{ entry: Entry; answer: Answer; segment: Entry }> {
+    const f = this.find(token);
+    if (!f) throw new RecordError(404, 'unknown', 'This link doesn’t work. Ask for a new one.');
+    if (f.link === 'expired')
+      throw new RecordError(410, 'expired', 'This link has run out. Ask for a new one.');
+    if (f.link === 'used') throw new RecordError(409, 'used', 'This interview has been sent already.');
+    const e = f.entry;
+    if (!e.questions) throw new RecordError(409, 'interview', 'This link isn’t an interview.');
+    if (!e.answers) e.answers = [];
+    const answers = e.answers;
+    const key = `${e.id}#answer`;
+    if (this.busy.has(key)) throw new RecordError(409, 'busy', 'The last answer is still arriving.');
+    if (!Number.isInteger(o.index) || o.index < 0 || o.index >= e.questions.length)
+      throw new RecordError(400, 'index', 'There is no such question.');
+    if (o.index !== answers.length)
+      throw new RecordError(409, 'answered', 'That question has its answer already.');
+    const at = Number.isFinite(o.at) && o.at >= 0 ? Math.round(o.at * 100) / 100 : 0;
+    const room = this.limits.bytesPerDay - this.used(e.owner).bytes;
+    const byteQuota = () =>
+      new RecordError(
+        429,
+        'quota',
+        `You can bring in ${human(this.limits.bytesPerDay)} of recordings a day. Try again tomorrow.`,
+      );
+    if (room <= 0 || (declared !== undefined && declared > room)) throw byteQuota();
+    this.busy.add(key);
+    const cap = this.max.voice;
+    const hold = Math.min(
+      room,
+      declared !== undefined && Number.isFinite(declared) ? Math.min(declared, cap) : cap,
+    );
+    const live = this.arriving.get(e.owner) ?? { n: 0, bytes: 0 };
+    // An answer holds its room in the day while it arrives, but isn't one of the day's imports.
+    this.arriving.set(e.owner, { n: live.n, bytes: live.bytes + hold });
+    const id = newId();
+    try {
+      const stored = await this.store(e.owner, id, 'voice', body, declared, { room, error: byteQuota });
+      const segment: Entry = {
+        id,
+        owner: e.owner,
+        kind: 'voice',
+        purpose: e.questions[o.index]!,
+        filmId: e.filmId,
+        createdAt: new Date(this.now()).toISOString(),
+        hash: null,
+        expiresAt: null,
+        state: 'received',
+        file: stored.file,
+        bytes: stored.bytes,
+        seconds: stored.seconds,
+        receivedAt: new Date(this.now()).toISOString(),
+        from: null,
+        clean: null,
+        answerOf: e.id,
+      };
+      const answer: Answer = {
+        index: o.index,
+        question: e.questions[o.index]!,
+        at,
+        media: id,
+        receivedAt: segment.receivedAt!,
+        job: null,
+      };
+      this.entries.push(segment);
+      answers.push(answer);
+      this.extend(e);
+      this.persist();
+      return { entry: e, answer, segment };
+    } finally {
+      this.busy.delete(key);
+      this.release(e.owner, 0, hold);
+    }
+  }
+
+  /** An upload that was arriving is done, kept or refused: its hold on the day goes. */
+  private release(owner: string, n: number, bytes: number) {
+    const now = this.arriving.get(owner);
+    if (!now) return;
+    const left = { n: now.n - n, bytes: now.bytes - bytes };
+    if (left.n <= 0 && left.bytes <= 0) this.arriving.delete(owner);
+    else this.arriving.set(owner, { n: Math.max(0, left.n), bytes: Math.max(0, left.bytes) });
+  }
+
+  /** Which transcription job an answer has. */
+  setAnswerJob(linkId: string, index: number, job: string | null) {
+    const a = this.get(linkId)?.answers?.find((x) => x.index === index);
+    if (!a) return;
+    a.job = job;
+    this.persist();
+  }
+
+  /** Chapters for a link's recording, sent before it. */
+  chaptersByLink(token: string, list: unknown): Chapter[] {
+    const f = this.find(token);
+    if (!f) throw new RecordError(404, 'unknown', 'This link doesn’t work. Ask for a new one.');
+    if (f.link === 'expired')
+      throw new RecordError(410, 'expired', 'This link has run out. Ask for a new one.');
+    if (f.link === 'used') throw new RecordError(409, 'used', 'This link has been used already.');
+    f.entry.chapters = tidyChapters(list);
+    this.persist();
+    return f.entry.chapters;
+  }
+
+  /** Chapters for a recording already kept (one made in the Studio). */
+  setChapters(e: Entry, list: unknown): Chapter[] {
+    if (e.state !== 'received' || e.answerOf)
+      throw new RecordError(409, 'chapters', 'Chapters go on a recording that has arrived.');
+    e.chapters = tidyChapters(list);
+    this.persist();
+    return e.chapters;
+  }
+
+  /** The answers' own recordings, in order. */
+  answersOf(e: Entry): { answer: Answer; segment: Entry | undefined }[] {
+    return (e.answers ?? []).map((answer) => ({ answer, segment: this.get(answer.media) }));
   }
 
   // ── Receiving ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -320,6 +599,9 @@ export class RecordStore {
     try {
       const stored = await this.store(e.owner, e.id, e.kind, body, declared);
       Object.assign(e, stored, { state: 'received', receivedAt: new Date(this.now()).toISOString() });
+      // No chapters sent with it: an interview's come from where each question was put.
+      if (!e.chapters?.length && e.answers?.length)
+        e.chapters = e.answers.map((a) => ({ at: a.at, title: a.question }));
       // Pruned meanwhile (an upload that outlasted its link and the days kept): the recording still has an entry.
       if (!this.entries.includes(e)) this.entries.push(e);
       this.persist();
@@ -337,16 +619,10 @@ export class RecordStore {
     declared?: number,
   ): Promise<RecordingView> {
     if (!OWNER_RE.test(owner)) throw new RecordError(400, 'owner', 'Who is asking?');
-    // The day is the last 24 hours. Owners and directors alike have it; the owner of this Hildegard raises it for all.
-    const since = this.now() - DAY_MS;
-    const done = this.entries.filter(
-      (e) =>
-        e.owner === owner && e.hash === null && e.from === null && Date.parse(e.receivedAt ?? '') > since,
-    );
     const live = this.arriving.get(owner) ?? { n: 0, bytes: 0 };
-    const usedBytes = done.reduce((t, e) => t + (e.bytes ?? 0), 0) + live.bytes;
-    const room = this.limits.bytesPerDay - usedBytes;
-    if (done.length + live.n >= this.limits.perDay)
+    const used = this.used(owner);
+    const room = this.limits.bytesPerDay - used.bytes;
+    if (used.n >= this.limits.perDay)
       throw new RecordError(
         429,
         'quota',
@@ -368,9 +644,7 @@ export class RecordStore {
     try {
       stored = await this.store(owner, id, kind, body, declared, { room, error: byteQuota });
     } finally {
-      const now = this.arriving.get(owner)!;
-      if (now.n <= 1) this.arriving.delete(owner);
-      else this.arriving.set(owner, { n: now.n - 1, bytes: now.bytes - hold });
+      this.release(owner, 1, hold);
     }
     const e: Entry = {
       id,
@@ -392,6 +666,24 @@ export class RecordStore {
     this.entries.push(e);
     this.persist();
     return this.view(e);
+  }
+
+  /**
+   * What a person brought in over the last 24 hours, with what is arriving now. Owners and directors alike have the
+   * day; the owner of this Hildegard raises it for all. An interview's answers count in its bytes, not its number:
+   * one interview of 30 questions would otherwise be a day's worth.
+   */
+  private used(owner: string): { n: number; bytes: number } {
+    const since = this.now() - DAY_MS;
+    const done = this.entries.filter(
+      (e) =>
+        e.owner === owner && e.hash === null && e.from === null && Date.parse(e.receivedAt ?? '') > since,
+    );
+    const live = this.arriving.get(owner) ?? { n: 0, bytes: 0 };
+    return {
+      n: done.filter((e) => !e.answerOf).length + live.n,
+      bytes: done.reduce((t, e) => t + (e.bytes ?? 0), 0) + live.bytes,
+    };
   }
 
   /** Writes the bytes, checks them, and says where they went. Nothing is left behind when it refuses. */
@@ -509,10 +801,10 @@ export class RecordStore {
     return ID_RE.test(id) ? this.entries.find((e) => e.id === id) : undefined;
   }
 
-  /** Every recording that has arrived, newest first. Callers filter by who may see them. */
+  /** Every recording that has arrived, newest first, but an interview's answers. Callers filter by who may see them. */
   list(): Entry[] {
     return this.entries
-      .filter((e) => e.state === 'received')
+      .filter((e) => e.state === 'received' && !e.answerOf)
       .sort((a, b) => (b.receivedAt ?? '').localeCompare(a.receivedAt ?? ''));
   }
 
@@ -536,6 +828,8 @@ export class RecordStore {
       url: this.url(e),
       from: e.from,
       clean: e.clean,
+      chapters: e.chapters ?? [],
+      interview: e.questions ? { questions: e.questions.length, answered: e.answers?.length ?? 0 } : null,
     };
   }
 

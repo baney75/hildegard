@@ -173,7 +173,18 @@ describe('the link', () => {
     // What the page learns does not include who made the link, or any id.
     expect(
       Object.keys((await (await fetch(`${remote}/api/record/${l.token}`)).json()) as object).sort(),
-    ).toEqual(['expiresAt', 'kind', 'maxBytes', 'purpose', 'state']);
+    ).toEqual([
+      'answered',
+      'expiresAt',
+      'kind',
+      'maxAnswerBytes',
+      'maxBytes',
+      'purpose',
+      'questions',
+      'script',
+      'sources',
+      'state',
+    ]);
     for (const [path, method] of [
       [`/api/record/${l.id}`, 'GET'],
       ['/api/record/status', 'POST'],

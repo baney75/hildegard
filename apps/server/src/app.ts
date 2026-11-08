@@ -105,7 +105,7 @@ import {
 import { publicSiteRoutes } from './public-sites.ts';
 import type { RecordStore } from './record.ts';
 import type { CleanJobs } from './record-clean.ts';
-import { mayOpen, recordRoutes } from './record-routes.ts';
+import { mayOpen, type RecordRouteDeps, recordRoutes } from './record-routes.ts';
 import { type MediaSigner, remoteMcpRoutes } from './remote-mcp.ts';
 import { baseFacts, knownHere, logTail, osLabel, ReportError, Reports } from './report.ts';
 import type { Scheduler } from './scheduler.ts';
@@ -206,7 +206,7 @@ export interface AppDeps {
   /** The voice studio: speech, voices, consent. */
   voice?: { studio: VoiceStudio; models: VoiceModels; publicKey: string };
   /** Recording from any chat: one-time links to a record page, what comes back, and cleaning it. */
-  records?: { store: RecordStore; cleaner: CleanJobs };
+  records?: { store: RecordStore; cleaner: CleanJobs; transcriber?: RecordRouteDeps['transcriber'] };
   /** Talk: one spoken turn, heard, answered and said back on this computer. */
   talk?: Omit<TalkRouteDeps, 'ownerOnly'>;
   /** Consent from real people that characters are based on. */
@@ -363,12 +363,14 @@ export function createApp(deps: AppDeps) {
     c.header('x-frame-options', preview ? 'SAMEORIGIN' : 'DENY');
     c.header('cross-origin-opener-policy', 'same-origin');
     c.header('cross-origin-resource-policy', preview || published ? 'cross-origin' : 'same-origin');
-    // Record uses the camera and microphone. Only the Studio's own pages may ask: a frame from another origin can't,
+    // Record uses the camera, the microphone and the screen. Only the Studio's own pages may ask: a frame from another origin can't,
     // whatever the app's window allows, and neither can a site preview or a published site, written by an AI or a
     // person and served from this same origin.
     c.header(
       'permissions-policy',
-      preview || published ? 'camera=(), microphone=()' : 'camera=(self), microphone=(self)',
+      preview || published
+        ? 'camera=(), microphone=(), display-capture=()'
+        : 'camera=(self), microphone=(self), display-capture=(self)',
     );
   });
 
@@ -2656,6 +2658,7 @@ export function createApp(deps: AppDeps) {
       recordRoutes({
         records: deps.records.store,
         cleaner: deps.records.cleaner,
+        transcriber: deps.records.transcriber,
         who: whoOf,
         // The link the person opens on their own device: this Hildegard's link if it has one; else the address this
         // request came to (this computer's own, or the device a signed-in person is on).

@@ -624,6 +624,42 @@ async function serveStudio(
   const records = {
     store: recordStore,
     cleaner: new CleanJobs({ dataDir: config.dataDir, store: recordStore }),
+    // An interview's answers, transcribed with the voice studio's Whisper when it is installed; none, and the agent is
+    // told to call transcribe itself.
+    transcriber: {
+      async start(path: string, title: string) {
+        try {
+          const up = await voice.upload(new Uint8Array(await readFile(path)));
+          return voice.transcribe(
+            { source: up.name, title },
+            { source: { kind: 'studio' }, priority: 'agent' },
+          ).id;
+        } catch {
+          return null;
+        }
+      },
+      read(job: string) {
+        try {
+          const j = voice.job(job);
+          const text =
+            (j.transcript?.segments ?? [])
+              .map((x) => x.text.trim())
+              .filter(Boolean)
+              .join(' ') || null;
+          return {
+            status:
+              j.status === 'done'
+                ? ('done' as const)
+                : j.status === 'queued' || j.status === 'running'
+                  ? ('running' as const)
+                  : ('failed' as const),
+            text,
+          };
+        } catch {
+          return null;
+        }
+      },
+    },
   };
   // A release runs from its `hildegard` command, which says where its script is; a checkout has none, and updates with
   // git. The port is the one this server listens on, known once it does.

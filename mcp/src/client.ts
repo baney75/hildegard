@@ -278,6 +278,32 @@ export interface Recording {
   clean: { lufs: number; truePeak: number; targetLufs: number; peak: number; backend: string } | null;
   /** Where the file is on this computer, for agents running here. */
   file?: string | null;
+  chapters?: { at: number; title: string }[];
+  interview?: { questions: number; answered: number } | null;
+}
+export type RecordSource = 'camera' | 'screen' | 'screen+camera' | 'voice';
+/** Where an interview stands, for the agent that asked for it. */
+export interface InterviewView {
+  id: string;
+  status: 'pending' | 'received' | 'expired';
+  expiresAt: string | null;
+  questions: string[];
+  current: { index: number; question: string } | null;
+  answers: {
+    index: number;
+    question: string;
+    at: number;
+    receivedAt: string;
+    mediaId: string;
+    seconds: number | null;
+    url: string | null;
+    file: string | null;
+    transcript: string | null;
+    transcribing: boolean;
+  }[];
+  chapters: { at: number; title: string }[];
+  transcribes: boolean;
+  recording: Recording | null;
 }
 export interface CleanJobView {
   id: string;
@@ -346,7 +372,10 @@ export class HildegardClient {
     );
   // ── Recording from any chat ──
   recordLink = (body: {
-    kind: 'voice' | 'video';
+    kind?: 'voice' | 'video';
+    sources?: RecordSource[];
+    script?: string;
+    questions?: string[];
     purpose?: string;
     filmId?: string;
     where?: 'here' | 'phone' | 'auto';
@@ -367,6 +396,14 @@ export class HildegardClient {
     this.call<Recording>('POST', `/api/record/imports?kind=${kind}`, undefined, bytes);
   cleanRecording = (id: string, body: { target_lufs?: number; peak?: number }) =>
     this.call<CleanJobView>('POST', `/api/record/${encodeURIComponent(id)}/clean`, body);
+  interviewAsk = (id: string, question: string) =>
+    this.call<{ id: string; index: number; questions: string[] }>(
+      'POST',
+      `/api/record/${encodeURIComponent(id)}/ask`,
+      { question },
+    );
+  interview = (id: string) =>
+    this.call<InterviewView>('GET', `/api/record/${encodeURIComponent(id)}/interview`);
   cleanJob = (id: string) => this.call<CleanJobView>('GET', `/api/record/clean/${encodeURIComponent(id)}`);
   exportState = (id: string) =>
     this.call<ExportState & { file: string | null }>('GET', `/api/exports/${encodeURIComponent(id)}`);
