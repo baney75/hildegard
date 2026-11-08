@@ -856,7 +856,14 @@ describe('the skills Hildegard ships', () => {
 
   it('carries the browser helper into each skill that uses it, byte for byte', () => {
     // Each skill is also uploaded alone (one zip per skill), so hildegard-app holds its own copy; the source is
-    // hildegard-brand's.
+    // hildegard-brand's, and skills/SHARED.json keeps it (node scripts/sync-skill-shared.mjs).
+    const shared = JSON.parse(readFileSync(join(dir, 'SHARED.json'), 'utf8')) as {
+      copies: { source: string; skills: string[] }[];
+    };
+    expect(shared.copies).toContainEqual({
+      source: 'skills/hildegard-brand/scripts/browser.py',
+      skills: ['hildegard-app'],
+    });
     expect(readFileSync(join(dir, 'hildegard-app/scripts/browser.py'), 'utf8')).toBe(
       readFileSync(join(dir, 'hildegard-brand/scripts/browser.py'), 'utf8'),
     );

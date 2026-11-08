@@ -1,6 +1,6 @@
 ---
 name: hildegard-design
-description: Use for a poster, flyer, social post, album or book cover, invitation, menu, sign, banner or logo - built in HTML and SVG at its exact size, rendered, and read back line by line.
+description: Use for a poster, flyer, social post, album or book cover, invitation, menu, sign, banner or other one-page layout - built in HTML and SVG at its exact size, rendered, and read back.
 ---
 
 # Design
@@ -8,6 +8,9 @@ description: Use for a poster, flyer, social post, album or book cover, invitati
 A poster or post that a person would print, pin or share. It is built as one HTML file at its exact size (inline CSS
 and SVG, fonts from Google Fonts), rendered to an image, and checked line by line before you hand it over. This skill
 is all you need for it.
+
+A logo, wordmark or brand guide is **hildegard-brand**'s; an app screen is **hildegard-app**'s; a website is
+**hildegard-web**'s.
 
 ## Fast path
 

@@ -6,8 +6,15 @@ description: Use for an app screen or flow (iOS, Android, desktop or web app) an
 # App screens
 
 An app screen is judged in a person's hand, in a hurry, with one thumb. It is built here as HTML and CSS at the
-device's exact size, from tokens, rendered, measured by a script, and judged blind before anyone sees it. Websites,
-landing pages and marketing pages are **hildegard-web**'s work; this skill is for the screens inside an app.
+device's exact size, from tokens, rendered, measured by a script, and looked at before anyone sees it.
+
+This skill owns the screens inside an app and their states. Websites, landing pages and marketing pages are
+**hildegard-web**'s; the app's logo, icon and brand are **hildegard-brand**'s; a poster or social image for it is
+**hildegard-design**'s.
+
+<!-- council:start -->
+A blind review, only when your user asks for one, is **hildegard-council**'s.
+<!-- council:end -->
 
 | File | What it does |
 | --- | --- |

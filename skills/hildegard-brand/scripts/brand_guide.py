@@ -4,7 +4,7 @@
 
   python3 brand_guide.py brand.json [--out guide] [--check] [--offline]
 
-You fill brand.json (templates/brand.json shows every field); this script does the arithmetic and the layout:
+You fill brand.json (templates/example/brand.json shows every field); this script does the arithmetic and the layout:
   - checks every field the guide needs, and the lengths that keep it to one page;
   - works out the WCAG contrast of every text and background pair, says which pass for body text (4.5:1), large text
     and controls (3:1), and for a failing pair finds the nearest color that passes;

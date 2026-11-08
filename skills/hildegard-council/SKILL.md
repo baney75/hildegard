@@ -1,6 +1,6 @@
 ---
 name: hildegard-council
-description: Use to review a logo, brand, app screen, page, poster, image or film before revising it, or to pick between variants - six critics judge it blind, each with a rubric.
+description: Use only when asked to review a logo, brand, app screen, page, poster, image or film, or to pick between variants - six critics judge it blind, each with a rubric.
 ---
 
 # The design council
@@ -31,9 +31,9 @@ section of `rubrics.md` into each critic's prompt and add up the reviews as step
 
 The critics judge a picture, not your description of it. Before the council:
 
-1. Render the work and look at it yourself: the logo sheet (hildegard-brand's `logo_check.py`), the guide PNG
-   (`brand_guide.py`), the screen and its states (hildegard-app `screen_check.py`), the page at its widths, the image,
-   or a contact sheet of the film's frames.
+1. Render the work and look at it yourself: the logo sheet and the guide PNG (made by **hildegard-brand**), the screen
+   and its states side by side (made by **hildegard-app**), the page at its widths, the image, or a contact sheet of the
+   film's frames.
 2. Write `brief.md`: the client's brief word for word, then the copy deck (every word that should appear). Add
    nothing about your intentions; the critics judge what they see.
 

@@ -1,14 +1,21 @@
 ---
 name: hildegard-brand
-description: Use for a logo, wordmark, monogram, favicon or app icon, or a brand system (palette, type, voice, a one-page brand guide), built as SVG and JSON and checked at 16 px and in one ink.
+description: Use for a logo, wordmark, lockup, monogram, favicon or app icon, or a brand system (palette, type, voice, a one-page brand guide), built as SVG and JSON and checked at 16 px.
 ---
 
 # Logos and brands
 
 A logo is a small drawing that has to survive a favicon, a polo shirt, a truck door and a rubber stamp. A brand is the
 logo plus the rules that make everything else look like the same client. Both are built here in code (SVG and JSON),
-measured by scripts, and judged blind before anyone sees them. This skill is all you need; the scripts use Python's
+measured by scripts, and looked at before anyone sees them. This skill is all you need; the scripts use Python's
 standard library, Pillow, and a rasterizer (rsvg-convert, cairosvg or Chromium) when one is there.
+
+This skill owns logos, wordmarks, lockups and brand systems. A poster, social image or other layout that uses the brand
+is **hildegard-design**'s; an app screen is **hildegard-app**'s; a website is **hildegard-web**'s.
+
+<!-- council:start -->
+A blind review, only when your user asks for one, is **hildegard-council**'s.
+<!-- council:end -->
 
 | File | What it does |
 | --- | --- |
@@ -18,7 +25,7 @@ standard library, Pillow, and a rasterizer (rsvg-convert, cairosvg or Chromium) 
 | `scripts/brand_guide.py` | checks `brand.json`, works out every contrast pair, and lays out the one-page guide (HTML, PNG, PDF) |
 | `references/logo.md` | how to find the idea, build the mark on a grid, choose and kern the face, lock it up |
 | `references/brand-system.md` | color by role, type pairing and scale, voice in three lines, imagery rules |
-| `templates/example/` | a finished logo set and `brand.json` (Brickyard Press, a letterpress shop) to copy the shape of |
+| `templates/example/brand.json` and the SVGs beside it | a finished logo set and brand (Brickyard Press, a letterpress shop) to copy the shape of |
 
 Run every script from this skill's folder, or give its full path. Each prints what failed and how to fix it.
 

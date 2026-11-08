@@ -52,6 +52,10 @@
       "skills": ["hildegard-video-edit"]
     },
     {
+      "source": "skills/hildegard-brand/scripts/browser.py",
+      "skills": ["hildegard-app"]
+    },
+    {
       "source": "skills/hildegard-craft/references/slop.md",
       "to": "references",
       "skills": [
