@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createMcpServer, HildegardClient } from '@hildegard/mcp';
 import type { EditView } from '@hildegard/presets';
@@ -15,6 +15,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { directorMay } from '../src/access.ts';
 import { parseArgs } from '../src/config.ts';
+import { EditJobs, type EditRunner, EditStore, MAX_PY, MAX_RENDER_WORKERS } from '../src/edit.ts';
+import { editRoutes } from '../src/edit-routes.ts';
 import { exportPython } from '../src/export.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
@@ -278,16 +280,24 @@ describe('an edit from a list to a proven video', () => {
     expect(proven.verify?.ok, JSON.stringify(proven.verify)).toBe(true);
     expect(proven.verify?.checks.find((c) => c.id === 'frames')).toMatchObject({ status: 'pass' });
 
-    // Change the list after rendering and the old output no longer proves it.
-    await there(bo, `/api/edits/${edit.id}/edl`, 'PUT', {
-      version: 1,
-      sources: { a: { path: `recording:${rec}` } },
-      keep: [{ start: 0, end: 5 }],
-    });
+    // Change the list after rendering, even by a title that leaves every frame count alone, and the old output no
+    // longer proves it: verifying without rendering says to render again.
+    const titled = {
+      ...good.edl,
+      titles: [
+        { text: 'Hello', start: 0.2, end: 1.5 },
+        { text: 'Later', start: 3, end: 4 },
+      ],
+    };
+    expect(
+      ((await (await there(bo, `/api/edits/${edit.id}/edl`, 'PUT', titled)).json()) as EditView).check?.ok,
+    ).toBe(true);
     await there(bo, `/api/edits/${edit.id}/verify`, 'POST', {});
     const stale = await settled(bo, edit.id);
     expect(stale.verify?.ok).toBe(false);
-    expect(stale.verify?.checks.find((c) => c.id === 'frames')?.status).toBe('fail');
+    const again = stale.verify?.checks.find((c) => c.id === 'render');
+    expect(again?.status).toBe('fail');
+    expect(again?.detail).toContain('Render again');
 
     // The owner’s computer sees where it is on disk.
     const own = (await (await local(`/api/edits/${edit.id}`)).json()) as EditView;
@@ -359,6 +369,110 @@ describe('an edit from a list to a proven video', () => {
     expect(t.status).toBe(409);
     expect(((await t.json()) as { error: string }).error).toContain('voice studio');
   }, 420_000);
+});
+
+describe('turns at the script', () => {
+  /** The edit routes alone, as this computer, over a runner that counts the runs going at once and waits to be let go. */
+  const setup = (maxPy?: number, turnWaitMs?: number) => {
+    const t = {
+      now: 0,
+      peak: 0,
+      args: [] as string[][],
+      open: [] as Array<() => void>,
+      per: new Map<string, number>(),
+      perPeak: 0,
+    };
+    const runner: EditRunner = async (args) => {
+      t.args.push(args);
+      const who = args[1] ?? '';
+      t.now++;
+      t.per.set(who, (t.per.get(who) ?? 0) + 1);
+      t.peak = Math.max(t.peak, t.now);
+      t.perPeak = Math.max(t.perPeak, t.per.get(who)!);
+      await new Promise<void>((r) => t.open.push(r));
+      t.now--;
+      t.per.set(who, t.per.get(who)! - 1);
+      return { ok: true, errors: [], warnings: [] };
+    };
+    const store = new EditStore({ dir: mkdtempSync(join(work, 'turns-')) });
+    const jobs = new EditJobs({ store, runner, maxPy, turnWaitMs });
+    const app = editRoutes({
+      store,
+      jobs,
+      who: () => ({ kind: 'local' }),
+      recordFile: () => null,
+      exportFile: () => null,
+    });
+    const ask = async (path: string, method: string, body: unknown): Promise<Response> =>
+      app.request(path, { method, headers: H, body: JSON.stringify(body) });
+    const tick = () => new Promise((r) => setTimeout(r, 20));
+    const drain = async () => {
+      await tick();
+      while (t.open.length) {
+        t.open.shift()!();
+        await tick();
+      }
+    };
+    return { t, store, jobs, ask, tick, drain };
+  };
+
+  it('runs one check at a time per person, a few at once overall, and answers a pile of checks with 429', async () => {
+    const { t, store, ask, tick, drain } = setup();
+    const e = store.create('local', 'Mine', { version: 1, sources: { a: { path: '/footage/a.mp4' } } });
+    // Six full checks at once on one long recording: one runs, two wait their turn, three are told to wait.
+    const asked = Array.from({ length: 6 }, () => ask(`/${e.id}/check`, 'POST', {}).then((r) => r.status));
+    await tick();
+    expect(t.now).toBe(1);
+    // A new edit while the line is full is still made, unchecked, not answered with a 429 that invites a duplicate.
+    const made = await ask('/', 'POST', { edl: { version: 1, sources: { a: { path: '/footage/b.mp4' } } } });
+    expect(made.status).toBe(201);
+    expect(((await made.json()) as EditView).check).toBeNull();
+    await drain();
+    const statuses = await Promise.all(asked);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(3);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(3);
+    expect(t.perPeak).toBe(1);
+  });
+
+  it('keeps the runs of different people under the overall cap, and a request kept waiting gets a 429', async () => {
+    const { t, jobs, tick, drain } = setup(undefined, 100);
+    const runs = ['bo', 'cy', 'di', 'ed'].map((who) =>
+      jobs
+        .run(who, () => {}, ['check', who], true)
+        .then(
+          () => 200,
+          (err: { status: number }) => err.status,
+        ),
+    );
+    await tick();
+    expect(t.now).toBe(MAX_PY);
+    await drain();
+    expect(await Promise.all(runs)).toEqual([200, 200, 200, 200]);
+    expect(t.peak).toBe(MAX_PY);
+    // Bo's render holds his turn; his check waits, then is told to try again.
+    const render = jobs.run('bo', () => {}, ['render', 'bo']);
+    const late = jobs
+      .run('bo', () => {}, ['check', 'bo'], true)
+      .then(
+        () => 200,
+        (err: { status: number; code: string }) => `${err.status} ${err.code}`,
+      );
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await late).toBe('429 queue');
+    await drain();
+    await render;
+  });
+
+  it('caps the processes a render starts, whatever the request asks', async () => {
+    const { t, store, ask, drain } = setup();
+    const e = store.create('local', 'Mine', { version: 1, sources: { a: { path: '/footage/a.mp4' } } });
+    expect((await ask(`/${e.id}/render`, 'POST', { workers: 32 })).status).toBe(202);
+    await drain();
+    const render = t.args.find((a) => a[0] === 'render')!;
+    const workers = Number(render[render.indexOf('--workers') + 1]);
+    expect(workers).toBeGreaterThanOrEqual(1);
+    expect(workers).toBeLessThanOrEqual(Math.min(availableParallelism(), MAX_RENDER_WORKERS));
+  });
 });
 
 describe('the MCP tools', () => {

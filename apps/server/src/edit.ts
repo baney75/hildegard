@@ -3,7 +3,8 @@
  * Video edits: an edit list (edl.json) per edit, rendered and proven on the output by tools/edit_video.py on the Python
  * `hildegard install` set up. Each edit belongs to the person who made it (or this computer); the owner of this Hildegard
  * sees everyone's, as with films. Jobs run one at a time: encoding is CPU work, and one long render should not starve
- * the rest of the computer.
+ * the rest of the computer. Every run of the script, a job's or a check a request waits on, takes a turn: one at a time
+ * per person and MAX_PY at once overall, with a short line of waiters per person; past that a request gets a 429.
  *
  * The edit list the API stores names footage by reference (`recording:rec_…`, `export:…`, `edit:ed_…`), never by path,
  * so a signed-in director can't read a file off the computer by naming it. Only this computer itself may give a path.
@@ -12,6 +13,7 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EditCheck, EditJobView, EditRenderView, EditVerifyView, EditView } from '@hildegard/presets';
@@ -32,6 +34,19 @@ export const ID_RE = /^ed_[0-9a-f]{16}$/;
 const OWNER_RE = /^[A-Za-z0-9-]{1,64}$/;
 /** Edits a person may have queued or running at once. */
 export const MAX_ACTIVE = 3;
+/** Runs of the script at once, everyone's together: each can hold a decoder and the analysis of a long recording. */
+export const MAX_PY = 2;
+/** Requests one person may have waiting for a turn behind their running one; more is a 429. */
+export const MAX_WAITING = 2;
+/** How long a request waits for its turn before it is told to try again. */
+export const TURN_WAIT_MS = 120_000;
+/** The most processes one render may start, whatever is asked: each holds a full-size decoder and its frames. */
+export const MAX_RENDER_WORKERS = 4;
+
+/** The render workers to use: what was asked, never more than the cores or MAX_RENDER_WORKERS. */
+export function renderWorkers(asked?: number, cores = availableParallelism()): number {
+  return Math.max(1, Math.min(asked ?? MAX_RENDER_WORKERS, cores, MAX_RENDER_WORKERS));
+}
 /** The files of an edit that /media may serve. */
 export const PUBLIC_FILES = /^(out\.mp4|sheet\.jpg|chapters\.txt)$/;
 
@@ -270,6 +285,83 @@ export function resolveRefs(edl: Edl, r: Resolvers): Edl {
 export interface EditJobsOptions {
   store: EditStore;
   runner: EditRunner;
+  /** Overrides MAX_PY and TURN_WAIT_MS, for tests. */
+  maxPy?: number;
+  turnWaitMs?: number;
+}
+
+const queueFull = () =>
+  new EditError(429, 'queue', 'Hildegard is busy with your other edits. Try again when one finishes.');
+
+interface Waiter {
+  owner: string;
+  /** A request waiting on the answer, not a job already accepted. */
+  request: boolean;
+  grant: (release: () => void) => void;
+}
+
+/** Turns at running the script: one at a time per person, `max` at once overall, first come first served. */
+class Turns {
+  private readonly max: number;
+  private readonly waitMs: number;
+  private running = 0;
+  private readonly holders = new Set<string>();
+  private readonly waiting: Waiter[] = [];
+
+  constructor(max: number, waitMs: number) {
+    this.max = max;
+    this.waitMs = waitMs;
+  }
+
+  /** Resolves with the release once it is `owner`'s turn. A request past the line, or kept waiting too long, gets a 429. */
+  take(owner: string, request: boolean): Promise<() => void> {
+    return new Promise((resolveTurn, reject) => {
+      if (request) {
+        const mine = this.waiting.filter((w) => w.request && w.owner === owner).length;
+        if (mine >= MAX_WAITING || this.waiting.filter((w) => w.request).length >= this.max * 8)
+          return reject(queueFull());
+      }
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const w: Waiter = {
+        owner,
+        request,
+        grant: (release) => {
+          if (timer) clearTimeout(timer);
+          resolveTurn(release);
+        },
+      };
+      if (request)
+        timer = setTimeout(() => {
+          const i = this.waiting.indexOf(w);
+          if (i < 0) return;
+          this.waiting.splice(i, 1);
+          reject(queueFull());
+        }, this.waitMs);
+      this.waiting.push(w);
+      this.pump();
+    });
+  }
+
+  private pump(): void {
+    for (let i = 0; i < this.waiting.length && this.running < this.max; ) {
+      const w = this.waiting[i]!;
+      if (this.holders.has(w.owner)) {
+        i++;
+        continue;
+      }
+      this.waiting.splice(i, 1);
+      this.running++;
+      this.holders.add(w.owner);
+      let released = false;
+      w.grant(() => {
+        if (released) return;
+        released = true;
+        this.running--;
+        this.holders.delete(w.owner);
+        this.pump();
+      });
+    }
+  }
 }
 
 type Work = (set: (patch: Partial<EditJobView>) => void) => Promise<void>;
@@ -278,9 +370,11 @@ type Work = (set: (patch: Partial<EditJobView>) => void) => Promise<void>;
 export class EditJobs {
   private tail: Promise<unknown> = Promise.resolve();
   private readonly o: EditJobsOptions;
+  private readonly turns: Turns;
 
   constructor(o: EditJobsOptions) {
     this.o = o;
+    this.turns = new Turns(o.maxPy ?? MAX_PY, o.turnWaitMs ?? TURN_WAIT_MS);
   }
 
   active(owner: string): number {
@@ -334,12 +428,25 @@ export class EditJobs {
     return job;
   }
 
-  /** Runs the script with progress lines going to the job. */
-  run(set: (p: Partial<EditJobView>) => void, args: string[]): Promise<Json> {
-    return this.o.runner(args, (m) => {
-      if (typeof m.stage === 'string') set({ stage: m.stage });
-      if (typeof m.done === 'number' && typeof m.total === 'number') set({ done: m.done, total: m.total });
-    });
+  /**
+   * Runs the script on `owner`'s turn, with progress lines going to the job. A job's runs wait their turn; a request's
+   * (`request`) may get a 429 instead, when that person already has others waiting or waited too long.
+   */
+  async run(
+    owner: string,
+    set: (p: Partial<EditJobView>) => void,
+    args: string[],
+    request = false,
+  ): Promise<Json> {
+    const release = await this.turns.take(owner, request);
+    try {
+      return await this.o.runner(args, (m) => {
+        if (typeof m.stage === 'string') set({ stage: m.stage });
+        if (typeof m.done === 'number' && typeof m.total === 'number') set({ done: m.done, total: m.total });
+      });
+    } finally {
+      release();
+    }
   }
 }
 

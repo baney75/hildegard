@@ -40,10 +40,15 @@ writing chapter marks into the MP4 (chapters.txt is always written). `tesseract`
   reusable on a restart (its name holds a hash of everything that went into it).
 - **Redaction happens on the source pixels, before the crop,** so a reframe or scale can't undo it. Blur averages the region down
   to cells before blurring; `solid` is the one to use for a secret.
-- **The gate re-resolves the list** instead of trusting what the renderer wrote, and measures the file: frames, durations of
-  every audio track, loudness and true peak through ebur128, black and frozen runs, overlay boxes, and (with tesseract) OCR at
-  4 fps in and around every hidden stretch for declared secrets and for API keys, e-mail addresses, IPs and host names.
-  Without tesseract that check is **skipped and reported as unproven**, or fails with `verify.require_ocr`.
+- **The gate re-resolves the list** instead of trusting what the renderer wrote, and measures the file: that it is the render
+  of this very list (the renderer leaves the list's hash and the file's beside it, so a video from an older list fails),
+  frames, durations of every audio track, loudness and true peak through ebur128 (streamed; silence or a meter that can't run
+  fails when the list masters the sound), black and frozen runs, overlay boxes, and (with tesseract) OCR: declared secrets
+  through the whole video, and API keys, e-mail addresses, IPs and host names at 4 fps in and around every hidden stretch. OCR
+  reads at most 900 frames, one at a time, no wider than 1920 pixels. Without tesseract that check is **skipped and reported
+  as unproven**, or fails with `verify.require_ocr`; a tesseract that fails is unproven too, never an empty read.
+- **The server takes turns at the script**: one run per person and two at once overall, a short line of waiting requests
+  per person (past it, a 429 with `code: "queue"`), and at most 4 render processes, whatever a request asks.
 - **Music ducking is the sound skill's recipe** (`hildegard-sound/scripts/duck_mix.py`): 16 dB down, starting 0.3 s before speech
   and returning over 0.5 s after it, gaps under 0.6 s held down, the bed 8 dB under the voice. The speech stretches come from the
   energy gate above.

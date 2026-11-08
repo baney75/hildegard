@@ -27,6 +27,7 @@ import {
   type Edl,
   ID_RE,
   type Resolvers,
+  renderWorkers,
   resolveRefs,
   type StoredEdit,
   toCheck,
@@ -151,7 +152,7 @@ export function editRoutes(d: EditRouteDeps) {
 
   const check = async (c: Ctx, e: StoredEdit, quick = false) => {
     const file = runFile(c, e);
-    const r = await jobs.run(() => {}, ['check', file, ...(quick ? ['--quick'] : [])]);
+    const r = await jobs.run(e.owner, () => {}, ['check', file, ...(quick ? ['--quick'] : [])], true);
     e.check = toCheck(r);
     store.save(e);
   };
@@ -167,7 +168,8 @@ export function editRoutes(d: EditRouteDeps) {
       try {
         await check(c, e, true);
       } catch (err) {
-        if (!(err instanceof EditError && err.code === 'tool')) throw err;
+        // The edit is made either way: with no Python, or no turn free now, it waits unchecked.
+        if (!(err instanceof EditError && (err.code === 'tool' || err.code === 'queue'))) throw err;
       }
       return c.json(shown(c, e), 201);
     }, 201),
@@ -201,6 +203,7 @@ export function editRoutes(d: EditRouteDeps) {
       const edl = z.record(z.string(), z.unknown()).parse(await body(c));
       resolveRefs(edl, resolvers(c));
       e.edl = edl;
+      e.check = null;
       e.verify = null;
       store.save(e);
       await check(c, e);
@@ -212,6 +215,8 @@ export function editRoutes(d: EditRouteDeps) {
     '/:id/check',
     go(async (c) => {
       const e = mine(c);
+      if (jobs.busy(e))
+        throw new EditError(409, 'busy', 'This edit is working. Wait for it to finish, then check it.');
       await check(c, e);
       return shown(c, e);
     }),
@@ -265,7 +270,7 @@ export function editRoutes(d: EditRouteDeps) {
         else if (b.transcribe && !existsSync(tfile)) {
           set({ stage: 'Listening to the recording' });
           const wav = store.fileOf(e, 'audio.wav');
-          const ex = await jobs.run(set, ['extract-audio', source, wav]);
+          const ex = await jobs.run(e.owner, set, ['extract-audio', source, wav]);
           if (ex.ok !== true)
             throw new EditError(
               422,
@@ -300,7 +305,7 @@ export function editRoutes(d: EditRouteDeps) {
         if (b.auto) args.push('--auto');
         if (b.title) args.push('--title', b.title);
         set({ stage: 'Planning the cuts' });
-        const r = await jobs.run(set, args);
+        const r = await jobs.run(e.owner, set, args);
         if (r.ok !== true) throw new EditError(422, 'plan', String(r.error ?? 'Planning failed.'));
         const planned = JSON.parse(readFileSync(out, 'utf8')) as Edl;
         rmSync(out, { force: true });
@@ -315,12 +320,17 @@ export function editRoutes(d: EditRouteDeps) {
         e.plan = (r.report as Record<string, unknown>) ?? null;
         e.verify = null;
         if (have) {
-          const w = await jobs.run(set, ['transcript-text', tfile, '-o', store.fileOf(e, 'words.txt')]);
+          const w = await jobs.run(e.owner, set, [
+            'transcript-text',
+            tfile,
+            '-o',
+            store.fileOf(e, 'words.txt'),
+          ]);
           if (w.ok !== true)
             throw new EditError(422, 'words', String(w.error ?? 'Couldn’t write the words file.'));
         }
         set({ stage: 'Checking the list' });
-        const ck = await jobs.run(set, ['check', runFile(c, e)]);
+        const ck = await jobs.run(e.owner, set, ['check', runFile(c, e)]);
         e.check = toCheck(ck);
       });
       return c.json({ ...shown(c, e), job }, 202);
@@ -337,12 +347,19 @@ export function editRoutes(d: EditRouteDeps) {
       const job = jobs.start(e, 'render', async (set) => {
         const args = ['render', file, out];
         if (b.encoder) args.push('--encoder', b.encoder);
-        if (b.workers) args.push('--workers', String(b.workers));
-        const r = await jobs.run(set, args);
+        args.push('--workers', String(renderWorkers(b.workers)));
+        const r = await jobs.run(e.owner, set, args);
         if (r.ok !== true) throw new EditError(422, 'render', String(r.error ?? 'Rendering failed.'));
         e.verify = null;
         set({ stage: 'Making the contact sheet', done: null, total: null });
-        const sh = await jobs.run(set, ['sheet', out, '--edl', file, '-o', store.fileOf(e, 'sheet.jpg')]);
+        const sh = await jobs.run(e.owner, set, [
+          'sheet',
+          out,
+          '--edl',
+          file,
+          '-o',
+          store.fileOf(e, 'sheet.jpg'),
+        ]);
         e.render = toRender(r, sh.ok === true);
         // The chapters.txt the renderer wrote sits beside the video; keep it where /media can serve it.
         const chap = `${out.replace(/\.mp4$/, '')}.chapters.txt`;
@@ -363,7 +380,7 @@ export function editRoutes(d: EditRouteDeps) {
       const out = store.fileOf(e, 'out.mp4');
       const job = jobs.start(e, 'verify', async (set) => {
         set({ stage: 'Checking the finished video' });
-        const r = await jobs.run(set, ['verify', out, file]);
+        const r = await jobs.run(e.owner, set, ['verify', out, file]);
         e.verify = toVerify(r);
       });
       return c.json({ ...shown(c, e), job }, 202);
