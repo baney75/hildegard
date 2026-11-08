@@ -547,7 +547,13 @@ FFMPEG('a stream to two servers, one of them dead', () => {
 });
 
 describe('stopping, with FFmpeg replaced by something stubborn', () => {
-  it('ends the whole process group inside two seconds, even one that ignores the polite request', async () => {
+  // These stand-ins are POSIX shells that ignore SIGTERM, and the code under test ends them as a process group
+  // (`process.kill(-pid)`). Windows has neither: there is no SIGTERM to ignore, no group, and a shell's pids are not
+  // Node's, so the stand-in and its pid file mean nothing there. Stop ends the tree with `taskkill /T /F` instead,
+  // which the test after these checks on every platform.
+  const posix = it.skipIf(process.platform === 'win32');
+
+  posix('ends the whole process group inside two seconds, even one that ignores the polite request', async () => {
     // A shell that ignores SIGTERM and has a child of its own, as a hung capture driver might.
     const pidFile = join(work, 'stubborn.pids');
     const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
@@ -576,7 +582,7 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
     expect(s.state().phase).toBe('idle');
   }, 30_000);
 
-  it('ends what FFmpeg started even when FFmpeg itself leaves at once', async () => {
+  posix('ends what FFmpeg started even when FFmpeg itself leaves at once', async () => {
     // FFmpeg (the shell) goes on the first SIGTERM; something it started ignores it and would outlive it.
     const pidFile = join(work, 'leaver.pids');
     const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
@@ -602,8 +608,10 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
     expect(s.state().phase).toBe('idle');
   }, 30_000);
 
+  // Also POSIX only: it needs a preview that is slow to go (it ignores SIGTERM), so begin() is still waiting on it
+  // when the press comes. On Windows taskkill ends the preview at once and that window is not there to test.
   for (const press of ['stop', 'cancel'] as const)
-    it(`starts nothing when ${press === 'stop' ? 'Stop' : 'Cancel'} is pressed while the count’s end closes the preview`, async () => {
+    posix(`starts nothing when ${press === 'stop' ? 'Stop' : 'Cancel'} is pressed while the count’s end closes the preview`, async () => {
       // The preview's FFmpeg is slow to go, so begin() is still waiting on it when the press comes.
       const spawned: string[] = [];
       const fakeSpawn = ((_c: string, args: string[], opts: Record<string, unknown>) => {
@@ -631,6 +639,35 @@ describe('stopping, with FFmpeg replaced by something stubborn', () => {
         await s.stop();
       }
     }, 20_000);
+
+  it('ends a child that FFmpeg started once Stop is pressed, on every platform', async () => {
+    // Node as the stand-in, with no shell and no signal handling: a parent that started a child of its own and wrote
+    // both pids to a file. On POSIX Stop signals the process group; on Windows it runs taskkill /T /F on the tree.
+    // Either way the child must be gone, not only the process Hildegard started.
+    const pidFile = join(work, 'tree.pids');
+    const standIn = [
+      "const { spawn } = require('node:child_process');",
+      "const kid = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
+      "require('node:fs').writeFileSync(process.argv[1], process.pid + ' ' + kid.pid);",
+      'setInterval(() => {}, 1000);',
+    ].join('\n');
+    const fakeSpawn = ((_cmd: string, _args: string[], opts: Record<string, unknown>) =>
+      spawn(process.execPath, ['-e', standIn, pidFile], opts)) as unknown as typeof spawn;
+    const { s } = streamer({ spawn: fakeSpawn, watchdogMs: 600_000 });
+    await s.update({ sources: TEST_SOURCES, destinations: { custom: { enabled: false } }, record: true });
+    await s.goLive();
+    await until(
+      () => existsSync(pidFile) && readFileSync(pidFile, 'utf8').trim().split(' ').length === 2,
+      15_000,
+      'the stand-in to start',
+    );
+    const [parent, child] = readFileSync(pidFile, 'utf8').trim().split(' ').map(Number) as [number, number];
+    expect(gone(parent)).toBe(false);
+    expect(gone(child)).toBe(false);
+    await s.stop();
+    await until(() => gone(parent) && gone(child), 5000, 'the whole tree to go');
+    expect(s.state().phase).toBe('idle');
+  }, 40_000);
 
   it('takes a preview restart and Go live in turn, so no FFmpeg is left running after Stop', async () => {
     const kids: ChildProcess[] = [];
