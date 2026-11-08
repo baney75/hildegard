@@ -36,7 +36,7 @@ test('lists the microphones and cameras by name once allowed, and remembers the 
   await page.getByRole('button', { name: 'Test' }).click();
   const mic = page.getByLabel('Microphone', { exact: true });
   await expect.poll(async () => (await mic.locator('option').allTextContents()).join('|')).toMatch(/fake/i);
-  await page.getByRole('radio', { name: 'Camera' }).click();
+  await page.getByRole('radio', { name: 'Camera', exact: true }).click();
   const cam = page.getByLabel('Camera', { exact: true });
   await expect.poll(async () => (await cam.locator('option').allTextContents()).join('|')).toMatch(/fake/i);
   const second = await mic.locator('option').nth(1).getAttribute('value');

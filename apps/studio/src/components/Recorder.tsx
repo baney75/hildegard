@@ -396,6 +396,7 @@ export function Recorder({
             Microphone
             <select
               className="hg-select"
+              aria-label="Microphone"
               value={rec.mic ?? ''}
               disabled={busy}
               onChange={(e) => rec.setMic(e.target.value || null)}
@@ -429,6 +430,7 @@ export function Recorder({
               Camera
               <select
                 className="hg-select"
+                aria-label="Camera"
                 value={rec.cam ?? ''}
                 disabled={busy}
                 onChange={(e) => rec.setCam(e.target.value || null)}

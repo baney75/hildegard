@@ -8,12 +8,17 @@
  * microphone, camera or a screen share until the person presses Record.
  */
 import { useEffect, useState } from 'react';
+import markGreen from '../assets/mark-green.svg';
 import markVellum from '../assets/mark-vellum.svg';
 import { Recorder, useInterview } from '../components/Recorder.tsx';
 import { Button, Icon } from '../components/ui.tsx';
 import { api, type RecordLinkInfo } from '../lib/api.ts';
 import { type Source, useStudioRecorder } from '../lib/capture.ts';
 import { useNow } from '../lib/hooks.ts';
+import { useTheme } from '../lib/theme.ts';
+
+/** The mark in green on vellum, in vellum on dark grounds, as the Studio draws it. */
+const useMark = () => (useTheme().theme === 'light' ? markGreen : markVellum);
 
 /** How often the page looks for a follow-up question. */
 const POLL_MS = 3000;
@@ -25,6 +30,7 @@ export function RecordPage({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [script, setScript] = useState('');
+  const mark = useMark();
 
   useEffect(() => {
     document.title = 'Record · Hildegard';
@@ -41,7 +47,7 @@ export function RecordPage({ token }: { token: string }) {
   if (!info)
     return (
       <main className="hg-phone-consent" id="main">
-        <img src={markVellum} alt="Hildegard" height={36} />
+        <img src={mark} alt="Hildegard" height={36} />
         {error ? (
           <div className="hg-stack" role="alert">
             <h1 className="st-h1">This link doesn’t work</h1>
@@ -104,6 +110,7 @@ function LinkRecorder({
     await api.recordAnswer(token, i, at, clip);
   });
   const now = useNow(!sent);
+  const mark = useMark();
 
   // An interview looks for follow-ups every few seconds while the page is open, and keeps its end time fresh.
   // biome-ignore lint/correctness/useExhaustiveDependencies: whether it is an interview, not each new list.
@@ -150,7 +157,7 @@ function LinkRecorder({
   if (sent)
     return (
       <main className="hg-phone-consent" id="main">
-        <img src={markVellum} alt="Hildegard" height={36} />
+        <img src={mark} alt="Hildegard" height={36} />
         <div className="hg-stack" role="status">
           <span className="hg-ok__icon">
             <Icon name="check" size={24} />
@@ -163,7 +170,7 @@ function LinkRecorder({
   if (left <= 0 && !on && rec.phase !== 'review')
     return (
       <main className="hg-phone-consent" id="main">
-        <img src={markVellum} alt="Hildegard" height={36} />
+        <img src={mark} alt="Hildegard" height={36} />
         <div className="hg-stack" role="alert">
           <h1 className="st-h1">This link has run out</h1>
           <p className="st-lead">Ask for a new one.</p>
@@ -181,7 +188,7 @@ function LinkRecorder({
   return (
     <main className="hg-recpage" id="main">
       <header className="hg-recpage__h">
-        <img src={markVellum} alt="Hildegard" height={28} />
+        <img src={mark} alt="Hildegard" height={28} />
         <div style={{ minWidth: 0 }}>
           <p className="hg-eyebrow">{what}</p>
           {info.purpose ? <h1 className="st-h2">{info.purpose}</h1> : null}

@@ -292,10 +292,11 @@ describe('an interview', () => {
     // Nobody signed in: the id isn't enough.
     expect((await there(null, `/api/record/${l.id}/interview`)).status).toBe(401);
     expect((await there(null, `/api/record/${l.id}/ask`, 'POST', { question: 'x?' })).status).toBe(401);
-    // The token, in place of the id, opens neither, signed in or not.
+    // The token, in place of the id, opens neither, signed in or not: refused before the route (401, or 403 for a
+    // path no director may use) or by it (404).
     for (const who of [null, greta]) {
-      expect([401, 404]).toContain((await there(who, `/api/record/${l.token}/interview`)).status);
-      expect([401, 404]).toContain(
+      expect([401, 403, 404]).toContain((await there(who, `/api/record/${l.token}/interview`)).status);
+      expect([401, 403, 404]).toContain(
         (await there(who, `/api/record/${l.token}/ask`, 'POST', { question: 'x?' })).status,
       );
     }

@@ -88,7 +88,7 @@ test('records a video with sound from the Record page in the sidebar, and keeps 
     .getByRole('navigation', { name: 'Main' })
     .getByRole('link', { name: 'Record', exact: true })
     .click();
-  await page.getByRole('radio', { name: 'Camera' }).click();
+  await page.getByRole('radio', { name: 'Camera', exact: true }).click();
   await page.getByRole('button', { name: 'Start recording' }).click();
   await page.getByRole('button', { name: /Start now/ }).click();
   await expect(page.getByLabel('Your camera')).toBeVisible();

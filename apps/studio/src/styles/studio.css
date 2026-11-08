@@ -479,3 +479,7 @@ label.hg-btn { cursor: pointer; }
   .hg-rec__live i { animation: none; }
   .hg-rec__meter i { transition: none; }
 }
+
+.hg-recpage { font-family: var(--font-sans); }
+.hg-rec__sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hg-rec__sources button { justify-content: center; }
