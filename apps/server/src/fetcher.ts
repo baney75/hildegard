@@ -34,6 +34,7 @@ export class ModelError extends Error {
     | 'corrupt'
     | 'network'
     | 'canceled'
+    | 'busy'
     | 'blocked';
   constructor(code: ModelError['code'], message: string) {
     super(message);

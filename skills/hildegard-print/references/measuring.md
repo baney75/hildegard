@@ -1,6 +1,6 @@
 # Measuring a real object: photos and listings
 
-Adapted from print3d's from-photo and from-listing guides by mfranzon (MIT; see THIRD_PARTY_NOTICES.md).
+Adapted from print3d's from-photo and from-listing guides by mfranzon (MIT; see `print3d-license.md` in this folder).
 
 The photo is evidence, and so is a shop's listing. `print_kit.py` writes the evidence down in `print-job/spec.json`:
 every number the model uses is measured off a photo, given by your user, quoted from a listing, or assumed with a
@@ -65,7 +65,7 @@ python print_kit.py outline front 860,700,1410,702,1408,1210,862,1208
 python print_kit.py outline top --mask top-cutout.png     # opaque or white on the object, the photo's size
 ```
 
-`python print_kit.py loop` then prints `views` (each outline in millimetres) and `evidence` for `loop_start`. Each
+`python print_kit.py loop` then prints `views` (each outline in millimetres) and `evidence` for `loop_start`; the `views` also go in the `spec.json` for `scripts/review_mesh.py`. Each
 round, the likeness check lays the model's silhouette over each outline: red is in the photo and missing from the
 model, blue is model the photo doesn't show. If it says the part matches better seen another way, turn the part, or
 fix that view's `--look` and `--up`. If the shape is right and the size isn't, fix the dimension that drives it, or

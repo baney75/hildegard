@@ -1,0 +1,1196 @@
+{
+  "label": "heldout2-blind",
+  "base": "main",
+  "cand": "new",
+  "models": ["haiku", "luna"],
+  "tasks": [
+    "d6-fire-pancakes",
+    "d7-sourdough-square",
+    "d8-bluegrass-lineup",
+    "v6-memorial-film",
+    "v7-ramen-winter",
+    "v8-pool-lifeguards"
+  ],
+  "summary": {
+    "design": {
+      "haiku": {
+        "cand": 2,
+        "base": 4,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 2,
+        "cand_rate": 0.33
+      },
+      "luna": {
+        "cand": 6,
+        "base": 0,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 3,
+        "tasks_lost": 0,
+        "cand_rate": 1.0
+      }
+    },
+    "video": {
+      "haiku": {
+        "cand": 5,
+        "base": 1,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 2,
+        "tasks_lost": 0,
+        "cand_rate": 0.83
+      },
+      "luna": {
+        "cand": 2,
+        "base": 4,
+        "tie": 0,
+        "n": 6,
+        "auto": 0,
+        "tasks_won": 1,
+        "tasks_lost": 2,
+        "cand_rate": 0.33
+      }
+    }
+  },
+  "skill_loaded": {
+    "main": {
+      "haiku": [6, 6],
+      "luna": [6, 6]
+    },
+    "new": {
+      "haiku": [4, 4],
+      "luna": [6, 6]
+    }
+  },
+  "skills_hash": {
+    "main": {
+      "unrecorded": 12
+    },
+    "new": {
+      "unrecorded": 12
+    }
+  },
+  "runs": {
+    "main": {
+      "haiku": {
+        "d6-fire-pancakes": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-art"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 13,
+            "is_error": false,
+            "seconds": 98,
+            "cost_usd_reported": 0.022097839999999997
+          },
+          "score": {
+            "task": "d6-fire-pancakes",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1275, 1650],
+            "pixel_std": 88.0,
+            "colors": 271,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 9767
+          }
+        },
+        "d7-sourdough-square": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard", "hildegard:hildegard-art"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 12,
+            "is_error": false,
+            "seconds": 63,
+            "cost_usd_reported": 0.017458150000000002
+          },
+          "score": {
+            "task": "d7-sourdough-square",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 36.8,
+            "colors": 100,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 6622
+          }
+        },
+        "d8-bluegrass-lineup": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-art"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 11,
+            "is_error": false,
+            "seconds": 120,
+            "cost_usd_reported": 0.01919908
+          },
+          "score": {
+            "task": "d8-bluegrass-lineup",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1200, 1800],
+            "pixel_std": 52.0,
+            "colors": 118,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 9095
+          }
+        },
+        "v6-memorial-film": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard/references/film-animation.md"
+            ],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 124,
+            "cost_usd_reported": 0.022208099999999998
+          },
+          "score": {
+            "task": "v6-memorial-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2538,
+            "has_table_or_list": true
+          }
+        },
+        "v7-ramen-winter": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md"
+            ],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 90,
+            "cost_usd_reported": 0.02116145
+          },
+          "score": {
+            "task": "v7-ramen-winter",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2491,
+            "has_table_or_list": true
+          }
+        },
+        "v8-pool-lifeguards": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 5,
+            "is_error": false,
+            "seconds": 157,
+            "cost_usd_reported": 0.02803604
+          },
+          "score": {
+            "task": "v8-pool-lifeguards",
+            "domain": "video",
+            "deliverable": true,
+            "words": 3294,
+            "has_table_or_list": true
+          }
+        }
+      },
+      "luna": {
+        "d6-fire-pancakes": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/code-rendering.md",
+              "hildegard/references/color.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 11,
+            "is_error": false,
+            "seconds": 125,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d6-fire-pancakes",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1275, 1650],
+            "pixel_std": 81.1,
+            "colors": 151,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 10331
+          }
+        },
+        "d7-sourdough-square": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/color.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 79,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d7-sourdough-square",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 22.1,
+            "colors": 50,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 4738
+          }
+        },
+        "d8-bluegrass-lineup": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft", "hildegard-web"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard*",
+              "hildegard/references/color.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 12,
+            "is_error": false,
+            "seconds": 119,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d8-bluegrass-lineup",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1200, 1800],
+            "pixel_std": 43.0,
+            "colors": 97,
+            "blank": false,
+            "external_refs": [],
+            "has_script": false,
+            "bytes": 6918
+          }
+        },
+        "v6-memorial-film": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/objects-materials.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/prompting.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 116,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v6-memorial-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 3009,
+            "has_table_or_list": true
+          }
+        },
+        "v7-ramen-winter": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/color.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/slop.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 9,
+            "is_error": false,
+            "seconds": 96,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v7-ramen-winter",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1594,
+            "has_table_or_list": true
+          }
+        },
+        "v8-pool-lifeguards": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard/references/drafting-storyboards.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 165,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v8-pool-lifeguards",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1736,
+            "has_table_or_list": true
+          }
+        }
+      }
+    },
+    "new": {
+      "haiku": {
+        "d6-fire-pancakes": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 6,
+            "is_error": false,
+            "seconds": 48,
+            "cost_usd_reported": 0.01025511
+          },
+          "score": {
+            "task": "d6-fire-pancakes",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1275, 1650],
+            "pixel_std": 84.1,
+            "colors": 174,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 6728
+          }
+        },
+        "d7-sourdough-square": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 43,
+            "cost_usd_reported": 0.009833799999999998
+          },
+          "score": {
+            "task": "d7-sourdough-square",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 36.3,
+            "colors": 44,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 1949
+          }
+        },
+        "d8-bluegrass-lineup": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard:hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [],
+            "tool_calls": 13,
+            "is_error": false,
+            "seconds": 91,
+            "cost_usd_reported": 0.018404619999999997
+          },
+          "score": {
+            "task": "d8-bluegrass-lineup",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1200, 1800],
+            "pixel_std": 69.5,
+            "colors": 153,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 6479
+          }
+        },
+        "v6-memorial-film": {
+          "meta": {},
+          "score": {
+            "task": "v6-memorial-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2890,
+            "has_table_or_list": true
+          }
+        },
+        "v7-ramen-winter": {
+          "meta": {},
+          "score": {
+            "task": "v7-ramen-winter",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2267,
+            "has_table_or_list": true
+          }
+        },
+        "v8-pool-lifeguards": {
+          "meta": {
+            "model": "haiku",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": [
+              "hildegard-video-edit",
+              "hildegard:hildegard-craft",
+              "hildegard:hildegard-film"
+            ],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md"
+            ],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 134,
+            "cost_usd_reported": 0.025591509999999998
+          },
+          "score": {
+            "task": "v8-pool-lifeguards",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2581,
+            "has_table_or_list": true
+          }
+        }
+      },
+      "luna": {
+        "d6-fire-pancakes": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": ["hildegard-craft/references/slop.md", "hildegard-design/references/*"],
+            "tool_calls": 11,
+            "is_error": false,
+            "seconds": 90,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d6-fire-pancakes",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1275, 1650],
+            "pixel_std": 56.2,
+            "colors": 162,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 5236
+          }
+        },
+        "d7-sourdough-square": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 10,
+            "is_error": false,
+            "seconds": 102,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d7-sourdough-square",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1080, 1080],
+            "pixel_std": 30.4,
+            "colors": 85,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 5638
+          }
+        },
+        "d8-bluegrass-lineup": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-design"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard",
+              "hildegard-craft",
+              "hildegard-design",
+              "hildegard/references/images.md",
+              "hildegard/references/pitfalls.md"
+            ],
+            "tool_calls": 14,
+            "is_error": false,
+            "seconds": 176,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "d8-bluegrass-lineup",
+            "domain": "design",
+            "deliverable": true,
+            "rendered": true,
+            "png_size": [1200, 1800],
+            "pixel_std": 45.5,
+            "colors": 88,
+            "blank": false,
+            "external_refs": ["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            "has_script": false,
+            "bytes": 6319
+          }
+        },
+        "v6-memorial-film": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 4,
+            "is_error": false,
+            "seconds": 83,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v6-memorial-film",
+            "domain": "video",
+            "deliverable": true,
+            "words": 2420,
+            "has_table_or_list": true
+          }
+        },
+        "v7-ramen-winter": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-craft/references/slop.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/sound-design.md"
+            ],
+            "tool_calls": 3,
+            "is_error": false,
+            "seconds": 61,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v7-ramen-winter",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1426,
+            "has_table_or_list": true
+          }
+        },
+        "v8-pool-lifeguards": {
+          "meta": {
+            "model": "luna",
+            "finished": true,
+            "error": null,
+            "skills_hash": null,
+            "skill_loaded": true,
+            "skills_loaded": ["hildegard", "hildegard-art", "hildegard-craft", "hildegard-film"],
+            "other_skills_loaded": [],
+            "references_read": [
+              "hildegard-craft/references/prompting.md",
+              "hildegard-film/references/slop.md",
+              "hildegard/references/film-animation.md",
+              "hildegard/references/pitfalls.md",
+              "hildegard/references/prompting.md",
+              "hildegard/references/sound-design.md",
+              "hildegard/references/video-editing.md"
+            ],
+            "tool_calls": 7,
+            "is_error": false,
+            "seconds": 83,
+            "cost_usd_reported": null
+          },
+          "score": {
+            "task": "v8-pool-lifeguards",
+            "domain": "video",
+            "deliverable": true,
+            "words": 1773,
+            "has_table_or_list": true
+          }
+        }
+      }
+    }
+  },
+  "verdicts": [
+    {
+      "model": "haiku",
+      "task": "d6-fire-pancakes",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "In A, the date card overlaps the bottom of the word \"Breakfast\" and cuts it off. That is a visible clipping fault right in the headline, and its van-like truck and crowded lower half add to the template feel. B has every fact correct, nothing overlaps, and its red serif headline reads clearly even on a phone. Its warm cream, red and gold palette and its fire engine illustration feel made for this fire company. B's one weakness is that Engine 12 and the takeout boxes are pushed into a small footer, but that costs less than A's broken headline.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d6-fire-pancakes",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B's headline 'Breakfast' runs under the white date card and gets cut off at the baseline, a visible overlap fault right at the top of the reading order. B also crams too much in and adds filler labels ('Each adult', 'Each child', 'Every plate helps'). A has every fact correct and neatly grouped, a clear order of serif title, then date, then the price grid, and nothing clipped. A's layout is more centered and conventional, but it reads as the more finished piece the client would be prouder of.",
+      "invented": {
+        "new": [],
+        "main": ["'Every plate helps' tagline", "'Engine 12 is parked out front' (brief says will be)"]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d7-sourdough-square",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both designs include every fact correctly and invent nothing. A has the stronger design: the Cormorant display type with old-style numerals, a sage italic accent, and a 36 / $9 / 60 stat row give it a deliberate, handmade feel that fits the bakery, while B is a plain, well-ordered stack of text with little visual character. A loses ground because its gradient loaf illustration looks a bit like a glossy clip-art bun, and the reserve line is small and low-contrast on a phone, where B's bold 'First bake: Friday, April 4' reads more clearly.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d7-sourdough-square",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both get every fact right and invent nothing. B reads better on a phone: its big 36 / $9 / 60 numbers and the green italic subtitle give it a clear order and more character than A's plain block of body text under a fine serif headline. B loses points for a glossy, clip-art-like loaf illustration and a faint, small reservation line, which keeps the margin slight.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d8-bluegrass-lineup",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "A reads like a real, worn letterpress bluegrass bill. The distressed western display face and typewriter text are a deliberate pairing, the date band stands out, and the headliners are big enough to read on a phone. B is clean and has every fact, but its flat vector barn-and-sun scene and plain slab-plus-serif stack feel template-like, with headliners much smaller than A's. A's flaws are minor: 'Tuckahoe / Strings' breaks across a line, the noon stamp repeats the gate time, and 'no pets' sits in the camping box.",
+      "invented": {
+        "main": [
+          "Tagline 'Come on down to the hollow. See you there.' (harmless sign-off, not a factual claim)"
+        ],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "d8-bluegrass-lineup",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both posters have every fact right, but B's textured wood-type and letterpress styling with its slab of red date banner suits the 'warm, a little worn, real' tone, while A's clean flat-vector barn-and-sun scene looks like a template. B also gives the headliners much more weight: each sits on its own full-width row in large type that reads easily on a phone, while A crams them into three narrow columns. B's small flaws are a gates-open stamp that crowds the title, 'Tuckahoe / Strings' split across a line break, and a harmless sign-off line, none of which outweigh its stronger hierarchy and character.",
+      "invented": {
+        "new": [],
+        "main": ["Sign-off line 'Come on down to the hollow. See you there.' (not a factual claim)"]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v6-memorial-film",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete and both edit lists add up to 60.0 s. B's frame-accurate timecodes and centred dissolves are correct to the frame. A puts a 1-second dip to black inside nearly every 4\u20135 s shot, so the film flickers to black about ten times. Its 'match on the warm lamp glow' cut out of the quilt shot also has no lamp in the quilt prompt to match. B mostly uses straight cuts, saves dissolves for the season changes, and adds real matches (snow porch into porch light). It also varies shot size more (a 100 mm macro of the finished flies), so its pacing and specificity are stronger. B has small flaws: 'no arms' sits next to a hands shot, and it mentions a 'sample template' and a 'craft guide'. A's continuity line also says 'no people' in the hands shot, and B's flaws weigh less than A's choppy dip-heavy edit.",
+      "invented": {
+        "main": ["Claim that Hildegard marks the export as AI-generated"],
+        "new": [
+          "Reference to a 'sample template' asking for sound effects and a 'craft guide' \u221216 LUFS target, neither of which is in the brief"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v6-memorial-film",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A's EDL is frame-accurate at 24 fps. It mostly uses straight cuts, saves 0.75 s centred dissolves for the season changes, gives a reason for each source trim, and its shot 10 to 11 match on the porch works. B puts a 1-second dip to black after nine of its eleven shots, which takes a fifth of each 4 to 5 s shot and makes the pacing choppy. B also has a match cut on a lamp glow that its quilt prompt never shows. B's prompts are weaker for the model: the 'no people' continuity line contradicts the hands in shot 5, it adds things models render badly (gulls on buoys, moths gathering), and every shot carries 'warm lamp amber', even the dawn exteriors. A's prompts are more self-contained and consistent, though A lets internal notes slip into the plan ('the sample template asks for effects', 'the craft guide's \u221216 target').",
+      "invented": {
+        "new": [
+          "reading glasses on the newspaper (detail not in brief)",
+          "lupine field and rowboat shots added as season imagery",
+          "film loops automatically (assumed playback behavior)"
+        ],
+        "main": [
+          "apple blossom, meadow and moth/gull details added",
+          "claim that the platform 'Hildegard' marks the export as AI-generated and the firm should disclose it",
+          "film loops automatically (assumed playback behavior)"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v7-ramen-winter",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete and both edit lists add up to exactly 15.00 s. A's on-screen text and voice-over line up with each matching picture (the $17 price lands on the egg, the 14-hour broth on the stockpot), so every fact, including the January 6 start, still comes through with the sound off. B shows the $17 bowl over the door shot, never puts the start date or the 14 hours on screen, and has risky prompts: three people at an exact count, a door that opens with nobody there, and a spoon entering the frame with 'no hands'. B does better on its shared colour-and-light line repeated in every prompt, its range of shot sizes and its use of the snowy-day line, but A's prompts are safer to generate and its edit carries the client's ask more reliably.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v7-ramen-winter",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans add up to exactly 15.00 s and invent no facts. A keeps the model output more consistent: it pastes the same continuity line (amber inside, blue dusk outside, dark wood, cream bowls) into every prompt, gives each shot its own lens and f-stop, and holds a 3 s closing card with the name and Exchange Street, where B shows only 'Mori Noodle Bar' for 0.8 s. B has the better text sync, putting the date on screen and each price over its own bowl, while A puts the $17 card over the door shot and asks for a spoon that moves with no hands. But B calls tonkotsu broth 'dark' and stacks hard-to-render transitions (a bowl-rim-to-egg match dissolve, a steam white-out, cuts through black).",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v8-pool-lifeguards",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete and their EDLs add up to exactly 20.00 s. B's prompts carry the camera and lens inside each prompt and repeat the person, place and light lines. Every brief fact is on screen in B, including the season dates. Its shots are tied to the message: the family walking off carries the pool pass, and the empty chair pulling back to the whole pool carries the ask. A leaves the season dates out of the video and puts them only in the caption. A also uses risky or weak shots: a crane over a crowd of many small swimmers, a towel stack that only loosely stands for the family pass, and a plain water end card. A also contradicts itself on the J-cut. B's own risks are smaller: a close hand action on the whistle cord, a tossed tube, and very dense on-screen text.",
+      "invented": {
+        "main": [],
+        "new": [
+          "Goal stated as '12 applications this month' (brief says hire 12 lifeguards)",
+          "Whistle blow SFX implying an action not shown in shot 1"
+        ]
+      }
+    },
+    {
+      "model": "haiku",
+      "task": "v8-pool-lifeguards",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A puts every fact from the brief on screen and keeps the subject, place and light the same across six shots. Each shot shows one simple action, and its EDL, VO, text and music timings all line up. B leaves the season dates (May 24 to August 17) out of the video and puts them only in the caption. B's prompts also ask for things video models do badly ('many small figures', exactly 'three lifeguards' side by side), and its cut notes contradict themselves: shot 1 cuts on a lifeguard stepping into frame when shot 1 has no lifeguard, and the splash is placed at 0:10.20 'on the cut' when that cut is at 0:12.00.",
+      "invented": {
+        "new": ["whistle blow SFX at 00:02.30 that shot 1's picture never shows"],
+        "main": [
+          "logo lockup placeholder not supplied by the client",
+          "lifeguards specified as 'about 17' years old"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d6-fire-pancakes",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B gets every fact right and in a clear order: a big two-tone slab title, then a full date line reading '7 a.m. to 11 a.m.', then large price tiles and a bold family-max bar, all of which still read at phone size. A's '7 a.m. \u2022 11 a.m.' turns the time range into something ambiguous. A also uses a church-style cross shield as the fire company's emblem, the 'ENGINE 12' label collides with the truck drawing, and its menu, mission and engine text is small. Both leave a large empty band near the bottom, but A's is bigger and its extra slogans make it feel more like a template.",
+      "invented": {
+        "main": [
+          "Tagline 'Neighbors helping neighbors'",
+          "'Come hungry'",
+          "'Good food. Good neighbors.'",
+          "'A good morning for a good cause'",
+          "Cross-on-shield emblem presented as the company's logo"
+        ],
+        "new": ["Tagline 'Neighbors helping neighbors'"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d6-fire-pancakes",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "A shows every fact plainly. Its prices, family max and takeout line are large enough to read on a phone, and the only addition is a mild 'Neighbors helping neighbors' sign-off; its weaknesses are a large empty band at the bottom and a slightly odd truck icon. B looks more designed, with a strong color-blocked header, but it adds a made-up shield with a cross that looks like a church emblem, plus several taglines the client didn't give. It also writes the time as '7 a.m. \u2022 11 a.m.', which is ambiguous, shrinks the prices and the takeout note to small text, and lets the 'ENGINE 12' label collide with the truck drawing.",
+      "invented": {
+        "new": ["'Neighbors helping neighbors' tagline"],
+        "main": [
+          "Shield-with-cross insignia/logo",
+          "'Neighbors helping neighbors' tagline",
+          "'A good morning for a good cause'",
+          "'Come hungry'",
+          "'Good food. Good neighbors.'",
+          "'A little firehouse fun with breakfast'"
+        ]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d7-sourdough-square",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "B includes every fact the viewer needs: it says 'sourdough', says 'only' for the Friday and Saturday bakes, and makes 'First bake Friday, April 4' the second thing you read, which suits a launch post. A never uses the word sourdough, tucks the launch date into small monospace type, repeats the $9 price, and adds a 'Made by hand, here' line. A has the more refined type and the better rosemary sprig, but B's facts and hierarchy win, even with its slightly clip-art loaf and the awkward text wrapping in its middle column.",
+      "invented": {
+        "main": ["Made by hand, here", "Slow dough"],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d7-sourdough-square",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "A includes every fact, including the word 'sourdough', and gives the first bake, Friday, April 4, a large second-level line that reads on a phone. B never says 'sourdough', squeezes the launch date into tiny mono caption text, and shows $9 twice. B's rosemary sprig, double frame and serif/mono pairing are more refined and less template-like than A's clip-art loaf, but A's completeness and clearer hierarchy decide it.",
+      "invented": {
+        "new": [],
+        "main": ["Made by hand, here (tagline not in brief)"]
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d8-bluegrass-lineup",
+      "domain": "design",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "A has a strong headline and illustration, but its content stops about two-thirds of the way down. That leaves roughly 500 px of empty cream at the bottom, and the camping box is mostly blank, so the poster looks unfinished at 24x36 and lopsided on a phone. B fills the whole canvas with a deliberate grid: each day gets its date and headliner, the also-playing list is easy to scan, and admission, camping and the house rules sit in a tidy footer. All the facts are correct. B's weakness is the name: 'Cedar Hollow' is small above a large 'Bluegrass Festival', and 'Cedar Hollow Park' appears twice. That's a smaller flaw than A's empty space.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "d8-bluegrass-lineup",
+      "domain": "design",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "B leaves the bottom third of the canvas almost empty because the content stops around y=1300, so the poster looks unfinished at print size and lopsided on a phone. A fills the page with a deliberate grid that gives each headliner its own day block. Its wordmark is smaller and it repeats 'Cedar Hollow Park' twice, but its hierarchy and composition hold together. Both posters include every fact and neither invents anything, though A's snow-capped peaks fit the Blue Ridge less well than B's pavilion and string lights.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v6-memorial-film",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete, and both EDLs add up to exactly 60 seconds (A uses twelve 5-second shots; B mixes 4- and 5-second shots and shows the sum). A wins on prompt discipline. Every prompt repeats the same continuity block word for word, so palette and light stay locked from shot to shot. It also follows the brief's 'seasons' idea with spring, summer, dusk and nightfall, and keeps hands to the single fly-tying shot, because the porch light comes on with no hand in frame. B has more varied cuts that match on motion, and its final room shot pulls the motifs together nicely. But it puts hands in four shots (pull chain, cup set-down, two fly shots), which is more risk for distorted hands. Its palette also drifts between prompts, for example a sudden 'faded red trim' and 'muted warm grey and brown', and it has almost no sense of seasons.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v6-memorial-film",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete and their EDLs add up to exactly 60 seconds. B follows the brief's 'life as seasons' idea with a dawn-to-dusk arc through spring and summer that ends back at the harbor where it began. Each of B's prompts is fully self-contained, with a continuity block pasted into every one, and it uses fewer hand-action shots (only the fly-tying), so the model has less to get wrong. A repeats each motif twice inside what plays as a single day. It has four separate hand shots, including a pull-chain gesture, even though its own notes say people appear only in shot 7. Its shot 11 transition also points to the card instead of shot 12. A does vary its cuts better, with straight cuts matched on motion where B uses near-uniform dissolves, but that doesn't outweigh B's better fit to the brief and safer prompts.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v7-ramen-winter",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "A's prompts are better suited to a video model: each shot has one simple action (the door opens, butter melts, two bowls sit still in steam) and no hands. B's shot 3 asks for hands setting down a bowl, a pull-back to occupied stools and a match cut, and its shot 1 stacks blowing snow, a door opening, a steam plume and a camera push into one clip. A also times the voice-over line by line and puts every fact from the brief into it, while B's VO leaves the date and hours to on-screen text. Against A: its final shot runs 6 seconds, which breaks its own rule of five seconds or less per clip, and its last VO line is too crowded to fit in 2.4 seconds. B's 5+5+5 is cleaner arithmetic and its continuity line is repeated word for word in every prompt.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v7-ramen-winter",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "main",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete, and both timelines add up to 15 seconds. B's prompts are easier for a video model to render: each shot has one action, a locked or near-locked camera and no hands, while A's Shot 3 asks for hands setting down a bowl, a pull-back and a reveal of occupied stools all at once. B's voice-over is also funnier and carries the start date and hours, which A's voice-over leaves to on-screen text. B's main fault is a 6-second Shot 3 that breaks its own five-second clip limit; that costs it some margin but is easy to fix as a static hold.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v8-pool-lifeguards",
+      "domain": "video",
+      "order": 0,
+      "A": "main",
+      "B": "new",
+      "winner": "new",
+      "margin": "slight",
+      "auto": false,
+      "why": "Both plans are complete, and both EDLs add up to exactly 20 seconds. B's voice-over and on-screen text carry every fact in the brief, including the $17 raise, the April 12\u201313 class dates and 'hiring 12'. A's voice-over leaves out the raise, the dates and the season. A also contradicts itself: Shot 2's transition matches to a 'certification card' that its prompt never generates, and Shot 4 is lit for 'late afternoon' against the late-morning continuity rule. A's paper schedule grid also invites pseudo-text. B's weaker points are a slow empty-pool opener, crowded text in Shot 2, and a two-hands training shot that risks bad hands.",
+      "invented": {
+        "main": [],
+        "new": []
+      }
+    },
+    {
+      "model": "luna",
+      "task": "v8-pool-lifeguards",
+      "domain": "video",
+      "order": 1,
+      "A": "new",
+      "B": "main",
+      "winner": "new",
+      "margin": "clear",
+      "auto": false,
+      "why": "Both plans are complete, and both timelines add up to 20.000 s. A's prompts hold continuity better: every outdoor shot uses the same late-morning light and the same red tube, ladder and white deck, and each transition matches what its prompt actually generates. B moves shot 4 to late afternoon, asks for an exact count (a parent and two teens), and puts a paper schedule grid in shot 3 that invites pseudo-text; its shot 1\u21922 match cut also depends on a 'certification card' that shot 2's prompt never mentions. A also puts every brief fact into both the voice-over and the captions, while B's voice-over drops the 12 openings, the $17 raise and the class dates, and shortens the pool pass to 'Bring the whole family for free', which is less exact than the brief.",
+      "invented": {
+        "new": [],
+        "main": []
+      }
+    }
+  ]
+}

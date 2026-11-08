@@ -1,0 +1,26 @@
+{
+  "name": "rain_roof_heavy",
+  "note": "Heavy rain on a roof: dense drops over a roar. Vary: intensity (0.6 to 1.0).",
+  "vary": ["intensity", "layers[1].strength", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "rain",
+      "intensity": 0.9,
+      "surface": "roof"
+    },
+    {
+      "type": "wind",
+      "strength": 0.3,
+      "gustiness": 0.5,
+      "gain_db": -16
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

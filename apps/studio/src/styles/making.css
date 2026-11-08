@@ -1,0 +1,39 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Making: takes fill the board at a size worth judging, and every take has its next step one tap away. */
+.hg-app:not([data-wc="compact"]) .cs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, max(280px, (100% - 48px) / 4)), 1fr)); gap: 20px 16px; }
+.hg-app:not([data-wc="compact"]) .cs-grid .cs-card { width: auto; max-width: 720px; }
+
+.cs-card__meta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; min-height: 32px; }
+.cs-card__meta > * { grid-column: 1 / -1; }
+.cs-card__meta > b { grid-column: 1; grid-row: 1; }
+.cs-quick { grid-column: 2; grid-row: 1; display: flex; gap: 4px; }
+.cs-quick__b { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background-color .16s ease, color .16s ease; }
+.cs-quick__b:hover { background: var(--raised); color: var(--text-primary); }
+.cs-quick__b[aria-pressed="true"] { color: var(--gold-text); }
+.cs-quick__b:disabled { opacity: .5; cursor: progress; }
+@media (pointer: coarse) { .cs-quick__b { width: 44px; height: 44px; } }
+
+.cs-folio__no { grid-row: 1 / -1; }
+.cs-folio .cs-grid { grid-column: 2; }
+.cs-folio__more { flex: none; align-self: center; }
+.cs-folio__h { align-items: center; }
+.cs-folio__t { flex: 0 1 auto; min-width: 0; max-width: 64ch; white-space: normal; text-wrap: pretty; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hg-app[data-wc="compact"] .cs-folio { grid-template-columns: 28px minmax(0, 1fr); }
+.hg-app[data-wc="compact"] .cs-folio__t { font-size: 18px; line-height: 24px; }
+
+/* On a phone, the composer is the prompt and Create on one line until you start writing; the board keeps the screen. */
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .cs-comp__box { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px; }
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .cs-comp__in { min-height: 44px; align-items: center; padding: 0; }
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .hg-pills,
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .cs-create small,
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .cs-comp__cost { display: none; }
+.hg-app[data-wc="compact"] .cs-comp[data-idle] .cs-comp__bar .cs-create { width: auto; min-width: 0; height: 44px; padding: 0 16px; }
+
+/* The composer sits below the board, never over it: every take stays in view, with no fade over the last row. */
+.hg-app.cs-v2 .cs-stage { display: flex; flex-direction: column; }
+.hg-app.cs-v2 .cs-board { flex: 1 1 auto; height: auto; min-height: 0; padding-bottom: 24px; scroll-padding-bottom: 24px; }
+.hg-app.cs-v2 .cs-board > .cs-folio { width: 100%; max-width: 1400px; margin-inline: auto; }
+.hg-app.cs-v2 .cs-comp { position: relative; inset: auto; flex: none; width: calc(100% - 64px); margin: auto auto 12px; }
+.hg-app.cs-v2[data-wc="compact"] .cs-comp { width: calc(100% - 20px); margin-bottom: 8px; }
+.hg-app.cs-v2[data-wc="compact"] .cs-board { padding-bottom: 16px; scroll-padding-bottom: 16px; }
+.hg-app.cs-v2 .cs-fade { display: none; }

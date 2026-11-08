@@ -1,7 +1,7 @@
 # The motion spec
 
 A spec is one JSON file. `spec.schema.json` (next to this file) describes every field; `motion.py --check` validates against
-it and then runs the checks that need measuring. This page says what each field does. Templates in `../templates/` are
+it and then runs the checks that need measuring. This page says what each field does. Templates in this skill's `templates/` folder are
 working examples of all of it.
 
 ```sh

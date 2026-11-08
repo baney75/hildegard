@@ -216,7 +216,7 @@ what each app made.
 
 Tools: `hildegard_status` (with recent takes and their ids), `list_presets`, `direct_shot`, `shot_status`,
 `get_shot`, `cancel_take`, `make_sequence`, `export_film` (with an optional `voiceover`), `install_model`, and for characters `list_characters`,
-`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link`, follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
+`create_character`, `make_character_stills` and `keep_still`. A chat that can’t use the microphone asks for `record_link` (a link that opens on this computer with nothing to set up, or `where: "phone"` with a QR code; `link_on` after a yes turns on a private Tailscale link only, and a public one is yours to turn on), follows it with `recording_status`, and cleans the voice with `clean_voice` ([docs/voice.md](docs/voice.md)). `direct_shot` takes a `film`: a film's id, or a title,
 which reuses the film with that title or makes one; and `characters`, to cast them. The loop (`loop_start`,
 `loop_submit`, `loop_critique`, `loop_finish`, `loop_status`) iterates a 3D model, a part to print, a web page, a
 still, a take or a sound until it passes ([docs/make.md](docs/make.md)), and `hildegard loop run codex "<idea>"
@@ -281,6 +281,7 @@ make on their own pages; Hildegard never makes one for you.
 
 ```sh
 hildegard tunnel                                   # where Tailscale and Cloudflare stand here, and what each needs
+hildegard tunnel auto                              # the best link this computer can make: Tailscale if signed in, else a quick tunnel
 hildegard tunnel tailscale                         # your own devices only (add --funnel for the public internet)
 hildegard tunnel cloudflare --hostname hildegard.example.com   # a name on your domain, through a named tunnel
 hildegard tunnel cloudflare --quick                # no account: a temporary trycloudflare.com name
@@ -397,6 +398,25 @@ saw (the right-most `X-Forwarded-For` entry), and by account name, so keep the h
 tunnel. `hildegard host off` removes the name again; the tunnel and the DNS record are
 yours to remove with `cloudflared tunnel delete hildegard`.
 
+## Posts, and a site that anyone can read
+
+A site Hildegard keeps (Sites in the Studio, or `site_new` from your AI app) can carry a blog and be shown to the
+public from your own computer.
+
+- **Posts.** Your AI app writes one with `site_post`: a title, the body in Markdown, and a byline such as
+  “By Jane Doe, with Hildegard”. Hildegard draws `blog/<slug>/index.html` from the site's own stylesheet and keeps
+  `blog/index.html` (newest first), `feed.xml` (RSS 2.0) and `sitemap.xml` current. Raw HTML in the body is shown as
+  text, never run. A draft gets its page with a noindex tag and stays out of the list, the feed and the sitemap. The
+  interview or notes behind a post are kept at `notes/<slug>.md` and are never served.
+- **Publishing.** Nothing is public until you say so: `hildegard sites publish <id>` (or `site_publish`, or
+  `PUT /api/sites/<id>/publish`), and `--off` takes it down. Only an owner can. A published site answers at `/s/<id>/`
+  with no sign-in, on this computer and on your link (`hildegard host`), and nowhere else: GET and HEAD only, only the
+  site's own pages and files, never `notes/`, drafts, `site.json` or a name that starts with a dot. Every page is
+  sandboxed, with no scripts unless the site has scripts of its own, and Hildegard's cookies are neither read nor sent
+  there. `--address https://example.com/` says where the front page lives on the web, so the feed and sitemap link to it.
+- **Your own voice.** Settings › Writing keeps samples of what you wrote and notes on how you write, for you alone.
+  See [docs/writing.md](docs/writing.md#your-own-voice).
+
 ## Render on another device
 
 A Mac or laptop without a big GPU can render on one of your other computers. Put both on your
@@ -410,7 +430,10 @@ hildegard choir invite
 It prints a short code, `HG-XXXX-XXXX` (good once, for 10 minutes), the address it is redeemed at, and the one command
 for the other computer; Settings › Devices › **Share this GPU** shows the same, large, with Copy and a countdown. A
 short code makes no key until it is used. For the long `hgc1_…` code (older builds, or pasting), run
-`hildegard choir invite --long` or press **Show long code**. On the other computer:
+`hildegard choir invite --long` or press **Show long code**. A script or an AI agent never prints or retypes either:
+on the other computer, `hildegard choir pair gpu-a` (an ssh name) does the whole join with the code passing from one
+process to the next, and `ssh gpu-a hildegard choir invite --code-only | hildegard choir join --code-stdin` is the same
+by hand. On the other computer:
 
 ```sh
 hildegard choir join HG-XXXX-XXXX --url http://100.x.y.z:7341   # gpu-a's address, as the invite prints it
@@ -474,13 +497,14 @@ hildegard models           Models, and whether they fit this GPU
 hildegard models install <id> [--accept-license]
 hildegard connect [<app>...] | disconnect <app>
 hildegard hf login | status | logout
-hildegard choir invite | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
+hildegard choir invite | pair <ssh-host> | join | list | use <device|local|auto> | leave <device> | opportunistic on|off
                | presence away|back | revoke
 hildegard tunnel [status] | tailscale [--funnel] | cloudflare [--hostname <name> | --quick | --login] | install cloudflare | off  (--signup)
 hildegard host [--funnel | --public-url https://<name>] | off | status | owner | invite [--role owner] | people | revoke <name> | limit <n>
 hildegard host code | key <name> | keys [revoke <name>]
 hildegard connect <app> --remote <link> --key-stdin
 hildegard llm | add <name> <address> | remove <name> | use <endpoint> [<model>] | direct "<idea>"
+hildegard sites publish <id> [--off] [--address <https://example.com/>]   Show a site to anyone at /s/<id>/, or take it down
 hildegard mcp [--remote <link>]   The MCP server, on stdio (AI apps run this); also at /mcp over HTTP
 ```
 

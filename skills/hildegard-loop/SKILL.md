@@ -10,7 +10,11 @@ the next attempt: Hildegard takes round two only after round one has been critiq
 the view, frame or check that shows it. Read **hildegard-craft** first; for 3D, **hildegard-3d**; for a part to
 print, **hildegard-print**; for a website, **hildegard-web**.
 
-## The four tools
+This skill works alone. The loop is a habit, not a program: render, look, answer honestly, change one thing. With
+Hildegard linked it is four tools that measure and draw each round (below). Without Hildegard, you run the same loop
+by hand, with the checkers bundled in `scripts/` (section "The loop by hand").
+
+## The four tools (with Hildegard linked)
 
 | Step | Tool | What happens |
 | --- | --- | --- |
@@ -21,6 +25,38 @@ print, **hildegard-print**; for a website, **hildegard-web**.
 
 `loop_status` shows a loop's rounds, critiques and changes. Rounds: 6 for a model, 5 for the web, 3 otherwise (`max_rounds` up to
 12). Every round stays in Hildegard, so your user can go back to an earlier one.
+
+## The loop by hand (without Hildegard)
+
+1. **Start.** Write `brief.md`: what it is for, what it is, three specifics, and the targets (size, length, bed,
+   loudness). Keep `rounds.md`: one entry per round with what you changed, what the checks said, your critique, and
+   the one change for the next round. Rounds: 6 for a model, 5 for a site, 3 otherwise.
+2. **Render** the round into its own file (`round-1.png`, `round-2.stl`), never over the last one.
+3. **Measure and draw it.** Write `spec.json` and run the checker for the kind. The checkers need Python packages;
+   install them once with `python3 -m pip install pillow numpy av` (the model checker needs only numpy and Pillow, `contact_sheet.py` only
+   Pillow, and a still image no PyAV). Without them, FFmpeg and `ffprobe` still give length, size, loudness and black
+   frames, and you judge the pictures by looking at them:
+
+   | Kind | Run | It gives you |
+   | --- | --- | --- |
+   | model | `{"path": "round-1.stl", "sheet": "sheet-1.png", "print": true, "size_mm": [40, 40, 120]}` then `python3 scripts/review_mesh.py spec.json` | the model checks as JSON, and eight views with silhouettes |
+   | image, video, audio | `{"path": "round-1.mp4", "sheet": "sheet-1.jpg", "final": false, "seconds": 8, "audio": true}` then `python3 scripts/review_media.py spec.json` | the media checks as JSON, and nine frames of a video |
+   | variants side by side | `python3 scripts/contact_sheet.py sheet.png a.png b.png c.png --title "Round 2"` | one labelled sheet to answer "B3" from |
+   | web | render each page at 390, 820 and 1440 px wide, light and dark, then audit them against the web checks below | the screens to look at |
+
+   Each checker prints `{"id", "status", "detail"}` for every check; `fail` comes first.
+
+   **Web checks.** Go down these against the screens and the files, `fail` rows first (warn where marked):
+   `loads`, `errors`: the page settles and no script throws. `overflow`: nothing wider than the screen. `contrast`: text
+   meets WCAG AA. `alt`, `images`: every image has `alt` and loads. `names`, `labels`: every button, link and field has a
+   name. `targets`: tap targets at least 44 × 44 px on a phone (warn). `text-size`, `measure`: body text 16 px or more,
+   lines under about 80 characters (warn). `fonts`, `headings`: three families at most, no skipped heading level, one
+   `h1` (warn). `head`: viewport meta and title (fail), description and language (warn). `placeholder`, `stock-copy`,
+   `emoji-icons`: no lorem ipsum, no "unlock the power of" copy, no emoji as icons. `offline`, `weight`, `image-size`: no
+   requests off the site, a light page, images no bigger than shown. `dark`, `motion`, `focus`: dark designed when asked
+   for, reduced motion respected, focus outlines kept.
+4. **Critique** exactly as below, and write it in `rounds.md`. Then change one thing and go to step 2.
+5. **Finish** with the best round, not always the last, and a note that says what it is and what still fails.
 
 ## How to critique
 
@@ -46,10 +82,10 @@ For a shot or a still, the loop wraps the renders you already make:
 3. Critique; change one thing in the prompt or the settings; render again with the same seed unless the seed is the
    change.
 
-## A coding agent that loops on its own
+## A coding agent that loops on its own (with Hildegard installed)
 
 Your user can hand a whole loop to a coding agent on their computer. Hildegard starts it with its MCP tools and these
-skills in a workspace of its own, within each provider's terms (`docs/agent-terms.md`):
+skills in a workspace of its own, within each provider's terms (https://github.com/baney75/hildegard/blob/main/docs/agent-terms.md):
 
 ```sh
 hildegard loop run codex "a standing heron finial, 120 mm, for an FDM print" --kind model --print --size 40x40x120

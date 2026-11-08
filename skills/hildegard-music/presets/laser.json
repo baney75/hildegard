@@ -1,0 +1,71 @@
+{
+  "name": "laser",
+  "note": "A zap that falls fast. Vary: layers[0].freq (1800 to 4000 Hz start), sweep.to (100 to 400 Hz), sweep.time (0.12 to 0.5 s; longer is a heavier beam).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "saw",
+      "freq": 2600,
+      "sweep": {
+        "to": 160,
+        "time": 0.28,
+        "curve": "fast"
+      },
+      "dur": 0.4,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 9000], [0.3, 2000]],
+        "q": 2.5
+      },
+      "env": {
+        "attack": 0.001,
+        "decay": 0.35,
+        "sustain": 0.0,
+        "release": 0.03
+      }
+    },
+    {
+      "source": "square",
+      "freq": 1300,
+      "sweep": {
+        "to": 80,
+        "time": 0.28,
+        "curve": "fast"
+      },
+      "pulse_width": 0.3,
+      "dur": 0.38,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.34,
+        "sustain": 0.0,
+        "release": 0.03
+      },
+      "gain_db": -8
+    },
+    {
+      "source": "white",
+      "dur": 0.03,
+      "filter": {
+        "type": "highpass",
+        "cutoff": 5000
+      },
+      "env": {
+        "attack": 0.0003,
+        "decay": 0.025,
+        "sustain": 0.0,
+        "release": 0.003
+      },
+      "gain_db": -10
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.12,
+      "room": 0.3
+    },
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}

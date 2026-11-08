@@ -1,0 +1,35 @@
+{
+  "name": "crickets_night",
+  "note": "A summer night: several crickets at different pitches and tempos that drift in and out of step, a hush of air behind them. Vary: count (2 to 10), pitch_hz (3500 to 5500), tempo (0.7 to 1.4), distance.",
+  "vary": ["count", "pitch_hz", "tempo", "distance", "minutes"],
+  "seed": 1,
+  "minutes": 10,
+  "layers": [
+    {
+      "type": "crickets",
+      "count": 7,
+      "pitch_hz": 4400,
+      "tempo": 1.0,
+      "distance": 0.5
+    },
+    {
+      "type": "noise",
+      "color": "pink",
+      "lowpass": 1500,
+      "gain_db": -20
+    },
+    {
+      "type": "wind",
+      "strength": 0.15,
+      "gustiness": 0.5,
+      "whistle": 0,
+      "gain_db": -20
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}

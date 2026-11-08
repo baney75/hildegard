@@ -238,16 +238,28 @@ describe('the skill packs', () => {
   it('makes one zip per skill, with the skill’s folder at the top', () => {
     expect(files).toHaveLength(skillNames().length + 2);
     const z = unzip(readFileSync(join(out, 'skill-hildegard-3d.zip')));
-    expect([...z.keys()].sort()).toEqual(['hildegard-3d/SKILL.md', 'hildegard-3d/scripts/mesh_kit.py']);
+    // Its own files, and the ones other skills share with it (skills/SHARED.json), so it works uploaded alone.
+    expect([...z.keys()].sort()).toEqual([
+      'hildegard-3d/SKILL.md',
+      'hildegard-3d/references/print3d-license.md',
+      'hildegard-3d/references/slop.md',
+      'hildegard-3d/scripts/mesh_kit.py',
+      'hildegard-3d/scripts/review_mesh.py',
+    ]);
     expect([...unzip(readFileSync(join(out, 'skill-hildegard-print.zip'))).keys()].sort()).toEqual([
       'hildegard-print/SKILL.md',
       'hildegard-print/references/measuring.md',
       'hildegard-print/references/parts-and-fits.md',
+      'hildegard-print/references/print3d-license.md',
+      'hildegard-print/scripts/mesh_kit.py',
       'hildegard-print/scripts/print_kit.py',
+      'hildegard-print/scripts/review_mesh.py',
     ]);
     // The web skill carries its templates, so an app with only the skill can start from one.
     const web = [...unzip(readFileSync(join(out, 'skill-hildegard-web.zip'))).keys()].sort();
-    expect(web.slice(0, 2)).toEqual(['hildegard-web/SKILL.md', 'hildegard-web/references/tokens.css']);
+    expect(web).toEqual(
+      expect.arrayContaining(['hildegard-web/SKILL.md', 'hildegard-web/references/tokens.css']),
+    );
     for (const t of ['atelier', 'gathering', 'hearth', 'journal', 'ledger', 'manual', 'parish', 'practice'])
       for (const f of ['index.html', 'styles.css', 'template.json'])
         expect(web).toContain(`hildegard-web/templates/${t}/${f}`);

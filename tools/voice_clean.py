@@ -361,6 +361,8 @@ def clean_file(src, out, target=DEFAULT_LUFS, peak=DEFAULT_PEAK, stage=lambda na
         raise CleanError("A recording with no picture is cleaned to a WAV file.")
     check_targets(target, peak)
     x = decode(src, 1)
+    # A sound that comes in after the picture does, or a timeline that starts late, keeps its place.
+    begins = 0.0 if ext == ".wav" else audio_start(src)
     margin = 0.0 if ext == ".wav" else LOSSY_MARGIN
     tmp = out + ".part" + ext
     try:
@@ -370,7 +372,7 @@ def clean_file(src, out, target=DEFAULT_LUFS, peak=DEFAULT_PEAK, stage=lambda na
                 write_wav(tmp, y)
                 break
             stage("Putting the picture back")
-            mux_with_video(src, tmp, y, ext)
+            mux_with_video(src, tmp, y, ext, begins)
             # What the file really says, after the codec.
             lufs, tp = measure(backend, decode(tmp, 1))
             if tp <= peak or attempt:
@@ -383,8 +385,75 @@ def clean_file(src, out, target=DEFAULT_LUFS, peak=DEFAULT_PEAK, stage=lambda na
     return {"lufs": lufs, "true_peak": tp, "seconds": round(y.shape[1] / RATE, 3), "backend": backend.name}
 
 
-def mux_with_video(src, out, y, ext):
-    """The source's picture, copied as it is, with `y` (1, samples) as its sound."""
+def audio_start(src):
+    """Seconds into the file at which its first audio packet begins (0 when it starts with the picture)."""
+    with av.open(src) as c:
+        if not c.streams.audio:
+            return 0.0
+        for pkt in c.demux(c.streams.audio[0]):
+            if pkt.pts is not None and pkt.size and pkt.stream.time_base is not None:
+                return max(0.0, float(pkt.pts * pkt.time_base))
+    return 0.0
+
+
+def encode_sound(stream, y, start=0.0):
+    """`y` (channels, samples) float32, encoded with `stream` into packets, its first sample `start` seconds in."""
+    layout = layout_of(y.shape[0])
+    stream.time_base = Fraction(1, RATE)
+    packets = []
+    fifo = av.AudioFifo()
+    size = stream.codec_context.frame_size or 1024
+    # A lossy codec starts its packets this many samples ahead of the first real one, and a container reports the
+    # packets' time, so a sound written to start at `start` is read back that much early unless it is added here.
+    stream.codec_context.open(strict=False)
+    pts = round(start * RATE) + (stream.codec_context.initial_padding if start else 0)
+
+    def flush(at_least):
+        nonlocal pts
+        while fifo.samples >= at_least and fifo.samples > 0:
+            fr = fifo.read(min(size, fifo.samples))
+            fr.pts = pts
+            fr.time_base = Fraction(1, RATE)
+            pts += fr.samples
+            packets.extend(stream.encode(fr))
+
+    step = 4096
+    for i in range(0, y.shape[1], step):
+        fr = av.AudioFrame.from_ndarray(
+            np.ascontiguousarray(y[:, i : i + step], dtype=np.float32), format="fltp", layout=layout
+        )
+        fr.sample_rate = RATE
+        fifo.write(fr)
+        flush(size)
+    flush(1)
+    packets.extend(stream.encode())
+    return packets
+
+
+def write_interleaved(dst, inp, vin, vout, sound):
+    """The picture's packets from `inp`, copied as they are, with the encoded `sound` between them in time order.
+
+    A muxer holds a stream back only so long (10 s by default); all the picture before any of the sound would leave
+    the sound far behind it."""
+
+    def at(pkt):
+        return float(pkt.dts * pkt.time_base)
+
+    nxt = 0
+    for pkt in inp.demux(vin):
+        if pkt.dts is None:
+            continue
+        while nxt < len(sound) and at(sound[nxt]) <= at(pkt):
+            dst.mux(sound[nxt])
+            nxt += 1
+        pkt.stream = vout
+        dst.mux(pkt)
+    for p in sound[nxt:]:
+        dst.mux(p)
+
+
+def mux_with_video(src, out, y, ext, start=0.0):
+    """The source's picture, copied as it is, with `y` (1, samples) as its sound, `start` seconds in as it was."""
     fmt = "webm" if ext == ".webm" else "mp4"
     codec = "libopus" if fmt == "webm" else "aac"
     with av.open(src) as inp, av.open(out, "w", format=fmt) as dst:
@@ -392,48 +461,8 @@ def mux_with_video(src, out, y, ext):
         vout = dst.add_stream_from_template(vin)
         ain = dst.add_stream(codec, rate=RATE, layout="mono")
         ain.bit_rate = 96000
-        ain.time_base = Fraction(1, RATE)
-        # The sound is encoded first, so the two can be written in time order. A muxer holds a stream back only so
-        # long (10 s by default); all the picture before any of the sound would leave the sound far behind it.
-        sound = []
-        fifo = av.AudioFifo()
-        size = ain.codec_context.frame_size or 1024
-        pts = 0
-
-        def flush(at_least):
-            nonlocal pts
-            while fifo.samples >= at_least and fifo.samples > 0:
-                fr = fifo.read(min(size, fifo.samples))
-                fr.pts = pts
-                fr.time_base = Fraction(1, RATE)
-                pts += fr.samples
-                sound.extend(ain.encode(fr))
-
-        step = 4096
-        for i in range(0, y.shape[1], step):
-            fr = av.AudioFrame.from_ndarray(
-                np.ascontiguousarray(y[:, i : i + step], dtype=np.float32), format="fltp", layout="mono"
-            )
-            fr.sample_rate = RATE
-            fifo.write(fr)
-            flush(size)
-        flush(1)
-        sound.extend(ain.encode())
-
-        def at(pkt):
-            return float(pkt.dts * pkt.time_base)
-
-        nxt = 0
-        for pkt in inp.demux(vin):
-            if pkt.dts is None:
-                continue
-            while nxt < len(sound) and at(sound[nxt]) <= at(pkt):
-                dst.mux(sound[nxt])
-                nxt += 1
-            pkt.stream = vout
-            dst.mux(pkt)
-        for p in sound[nxt:]:
-            dst.mux(p)
+        # The sound is encoded first, so the two can be written in time order.
+        write_interleaved(dst, inp, vin, vout, encode_sound(ain, y, start))
 
 
 def main(argv):
