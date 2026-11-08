@@ -8,6 +8,8 @@
  *   tunnel cloudflare --quick         a quick tunnel: no account, a trycloudflare.com name that changes each start
  *   tunnel cloudflare --login         sign this computer in to your Cloudflare account
  *   tunnel install cloudflare         fetch the pinned cloudflared into Hildegard's own folder
+ *   tunnel auto                       turn on the best link this computer can: Tailscale Serve if signed in, else a
+ *                                     quick tunnel if cloudflared is here, else say what is missing
  *   tunnel off                        turn the link off, and read back that nothing forwards here
  *
  * `--signup` with either provider opens its own page for a free account. Hildegard never makes an account, never
@@ -17,7 +19,7 @@ import { createInterface } from 'node:readline/promises';
 import type { HostState, TunnelReport } from '@hildegard/presets';
 import type { Step } from '@hildegard/runtime';
 import { api, type Ctx, ensureRunning, openInBrowser } from './commands.ts';
-import { FUNNEL_WARNING, hostOn } from './host.ts';
+import { FUNNEL_WARNING, host, hostOn } from './host.ts';
 import { type Result, result } from './output.ts';
 
 export const CLOUDFLARE_WARNING =
@@ -195,6 +197,32 @@ async function cloudflareLogin(ctx: Ctx): Promise<{ done: boolean; result?: Resu
   };
 }
 
+/**
+ * A public link is the person's own to turn on: they confirm it here, at a terminal. Without one it changes nothing,
+ * and the answer names no command that would skip the question (an AI app reading it in a pipe gets nothing to run).
+ */
+async function confirmPublic(ctx: Ctx, what: string): Promise<{ ok: true } | { ok: false; result: Result }> {
+  if (!ctx.json && process.stdin.isTTY) {
+    console.log(`This link would be public. ${what}\n`);
+    if (/^y(es)?$/i.test(await ask('Turn on a public link? [y/N] '))) return { ok: true };
+    return { ok: false, result: result([], 'Nothing was turned on.') };
+  }
+  return {
+    ok: false,
+    result: result(
+      [
+        {
+          id: 'public',
+          title: 'Confirm the public link',
+          status: 'needs-owner',
+          detail: `This link would be public. ${what} Only you can turn it on: tap “Record on your phone” in the Hildegard Studio, or type the command yourself at a terminal and answer its question.`,
+        },
+      ],
+      'A public link is yours to confirm; nothing was turned on.',
+    ),
+  };
+}
+
 async function tunnelCloudflare(ctx: Ctx, r: Report): Promise<Result> {
   const quick = ctx.flags.has('quick');
   let hostname = ctx.opts.get('hostname');
@@ -223,6 +251,8 @@ async function tunnelCloudflare(ctx: Ctx, r: Report): Promise<Result> {
   }
 
   if (quick) {
+    const yes = await confirmPublic(ctx, QUICK_WARNING);
+    if (!yes.ok) return yes.result;
     return hostOn(ctx, { via: 'quick' }, QUICK_WARNING);
   }
 
@@ -328,12 +358,105 @@ async function install(ctx: Ctx, what: string | undefined): Promise<Result> {
   }
 }
 
+/** The same type the server's link-on.ts answers with; the CLI only reads it. */
+interface LinkOnAnswer {
+  status: 'on' | 'needs-owner' | 'confirm' | 'failed';
+  already?: boolean;
+  via?: string;
+  url?: string;
+  private?: boolean;
+  temporary?: boolean;
+  message: string;
+  plan?: { route: string; public: boolean; id: string; ask: string };
+  steps: { id: string; title: string; detail: string; command?: string }[];
+}
+
+/**
+ * `tunnel auto`: the best link available, in one step. The server decides the route once and says which; a private
+ * one (Tailscale) is turned on, since you typed the command, and a public one only after you confirm it here, at a
+ * terminal. It never picks Funnel.
+ */
+async function auto(ctx: Ctx): Promise<Result> {
+  const ask = (plan?: string, acceptPublic?: boolean) =>
+    api<LinkOnAnswer>(ctx.config, '/api/link/on', {
+      method: 'POST',
+      body: { ...(plan ? { plan } : {}), ...(acceptPublic ? { acceptPublic } : {}) },
+      timeoutMs: 120_000,
+    });
+  // Asks for the plan, then does exactly that plan: the question and the action are one answer of the server's.
+  const settle = async (): Promise<{ answer: LinkOnAnswer } | { stop: Result }> => {
+    let a = await ask();
+    if (a.status === 'confirm' && a.plan) a = await ask(a.plan.id);
+    else if (a.status === 'needs-owner' && a.plan?.public) {
+      const yes = await confirmPublic(ctx, a.plan.ask);
+      if (!yes.ok) return { stop: yes.result };
+      a = await ask(a.plan.id, true);
+      // The computer changed since it was asked (Tailscale came up, say): that is a new question, and the one you
+      // answered was about another route, so nothing is turned on.
+      if (a.status === 'confirm' || (a.status === 'needs-owner' && a.plan?.public))
+        return {
+          stop: result(
+            [],
+            'The computer changed while you were confirming. Run `hildegard tunnel auto` again.',
+            {
+              ok: false,
+            },
+          ),
+        };
+    }
+    return { answer: a };
+  };
+  let a: LinkOnAnswer;
+  try {
+    const first = await settle();
+    if ('stop' in first) return first.stop;
+    a = first.answer;
+  } catch (e) {
+    const err = e as Error;
+    return result(
+      [{ id: 'link', title: 'Host at a link', status: 'failed', detail: err.message }],
+      err.message,
+    );
+  }
+  // At a terminal the owner account can be made right here; their passphrase is theirs to type.
+  if (a.status === 'needs-owner' && a.steps[0]?.id === 'owner' && process.stdin.isTTY && !ctx.json) {
+    const made = await host(ctx, ['owner']);
+    if (!made.ok || made.needsOwner) return made;
+    try {
+      const again = await settle();
+      if ('stop' in again) return again.stop;
+      a = again.answer;
+    } catch (e) {
+      a = { status: 'failed', message: (e as Error).message, steps: [] };
+    }
+  }
+  if (a.status === 'on')
+    return result(
+      [{ id: 'link', title: 'Host at a link', status: 'done', detail: a.message }],
+      `Open ${a.url} on your phone and sign in.${a.temporary ? ' It is temporary: turn it off with `hildegard tunnel off` when you are done.' : ''}`,
+      { url: a.url, via: a.via, private: a.private, temporary: a.temporary, already: a.already },
+    );
+  return result(
+    a.steps.length
+      ? a.steps.map((st) => ({
+          id: st.id,
+          title: st.title,
+          status: a.status === 'failed' ? ('failed' as const) : ('needs-owner' as const),
+          detail: st.detail,
+          ...(st.command ? { command: st.command } : {}),
+        }))
+      : [{ id: 'link', title: 'Host at a link', status: 'failed', detail: a.message }],
+    a.message,
+  );
+}
+
 export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
   const pre = await ensureRunning(ctx);
   if (pre?.status === 'failed') return result([pre], 'Hildegard isn’t running.');
   const action = args[0] ?? 'status';
 
   if (action === 'install') return install(ctx, args[1]);
+  if (action === 'auto') return auto(ctx);
 
   if (action === 'off') {
     const before = await report(ctx);
@@ -373,7 +496,7 @@ export async function tunnel(ctx: Ctx, args: string[]): Promise<Result> {
   if (action !== 'tailscale' && action !== 'cloudflare')
     return result(
       [],
-      'Use `hildegard tunnel`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
+      'Use `hildegard tunnel`, `tunnel auto`, `tunnel tailscale [--funnel]`, `tunnel cloudflare [--hostname <name> | --quick | --login]`, `tunnel install cloudflare`, `tunnel off`, or --signup with a provider.',
       { ok: false },
     );
   if (ctx.flags.has('signup')) return signup(ctx, action, r);

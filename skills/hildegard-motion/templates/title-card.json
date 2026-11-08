@@ -1,0 +1,116 @@
+{
+  "title": "Title card, then a lower third over a photo",
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "background": {
+      "type": "linear",
+      "angle": 160,
+      "stops": [{ "at": 0, "color": "#0b1020" }, { "at": 1, "color": "#231a4f" }]
+    }
+  },
+  "duration": 9.4,
+  "fonts": { "display": { "google": "Playfair Display" }, "body": { "google": "Inter" } },
+  "fade": { "in": 0.6, "out": 0.8 },
+  "scenes": [
+    {
+      "id": "title",
+      "duration": 5,
+      "layers": [
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.5,
+          "y": 0.355,
+          "w": 0.07,
+          "h": 0.006,
+          "fill": "#f2b84b",
+          "enter": { "type": "grow", "direction": "right", "duration": 0.7 }
+        },
+        {
+          "type": "text",
+          "text": "The Quiet Hours",
+          "font": "display",
+          "weight": 700,
+          "size": 13,
+          "color": "#ffffff",
+          "x": 0.5,
+          "y": 0.49,
+          "enter": { "type": "rise", "duration": 0.9, "delay": 0.3 }
+        },
+        {
+          "type": "text",
+          "text": "A short film about staying",
+          "font": "body",
+          "weight": 400,
+          "size": 3.8,
+          "letter_spacing": 0.25,
+          "color": "#b9c2e0",
+          "x": 0.5,
+          "y": 0.64,
+          "enter": { "type": "fade", "duration": 0.8, "delay": 1.0 }
+        }
+      ]
+    },
+    {
+      "id": "lower-third",
+      "duration": 4.8,
+      "transition": { "type": "crossfade", "duration": 0.4 },
+      "layers": [
+        { "type": "image", "file": "sample:dawn" },
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.5,
+          "y": 1.0,
+          "w": 1,
+          "h": 0.5,
+          "anchor": "bottom",
+          "fill": {
+            "type": "linear",
+            "angle": 0,
+            "stops": [{ "at": 0, "color": "#050814e6" }, { "at": 1, "color": "#05081400" }]
+          }
+        },
+        {
+          "type": "shape",
+          "shape": "rect",
+          "x": 0.075,
+          "y": 0.84,
+          "w": 0.0045,
+          "h": 0.13,
+          "anchor": "left",
+          "fill": "#f2b84b",
+          "enter": { "type": "wipe", "direction": "down", "duration": 0.5, "delay": 0.4 }
+        },
+        {
+          "type": "text",
+          "text": "Mara Ellison",
+          "font": "body",
+          "weight": 700,
+          "size": 5.4,
+          "color": "#ffffff",
+          "x": 0.095,
+          "y": 0.815,
+          "anchor": "left",
+          "align": "left",
+          "enter": { "type": "slide-from-left", "duration": 0.7, "delay": 0.6 }
+        },
+        {
+          "type": "text",
+          "text": "Director and editor",
+          "font": "body",
+          "weight": 400,
+          "size": 3.4,
+          "color": "#d9deee",
+          "x": 0.095,
+          "y": 0.885,
+          "anchor": "left",
+          "align": "left",
+          "enter": { "type": "slide-from-left", "duration": 0.7, "delay": 0.8 }
+        }
+      ]
+    }
+  ]
+}

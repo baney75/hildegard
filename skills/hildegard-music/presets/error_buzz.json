@@ -1,0 +1,59 @@
+{
+  "name": "error_buzz",
+  "note": "A short low double buzz for a refused action. Vary: layers[0].freq (90 to 180 Hz), events.interval (0.15 to 0.3), filter.cutoff (900 to 2500 Hz; lower is softer).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "saw",
+      "freq": 140,
+      "dur": 0.13,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 1500,
+        "q": 1.4
+      },
+      "distortion": {
+        "type": "tanh",
+        "drive_db": 8,
+        "mix": 0.7
+      },
+      "env": {
+        "attack": 0.004,
+        "decay": 0.0,
+        "sustain": 1.0,
+        "release": 0.015
+      },
+      "events": {
+        "count": 2,
+        "interval": 0.17
+      }
+    },
+    {
+      "source": "square",
+      "freq": 147,
+      "dur": 0.13,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 900,
+        "q": 0.9
+      },
+      "env": {
+        "attack": 0.004,
+        "decay": 0.0,
+        "sustain": 1.0,
+        "release": 0.015
+      },
+      "gain_db": -4,
+      "events": {
+        "count": 2,
+        "interval": 0.17
+      }
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}

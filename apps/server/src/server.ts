@@ -167,7 +167,7 @@ async function serveStudio(
     tunnelSecrets?: (account: string) => SecretStore;
     /** cloudflared's home for cert.pem, the Cloudflare sign-in; the user's home by default. */
     tunnelHome?: string;
-    /** The clock for short codes and their limits: tests give a fake one. */
+    /** The clock for short codes, their limits and sign-in sessions: tests give a fake one. */
     now?: () => number;
     /** Sign-in attempts allowed in 15 minutes, per account and per address. */
     limits?: { perName: number; perClient: number };
@@ -442,7 +442,7 @@ async function serveStudio(
   });
 
   // People who sign in from other devices, and the link they reach this Hildegard at.
-  const people = new People({ dataDir: config.dataDir });
+  const people = new People({ dataDir: config.dataDir, now: opts.now });
   const grants = new Grants({ dataDir: config.dataDir, person: (id) => people.get(id) });
   const signer = new MediaSigner({ dataDir: config.dataDir });
   const llm = new LocalModels({ dataDir: config.dataDir, secrets: secretsFor, ...opts.llm });
@@ -699,6 +699,7 @@ async function serveStudio(
     people,
     host,
     cloudflared,
+    listeningPort: () => port,
     limits: opts.limits,
     grants,
     signer,

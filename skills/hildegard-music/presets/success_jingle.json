@@ -1,0 +1,79 @@
+{
+  "name": "success_jingle",
+  "note": "A rising four-note major arpeggio with a held top note: task done. Vary: the freq values (C5 E5 G5 C6 is C major; shift all four by the same ratio to change key), the starts (0.07 to 0.14 apart).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "triangle",
+      "freq": "C5",
+      "dur": 0.4,
+      "env": {
+        "attack": 0.004,
+        "decay": 0.35,
+        "sustain": 0.0,
+        "release": 0.02
+      }
+    },
+    {
+      "source": "triangle",
+      "freq": "E5",
+      "start": 0.09,
+      "dur": 0.4,
+      "env": {
+        "attack": 0.004,
+        "decay": 0.35,
+        "sustain": 0.0,
+        "release": 0.02
+      }
+    },
+    {
+      "source": "triangle",
+      "freq": "G5",
+      "start": 0.18,
+      "dur": 0.4,
+      "env": {
+        "attack": 0.004,
+        "decay": 0.35,
+        "sustain": 0.0,
+        "release": 0.02
+      }
+    },
+    {
+      "source": "fm",
+      "freq": "C6",
+      "start": 0.27,
+      "fm": {
+        "ratio": 2.0,
+        "index_points": [[0, 1.6], [0.6, 0.2], [1.2, 0]]
+      },
+      "dur": 1.2,
+      "env": {
+        "points": [[0, 1], [0.03, 0.9], [1.2, 0]],
+        "curve": "exp"
+      }
+    },
+    {
+      "source": "sine",
+      "freq": "C7",
+      "start": 0.27,
+      "dur": 0.9,
+      "env": {
+        "attack": 0.002,
+        "decay": 0.848,
+        "sustain": 0.0,
+        "release": 0.05
+      },
+      "gain_db": -14
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.22,
+      "room": 0.5
+    },
+    "loudness": {
+      "lufs": -20,
+      "true_peak": -1
+    }
+  }
+}

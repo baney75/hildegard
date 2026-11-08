@@ -1,0 +1,82 @@
+{
+  "name": "camera_shutter",
+  "note": "A single-lens-reflex shutter: mirror slap then curtain. Vary: layers[3].start (0.05 to 0.12 gap between the two clicks), the bandpass cutoffs (higher is a smaller camera).",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "white",
+      "dur": 0.02,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 2300,
+        "q": 1.6
+      },
+      "env": {
+        "attack": 0.0002,
+        "decay": 0.0178,
+        "sustain": 0.0,
+        "release": 0.002
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 900,
+      "sweep": {
+        "to": 380,
+        "time": 0.015
+      },
+      "dur": 0.03,
+      "env": {
+        "attack": 0.0005,
+        "decay": 0.0275,
+        "sustain": 0.0,
+        "release": 0.002
+      },
+      "gain_db": -6
+    },
+    {
+      "source": "pink",
+      "dur": 0.05,
+      "start": 0.07,
+      "filter": {
+        "type": "bandpass",
+        "cutoff": 1500,
+        "q": 1.3
+      },
+      "env": {
+        "attack": 0.0004,
+        "decay": 0.045,
+        "sustain": 0.0,
+        "release": 0.004
+      },
+      "gain_db": -3
+    },
+    {
+      "source": "sine",
+      "freq": 260,
+      "sweep": {
+        "to": 150,
+        "time": 0.03
+      },
+      "start": 0.07,
+      "dur": 0.07,
+      "env": {
+        "attack": 0.001,
+        "decay": 0.06,
+        "sustain": 0.0,
+        "release": 0.005
+      },
+      "gain_db": -8
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.06,
+      "room": 0.2
+    },
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}

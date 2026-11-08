@@ -1,0 +1,135 @@
+{
+  "name": "corporate_upbeat",
+  "note": "Bright, forward-moving corporate bed: four-on-the-floor drums, synth bass, piano chords, a bell hook. Vary: tempo (104 to 128), key, melody degrees, drop the melody track for an under-voice bed.",
+  "vary": [
+    "tempo 104 to 128",
+    "key",
+    "mute the melody track under speech",
+    "tracks[3].instrument pluck_synth or harp"
+  ],
+  "seed": 21,
+  "tempo": 116,
+  "key": "C major",
+  "time": "4/4",
+  "length_s": 42,
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 2,
+      "chords": ["I", "V"]
+    },
+    {
+      "name": "verse",
+      "bars": 8,
+      "chords": ["I", "V", "vi", "IV"]
+    },
+    {
+      "name": "chorus",
+      "bars": 8,
+      "chords": ["IV", "I", "V", "vi", "IV", "I", "V", "V"]
+    },
+    {
+      "name": "tag",
+      "bars": 2,
+      "chords": ["I", "I"]
+    }
+  ],
+  "tracks": [
+    {
+      "role": "drums",
+      "kit": "electronic",
+      "fill": true,
+      "level_db": -9,
+      "sections": {
+        "intro": {
+          "pattern": "kick_only",
+          "gain_db": -3
+        },
+        "verse": "corporate",
+        "chorus": "corporate",
+        "tag": {
+          "pattern": "kick_only",
+          "gain_db": -3
+        }
+      }
+    },
+    {
+      "role": "bass",
+      "instrument": "synth_bass",
+      "level_db": -3,
+      "duck": 2.5,
+      "sections": {
+        "verse": "eighths",
+        "chorus": {
+          "pattern": "eighths",
+          "gain_db": 1
+        },
+        "tag": "root"
+      }
+    },
+    {
+      "role": "keys",
+      "instrument": "piano",
+      "level_db": -7,
+      "duck": 2,
+      "sections": {
+        "verse": {
+          "pattern": "quarters",
+          "gain_db": -4
+        },
+        "chorus": "quarters",
+        "tag": "sustain"
+      }
+    },
+    {
+      "role": "plucked",
+      "instrument": "pluck_synth",
+      "pan": 0.3,
+      "level_db": -8,
+      "sections": {
+        "verse": "arp_up",
+        "chorus": "arp_16"
+      }
+    },
+    {
+      "role": "pad",
+      "instrument": "strings",
+      "duck": 5,
+      "sections": {
+        "intro": "swell",
+        "verse": {
+          "pattern": "sustain",
+          "gain_db": -3
+        },
+        "chorus": "sustain",
+        "tag": "sustain"
+      }
+    },
+    {
+      "role": "melody",
+      "instrument": "bell",
+      "level_db": 0,
+      "sections": {
+        "verse": {
+          "melody": "5:0.5 3:0.5 5:1 1^:2 | 7:1 5:1 2^:2 | 1^:1 6:1 3:1 6:1 | 4:2 5:1 6:1",
+          "gain_db": -3
+        },
+        "chorus": "6:1 6:1 1^:2 | 5:1 3:1 5:2 | 7:1 7:1 2^:2 | 1^:2 6:2 | 6:1 1^:1 3^:2 | 5:1 5:1 1^:2 | 2^:1 7:1 5:2 | 5:4",
+        "tag": "3:1 5:1 1^:2 | 1^:4"
+      }
+    }
+  ],
+  "humanize": {
+    "timing_ms": 6,
+    "velocity": 0.06
+  },
+  "mix": {
+    "reverb": {
+      "room": 0.4,
+      "level_db": -7
+    }
+  },
+  "master": {
+    "fade_out": 0.8
+  }
+}

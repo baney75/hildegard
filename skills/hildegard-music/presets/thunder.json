@@ -1,0 +1,55 @@
+{
+  "name": "thunder",
+  "note": "Distant rolling thunder. Vary: the lowpass cutoff points (a lower start is farther away), dur (3 to 8 s), reverb.room.",
+  "seed": 1,
+  "layers": [
+    {
+      "source": "brown",
+      "stereo": true,
+      "dur": 6.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": [[0, 900], [0.4, 450], [2.5, 220], [6.0, 90]],
+        "q": 0.8,
+        "lfo": {
+          "rate": 1.3,
+          "octaves": 0.5
+        }
+      },
+      "env": {
+        "points": [[0, 0.02], [0.25, 1], [0.9, 0.45], [1.7, 0.8], [3.0, 0.3], [6.0, 0.02]],
+        "curve": "exp"
+      }
+    },
+    {
+      "source": "pink",
+      "stereo": true,
+      "dur": 2.0,
+      "filter": {
+        "type": "lowpass",
+        "cutoff": 700,
+        "q": 0.8
+      },
+      "env": {
+        "points": [[0, 0], [0.1, 1], [2.0, 0]],
+        "curve": "exp"
+      },
+      "gain_db": -12
+    }
+  ],
+  "master": {
+    "reverb": {
+      "mix": 0.25,
+      "room": 0.85,
+      "damp": 0.7
+    },
+    "tail": 0.8,
+    "fade": {
+      "out": 0.6
+    },
+    "loudness": {
+      "lufs": -22,
+      "true_peak": -1
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "forest_night",
+  "note": "A forest at night: crickets, a creek, a faint wind and a very soft pad. Vary: each layer's gain_db, crickets count, creek flow.",
+  "vary": ["each layer's gain_db", "layers[0].count", "layers[1].flow", "minutes"],
+  "seed": 1,
+  "minutes": 20,
+  "layers": [
+    {
+      "type": "crickets",
+      "count": 6,
+      "distance": 0.6,
+      "gain_db": 0
+    },
+    {
+      "type": "creek",
+      "flow": 0.4,
+      "brightness": 0.4,
+      "gain_db": -6
+    },
+    {
+      "type": "wind",
+      "strength": 0.2,
+      "gustiness": 0.6,
+      "whistle": 0,
+      "gain_db": -16
+    },
+    {
+      "type": "pad",
+      "notes": ["D2", "A2", "F3"],
+      "gain_db": -14
+    }
+  ],
+  "master": {
+    "loudness": {
+      "lufs": -24,
+      "true_peak": -1
+    }
+  }
+}
