@@ -38,6 +38,8 @@ export const PostSite = z.object({
   domains: z.array(Host).min(1),
   /** What its sign-in flow uses besides its own domains: captchas and bot checks included. */
   auth: z.array(AuthEntry),
+  /** The site's link redirectors (`t.co`): a link through one goes to the system browser. */
+  outbound: z.array(Host).default([]),
   /**
    * `app`: the link opens the site's window in the Hildegard app. `browser`: the site (Google's) does not allow
    * signing in inside an app, so links from the Studio open the system browser.

@@ -57,7 +57,7 @@ export function Browse() {
                   </a>
                   {s.opensIn === 'browser' ? (
                     <small className="muted">
-                      Google doesn’t allow signing in inside an app, so posting here opens your browser
+                      Google doesn’t allow signing in inside an app, so this opens in your browser
                     </small>
                   ) : null}
                 </li>
@@ -99,8 +99,9 @@ export function Browse() {
               Add a site
             </h2>
             <p className="body-sm muted">
-              An https address. The window shows that site and its subdomains; everything else opens in your
-              browser. This works from the computer Hildegard runs on.
+              An https address. The window shows that site and its subdomains. A link elsewhere opens in your
+              browser when it asks for a new window, and does nothing otherwise; to leave, use “Open in your
+              browser” in the site’s menu. This works from the computer Hildegard runs on.
             </p>
             <div className="hg-postdlg__two">
               <label className="hg-field--block" htmlFor={nameId}>

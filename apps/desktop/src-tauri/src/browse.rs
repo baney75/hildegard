@@ -41,6 +41,10 @@ pub struct Site {
   /// What its sign-in uses besides its own domains: a domain (and its subdomains), or a host and the start of a path,
   /// `www.google.com/recaptcha/`, for one part of a host that is otherwise somebody else's.
   pub auth: Vec<String>,
+  /// The site's link redirectors (`t.co`, `l.facebook.com`), and their subdomains: a link through one leaves the site,
+  /// so it goes to the system browser even on a domain of the site's own.
+  #[serde(default)]
+  pub outbound: Vec<String>,
   pub opens_in: OpensIn,
 }
 
@@ -91,6 +95,7 @@ pub fn custom_site(id: &str, name: &str, url: &str) -> Option<Site> {
     post: u.to_string(),
     domains: vec![own],
     auth: vec![],
+    outbound: vec![],
     opens_in: OpensIn::App,
   })
 }
@@ -202,6 +207,9 @@ pub fn route(site: &Site, url: &Url) -> Route {
   if is_google_sign_in(url) {
     return Route::GoogleSignIn;
   }
+  if host_in(host, &site.outbound) {
+    return Route::System;
+  }
   // The default port only: another port on a site's name is not the site.
   let on_site =
     url.port().is_none() && (host_in(host, &site.domains) || site.auth.iter().any(|a| auth_allows(a, host, url)));
@@ -237,6 +245,46 @@ pub fn studio_link<'a>(url: &Url, sites: &'a [Site]) -> Option<&'a Site> {
   let host = url.host_str()?;
   let site = sites.iter().find(|s| host_in(host, &s.domains))?;
   (site.opens_in == OpensIn::App && route(site, url) == Route::Allow).then_some(site)
+}
+
+/// Which sites' windows are being opened, and which have their frame check in. One open of a site runs at a time, and
+/// a window is sent to a page only once its check is in, so no page loads in it before the check (Windows) does.
+#[derive(Default)]
+pub struct Openings(std::sync::Mutex<(std::collections::HashSet<String>, std::collections::HashSet<String>)>);
+
+/// An open of one site's window under way; dropping it ends it.
+pub struct Opening<'a> {
+  all: &'a Openings,
+  id: String,
+}
+
+impl Openings {
+  /// Starts an open of `id`'s window, or `None` while another is under way: that one shows the window.
+  pub fn begin(&self, id: &str) -> Option<Opening<'_>> {
+    self.0.lock().unwrap().0.insert(id.to_owned()).then(|| Opening { all: self, id: id.to_owned() })
+  }
+
+  /// Whether `id`'s window has its check in and may go to a page.
+  pub fn checked(&self, id: &str) -> bool {
+    self.0.lock().unwrap().1.contains(id)
+  }
+}
+
+impl Opening<'_> {
+  /// A new window is being made: unchecked until `done`, and for good if that never comes.
+  pub fn making(&self) {
+    self.all.0.lock().unwrap().1.remove(&self.id);
+  }
+
+  pub fn done(&self) {
+    self.all.0.lock().unwrap().1.insert(self.id.clone());
+  }
+}
+
+impl Drop for Opening<'_> {
+  fn drop(&mut self) {
+    self.all.0.lock().unwrap().0.remove(&self.id);
+  }
 }
 
 /// A site's window label.
@@ -325,6 +373,34 @@ mod tests {
 
   fn site(id: &str) -> Site {
     catalog().into_iter().find(|s| s.id == id).unwrap()
+  }
+
+  #[test]
+  fn link_redirectors_open_new_windows_in_the_browser() {
+    assert_eq!(route(&site("x"), &u("https://t.co/abc")), Route::System);
+    assert_eq!(route(&site("facebook"), &u("https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com")), Route::System);
+    assert_eq!(route(&site("linkedin"), &u("https://lnkd.in/abc")), Route::System);
+    assert!(!navigates(&site("x"), &u("https://t.co/abc")));
+    assert!(navigates(&site("facebook"), &u("https://www.facebook.com/")));
+  }
+
+  #[test]
+  fn one_open_of_a_site_at_a_time_and_no_page_before_its_check() {
+    let o = Openings::default();
+    let first = o.begin("x").unwrap();
+    first.making();
+    // A second open while the first is making the window does nothing, and the window isn't sent anywhere.
+    assert!(o.begin("x").is_none());
+    assert!(!o.checked("x"));
+    assert!(o.begin("tiktok").is_some());
+    first.done();
+    drop(first);
+    assert!(o.checked("x"));
+    let again = o.begin("x").unwrap();
+    again.making();
+    drop(again);
+    assert!(!o.checked("x"));
+    assert!(o.begin("x").is_some());
   }
 
   #[test]

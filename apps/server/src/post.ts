@@ -398,17 +398,28 @@ export function wordsFile(label: string, title: string | null, caption: string):
   return `${label}\n\n${title ? `Title\n${title}\n\n` : ''}${title ? 'Description' : 'Caption'}\n${caption}\n`;
 }
 
+/**
+ * The command that shows `path` in the file manager. explorer.exe reads `/select,` only when it is outside the quotes,
+ * so on Windows the argument goes as written, with the path quoted inside it: "Ready to post" has spaces.
+ */
+export function revealCommand(path: string, platform: NodeJS.Platform, isDir: () => boolean) {
+  if (platform === 'darwin') return { cmd: 'open', args: ['-R', path], verbatim: false };
+  if (platform === 'win32') return { cmd: 'explorer.exe', args: [`/select,"${path}"`], verbatim: true };
+  return { cmd: 'xdg-open', args: [isDir() ? path : dirname(path)], verbatim: false };
+}
+
 /** Shows a file (or opens a folder) in the computer's file manager. Never waits for it, and a failure is no one's problem. */
 export function revealInFolder(path: string, platform: NodeJS.Platform = process.platform) {
   // The end-to-end tests run on someone's own desktop: they must not open its file manager.
   if (process.env.HILDEGARD_NO_REVEAL) return;
-  let cmd: string;
-  let args: string[];
-  if (platform === 'darwin') [cmd, args] = ['open', ['-R', path]];
-  else if (platform === 'win32') [cmd, args] = ['explorer.exe', [`/select,${path}`]];
-  else [cmd, args] = ['xdg-open', [statSync(path).isDirectory() ? path : dirname(path)]];
   try {
-    spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true })
+    const { cmd, args, verbatim } = revealCommand(path, platform, () => statSync(path).isDirectory());
+    spawn(cmd, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      windowsVerbatimArguments: verbatim,
+    })
       .on('error', () => {})
       .unref();
   } catch {}

@@ -12,6 +12,7 @@
         "www.recaptcha.net/recaptcha/",
         "recaptcha.google.com/recaptcha/"
       ],
+      "outbound": ["t.co"],
       "opensIn": "app"
     },
     {
@@ -43,6 +44,7 @@
         "www.google.com/recaptcha/",
         "recaptcha.google.com/recaptcha/"
       ],
+      "outbound": ["l.instagram.com", "l.facebook.com"],
       "opensIn": "app"
     },
     {
@@ -68,6 +70,7 @@
       "post": "https://www.facebook.com/",
       "domains": ["facebook.com", "fb.com", "fbcdn.net", "messenger.com", "facebook.net"],
       "auth": ["meta.com", "fbsbx.com", "www.google.com/recaptcha/", "recaptcha.google.com/recaptcha/"],
+      "outbound": ["l.facebook.com"],
       "opensIn": "app"
     },
     {
@@ -83,6 +86,7 @@
         "www.google.com/recaptcha/",
         "recaptcha.google.com/recaptcha/"
       ],
+      "outbound": ["l.threads.com", "l.threads.net", "l.instagram.com", "l.facebook.com"],
       "opensIn": "app"
     },
     {
@@ -101,6 +105,7 @@
       "post": "https://www.linkedin.com/feed/",
       "domains": ["linkedin.com", "licdn.com", "lnkd.in"],
       "auth": ["appleid.apple.com"],
+      "outbound": ["lnkd.in"],
       "opensIn": "app"
     }
   ]

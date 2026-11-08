@@ -46,10 +46,10 @@ captions its app draws over the picture.
 
 ## Your sites, inside Hildegard
 
-In the Hildegard app, a **Browse** menu (in the tray, and in the menu bar on macOS) opens X, YouTube, Instagram, TikTok,
+In the Hildegard app, a **Browse** menu (in the tray, and in the menu bar on macOS) opens X, Instagram, TikTok,
 Facebook, Threads, Reddit and LinkedIn, and any site you add under **Sites** in the Post sheet's footer or from
 **Add a site…**. Each opens in a window of its own with a profile of its own, so signing in to one never shows in another.
-Hildegard never reads what you sign in with.
+Hildegard never reads what you sign in with. YouTube opens in your browser (see **Google** below).
 
 What a site window can and can't do:
 
@@ -57,10 +57,16 @@ What a site window can and can't do:
   call nothing in the app. The app adds no script to its pages and keeps the webview's own user agent.
 - **Its own pages and frames only.** The window shows the site's domains, their subdomains and the few its sign-in uses
   (`presets/post-sites.json`, which the Studio and the server read too), as a page or as a frame in one. A link or popup
-  that asks for a new window opens in your browser when it goes elsewhere, and in the same window when it doesn't. Any
-  other page or frame from elsewhere is simply not loaded: Linux and macOS report a frame's navigation like a click, so
-  a navigation never opens anything outside the window. On Windows, where wry reports the page's navigations only,
-  every document the window loads, its frames' included, passes the same check before it is fetched (`frames.rs`,
+  that asks for a new window opens in your browser when it goes elsewhere, and in the same window when it doesn't. A
+  link through the site's redirector (`outbound`) counts as elsewhere: X's `t.co`
+  (<https://help.x.com/en/using-x/url-shortener>), Meta's link shim `l.facebook.com`
+  (<https://engineering.fb.com/2012/09/14/security/a-faster-better-link-shim/>) and its `l.instagram.com`,
+  `l.threads.com` and `l.threads.net` forms (seen in their links; Meta documents no host), and LinkedIn's `lnkd.in`
+  (<https://techcrunch.com/2010/04/21/linkedin-launches-url-shortener-enhances-sharing-options/>). A same-window link
+  elsewhere does nothing, and no other page or frame from elsewhere loads: Linux and macOS report a frame's navigation
+  like a click, so a navigation never opens anything outside the window. To leave, use **Open … in your browser** in the
+  site's Browse submenu, or in its window's **Site** menu on Linux and Windows. On Windows, where wry reports the page's
+  navigations only, every document the window loads, its frames' included, passes the same check before it is fetched (`frames.rs`,
   WebView2's `WebResourceRequested`); a refused one gets an empty 403. A WebView2 too old for that check (before
   1.0.2365) doesn't open site windows.
 - **Downloads** go to your Downloads folder, under a name nothing there has.
@@ -73,10 +79,11 @@ What a site window can and can't do:
 
 **Google.** Google forbids signing in from an embedded window
 (<https://developers.google.com/identity/protocols/oauth2/policies#browsers>), so Hildegard never shows a Google sign-in
-page and never changes its user agent to get around that. Posting to YouTube opens your browser. If a site's window
-opens `accounts.google.com` in a new window or popup (YouTube's **Sign in**, or "Continue with Google" on another site),
-the window stays where it was and Hildegard offers your browser instead, with the caption copied and the file shown. A
-Google sign-in page or frame inside the window (Google's sign-in button, One Tap) is not loaded and offers nothing. Where
+page and never changes its user agent to get around that. YouTube signs in only with Google, so the Browse menu and
+links to it open YouTube in your browser, never a site window. If a site's window opens `accounts.google.com` in a new
+window or popup ("Continue with Google" on another site), the window stays where it was and Hildegard offers your
+browser instead, with the caption copied and the file shown. A same-window link to Google's sign-in, or a Google
+sign-in page or frame inside the window (Google's sign-in button, One Tap), is not loaded and offers nothing. Where
 a site has its own email or username sign-in, use that in the app.
 
 **Captchas and bot checks.** A site's sign-in often loads a captcha in a frame. Those hosts are in the site's `auth`

@@ -30,7 +30,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
-use crate::browse::{Route, Site};
+use crate::browse::{OpensIn, Route, Site};
 use crate::install::{Bundled, Event, Outcome};
 use crate::paths::{system_env, Layout, Os};
 
@@ -71,6 +71,7 @@ struct Hildegard {
   /// The Browse menus (the tray's, and the menu bar's on macOS) and the sites they list, for when a site is added.
   browse_menus: Mutex<Vec<Submenu<Wry>>>,
   browse_listed: Mutex<Vec<String>>,
+  openings: browse::Openings,
 }
 
 fn log(layout: &Layout, line: &str) {
@@ -268,16 +269,20 @@ fn open_site(app: &AppHandle, site: &Site, url: &Url) {
 
 fn build_site(app: &AppHandle, site: &Site, url: &Url) -> Result<(), String> {
   let label = browse::window_label(&site.id);
+  let hg = app.state::<Hildegard>();
+  // One open of a site at a time: a second one while the first is making the window does nothing.
+  let Some(opening) = hg.openings.begin(&site.id) else { return Ok(()) };
   if let Some(w) = app.get_webview_window(&label) {
     let _ = w.unminimize();
     let _ = w.show();
     let _ = w.set_focus();
-    if w.url().ok().as_ref() != Some(url) {
+    // A window whose frame check never came in stays where it is.
+    if hg.openings.checked(&site.id) && w.url().ok().as_ref() != Some(url) {
       let _ = w.navigate(url.clone());
     }
     return Ok(());
   }
-  let hg = app.state::<Hildegard>();
+  opening.making();
   let dir = browse::ensure_profile(&hg.layout.data, &site.id).map_err(|e| e.to_string())?;
   if !browse::separate_stores(macos_major()) {
     static TOLD: AtomicBool = AtomicBool::new(false);
@@ -347,6 +352,7 @@ fn build_site(app: &AppHandle, site: &Site, url: &Url) -> Result<(), String> {
     );
     return Err(format!("the frame check didn’t start: {e}"));
   }
+  opening.done();
   Ok(())
 }
 
@@ -520,7 +526,15 @@ fn fill_browse(app: &AppHandle, sub: &Submenu<Wry>) -> tauri::Result<()> {
       MenuItem::with_id(app, format!("browse-open:{}", site.id), format!("Open {}", site.name), true, None::<&str>)?;
     let signout =
       MenuItem::with_id(app, format!("browse-signout:{}", site.id), "Sign out of this site", true, None::<&str>)?;
-    sub.append(&Submenu::with_items(app, &site.name, true, &[&open, &signout])?)?;
+    let external = MenuItem::with_id(
+      app,
+      format!("browse-external:{}", site.id),
+      format!("Open {} in your browser", site.name),
+      true,
+      None::<&str>,
+    )?;
+    // A macOS site window has no Site menu of its own, so the way out is here too.
+    sub.append(&Submenu::with_items(app, &site.name, true, &[&open, &external, &signout])?)?;
   }
   sub.append(&PredefinedMenuItem::separator(app)?)?;
   sub.append(&MenuItem::with_id(app, "browse-add", "Add a site…", true, None::<&str>)?)?;
@@ -593,10 +607,14 @@ fn browse_event(app: &AppHandle, id: &str) {
   let Some((action, site)) = id.split_once(':') else { return };
   let Some(site) = site_by_id(app, site) else { return };
   match action {
-    // YouTube opens too: its window is for watching, and it offers the browser where Google asks for a sign-in.
+    // YouTube signs in with Google, which never works in a site window, so it opens in the browser.
     "browse-open" => {
       if let Ok(home) = Url::parse(&site.home) {
-        open_site(app, &site, &home);
+        if site.opens_in == OpensIn::Browser {
+          open_outside(app, &home);
+        } else {
+          open_site(app, &site, &home);
+        }
       }
     }
     "browse-external" => handoff(app, &site),
@@ -887,6 +905,7 @@ pub fn run() {
         menu: Mutex::new(None),
         browse_menus: Mutex::new(Vec::new()),
         browse_listed: Mutex::new(Vec::new()),
+        openings: browse::Openings::default(),
       });
       app.manage(update::Pending::default());
 

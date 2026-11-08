@@ -22,7 +22,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseArgs } from '../src/config.ts';
 import { exportPython } from '../src/export.ts';
-import { Poster } from '../src/post.ts';
+import { Poster, revealCommand } from '../src/post.ts';
 import { type Running, startServer } from '../src/server.ts';
 import { memoryStore } from './helpers.ts';
 
@@ -518,4 +518,15 @@ print(json.dumps({"outside": float(d[mask].mean()), "inside": float(d[~mask].mea
     expect([r.width, r.height]).toEqual([1080, 1350]);
     expect(statSync(join(dir, 'feed.jpg')).size).toBeGreaterThan(1000);
   }, 60_000);
+});
+
+describe('Showing a file', () => {
+  it('selects a file whose folder has spaces in Windows Explorer', () => {
+    const path = 'C:\\Users\\Ann\\AppData\\Local\\hildegard\\Ready to post\\film\\x.mp4';
+    const win = revealCommand(path, 'win32', () => false);
+    expect([win.cmd, win.args, win.verbatim]).toEqual(['explorer.exe', [`/select,"${path}"`], true]);
+    const mac = '/a/Ready to post/x.mp4';
+    expect(revealCommand(mac, 'darwin', () => false).args).toEqual(['-R', mac]);
+    expect(revealCommand(mac, 'linux', () => false).args).toEqual(['/a/Ready to post']);
+  });
 });
