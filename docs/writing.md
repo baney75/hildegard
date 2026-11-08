@@ -153,29 +153,6 @@ Strict is not for judging whether a person wrote something: it fails about half 
 for an owner who has decided a piece should carry none of these tells and will rewrite until it does. The default stays
 the one that must never fail a person, and the ratchet holds it to 0.0 percent.
 
-, and is clean when nothing is found at all.
-Some rules stay quiet until they find a few: one office word is a habit, three read as a press release.
-
-For an agent, whether Claude Code, Codex or Cursor, the rule is the same each time. Lint every piece of prose before
-showing it to anyone. For everyday prose (a post, an email, a page, an announcement), fix every fail, fix each warn
-that is not the writer's voice, and lint again until it passes. For poems, fiction, scripts, prayers, speeches and
-academic papers, every finding is a warning: keep what the voice, form or field needs, and say which you kept.
-
-## Four ways to run it
-
-All four use the same rules, kept in `packages/craft/src/prose-rules.json`, so they agree on the same text.
-
-| Where | How | Needs |
-| --- | --- | --- |
-| Studio and the API | `POST /api/writing/lint` with `{ "text": "…" }`, up to 200,000 characters. Any signed-in person may use it. | A running Hildegard |
-| MCP tool | `lint_writing` with `text`, or `path` for a file on the computer the MCP server runs on, and `max` places to show for each finding. | A linked AI app |
-| Command line | `hildegard lint post.md`, or `hildegard lint -` for standard input. `--json` prints the lint itself. `--max N` (1 or more) sets the places shown for each finding. The exit status is 1 when any file fails, and 2 for bad usage or a file it can't read. | Hildegard installed, but no server running |
-| The skill's script | `python3 skills/hildegard/scripts/prose_lint.py post.md`, with the same `--json`, `--max` and exit statuses (0 passes, 1 fails, 2 bad usage or an unreadable file). | Only Python 3 |
-
-The script is for an agent that has the Hildegard skill but not Hildegard itself, such as one that Claude or ChatGPT runs in a sandbox on a web page.
-It reads `prose_rules.json` from its own folder. A test runs it against the package on shared cases and on every page
-at the top of `docs/`, so the two cannot drift apart without the tests failing.
-
 ### Changing a rule
 
 Run `node packages/craft/bench/quality.ts` before and after. `packages/craft/test/prose-quality.test.ts` fails when more
