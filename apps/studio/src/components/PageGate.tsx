@@ -10,30 +10,16 @@ export function isChunkError(e: unknown): boolean {
   );
 }
 
-const RELOADED = 'hildegard-page-reload';
-
 /**
- * Around the routed pages: a page whose code can't load says so instead of blanking the Studio. For a page left
- * behind by an update it reloads once, which fetches the new build; a second failure in a minute shows the message.
+ * Around the routed pages: a page whose code can't load says so, with a Reload button, instead of blanking the Studio.
+ * It never reloads by itself: a dropped connection looks the same as a page an update removed, and a reload would
+ * lose whatever is open (a talk, a recording) or land on the browser's offline page.
  */
 export class PageGate extends Component<{ children: ReactNode }, { error: unknown }> {
   override state: { error: unknown } = { error: null };
 
   static getDerivedStateFromError(error: unknown) {
     return { error };
-  }
-
-  override componentDidCatch(error: unknown) {
-    if (!isChunkError(error)) return;
-    let last = 0;
-    try {
-      last = Number(sessionStorage.getItem(RELOADED)) || 0;
-    } catch {}
-    if (Date.now() - last < 60_000) return;
-    try {
-      sessionStorage.setItem(RELOADED, String(Date.now()));
-    } catch {}
-    location.reload();
   }
 
   override render() {
@@ -43,7 +29,7 @@ export class PageGate extends Component<{ children: ReactNode }, { error: unknow
       <main id="main" role="alert">
         <p>
           {updated
-            ? 'Hildegard was updated while this page was open, so this page’s code is gone. Reload to get the new version.'
+            ? 'This page’s code didn’t load: Hildegard may have been updated while it was open, or the connection dropped. Reload when you’re ready.'
             : 'This page couldn’t load. Reload to try again.'}
         </p>
         <Button kind="primary" onClick={() => location.reload()}>

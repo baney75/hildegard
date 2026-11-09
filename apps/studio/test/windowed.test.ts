@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { nextRange, WINDOW_AT } from '../src/components/Windowed.tsx';
+import { nextRange, offsetInto, WINDOW_AT } from '../src/components/Windowed.tsx';
 
 const PITCH = 70;
 const VIEW = 900;
@@ -63,5 +63,18 @@ describe('nextRange', () => {
 
   it('draws a short list whole, by leaving it to the component', () => {
     expect(WINDOW_AT).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe('offsetInto', () => {
+  it('counts a page scroll once', () => {
+    // The page scrolled 3,000 px and the list starts 200 px down it: its top is at -2,800 on screen, and so is the
+    // page's own box, but the visible area still starts at 0.
+    expect(offsetInto(-2800, -3000, true)).toBe(2800);
+  });
+
+  it('measures from the top of a scrolling panel', () => {
+    // A panel 64 px down the window; the list's top has scrolled to 500 px above the panel's top.
+    expect(offsetInto(64 - 500, 64, false)).toBe(500);
   });
 });

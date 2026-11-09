@@ -57,14 +57,12 @@ function start(load: Loader<any>): Entry {
  * Like React.lazy, but a page whose code arrived before it was first drawn (the usual case, since the fetch starts
  * with the address) is drawn at once, without a pass that suspends and shows a placeholder first.
  */
-function page<P extends object>(load: Loader<P>): ComponentType<P> {
+export function page<P extends object>(load: Loader<P>): ComponentType<P> {
   return function Page(props: P) {
     const entry = start(load);
-    if (entry.error) {
-      // Forget the failed load; PageGate (App.tsx) says so, and reloads once when an update took the chunk away.
-      loaded.delete(load);
-      throw entry.error;
-    }
+    // A failed load stays failed, so every render throws the same error and PageGate (App.tsx) shows it; the
+    // person's Reload starts the page afresh. Clearing it here would let React's retry suspend on a new import.
+    if (entry.error) throw entry.error;
     if (!entry.component) throw entry.promise;
     return createElement(entry.component as ComponentType<P>, props);
   };
