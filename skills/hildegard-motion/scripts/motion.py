@@ -2627,14 +2627,15 @@ def pick_encoder():
         return None
 
 
-def audio_filter(model, duration):
+def audio_filter(model, duration, first_input=1):
+    """The mix of the audio tracks. Their inputs start at `first_input`: 1 in the render, where input 0 is the picture."""
     tracks = model.audio or []
     parts, labels = [], []
     lufs = -14.0
     norm = True
     for i, a in enumerate(tracks):
         start = float(a.get("start", 0.0))
-        chain = f"[{i + 1}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS"
+        chain = f"[{i + first_input}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS"
         if start > 0:
             ms = int(round(start * 1000))
             chain += f",adelay={ms}|{ms}"
@@ -2655,7 +2656,7 @@ def audio_filter(model, duration):
 
 def measure_loudness(model, duration, lufs):
     ffmpeg = shutil.which("ffmpeg")
-    parts, mix, _, _ = audio_filter(model, duration)
+    parts, mix, _, _ = audio_filter(model, duration, first_input=0)
     graph = ";".join(parts + [mix.replace("[mix]", "[m]"), f"[m]atrim=0:{duration:g},loudnorm=I={lufs:g}:TP=-1.5:LRA=11:print_format=json[o]"])
     cmd = [ffmpeg, "-hide_banner", "-nostats", "-loglevel", "info", "-y"]
     for a in model.audio:
@@ -2663,15 +2664,15 @@ def measure_loudness(model, duration, lufs):
     cmd += ["-filter_complex", graph, "-map", "[o]", "-f", "null", "-"]
     r = subprocess.run(cmd, capture_output=True, text=True)
     m = re.findall(r"\{[^{}]*\}", r.stderr)
-    if not m:
-        return None
+    tail = (r.stderr.strip().splitlines() or ["ffmpeg said nothing"])[-1]
+    if r.returncode != 0 or not m:
+        raise SystemExit(f"could not measure the loudness of the audio: {tail}")
     try:
         j = json.loads(m[-1])
-        if "inf" in str(j.get("input_i", "")):
-            return None
-        return j
     except json.JSONDecodeError:
-        return None
+        raise SystemExit(f"could not measure the loudness of the audio: {tail}")
+    # Silence has no loudness to measure, so it gets the plain one-pass filter.
+    return None if "inf" in str(j.get("input_i", "")) else j
 
 
 class FfmpegSink:

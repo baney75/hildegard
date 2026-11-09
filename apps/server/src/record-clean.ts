@@ -27,6 +27,10 @@ export interface CleanResult {
 
 export const CLEAN_DEFAULTS = { targetLufs: -16, peak: -1.5 } as const;
 
+/** How many cleanups may wait or run at once, for one person and for everyone. */
+export const MAX_PENDING_CLEANS_PER_OWNER = 5;
+export const MAX_PENDING_CLEANS = 20;
+
 const script = () => resource(join('tools', 'voice_clean.py'));
 
 /**
@@ -150,6 +154,8 @@ export interface CleanOptions {
 /** Cleaning jobs, one running at a time, kept in memory until the server stops. */
 export class CleanJobs {
   private readonly jobs = new Map<string, CleanJob>();
+  /** Jobs waiting or running, by source and settings. */
+  private readonly pending = new Map<string, CleanJob>();
   private tail: Promise<unknown> = Promise.resolve();
   private readonly opts: CleanOptions;
 
@@ -166,6 +172,19 @@ export class CleanJobs {
     const path = store.path(source);
     if (source.state !== 'received' || !path || !store.exists(source))
       throw new RecordError(409, 'pending', 'That recording hasn’t arrived yet.');
+    const key = `${source.id}|${o.targetLufs}|${o.peak}`;
+    const same = this.pending.get(key);
+    if (same) return same;
+    const waiting = [...this.pending.values()];
+    if (
+      waiting.length >= MAX_PENDING_CLEANS ||
+      waiting.filter((j) => j.owner === source.owner).length >= MAX_PENDING_CLEANS_PER_OWNER
+    )
+      throw new RecordError(
+        429,
+        'queue',
+        'Too many recordings are being cleaned. Try again when one finishes.',
+      );
     const id = store.newId();
     const ext = source.kind === 'voice' ? '.wav' : extname(path).toLowerCase() === '.webm' ? '.webm' : '.mp4';
     const rel = `${source.owner}/${id}${ext}`;
@@ -179,6 +198,7 @@ export class CleanJobs {
       error: null,
     };
     this.jobs.set(job.id, job);
+    this.pending.set(key, job);
     const out = join(store.dir(source.owner), `${id}${ext}`);
     const run = this.opts.run ?? ((s, st) => runClean(this.opts.dataDir, s, st));
     this.tail = this.tail.then(async () => {
@@ -213,6 +233,8 @@ export class CleanJobs {
         job.error =
           err instanceof RecordError ? err.message : 'Cleaning failed. The server log has the details.';
         if (!(err instanceof RecordError)) console.error(err);
+      } finally {
+        this.pending.delete(key);
       }
     });
     return job;

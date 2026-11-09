@@ -13,7 +13,7 @@ bubblewrap can do that: in any other mode wrap() refuses, because the script cou
 sandbox.responder(run, eval_dir) is the same idea for a model's whole session (Haiku through `claude -p`), which needs the network:
 bubblewrap only, never a fallback and never EVAL_SANDBOX=none. See responder() for what it can see and write.
 `python3 sandbox.py responder <run> <eval dir>` prints that argv, NUL-separated, for respond.sh."""
-import glob, os, pwd, shutil, subprocess, sys
+import glob, os, pwd, shutil, stat, subprocess, sys
 
 _mode = None
 
@@ -23,6 +23,16 @@ def _works(argv):
         return subprocess.run(argv, capture_output=True, timeout=20).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
+
+
+def regular_file(path, more_than=0):
+    """True when a script's output is a real file over `more_than` bytes. Never follows a link: one left by the script would have every
+    later check read whatever it points at, outside the sandbox, such as the hidden reference."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISREG(st.st_mode) and st.st_size > more_than
 
 
 def mode():
