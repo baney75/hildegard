@@ -23,7 +23,7 @@ os.environ.setdefault('EVAL_DIR', os.path.expanduser('~/.cache/hildegard-photo-d
 DEV_PHOTOS = os.environ.get('DEV_PHOTOS', os.path.expanduser('~/.cache/hildegard-photo-dev/photos'))
 UA = {'User-Agent': 'hildegard-creative-eval/1.0 (https://github.com/baney75/hildegard)'}
 sys.path.insert(0, HERE)
-import imglib, make_media, score_media  # noqa: E402
+import imglib, make_media, sandbox, score_media  # noqa: E402
 
 E = score_media.E
 SCRIPTS = os.path.join(ROOT, 'skills', 'hildegard-photo-edit', 'scripts')
@@ -85,7 +85,7 @@ def make_runner(arm, scripts):
         shutil.copy(os.path.join(E, 'inputs', task_id, 'photo.jpg'), tmp)
         t0 = time.time()
         r = subprocess.run(command(task, arm, scripts), cwd=tmp, capture_output=True, text=True, timeout=timeout)
-        ok = os.path.exists(os.path.join(tmp, 'out.jpg')) and os.path.getsize(os.path.join(tmp, 'out.jpg')) > 500
+        ok = sandbox.regular_file(os.path.join(tmp, 'out.jpg'), 500)
         return ok, round(time.time() - t0, 1), tmp, (r.stdout + r.stderr)[-1500:], r.returncode, 'process.py'
     return run_script
 

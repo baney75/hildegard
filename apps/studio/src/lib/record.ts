@@ -24,6 +24,8 @@ export function useCapture(kind: 'voice' | 'video') {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const rec = useRef<{ mr: MediaRecorder; stream: MediaStream; raf: number } | null>(null);
   const url = useRef<string | null>(null);
+  // Which ask for the devices still counts: closing the dialog while the browser is asking makes the answer stale.
+  const asked = useRef(0);
 
   const release = () => {
     const r = rec.current;
@@ -40,6 +42,7 @@ export function useCapture(kind: 'voice' | 'video') {
   // biome-ignore lint/correctness/useExhaustiveDependencies: lets go of the devices when the page closes.
   useEffect(
     () => () => {
+      asked.current += 1;
       release();
       forget();
     },
@@ -55,6 +58,7 @@ export function useCapture(kind: 'voice' | 'video') {
 
   const start = async () => {
     if (rec.current) return;
+    const mine = ++asked.current;
     setState('asking');
     let s: MediaStream;
     try {
@@ -64,7 +68,11 @@ export function useCapture(kind: 'voice' | 'video') {
           kind === 'video' ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } : false,
       });
     } catch {
-      setState('denied');
+      if (mine === asked.current) setState('denied');
+      return;
+    }
+    if (mine !== asked.current) {
+      for (const t of s.getTracks()) t.stop();
       return;
     }
     const type = (kind === 'video' ? VIDEO_TYPES : VOICE_TYPES).find((t) => MediaRecorder.isTypeSupported(t));

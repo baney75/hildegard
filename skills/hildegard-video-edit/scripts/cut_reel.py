@@ -21,7 +21,7 @@ themselves, never stretched or cropped. Sound in the clips is dropped; the music
 in two passes (default -16 LUFS). Output is H.264 and AAC, yuv420p, with the moov atom first.
 Needs only Python 3, ffmpeg and ffprobe on PATH. Run check_video.py on the result.
 """
-import argparse, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
 
 FFMPEG = shutil.which("ffmpeg")
 FFPROBE = shutil.which("ffprobe")
@@ -112,6 +112,7 @@ def main():
     segs = n + (1 if a.card else 0)
     total_clips = sum(c["dur"] for c in clips)
     length = total_clips + card - (segs - 1) * D
+    hold = 0.0
     if a.total is not None and length > a.total + 0.05:
         # take the excess off the end of every clip, equally, never below 1 s
         excess = length - a.total
@@ -122,7 +123,10 @@ def main():
             c["dur"] -= excess * max(0.0, c["dur"] - 1.0) / room
         length = a.total
     elif a.total is not None and length < a.total - 0.05:
-        print(f"note: the cut is {length:.1f} s, shorter than --total {a.total}; add clips or widen the in/out points", file=sys.stderr)
+        # hold every clip on its last frame for an equal share of what is missing, rounded up so the trim below lands on --total
+        hold = math.ceil((a.total - length) / n * 1000) / 1000
+        print(f"note: the clips give {length:.1f} s, so each is held {hold:.2f} s on its last frame to reach --total {a.total}", file=sys.stderr)
+        length = a.total
     for k in range(n):
         clips[k]["dur"] = round(clips[k]["dur"], 3)
 
@@ -136,9 +140,10 @@ def main():
             fc.append(f"[{k}:v]fps={a.fps},split[b{k}][f{k}];"
                       f"[b{k}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=24:3[bg{k}];"
                       f"[f{k}]scale={W}:{H}:force_original_aspect_ratio=decrease[fg{k}];"
-                      f"[bg{k}][fg{k}]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{k}]")
+                      f"[bg{k}][fg{k}]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p,setpts=PTS-STARTPTS"
+                      + (f",tpad=stop_mode=clone:stop_duration={hold:.3f}" if hold else "") + f"[v{k}]")
         labels = [f"v{k}" for k in range(n)]
-        durs = [c["dur"] for c in clips]
+        durs = [c["dur"] + hold for c in clips]
         if a.card:
             ins += ["-f", "lavfi", "-t", f"{card:.3f}", "-i", f"color=c={CARD_COLOR}:s={W}x{H}:r={a.fps}"]
             labels.append(f"v{n}")

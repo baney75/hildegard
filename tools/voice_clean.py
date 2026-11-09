@@ -39,6 +39,9 @@ DEFAULT_PEAK = -1.5
 LUFS_RANGE = (-40.0, -5.0)
 PEAK_RANGE = (-9.0, 0.0)
 
+# The longest recording cleaned or mixed: every sample is held in memory, about 2 GB of float32 per channel at this length.
+MAX_SECONDS = 3 * 60 * 60
+
 HUM_HZ = (50, 60, 100, 120, 150, 180, 240)
 
 # Every step before loudnorm, as (filter, options). One list feeds both backends.
@@ -61,6 +64,10 @@ NEEDED = sorted(
 
 class CleanError(Exception):
     """A plain one-line reason, shown to the person as it is."""
+
+
+def too_long():
+    return CleanError(f"That recording is too long to clean. The limit is {MAX_SECONDS / 3600:g} hours.")
 
 
 def say(**kw):
@@ -205,11 +212,21 @@ def decode(path, channels=1):
                 raise CleanError("There’s no sound in that recording.")
             rs = av.AudioResampler(format="fltp", layout=layout_of(channels), rate=RATE)
             parts = []
+            samples = 0
+
+            # Counted here as well as probed, since a container can say anything about its own length.
+            def keep(f):
+                nonlocal samples
+                samples += f.samples
+                if samples > MAX_SECONDS * RATE:
+                    raise too_long()
+                parts.append(f.to_ndarray())
+
             for frame in c.decode(c.streams.audio[0]):
                 for f in rs.resample(frame):
-                    parts.append(f.to_ndarray())
+                    keep(f)
             for f in rs.resample(None):
-                parts.append(f.to_ndarray())
+                keep(f)
     except av.error.FFmpegError as e:
         raise CleanError("Hildegard couldn’t read that recording.") from e
     if not parts:
@@ -356,6 +373,8 @@ def clean_file(src, out, target=DEFAULT_LUFS, peak=DEFAULT_PEAK, stage=lambda na
     info = probe(src)
     if not info["audio"]:
         raise CleanError("There’s no sound in that recording.")
+    if info["seconds"] > MAX_SECONDS:
+        raise too_long()
     ext = os.path.splitext(out)[1].lower()
     if ext != ".wav" and not info["video"]:
         raise CleanError("A recording with no picture is cleaned to a WAV file.")

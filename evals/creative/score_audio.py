@@ -49,7 +49,7 @@ def run_script(task_id, script, out_name, timeout=120):
         log, code = (r.stdout + r.stderr)[-1500:], r.returncode
     except subprocess.TimeoutExpired:
         log, code = f'timed out after {timeout} s', -9
-    ok = os.path.exists(os.path.join(tmp, out_name)) and os.path.getsize(os.path.join(tmp, out_name)) > 1000
+    ok = sandbox.regular_file(os.path.join(tmp, out_name), 1000)
     return ok, round(time.time() - t0, 1), tmp, log, code
 
 
