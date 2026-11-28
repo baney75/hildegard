@@ -44,7 +44,7 @@
     "skills/hildegard-3d/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
     "skills/hildegard-3d/scripts/review_mesh.py": "03cc6e3151505d745aeac9df7b23f1014a1fe343bcab86968f4660155744d29c",
     "skills/hildegard-art/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
-    "skills/hildegard-art/scripts/check_design.py": "37e5e9bb400bfee45b4249544b0bfdc512e23cff6a15280867ade9faf352082e",
+    "skills/hildegard-art/scripts/check_design.py": "acea61e356124a96be7566dbcf1c3b80fa8136b2bf209fbcfdca0fbf16d3728a",
     "skills/hildegard-art/scripts/contact_sheet.py": "b7dcf7d6d7a6593e57813f3c49318e3a8a509366d73a25613494b0d26eb7c3c6",
     "skills/hildegard-art/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
     "skills/hildegard-blog/scripts/prose_lint.py": "acc4a088678812cbd7cdfec2760ef8d26cae64fd6e8cd9743ae2e21f88387550",
@@ -76,6 +76,6 @@
     "skills/hildegard-video-edit/scripts/review_media.py": "0ecb672a038c656aa5207e984a6a68c46268787b2b535e7f306972a3153c545a",
     "skills/hildegard-video-edit/scripts/spot.py": "badec534e6cd287b56f56cb1d941d747f0aaf0831fa12b74342bb41f80a7e249",
     "skills/hildegard-web/references/slop.md": "0f94bc66ca33c4f7710c7374c44ecc045e6ff2cb4b8a3d88342247f90fa5fa8a",
-    "skills/hildegard-web/scripts/check_design.py": "37e5e9bb400bfee45b4249544b0bfdc512e23cff6a15280867ade9faf352082e"
+    "skills/hildegard-web/scripts/check_design.py": "acea61e356124a96be7566dbcf1c3b80fa8136b2bf209fbcfdca0fbf16d3728a"
   }
 }

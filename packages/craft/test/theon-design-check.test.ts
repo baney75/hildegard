@@ -2097,7 +2097,7 @@ body { background: var(--bg); color: var(--ink); }
     expect(s8Out.checks[0]?.id).toBe('web_lint_files_scanned');
     expect(s8Out.checks[0]?.ok).toBe(false);
     expect(s8Out.checks[0]?.value).toBe(0);
-    expect(s8Out.checks[0]?.detail).toContain('no HTML/CSS files found');
+    expect(s8Out.checks[0]?.detail).toContain('no HTML/CSS/JSX/TSX files found');
 
     // Round-2 S9: Tailwind-enabled HTML passes on-demand utilities without no-unknown-classes, while plain HTML still flags them
     const twHtmlOk = join(dir, 'wl-r2-s9-tailwind-ok.html');
@@ -2224,5 +2224,397 @@ input:focus-visible { outline: 2px solid var(--ink); }
     expect(fix3AllRules).toContain('no-raw-colors');
     expect(fix3AllOut.findings.find((f: { rule: string }) => f.rule === 'no-inline-styles')?.line).toBe(8);
     expect(fix3AllOut.findings.find((f: { rule: string }) => f.rule === 'no-raw-colors')?.line).toBe(10);
+  }, 60_000);
+
+  it('audits JSX and TSX with --web-lint across rounds 0-3 (no-restyle, require-static-classes, web-lint-unparsed, nested JSX, style assertions, comments, regexes, generics, predicates, focus-visible)', () => {
+    type Finding = { rule: string; line: number; what: string; why: string; fix: string };
+    type Check = { id: string; ok: boolean };
+    const lint = (name: string, src: string) => {
+      const p = join(dir, name);
+      writeFileSync(p, src);
+      const r = runPy(['--web-lint', p, '--json']);
+      const out = JSON.parse(r.stdout) as { ok: boolean; findings: Finding[]; checks: Check[] };
+      return { r, out, rules: new Set(out.findings.map((f) => f.rule)) };
+    };
+
+    // 1. Clean TSX passes --web-lint (min-h-dvh, <Button variant="brand">, static Record map, balanced-brace style={{ '--step': 1 }})
+    const clean = lint(
+      'wl-jsx-clean.tsx',
+      `const TONE_CLASS: Record<string, string> = { ok: 'text-foreground', warn: 'text-muted-foreground' };
+export function Banner({ tone, step, fn }: { tone: string; step: number; fn: (a: number, b: number) => number }) {
+  return <section className="min-h-dvh flex items-center" style={{ '--step': step, '--y': \`\${fn(1, 2)}px\` }}><Button onClick={() => step > 0} variant="brand">Action</Button><span className={TONE_CLASS[tone] ?? 'text-foreground'}>Live</span></section>;
+}`,
+    );
+    expect(clean.r.status, clean.r.stdout).toBe(0);
+    expect(clean.out.ok).toBe(true);
+
+    // 2. Broken TSX: no-restyle, require-static-classes (direct, cn(), ternary), style={{ ... }} & bare '--', raw colors, arbitrary values, min-h-screen
+    const broken = lint(
+      'wl-jsx-broken.tsx',
+      `export function Broken({ tone, ok, fn }: { tone: string; ok: boolean; fn: (o: { a: number }) => string }) {
+  return (
+    <div className="min-h-screen" style={{ color: fn({ a: 1 }) }}>
+      <Button onClick={() => tone.length > 0} className="bg-red-500 p-[13px]">Save</Button>
+      <Card className={"rounded-lg border-2"} style={{ '--': 1 }} /><Badge className={'text-slate-900'} />
+      <span className={\`bg-\${tone}-500\`} /><span className={cn(\`text-\${tone}-600\`, 'flex')} /><span className={ok ? \`p-\${tone}\` : 'p-4'} />
+    </div>
+  );
+}`,
+    );
+    expect(broken.r.status).toBe(1);
+    for (const rule of [
+      'no-restyle',
+      'no-raw-colors',
+      'no-arbitrary-values',
+      'no-inline-styles',
+      'require-static-classes',
+      'micro-craft',
+    ]) {
+      expect(broken.rules, `expected TSX rule ${rule}`).toContain(rule);
+    }
+    const restyleComps = broken.out.findings.filter((f) => f.rule === 'no-restyle').map((f) => f.what);
+    expect(restyleComps.some((w) => w.includes('<Button'))).toBe(true);
+    expect(restyleComps.some((w) => w.includes('<Card'))).toBe(true);
+    expect(restyleComps.some((w) => w.includes('<Badge'))).toBe(true);
+    expect(broken.out.findings.filter((f) => f.rule === 'require-static-classes').length).toBe(3);
+    expect(broken.out.findings.filter((f) => f.rule === 'no-inline-styles').length).toBe(2);
+
+    // 3. Commented-out JSX must not trigger findings; two separate comments must NOT delete JSX between them
+    const comm = lint(
+      'wl-jsx-comments.tsx',
+      `export function CleanWithComment() {
+  return <section className="min-h-dvh">{/* <Button className="bg-red-500 p-[13px]" style={{ color: 'red' }}>Nope</Button><div className={\`bg-\${tone}-500\`} /> */}<Button variant="brand">Real</Button></section>;
+}`,
+    );
+    expect(comm.r.status, comm.r.stdout).toBe(0);
+
+    const h3 = lint(
+      'wl-jsx-r1-h3-comments.tsx',
+      `export function BetweenComments() { return <div>{/* a */}<Button className="bg-red-500">Act</Button>{/* b */}</div>; }`,
+    );
+    expect(h3.r.status).toBe(1);
+    expect(h3.rules).toContain('no-restyle');
+    expect(h3.rules).toContain('no-raw-colors');
+
+    // 4. Round-1 H1: nested JSX inside prop expressions caught with exact line numbers
+    const h1 = lint(
+      'wl-jsx-r1-h1-nested.tsx',
+      `export function PopoverDemo() {
+  return (
+    <Popover
+      trigger={<Button className="bg-red-500">Open</Button>}
+      renderItem={() => <Card style={{ color: 'red' }} />}
+      element={<Badge className="p-[13px]" />}
+    ><span>Body</span></Popover>
+  );
+}`,
+    );
+    expect(h1.r.status).toBe(1);
+    for (const rule of ['no-restyle', 'no-raw-colors', 'no-inline-styles', 'no-arbitrary-values']) {
+      expect(h1.rules).toContain(rule);
+    }
+    expect(h1.out.findings.find((f) => f.rule === 'no-restyle' && f.what.includes('<Button'))?.line).toBe(4);
+    expect(h1.out.findings.find((f) => f.rule === 'no-inline-styles')?.line).toBe(5);
+    expect(h1.out.findings.find((f) => f.rule === 'no-arbitrary-values')?.line).toBe(6);
+
+    // 5. Round-1 H2: inline style with TS assertions, conditionals, identifiers, and spreads
+    const stOk = lint(
+      'wl-jsx-r1-h2-style-ok.tsx',
+      `export function VarsOnly() { return <div style={{ '--idx': 1 } as React.CSSProperties}><span style={({ '--delay': '40ms' }) satisfies React.CSSProperties}>Hi</span></div>; }`,
+    );
+    expect(stOk.r.status, stOk.r.stdout).toBe(0);
+
+    const stBad = lint(
+      'wl-jsx-r1-h2-style-bad.tsx',
+      `export function BadStyles({ cond, obj, base }: { cond: boolean; obj: React.CSSProperties; base: React.CSSProperties }) {
+  return <section><div style={{ color: 'red' } as React.CSSProperties} /><div style={cond ? { padding: 4 } : undefined} /><div style={obj} /><div style={{ ...base, '--x': 1 }} /></section>;
+}`,
+    );
+    expect(stBad.r.status).toBe(1);
+    expect(stBad.out.findings.filter((f) => f.rule === 'no-inline-styles').length).toBe(4);
+
+    // 6. Round-1 H4 + Round-2 H6: raw <button> in JSX-only file reports Tailwind focus-visible utility Fix; focus-visible: class or <Button> passes
+    const h4Bad = lint(
+      'wl-jsx-r1-h4-raw-btn-bad.tsx',
+      `export function RawBtn() { return <button type="button">Click</button>; }`,
+    );
+    expect(h4Bad.r.status).toBe(1);
+    const h4Focus = h4Bad.out.findings.find((f) => f.rule === 'focus-visible');
+    expect(h4Focus).toBeTruthy();
+    expect(h4Focus?.fix).toContain('focus-visible:');
+    expect(h4Focus?.fix).not.toContain('a:focus-visible');
+
+    expect(
+      lint(
+        'wl-jsx-r1-h4-raw-btn-ok.tsx',
+        `export function RawBtnOk() { return <button type="button" className="focus-visible:ring-2">Click</button>; }`,
+      ).r.status,
+    ).toBe(0);
+    expect(
+      lint(
+        'wl-jsx-r1-h4-comp-btn-ok.tsx',
+        `export function CompBtnOk() { return <Button variant="brand">Click</Button>; }`,
+      ).r.status,
+    ).toBe(0);
+
+    // 7. Round-1 M5/M6/M9/M11/M12: prop comments, cn([...]), generic JSX tag, Tailwind modifiers, regex literals
+    const m5 = lint(
+      'wl-jsx-r1-m5-prop-comments.tsx',
+      `export function CommentedProps() { return <Button\n  // inline prop comment\n  /* block prop comment */\n  className="bg-red-500">Save</Button>; }`,
+    );
+    expect(m5.r.status).toBe(1);
+    expect(m5.rules).toContain('no-restyle');
+    expect(m5.rules).toContain('no-raw-colors');
+
+    const m6 = lint(
+      'wl-jsx-r1-m6-cn-array.tsx',
+      `const TONE_MAP: Record<string, string> = { 'bg-red-500': 'text-foreground' };
+export function CnArrays() {
+  return (
+    <div>
+      <span className={TONE_MAP['bg-red-500']} />
+      <div className={cn(['bg-red-500', 'p-[13px]'])} />
+      <section className={clsx(['h-screen'])} />
+    </div>
+  );
+}`,
+    );
+    expect(m6.r.status).toBe(1);
+    expect(m6.rules).toContain('no-raw-colors');
+    expect(m6.rules).toContain('no-arbitrary-values');
+    expect(m6.rules).toContain('micro-craft');
+    expect(m6.out.findings.filter((f) => f.rule === 'no-raw-colors').map((f) => f.line)).toEqual([6]);
+
+    const m9 = lint(
+      'wl-jsx-r1-m9-generic.tsx',
+      `export function Users() { return <DataTable<User> className="bg-red-500" />; }`,
+    );
+    expect(m9.r.status).toBe(1);
+    expect(m9.rules).toContain('no-restyle');
+    expect(m9.rules).toContain('no-raw-colors');
+
+    const m11 = lint(
+      'wl-jsx-r1-m11-norm.tsx',
+      `export function Modifiers() { return <div className="!bg-red-500 bg-red-500! hover:!bg-red-500 -m-[13px] bg-[#ff0000]/50 text-[15px]/6 bg-red-500/[0.5]"><Button className="border rounded">Save</Button></div>; }`,
+    );
+    expect(m11.r.status).toBe(1);
+    expect(m11.out.findings.filter((f) => f.rule === 'no-raw-colors').length).toBe(5);
+    expect(m11.out.findings.filter((f) => f.rule === 'no-arbitrary-values').length).toBe(2);
+    expect(m11.out.findings.filter((f) => f.rule === 'no-restyle').length).toBe(2);
+
+    const m12 = lint(
+      'wl-jsx-r1-m12-regex.tsx',
+      `export function RegexCheck({ url }: { url: string }) {
+  const ok = /^https?:\\/\\//.test(url), slashClass = /[/*]/.test(url);
+  return <Button onClick={() => /^https?:\\/\\//.test(url) && ok && slashClass} className="bg-red-500">Go</Button>;
+}`,
+    );
+    expect(m12.r.status).toBe(1);
+    expect(m12.rules).toContain('no-restyle');
+    expect(m12.rules).toContain('no-raw-colors');
+    expect(m12.rules).not.toContain('web-lint-unparsed');
+
+    // 8. Round-2 M4 + Round-3 M5/M6: className predicates, clsx object maps, template predicates, regex parens
+    const predOk = lint(
+      'wl-jsx-r2-m4-pred-ok.tsx',
+      `export function Predicates({ items, id, i, isDisabled, isOpen, isPinned }: { items: string[]; id: string; i: number; isDisabled: () => boolean; isOpen: () => boolean; isPinned: () => boolean }) {
+  return <div><Button className={items.includes('border') ? 'flex' : 'grid'}>Act</Button><span className={clsx('flex', { 'opacity-50': isDisabled() })}>Muted</span><span className={cn(isOpen() && 'block', isPinned() && 'sticky')}>Pinned</span><span className={id === \`row-\${i}\` ? 'flex' : 'grid'} /><span className={clsx('flex', { 'opacity-50': id === \`row-\${i}\` })} /></div>;
+}`,
+    );
+    expect(predOk.r.status, predOk.r.stdout).toBe(0);
+
+    const predBad = lint(
+      'wl-jsx-r2-m4-pred-bad.tsx',
+      `export function PredicatesBad({ isDisabled, s }: { isDisabled: () => boolean; s: string }) {
+  return <div><span className={clsx('flex', { 'bg-red-500': isDisabled() })}>Bad</span><div className={cn(/[)]/.test(s) ? 'bg-red-500' : 'flex')} /></div>;
+}`,
+    );
+    expect(predBad.r.status).toBe(1);
+    expect(predBad.out.findings.filter((f) => f.rule === 'no-raw-colors').length).toBe(2);
+    expect(predBad.rules).not.toContain('web-lint-unparsed');
+
+    // 9. Round-3 H1/H2/S1/S2: JSX child parens, fail-loud className forms, JS string '<style>', unclosed '/*'
+    const r3h1 = lint(
+      'wl-jsx-r3-h1-parens.tsx',
+      `type Id = <T>(x: T) => T;
+export function Notes({ fn }: { fn: <T>(x: T) => T }) { const render = <T,>(x: T) => fn(x); return <div>(Note): click <Button className="bg-red-500"/>{String(render('a'))}</div>; }
+export function OptionalNote() { return <p>(Optional): <Badge className="p-[13px]"/></p>; }`,
+    );
+    expect(r3h1.r.status).toBe(1);
+    expect(r3h1.rules).toContain('no-restyle');
+    expect(r3h1.rules).toContain('no-raw-colors');
+    expect(r3h1.rules).toContain('no-arbitrary-values');
+    expect(r3h1.rules).not.toContain('web-lint-unparsed');
+
+    const r3h2 = lint(
+      'wl-jsx-r3-h2-unparsed.tsx',
+      `const TONE_MAP: Record<string, string> = { ok: 'text-foreground' };
+export function ClassAudit({ x, tone, idx }: { x: string; tone: string; idx: number }) {
+  return (
+    <div>
+      <span className={TONE_MAP[tone] ?? 'text-foreground'} />
+      <span className={TONE_MAP[tone]} />
+      <span className={x as string} />
+      <span className={{ ok: 'a' }[tone]} />
+      <span className={['a', 'b'][idx]} />
+      <span className={computeClasses(tone)} />
+      <span className={x} />
+      <span className={cn('bg-red-500')!} />
+      <span className={cn('bg-red-500') as string} />
+      <Button className=bg-red-500 />
+    </div>
+  );
+}`,
+    );
+    expect(r3h2.r.status).toBe(1);
+    expect(
+      r3h2.out.findings
+        .filter((f) => f.rule === 'web-lint-unparsed')
+        .map((f) => f.line)
+        .sort((a, b) => a - b),
+    ).toEqual([7, 8, 9, 10, 11, 14]);
+    expect(r3h2.out.findings.filter((f) => f.rule === 'no-raw-colors').map((f) => f.line)).toEqual([12, 13]);
+    expect(r3h2.out.checks.find((c) => c.id === 'web-lint-unparsed')?.ok).toBe(false);
+
+    const s1 = lint(
+      'wl-jsx-r3-s1-style-str.tsx',
+      `export function StyleInStr() { const a = 'do not use <style> tags'; return <div className="text-[length:var(--x)] text-[15px]/tight text-[15px]/2.5"><Button className="bg-red-500">{a}</Button></div>; }
+export const styleCloseHint = 'or </style> here';`,
+    );
+    expect(s1.r.status).toBe(1);
+    const s1Arb = s1.out.findings.filter((f) => f.rule === 'no-arbitrary-values');
+    expect(s1Arb.length).toBe(2);
+    expect(s1Arb.some((f) => f.what.includes('length:var(--x)'))).toBe(false);
+    expect(s1.rules).toContain('no-raw-colors');
+
+    const s2 = lint(
+      'wl-jsx-r3-s2-unclosed-comment.tsx',
+      `export function BrokenComment() {\n  /* forgot to close\n  return <Button className="bg-red-500">Hi</Button>;\n}`,
+    );
+    expect(s2.r.status).toBe(1);
+    expect(s2.out.findings.find((f) => f.rule === 'web-lint-unparsed')?.line).toBe(2);
+  }, 60_000);
+
+  it('enforces PR B Fix #1 (TSX generic params strictly in TYPE positions vs expression-position JSX) and Fix #2 (unclosed strings and template literals emit web-lint-unparsed)', () => {
+    type Finding = { rule: string; line: number; what: string; why: string; fix: string };
+    const lint = (name: string, src: string) => {
+      const p = join(dir, name);
+      writeFileSync(p, src);
+      const r = runPy(['--web-lint', p, '--json']);
+      const out = JSON.parse(r.stdout) as { ok: boolean; findings: Finding[] };
+      return { r, out, rules: new Set(out.findings.map((f) => f.rule)) };
+    };
+
+    // Fix #1a: Expression-position PascalCase JSX with '(Note):' MUST be parsed as JSX, never consumed as TS generic
+    const exprJsx = lint(
+      'wl-fix1-expr-jsx.tsx',
+      `export function ExprCases({ cond, mode, render }: { cond: boolean; mode: string; render: (a: unknown, b: unknown) => unknown }) {
+  const el = <Card>(Note): don't miss <Button className="bg-red-500"/></Card>;
+  const obj = { card: <Card>(Note): <Button className="bg-red-500"/></Card> };
+  const called = render(<Card>(Note): <Button className="bg-red-500"/></Card>, <Panel>(Note): <Badge className="bg-red-500"/></Panel>);
+  const branched = cond ? <Card>(Note): <Button className="bg-red-500"/></Card> : <Panel>(Note): <Badge className="bg-red-500"/></Panel>;
+  const parenTern = (cond ? null : <Card>(Note): <Button className="bg-red-500"/></Card>);
+  switch (mode) {
+    case 'a':
+      return <Card>(Note): <Button className="bg-red-500"/></Card>;
+    default:
+      return [el, obj, called, branched, parenTern, <Panel>(Note): <Badge className="bg-red-500"/></Panel>];
+  }
+}
+export default <Card>(Note): <Button className="bg-red-500"/></Card>;`,
+    );
+    expect(exprJsx.r.status).toBe(1);
+    expect(exprJsx.rules).not.toContain('web-lint-unparsed');
+    expect(exprJsx.out.findings.filter((f) => f.rule === 'no-raw-colors').map((f) => f.line)).toEqual([
+      2, 3, 4, 4, 5, 5, 6, 9, 11, 14,
+    ]);
+    expect(exprJsx.out.findings.filter((f) => f.rule === 'no-restyle').map((f) => f.line)).toEqual([
+      2, 3, 4, 4, 5, 5, 6, 9, 11, 14,
+    ]);
+
+    // Fix #1b: Valid TS generics in TYPE positions, parenthesized function return types, generic function return types, and TSX expression generic arrows
+    const validGen = lint(
+      'wl-fix1-valid-generics.tsx',
+      `type Id = <T>(x: T) => T;
+type Pair = <T, U>(a: T, b: U) => [T, U];
+type Bounded = <T extends { id: string }>(x: T) => string;
+type Defaulted = <T = string>(x: T) => T;
+type ConstGeneric = <const T>(x: T) => T;
+interface Props {
+  renderItem: <T>(item: T) => ReactNode;
+  <U>(x: U): U;
+}
+const fn: <T>(x: T) => T = (x) => x;
+export function mapWith(f: <T>(x: T) => T) {
+  const wrap = (cb: <T>(x: T) => T) => cb;
+  const arrowComma = <T,>(x: T) => <Button className="bg-red-500">{String(wrap(f)(x))}</Button>;
+  const arrowExtends = <T extends string>(x: T): ReactNode => <Badge className="p-[13px]">{x}</Badge>;
+  const cfg = {
+    renderItem: <T,>(item: T) => <Card className="border-2">{String(fn(item))}</Card>,
+  };
+  return [arrowComma('a'), arrowExtends('b'), cfg.renderItem('c')];
+}
+const retFn = (): (() => void) => <Button className="bg-red-500" />;
+function retGen(): <T>(x: T) => T { return <Button className="bg-red-500" />; }`,
+    );
+    expect(validGen.r.status).toBe(1);
+    expect(validGen.rules).not.toContain('web-lint-unparsed');
+    expect(validGen.rules).toContain('no-restyle');
+    expect(validGen.rules).toContain('no-raw-colors');
+    expect(validGen.rules).toContain('no-arbitrary-values');
+    expect(validGen.out.findings.filter((f) => f.rule === 'no-restyle').map((f) => f.line)).toEqual([
+      13, 14, 16, 20, 21,
+    ]);
+    expect(validGen.out.findings.filter((f) => f.rule === 'no-raw-colors').map((f) => f.line)).toEqual([
+      13, 20, 21,
+    ]);
+
+    // Fix #2a-d: Unclosed single/double quoted strings (unescaped newline + EOF) emit web-lint-unparsed; newline cases still audit following lines
+    for (const [name, quote] of [
+      ['wl-fix2-sq', "'"],
+      ['wl-fix2-dq', '"'],
+    ] as const) {
+      const nl = lint(
+        `${name}-newline.tsx`,
+        `export function Bad() {\n  const s = ${quote}unclosed\n  return <Button className="bg-red-500">Still audited</Button>;\n}`,
+      );
+      expect(nl.r.status).toBe(1);
+      const nlUnp = nl.out.findings.find((f) => f.rule === 'web-lint-unparsed');
+      expect(nlUnp?.line).toBe(2);
+      expect(nlUnp?.why).toContain('unclosed string literal (unescaped newline)');
+      expect(nl.out.findings.some((f) => f.rule === 'no-raw-colors' && f.line === 3)).toBe(true);
+
+      const eof = lint(`${name}-eof.tsx`, `const s = ${quote}unclosed at eof`);
+      expect(eof.r.status).toBe(1);
+      const eofUnp = eof.out.findings.find((f) => f.rule === 'web-lint-unparsed');
+      expect(eofUnp?.line).toBe(1);
+      expect(eofUnp?.why).toContain('unclosed string literal reached end of file');
+    }
+
+    // Fix #2e: Unclosed template literal (EOF) and unclosed template interpolation (EOF) emit web-lint-unparsed
+    const tplEof = lint('wl-fix2-tpl-eof.tsx', `export function BadTpl() {\n  const msg = \`hello\n  world`);
+    expect(tplEof.r.status).toBe(1);
+    expect(tplEof.out.findings.find((f) => f.rule === 'web-lint-unparsed')?.line).toBe(2);
+    expect(tplEof.out.findings.find((f) => f.rule === 'web-lint-unparsed')?.why).toContain(
+      'unclosed template literal reached end of file',
+    );
+
+    const tplInterp = lint(
+      'wl-fix2-tpl-interp-eof.tsx',
+      `export function BadTplInterp() {\n  const msg = \`hello \${foo`,
+    );
+    expect(tplInterp.r.status).toBe(1);
+    expect(tplInterp.out.findings.find((f) => f.rule === 'web-lint-unparsed')?.line).toBe(2);
+    expect(tplInterp.out.findings.find((f) => f.rule === 'web-lint-unparsed')?.why).toContain(
+      'unclosed template literal interpolation reached end of file',
+    );
+
+    // Fix #2f: Valid escaped line continuations ('\\\n' and '\\\r\n') in quoted strings do NOT emit web-lint-unparsed
+    const lineCont = lint(
+      'wl-fix2-line-cont-ok.tsx',
+      `export function EscapedLineCont() {\n  const a = 'hello \\\nworld';\n  const b = "foo \\\r\nbar";\n  return <Button variant="brand">{a}{b}</Button>;\n}`,
+    );
+    expect(lineCont.r.status, lineCont.r.stdout).toBe(0);
+    expect(lineCont.out.findings).toEqual([]);
   }, 60_000);
 });

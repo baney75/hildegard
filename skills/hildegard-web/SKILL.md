@@ -209,13 +209,15 @@ Exact `check_design.py --sakuga` JSON shape (use ONLY these top-level keys; adap
 
 ## Prescriptive self-repair lint and micro-craft parity
 
-Run `python3 scripts/check_design.py --web-lint site/ --fidelity` after every draft to audit HTML and CSS files (`.html`, `.htm`, `.css`). Every finding prints `[rule] file:line | what | why | Fix:` so you repair all drift in one pass without stripping visual craft:
+Run `python3 scripts/check_design.py --web-lint site/ --fidelity` after every draft to audit HTML, CSS, JSX, and TSX files (`--fidelity` targets full HTML/CSS pages; run `--web-lint` without `--fidelity` on standalone TSX/JSX component files; plain static JSX subset: string/lookup/cn()/clsx() `className`, literal custom-property-only `style` objects, and standard/generic JSX tags; for Tailwind v4 React/Svelte/Vue repos, you may also configure a pinned `@shadcn/lint` ESLint/Oxlint plugin, and never run unpinned `npx` auto-exec). Every finding prints `[rule] file:line | what | why | Fix:` so you repair all drift in one pass without stripping visual craft, and unparseable JSX expressions emit `web-lint-unparsed` rather than being silently skipped:
 
-1. **Four design-system contracts (0 findings):**
+1. **Six design-system contracts (0 findings):**
+   - `no-restyle`: PascalCase UI components (`<Button>`, `<Card>`, `<Badge>`, `<Input>`) own their internal appearance and padding. Keep the original component tag name, DELETE `className` and non-`--` `style={{ ... }}` completely on restyled UI components (never pass `bg-*`, `text-*`, `p-*`, `rounded-*`, `border-*`, or `shadow-*`, not even semantic `text-foreground`), and pass `variant="..."` instead. Never inject `<style>` tags inside TSX/JSX components.
    - `no-raw-colors`: never write raw `#hex` or `rgb(...)` anywhere outside `:root` / `@theme` (including added cards, navs, tables, or borders) and never use raw Tailwind palette utilities (`bg-pink-500`, `text-slate-900`). Reference only declared semantic tokens (`var(--bg)`, `var(--ink)`, `var(--surface)`, `var(--hairline)`, `var(--accent)`).
    - `no-arbitrary-values`: never write bracketed arbitrary spacing/type/radius values (`p-[13px]`, `rounded-[7px]`, `z-[999]`); snap to standard scale utilities or declare a token.
-   - `no-inline-styles`: scan EVERY tag inside `<body>`, and DELETE the entire `style="..."` attribute whenever it sets any normal CSS property (`color`, `padding`, `margin`, etc.), EVEN if the value uses `var(--...)`. Style the element selector (`h1`, `p`) inside `<style>` instead; NEVER invent a new `class="..."` in `<body>` unless that exact `.class` is already declared in `<style>` above. Keep inline `style` ONLY when every property name starts with `--` (`style="--stagger-index: 2"`).
+   - `no-inline-styles`: scan EVERY tag inside `<body>` and JSX, and DELETE the entire `style="..."` or `style={{ ... }}` attribute whenever it sets any normal CSS property (`color`, `padding`, `margin`, etc.), EVEN if the value uses `var(--...)`. Style the element selector (`h1`, `p`) inside `<style>` instead; NEVER invent a new `class="..."` in `<body>` unless that exact `.class` is already declared in `<style>` above. Keep inline `style` ONLY when every property name starts with `--` (`style="--stagger-index: 2"` or `style={{ '--stagger-index': 2 }}`).
    - `no-unknown-classes`: because `<style>` is written before `<body>`, EVERY `class="..."` you emit in `<body>` MUST already have a matching `.class` rule in `<style>` above (fix typos like `card-hedaer` -> `card-header`, and never introduce an undeclared class name in `<body>`).
+   - `require-static-classes`: never interpolate class names with template strings; define a static `Record<string, string>` lookup map above the component.
 2. **Micro-craft and anti-regression fidelity (`--fidelity`):**
    - **No `ease-in` on entrances and no `scale(0)`:** use `ease-out` or `cubic-bezier(0.22, 1, 0.36, 1)` under `300ms` (never `transition: all`), start pops from `transform: scale(0.95); opacity: 0`, give buttons `transform: scale(0.97)` on `:active`, use `h-dvh` / `min-h-dvh` instead of `h-screen` / `min-h-screen`, use `font-variant-numeric: tabular-nums` on numbers, and ALWAYS include `@media (prefers-reduced-motion: reduce)` whenever any `transition` or `animation` exists.
    - **Never pass by stripping styles:** keep `>= 4` `:root` semantic tokens (`--bg`, `--ink`, `--hairline`, `--accent`), explicit bare `body` (`font-size: 16px`) and bare `h1` (`font-size: >= 36px`, display/body ratio `>= 2.0`), responsive `@media` or `clamp()`, semantic `<header>`, `<main>`, `<h1>`, `overflow-x: clip` (never `100vw` or `overflow-x: hidden`), and `:focus-visible`.
@@ -248,14 +250,30 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 </html>
 ```
 
-**1-Pass Self-Repair Map (edit BOTH `<style>` AND every tag in `<body>`; keep every semantic landmark and `:root` token):**
+Minimal clean TSX component pattern (static lookup + variant prop + `dvh`, no `<style>` tag, 0 findings):
+
+```tsx
+const TONE_CLASS: Record<string, string> = { ok: 'text-foreground', warn: 'text-muted-foreground' };
+export function Banner({ tone }: { tone: string }) {
+  return (
+    <section className="min-h-dvh flex items-center">
+      <Button variant="brand">Action</Button>
+      <span className={TONE_CLASS[tone] ?? 'text-foreground'}>Live</span>
+    </section>
+  );
+}
+```
+
+**1-Pass Self-Repair Map (edit BOTH `<style>` AND every tag in `<body>` / JSX; keep every semantic landmark and `:root` token):**
 
 | Diagnostic rule | Broken pattern | Exact 1-pass replacement |
 | --- | --- | --- |
+| `no-restyle` | `<Button className="bg-[#FF6B35] p-[13px]">` | `<Button variant="brand">` (keep original tag name; DELETE `className` and `style` completely; never add `<style>` in TSX) |
 | `no-raw-colors` | raw `#hex` or `rgb(...)` outside `:root` | replace with a declared `:root` token such as `var(--accent)` |
 | `no-arbitrary-values` | `p-[13px]` / `rounded-[7px]` / `z-[999]` | snap to a standard scale utility or declare a named token in `:root` / `@theme` |
-| `no-inline-styles` | `style="padding: 13px"` / `style="color: #999"` | edit `<body>` to DELETE the entire `style` attribute and style the tag selector in `<style>` (never invent an undeclared `class="..."` in `<body>`); keep ONLY `style="--custom-var: ..."` |
+| `no-inline-styles` | `style="padding: 13px"` / `style="color: #999"` / `style={{ color: '#f00' }}` | edit `<body>` / JSX to DELETE the entire `style` attribute and style the tag selector in `<style>` (never invent an undeclared `class="..."` in `<body>`); keep ONLY `style="--custom-var: ..."` |
 | `no-unknown-classes` | HTML class missing from `<style>` | fix spelling in `<body>` to the declared `.class` in `<style>` (or declare `.class` in `<style>` first) |
+| `require-static-classes` | dynamic template literal in `className` | define `const TONE_MAP: Record<string, string> = { ... }` above the component and write `className={TONE_MAP[key] ?? 'text-foreground'}` |
 | `micro-craft` / `no-transition-all` | `transition: all 300ms ease-in` / `scale(0)` / `h-screen` | `transition: transform 180ms ease-out` / `scale(0.95); opacity: 0` / `h-dvh` |
 | `safe-overflow` / `no-slop-patterns` | `width: 100vw` / `overflow-x: hidden` / purple-blue gradient / hype copy | `width: 100%` / `overflow-x: clip` / solid `var(--surface)` / concrete facts |
 | `focus-visible` / `reduced-motion` | missing focus or motion fallback | add `a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }` and `@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none; animation: none; } }` |
