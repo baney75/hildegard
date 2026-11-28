@@ -1598,4 +1598,631 @@ omitted:
     expect(scaledDownDraft.status).toBe(1);
     expect(scaledDownDraft.bad).toContain('logo_micro_legibility');
   }, 60_000);
+
+  it('audits HTML and CSS with --web-lint [--fidelity], enforcing all 10 prescriptive HTML/CSS rules, 4 fidelity gates, comment stripping, and symlink/node_modules skipping', () => {
+    // 1. Clean HTML passes --web-lint --fidelity (including allowed style="--idx: 1", descendant/classed h1, and transition: none)
+    const cleanWebHtml = join(dir, 'wl-clean.html');
+    writeFileSync(
+      cleanWebHtml,
+      `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Brand</title>
+<style>
+:root {
+  --bg: #f6f1e7;
+  --surface: #ffffff;
+  --ink: #1e1b18;
+  --hairline: rgba(30, 27, 24, 0.12);
+  --accent: #a63d28;
+}
+html, body { overflow-x: clip; background: var(--bg); color: var(--ink); font-size: 16px; line-height: 1.5; margin: 0; }
+header, main { max-width: 65ch; margin: 0 auto; padding: 24px; }
+header h1.title { font-size: clamp(2rem, 5vw, 2.5rem); letter-spacing: -0.02em; }
+.card { background: var(--surface); border: 1px solid var(--hairline); padding: 20px; }
+.btn { background: var(--accent); color: var(--surface); border: 0; padding: 10px 18px; transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+.btn:active { transform: scale(0.97); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (min-width: 768px) { header, main { padding: 48px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none; animation: none; } }
+</style></head>
+<body>
+  <header><h1 class="title">Brand</h1></header>
+  <main><section class="card" style="--idx: 1"><p>Concrete facts.</p><button class="btn" type="button">Action</button></section></main>
+</body>
+</html>`,
+    );
+    const rCleanHtml = runPy(['--web-lint', cleanWebHtml, '--fidelity', '--json']);
+    expect(rCleanHtml.status, rCleanHtml.stdout).toBe(0);
+    const cleanHtmlOut = JSON.parse(rCleanHtml.stdout);
+    expect(cleanHtmlOut.ok).toBe(true);
+    expect(cleanHtmlOut.findings).toEqual([]);
+
+    // Non-motion transition: none without prefers-reduced-motion must NOT false-trigger reduced-motion
+    const staticNoneHtml = join(dir, 'wl-transition-none.html');
+    writeFileSync(
+      staticNoneHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --surface: #fafafa; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); font-size: 16px; }
+h1 { font-size: 40px; }
+.box { transition: none; animation: none; }
+</style></head><body><main><h1>Static</h1><div class="box">Plain</div></main></body></html>`,
+    );
+    const rStaticNone = runPy(['--web-lint', staticNoneHtml, '--json']);
+    expect(rStaticNone.status, rStaticNone.stdout).toBe(0);
+
+    // 2. All 10 HTML/CSS rules failing on broken HTML
+    const brokenHtml = join(dir, 'wl-broken.html');
+    writeFileSync(
+      brokenHtml,
+      `<!doctype html>
+<html><head><style>
+:root { --bg: #f6f1e7; --ink: #1e1b18; --accent: #a63d28; --surface: #ffffff; }
+html, body { width: 100vw; overflow-x: hidden; color: #222222; font-size: 16px; }
+.card-header { background: linear-gradient(135deg, #6366f1, #3b82f6); }
+.pop { transform: scale(0); transition: all 300ms ease-in; animation: enter 200ms ease-in; }
+@media (prefers-reduced-motion: reduce) {}
+</style></head>
+<body>
+  <div class="card-hedaer h-screen bg-pink-500 p-[13px]" style="color: var(--accent)">
+    <p style="--: 1">Unlock the power of widgets \u{1F525}</p>
+    <button class="pop" type="button">Go</button>
+  </div>
+</body></html>`,
+    );
+    const rBrokenHtml = runPy(['--web-lint', brokenHtml, '--json']);
+    expect(rBrokenHtml.status).toBe(1);
+    const brokenHtmlOut = JSON.parse(rBrokenHtml.stdout);
+    const htmlRules = new Set(brokenHtmlOut.findings.map((f: { rule: string }) => f.rule));
+    for (const rule of [
+      'no-raw-colors',
+      'no-arbitrary-values',
+      'no-inline-styles',
+      'no-unknown-classes',
+      'micro-craft',
+      'no-transition-all',
+      'safe-overflow',
+      'focus-visible',
+      'reduced-motion',
+      'no-slop-patterns',
+    ]) {
+      expect(htmlRules, `expected HTML rule ${rule}`).toContain(rule);
+    }
+    const unknownClassFinding = brokenHtmlOut.findings.find(
+      (f: { rule: string; what: string }) =>
+        f.rule === 'no-unknown-classes' && f.what.includes('card-hedaer'),
+    );
+    expect(unknownClassFinding?.fix).toContain('.card-header');
+    const focusFinding = brokenHtmlOut.findings.find((f: { rule: string }) => f.rule === 'focus-visible');
+    expect(focusFinding?.fix).toContain('a:focus-visible, button:focus-visible');
+    // Inline style="--: 1" (bare --) and style="color: var(--accent)" must both trigger no-inline-styles
+    const inlineHtmlFindings = brokenHtmlOut.findings.filter(
+      (f: { rule: string }) => f.rule === 'no-inline-styles',
+    );
+    expect(inlineHtmlFindings.length).toBe(2);
+
+    // Check human-readable CLI output format: [rule] file:line | what | why | Fix:
+    const rBrokenText = runPy(['--web-lint', brokenHtml]);
+    expect(rBrokenText.status).toBe(1);
+    expect(rBrokenText.stdout).toMatch(/\[no-unknown-classes\] wl-broken\.html:\d+ \| .* \| .* \| Fix: /);
+    expect(rBrokenText.stdout).toContain('RESULT: FIX the lines above');
+
+    // no-unknown-classes must STILL fire when HTML has <style> with zero declared .class selectors
+    const noClassCssHtml = join(dir, 'wl-noclass-css.html');
+    writeFileSync(
+      noClassCssHtml,
+      `<!doctype html><html><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body><div class="mystery-widget">Text</div></body></html>`,
+    );
+    const rNoClassCss = runPy(['--web-lint', noClassCssHtml, '--json']);
+    expect(rNoClassCss.status).toBe(1);
+    expect(JSON.parse(rNoClassCss.stdout).findings.map((f: { rule: string }) => f.rule)).toContain(
+      'no-unknown-classes',
+    );
+
+    // 3. All 4 --fidelity checks failing (only 2 tokens, bad type scale ratio + 0px guard, only prefers-reduced-motion media query, missing landmarks)
+    const lowFidelityHtml = join(dir, 'wl-low-fidelity.html');
+    writeFileSync(
+      lowFidelityHtml,
+      `<!doctype html>
+<html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); font-size: 16px; }
+h1 { font-size: 20px; }
+.tiny { font-size: 0px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none; } }
+</style></head>
+<body><div><p>No landmarks here</p></div></body></html>`,
+    );
+    const rLowFid = runPy(['--web-lint', lowFidelityHtml, '--fidelity', '--json']);
+    expect(rLowFid.status).toBe(1);
+    const lowFidBad = JSON.parse(rLowFid.stdout)
+      .checks.filter((c: { ok: boolean }) => !c.ok)
+      .map((c: { id: string }) => c.id);
+    expect(lowFidBad).toContain('fidelity_tokens');
+    expect(lowFidBad).toContain('fidelity_type_scale');
+    expect(lowFidBad).toContain('fidelity_responsive');
+    expect(lowFidBad).toContain('fidelity_landmarks');
+
+    // Non-finite font-size (1e309px) must NOT pass fidelity_type_scale
+    const infFontHtml = join(dir, 'wl-inf-font.html');
+    writeFileSync(
+      infFontHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --surface: #eee; --accent: #a63d28; }
+body { font-size: 16px; background: var(--bg); color: var(--ink); }
+h1 { font-size: 1e309px; }
+@media (min-width: 768px) { body { padding: 16px; } }
+</style></head><body><header><h1>Hi</h1></header><main><p>Body</p></main></body></html>`,
+    );
+    const rInfFont = runPy(['--web-lint', infFontHtml, '--fidelity', '--json']);
+    expect(rInfFont.status).toBe(1);
+    expect(
+      JSON.parse(rInfFont.stdout)
+        .checks.filter((c: { ok: boolean }) => !c.ok)
+        .map((c: { id: string }) => c.id),
+    ).toContain('fidelity_type_scale');
+
+    // 4. Commented-out HTML must neither false-trigger findings nor falsely satisfy fidelity_landmarks
+    const commentedHtml = join(dir, 'wl-comments.html');
+    writeFileSync(
+      commentedHtml,
+      `<!doctype html>
+<html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --surface: #eee; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); font-size: 16px; }
+h1 { font-size: 40px; }
+@media (min-width: 768px) { body { padding: 24px; } }
+</style></head>
+<body>
+<!--
+  <header><h1>Commented</h1></header>
+  <main><div style="color: #ff0000" class="bogus-cls">Unlock the power of \u{1F525}</div></main>
+-->
+<p>Plain visible text only.</p>
+</body></html>`,
+    );
+    // Without --fidelity, commented-out violations must NOT fail
+    const rCommNoFid = runPy(['--web-lint', commentedHtml, '--json']);
+    expect(rCommNoFid.status, rCommNoFid.stdout).toBe(0);
+    // With --fidelity, commented-out landmarks must NOT satisfy fidelity_landmarks
+    const rCommFid = runPy(['--web-lint', commentedHtml, '--fidelity', '--json']);
+    expect(rCommFid.status).toBe(1);
+    expect(
+      JSON.parse(rCommFid.stdout)
+        .checks.filter((c: { ok: boolean }) => !c.ok)
+        .map((c: { id: string }) => c.id),
+    ).toContain('fidelity_landmarks');
+
+    // 5. --fidelity rejected without --web-lint
+    const rBadFidelity = runPy(['--html', cleanWebHtml, '--fidelity', '--json']);
+    expect(rBadFidelity.status).not.toBe(0);
+    expect(rBadFidelity.stderr).toContain('--fidelity');
+
+    // 6. Directory scan skips node_modules and symlinks (both symlinked file and symlinked directory)
+    const scanDir = join(dir, 'wl-dir-scan');
+    const nmDir = join(scanDir, 'node_modules', 'pkg');
+    const externalBadDir = join(dir, 'wl-external-bad');
+    mkdirSync(nmDir, { recursive: true });
+    mkdirSync(externalBadDir, { recursive: true });
+    writeFileSync(join(scanDir, 'index.html'), readFileSync(cleanWebHtml, 'utf8'));
+    writeFileSync(join(nmDir, 'bad.html'), readFileSync(brokenHtml, 'utf8'));
+    const extBadFile = join(externalBadDir, 'bad-link.html');
+    writeFileSync(extBadFile, readFileSync(brokenHtml, 'utf8'));
+    if (process.platform !== 'win32') {
+      symlinkSync(extBadFile, join(scanDir, 'linked-bad.html'));
+      symlinkSync(externalBadDir, join(scanDir, 'linked-dir'));
+    }
+    const rDirScan = runPy(['--web-lint', scanDir, '--fidelity', '--json']);
+    expect(rDirScan.status, rDirScan.stdout).toBe(0);
+    const dirOut = JSON.parse(rDirScan.stdout);
+    const scannedChk = dirOut.checks.find((c: { id: string }) => c.id === 'web_lint_files_scanned');
+    expect(scannedChk.value).toBe(1);
+  }, 60_000);
+
+  it('covers HTML/CSS --web-lint regression cases across rounds 1-3 and Fix #3 quoted-attribute tag/comment literals', () => {
+    // Round-1 M7: data-class and <script> strings do not trigger fake HTML unknown-class/inline-style errors
+    const htmlSafety = join(dir, 'wl-r1-m7-safe.html');
+    writeFileSync(
+      htmlSafety,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+.card { background: var(--bg); color: var(--ink); }
+</style></head><body>
+  <div class="card" data-class="foo">Hello</div>
+<script>
+var s = 'class="bogus"';
+var bad = 'style="color:#ff0000"';
+</script>
+</body></html>`,
+    );
+    const rM7Safe = runPy(['--web-lint', htmlSafety, '--json']);
+    expect(rM7Safe.status, rM7Safe.stdout).toBe(0);
+
+    // Round-1 M8: footer p { font-size: 11px; } must NOT override body { font-size: 16px; }
+    const m8Html = join(dir, 'wl-r1-m8-body-prec.html');
+    writeFileSync(
+      m8Html,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --surface: #fafafa; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); font-size: 16px; }
+h1 { font-size: 28px; }
+footer p { font-size: 11px; }
+@media (min-width: 768px) { body { padding: 16px; } }
+</style></head><body><header><h1>Title</h1></header><main><p>Body</p></main><footer><p>Small</p></footer></body></html>`,
+    );
+    const rM8 = runPy(['--web-lint', m8Html, '--fidelity', '--json']);
+    expect(rM8.status).toBe(1);
+    const m8TypeCheck = JSON.parse(rM8.stdout).checks.find(
+      (c: { id: string }) => c.id === 'fidelity_type_scale',
+    );
+    expect(m8TypeCheck.ok).toBe(false);
+    expect(m8TypeCheck.value).toBe(1.75);
+
+    // Round-1 M10: plain HTML without Tailwind flags class='text-heroo' as no-unknown-classes with .text-hero hint
+    const plainHtmlTypo = join(dir, 'wl-r1-m10-plain-typo.html');
+    writeFileSync(
+      plainHtmlTypo,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+.text-hero { color: var(--ink); }
+</style></head><body><p class="text-heroo">Typo</p></body></html>`,
+    );
+    const rM10 = runPy(['--web-lint', plainHtmlTypo, '--json']);
+    expect(rM10.status).toBe(1);
+    const m10Finding = JSON.parse(rM10.stdout).findings.find(
+      (f: { rule: string; what: string }) => f.rule === 'no-unknown-classes' && f.what.includes('text-heroo'),
+    );
+    expect(m10Finding).toBeTruthy();
+    expect(m10Finding.fix).toContain('.text-hero');
+
+    // Round-1 M11 + Round-2 M3 + Round-3 S3/S4 (HTML): !bg-red-500, bg-red-500!, hover:!bg-red-500, -m-[13px], slash modifiers, and text-[length:var(--x)]
+    const twNormHtml = join(dir, 'wl-tw-norm.html');
+    writeFileSync(
+      twNormHtml,
+      `<!doctype html><html lang="en"><head><script src="https://cdn.tailwindcss.com"></script></head><body>
+  <div class="!bg-red-500 bg-red-500! hover:!bg-red-500 -m-[13px] bg-[#ff0000]/50 text-[15px]/6 bg-red-500/[0.5] text-[length:var(--x)] text-[15px]/tight text-[15px]/2.5">Hi</div>
+</body></html>`,
+    );
+    const rTwNorm = runPy(['--web-lint', twNormHtml, '--json']);
+    expect(rTwNorm.status).toBe(1);
+    const twNormOut = JSON.parse(rTwNorm.stdout);
+    const twNormRaw = twNormOut.findings.filter((f: { rule: string }) => f.rule === 'no-raw-colors');
+    const twNormArb = twNormOut.findings.filter((f: { rule: string }) => f.rule === 'no-arbitrary-values');
+    expect(twNormRaw.length).toBe(5);
+    expect(twNormArb.length).toBe(4);
+    expect(twNormArb.some((f: { what: string }) => f.what.includes('length:var(--x)'))).toBe(false);
+
+    // Round-1 L1: transition-timing-function: ease-in fails micro-craft while my-ease-in and ease-in-out pass
+    const easeBadCss = join(dir, 'wl-r1-l1-ease-bad.css');
+    writeFileSync(
+      easeBadCss,
+      `:root { --bg: #fff; --ink: #111; }
+.a { transition-timing-function: ease-in; }
+.b { animation-timing-function: ease-in; }
+@media (prefers-reduced-motion: reduce) { .a, .b { transition: none; animation: none; } }`,
+    );
+    const rL1Bad = runPy(['--web-lint', easeBadCss, '--json']);
+    expect(rL1Bad.status).toBe(1);
+    const l1Hits = JSON.parse(rL1Bad.stdout).findings.filter(
+      (f: { rule: string }) => f.rule === 'micro-craft',
+    );
+    expect(l1Hits.length).toBe(2);
+
+    const easeOkCss = join(dir, 'wl-r1-l1-ease-ok.css');
+    writeFileSync(
+      easeOkCss,
+      `:root { --bg: #fff; --ink: #111; --my-ease-in: cubic-bezier(0.22, 1, 0.36, 1); }
+.a { transition: transform 180ms ease-in-out; }
+.b { animation: my-ease-in 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .a, .b { transition: none; animation: none; } }`,
+    );
+    const rL1Ok = runPy(['--web-lint', easeOkCss, '--json']);
+    expect(rL1Ok.status, rL1Ok.stdout).toBe(0);
+
+    // Round-1 L2: CSS finding reports actual declaration line (> 1) and multi-file slop finding points to offending file & line
+    const multiDir = join(dir, 'wl-r1-l2-multi');
+    mkdirSync(multiDir, { recursive: true });
+    writeFileSync(
+      join(multiDir, 'a-clean.html'),
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body><main><p>Clean file.</p></main></body></html>`,
+    );
+    writeFileSync(
+      join(multiDir, 'b-slop.html'),
+      `<!doctype html>
+<html lang="en">
+<head><style>
+:root { --bg: #fff; --ink: #111; }
+body {
+  background: var(--bg);
+  color: #222222;
+}
+</style></head>
+<body>
+  <main>
+    <p>Unlock the power of widgets</p>
+  </main>
+</body>
+</html>`,
+    );
+    const rL2 = runPy(['--web-lint', multiDir, '--json']);
+    expect(rL2.status).toBe(1);
+    const l2Out = JSON.parse(rL2.stdout);
+    const l2Color = l2Out.findings.find((f: { rule: string }) => f.rule === 'no-raw-colors');
+    expect(l2Color.file).toBe('b-slop.html');
+    expect(l2Color.line).toBe(7);
+    const l2Slop = l2Out.findings.find((f: { rule: string }) => f.rule === 'no-slop-patterns');
+    expect(l2Slop.file).toBe('b-slop.html');
+    expect(l2Slop.line).toBe(12);
+
+    // Round-1 L3: CSS hsl(...) and oklch(...) outside :root fail no-raw-colors
+    const modernColorCss = join(dir, 'wl-r1-l3-colors.css');
+    writeFileSync(
+      modernColorCss,
+      `:root { --bg: #fff; --ink: #111; }
+.a { color: hsl(210 50% 50%); }
+.b { background: oklch(0.6 0.15 240); }`,
+    );
+    const rL3 = runPy(['--web-lint', modernColorCss, '--json']);
+    expect(rL3.status).toBe(1);
+    const l3Hits = JSON.parse(rL3.stdout).findings.filter(
+      (f: { rule: string }) => f.rule === 'no-raw-colors',
+    );
+    expect(l3Hits.length).toBe(2);
+    expect(l3Hits.map((f: { line: number }) => f.line)).toEqual([2, 3]);
+
+    // Round-1 L4: clamp(24px, 4vw, max(36px, 2.5rem)) parses cleanly (40px / 16px = 2.5 >= 2.0)
+    const clampNestedHtml = join(dir, 'wl-r1-l4-clamp.html');
+    writeFileSync(
+      clampNestedHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --surface: #fafafa; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); font-size: 16px; }
+h1 { font-size: clamp(24px, 4vw, max(36px, 2.5rem)); }
+@media (min-width: 768px) { body { padding: 16px; } }
+</style></head><body><header><h1>Fluid</h1></header><main><p>Body</p></main></body></html>`,
+    );
+    const rL4 = runPy(['--web-lint', clampNestedHtml, '--fidelity', '--json']);
+    expect(rL4.status, rL4.stdout).toBe(0);
+    const l4TypeCheck = JSON.parse(rL4.stdout).checks.find(
+      (c: { id: string }) => c.id === 'fidelity_type_scale',
+    );
+    expect(l4TypeCheck.ok).toBe(true);
+    expect(l4TypeCheck.value).toBe(2.5);
+
+    // Round-2 H1: token-only color-mix passes both --html and --web-lint; raw literal inside color-mix still fails
+    const colorMixOk = join(dir, 'wl-r2-h1-colormix-ok.html');
+    writeFileSync(
+      colorMixOk,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); }
+.pill { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+</style></head><body><main><span class="pill">OK</span></main></body></html>`,
+    );
+    expect(runPy(['--html', colorMixOk, '--json']).status).toBe(0);
+    expect(runPy(['--web-lint', colorMixOk, '--json']).status).toBe(0);
+
+    const colorMixBad = join(dir, 'wl-r2-h1-colormix-bad.html');
+    writeFileSync(
+      colorMixBad,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; --accent: #a63d28; }
+body { background: var(--bg); color: var(--ink); }
+.pill { background: color-mix(in srgb, #ff0000 50%, transparent); }
+</style></head><body><main><span class="pill">Bad</span></main></body></html>`,
+    );
+    const rMixHtmlBad = runPy(['--html', colorMixBad, '--json']);
+    expect(rMixHtmlBad.status).toBe(1);
+    expect(
+      JSON.parse(rMixHtmlBad.stdout)
+        .checks.filter((c: { ok: boolean }) => !c.ok)
+        .map((c: { id: string }) => c.id),
+    ).toContain('css_tokens');
+    const rMixWlBad = runPy(['--web-lint', colorMixBad, '--json']);
+    expect(rMixWlBad.status).toBe(1);
+    expect(JSON.parse(rMixWlBad.stdout).findings.map((f: { rule: string }) => f.rule)).toContain(
+      'no-raw-colors',
+    );
+
+    // Round-2 M5 & Round-3 M4: motion wrapped in prefers-reduced-motion: no-preference (and top-level @keyframes) passes
+    const noPrefMotionCss = join(dir, 'wl-r2-m5-no-pref.css');
+    writeFileSync(
+      noPrefMotionCss,
+      `:root { --bg: #fff; --ink: #111; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: transform 180ms ease-out; animation: fade 200ms ease-out; }
+}`,
+    );
+    const rR2M5 = runPy(['--web-lint', noPrefMotionCss, '--json']);
+    expect(rR2M5.status, rR2M5.stdout).toBe(0);
+
+    // Round-2 M7: <!-- inside <script> does not hide subsequent markup; prose and <pre><code> text do not trigger false findings
+    const scriptCommentBad = join(dir, 'wl-r2-m7-script-comment.html');
+    writeFileSync(
+      scriptCommentBad,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+.ok { color: var(--ink); }
+</style></head><body>
+<script>var marker = '<!--';</script>
+<div class="bogus-after-script" style="color: red">Real violation</div>
+<!-- later real comment -->
+</body></html>`,
+    );
+    const rR2M7Bad = runPy(['--web-lint', scriptCommentBad, '--json']);
+    expect(rR2M7Bad.status).toBe(1);
+    const m7BadRules = new Set(JSON.parse(rR2M7Bad.stdout).findings.map((f: { rule: string }) => f.rule));
+    expect(m7BadRules).toContain('no-unknown-classes');
+    expect(m7BadRules).toContain('no-inline-styles');
+
+    const proseCodeClean = join(dir, 'wl-r2-m7-prose-code.html');
+    writeFileSync(
+      proseCodeClean,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+.doc { color: var(--ink); background: var(--bg); }
+</style></head><body>
+<article class="doc">
+  <p>Do not write class="fake" or style="color:red" in prose.</p>
+  <pre><code>class="fake" style="color:red"</code></pre>
+  <p>Inline <code>&lt;div class="also-fake" style="padding:9px"&gt;</code> example.</p>
+</article>
+</body></html>`,
+    );
+    const rR2M7Clean = runPy(['--web-lint', proseCodeClean, '--json']);
+    expect(rR2M7Clean.status, rR2M7Clean.stdout).toBe(0);
+
+    // Round-2 S8: .vue and .svelte are not scanned by WEB_LINT_EXTS
+    const vueSvelteDir = join(dir, 'wl-r2-s8-ignored');
+    mkdirSync(vueSvelteDir, { recursive: true });
+    writeFileSync(
+      join(vueSvelteDir, 'App.vue'),
+      `<template><div class="bg-red-500" style="color:red">Vue</div></template>`,
+    );
+    writeFileSync(
+      join(vueSvelteDir, 'Widget.svelte'),
+      `<div class="bg-red-500" style="color:red">Svelte</div>`,
+    );
+    const rR2S8 = runPy(['--web-lint', vueSvelteDir, '--json']);
+    expect(rR2S8.status).toBe(1);
+    const s8Out = JSON.parse(rR2S8.stdout);
+    expect(s8Out.checks[0]?.id).toBe('web_lint_files_scanned');
+    expect(s8Out.checks[0]?.ok).toBe(false);
+    expect(s8Out.checks[0]?.value).toBe(0);
+    expect(s8Out.checks[0]?.detail).toContain('no HTML/CSS files found');
+
+    // Round-2 S9: Tailwind-enabled HTML passes on-demand utilities without no-unknown-classes, while plain HTML still flags them
+    const twHtmlOk = join(dir, 'wl-r2-s9-tailwind-ok.html');
+    writeFileSync(
+      twHtmlOk,
+      `<!doctype html><html lang="en"><head>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body>
+<main class="ps-4 drop-shadow-sm"><ul class="list-disc"><li class="underline underline-offset-2 decoration-2">Item</li></ul></main>
+</body></html>`,
+    );
+    const rR2S9Ok = runPy(['--web-lint', twHtmlOk, '--json']);
+    expect(rR2S9Ok.status, rR2S9Ok.stdout).toBe(0);
+
+    const plainHtmlBad = join(dir, 'wl-r2-s9-plain-bad.html');
+    writeFileSync(
+      plainHtmlBad,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body>
+<main class="ps-4 drop-shadow-sm underline-offset-2">Plain HTML</main>
+</body></html>`,
+    );
+    const rR2S9Bad = runPy(['--web-lint', plainHtmlBad, '--json']);
+    expect(rR2S9Bad.status).toBe(1);
+    const s9Unknown = JSON.parse(rR2S9Bad.stdout).findings.filter(
+      (f: { rule: string }) => f.rule === 'no-unknown-classes',
+    );
+    expect(s9Unknown.length).toBe(3);
+
+    // Round-3 M3: HTML comment mentioning <script> without closing ends at --> and never masks following markup
+    const commentScriptHtml = join(dir, 'wl-r3-m3-comment-script.html');
+    writeFileSync(
+      commentScriptHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body>
+<!-- mentions <script> without closing -->
+<div style="color: red">Visible violation</div>
+</body></html>`,
+    );
+    const rM3 = runPy(['--web-lint', commentScriptHtml, '--json']);
+    expect(rM3.status).toBe(1);
+    expect(JSON.parse(rM3.stdout).findings.map((f: { rule: string }) => f.rule)).toContain(
+      'no-inline-styles',
+    );
+
+    // Fix #3: Quoted attribute values containing <script>, <style>, <code>, <pre>, or <!-- must NOT start masks or swallow subsequent markup/CSS
+    const attrScriptHtml = join(dir, 'wl-fix3-attr-script.html');
+    writeFileSync(
+      attrScriptHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+input:focus-visible { outline: 2px solid var(--ink); }
+</style></head><body>
+<input placeholder="Example <script> tag">
+<div style="color: red" class="undeclared-after-script">Real violation</div>
+</body></html>`,
+    );
+    const rFix3Script = runPy(['--web-lint', attrScriptHtml, '--json']);
+    expect(rFix3Script.status).toBe(1);
+    const fix3ScriptOut = JSON.parse(rFix3Script.stdout);
+    const fix3ScriptRules = new Set(fix3ScriptOut.findings.map((f: { rule: string }) => f.rule));
+    expect(fix3ScriptRules).toContain('no-inline-styles');
+    expect(fix3ScriptRules).toContain('no-unknown-classes');
+    const fix3ScriptInline = fix3ScriptOut.findings.find(
+      (f: { rule: string }) => f.rule === 'no-inline-styles',
+    );
+    expect(fix3ScriptInline?.line).toBe(7);
+
+    const attrCommentHtml = join(dir, 'wl-fix3-attr-comment.html');
+    writeFileSync(
+      attrCommentHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body>
+<div title="<!-- note -->">Safe attr</div>
+<style>
+.leak { color: #ff0000; }
+</style>
+<p style="padding: 8px">Visible inline violation</p>
+</body></html>`,
+    );
+    const rFix3Comment = runPy(['--web-lint', attrCommentHtml, '--json']);
+    expect(rFix3Comment.status).toBe(1);
+    const fix3CommentOut = JSON.parse(rFix3Comment.stdout);
+    const fix3CommentRules = new Set(fix3CommentOut.findings.map((f: { rule: string }) => f.rule));
+    expect(fix3CommentRules).toContain('no-raw-colors');
+    expect(fix3CommentRules).toContain('no-inline-styles');
+    expect(fix3CommentOut.findings.find((f: { rule: string }) => f.rule === 'no-raw-colors')?.line).toBe(7);
+    expect(fix3CommentOut.findings.find((f: { rule: string }) => f.rule === 'no-inline-styles')?.line).toBe(
+      9,
+    );
+
+    const attrAllNonMarkupHtml = join(dir, 'wl-fix3-attr-style-code-pre.html');
+    writeFileSync(
+      attrAllNonMarkupHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+input:focus-visible { outline: 2px solid var(--ink); }
+</style></head><body>
+<input placeholder="Use <style> tag" data-code='Use <code> here' data-pre="Use <pre> here">
+<script data-gt="a > b">var s = '<!-- not a comment';</script>
+<section style="margin: 4px" class="after-all-attrs">Caught</section>
+<style>
+.after-attrs { background: #123456; }
+</style>
+</body></html>`,
+    );
+    const rFix3All = runPy(['--web-lint', attrAllNonMarkupHtml, '--json']);
+    expect(rFix3All.status).toBe(1);
+    const fix3AllOut = JSON.parse(rFix3All.stdout);
+    const fix3AllRules = new Set(fix3AllOut.findings.map((f: { rule: string }) => f.rule));
+    expect(fix3AllRules).toContain('no-inline-styles');
+    expect(fix3AllRules).toContain('no-unknown-classes');
+    expect(fix3AllRules).toContain('no-raw-colors');
+    expect(fix3AllOut.findings.find((f: { rule: string }) => f.rule === 'no-inline-styles')?.line).toBe(8);
+    expect(fix3AllOut.findings.find((f: { rule: string }) => f.rule === 'no-raw-colors')?.line).toBe(10);
+  }, 60_000);
 });

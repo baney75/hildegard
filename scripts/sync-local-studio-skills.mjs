@@ -359,6 +359,7 @@ export const EDITS = [
     ],
     'hildegard-web/SKILL.md': [
       'python3 scripts/check_design.py --html site/',
+      'python3 scripts/check_design.py --web-lint site/ --fidelity',
       '`python3 scripts/check_design.py --sakuga control.json --pre-render`',
       '`python3 scripts/check_design.py --sakuga control.json`',
     ],
