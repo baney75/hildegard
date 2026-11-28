@@ -2282,10 +2282,7 @@ def check_logo_svg(path, allow_draft_text=False, surface=None):
 
 
 WEB_LINT_EXTS = {".html", ".htm", ".css", ".jsx", ".tsx"}
-HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
-SCRIPT_TAG_RE = re.compile(r"(<script\b[^>]*>)([\s\S]*?)(</script\s*>)", re.I)
-PRE_TAG_RE = re.compile(r"(<pre\b[^>]*>)([\s\S]*?)(</pre\s*>)", re.I)
-CODE_TAG_RE = re.compile(r"(<code\b[^>]*>)([\s\S]*?)(</code\s*>)", re.I)
+HTML_NON_MARKUP_START_RE = re.compile(r"<!--|<(script|style|pre|code)(?=[\s/>]|$)", re.I)
 CUSTOM_PROP_KEY_RE = re.compile(r"^--[A-Za-z0-9_-]+$")
 REDUCED_MOTION_MEDIA_RE = re.compile(r"^@media\b[^;]*prefers-reduced-motion\s*:\s*reduce\b", re.I)
 NO_PREF_MOTION_MEDIA_RE = re.compile(r"^@media\b[^;]*prefers-reduced-motion\s*:\s*no-preference\b", re.I)
@@ -2293,20 +2290,19 @@ RESPONSIVE_MEDIA_RE = re.compile(
     r"@media\b[^{]*(?:width|height|orientation|aspect-ratio|pointer|hover)\b|@container\b",
     re.I,
 )
-KEYFRAMES_RE = re.compile(r"@(?:-webkit-)?keyframes\b", re.I)
 TAILWIND_CSS_RE = re.compile(r"@tailwind\b|@theme\b|@import\s+(?:url\(\s*)?['\"][^'\"]*tailwindcss", re.I)
 TAILWIND_TAG_RE = re.compile(r"<(?:script|link|style)\b[^>]*tailwindcss", re.I)
 TW_RAW_PALETTE_RE = re.compile(
     r"^(?:bg|text|border|ring|fill|stroke|from|to|via|outline|decoration|accent|caret)-"
     r"(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)"
-    r"-(?:50|[1-9]00|950)(?:/(?:\d+|\[[^\]]+\]))?$"
+    r"-(?:50|[1-9]00|950)(?:/(?:[A-Za-z0-9._-]+|\[[^\]]+\]))?$"
 )
 TW_ARB_COLOR_RE = re.compile(
-    r"^(?:bg|text|border|ring|fill|stroke|from|to|via|outline|decoration|accent|caret)-\[(?:#|rgba?\(|hsla?\(|hwb\(|oklch\(|oklab\(|lch\(|lab\()[^\]]+\](?:/(?:\d+|\[[^\]]+\]))?$",
+    r"^(?:bg|text|border|ring|fill|stroke|from|to|via|outline|decoration|accent|caret)-\[(?:#|rgba?\(|hsla?\(|hwb\(|oklch\(|oklab\(|lch\(|lab\()[^\]]+\](?:/(?:[A-Za-z0-9._-]+|\[[^\]]+\]))?$",
     re.I,
 )
 TW_ARB_VAL_RE = re.compile(
-    r"^(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|w|h|min-w|max-w|min-h|max-h|text|rounded|z|leading|tracking|border)-\[(?!var\(--)[^\]]+\](?:/(?:\d+|\[[^\]]+\]))?$"
+    r"^(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|w|h|min-w|max-w|min-h|max-h|text|rounded|z|leading|tracking|border)-\[(?!(?:[a-z-]+:)?var\(--)[^\]]+\](?:/(?:[A-Za-z0-9._-]+|\[[^\]]+\]))?$"
 )
 TW_RESTYLE_PREFIX_RE = re.compile(
     r"^(?:bg|text|p|px|py|pt|pr|pb|pl|rounded|border|shadow|font|tracking|leading|ring|outline|fill|stroke)-"
@@ -2319,6 +2315,20 @@ TW_LAYOUT_PREFIX_RE = re.compile(
 )
 HTML_TAG_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9:-]*")
 TS_GENERIC_IDENT_RE = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+TS_GENERIC_PREV_TOKENS = frozenset({":", "=", ",", ";", "{", "}", "export", "default", "async"})
+HTML_LOWER_TAGS = frozenset({
+    "a", "abbr", "address", "area", "article", "aside", "audio", "b", "base", "bdi", "bdo",
+    "blockquote", "body", "br", "button", "canvas", "caption", "cite", "code", "col", "colgroup",
+    "data", "datalist", "dd", "del", "details", "dfn", "dialog", "div", "dl", "dt", "em", "embed",
+    "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6",
+    "head", "header", "hgroup", "hr", "html", "i", "iframe", "img", "input", "ins", "kbd",
+    "label", "legend", "li", "link", "main", "map", "mark", "menu", "meta", "meter", "nav",
+    "noscript", "object", "ol", "optgroup", "option", "output", "p", "picture", "pre", "progress",
+    "q", "rp", "rt", "ruby", "s", "samp", "script", "search", "section", "select", "slot", "small",
+    "source", "span", "strong", "style", "sub", "summary", "sup", "svg", "table", "tbody", "td",
+    "template", "textarea", "tfoot", "th", "thead", "time", "title", "tr", "track", "u", "ul",
+    "var", "video", "wbr",
+})
 JSX_TAG_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]*")
 JSX_ATTR_NAME_RE = re.compile(r"[A-Za-z_:][A-Za-z0-9_.:-]*")
 JSX_RAW_INTERACTIVE_TAGS = frozenset({"button", "input", "select", "textarea"})
@@ -2335,10 +2345,6 @@ CSS_EASE_IN_ONLY_RE = re.compile(r"(?<![A-Za-z0-9_-])ease-in(?![A-Za-z0-9_-])", 
 
 def _mask_newlines_only(match):
     return re.sub(r"[^\n]", " ", match.group(0))
-
-
-def _mask_tag_body(match):
-    return match.group(1) + re.sub(r"[^\n]", " ", match.group(2)) + match.group(3)
 
 
 def _mask_range(chars, start, end):
@@ -2487,15 +2493,20 @@ def _scan_ts_type_args(text, start, mask_out=None):
     return -1
 
 
-def _scan_balanced_parens(text, start):
-    """Given text[start] == '(', return index of matching ')' or -1."""
+def _scan_balanced_delim(text, start, open_ch, close_ch):
+    """Given text[start] == open_ch, return index of matching close_ch or -1, respecting strings, templates, comments, and regexes."""
     n = len(text)
-    if start >= n or text[start] != "(":
+    if start >= n or text[start] != open_ch:
         return -1
     depth = 0
     i = start
+    can_regex = True
+    prev_was_dot = False
     while i < n:
         ch = text[i]
+        if ch in " \t\r\n":
+            i += 1
+            continue
         if ch in ("'", '"'):
             q = ch
             i += 1
@@ -2509,12 +2520,16 @@ def _scan_balanced_parens(text, start):
                 i += 1
             else:
                 return -1
+            can_regex = False
+            prev_was_dot = False
             continue
         if ch == "`":
             end_t = _scan_template_literal_end(text, i)
             if end_t < 0:
                 return -1
             i = end_t
+            can_regex = False
+            prev_was_dot = False
             continue
         if ch == "/" and i + 1 < n and text[i + 1] == "*":
             end_c = text.find("*/", i + 2)
@@ -2526,18 +2541,78 @@ def _scan_balanced_parens(text, start):
             nl = text.find("\n", i + 2)
             i = n if nl < 0 else nl + 1
             continue
-        if ch == "(":
+        if ch == "/":
+            if can_regex:
+                end_r = _try_scan_regex_literal(text, i)
+                if end_r > 0:
+                    i = end_r
+                    can_regex = False
+                    prev_was_dot = False
+                    continue
+            i += 1
+            can_regex = True
+            prev_was_dot = False
+            continue
+        if ch == open_ch:
             depth += 1
-        elif ch == ")":
+            i += 1
+            can_regex = True
+            prev_was_dot = False
+            continue
+        if ch == close_ch:
             depth -= 1
             if depth == 0:
                 return i
+            i += 1
+            can_regex = (close_ch == "}")
+            prev_was_dot = False
+            continue
+        if ch in (")", "]"):
+            i += 1
+            can_regex = False
+            prev_was_dot = False
+            continue
+        if ch == ".":
+            i += 1
+            can_regex = False
+            prev_was_dot = True
+            continue
+        if ch.isalpha() or ch in "_$":
+            j = i + 1
+            while j < n and (text[j].isalnum() or text[j] in "_$"):
+                j += 1
+            ident = text[i:j]
+            can_regex = (not prev_was_dot) and (ident in JS_REGEX_KEYWORDS)
+            prev_was_dot = False
+            i = j
+            continue
+        if ch.isdigit():
+            j = i + 1
+            while j < n and (text[j].isalnum() or text[j] in "_."):
+                j += 1
+            can_regex = False
+            prev_was_dot = False
+            i = j
+            continue
+        if ch in ("+", "-") and i + 1 < n and text[i + 1] == ch:
+            i += 2
+            prev_was_dot = False
+            continue
         i += 1
+        can_regex = True
+        prev_was_dot = False
     return -1
 
 
-def _try_scan_ts_generic_params(text, lt, mask_out=None):
+def _scan_balanced_parens(text, start):
+    """Given text[start] == '(', return index of matching ')' or -1."""
+    return _scan_balanced_delim(text, start, "(", ")")
+
+
+def _try_scan_ts_generic_params(text, lt, prev_tok="", mask_out=None):
     """Detect TS generic type parameter list at text[lt] == '<' in JS mode; return index past '>' or -1."""
+    if prev_tok not in TS_GENERIC_PREV_TOKENS and prev_tok != "(":
+        return -1
     n = len(text)
     if lt >= n or text[lt] != "<":
         return -1
@@ -2559,37 +2634,42 @@ def _try_scan_ts_generic_params(text, lt, mask_out=None):
                 has_const = True
                 ident = m2.group(0)
                 p = m2.end()
+    if (not has_const and first_ident in HTML_LOWER_TAGS) or ident in HTML_LOWER_TAGS:
+        return -1
     p, unclosed = _skip_ws_and_js_comments(text, p)
     if unclosed or p >= n:
         return -1
-    is_generic = False
-    if text[p] == ",":
-        is_generic = True
-    elif re.match(r"extends\b", text[p:]):
-        is_generic = True
-    elif text[p] == "=" and not text.startswith("=>", p):
-        is_generic = True
-    elif has_const and text[p] == ">":
-        is_generic = True
-    elif text[p] == ">":
-        after_gt, unc3 = _skip_ws_and_js_comments(text, p + 1)
-        if not unc3 and after_gt < n and text[after_gt] == "(":
-            close_p = _scan_balanced_parens(text, after_gt)
-            if close_p >= 0:
-                after_p, unc4 = _skip_ws_and_js_comments(text, close_p + 1)
-                if not unc4 and after_p < n:
-                    if text.startswith("=>", after_p):
-                        is_generic = True
-                    elif text[after_p] == ":" and ident not in JSX_RAW_INTERACTIVE_TAGS and ident != "a":
-                        is_generic = True
-                    elif text[after_p] in (";", "}") and ident[0].isupper():
-                        is_generic = True
-    if not is_generic:
+    valid_start = (
+        text[p] == ","
+        or bool(re.match(r"extends\b", text[p:]))
+        or (text[p] == "=" and not text.startswith("=>", p))
+        or text[p] == ">"
+    )
+    if not valid_start:
         return -1
-    return _scan_ts_type_args(text, lt, mask_out=mask_out)
+    end_gen = _scan_ts_type_args(text, lt)
+    if end_gen < 0:
+        return -1
+    after_gt, unc3 = _skip_ws_and_js_comments(text, end_gen)
+    if unc3 or after_gt >= n or text[after_gt] != "(":
+        return -1
+    close_p = _scan_balanced_parens(text, after_gt)
+    if close_p < 0:
+        return -1
+    after_p, unc4 = _skip_ws_and_js_comments(text, close_p + 1)
+    if unc4 or after_p >= n:
+        return -1
+    if prev_tok == "(":
+        if not text.startswith("=>", after_p):
+            return -1
+    elif not (text.startswith("=>", after_p) or text[after_p] == ":"):
+        return -1
+    if mask_out is not None:
+        _scan_ts_type_args(text, lt, mask_out=mask_out)
+    return end_gen
 
 
-def _scan_template_literal_end(text, start, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=()):
+def _scan_template_literal_end(text, start, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=(), style_spans_out=None):
     """Given text[start] == '`', return index just past the matching closing '`' or -1."""
     n = len(text)
     i = start + 1
@@ -2602,7 +2682,7 @@ def _scan_template_literal_end(text, start, mask_out=None, tags_out=None, unpars
             end_b = _scan_js_mode(
                 text, i + 2, stop_at_close_brace=True,
                 mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                base_offset=base_offset, open_tags=open_tags,
+                base_offset=base_offset, open_tags=open_tags, style_spans_out=style_spans_out,
             )
             if end_b < 0:
                 return -1
@@ -2621,7 +2701,7 @@ def _scan_balanced_braces(text, start):
     return _scan_js_mode(text, start + 1, stop_at_close_brace=True)
 
 
-def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, in_jsx_children=False, open_tags=()):
+def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, in_jsx_children=False, open_tags=(), style_spans_out=None):
     """Parse a JSX opening tag at text[lt] == '<'. Returns None if not a JSX tag, else (kind, tag_name, next_pos)."""
     n = len(text)
     if lt + 1 >= n:
@@ -2692,7 +2772,7 @@ def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_
             end_b = _scan_js_mode(
                 text, expr_start, stop_at_close_brace=True,
                 mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                base_offset=base_offset, open_tags=open_tags,
+                base_offset=base_offset, open_tags=open_tags, style_spans_out=style_spans_out,
             )
             if end_b < 0:
                 if unparsed_out is not None:
@@ -2704,7 +2784,7 @@ def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_
                         "balance braces in the JSX attribute expression so --web-lint can audit the tag",
                     ))
                 return ("unparsed", tag_name, n)
-            inner_s = text[expr_start:end_b].strip()
+            inner_s = ("".join(mask_out[expr_start:end_b]) if mask_out is not None else text[expr_start:end_b]).strip()
             if inner_s and not inner_s.startswith("...") and unparsed_out is not None:
                 snip = text[pos:min(end_b + 1, pos + 50)].splitlines()[0]
                 unparsed_out.append((
@@ -2776,7 +2856,7 @@ def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_
                 end_b = _scan_js_mode(
                     text, expr_start, stop_at_close_brace=True,
                     mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                    base_offset=base_offset, open_tags=open_tags,
+                    base_offset=base_offset, open_tags=open_tags, style_spans_out=style_spans_out,
                 )
                 if end_b < 0:
                     if unparsed_out is not None:
@@ -2788,7 +2868,8 @@ def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_
                             f"balance braces in '{attr_name}={{...}}' so --web-lint can audit the tag",
                         ))
                     return ("unparsed", tag_name, n)
-                attrs.append((attr_name, base_offset + attr_start, "expr", text[expr_start:end_b]))
+                expr_val = "".join(mask_out[expr_start:end_b]) if mask_out is not None else text[expr_start:end_b]
+                attrs.append((attr_name, base_offset + attr_start, "expr", expr_val))
                 pos = end_b + 1
             else:
                 if unparsed_out is not None:
@@ -2814,7 +2895,7 @@ def _try_parse_jsx_opening_tag(text, lt, mask_out=None, tags_out=None, unparsed_
     return ("unparsed", tag_name, n)
 
 
-def _scan_jsx_children(text, pos, open_tag, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=()):
+def _scan_jsx_children(text, pos, open_tag, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=(), style_spans_out=None):
     """Scan JSX element children until matching </open_tag> (or ancestor closing tag / EOF)."""
     n = len(text)
     child_open_tags = open_tags + (open_tag,)
@@ -2824,7 +2905,7 @@ def _scan_jsx_children(text, pos, open_tag, mask_out=None, tags_out=None, unpars
             end_b = _scan_js_mode(
                 text, pos + 1, stop_at_close_brace=True,
                 mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                base_offset=base_offset, open_tags=child_open_tags,
+                base_offset=base_offset, open_tags=child_open_tags, style_spans_out=style_spans_out,
             )
             if end_b < 0:
                 if unparsed_out is not None:
@@ -2857,30 +2938,39 @@ def _scan_jsx_children(text, pos, open_tag, mask_out=None, tags_out=None, unpars
                     continue
                 pos += 2
                 continue
+            tag_lt = pos
             parsed = _try_parse_jsx_opening_tag(
                 text, pos, mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
                 base_offset=base_offset, in_jsx_children=True, open_tags=child_open_tags,
+                style_spans_out=style_spans_out,
             )
             if parsed is not None:
                 kind, child_tag, next_pos = parsed
                 pos = next_pos
                 if kind in ("open", "fragment"):
+                    body_start = pos
                     pos = _scan_jsx_children(
                         text, pos, child_tag,
                         mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
                         base_offset=base_offset, open_tags=child_open_tags,
+                        style_spans_out=style_spans_out,
                     )
+                    if kind == "open" and child_tag.lower() == "style" and style_spans_out is not None:
+                        close_idx = text.rfind("</", body_start, pos)
+                        body_end = close_idx if close_idx >= body_start else pos
+                        style_spans_out.append((base_offset + tag_lt, base_offset + body_start, base_offset + body_end, base_offset + pos))
                 continue
         pos += 1
     return pos
 
 
-def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=()):
+def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=None, unparsed_out=None, base_offset=0, open_tags=(), style_spans_out=None):
     """Single-pass JS/TSX scanner handling strings, templates, regexes, comments, balanced braces, and JSX."""
     n = len(text)
     brace_depth = 0
     can_regex = True
     prev_was_dot = False
+    prev_tok = ""
     while pos < n:
         ch = text[pos]
         if ch in " \t\r\n":
@@ -2899,23 +2989,34 @@ def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=
                 pos += 1
             can_regex = False
             prev_was_dot = False
+            prev_tok = "literal"
             continue
         if ch == "`":
             end_t = _scan_template_literal_end(
                 text, pos, mask_out=mask_out, tags_out=tags_out,
                 unparsed_out=unparsed_out, base_offset=base_offset, open_tags=open_tags,
+                style_spans_out=style_spans_out,
             )
             if end_t < 0:
                 return -1 if stop_at_close_brace else n
             pos = end_t
             can_regex = False
             prev_was_dot = False
+            prev_tok = "literal"
             continue
         if ch == "/" and pos + 1 < n and text[pos + 1] == "*":
             end_c = text.find("*/", pos + 2)
             if end_c < 0:
                 if mask_out is not None:
                     _mask_range(mask_out, pos, n)
+                if unparsed_out is not None:
+                    snip = text[pos:pos + 50].splitlines()[0]
+                    unparsed_out.append((
+                        base_offset + pos,
+                        snip,
+                        "unclosed block comment '/*' reached end of file",
+                        "close the '/* ... */' block comment so --web-lint can audit the remaining code",
+                    ))
                 return -1 if stop_at_close_brace else n
             if mask_out is not None:
                 _mask_range(mask_out, pos, end_c + 2)
@@ -2935,39 +3036,53 @@ def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=
                     pos = end_r
                     can_regex = False
                     prev_was_dot = False
+                    prev_tok = "literal"
                     continue
             pos += 1
             can_regex = True
             prev_was_dot = False
+            prev_tok = "/"
             continue
-        if ch == "<" and can_regex:
-            end_gen = _try_scan_ts_generic_params(text, pos, mask_out=mask_out)
+        if ch == "<" and (can_regex or prev_tok == "async"):
+            end_gen = _try_scan_ts_generic_params(text, pos, prev_tok=prev_tok, mask_out=mask_out)
             if end_gen > 0:
                 pos = end_gen
                 can_regex = True
                 prev_was_dot = False
+                prev_tok = "generic"
                 continue
-            parsed = _try_parse_jsx_opening_tag(
-                text, pos, mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                base_offset=base_offset, in_jsx_children=False, open_tags=open_tags,
-            )
-            if parsed is not None:
-                kind, child_tag, next_pos = parsed
-                pos = next_pos
-                if kind in ("open", "fragment"):
-                    pos = _scan_jsx_children(
-                        text, pos, child_tag,
-                        mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
-                        base_offset=base_offset, open_tags=open_tags,
-                    )
-                can_regex = True
-                prev_was_dot = False
-                continue
+            if can_regex:
+                tag_lt = pos
+                parsed = _try_parse_jsx_opening_tag(
+                    text, pos, mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
+                    base_offset=base_offset, in_jsx_children=False, open_tags=open_tags,
+                    style_spans_out=style_spans_out,
+                )
+                if parsed is not None:
+                    kind, child_tag, next_pos = parsed
+                    pos = next_pos
+                    if kind in ("open", "fragment"):
+                        body_start = pos
+                        pos = _scan_jsx_children(
+                            text, pos, child_tag,
+                            mask_out=mask_out, tags_out=tags_out, unparsed_out=unparsed_out,
+                            base_offset=base_offset, open_tags=open_tags,
+                            style_spans_out=style_spans_out,
+                        )
+                        if kind == "open" and child_tag.lower() == "style" and style_spans_out is not None:
+                            close_idx = text.rfind("</", body_start, pos)
+                            body_end = close_idx if close_idx >= body_start else pos
+                            style_spans_out.append((base_offset + tag_lt, base_offset + body_start, base_offset + body_end, base_offset + pos))
+                    can_regex = True
+                    prev_was_dot = False
+                    prev_tok = "jsx"
+                    continue
         if ch == "{":
             brace_depth += 1
             pos += 1
             can_regex = True
             prev_was_dot = False
+            prev_tok = "{"
             continue
         if ch == "}":
             if brace_depth == 0:
@@ -2976,26 +3091,31 @@ def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=
                 pos += 1
                 can_regex = True
                 prev_was_dot = False
+                prev_tok = "}"
                 continue
             brace_depth -= 1
             pos += 1
             can_regex = True
             prev_was_dot = False
+            prev_tok = "}"
             continue
         if ch in (")", "]"):
             pos += 1
             can_regex = False
             prev_was_dot = False
+            prev_tok = ch
             continue
         if ch in ("(", "["):
             pos += 1
             can_regex = True
             prev_was_dot = False
+            prev_tok = ch
             continue
         if ch == ".":
             pos += 1
             can_regex = False
             prev_was_dot = True
+            prev_tok = "."
             continue
         if ch.isalpha() or ch in "_$":
             j = pos + 1
@@ -3004,6 +3124,7 @@ def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=
             ident = text[pos:j]
             can_regex = (not prev_was_dot) and (ident in JS_REGEX_KEYWORDS)
             prev_was_dot = False
+            prev_tok = ident
             pos = j
             continue
         if ch.isdigit():
@@ -3012,42 +3133,107 @@ def _scan_js_mode(text, pos, stop_at_close_brace=False, mask_out=None, tags_out=
                 j += 1
             can_regex = False
             prev_was_dot = False
+            prev_tok = "literal"
             pos = j
             continue
-        if ch in ("+", "-") and pos + 1 < n and text[pos + 1] == ch:
+        three = text[pos:pos + 3]
+        if three in ("===", "!=="):
+            pos += 3
+            can_regex = True
+            prev_was_dot = False
+            prev_tok = three
+            continue
+        two = text[pos:pos + 2]
+        if two in ("++", "--"):
             pos += 2
             prev_was_dot = False
+            prev_tok = two
             continue
-        if ch == "=" and pos + 1 < n and text[pos + 1] == ">":
+        if two in ("&&", "||", "??", "=>", "==", "!=", "<=", ">="):
             pos += 2
             can_regex = True
             prev_was_dot = False
+            prev_tok = two
             continue
         pos += 1
         can_regex = True
         prev_was_dot = False
+        prev_tok = ch
     return -1 if stop_at_close_brace else n
 
 
-def _strip_js_tsx_comments(text):
-    """Single-pass newline-preserving comment stripper for JS/TSX."""
+def _scan_jsx_file(text):
+    """Single-pass JS/TSX scanner returning (comment_masked_text, tags, unparsed, style_spans)."""
     chars = list(text)
-    _scan_js_mode(text, 0, stop_at_close_brace=False, mask_out=chars)
-    return "".join(chars)
-
-
-def _strip_markup_comments(text, is_jsx=False):
-    if is_jsx:
-        return _strip_js_tsx_comments(text)
-    return HTML_COMMENT_RE.sub(_mask_newlines_only, text)
-
-
-def _scan_jsx_tags(text):
-    """Return (tags, unparsed) for all JSX opening tags including nested JSX in prop expressions."""
     tags = []
     unparsed = []
-    _scan_js_mode(text, 0, stop_at_close_brace=False, tags_out=tags, unparsed_out=unparsed, base_offset=0)
-    return tags, unparsed
+    style_spans = []
+    _scan_js_mode(
+        text, 0, stop_at_close_brace=False,
+        mask_out=chars, tags_out=tags, unparsed_out=unparsed,
+        base_offset=0, style_spans_out=style_spans,
+    )
+    return "".join(chars), tags, unparsed, style_spans
+
+
+def _scan_html_web_lint(text):
+    """Single left-to-right HTML non-markup scanner consuming <!--, <script, <style, <pre, <code in document order."""
+    n = len(text)
+    tag_header_chars = list(text)
+    markup_chars = list(text)
+    html_tag_chars = list(text)
+    css_blocks = []
+    pos = 0
+    while pos < n:
+        m = HTML_NON_MARKUP_START_RE.search(text, pos)
+        if not m:
+            break
+        start = m.start()
+        if m.group(0) == "<!--":
+            end_c = text.find("-->", start + 4)
+            end = n if end_c < 0 else end_c + 3
+            _mask_range(tag_header_chars, start, end)
+            _mask_range(markup_chars, start, end)
+            _mask_range(html_tag_chars, start, end)
+            pos = end
+            continue
+        tag = m.group(1).lower()
+        gt = m.end()
+        while gt < n:
+            c = text[gt]
+            if c in ('"', "'"):
+                q = c
+                gt += 1
+                while gt < n and text[gt] != q:
+                    gt += 1
+                if gt < n:
+                    gt += 1
+                continue
+            if c == ">":
+                break
+            gt += 1
+        if gt >= n:
+            pos = m.end()
+            continue
+        if tag in ("pre", "code") and gt > m.end() and text[gt - 1] == "/":
+            pos = gt + 1
+            continue
+        body_start = gt + 1
+        close_m = re.search(rf"</{tag}\s*>", text[body_start:], re.I)
+        body_end = body_start + close_m.start() if close_m else n
+        full_end = body_start + close_m.end() if close_m else n
+        if tag == "script":
+            _mask_range(tag_header_chars, body_start, body_end)
+            _mask_range(markup_chars, start, full_end)
+            _mask_range(html_tag_chars, start, full_end)
+        elif tag == "style":
+            css_blocks.append((body_start, text[body_start:body_end]))
+            _mask_range(markup_chars, start, full_end)
+            _mask_range(html_tag_chars, start, full_end)
+        else:
+            _mask_range(html_tag_chars, body_start, body_end)
+        pos = full_end
+    return "".join(tag_header_chars), "".join(markup_chars), "".join(html_tag_chars), css_blocks
 
 
 def _edit_distance(a, b):
@@ -3638,23 +3824,98 @@ def _parse_js_string_literal(s):
     return None
 
 
+def _strip_ts_class_wrappers(node):
+    """Strip outer comments, balanced parens, trailing non-null '!', and top-level trailing 'as'/'satisfies'."""
+    s = node
+    while True:
+        s = _strip_js_outer_comments_and_parens(s)
+        if not s:
+            return s
+        toks = list(_iter_js_top_level(s))
+        has_top_op = any(tok in ("?", "||", "??", "&&", "+") for _, tok in toks)
+        if not has_top_op:
+            if s.endswith("!") and not s.endswith("!=") and len(s) > 1:
+                s = s[:-1].strip()
+                continue
+            changed = False
+            for idx_pos, (ch_idx, tok) in enumerate(toks):
+                if tok in ("as", "satisfies") and idx_pos > 0 and toks[idx_pos - 1][1] not in (".", "?."):
+                    tail = s[ch_idx + len(tok):].strip()
+                    if tail and not _has_top_level_expr_op(tail):
+                        s = s[:ch_idx].strip()
+                        changed = True
+                        break
+            if changed:
+                continue
+        return s
+
+
+def _is_static_lookup_expr(s):
+    """True iff s is an identifier/member-chain bracket lookup like TONE_MAP[tone] or cfg.tones?.[k]."""
+    n = len(s)
+    m = TS_GENERIC_IDENT_RE.match(s, 0)
+    if not m:
+        return False
+    pos = m.end()
+    saw_bracket = False
+    while pos < n:
+        while pos < n and s[pos] in " \t\r\n":
+            pos += 1
+        if pos >= n:
+            break
+        if s.startswith("?.", pos):
+            pos += 2
+            while pos < n and s[pos] in " \t\r\n":
+                pos += 1
+            if pos < n and s[pos] == "[":
+                end_b = _scan_balanced_delim(s, pos, "[", "]")
+                if end_b < 0:
+                    return False
+                saw_bracket = True
+                pos = end_b + 1
+                continue
+            m2 = TS_GENERIC_IDENT_RE.match(s, pos)
+            if not m2:
+                return False
+            pos = m2.end()
+            continue
+        if s[pos] == ".":
+            pos += 1
+            while pos < n and s[pos] in " \t\r\n":
+                pos += 1
+            m2 = TS_GENERIC_IDENT_RE.match(s, pos)
+            if not m2:
+                return False
+            pos = m2.end()
+            continue
+        if s[pos] == "[":
+            end_b = _scan_balanced_delim(s, pos, "[", "]")
+            if end_b < 0:
+                return False
+            saw_bracket = True
+            pos = end_b + 1
+            continue
+        return False
+    return saw_bracket
+
+
 def _extract_jsx_class_strings(expr):
-    """Return (static_strings, malformed_bool, unsupported_dynamic_bool) from a JSX className={...} expression."""
+    """Return (static_strings, malformed_bool, unsupported_dynamic_bool, has_dyn_tpl_bool) from a JSX className={...} expression."""
     raw = expr.strip()
     if not raw:
-        return [], True, False
+        return [], True, False, False
     if not _check_js_expr_balanced(raw):
-        return [], True, False
+        return [], True, False, False
 
     out = []
-    state = {"unsupported": False}
+    state = {"unsupported": False, "dyn_tpl": False}
 
     def walk_class_expr(node):
-        s = _strip_js_outer_comments_and_parens(node)
+        s = _strip_ts_class_wrappers(node)
         if not s:
             return
 
-        # 1. Ternary: cond ? then : else (cond is a predicate; never extract strings or flag calls from cond)
+        # 1. Ternary: cond ? then : else (cond is a predicate; never extract strings or flag calls/templates from cond)
         tern = _split_top_level_ternary(s)
         if tern is not None:
             _, then_part, else_part = tern
@@ -3693,12 +3954,14 @@ def _extract_jsx_class_strings(expr):
 
         # 6. Template literal
         if s.startswith("`") and _scan_template_literal_end(s, 0) == len(s):
-            if not _has_dynamic_template_literal(s):
+            if _has_dynamic_template_literal(s):
+                state["dyn_tpl"] = True
+            else:
                 out.append(s[1:-1])
             return
 
-        # 7. Array literal: [a, b, ...]
-        if s.startswith("[") and s.endswith("]"):
+        # 7. Array literal: [a, b, ...] (only when opening '[' matches the final ']')
+        if s.startswith("[") and s.endswith("]") and _scan_balanced_delim(s, 0, "[", "]") == len(s) - 1:
             inner = s[1:-1]
             for elem in _split_top_level_tokens(inner, (",",)):
                 if elem.strip():
@@ -3706,7 +3969,7 @@ def _extract_jsx_class_strings(expr):
             return
 
         # 8. Object literal (clsx/cn class map): keys are class names, values are boolean predicates
-        if s.startswith("{") and s.endswith("}"):
+        if s.startswith("{") and s.endswith("}") and _scan_balanced_braces(s, 0) == len(s) - 1:
             inner = s[1:-1]
             for entry in _split_top_level_tokens(inner, (",",)):
                 es = _strip_js_outer_comments_and_parens(entry)
@@ -3718,25 +3981,26 @@ def _extract_jsx_class_strings(expr):
                 kv = _split_top_level_tokens(es, (":",))
                 if len(kv) >= 2:
                     k_raw = _strip_js_outer_comments_and_parens(kv[0])
-                    if k_raw.startswith("[") and k_raw.endswith("]"):
-                        comp_k = _strip_js_outer_comments_and_parens(k_raw[1:-1])
-                        k_str = _parse_js_string_literal(comp_k)
-                        if k_str is not None:
-                            out.append(k_str)
-                        else:
-                            state["unsupported"] = True
+                    if k_raw.startswith("[") and k_raw.endswith("]") and _scan_balanced_delim(k_raw, 0, "[", "]") == len(k_raw) - 1:
+                        walk_class_expr(k_raw[1:-1])
                     else:
                         k_str = _parse_js_string_literal(k_raw)
                         if k_str is not None:
                             out.append(k_str)
                         elif k_raw.startswith("`") and _scan_template_literal_end(k_raw, 0) == len(k_raw):
-                            if not _has_dynamic_template_literal(k_raw):
+                            if _has_dynamic_template_literal(k_raw):
+                                state["dyn_tpl"] = True
+                            else:
                                 out.append(k_raw[1:-1])
                         elif TS_GENERIC_IDENT_RE.fullmatch(k_raw):
                             out.append(k_raw)
-                    # Value side (kv[1:]) is a boolean predicate (e.g. isDisabled(), a() || b()); do not extract or reject
+                        else:
+                            state["unsupported"] = True
+                    # Value side (kv[1:]) is a boolean predicate; do not extract or reject
                 elif TS_GENERIC_IDENT_RE.fullmatch(es):
                     out.append(es)
+                else:
+                    state["unsupported"] = True
             return
 
         # 9. Function / method call: callee(args)
@@ -3761,63 +4025,14 @@ def _extract_jsx_class_strings(expr):
                 state["unsupported"] = True
                 return
 
-        # 10. Static lookup / identifier / member / literal (e.g. TONE_MAP[tone], props.className, undefined)
+        # 10. Allowed leaf: falsy literal or static identifier/member bracket lookup (e.g. TONE_MAP[tone])
+        if s in ("undefined", "null", "false") or _is_static_lookup_expr(s):
+            return
+        state["unsupported"] = True
         return
 
     walk_class_expr(raw)
-    return out, False, state["unsupported"]
-
-
-def _find_unprotected_keyframes_offset(css):
-    """Return offset of first @keyframes rule not nested inside prefers-reduced-motion media, else None."""
-    sel_stack = []
-    buf = []
-    buf_start = None
-    in_sq = in_dq = False
-    i, n = 0, len(css)
-    while i < n:
-        ch = css[i]
-        if ch == "\\" and (in_sq or in_dq) and i + 1 < n:
-            if buf_start is None:
-                buf_start = i
-            buf.append(ch)
-            buf.append(css[i + 1])
-            i += 2
-            continue
-        if ch == "'" and not in_dq:
-            in_sq = not in_sq
-            if buf_start is None:
-                buf_start = i
-            buf.append(ch)
-        elif ch == '"' and not in_sq:
-            in_dq = not in_dq
-            if buf_start is None:
-                buf_start = i
-            buf.append(ch)
-        elif not in_sq and not in_dq and ch == "{":
-            sel = "".join(buf).strip()
-            sel_off = buf_start if buf_start is not None else i
-            if KEYFRAMES_RE.match(sel):
-                protected = any(
-                    NO_PREF_MOTION_MEDIA_RE.match(s.strip()) or REDUCED_MOTION_MEDIA_RE.match(s.strip())
-                    for s in sel_stack
-                )
-                if not protected:
-                    return sel_off
-            sel_stack.append(sel)
-            buf = []
-            buf_start = None
-        elif not in_sq and not in_dq and ch in (";", "}"):
-            buf = []
-            buf_start = None
-            if ch == "}" and sel_stack:
-                sel_stack.pop()
-        else:
-            if buf_start is None and not ch.isspace():
-                buf_start = i
-            buf.append(ch)
-        i += 1
-    return None
+    return out, False, state["unsupported"], state["dyn_tpl"]
 
 
 def _iter_html_opening_tags(html):
@@ -4122,28 +4337,38 @@ def check_web_lint(target, fidelity=False):
         is_jsx = ext in (".jsx", ".tsx")
         if ext == ".css":
             scan_text = text
-            no_script_text = text
             markup_no_style = text
+            html_tag_text = text
+            css_parts = [(0, scan_text)]
+            jsx_parsed = None
         elif is_jsx:
-            scan_text = _strip_markup_comments(text, is_jsx=True)
-            no_script_text = scan_text
-            markup_no_style = STYLE_TAG_RE.sub(_mask_newlines_only, no_script_text)
+            scan_text, jsx_tags, jsx_unparsed, jsx_style_spans = _scan_jsx_file(text)
+            markup_chars = list(scan_text)
+            css_parts = []
+            for st_start, body_start, body_end, st_end in jsx_style_spans:
+                _mask_range(markup_chars, st_start, st_end)
+                body_raw = scan_text[body_start:body_end]
+                b_strip = body_raw.strip()
+                if b_strip.startswith("{") and b_strip.endswith("}"):
+                    inner = b_strip[1:-1].strip()
+                    if len(inner) >= 2 and inner[0] in ("`", "'", '"') and inner[-1] == inner[0]:
+                        inner_pos = scan_text.find(inner[1:-1], body_start, body_end)
+                        css_parts.append((inner_pos if inner_pos >= 0 else body_start, inner[1:-1]))
+                    else:
+                        css_parts.append((body_start, body_raw))
+                else:
+                    css_parts.append((body_start, body_raw))
+            markup_no_style = "".join(markup_chars)
+            html_tag_text = markup_no_style
+            jsx_parsed = (jsx_tags, jsx_unparsed)
         else:
-            # HTML: mask <script> bodies first so '<!--' inside JS never swallows markup, then strip HTML comments
-            script_body_masked = SCRIPT_TAG_RE.sub(_mask_tag_body, text)
-            scan_text = _strip_markup_comments(script_body_masked, is_jsx=False)
+            scan_text, markup_no_style, html_tag_text, css_parts = _scan_html_web_lint(text)
             if TAILWIND_TAG_RE.search(scan_text):
                 has_tailwind = True
-            no_script_text = SCRIPT_TAG_RE.sub(_mask_newlines_only, scan_text)
-            markup_no_style = STYLE_TAG_RE.sub(_mask_newlines_only, no_script_text)
-        file_texts.append((rel, ext, scan_text, no_script_text, markup_no_style))
-        css_parts = []
-        if ext == ".css":
-            css_parts.append((0, scan_text))
-        else:
+            jsx_parsed = None
+        file_texts.append((rel, ext, scan_text, markup_no_style, html_tag_text, css_parts, jsx_parsed))
+        if ext != ".css":
             all_markup_chunks.append(markup_no_style)
-            for sm in STYLE_TAG_RE.finditer(no_script_text):
-                css_parts.append((sm.start(1), sm.group(1)))
         for _, css_raw in css_parts:
             css_clean = CSS_COMMENT_RE.sub(_mask_newlines_only, css_raw)
             if TAILWIND_CSS_RE.search(css_clean):
@@ -4223,14 +4448,14 @@ def check_web_lint(target, fidelity=False):
                     fix_msg,
                 )
 
-    for rel, ext, scan_text, no_script_text, markup_no_style in file_texts:
+    for rel, ext, scan_text, markup_no_style, html_tag_text, css_blocks, jsx_parsed in file_texts:
         is_jsx = ext in (".jsx", ".tsx")
 
-        # 2a-2d for JSX/TSX via recursive JSX opening-tag parser
+        # 2a-2d for JSX/TSX via single-pass recursive JSX opening-tag parser
         if is_jsx:
             if "focus-visible:" in markup_no_style:
                 has_focus_visible = True
-            jsx_tags, jsx_unparsed = _scan_jsx_tags(markup_no_style)
+            jsx_tags, jsx_unparsed = jsx_parsed
             for err_off, err_what, err_why, err_fix in jsx_unparsed:
                 add_finding("web-lint-unparsed", rel, _line_of(scan_text, err_off), err_what, err_why, err_fix)
             for tag_name, tag_start, attrs in jsx_tags:
@@ -4247,7 +4472,7 @@ def check_web_lint(target, fidelity=False):
                         if attr_kind == "string":
                             cls_strings.append(attr_val)
                         elif attr_kind == "expr":
-                            has_dyn_tpl = _has_dynamic_template_literal(attr_val)
+                            extracted, cls_malformed, cls_unsupported, has_dyn_tpl = _extract_jsx_class_strings(attr_val)
                             if has_dyn_tpl:
                                 raw_snip = f"className={{{attr_val.strip()}}}"
                                 add_finding(
@@ -4258,7 +4483,6 @@ def check_web_lint(target, fidelity=False):
                                     "dynamic template-string class names break static scanning and Tailwind extraction",
                                     f"replace {raw_snip[:50]} with a static Record<string, string> lookup map above the component (no template literal)",
                                 )
-                            extracted, cls_malformed, cls_unsupported = _extract_jsx_class_strings(attr_val)
                             cls_strings.extend(extracted)
                             if cls_malformed or (cls_unsupported and not has_dyn_tpl):
                                 raw_snip = f"className={{{attr_val.strip()}}}"
@@ -4319,8 +4543,7 @@ def check_web_lint(target, fidelity=False):
                                     f"DELETE style={{{raw_st}}} from the JSX element and use static classes or component variants (keep style={{{{ '--var': val }}}} ONLY for literal --custom-property objects)",
                                 )
         elif ext != ".css":
-            # Non-JSX HTML (.html, .htm): mask <pre>/<code> bodies and audit only real opening-tag attributes
-            html_tag_text = CODE_TAG_RE.sub(_mask_tag_body, PRE_TAG_RE.sub(_mask_tag_body, markup_no_style))
+            # Non-JSX HTML (.html, .htm): <pre>/<code> bodies already masked in single left-to-right scan
             for tag_name, tag_start, attrs in _iter_html_opening_tags(html_tag_text):
                 if tag_name in JSX_RAW_INTERACTIVE_TAGS or (tag_name == "a" and any(a[0] == "href" for a in attrs)):
                     has_interactive = True
@@ -4369,18 +4592,12 @@ def check_web_lint(target, fidelity=False):
                     break
 
         # 2e. CSS checks (no-raw-colors, no-transition-all, safe-overflow, micro-craft scale(0)/ease-in, slop gradients)
-        css_blocks = [(0, scan_text)] if ext == ".css" else [(sm.start(1), sm.group(1)) for sm in STYLE_TAG_RE.finditer(no_script_text)]
         for base_off, css_raw in css_blocks:
             css_clean = CSS_COMMENT_RE.sub(_mask_newlines_only, css_raw)
             if RESPONSIVE_MEDIA_RE.search(css_clean) or "clamp(" in css_clean or "minmax(" in css_clean:
                 has_media_or_fluid = True
             if ":focus-visible" in css_clean:
                 has_focus_visible = True
-            kf_off = _find_unprotected_keyframes_offset(css_clean)
-            if kf_off is not None:
-                has_motion = True
-                if first_motion_loc is None:
-                    first_motion_loc = (rel, _line_of(scan_text, base_off + kf_off))
             for vw_m in VW_100_RE.finditer(css_clean):
                 add_finding(
                     "safe-overflow",

@@ -2535,4 +2535,159 @@ body { background: var(--bg); color: var(--ink); }
     );
     expect(s9Unknown.length).toBe(3);
   }, 60_000);
+
+  it('covers all round-3 --web-lint regression cases (JSX child parens, fail-loud className, left-to-right HTML scan, top-level @keyframes, predicate templates, regex parens, TSX <style> strings, unclosed /*, typed var & slash modifiers)', () => {
+    // HIGH #1: JSX child text starting with '(' must not trigger TS generic params; nested components still caught while TS generics still work
+    const jsxParensTsx = join(dir, 'wl-r3-h1-jsx-parens.tsx');
+    writeFileSync(
+      jsxParensTsx,
+      `type Id = <T>(x: T) => T;
+export function Notes({ fn }: { fn: <T>(x: T) => T }) {
+  const render = <T,>(x: T) => fn(x);
+  return (
+    <div>(Note): click <Button className="bg-red-500"/>{String(render('a'))}</div>
+  );
+}
+export function OptionalNote() {
+  return <p>(Optional): <Badge className="p-[13px]"/></p>;
+}`,
+    );
+    const rH1 = runPy(['--web-lint', jsxParensTsx, '--json']);
+    expect(rH1.status).toBe(1);
+    const h1Out = JSON.parse(rH1.stdout);
+    const h1Rules = new Set(h1Out.findings.map((f: { rule: string }) => f.rule));
+    expect(h1Rules).toContain('no-restyle');
+    expect(h1Rules).toContain('no-raw-colors');
+    expect(h1Rules).toContain('no-arbitrary-values');
+    expect(h1Rules).not.toContain('web-lint-unparsed');
+
+    // HIGH #2: unhandled className forms emit web-lint-unparsed; cn(...)! and cn(...) as string unwrap and audit; TONE_MAP[tone] passes
+    const clsUnparsedTsx = join(dir, 'wl-r3-h2-unparsed.tsx');
+    writeFileSync(
+      clsUnparsedTsx,
+      `const TONE_MAP: Record<string, string> = { ok: 'text-foreground' };
+export function ClassAudit({ x, tone, idx }: { x: string; tone: string; idx: number }) {
+  return (
+    <div>
+      <span className={TONE_MAP[tone] ?? 'text-foreground'} />
+      <span className={TONE_MAP[tone]} />
+      <span className={x as string} />
+      <span className={{ ok: 'a' }[tone]} />
+      <span className={['a', 'b'][idx]} />
+      <span className={computeClasses(tone)} />
+      <span className={x} />
+      <span className={cn('bg-red-500')!} />
+      <span className={cn('bg-red-500') as string} />
+    </div>
+  );
+}`,
+    );
+    const rH2 = runPy(['--web-lint', clsUnparsedTsx, '--json']);
+    expect(rH2.status).toBe(1);
+    const h2Out = JSON.parse(rH2.stdout);
+    const h2Unparsed = h2Out.findings.filter((f: { rule: string }) => f.rule === 'web-lint-unparsed');
+    const h2Raw = h2Out.findings.filter((f: { rule: string }) => f.rule === 'no-raw-colors');
+    expect(h2Unparsed.map((f: { line: number }) => f.line)).toEqual([7, 8, 9, 10, 11]);
+    expect(h2Raw.map((f: { line: number }) => f.line)).toEqual([12, 13]);
+
+    // MEDIUM #3: HTML comment mentioning <script> without closing ends at --> and never masks following markup
+    const commentScriptHtml = join(dir, 'wl-r3-m3-comment-script.html');
+    writeFileSync(
+      commentScriptHtml,
+      `<!doctype html><html lang="en"><head><style>
+:root { --bg: #fff; --ink: #111; }
+body { background: var(--bg); color: var(--ink); }
+</style></head><body>
+<!-- mentions <script> without closing -->
+<div style="color: red">Visible violation</div>
+</body></html>`,
+    );
+    const rM3 = runPy(['--web-lint', commentScriptHtml, '--json']);
+    expect(rM3.status).toBe(1);
+    expect(JSON.parse(rM3.stdout).findings.map((f: { rule: string }) => f.rule)).toContain(
+      'no-inline-styles',
+    );
+
+    // MEDIUM #4: top-level @keyframes used only inside @media (prefers-reduced-motion: no-preference) passes
+    const topKfCss = join(dir, 'wl-r3-m4-top-keyframes.css');
+    writeFileSync(
+      topKfCss,
+      `:root { --bg: #fff; --ink: #111; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .card { animation: fade 200ms ease-out; }
+}`,
+    );
+    const rM4 = runPy(['--web-lint', topKfCss, '--json']);
+    expect(rM4.status, rM4.stdout).toBe(0);
+
+    // MEDIUM #5: template literals in predicates and clsx object-map values do NOT trigger require-static-classes
+    const predTplTsx = join(dir, 'wl-r3-m5-pred-tpl.tsx');
+    writeFileSync(
+      predTplTsx,
+      `export function PredTemplates({ id, i }: { id: string; i: number }) {
+  return (
+    <div>
+      <span className={id === \`row-\${i}\` ? 'flex' : 'grid'} />
+      <span className={clsx('flex', { 'opacity-50': id === \`row-\${i}\` })} />
+    </div>
+  );
+}`,
+    );
+    const rM5 = runPy(['--web-lint', predTplTsx, '--json']);
+    expect(rM5.status, rM5.stdout).toBe(0);
+
+    // MEDIUM #6: regex literal containing ')' inside cn(...) parses cleanly and flags no-raw-colors
+    const regexParenTsx = join(dir, 'wl-r3-m6-regex-paren.tsx');
+    writeFileSync(
+      regexParenTsx,
+      `export function RegexParen({ s }: { s: string }) {
+  return <div className={cn(/[)]/.test(s) ? 'bg-red-500' : 'flex')} />;
+}`,
+    );
+    const rM6 = runPy(['--web-lint', regexParenTsx, '--json']);
+    expect(rM6.status).toBe(1);
+    const m6Rules = new Set(JSON.parse(rM6.stdout).findings.map((f: { rule: string }) => f.rule));
+    expect(m6Rules).toContain('no-raw-colors');
+    expect(m6Rules).not.toContain('web-lint-unparsed');
+
+    // SMALL #1..#4: JS string '<style>' does not mask code; unclosed '/*' emits web-lint-unparsed;
+    // text-[length:var(--x)] passes; text-[15px]/tight and text-[15px]/2.5 fail no-arbitrary-values
+    const styleStrTsx = join(dir, 'wl-r3-s1-style-str.tsx');
+    writeFileSync(
+      styleStrTsx,
+      `export function StyleInStr() {
+  const a = 'do not use <style> tags';
+  return (
+    <div className="text-[length:var(--x)] text-[15px]/tight text-[15px]/2.5">
+      <Button className="bg-red-500">{a}</Button>
+    </div>
+  );
+}
+export const styleCloseHint = 'or </style> here';`,
+    );
+    const rS1 = runPy(['--web-lint', styleStrTsx, '--json']);
+    expect(rS1.status).toBe(1);
+    const s1Out = JSON.parse(rS1.stdout);
+    const s1Arb = s1Out.findings.filter((f: { rule: string }) => f.rule === 'no-arbitrary-values');
+    expect(s1Arb.length).toBe(2);
+    expect(s1Arb.some((f: { what: string }) => f.what.includes('length:var(--x)'))).toBe(false);
+    expect(s1Out.findings.some((f: { rule: string }) => f.rule === 'no-raw-colors')).toBe(true);
+
+    const unclosedBlockTsx = join(dir, 'wl-r3-s2-unclosed-comment.tsx');
+    writeFileSync(
+      unclosedBlockTsx,
+      `export function BrokenComment() {
+  /* forgot to close
+  return <Button className="bg-red-500">Hi</Button>;
+}`,
+    );
+    const rS2 = runPy(['--web-lint', unclosedBlockTsx, '--json']);
+    expect(rS2.status).toBe(1);
+    const s2Unp = JSON.parse(rS2.stdout).findings.find(
+      (f: { rule: string }) => f.rule === 'web-lint-unparsed',
+    );
+    expect(s2Unp).toBeTruthy();
+    expect(s2Unp.line).toBe(2);
+  }, 60_000);
 });
